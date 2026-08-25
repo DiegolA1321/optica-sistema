@@ -35,7 +35,7 @@ import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
@@ -1335,7 +1335,7 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
       )}
 
       {mostrarHistorial && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setMostrarHistorial(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setMostrarHistorial(false)}>
           <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -1489,7 +1489,7 @@ function ComparaOjo({ sigla, prev, actual }) {
       <div className="mt-2 flex items-center gap-2 font-mono text-sm">
         <span className="text-slate-500">{fmt(prev)}</span>
         <ArrowRight size={13} className="text-slate-300" />
-        <span className="font-bold" style={{ color: "#0A1420" }}>{fmt(actual)}</span>
+        <span className="font-bold" style={{ color: "#0E2B33" }}>{fmt(actual)}</span>
       </div>
       <p className="mt-0.5 text-[10px] text-slate-500">Equiv. esférico</p>
     </div>

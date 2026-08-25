@@ -5,7 +5,7 @@ import { CalendarCheck, User, Stethoscope, CalendarDays, Clock } from "lucide-re
 import { Dialog, DialogPortal, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 // Paso de confirmación explícita antes de guardar una cita, para evitar
@@ -21,7 +21,7 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
       <DialogPortal>
         <DialogPrimitive.Overlay
           className="fixed inset-0 z-[70] backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(10,20,32,0.55)" }}
+          style={{ backgroundColor: "rgba(14,43,51,0.55)" }}
         />
         <DialogPrimitive.Content
           className="fixed top-1/2 left-1/2 z-[70] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-2xl outline-none"

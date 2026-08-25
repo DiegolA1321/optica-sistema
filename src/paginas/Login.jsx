@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 
 // ─── Paleta de firma (inline para no depender de config de Tailwind) ───
-const INK = "#0A1420"       // navy profundo — hero y cierre
+const INK = "#0E2B33"       // navy profundo — hero y cierre
 const PORCELAIN = "#F7F5F0" // fondo cálido — secciones claras
 const GOLD = "#C8A24E"      // dorado — acento óptico premium, con moderación
 const CYAN = "#22D3EE"      // cian — resplandor de "claridad" del iris
@@ -54,8 +54,8 @@ function IlustracionExamen() {
         </linearGradient>
       </defs>
       {/* Paciente (silueta genérica, sin rasgos) frente al equipo de examen */}
-      <circle cx="70" cy="66" r="22" fill="#0A1420" fillOpacity="0.08" />
-      <path d="M50 118c2-22 15-34 20-34s18 12 20 34" fill="#0A1420" fillOpacity="0.08" />
+      <circle cx="70" cy="66" r="22" fill="#0E2B33" fillOpacity="0.08" />
+      <path d="M50 118c2-22 15-34 20-34s18 12 20 34" fill="#0E2B33" fillOpacity="0.08" />
       {/* Línea de visión */}
       <line x1="94" y1="66" x2="176" y2="66" stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="3 5" />
       {/* Foróptero estilizado */}
@@ -167,7 +167,7 @@ function IrisOptico() {
             <stop offset="0%" stopColor="#A5F3FC" />
             <stop offset="30%" stopColor="#38BDF8" />
             <stop offset="65%" stopColor="#2563EB" />
-            <stop offset="100%" stopColor="#0A1420" />
+            <stop offset="100%" stopColor="#0E2B33" />
           </radialGradient>
           <radialGradient id="pupila" cx="42%" cy="38%" r="65%">
             <stop offset="0%" stopColor="#0B1830" />
@@ -234,7 +234,7 @@ function IrisOptico() {
 
         {/* Pupila */}
         <circle cx="200" cy="200" r="50" fill="url(#pupila)" />
-        <circle cx="200" cy="200" r="50" fill="none" stroke="#0A1420" strokeWidth="3" />
+        <circle cx="200" cy="200" r="50" fill="none" stroke="#0E2B33" strokeWidth="3" />
         {/* Reflejo (catchlight) */}
         <circle cx="182" cy="182" r="12" fill="#ffffff" fillOpacity="0.85" />
         <circle cx="214" cy="210" r="5" fill="#ffffff" fillOpacity="0.4" />
@@ -363,7 +363,7 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
       {/* ─── NAVBAR (persistente, oscuro) ─── */}
       <header
         className="sticky top-0 z-40 flex w-full items-center justify-between border-b px-6 py-4 backdrop-blur-md md:px-12"
-        style={{ backgroundColor: "rgba(10,20,32,0.97)", borderColor: "rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "rgba(14,43,51,0.97)", borderColor: "rgba(255,255,255,0.08)" }}
       >
         <div className="flex items-center gap-3">
           <div
@@ -548,7 +548,7 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
                     >
                       {p.n}
                     </span>
-                    {i < PASOS.length - 1 && <span className="mt-1 w-px flex-1" style={{ backgroundColor: "rgba(11,18,32,0.12)" }} />}
+                    {i < PASOS.length - 1 && <span className="mt-1 w-px flex-1" style={{ backgroundColor: "rgba(14,43,51,0.12)" }} />}
                   </div>
                   <div className="pb-1">
                     <h3 className="text-base font-bold" style={{ color: INK }}>{p.titulo}</h3>
@@ -562,13 +562,13 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
           {/* Vista previa del producto (muestra, sin botón) */}
           <div className="relative">
             <div className="-rotate-1 transition-transform duration-500 hover:rotate-0">
-              <div className="overflow-hidden rounded-3xl bg-white" style={{ boxShadow: "0 40px 80px -30px rgba(11,18,32,0.35), 0 0 0 1px rgba(11,18,32,0.05)" }}>
-                <div className="flex items-center gap-2 border-b px-4 py-2.5" style={{ backgroundColor: "#f1f0ec", borderColor: "rgba(11,18,32,0.06)" }}>
+              <div className="overflow-hidden rounded-3xl bg-white" style={{ boxShadow: "0 40px 80px -30px rgba(14,43,51,0.35), 0 0 0 1px rgba(14,43,51,0.05)" }}>
+                <div className="flex items-center gap-2 border-b px-4 py-2.5" style={{ backgroundColor: "#f1f0ec", borderColor: "rgba(14,43,51,0.06)" }}>
                   <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                   <span className="ml-2 truncate text-[11px] font-medium text-slate-500">agenda · Diego Óptica</span>
-                  <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ backgroundColor: "rgba(11,18,32,0.06)", color: "#64748b" }}>
+                  <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ backgroundColor: "rgba(14,43,51,0.06)", color: "#64748b" }}>
                     Vista previa
                   </span>
                 </div>
@@ -641,7 +641,7 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
       {/* ─── MODAL DE INICIO DE SESIÓN ─── */}
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="titulo-login">
-          <div onClick={() => setMostrarModal(false)} className="absolute inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.6)" }} />
+          <div onClick={() => setMostrarModal(false)} className="absolute inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.6)" }} />
           <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-2xl sm:p-8 animate-in zoom-in-95 fade-in duration-200">
             <div className="mb-6 flex items-start justify-between">
               <div className="flex items-start gap-3">

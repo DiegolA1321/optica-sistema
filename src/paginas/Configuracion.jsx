@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus } from "lucide-react"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Interruptor tipo iOS reutilizable (mismo patrón que el de CRM.jsx)

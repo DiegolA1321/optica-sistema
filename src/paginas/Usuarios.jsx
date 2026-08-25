@@ -14,7 +14,7 @@ import {
 } from "lucide-react"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Módulos que un asistente puede o no tener habilitados — mismos ids que las
@@ -187,7 +187,7 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
 
       {/* ─── MODAL CREAR/EDITAR ─── */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={cerrarModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
           <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -277,7 +277,7 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
 
       {/* ─── MODAL ELIMINAR ─── */}
       {porEliminar != null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setPorEliminar(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setPorEliminar(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />

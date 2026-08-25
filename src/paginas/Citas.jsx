@@ -27,7 +27,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Paleta de colores por motivo — se asigna por posición en el catálogo
@@ -63,8 +63,8 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
       onClick={onClick}
       className="group flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
       style={{
-        borderColor: activo ? c.ring : "rgba(11,18,32,0.08)",
-        boxShadow: activo ? `0 0 0 3px ${c.ring}22` : "0 1px 2px rgba(11,18,32,0.04)",
+        borderColor: activo ? c.ring : "rgba(14,43,51,0.08)",
+        boxShadow: activo ? `0 0 0 3px ${c.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
       }}
     >
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-transform group-hover:scale-105" style={{ background: c.tile, color: c.tileText }}>
@@ -385,12 +385,12 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
                 <div className="flex w-14 shrink-0 flex-col items-center">
                   <div
                     className="flex w-full flex-col items-center rounded-xl border py-2"
-                    style={hoyDia ? { backgroundColor: INK, borderColor: INK, color: "#fff" } : { backgroundColor: "#fff", borderColor: "rgba(11,18,32,0.1)", color: "#334155" }}
+                    style={hoyDia ? { backgroundColor: INK, borderColor: INK, color: "#fff" } : { backgroundColor: "#fff", borderColor: "rgba(14,43,51,0.1)", color: "#334155" }}
                   >
                     <span className="text-lg font-bold leading-none">{t.diaNum}</span>
                     <span className={"mt-0.5 text-[10px] font-semibold uppercase " + (hoyDia ? "text-white/60" : "text-slate-500")}>{t.mes}</span>
                   </div>
-                  <div className="mt-2 w-px flex-1" style={{ backgroundColor: "rgba(11,18,32,0.1)" }} />
+                  <div className="mt-2 w-px flex-1" style={{ backgroundColor: "rgba(14,43,51,0.1)" }} />
                 </div>
 
                 {/* Citas del día */}
@@ -526,7 +526,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
 
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={cerrarModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -638,7 +638,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
 
       {/* ─── MODAL CANCELAR ─── */}
       {porCancelar != null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setPorCancelar(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setPorCancelar(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
@@ -659,7 +659,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
 
       {/* ─── MODAL REAGENDAR ─── */}
       {reagendando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={cerrarReagendar}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarReagendar}>
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -730,7 +730,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
 
       {/* ─── CITA REAGENDADA: ofrecer avisar al paciente ─── */}
       {reagendada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setReagendada(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setReagendada(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
               <CheckCircle2 size={24} className="text-emerald-600" />

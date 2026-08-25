@@ -34,7 +34,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
 
 // ─── Paleta de firma (consistente con todo el sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 const OD_COLOR = "#2563EB"
@@ -520,7 +520,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
 
       {/* ─── MODAL AGENDAR ─── */}
       {modalAgendar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setModalAgendar(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setModalAgendar(false)}>
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -574,7 +574,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
 
       {/* ─── MODAL CAMBIAR CONTRASEÑA ─── */}
       {modalClave && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setModalClave(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setModalClave(false)}>
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">

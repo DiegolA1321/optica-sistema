@@ -43,7 +43,7 @@ import {
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 const generarSlug = (texto) =>
@@ -1171,7 +1171,7 @@ export default function SuperadminPanel({ usuario, alSalir }) {
       {detalle && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(10,20,32,0.55)", animation: "overlay-in 150ms ease-out" }}
+          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
           onClick={() => { setDetalle(null); setRenombrando(false); setAgregarAdminAbierto(false); setAdminAEliminar(null) }}
         >
           <div
@@ -1339,7 +1339,7 @@ export default function SuperadminPanel({ usuario, alSalir }) {
       {modalAbierto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(10,20,32,0.55)", animation: "overlay-in 150ms ease-out" }}
+          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
           onClick={cerrarModal}
         >
           <div
@@ -1515,7 +1515,7 @@ export default function SuperadminPanel({ usuario, alSalir }) {
       {modalSuperadminAbierto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(10,20,32,0.55)", animation: "overlay-in 150ms ease-out" }}
+          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
           onClick={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
         >
           <div
@@ -1610,7 +1610,7 @@ export default function SuperadminPanel({ usuario, alSalir }) {
       {superadminAEliminar && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(10,20,32,0.55)", animation: "overlay-in 150ms ease-out" }}
+          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
           onClick={() => !eliminandoSuperadmin && setSuperadminAEliminar(null)}
         >
           <div

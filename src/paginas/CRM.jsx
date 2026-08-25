@@ -22,7 +22,7 @@ import {
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, obtenerReferidos } from "../utilidades/fidelizacion"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Ventana de cumpleaños: devuelve la diferencia en días si cae entre -5 y +7 (si no, null)
@@ -266,8 +266,8 @@ export default function CRM({ pacientes = [], consultas = [] }) {
                 onClick={() => setFiltro(m.filtroId)}
                 className="flex items-center justify-between rounded-2xl border bg-white p-5 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
                 style={{
-                  borderColor: activo ? m.ring : "rgba(11,18,32,0.08)",
-                  boxShadow: activo ? `0 0 0 3px ${m.ring}22` : "0 1px 2px rgba(11,18,32,0.04)",
+                  borderColor: activo ? m.ring : "rgba(14,43,51,0.08)",
+                  boxShadow: activo ? `0 0 0 3px ${m.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
                 }}
               >
                 <div>

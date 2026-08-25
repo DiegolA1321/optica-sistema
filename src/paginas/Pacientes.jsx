@@ -38,7 +38,7 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { isoAFechaLocal, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 const OD_COLOR = "#2563EB"
 const OI_COLOR = "#06b6d4"
@@ -413,8 +413,8 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
                 onClick={() => setFiltroCorreccion((prev) => (t.key === "Todos" ? "Todos" : prev === t.key ? "Todos" : t.key))}
                 className="group relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
                 style={{
-                  borderColor: activo ? t.ring : "rgba(11,18,32,0.08)",
-                  boxShadow: activo ? `0 0 0 3px ${t.ring}22` : "0 1px 2px rgba(11,18,32,0.04)",
+                  borderColor: activo ? t.ring : "rgba(14,43,51,0.08)",
+                  boxShadow: activo ? `0 0 0 3px ${t.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -681,7 +681,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
 
       {/* ─── MODAL CREAR / EDITAR ─── */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={cerrarModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -804,7 +804,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
 
       {/* ─── PACIENTE CREADO: ofrecer abrir su ficha clínica ─── */}
       {pacienteRecienCreado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setPacienteRecienCreado(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setPacienteRecienCreado(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
               <CheckCircle size={24} className="text-emerald-600" />
@@ -832,7 +832,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
 
       {/* ─── MODAL ELIMINAR ─── */}
       {pacienteAEliminar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setPacienteAEliminar(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setPacienteAEliminar(null)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
               <Trash2 size={22} />
@@ -864,7 +864,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
       )}
       {/* ─── MODAL CUENTA DE ACCESO (clave temporal) ─── */}
       {cuentaPaciente && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setCuentaPaciente(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setCuentaPaciente(null)}>
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -929,7 +929,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
 
       {/* ─── MODAL HISTORIAL CLÍNICO ─── */}
       {pacienteHistorial && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setPacienteHistorial(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setPacienteHistorial(null)}>
           <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1184,7 +1184,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
 
       {/* ─── MODAL AGENDAR CITA (desde el perfil del paciente) ─── */}
       {agendarPara && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setAgendarPara(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setAgendarPara(null)}>
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">

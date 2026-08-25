@@ -20,7 +20,7 @@ import { esHoy, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 

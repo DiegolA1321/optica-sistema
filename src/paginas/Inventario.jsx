@@ -17,7 +17,7 @@ import {
 import { esStockBajo } from "../utilidades/inventario"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 const CATEGORIAS = ["Armazones", "Accesorios"]
@@ -264,7 +264,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
             return (
               <button key={c} type="button" onClick={() => { setFiltroCategoria(c); setSoloBajo(false) }}
                 className="rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
-                style={activo ? { backgroundColor: col.fg, borderColor: col.fg, color: "#fff" } : { borderColor: "rgba(11,18,32,0.12)", color: "#64748b", backgroundColor: "#fff" }}>
+                style={activo ? { backgroundColor: col.fg, borderColor: col.fg, color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}>
                 {c}
               </button>
             )
@@ -351,7 +351,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
 
       {/* ─── MODAL AGREGAR PRODUCTO ─── */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={cerrarModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -413,7 +413,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
 
       {/* ─── MODAL EDITAR PRODUCTO ─── */}
       {editando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={cerrarEditar}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarEditar}>
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -475,7 +475,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
 
       {/* ─── MODAL ELIMINAR ─── */}
       {porEliminar != null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setPorEliminar(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setPorEliminar(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
               <Trash2 size={22} />
@@ -492,7 +492,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
 
       {/* ─── MODAL REABASTECER ─── */}
       {reabastecer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(10,20,32,0.55)" }} onClick={() => setReabastecer(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setReabastecer(null)}>
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
@@ -545,7 +545,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
 
 function ResumenCard({ icon: Icon, valor, label, tile, tileText }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4" style={{ boxShadow: "0 1px 2px rgba(11,18,32,0.04)" }}>
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4" style={{ boxShadow: "0 1px 2px rgba(14,43,51,0.04)" }}>
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: tile, color: tileText }}>
         <Icon size={20} />
       </div>

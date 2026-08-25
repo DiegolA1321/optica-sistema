@@ -21,7 +21,7 @@ import { isoAFechaLocal } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 
 // ─── Paleta de firma (consistente con el login) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const PORCELAIN = "#F7F5F0"
 const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -135,7 +135,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       {/* ─── HEADER ─── */}
       <header
         className="sticky top-0 z-30 border-b px-4 py-3.5 backdrop-blur-md sm:px-8"
-        style={{ backgroundColor: "rgba(247,245,240,0.85)", borderColor: "rgba(11,18,32,0.08)" }}
+        style={{ backgroundColor: "rgba(247,245,240,0.85)", borderColor: "rgba(14,43,51,0.08)" }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <button
@@ -243,7 +243,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
           {/* Tarjeta del formulario */}
           <div
             className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"
-            style={{ boxShadow: "0 30px 60px -30px rgba(11,18,32,0.25)" }}
+            style={{ boxShadow: "0 30px 60px -30px rgba(14,43,51,0.25)" }}
           >
             {/* PASO 1 */}
             {paso === 1 && (
@@ -483,7 +483,7 @@ function BotonPrimario({ children, onClick, disabled }) {
 function Conector({ activo }) {
   return (
     <div className="mx-2 h-0.5 flex-1 rounded-full transition-colors sm:mx-3"
-      style={{ background: activo ? GRAD : "rgba(11,18,32,0.12)" }} />
+      style={{ background: activo ? GRAD : "rgba(14,43,51,0.12)" }} />
   )
 }
 

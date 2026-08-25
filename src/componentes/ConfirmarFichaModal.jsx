@@ -3,7 +3,7 @@
 import { ClipboardCheck, User, Stethoscope, Glasses, CheckCircle2 } from "lucide-react"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0A1420"
+const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 // Paso de confirmación explícita antes de guardar una ficha clínica, para evitar
@@ -15,7 +15,7 @@ export default function ConfirmarFichaModal({ paciente, diagnostico, lenteRecome
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
-      style={{ backgroundColor: "rgba(10,20,32,0.55)" }}
+      style={{ backgroundColor: "rgba(14,43,51,0.55)" }}
       onClick={onCancelar}
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
