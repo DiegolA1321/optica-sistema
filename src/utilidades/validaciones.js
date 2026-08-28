@@ -67,3 +67,9 @@ export function esTelefonoValido(valor, opcional = true) {
   if (!valor) return opcional
   return /^\d{7,10}$/.test(valor)
 }
+
+// Formato de correo básico (no verifica que el dominio exista, solo la forma).
+export function esEmailValido(valor, opcional = true) {
+  if (!valor) return opcional
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim())
+}

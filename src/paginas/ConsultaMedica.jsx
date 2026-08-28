@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { supabase } from "../lib/supabaseClient"
 import {
   Eye,
   FileText,
@@ -68,10 +69,14 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, onPacienteInicialConsumido }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, onPacienteInicialConsumido }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Si la óptica no ofrece progresión, no tiene sentido pedir ese dato (configurable en Configuración)
   const manejaProgresion = parametrizacion?.manejaProgresion !== false
+  // Política de la óptica (Configuración > Políticas hacia el paciente) — debe
+  // regir también la receta impresa, no solo la vista web del portal
+  // (PortalPaciente.jsx ya la respeta desde antes).
+  const mostrarMedidasPaciente = parametrizacion?.mostrarMedidasPaciente === true
 
   // --- Buscador y Selección Filtrada de Pacientes ---
   // pacienteId es la fuente de verdad de la selección (igual que en Citas.jsx) —
@@ -194,6 +199,8 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
   const [bannerError, setBannerError] = useState("")
   const [fichaGuardada, setFichaGuardada] = useState(false)
   const [mostrarConfirmarGuardar, setMostrarConfirmarGuardar] = useState(false)
+  const [guardandoFicha, setGuardandoFicha] = useState(false)
+  const [errorConfirmarFicha, setErrorConfirmarFicha] = useState("")
 
   // Secciones opcionales colapsadas por defecto — lo obligatorio queda fijo y a
   // la vista, lo opcional se expande solo si se necesita (feedback del asesor).
@@ -208,6 +215,10 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
 
   // Acceso rápido al historial clínico del paciente sin salir del flujo de consulta
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
+  // Si el sistema detecta que es la primera consulta del paciente, avisa solo
+  // (feedback del asesor) en vez de dejar que pase desapercibido y se salte
+  // el registro de antecedentes.
+  const [avisoPrimeraVisita, setAvisoPrimeraVisita] = useState(false)
   const historialPaciente = useMemo(() => {
     if (!pacienteId) return []
     return historialConsultas.filter((c) => c.pacienteId === pacienteId).sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
@@ -283,6 +294,7 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
 
     setPrecargado(camposPrecargados)
     setFechaPrecarga(Object.keys(camposPrecargados).length > 0 ? prev.fecha : null)
+    setAvisoPrimeraVisita(!prev)
   }
 
   // Llega desde "¿Deseas abrir su ficha clínica ahora?" al crear un paciente en
@@ -363,14 +375,14 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
   }
 
   // Guardado real de la ficha clínica, disparado tras confirmar en el modal
-  const confirmarGuardarFicha = () => {
-    setMostrarConfirmarGuardar(false)
+  const confirmarGuardarFicha = async () => {
+    setGuardandoFicha(true)
+    setErrorConfirmarFicha("")
 
     const tendenciaGraduacion = calcularEvolucionIA
     const estadoCorreccion = estadoCorreccionActual
 
     const nuevaFicha = {
-      id: Date.now(),
       fecha: fechaConsulta,
       pacienteId,
       paciente: pacienteSeleccionado,
@@ -397,6 +409,49 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
       productoNombre: productoSeleccionado?.nombre || null,
     }
 
+    nuevaFicha.profesionalNombre = usuario?.nombre || null
+
+    if (supabase && usuario?.opticaId) {
+      const { data, error } = await supabase
+        .from("consultas")
+        .insert({
+          optica_id: usuario.opticaId,
+          paciente_id: typeof pacienteId === "string" ? pacienteId : null,
+          paciente: nuevaFicha.paciente,
+          fecha: nuevaFicha.fecha,
+          motivo: nuevaFicha.motivo,
+          usa_lentes: nuevaFicha.usaLentes === "si",
+          antecedentes: nuevaFicha.antecedentes,
+          alergias: nuevaFicha.alergias,
+          antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
+          diagnostico: nuevaFicha.diagnostico,
+          lente_recomendado: nuevaFicha.lenteRecomendado,
+          indicaciones: nuevaFicha.indicaciones,
+          proximo_control_dias: nuevaFicha.proximoControlDias,
+          evolucion_calculada: nuevaFicha.evolucionCalculada,
+          estado_correccion: nuevaFicha.estadoCorreccion,
+          producto_id: nuevaFicha.productoId,
+          producto_nombre: nuevaFicha.productoNombre,
+          profesional_nombre: nuevaFicha.profesionalNombre,
+        })
+        .select()
+        .single()
+      // Antes esto solo se registraba en consola y seguía como si hubiera
+      // guardado bien — el optómetra veía "guardado con éxito" y una receta
+      // lista para imprimir de una consulta que nunca llegó a la base de
+      // datos. Ahora se detiene y avisa, igual que cualquier otro paso.
+      if (error) {
+        setGuardandoFicha(false)
+        setErrorConfirmarFicha("No se pudo guardar la ficha clínica. Revisa tu conexión e intenta de nuevo — nada se imprimió ni se guardó todavía.")
+        return
+      }
+      if (data) nuevaFicha.id = data.id
+      const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta }).eq("id", pacienteId)
+      if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
+    }
+    if (nuevaFicha.id == null) nuevaFicha.id = Date.now()
+
     setHistorialConsultas([nuevaFicha, ...historialConsultas])
 
     if (pacientesLista.length > 0 && setPacientes) {
@@ -411,11 +466,19 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
 
     // Descuenta 1 unidad del producto vinculado — cierra el ciclo clínico → inventario
     if (productoSeleccionado && setInventario) {
+      const stockNuevo = Math.max(0, (Number(productoSeleccionado.stock) || 0) - 1)
+      if (supabase && usuario?.opticaId) {
+        supabase.from("inventario").update({ stock: stockNuevo }).eq("id", productoSeleccionado.id).then(({ error: errorStock }) => {
+          if (errorStock) console.error("La ficha se guardó, pero no se pudo descontar el stock del producto vinculado:", errorStock.message)
+        })
+      }
       setInventario(
-        inventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - 1) } : p)),
+        inventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: stockNuevo } : p)),
       )
     }
 
+    setGuardandoFicha(false)
+    setMostrarConfirmarGuardar(false)
     setNotificacion(true)
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
@@ -504,11 +567,16 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
     const clon = receta.cloneNode(true)
     clon.removeAttribute("id")
 
-    // Los inputs/textarea no se clonan con su valor: se reemplazan por texto
-    const origs = receta.querySelectorAll("input, textarea")
-    const clones = clon.querySelectorAll("input, textarea")
+    // Los inputs/textarea/select no se clonan con su valor: se reemplazan por
+    // texto — un <select> impreso tal cual se ve con flechita de dropdown,
+    // que no tiene sentido en un documento ya emitido.
+    const origs = receta.querySelectorAll("input, textarea, select")
+    const clones = clon.querySelectorAll("input, textarea, select")
     clones.forEach((el, i) => {
-      const val = (origs[i] && origs[i].value) || ""
+      const original = origs[i]
+      const val = el.tagName === "SELECT"
+        ? (original?.options[original.selectedIndex]?.text || "")
+        : (original?.value || "")
       const div = document.createElement("div")
       div.textContent = val
       div.style.cssText = "border-bottom:1px solid #cbd5e1;padding:4px 0;font-size:14px;font-weight:600;color:#0f172a;min-height:22px;"
@@ -1059,11 +1127,13 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
                           <Eye size={26} strokeWidth={2.1} />
                         </div>
                         <div>
-                          <h2 className="font-serif text-2xl font-bold leading-none tracking-tight">Diego Óptica</h2>
+                          <h2 className="font-serif text-2xl font-bold leading-none tracking-tight">{usuario?.opticaNombre || "Tu óptica"}</h2>
                           <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Salud visual &amp; optometría</p>
-                          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-                            Av. Principal 123, Manta · Ecuador &nbsp;·&nbsp; (05) 123&#8209;4567 &nbsp;·&nbsp; hola@diegooptica.com
-                          </p>
+                          {(usuario?.opticaMarca?.direccion || usuario?.opticaMarca?.telefono || usuario?.opticaMarca?.correo) && (
+                            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                              {[usuario?.opticaMarca?.direccion, usuario?.opticaMarca?.telefono, usuario?.opticaMarca?.correo].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
@@ -1234,16 +1304,32 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
                       </div>
                     )}
 
-                    <p className="print-force-color rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3.5 text-[11px] leading-relaxed text-slate-500">
-                      <span className="font-semibold text-slate-600">Medidas protegidas: </span>
-                      por política de la óptica, las medidas exactas de su graduación (esfera, cilindro, eje) no se incluyen en este documento. Si las necesita para otro proveedor, puede solicitarlas — tienen un costo adicional por la toma y entrega del examen.
-                    </p>
+                    {mostrarMedidasPaciente ? (
+                      <div className="print-force-color rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
+                            <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
+                            <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="print-force-color rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3.5 text-[11px] leading-relaxed text-slate-500">
+                        <span className="font-semibold text-slate-600">Medidas protegidas: </span>
+                        por política de la óptica, las medidas exactas de su graduación (esfera, cilindro, eje) no se incluyen en este documento. Si las necesita para otro proveedor, puede solicitarlas — tienen un costo adicional por la toma y entrega del examen.
+                      </p>
+                    )}
 
-                    <div className="no-print flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <CalendarClock size={18} className="shrink-0 text-blue-600" />
+                    <div className="print-force-color flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <CalendarClock size={18} className="no-print shrink-0 text-blue-600" />
                       <div className="flex-1">
                         <label htmlFor="proximoControl" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Próximo control recomendado</label>
-                        <p className="text-[11px] text-slate-500">Define cuándo el CRM debe avisar si el paciente no ha vuelto.</p>
+                        <p className="no-print text-[11px] text-slate-500">Define cuándo el CRM debe avisar si el paciente no ha vuelto.</p>
                       </div>
                       <select
                         id="proximoControl"
@@ -1268,7 +1354,7 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
                       </p>
                       <div className="w-52 text-center">
                         <div className="mb-2.5 border-t border-slate-400" />
-                        <p className="text-sm font-bold" style={{ color: INK }}>Optómetra Diego</p>
+                        <p className="text-sm font-bold" style={{ color: INK }}>{usuario?.nombre || "Optómetra"}</p>
                         <p className="text-[11px] text-slate-500">Reg. Prof. ____________</p>
                       </div>
                     </div>
@@ -1329,8 +1415,10 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
           diagnostico={diagnostico}
           lenteRecomendado={lenteRecomendado}
           usaLentes={usaLentes}
-          onCancelar={() => setMostrarConfirmarGuardar(false)}
+          onCancelar={() => { setMostrarConfirmarGuardar(false); setErrorConfirmarFicha("") }}
           onConfirmar={confirmarGuardarFicha}
+          guardando={guardandoFicha}
+          error={errorConfirmarFicha}
         />
       )}
 
@@ -1374,6 +1462,31 @@ export default function ConsultaMedica({ pacientes: pacientesLista = [], setPaci
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── AVISO: PRIMERA CONSULTA DEL PACIENTE (feedback del asesor) ─── */}
+      {avisoPrimeraVisita && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setAvisoPrimeraVisita(false)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-6 text-center">
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: GRAD }}>
+                <Sparkles size={22} />
+              </div>
+              <h2 className="text-lg font-bold" style={{ color: INK }}>Primera consulta de {pacienteSeleccionado}</h2>
+              <p className="mt-1.5 text-sm text-slate-500">No hay historial previo para este paciente. Completa antecedentes, alergias y antecedentes familiares antes de continuar con la refracción.</p>
+            </div>
+            <div className="border-t border-slate-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => { setAvisoPrimeraVisita(false); setTimeout(() => document.getElementById("antecedentes")?.focus(), 50) }}
+                className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                style={{ background: GRAD }}
+              >
+                Entendido, completar antecedentes
+              </button>
             </div>
           </div>
         </div>

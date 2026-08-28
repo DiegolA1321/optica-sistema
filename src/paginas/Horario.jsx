@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Info,
   AlertTriangle,
   User,
@@ -45,9 +46,11 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
   // seguía "agendado" pero esa cita ya no cabía en ningún horario real.
   const [avisoConflicto, setAvisoConflicto] = useState(null)
 
-  // Este módulo no tiene botón "Guardar": cada cambio se aplica y persiste al instante.
-  // Mostramos una confirmación visual breve para que quede claro que sí se guardó.
+  // Confirmación visual breve tras guardar (horario semanal con su botón, o
+  // una excepción puntual que sigue aplicándose al instante desde su modal).
   const [guardadoVisible, setGuardadoVisible] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState("")
+  const [guardando, setGuardando] = useState(false)
   const primerRender = useRef(true)
   useEffect(() => {
     if (primerRender.current) { primerRender.current = false; return }
@@ -56,17 +59,46 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
     return () => clearTimeout(t)
   }, [disponibilidad])
 
-  // Cada día tiene dos sesiones independientes (mañana/tarde) — activarlas o
-  // desactivarlas, o ajustar sus horas, no toca la otra sesión del mismo día.
-  const actualizarSesion = (dia, sesion, cambios) => {
-    setDisponibilidad((prev) => ({
+  // El horario semanal habitual ya NO se guarda solo al tocar un switch u
+  // hora — se edita en un borrador local y solo se aplica (persiste en
+  // Supabase) al presionar "Guardar cambios". Evita escribir en la base de
+  // datos en cada clic mientras el administrador todavía está decidiendo.
+  const [borradorHorario, setBorradorHorario] = useState(disponibilidad.horarioSemanal)
+  useEffect(() => {
+    setBorradorHorario(disponibilidad.horarioSemanal)
+  }, [disponibilidad.horarioSemanal])
+  const hayCambiosSinGuardar = useMemo(
+    () => JSON.stringify(borradorHorario) !== JSON.stringify(disponibilidad.horarioSemanal),
+    [borradorHorario, disponibilidad.horarioSemanal],
+  )
+  const actualizarBorrador = (dia, sesion, cambios) => {
+    setBorradorHorario((prev) => ({
       ...prev,
-      horarioSemanal: {
-        ...prev.horarioSemanal,
-        [dia]: { ...prev.horarioSemanal[dia], [sesion]: { ...prev.horarioSemanal[dia][sesion], ...cambios } },
-      },
+      [dia]: { ...prev[dia], [sesion]: { ...prev[dia][sesion], ...cambios } },
     }))
   }
+  const descartarCambiosHorario = () => setBorradorHorario(disponibilidad.horarioSemanal)
+
+  // Cada día del horario semanal es colapsable — por defecto solo el día de
+  // hoy aparece expandido, así los otros 6 no ocupan pantalla mientras no se
+  // están editando. Qué días quedaron abiertos se recuerda entre recargas
+  // (mismo patrón que 'optica_seccion_activa' en Dashboard.jsx).
+  const [diasAbiertos, setDiasAbiertos] = useState(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem("optica_horario_dias_abiertos"))
+      if (Array.isArray(guardado)) return new Set(guardado)
+    } catch {}
+    return new Set([DIAS_SEMANA[new Date().getDay()]])
+  })
+  useEffect(() => {
+    localStorage.setItem("optica_horario_dias_abiertos", JSON.stringify([...diasAbiertos]))
+  }, [diasAbiertos])
+  const alternarDiaAbierto = (dia) => setDiasAbiertos((prev) => {
+    const siguiente = new Set(prev)
+    if (siguiente.has(dia)) siguiente.delete(dia)
+    else siguiente.add(dia)
+    return siguiente
+  })
 
   // Citas de hoy en adelante que todavía necesitan atenderse (no canceladas del
   // sistema, no ya resueltas), agrupadas por día de la semana.
@@ -90,21 +122,34 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
     return !(dentroDeSesion(horario.manana) || dentroDeSesion(horario.tarde))
   }
 
-  // Cambiar el horario semanal de un día sólo afecta fechas que NO tengan ya
-  // una excepción puntual propia (esa excepción manda y no se toca aquí).
-  const actualizarSesionConAviso = (dia, sesion, cambios) => {
-    const horarioNuevo = {
-      ...disponibilidad.horarioSemanal[dia],
-      [sesion]: { ...disponibilidad.horarioSemanal[dia][sesion], ...cambios },
-    }
-    const afectadas = (citasActivasPorDiaSemana[dia] || [])
-      .filter((c) => !disponibilidad.excepciones?.[c.fecha])
-      .filter((c) => citaFueraDeHorario(c, horarioNuevo))
+  // Al presionar "Guardar cambios": revisa TODOS los días que cambiaron en el
+  // borrador (no solo el último tocado) contra las citas ya agendadas, y
+  // recién ahí persiste — mismo chequeo que antes hacía por cada clic, pero
+  // una sola vez para el conjunto completo de cambios pendientes.
+  const guardarHorarioSemanal = () => {
+    const afectadas = []
+    ORDEN_LV.forEach((dia) => {
+      if (JSON.stringify(borradorHorario[dia]) === JSON.stringify(disponibilidad.horarioSemanal[dia])) return
+      ;(citasActivasPorDiaSemana[dia] || [])
+        .filter((c) => !disponibilidad.excepciones?.[c.fecha])
+        .filter((c) => citaFueraDeHorario(c, borradorHorario[dia]))
+        .forEach((c) => afectadas.push(c))
+    })
     if (afectadas.length > 0) {
-      setAvisoConflicto({ citas: afectadas, aplicar: () => actualizarSesion(dia, sesion, cambios) })
+      setAvisoConflicto({ citas: afectadas, aplicar: aplicarHorarioSemanal })
       return
     }
-    actualizarSesion(dia, sesion, cambios)
+    aplicarHorarioSemanal()
+  }
+  const aplicarHorarioSemanal = async () => {
+    setGuardando(true)
+    const { error } = await setDisponibilidad((prev) => ({ ...prev, horarioSemanal: borradorHorario }))
+    setGuardando(false)
+    if (error) {
+      setErrorGuardar("No se pudo guardar el horario. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    setErrorGuardar("")
   }
 
   const dias = useMemo(() => {
@@ -173,7 +218,7 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mi horario de atención</h1>
           <p className="text-sm text-slate-500">
             Define cuándo atiendes. Pacientes y portal solo verán espacios reales, sincronizados con esto.
-            <span className="text-slate-500"> Cada cambio se guarda al instante, sin necesidad de un botón "Guardar".</span>
+            <span className="text-slate-500"> El horario semanal se guarda con el botón "Guardar cambios"; las excepciones puntuales se aplican al instante desde su propio modal.</span>
           </p>
         </div>
       </div>
@@ -193,53 +238,96 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
             <h4 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold" style={{ color: INK }}>
               <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Sun size={16} /></span>
               Horario semanal habitual
+              {hayCambiosSinGuardar && (
+                <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>
+              )}
             </h4>
             <div className="space-y-2.5">
               {ORDEN_LV.map((dia) => {
-                const d = disponibilidad.horarioSemanal[dia]
+                const d = borradorHorario[dia]
                 const abierto = diaAbierto(d)
+                const expandido = diasAbiertos.has(dia)
                 return (
-                  <div key={dia} className={"rounded-xl border p-3 transition-colors " + (abierto ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50/60")}>
-                    <p className={"mb-2.5 text-sm font-semibold " + (abierto ? "text-slate-800" : "text-slate-500")}>{ETIQUETAS_DIA[dia]}</p>
-                    <div className="space-y-2">
-                      {[["manana", "Mañana", Sun], ["tarde", "Tarde", Moon]].map(([clave, etiqueta, Icono]) => {
-                        const s = d[clave]
-                        return (
-                          <div key={clave} className="rounded-lg bg-slate-50/70 p-2">
-                            <div className="flex items-center justify-between">
-                              <span className={"flex items-center gap-1.5 text-xs font-semibold " + (s.activo ? "text-slate-700" : "text-slate-400")}>
-                                <Icono size={12} /> {etiqueta}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => actualizarSesionConAviso(dia, clave, { activo: !s.activo })}
-                                className="relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors"
-                                style={{ backgroundColor: s.activo ? "#2563EB" : "#e2e8f0" }}
-                                title={s.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
-                              >
-                                <span className={"absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform " + (s.activo ? "translate-x-[16px]" : "translate-x-0")} />
-                              </button>
-                            </div>
-                            {s.activo && (
-                              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                                <input
-                                  type="time" value={s.inicio} onChange={(e) => actualizarSesionConAviso(dia, clave, { inicio: e.target.value })}
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
-                                />
-                                <input
-                                  type="time" value={s.fin} onChange={(e) => actualizarSesionConAviso(dia, clave, { fin: e.target.value })}
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
-                                />
+                  <div key={dia} className={"overflow-hidden rounded-xl border transition-colors " + (abierto ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50/60")}>
+                    <button
+                      type="button"
+                      onClick={() => alternarDiaAbierto(dia)}
+                      aria-expanded={expandido}
+                      className="flex w-full items-center justify-between gap-2 p-3 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                    >
+                      <div className="min-w-0">
+                        <p className={"text-sm font-semibold " + (abierto ? "text-slate-800" : "text-slate-500")}>{ETIQUETAS_DIA[dia]}</p>
+                        {!expandido && <p className="mt-0.5 truncate text-xs text-slate-500">{resumenHorario(d)}</p>}
+                      </div>
+                      <ChevronDown size={16} className={"shrink-0 text-slate-400 transition-transform " + (expandido ? "rotate-180" : "")} />
+                    </button>
+                    {expandido && (
+                      <div className="space-y-2 px-3 pb-3">
+                        {[["manana", "Mañana", Sun], ["tarde", "Tarde", Moon]].map(([clave, etiqueta, Icono]) => {
+                          const s = d[clave]
+                          return (
+                            <div key={clave} className="rounded-lg bg-slate-50/70 p-2">
+                              <div className="flex items-center justify-between">
+                                <span className={"flex items-center gap-1.5 text-xs font-semibold " + (s.activo ? "text-slate-700" : "text-slate-400")}>
+                                  <Icono size={12} /> {etiqueta}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => actualizarBorrador(dia, clave, { activo: !s.activo })}
+                                  className="relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors"
+                                  style={{ backgroundColor: s.activo ? "#2563EB" : "#e2e8f0" }}
+                                  title={s.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
+                                >
+                                  <span className={"absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform " + (s.activo ? "translate-x-[16px]" : "translate-x-0")} />
+                                </button>
                               </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
+                              {s.activo && (
+                                <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                                  <input
+                                    type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
+                                  />
+                                  <input
+                                    type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
+            {errorGuardar && (
+              <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {errorGuardar}
+              </div>
+            )}
+            {hayCambiosSinGuardar && (
+              <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={descartarCambiosHorario}
+                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+                >
+                  Descartar
+                </button>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={guardarHorarioSemanal}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
+                  style={{ background: GRAD }}
+                >
+                  <CheckCircle2 size={15} /> {guardando ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

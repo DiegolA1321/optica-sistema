@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus } from "lucide-react"
+import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package } from "lucide-react"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -126,7 +126,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   )
 }
 
-export default function Configuracion({ parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos }) {
+export default function Configuracion({ parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
   const alternar = (clave) => setParametrizacion((prev) => ({ ...prev, [clave]: !prev[clave] }))
 
   return (
@@ -163,6 +163,36 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
             etiquetaOn="Visibles sin costo adicional"
             etiquetaOff="Protegidas · el paciente debe solicitarlas"
           />
+
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                {parametrizacion.permitirReagendarPaciente ? <CalendarCheck size={18} /> : <CalendarX size={18} />}
+              </span>
+              <div>
+                <p className="text-sm font-bold" style={{ color: INK }}>El paciente puede reagendar su propia cita</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Solo aplica a citas hechas por un paciente con cuenta desde su portal. Si la desactivas, tiene que escribirte para cambiar su cita.</p>
+                <p className="mt-1.5 text-[11px] font-semibold" style={{ color: parametrizacion.permitirReagendarPaciente ? "#059669" : "#94a3b8" }}>
+                  {parametrizacion.permitirReagendarPaciente ? "Permitido" : "No permitido"}
+                </p>
+                {parametrizacion.permitirReagendarPaciente && (
+                  <label className="mt-3 flex items-center gap-2 text-xs font-medium text-slate-600">
+                    Con al menos
+                    <input
+                      type="number"
+                      min={1}
+                      max={168}
+                      value={parametrizacion.horasAntesReagendar ?? 24}
+                      onChange={(e) => setParametrizacion((prev) => ({ ...prev, horasAntesReagendar: Math.max(1, Number(e.target.value) || 1) }))}
+                      className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-center font-semibold text-slate-800 outline-none focus:border-blue-500"
+                    />
+                    horas de anticipación
+                  </label>
+                )}
+              </div>
+            </div>
+            <Interruptor activo={parametrizacion.permitirReagendarPaciente} onClick={() => alternar("permitirReagendarPaciente")} />
+          </div>
         </div>
       </div>
 
@@ -201,6 +231,14 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
             items={diagnosticosRapidos}
             setItems={setDiagnosticosRapidos}
             placeholder="Ej. Ambliopía"
+          />
+          <CatalogoEditable
+            icon={Package}
+            titulo="Categorías de inventario"
+            descripcion="Organizan los productos en Inventario — se usan al registrar un producto nuevo y para filtrar la lista."
+            items={categoriasInventario}
+            setItems={setCategoriasInventario}
+            placeholder="Ej. Lentes de contacto"
           />
         </div>
       </div>

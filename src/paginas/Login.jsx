@@ -1,5 +1,7 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
+import { resumenHorarioSemanal } from "../utilidades/disponibilidad"
+import { irALegal } from "../utilidades/resolverSitio"
 import {
   Eye,
   EyeOff,
@@ -243,13 +245,90 @@ function IrisOptico() {
   )
 }
 
-export default function Login({ pacientes = [], asistentes = [], AlTenerExito = () => {}, AlIrARegistro = () => {} }) {
+export default function Login({ pacientes = [], opticaPublica = null, disponibilidad = null, soloModal = false, avisoInicial = null, AlTenerExito = () => {}, AlIrARegistro = () => {} }) {
+  // Personalización por óptica (nombre de marca, eslogan, color de acento,
+  // logo, mensaje de bienvenida, servicios) — con los valores de siempre
+  // como default para no cambiar el aspecto de la óptica de prueba mientras
+  // nadie la edite explícitamente. La columna opticas.marca trae un default
+  // no-nulo (mismo texto que el eslogan/mensaje de siempre) — comparar
+  // contra ese texto, no solo contra null, para saber si de verdad hay un
+  // valor propio o si es el default sin editar (y así conservar el efecto
+  // de dos líneas/dos colores del eslogan, y el nombreMarca en vivo del
+  // mensaje, mientras nadie los toque).
+  const ESLOGAN_DEFAULT = "Ve el mundo con claridad."
+  const esloganCrudo = opticaPublica?.marca?.eslogan || null
+  const esloganPersonalizado = esloganCrudo && esloganCrudo !== ESLOGAN_DEFAULT ? esloganCrudo : null
+  const nombreMarca = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "Tu óptica"
+  const colorAcento = opticaPublica?.marca?.colorAcento || "#2563EB"
+  const logoUrl = opticaPublica?.logo_url || null
+
+  const MENSAJE_DEFAULT = "En Diego Óptica cuidamos tu salud visual de principio a fin: examen de precisión, lentes a tu medida y un acompañamiento cercano después de tu compra."
+  // ^ este texto exacto es el valor por defecto real en la base de datos
+  // (columna opticas.marca, ver migración 0018) — se usa solo para
+  // detectar si el admin YA lo personalizó o no (línea de abajo), nunca se
+  // muestra tal cual: si nadie lo cambió, se arma la versión genérica con
+  // `nombreMarca` real un poco más abajo.
+  const mensajeCrudo = opticaPublica?.marca?.mensaje || null
+  const mensajeHero = mensajeCrudo && mensajeCrudo !== MENSAJE_DEFAULT
+    ? mensajeCrudo
+    : `En ${nombreMarca} cuidamos tu salud visual de principio a fin: examen de precisión, lentes a tu medida y un acompañamiento cercano después de tu compra.`
+
+  // Título/texto/features vienen de la personalización si existen (3
+  // tarjetas completas); ícono e ilustración se quedan fijos — son piezas
+  // visuales del sistema, no texto que un admin escriba.
+  const serviciosPersonalizados = opticaPublica?.marca?.servicios?.length === 3
+    ? SERVICIOS.map((s, i) => ({ ...s, ...opticaPublica.marca.servicios[i] }))
+    : SERVICIOS
+
+  const horarioResumen = resumenHorarioSemanal(disponibilidad?.horarioSemanal)
+
   const [usuario, setUsuario] = useState("")
   const [password, setPassword] = useState("")
   const [verPassword, setVerPassword] = useState(false)
   const [mostrarModal, setMostrarModal] = useState(false)
   const [errorLogin, setErrorLogin] = useState("")
   const [enviando, setEnviando] = useState(false)
+
+  // Ciberseguridad: si App.jsx cerró la sesión sola por inactividad, muestra
+  // el aviso aquí — y abre el modal para que se vea (en el sitio de una
+  // óptica el login vive en un modal cerrado por defecto).
+  useEffect(() => {
+    if (!avisoInicial?.texto) return
+    setErrorLogin(avisoInicial.texto)
+    if (!soloModal) setMostrarModal(true)
+  }, [avisoInicial])
+
+  // Foco atrapado + cierre con Escape (auditoría: el modal ya cerraba con
+  // click afuera, pero un usuario de teclado podía tabular fuera de la caja
+  // hacia el resto de la página, y no había forma de cerrarlo sin mouse).
+  const modalRef = useRef(null)
+  useEffect(() => {
+    if (!mostrarModal) return
+    const nodo = modalRef.current
+    const foco = nodo?.querySelector('input, button, [href], select, textarea, [tabindex]:not([tabindex="-1"])')
+    foco?.focus()
+    const alTeclear = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        setMostrarModal(false)
+        return
+      }
+      if (e.key !== "Tab" || !nodo) return
+      const focosables = nodo.querySelectorAll('input, button, [href], select, textarea, [tabindex]:not([tabindex="-1"])')
+      if (focosables.length === 0) return
+      const primero = focosables[0]
+      const ultimo = focosables[focosables.length - 1]
+      if (e.shiftKey && document.activeElement === primero) {
+        e.preventDefault()
+        ultimo.focus()
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault()
+        primero.focus()
+      }
+    }
+    document.addEventListener("keydown", alTeclear)
+    return () => document.removeEventListener("keydown", alTeclear)
+  }, [mostrarModal])
 
   const abrirLogin = () => {
     setErrorLogin("")
@@ -264,17 +343,9 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
     try {
       const u = usuario.trim().toLowerCase()
 
-      // Perfiles de asistente/secretaria: creados por el administrador desde el panel.
-      const asistente = asistentes.find((a) => a.usuario.toLowerCase() === u && a.clave === password)
-      if (asistente) {
-        AlTenerExito({ ...asistente, rol: "asistente" })
-        return
-      }
-
-      // Acceso de demostración fijo para el portal del paciente: como el
-      // sistema todavía no tiene backend, las cuentas creadas desde Pacientes
-      // solo viven en localStorage y se pierden entre navegadores/perfiles.
-      // Este acceso siempre funciona, sin depender de ese estado.
+      // Acceso de demostración fijo para el portal del paciente — siempre
+      // funciona, sin depender de ninguna cuenta real, útil para probar el
+      // portal sin tener que crear un paciente primero.
       if (u === "paciente@gmail.com" && password === "123456") {
         const demo = pacientes.find((p) => p.nombre === "María Elena Anchundia") || {
           id: 2,
@@ -288,13 +359,32 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
         return
       }
 
-      const paciente = pacientes.find(
-        (p) => p.tieneCuenta && (p.usuario || p.cedula) === usuario.trim() && p.claveTemporal === password
-      )
-
-      if (paciente) {
-        AlTenerExito({ ...paciente, rol: "paciente" })
-        return
+      // Cuentas reales de paciente: la contraseña se verifica en el servidor
+      // (función SECURITY DEFINER) — antes se comparaba contra el estado
+      // local `pacientes`, que solo tiene datos reales si un admin ya iniciió
+      // sesión antes en ese mismo navegador. Para el paciente real, en su
+      // propio dispositivo, esa comparación nunca podía funcionar.
+      if (supabase) {
+        const { data: filas } = await supabase.rpc("verificar_login_paciente", {
+          p_usuario: usuario.trim(),
+          p_clave: password,
+        })
+        const fila = filas?.[0]
+        if (fila?.bloqueado) {
+          setErrorLogin(`Demasiados intentos fallidos. Intenta de nuevo en ${fila.minutos_restantes} minuto${fila.minutos_restantes === 1 ? "" : "s"}.`)
+          setEnviando(false)
+          return
+        }
+        if (fila?.id) {
+          AlTenerExito({
+            id: fila.id, nombre: fila.nombre, cedula: fila.cedula, telefono: fila.telefono, correo: fila.correo,
+            fecha_nacimiento: fila.fecha_nacimiento, ultimaConsulta: fila.ultima_consulta, estadoClinico: fila.estado_clinico,
+            referidoPor: fila.referido_por, evolucion: fila.evolucion, estadoCorreccion: fila.estado_correccion,
+            fechaRegistro: fila.fecha_registro, tieneCuenta: fila.tiene_cuenta,
+            rol: "paciente", token: fila.sesion_token,
+          })
+          return
+        }
       }
 
       // Superadmin / admin por óptica: cuentas reales en Supabase Auth.
@@ -321,6 +411,25 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
             id: perfil.id,
             opticaId: perfil.optica_id,
             opticaNombre: optica?.nombre,
+            opticaMarca: optica?.marca || null,
+          })
+          return
+        }
+        if (perfil?.rol === "asistente") {
+          const { data: optica } = await supabase.from("opticas").select("*").eq("id", perfil.optica_id).single()
+          if (optica && !optica.activa) {
+            await supabase.auth.signOut()
+            setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
+            return
+          }
+          AlTenerExito({
+            rol: "asistente",
+            nombre: perfil.nombre,
+            id: perfil.id,
+            opticaId: perfil.optica_id,
+            opticaNombre: optica?.nombre,
+            opticaMarca: optica?.marca || null,
+            permisos: perfil.permisos || {},
           })
           return
         }
@@ -330,6 +439,120 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
     } finally {
       setEnviando(false)
     }
+  }
+
+  // Una visita por carga de página — solo para el sitio real de una óptica
+  // (no en el modo soloModal, que es el login directo del superadmin y no
+  // cuenta como visita de un cliente).
+  useEffect(() => {
+    if (!soloModal && opticaPublica?.id) {
+      supabase?.rpc('registrar_visita', { p_tipo: 'optica_publica', p_optica_id: opticaPublica.id }).then(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opticaPublica?.id])
+
+  if (soloModal) {
+    const hora = new Date().getHours()
+    const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
+
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 sm:p-8" style={{ backgroundColor: PORCELAIN }}>
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.16), transparent 70%)" }} />
+        <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(46,107,255,0.14), transparent 70%)" }} />
+
+        <div className="relative z-10 grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-[1fr_1px_1fr]">
+          {/* ─── Saludo y marca ─── */}
+          <div className="hidden flex-col items-center justify-center p-10 lg:flex xl:p-14">
+            <div className="w-40 xl:w-48">
+              <IrisOptico />
+            </div>
+            <div className="mt-6 text-center">
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
+                {saludo}
+              </span>
+              <h2 className="mt-3 font-serif text-3xl font-bold leading-tight" style={{ color: INK }}>
+                Bienvenido de nuevo
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                Desde acá gestionás cada óptica cliente, las solicitudes que llegan de la página de venta
+                y las métricas del sistema completo.
+              </p>
+            </div>
+            <div className="mt-8 flex w-full flex-col gap-3">
+              {[
+                { icon: ShieldCheck, txt: "Control total de cada óptica cliente" },
+                { icon: Activity, txt: "Métricas de visitas, leads y conversión" },
+                { icon: User, txt: "Alta de nuevas cuentas y administradores" },
+              ].map((c) => (
+                <div key={c.txt} className="flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3" style={{ backgroundColor: PORCELAIN }}>
+                  <c.icon size={17} className="shrink-0" style={{ color: "#2563EB" }} />
+                  <span className="text-sm text-slate-700">{c.txt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ─── Divisor sutil ─── */}
+          <div className="hidden bg-slate-100 lg:block" />
+
+          {/* ─── Formulario ─── */}
+          <div className="flex items-center justify-center p-6 sm:p-10">
+            <div className="w-full max-w-sm">
+              <div className="mb-8 flex items-center gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
+                <ShieldCheck size={22} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold" style={{ color: INK }}>Panel del sistema</h3>
+                <p className="text-sm text-slate-500">Acceso exclusivo del superadministrador</p>
+              </div>
+            </div>
+
+            <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
+              {errorLogin && (
+                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <X size={16} className="mt-0.5 shrink-0" />
+                  {errorLogin}
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="usuario-solo" className="text-sm font-medium text-slate-700">Correo</label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <input id="usuario-solo" type="text" autoComplete="username" required value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Tu correo"
+                    className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="password-solo" className="text-sm font-medium text-slate-700">Contraseña</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <input id="password-solo" type={verPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña"
+                    className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-11 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                  <button type="button" onClick={() => setVerPassword((v) => !v)} aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
+                    {verPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={enviando}
+                className="mt-2 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
+                {enviando ? "Entrando…" : "Entrar"}
+              </button>
+            </form>
+
+              <p className="mt-5 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400">
+                <ShieldCheck size={13} /> Conexión segura · acceso registrado
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -367,15 +590,13 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
       >
         <div className="flex items-center gap-3">
           <div
-            className="grid h-11 w-11 place-items-center rounded-xl text-white"
-            style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 8px 24px -8px rgba(34,211,238,0.6)" }}
+            className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl text-white"
+            style={{ background: `linear-gradient(135deg,#22D3EE,${colorAcento})`, boxShadow: "0 8px 24px -8px rgba(34,211,238,0.6)" }}
           >
-            <Eye size={22} strokeWidth={2.2} />
+            {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
           </div>
           <div className="leading-tight">
-            <span className="text-xl font-bold tracking-tight text-white">
-              Diego <span style={{ color: CYAN }}>Óptica</span>
-            </span>
+            <span className="text-xl font-bold tracking-tight text-white">{nombreMarca}</span>
             <p className="text-xs font-medium tracking-wide text-white/50">SALUD VISUAL &amp; CRM</p>
           </div>
         </div>
@@ -411,14 +632,17 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
             </span>
 
             <h1 className="font-serif text-5xl font-bold leading-[1.04] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: INK }}>
-              Ve el mundo
-              <br />
-              <span className="lg-focus" style={{ color: "#2563EB" }}>con claridad.</span>
+              {esloganPersonalizado ? esloganPersonalizado : (
+                <>
+                  Ve el mundo
+                  <br />
+                  <span className="lg-focus" style={{ color: colorAcento }}>con claridad.</span>
+                </>
+              )}
             </h1>
 
             <p className="lg-rise lg-d2 max-w-xl text-lg leading-relaxed text-slate-600">
-              En Diego Óptica cuidamos tu salud visual de principio a fin: examen de precisión, lentes
-              a tu medida y un acompañamiento cercano después de tu compra.
+              {mensajeHero}
             </p>
 
             <div className="lg-rise lg-d3 flex flex-col items-start gap-4">
@@ -427,7 +651,7 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
                   type="button"
                   onClick={AlIrARegistro}
                   className="group flex items-center justify-center gap-2.5 rounded-2xl px-8 py-4 text-lg font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 cursor-pointer"
-                  style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 18px 40px -12px rgba(37,99,235,0.4)" }}
+                  style={{ background: `linear-gradient(135deg,#22D3EE,${colorAcento})`, boxShadow: "0 18px 40px -12px rgba(37,99,235,0.4)" }}
                 >
                   <Calendar size={20} />
                   Solicita tu cita ahora
@@ -490,9 +714,9 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {SERVICIOS.map((s) => (
+          {serviciosPersonalizados.map((s, i) => (
             <div
-              key={s.titulo}
+              key={i}
               className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/60"
             >
               <span
@@ -567,7 +791,7 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
                   <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  <span className="ml-2 truncate text-[11px] font-medium text-slate-500">agenda · Diego Óptica</span>
+                  <span className="ml-2 truncate text-[11px] font-medium text-slate-500">agenda · {nombreMarca}</span>
                   <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ backgroundColor: "rgba(14,43,51,0.06)", color: "#64748b" }}>
                     Vista previa
                   </span>
@@ -575,9 +799,9 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
 
                 <div className="px-7 py-5 text-white" style={{ backgroundColor: INK }}>
                   <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-full text-sm font-bold" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>DO</div>
+                    <div className="grid h-10 w-10 place-items-center rounded-full text-sm font-bold" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>{nombreMarca.slice(0, 2).toUpperCase()}</div>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold">Optómetra Diego</p>
+                      <p className="text-sm font-semibold">Equipo de {nombreMarca}</p>
                       <p className="flex items-center gap-1.5 text-xs text-white/70">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Disponible hoy
                       </p>
@@ -628,7 +852,7 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
                     </div>
                     <div className="text-sm">
                       <p className="font-semibold" style={{ color: INK }}>Miércoles 14 · 10:00</p>
-                      <p className="text-xs text-slate-500">Optómetra Diego · duración 30 min</p>
+                      <p className="text-xs text-slate-500">Equipo de {nombreMarca} · duración 30 min</p>
                     </div>
                   </div>
                 </div>
@@ -642,61 +866,72 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="titulo-login">
           <div onClick={() => setMostrarModal(false)} className="absolute inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.6)" }} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-2xl sm:p-8 animate-in zoom-in-95 fade-in duration-200">
-            <div className="mb-6 flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
-                  <LogIn size={20} />
-                </div>
-                <div>
-                  <h3 id="titulo-login" className="text-xl font-bold" style={{ color: INK }}>Iniciar sesión</h3>
-                  <p className="text-sm text-slate-500">Acceso para pacientes y optómetras</p>
-                </div>
-              </div>
-              <button onClick={() => setMostrarModal(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer">
+          <div ref={modalRef} className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-2xl animate-in zoom-in-95 fade-in duration-200">
+            <div className="relative overflow-hidden px-6 pb-6 pt-6 sm:px-8" style={{ background: `linear-gradient(135deg,#0E2B33,${colorAcento})` }}>
+              <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
+              <button onClick={() => setMostrarModal(false)} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer">
                 <X size={20} />
               </button>
+              <div className="relative flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
+                  <LogIn size={22} />
+                </div>
+                <div>
+                  <h3 id="titulo-login" className="text-xl font-bold text-white">Iniciar sesión</h3>
+                  <p className="text-sm text-white/60">Un solo acceso para todo el equipo</p>
+                </div>
+              </div>
+              <div className="relative mt-4 flex flex-wrap gap-1.5">
+                {["Pacientes", "Optómetras", "Administración"].map((r) => (
+                  <span key={r} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/80">{r}</span>
+                ))}
+              </div>
             </div>
 
-            <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
-              {errorLogin && (
-                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
-                  <X size={16} className="mt-0.5 shrink-0" />
-                  {errorLogin}
+            <div className="p-6 sm:p-8">
+              <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
+                {errorLogin && (
+                  <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                    <X size={16} className="mt-0.5 shrink-0" />
+                    {errorLogin}
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="usuario" className="text-sm font-medium text-slate-700">Usuario o identificación</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input id="usuario" type="text" autoComplete="username" required value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Cédula o nombre de usuario"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
                 </div>
-              )}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="usuario" className="text-sm font-medium text-slate-700">Usuario o identificación</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input id="usuario" type="text" autoComplete="username" required value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Cédula o nombre de usuario"
-                    className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="password" className="text-sm font-medium text-slate-700">Contraseña</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input id="password" type={verPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-11 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                    <button type="button" onClick={() => setVerPassword((v) => !v)} aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
+                      {verPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="password" className="text-sm font-medium text-slate-700">Contraseña</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input id="password" type={verPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña"
-                    className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-11 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
-                  <button type="button" onClick={() => setVerPassword((v) => !v)} aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
-                    {verPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
+                <button type="submit" disabled={enviando}
+                  className="mt-2 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                  style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
+                  {enviando ? "Entrando…" : "Entrar"}
+                </button>
+              </form>
 
-              <button type="submit" disabled={enviando}
-                className="mt-2 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-                style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
-                {enviando ? "Entrando…" : "Entrar"}
-              </button>
-            </form>
-
-            <p className="mt-5 text-center text-sm leading-relaxed text-slate-500">
-              ¿No tienes cuenta? Solicítala al optómetra durante tu visita.
-            </p>
+              <p className="mt-5 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400">
+                <ShieldCheck size={13} /> Conexión segura
+              </p>
+              <p className="mt-3 text-center text-sm leading-relaxed text-slate-500">
+                ¿No tienes cuenta? Solicítala al optómetra durante tu visita.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -713,13 +948,11 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
             {/* Marca */}
             <div className="max-w-sm">
               <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
-                  <Eye size={22} strokeWidth={2.2} />
+                <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl text-white" style={{ background: `linear-gradient(135deg,#22D3EE,${colorAcento})`, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
+                  {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
                 </div>
                 <div className="leading-tight">
-                  <p className="text-lg font-bold tracking-tight text-white">
-                    Diego <span style={{ color: CYAN }}>Óptica</span>
-                  </p>
+                  <p className="text-lg font-bold tracking-tight text-white">{nombreMarca}</p>
                   <p className="text-[11px] font-medium tracking-wide text-white/40">SALUD VISUAL &amp; OPTOMETRÍA</p>
                 </div>
               </div>
@@ -746,18 +979,25 @@ export default function Login({ pacientes = [], asistentes = [], AlTenerExito = 
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Horario</p>
                 <ul className="mt-4 space-y-2.5 text-sm text-white/60">
-                  <li className="flex items-center gap-2"><Clock size={14} className="text-white/30" /> Lun a Vie · 9:00–18:00</li>
-                  <li className="flex items-center gap-2"><Clock size={14} className="text-white/30" /> Sábados · 9:00–13:00</li>
+                  {horarioResumen.length > 0 ? (
+                    horarioResumen.map((h) => (
+                      <li key={h.etiqueta} className="flex items-center gap-2">
+                        <Clock size={14} className="text-white/30" /> {h.etiqueta} · {h.horario}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="flex items-center gap-2"><Clock size={14} className="text-white/30" /> Consultá disponibilidad al reservar tu cita</li>
+                  )}
                 </ul>
               </div>
             </div>
           </div>
 
           <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-sm text-white/40 md:flex-row">
-            <p>&copy; {new Date().getFullYear()} Diego Óptica. Comprometidos con tu salud visual.</p>
+            <p>&copy; {new Date().getFullYear()} {nombreMarca}. Comprometidos con tu salud visual.</p>
             <div className="flex gap-6">
-              <span className="cursor-pointer transition-colors hover:text-white/80">Términos</span>
-              <span className="cursor-pointer transition-colors hover:text-white/80">Privacidad</span>
+              <button type="button" onClick={() => irALegal("terminos")} className="cursor-pointer transition-colors hover:text-white/80">Términos</button>
+              <button type="button" onClick={() => irALegal("privacidad")} className="cursor-pointer transition-colors hover:text-white/80">Privacidad</button>
             </div>
           </div>
         </div>

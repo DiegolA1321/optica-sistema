@@ -15,6 +15,50 @@ export const ETIQUETAS_DIA = {
   sabado: "Sábado",
 }
 
+const ORDEN_SEMANA_LABORAL = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+
+// "9:00 AM - 6:00 PM" para un día con una sola sesión, "9:00 AM - 1:00 PM y
+// 2:00 PM - 6:00 PM" si tiene mañana y tarde. null si el día está cerrado.
+function resumenSesionesDia(horario) {
+  const sesiones = [horario?.manana, horario?.tarde]
+    .filter((s) => s?.activo && s.inicio && s.fin)
+    .map((s) => `${horaA12(s.inicio)} - ${horaA12(s.fin)}`)
+  return sesiones.length ? sesiones.join(" y ") : null
+}
+
+// Agrupa el horario semanal en franjas legibles para mostrar en un footer
+// público (ej. login de la óptica) — junta días consecutivos con el mismo
+// horario ("Lunes a Viernes · 9:00 AM - 6:00 PM") en vez de listar los 7 días
+// sueltos, y omite los días cerrados.
+export function resumenHorarioSemanal(horarioSemanal) {
+  if (!horarioSemanal) return []
+  const dias = ORDEN_SEMANA_LABORAL.map((clave) => ({
+    clave,
+    etiqueta: ETIQUETAS_DIA[clave],
+    texto: resumenSesionesDia(horarioSemanal[clave]),
+  })).filter((d) => d.texto)
+
+  const grupos = []
+  for (const dia of dias) {
+    const anterior = grupos[grupos.length - 1]
+    const esConsecutivo =
+      anterior &&
+      anterior.texto === dia.texto &&
+      ORDEN_SEMANA_LABORAL.indexOf(dia.clave) === ORDEN_SEMANA_LABORAL.indexOf(anterior.clavesFin) + 1
+    if (esConsecutivo) {
+      anterior.etiquetas.push(dia.etiqueta)
+      anterior.clavesFin = dia.clave
+    } else {
+      grupos.push({ texto: dia.texto, etiquetas: [dia.etiqueta], clavesFin: dia.clave })
+    }
+  }
+
+  return grupos.map((g) => ({
+    etiqueta: g.etiquetas.length > 1 ? `${g.etiquetas[0]} a ${g.etiquetas[g.etiquetas.length - 1]}` : g.etiquetas[0],
+    horario: g.texto,
+  }))
+}
+
 export function fechaAISO(date) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, "0")

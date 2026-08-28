@@ -15,7 +15,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 //
 // Construido sobre el Dialog de shadcn/ui (Radix): agrega foco atrapado,
 // cierre con ESC y click-afuera "gratis" respecto de la versión anterior.
-export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar }) {
+export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "" }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onCancelar()}>
       <DialogPortal>
@@ -39,21 +39,27 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
             <FilaDato icon={Clock} label="Hora" valor={hora} />
           </div>
 
+          {error && (
+            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{error}</p>
+          )}
+
           <div className="mt-5 flex gap-3">
             <button
               type="button"
               onClick={onCancelar}
-              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+              disabled={guardando}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={onConfirmar}
-              className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+              disabled={guardando}
+              className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               style={{ background: GRAD }}
             >
-              Confirmar
+              {guardando ? "Guardando..." : "Confirmar"}
             </button>
           </div>
         </DialogPrimitive.Content>

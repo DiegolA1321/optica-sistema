@@ -16,6 +16,7 @@ import {
   ChevronDown,
   X,
   CalendarDays,
+  CalendarClock,
   Glasses,
   KeyRound,
   Lock,
@@ -32,6 +33,7 @@ import {
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con todo el sistema) ───
 const INK = "#0E2B33"
@@ -47,7 +49,8 @@ const OPCIONES = [
   { id: "perfil", nombre: "Mi perfil", icono: User },
 ]
 
-export default function PortalPaciente({ usuario, pacientes = [], setPacientes, citas = [], setCitas, consultas = [], disponibilidad, parametrizacion, motivosConsulta = [], onCerrarSesion }) {
+export default function PortalPaciente({ usuario, citas = [], setCitas, consultas = [], disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = [], onCerrarSesion }) {
+  const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "tu óptica"
   // Política de la óptica (configurable en Configuración > Políticas hacia el paciente)
   const mostrarMedidas = parametrizacion?.mostrarMedidasPaciente === true
   const [seccion, setSeccion] = useState("resumen")
@@ -64,13 +67,62 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
   const [exito, setExito] = useState(false)
   const [error, setError] = useState("")
   const [confirmandoCita, setConfirmandoCita] = useState(false)
+  const [guardandoCita, setGuardandoCita] = useState(false)
+  const [errorCita, setErrorCita] = useState("")
+
+  // Reagendar — solo si el admin lo habilitó en Configuración, y solo dentro
+  // de la ventana de anticipación que él mismo define (feedback del ing).
+  const [reagendando, setReagendando] = useState(null)
+  const [fechaReagenda, setFechaReagenda] = useState(null)
+  const [horaReagenda, setHoraReagenda] = useState("")
+  const [guardandoReagenda, setGuardandoReagenda] = useState(false)
+  const [errorReagenda, setErrorReagenda] = useState("")
+
+  const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 24
+  const puedeReagendar = (cita) => {
+    if (!parametrizacion?.permitirReagendarPaciente) return false
+    if (cita.estado !== "Pendiente") return false
+    const fechaHora = new Date(`${cita.fecha}T${(cita.hora || "00:00").padStart(5, "0")}:00`)
+    if (isNaN(fechaHora.getTime())) return false
+    const horasRestantes = (fechaHora.getTime() - Date.now()) / 3600000
+    return horasRestantes >= horasAntesPermitidas
+  }
+  const abrirReagendar = (cita) => {
+    setReagendando(cita)
+    setFechaReagenda(null)
+    setHoraReagenda("")
+    setErrorReagenda("")
+  }
+  const confirmarReagenda = async () => {
+    if (!fechaReagenda || !horaReagenda) { setErrorReagenda("Selecciona fecha y hora."); return }
+    setGuardandoReagenda(true)
+    setErrorReagenda("")
+    if (supabase && opticaId) {
+      const { data, error: errorRpc } = await supabase.rpc("reagendar_cita_publica", {
+        p_cita_id: reagendando.id,
+        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
+        p_fecha: fechaReagenda,
+        p_hora: horaReagenda,
+        p_token: usuario?.token,
+      })
+      if (errorRpc || data !== true) {
+        setGuardandoReagenda(false)
+        setErrorReagenda("No pudimos reagendar tu cita. Intenta de nuevo en un momento.")
+        return
+      }
+    }
+    setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, fecha: fechaReagenda, hora: horaReagenda, estado: "Pendiente" } : c)))
+    setGuardandoReagenda(false)
+    setReagendando(null)
+  }
 
   // Contraseña
   const [modalClave, setModalClave] = useState(false)
+  const [claveActual, setClaveActual] = useState("")
   const [nuevaClave, setNuevaClave] = useState("")
   const [confirmarClave, setConfirmarClave] = useState("")
   const [errorClave, setErrorClave] = useState("")
-  const [exitoClave, setExitoClave] = useState(false)
+  const [guardandoClave, setGuardandoClave] = useState(false)
 
   useEffect(() => {
     const onDown = (e) => { if (userRef.current && !userRef.current.contains(e.target)) setUserMenu(false) }
@@ -119,33 +171,79 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
     setConfirmandoCita(true)
   }
 
-  const handleAgendar = () => {
+  const handleAgendar = async () => {
     const nuevaCita = {
-      id: Date.now(),
       pacienteId: usuario?.id,
       paciente: usuario?.nombre || "Paciente Registrado",
       cedula: usuario?.cedula || "",
       telefono: usuario?.telefono || "",
       fecha, hora, motivo, estado: "Pendiente",
     }
+
+    setErrorCita("")
+    setGuardandoCita(true)
+    if (supabase && opticaId) {
+      const { data, error: errorRpc } = await supabase.rpc("crear_cita_publica", {
+        p_optica_id: opticaId,
+        p_paciente: nuevaCita.paciente,
+        p_fecha: nuevaCita.fecha,
+        p_hora: nuevaCita.hora,
+        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
+        p_cedula: nuevaCita.cedula || null,
+        p_telefono: nuevaCita.telefono || null,
+        p_motivo: nuevaCita.motivo,
+      })
+      if (errorRpc) {
+        setGuardandoCita(false)
+        setErrorCita("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+        return
+      }
+      nuevaCita.id = data
+    } else {
+      nuevaCita.id = Date.now()
+    }
+
     setCitas([nuevaCita, ...citas])
+    setGuardandoCita(false)
     setConfirmandoCita(false)
     setModalAgendar(false); setFecha(""); setHora(""); setMotivo(motivosConsulta[0] || ""); setError("")
     setExito(true); setTimeout(() => setExito(false), 4000)
   }
 
-  const handleCambiarClave = (e) => {
+  const handleCambiarClave = async (e) => {
     e.preventDefault()
-    if (nuevaClave.length < 4) { setErrorClave("La contraseña debe tener al menos 4 caracteres."); return }
+    if (!claveActual) { setErrorClave("Ingresa tu contraseña actual."); return }
+    if (nuevaClave.length < 6) { setErrorClave("La nueva contraseña debe tener al menos 6 caracteres."); return }
+    if (nuevaClave === usuario?.cedula) { setErrorClave("La nueva contraseña no puede ser tu número de cédula."); return }
     if (nuevaClave !== confirmarClave) { setErrorClave("Las contraseñas no coinciden."); return }
-    if (setPacientes) {
-      setPacientes(pacientes.map((p) =>
-        p.id === usuario?.id || (usuario?.cedula && p.cedula === usuario.cedula)
-          ? { ...p, tieneCuenta: true, claveTemporal: nuevaClave } : p,
-      ))
+
+    // Ciberseguridad: el RPC ahora exige y verifica la contraseña actual
+    // server-side (crypt()) antes de aceptar la nueva — antes bastaba con
+    // conocer el id del paciente, sin probar que quien llama es dueño de la
+    // cuenta. También repite ahí la política de contraseña (longitud,
+    // distinta de la cédula) por si alguien salta esta validación de cliente
+    // llamando al RPC directo.
+    setGuardandoClave(true)
+    if (supabase) {
+      const { data: mensajeError, error } = await supabase.rpc("cambiar_clave_paciente", {
+        p_paciente_id: usuario?.id,
+        p_clave_actual: claveActual,
+        p_clave_nueva: nuevaClave,
+      })
+      if (error || mensajeError) {
+        setGuardandoClave(false)
+        setErrorClave(mensajeError || "No pudimos guardar tu nueva contraseña. Intenta de nuevo en un momento.")
+        return
+      }
     }
-    setModalClave(false); setNuevaClave(""); setConfirmarClave(""); setErrorClave("")
-    setExitoClave(true); setTimeout(() => setExitoClave(false), 4000)
+    // El RPC invalida el token de sesión actual al cambiar la clave (fuerza
+    // a re-loguearse en todos los dispositivos) — así que este también deja
+    // de ser válido: no tiene sentido quedarse en el portal con un token
+    // muerto, mejor cerrar sesión ya mismo y que vuelva a entrar con la
+    // contraseña nueva.
+    setGuardandoClave(false)
+    setModalClave(false); setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave("")
+    onCerrarSesion("Contraseña actualizada. Vuelve a iniciar sesión con tu nueva contraseña.")
   }
 
   const navegar = (id) => { setSeccion(id); setMenuAbierto(false) }
@@ -273,7 +371,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
                     <p className="truncate text-xs text-slate-500">{usuario?.correo || usuario?.cedula || ""}</p>
                   </div>
                   <div className="p-2">
-                    <button type="button" onClick={() => { setUserMenu(false); setModalClave(true) }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+                    <button type="button" onClick={() => { setUserMenu(false); setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                       <KeyRound size={16} /> Cambiar contraseña
                     </button>
                     {onCerrarSesion && (
@@ -295,12 +393,6 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
             <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
               <CheckCircle2 className="text-emerald-600" size={20} />
               <p className="text-sm font-semibold">Tu cita ha sido agendada con éxito. ¡Te esperamos!</p>
-            </div>
-          )}
-          {exitoClave && (
-            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-              <CheckCircle2 className="text-emerald-600" size={20} />
-              <p className="text-sm font-semibold">Tu contraseña se actualizó correctamente.</p>
             </div>
           )}
 
@@ -339,7 +431,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
                     <p className="py-6 text-center text-sm text-slate-500">No tienes citas pendientes.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} />)}
+                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} />)}
                     </div>
                   )}
                 </div>
@@ -378,7 +470,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
                     <button onClick={() => setModalAgendar(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline cursor-pointer">Agendar ahora <ChevronRight size={15} /></button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} />)}</div>
+                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} />)}</div>
                 )}
               </div>
 
@@ -455,7 +547,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
                         {ultimaReceta.usaLentes && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">¿Usa lentes?</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.usaLentes === "si" ? "Sí" : "No"}</p></div>)}
                       </div>
                     )}
-                    <p className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500"><Stethoscope size={13} /> Emitida por Optómetra Diego · Diego Óptica</p>
+                    <p className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500"><Stethoscope size={13} /> Emitida por {ultimaReceta.profesionalNombre || "el equipo"} · {nombreOptica}</p>
                   </div>
                 )}
               </div>
@@ -494,7 +586,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
                   <div className="grid h-16 w-16 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: GRAD }}>{primerNombre[0]?.toUpperCase()}</div>
                   <div>
                     <h2 className="text-lg font-bold" style={{ color: INK }}>{usuario?.nombre || "Paciente"}</h2>
-                    <p className="text-sm text-slate-500">Paciente de Diego Óptica</p>
+                    <p className="text-sm text-slate-500">Paciente de {nombreOptica}</p>
                   </div>
                 </div>
 
@@ -510,7 +602,7 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
                     <p className="text-sm font-semibold" style={{ color: INK }}>Contraseña</p>
                     <p className="text-xs text-slate-500">Cámbiala cuando quieras por seguridad.</p>
                   </div>
-                  <button onClick={() => setModalClave(true)} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><KeyRound size={16} /> Cambiar contraseña</button>
+                  <button onClick={() => { setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><KeyRound size={16} /> Cambiar contraseña</button>
                 </div>
               </div>
             </div>
@@ -560,6 +652,47 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
         </div>
       )}
 
+      {/* ─── MODAL REAGENDAR ─── */}
+      {reagendando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => !guardandoReagenda && setReagendando(null)}>
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><CalendarClock size={20} /></div>
+                <div>
+                  <h3 className="text-lg font-bold" style={{ color: INK }}>Reagendar cita</h3>
+                  <p className="text-xs text-slate-500">Tenías: {etiquetaFecha(reagendando.fecha)} · {reagendando.hora}</p>
+                </div>
+              </div>
+              <button onClick={() => !guardandoReagenda && setReagendando(null)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+              {errorReagenda && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
+              <SelectorFechaHora
+                disponibilidad={disponibilidad}
+                citas={citas.filter((c) => c.id !== reagendando.id)}
+                fecha={fechaReagenda}
+                hora={horaReagenda}
+                onCambiarFecha={setFechaReagenda}
+                onCambiarHora={setHoraReagenda}
+              />
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <button type="button" disabled={guardandoReagenda} onClick={() => setReagendando(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button
+                type="button"
+                disabled={guardandoReagenda || !fechaReagenda || !horaReagenda}
+                onClick={confirmarReagenda}
+                className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}
+              >
+                {guardandoReagenda ? "Guardando..." : "Confirmar nuevo horario"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
       {confirmandoCita && (
         <ConfirmarCitaModal
@@ -569,6 +702,8 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
           hora={hora}
           onCancelar={() => setConfirmandoCita(false)}
           onConfirmar={handleAgendar}
+          guardando={guardandoCita}
+          error={errorCita}
         />
       )}
 
@@ -587,16 +722,20 @@ export default function PortalPaciente({ usuario, pacientes = [], setPacientes, 
               <p className="text-sm text-slate-500">Elige una contraseña nueva para reemplazar la temporal.</p>
               {errorClave && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
               <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-600">Contraseña actual</label>
+                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
+              </div>
+              <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="Mínimo 4 caracteres" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
+                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Confirmar contraseña</label>
                 <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la contraseña" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
               </div>
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setModalClave(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
-                <button type="submit" className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>Guardar contraseña</button>
+                <button type="button" disabled={guardandoClave} onClick={() => setModalClave(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+                <button type="submit" disabled={guardandoClave} className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>{guardandoClave ? "Guardando..." : "Guardar contraseña"}</button>
               </div>
             </form>
           </div>
@@ -620,13 +759,14 @@ function TarjetaResumen({ label, valor, sub, icon: Icon, tile, tileText }) {
   )
 }
 
-function FilaCita({ cita }) {
+function FilaCita({ cita, puedeReagendar, onReagendar }) {
   const atendida = cita.estado === "Atendida"
   const noAsistio = cita.estado === "No Asistió"
   const enAtencion = cita.estado === "En Atención"
   const resuelta = atendida || noAsistio
+  const reagendable = puedeReagendar?.(cita)
   return (
-    <div className="flex items-center justify-between py-3.5">
+    <div className="flex flex-wrap items-center justify-between gap-2 py-3.5">
       <div className="flex items-center gap-3.5">
         <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: resuelta ? "#f1f5f9" : "#eef2ff", color: resuelta ? "#64748b" : "#2563eb" }}><Calendar size={18} /></div>
         <div className="space-y-1">
@@ -637,15 +777,26 @@ function FilaCita({ cita }) {
           </div>
         </div>
       </div>
-      {atendida ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"><CheckCircle2 size={12} /> Atendida</span>
-      ) : noAsistio ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600"><AlertCircle size={12} /> No asistió</span>
-      ) : enAtencion ? (
-        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600"><Activity size={12} /> Te están atendiendo</span>
-      ) : (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Pendiente</span>
-      )}
+      <div className="flex items-center gap-2">
+        {reagendable && (
+          <button
+            type="button"
+            onClick={() => onReagendar?.(cita)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer"
+          >
+            <CalendarClock size={13} /> Reagendar
+          </button>
+        )}
+        {atendida ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"><CheckCircle2 size={12} /> Atendida</span>
+        ) : noAsistio ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600"><AlertCircle size={12} /> No asistió</span>
+        ) : enAtencion ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600"><Activity size={12} /> Te están atendiendo</span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Pendiente</span>
+        )}
+      </div>
     </div>
   )
 }

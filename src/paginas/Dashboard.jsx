@@ -21,6 +21,7 @@ import {
   BarChart3,
   ShieldCheck,
   Settings,
+  MessageSquare,
 } from "lucide-react"
 
 // Módulos del sistema
@@ -34,8 +35,11 @@ import CRM from "./CRM"
 import Reportes from "./Reportes"
 import Usuarios from "./Usuarios"
 import Configuracion from "./Configuracion"
+import Mensajes from "./Mensajes"
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
+import { diasVencido } from "../utilidades/fidelizacion"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma ───
 const INK = "#0E2B33"
@@ -53,6 +57,12 @@ const OPCIONES = [
   { id: "crm", nombre: "CRM y fidelización", icono: HeartHandshake },
   { id: "horario", nombre: "Mi horario", icono: CalendarClock },
   { id: "reportes", nombre: "Reportes", icono: BarChart3 },
+  // soloAdmin: decisión de producto, no técnica — los asistentes ya tienen
+  // cuenta real de Supabase (podrían técnicamente usar Mensajes/Usuarios/
+  // Configuración si se les diera acceso), pero se mantienen ocultos por
+  // ahora: la relación con el superadmin y la gestión del propio personal
+  // le corresponden al administrador, no al asistente.
+  { id: "mensajes", nombre: "Mensajes", icono: MessageSquare, soloAdmin: true },
   { id: "usuarios", nombre: "Usuarios y permisos", icono: ShieldCheck, soloAdmin: true },
   { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true },
 ]
@@ -77,7 +87,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, disponibilidad, setDisponibilidad, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, alSalir }) {
+export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, disponibilidad, setDisponibilidad, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -135,6 +145,25 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
     setNotifAbierta(false)
   }
 
+  // Resumen de Mensajes para la campanita — única llamada a Supabase de este
+  // archivo (el resto del Dashboard es local/localStorage). Consultas propias
+  // sin responder + avisos generales publicados en los últimos 14 días.
+  const [mensajesResumen, setMensajesResumen] = useState({ abiertas: 0, avisosRecientes: 0 })
+  useEffect(() => {
+    if (!supabase || !esAdmin || !usuario?.opticaId) return
+    let vigente = true
+    const cargar = async () => {
+      const desde14dias = new Date(Date.now() - 14 * 86400000).toISOString()
+      const [{ count: abiertas }, { count: avisosRecientes }] = await Promise.all([
+        supabase.from("mensajes").select("id", { count: "exact", head: true }).eq("optica_id", usuario.opticaId).eq("tipo", "consulta").eq("estado", "abierto"),
+        supabase.from("mensajes").select("id", { count: "exact", head: true }).eq("tipo", "anuncio").gte("created_at", desde14dias),
+      ])
+      if (vigente) setMensajesResumen({ abiertas: abiertas || 0, avisosRecientes: avisosRecientes || 0 })
+    }
+    cargar()
+    return () => { vigente = false }
+  }, [esAdmin, usuario?.opticaId, seccionActiva])
+
   // Centro de notificaciones (alertas reales del sistema)
   const alertas = useMemo(() => {
     const arr = []
@@ -143,15 +172,26 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
     })
     const citasDeHoy = citas.filter((c) => esHoy(c.fecha))
     if (citasDeHoy.length) arr.push({ icon: Calendar, color: "#2563eb", bg: "#eff6ff", texto: `${citasDeHoy.length} cita${citasDeHoy.length > 1 ? "s" : ""} para hoy`, sub: "Revisa la agenda del día", destino: "citas" })
+    if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: "Le escribiste al equipo de Diego Óptica", destino: "mensajes" })
+    if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: "Publicado por el equipo de Diego Óptica", destino: "mensajes" })
     pacientes.forEach((p) => {
       const d = diasACumple(p.fechaNacimiento || p.fecha_nacimiento)
       if (d !== null) {
         const t = d === 0 ? "cumple años hoy" : d > 0 ? `cumple en ${d} día${d > 1 ? "s" : ""}` : `cumplió hace ${Math.abs(d)} día${Math.abs(d) > 1 ? "s" : ""}`
         arr.push({ icon: Cake, color: "#b45309", bg: "#fef3c7", texto: `${p.nombre} ${t}`, sub: "Envíale un saludo desde el CRM", destino: "crm" })
       }
+      // Próximo control recién vencido (ventana de 7 días, igual que
+      // cumpleaños) — feedback del asesor: el optómetra debe enterarse solo,
+      // no ir a buscarlo a CRM. Los vencidos de hace más tiempo ya están en
+      // el bucket "Sin visitar hace tiempo" de CRM, no hace falta repetirlos
+      // aquí indefinidamente.
+      const dv = diasVencido(p, consultas)
+      if (dv !== null && dv >= 0 && dv <= 7) {
+        arr.push({ icon: CalendarClock, color: "#2563eb", bg: "#eff6ff", texto: `Control vencido: ${p.nombre}`, sub: dv === 0 ? "Vence hoy" : `Venció hace ${dv} día${dv > 1 ? "s" : ""}`, destino: "crm" })
+      }
     })
     return arr
-  }, [inventario, citas, pacientes])
+  }, [inventario, citas, pacientes, consultas, mensajesResumen])
 
   const hora = new Date().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
@@ -166,6 +206,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       case "pacientes":
         return (
           <Pacientes
+            usuario={usuario}
             setVista={navegar}
             pacientes={pacientes}
             setPacientes={setPacientes}
@@ -183,6 +224,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       case "consultas":
         return (
           <ConsultaMedica
+            usuario={usuario}
             pacientes={pacientes}
             setPacientes={setPacientes}
             consultas={consultas}
@@ -196,10 +238,11 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           />
         )
       case "inventario":
-        return <Inventario inventario={inventario} setInventario={setInventario} />
+        return <Inventario usuario={usuario} inventario={inventario} setInventario={setInventario} categorias={categoriasInventario} />
       case "citas":
         return (
           <Citas
+            usuario={usuario}
             citas={citas}
             setCitas={setCitas}
             pacientes={pacientes}
@@ -212,11 +255,13 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       case "horario":
         return <Horario disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} citas={citas} />
       case "crm":
-        return <CRM pacientes={pacientes} consultas={consultas} />
+        return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
       case "reportes":
         return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} />
+      case "mensajes":
+        return <Mensajes usuario={usuario} />
       case "usuarios":
-        return <Usuarios asistentes={asistentes} setAsistentes={setAsistentes} />
+        return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} />
       case "configuracion":
         return (
           <Configuracion
@@ -226,6 +271,8 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             setMotivosConsulta={setMotivosConsulta}
             diagnosticosRapidos={diagnosticosRapidos}
             setDiagnosticosRapidos={setDiagnosticosRapidos}
+            categoriasInventario={categoriasInventario}
+            setCategoriasInventario={setCategoriasInventario}
           />
         )
       case "inicio":
@@ -234,6 +281,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             <Inicio
               setVista={navegar}
               nombreUsuario={nombreUsuario}
+              opticaNombre={usuario?.opticaNombre}
               pacientes={pacientes}
               citas={citas}
               inventario={inventario}
@@ -247,6 +295,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               }}
             />
             <Pacientes
+              usuario={usuario}
               overlaySolo
               pacientes={pacientes}
               setPacientes={setPacientes}

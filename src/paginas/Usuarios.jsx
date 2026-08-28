@@ -11,7 +11,11 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Mail,
+  Info,
 } from "lucide-react"
+import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
+import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -32,21 +36,23 @@ const MODULOS = [
 
 const permisosPorDefecto = () => MODULOS.reduce((acc, m) => ({ ...acc, [m.id]: true }), {})
 
-export default function Usuarios({ asistentes = [], setAsistentes }) {
+export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const [modalAbierto, setModalAbierto] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
   const [nombre, setNombre] = useState("")
-  const [usuarioCampo, setUsuarioCampo] = useState("")
+  const [correo, setCorreo] = useState("")
   const [clave, setClave] = useState("")
   const [verClave, setVerClave] = useState(false)
   const [permisos, setPermisos] = useState(permisosPorDefecto())
   const [error, setError] = useState("")
+  const [guardando, setGuardando] = useState(false)
   const [porEliminar, setPorEliminar] = useState(null)
+  const [eliminando, setEliminando] = useState(false)
 
   const abrirCrear = () => {
     setEditandoId(null)
     setNombre("")
-    setUsuarioCampo("")
+    setCorreo("")
     setClave("")
     setVerClave(false)
     setPermisos(permisosPorDefecto())
@@ -57,41 +63,81 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
   const abrirEditar = (a) => {
     setEditandoId(a.id)
     setNombre(a.nombre)
-    setUsuarioCampo(a.usuario)
-    setClave(a.clave)
+    setCorreo(a.correo)
+    setClave("")
     setVerClave(false)
     setPermisos({ ...permisosPorDefecto(), ...a.permisos })
     setError("")
     setModalAbierto(true)
   }
 
-  const cerrarModal = () => setModalAbierto(false)
+  const cerrarModal = () => { if (!guardando) setModalAbierto(false) }
 
   const alternarPermiso = (id) => setPermisos((prev) => ({ ...prev, [id]: !prev[id] }))
 
-  const guardar = (e) => {
+  // Editar solo cambia nombre/permisos — correo y contraseña quedan fijos
+  // una vez creada la cuenta (son de Supabase Auth, no hay endpoint sin
+  // privilegios elevados para cambiarlos desde acá).
+  const guardar = async (e) => {
     e.preventDefault()
-    if (!nombre.trim() || !usuarioCampo.trim() || !clave.trim()) {
-      setError("Completa nombre, usuario y contraseña.")
-      return
-    }
-    const usuarioNormalizado = usuarioCampo.trim().toLowerCase()
-    const enUso = asistentes.some((a) => a.id !== editandoId && a.usuario.toLowerCase() === usuarioNormalizado)
-    if (enUso) {
-      setError("Ese usuario ya está en uso por otro perfil.")
+    setError("")
+
+    if (editandoId != null) {
+      if (!esNombreValido(nombre)) { setError("Ingresa un nombre válido (solo letras)."); return }
+      setGuardando(true)
+      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos }).eq("id", editandoId)
+      setGuardando(false)
+      if (errorUpdate) { setError(errorUpdate.message); return }
+      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos } : a)))
+      setModalAbierto(false)
       return
     }
 
-    if (editandoId != null) {
-      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), usuario: usuarioCampo.trim(), clave, permisos } : a)))
-    } else {
-      setAsistentes([...asistentes, { id: Date.now(), nombre: nombre.trim(), usuario: usuarioCampo.trim(), clave, permisos }])
+    if (!esNombreValido(nombre)) { setError("Ingresa un nombre válido (solo letras)."); return }
+    if (!esEmailValido(correo, false)) { setError("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
+    if (!clave.trim()) {
+      setError("Completa la contraseña.")
+      return
     }
+    if (clave.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres.")
+      return
+    }
+    setGuardando(true)
+    const temp = crearClienteTemporal()
+    const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: correo.trim(), password: clave })
+    if (errorAlta || !alta?.user) {
+      setGuardando(false)
+      setError(errorAlta?.message || "No se pudo crear la cuenta.")
+      return
+    }
+    // Ciberseguridad: el insert de perfiles va con la sesión del admin
+    // logueado (supabase), no con la del usuario recién creado (temp) — la
+    // policy de auto-inserción para rol='asistente' no restringe optica_id,
+    // así que insertar autenticado como el usuario nuevo dejaría a
+    // cualquiera con la anon key crear una cuenta y auto-asignarse
+    // asistente de CUALQUIER óptica llamando la API de Supabase directo, sin
+    // pasar por esta pantalla. perfiles_admin_gestiona_asistentes sí permite
+    // esto, scoped a la óptica del admin que llama.
+    const { error: errorPerfil } = await supabase
+      .from("perfiles")
+      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos })
+    await temp.auth.signOut()
+    setGuardando(false)
+    if (errorPerfil) {
+      setError(errorPerfil.message + " — la cuenta de correo ya quedó creada, contactá soporte si esto se repite.")
+      return
+    }
+    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos }])
     setModalAbierto(false)
   }
 
-  const confirmarEliminar = () => {
+  const confirmarEliminar = async () => {
     if (porEliminar == null) return
+    setEliminando(true)
+    const { error: errorDelete } = await supabase.from("perfiles").delete().eq("id", porEliminar)
+    setEliminando(false)
+    if (errorDelete) { setError(errorDelete.message); return }
     setAsistentes(asistentes.filter((a) => a.id !== porEliminar))
     setPorEliminar(null)
   }
@@ -106,7 +152,7 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
           </div>
           <div>
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Usuarios y permisos</h1>
-            <p className="text-sm text-slate-500">Crea perfiles de asistente/secretaria y define qué módulos puede ver cada uno.</p>
+            <p className="text-sm text-slate-500">Crea perfiles de asistente y define qué módulos puede ver cada uno.</p>
           </div>
         </div>
         <button
@@ -124,7 +170,7 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
         <ShieldCheck size={17} className="mt-0.5 shrink-0" />
         <p className="text-xs leading-relaxed">
-          Solo el administrador ve esta sección. Un perfil de asistente inicia sesión con el usuario y contraseña que le asignes aquí, y en su panel solo aparecen los módulos que dejes activados.
+          Solo el administrador ve esta sección. Un perfil de asistente inicia sesión con el correo y contraseña que le asignes aquí (cuenta real, funciona desde cualquier dispositivo), y en su panel solo aparecen los módulos que dejes activados.
         </p>
       </div>
 
@@ -151,7 +197,7 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-800">{a.nombre}</p>
-                        <p className="font-mono text-xs text-slate-500">{a.usuario}</p>
+                        <p className="font-mono text-xs text-slate-500">{a.correo}</p>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -213,35 +259,47 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
                   <input
-                    type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+                    type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
                     placeholder="Ej. Ana Torres"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Usuario</label>
-                    <input
-                      type="text" value={usuarioCampo} onChange={(e) => setUsuarioCampo(e.target.value)}
-                      placeholder="Ej. ana.torres"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                    />
+                {editandoId != null ? (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-600">
+                    <Info size={17} className="mt-0.5 shrink-0" />
+                    <p className="text-xs leading-relaxed">
+                      El correo y la contraseña no se pueden cambiar desde acá una vez creada la cuenta. Correo actual: <span className="font-mono font-semibold">{correo}</span>
+                    </p>
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Contraseña</label>
-                    <div className="relative">
-                      <input
-                        type={verClave ? "text" : "password"} value={clave} onChange={(e) => setClave(e.target.value)}
-                        placeholder="Contraseña de acceso"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                      />
-                      <button type="button" onClick={() => setVerClave((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
-                        {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
+                      <div className="relative">
+                        <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="email" value={correo} onChange={(e) => setCorreo(e.target.value)}
+                          placeholder="ana.torres@correo.com"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Contraseña</label>
+                      <div className="relative">
+                        <input
+                          type={verClave ? "text" : "password"} value={clave} onChange={(e) => setClave(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        />
+                        <button type="button" onClick={() => setVerClave((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
+                          {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <p className="mb-2 text-sm font-semibold text-slate-700">Módulos que puede ver</p>
@@ -263,11 +321,11 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarModal} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                <button type="button" disabled={guardando} onClick={cerrarModal} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                   Cancelar
                 </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {editandoId != null ? "Guardar cambios" : "Crear perfil"}
+                <button type="submit" disabled={guardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                  {guardando ? "Guardando..." : editandoId != null ? "Guardar cambios" : "Crear perfil"}
                 </button>
               </div>
             </form>
@@ -284,12 +342,17 @@ export default function Usuarios({ asistentes = [], setAsistentes }) {
             </div>
             <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar este perfil?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Ya no podrá iniciar sesión con estas credenciales. Esta acción no se puede deshacer.</p>
+            {error && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {error}
+              </div>
+            )}
             <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setPorEliminar(null)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setError("") }} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                 Volver
               </button>
-              <button type="button" onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">
-                Sí, eliminar
+              <button type="button" disabled={eliminando} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer disabled:opacity-50">
+                {eliminando ? "Eliminando..." : "Sí, eliminar"}
               </button>
             </div>
           </div>

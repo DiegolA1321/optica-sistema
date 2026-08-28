@@ -31,11 +31,13 @@ import {
   Activity,
   Lock,
   MoreVertical,
+  RefreshCw,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido } from "../utilidades/validaciones"
+import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const INK = "#0E2B33"
@@ -69,7 +71,8 @@ const TENDENCIA = {
   "Sin cambios": { label: "Sin cambios", icon: Minus, fg: "#64748b" },
 }
 
-export default function Pacientes({ pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica }) {
+export default function Pacientes({ usuario, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica }) {
+  const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
@@ -101,6 +104,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
   }, [menuAccionesId])
 
   const [notificacion, setNotificacion] = useState("")
+  const [bannerError, setBannerError] = useState("")
 
   // Cuenta de acceso (clave temporal)
   const [cuentaPaciente, setCuentaPaciente] = useState(null)
@@ -128,6 +132,11 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
     setTimeout(() => setNotificacion(""), 3500)
   }
 
+  const mostrarError = (texto) => {
+    setBannerError(texto)
+    setTimeout(() => setBannerError(""), 4500)
+  }
+
   // ── Cuenta de acceso del paciente ──
   const generarClave = () => "Opt-" + Math.random().toString(36).slice(2, 7).toUpperCase()
 
@@ -149,9 +158,24 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
     setTimeout(() => setCopiadoCred(false), 2000)
   }
 
-  const guardarCuenta = () => {
+  const [guardandoCuenta, setGuardandoCuenta] = useState(false)
+
+  const guardarCuenta = async () => {
     if (!cuentaPaciente) return
     const eraNueva = !cuentaPaciente.tieneCuenta
+    if (supabase && opticaId) {
+      setGuardandoCuenta(true)
+      const { error } = await supabase.rpc("establecer_clave_paciente", {
+        p_paciente_id: cuentaPaciente.id,
+        p_usuario: cuentaPaciente.cedula,
+        p_clave: claveGen,
+      })
+      setGuardandoCuenta(false)
+      if (error) {
+        mostrarNotif("No se pudo guardar la cuenta: " + error.message)
+        return
+      }
+    }
     setPacientes(
       pacientes.map((p) =>
         p.id === cuentaPaciente.id ? { ...p, tieneCuenta: true, usuario: p.cedula, claveTemporal: claveGen } : p,
@@ -178,6 +202,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
     if (!esCedulaValida(cedula)) errs.cedula = "Esa cédula no es válida — revisa los dígitos."
     else if (pacientes.some((p) => p.id !== idEditando && p.cedula === cedula)) errs.cedula = "Ya existe un paciente registrado con esa cédula."
     if (!esTelefonoValido(telefono)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos."
+    if (!esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
     return errs
   }
 
@@ -216,43 +241,69 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accionInicial])
 
-  const manejarEnvio = (e) => {
+  const manejarEnvio = async (e) => {
     e.preventDefault()
     const errs = validarFormularioPaciente()
     setErroresForm(errs)
     if (Object.keys(errs).length > 0) return
 
     if (idEditando) {
-      setPacientes(
-        pacientes.map((p) =>
-          p.id === idEditando
-            ? {
-                ...p,
-                nombre,
-                cedula,
-                telefono: telefono || "Sin Teléfono",
-                correo: correo || "Sin Correo",
-                fecha_nacimiento: fechaNacimiento || "",
-                referidoPor: referidoPor || "",
-              }
-            : p,
-        ),
-      )
-      mostrarNotif("Expediente del paciente actualizado correctamente.")
-    } else {
-      const nuevoPaciente = {
-        id: Date.now(),
+      const cambios = {
         nombre,
         cedula,
         telefono: telefono || "Sin Teléfono",
         correo: correo || "Sin Correo",
-        fecha_nacimiento: fechaNacimiento || "",
+        fecha_nacimiento: fechaNacimiento || null,
+        referidoPor: referidoPor || "",
+      }
+      if (supabase && opticaId) {
+        const { error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null }).eq("id", idEditando)
+        if (errorUpdate) {
+          mostrarError("No se pudo actualizar el expediente. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
+      }
+      setPacientes(pacientes.map((p) => (p.id === idEditando ? { ...p, ...cambios } : p)))
+      mostrarNotif("Expediente del paciente actualizado correctamente.")
+    } else {
+      const nuevoPaciente = {
+        nombre,
+        cedula,
+        telefono: telefono || "Sin Teléfono",
+        correo: correo || "Sin Correo",
+        fecha_nacimiento: fechaNacimiento || null,
         referidoPor: referidoPor || "",
         evolucion: "Sin evaluación", // Inicializa sin evaluación hasta su primera consulta médica
         ultimaConsulta: "Pendiente",
         fechaRegistro: new Date().toISOString().split("T")[0],
         estadoClinico: "Activo",
       }
+      if (supabase && opticaId) {
+        const { data, error: errorInsert } = await supabase
+          .from("pacientes")
+          .insert({
+            optica_id: opticaId,
+            nombre: nuevoPaciente.nombre,
+            cedula: nuevoPaciente.cedula,
+            telefono: nuevoPaciente.telefono,
+            correo: nuevoPaciente.correo,
+            fecha_nacimiento: nuevoPaciente.fecha_nacimiento,
+            referido_por: nuevoPaciente.referidoPor || null,
+            evolucion: nuevoPaciente.evolucion,
+            ultima_consulta: nuevoPaciente.ultimaConsulta,
+            fecha_registro: nuevoPaciente.fechaRegistro,
+            estado_clinico: nuevoPaciente.estadoClinico,
+          })
+          .select()
+          .single()
+        if (errorInsert) {
+          mostrarError("No se pudo registrar el paciente. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
+        if (data) nuevoPaciente.id = data.id
+      }
+      if (nuevoPaciente.id == null) nuevoPaciente.id = Date.now()
+
       setPacientes([nuevoPaciente, ...pacientes])
       mostrarNotif("Paciente ingresado al sistema exitosamente.")
       cerrarModal()
@@ -269,8 +320,27 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
   const perteneceAPaciente = (registro, paciente) =>
     (paciente.id != null && registro.pacienteId === paciente.id) || registro.paciente === paciente.nombre
 
-  const confirmarEliminar = () => {
+  const confirmarEliminar = async () => {
     if (!pacienteAEliminar) return
+    const citasAEliminar = citas.filter((c) => perteneceAPaciente(c, pacienteAEliminar))
+    const consultasAEliminar = consultas.filter((c) => perteneceAPaciente(c, pacienteAEliminar))
+    if (supabase && opticaId) {
+      // El FK de citas/consultas hacia pacientes es "on delete set null" (para no
+      // perder historial si un paciente se borra sin querer desde otro flujo) —
+      // acá el borrado en cascada es intencional, así que se hace explícito.
+      const idsCitas = citasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
+      const idsConsultas = consultasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
+      if (idsCitas.length) {
+        const { error: errorCitas } = await supabase.from("citas").delete().in("id", idsCitas)
+        if (errorCitas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); return }
+      }
+      if (idsConsultas.length) {
+        const { error: errorConsultas } = await supabase.from("consultas").delete().in("id", idsConsultas)
+        if (errorConsultas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); return }
+      }
+      const { error: errorPaciente } = await supabase.from("pacientes").delete().eq("id", pacienteAEliminar.id)
+      if (errorPaciente) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); return }
+    }
     setPacientes(pacientes.filter((p) => p.id !== pacienteAEliminar.id))
     setCitas?.(citas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
     setConsultas?.(consultas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
@@ -302,11 +372,10 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
     setConfirmandoCita(true)
   }
 
-  const confirmarAgendarCita = () => {
+  const confirmarAgendarCita = async () => {
     const partes = agendarPara.nombre.trim().split(" ").filter(Boolean)
     const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || "P").toUpperCase()
     const nuevaCita = {
-      id: Date.now(),
       pacienteId: agendarPara.id,
       paciente: agendarPara.nombre,
       cedula: agendarPara.cedula,
@@ -317,6 +386,25 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
       iniciales,
       estado: "Pendiente",
     }
+    if (supabase && opticaId) {
+      const { data } = await supabase
+        .from("citas")
+        .insert({
+          optica_id: opticaId,
+          paciente_id: typeof agendarPara.id === "string" ? agendarPara.id : null,
+          paciente: nuevaCita.paciente,
+          cedula: nuevaCita.cedula,
+          telefono: nuevaCita.telefono,
+          fecha: nuevaCita.fecha,
+          hora: nuevaCita.hora,
+          motivo: nuevaCita.motivo,
+          estado: nuevaCita.estado,
+        })
+        .select()
+        .single()
+      if (data) nuevaCita.id = data.id
+    }
+    if (nuevaCita.id == null) nuevaCita.id = Date.now()
     setCitas?.([...citas, nuevaCita])
     mostrarNotif(`Cita agendada para ${agendarPara.nombre}.`)
     setConfirmandoCita(false)
@@ -333,6 +421,14 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
       return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha
     })
   }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha])
+
+  // Corte de rango — evita que una lista de cientos de pacientes se renderice
+  // entera de una (feedback del ing). Se reinicia a 25 cada vez que cambian
+  // los filtros, para no dejar "Mostrar más" a medio abrir sobre resultados
+  // que ya no aplican.
+  const [cantidadVisible, setCantidadVisible] = useState(25)
+  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroEstado, filtroCorreccion, filtroFecha])
+  const pacientesVisibles = useMemo(() => pacientesFiltrados.slice(0, cantidadVisible), [pacientesFiltrados, cantidadVisible])
 
   // Conteo por estado de corrección (para el resumen superior)
   const conteoCorreccion = useMemo(() => {
@@ -363,11 +459,18 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
   }
 
   return (
-    <div className="w-full space-y-5 text-left">
+    <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
       {notificacion && (
         <div className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-900"}>
           <CheckCircle className="shrink-0 text-emerald-500" size={18} />
           <p className="text-sm font-semibold">{notificacion}</p>
+        </div>
+      )}
+
+      {bannerError && (
+        <div className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-900"}>
+          <AlertCircle className="shrink-0 text-red-500" size={18} />
+          <p className="text-sm font-semibold">{bannerError}</p>
         </div>
       )}
 
@@ -549,7 +652,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
                   </td>
                 </tr>
               ) : (
-                pacientesFiltrados.map((paciente) => {
+                pacientesVisibles.map((paciente) => {
                   const correccion = CORRECCION[paciente.estadoCorreccion] || CORRECCION["Sin evaluación"]
                   const IconoCorreccion = correccion.icon
                   const tendencia = TENDENCIA[paciente.evolucion]
@@ -670,8 +773,13 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
         </div>
 
         {pacientesFiltrados.length > 0 && (
-          <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-            Mostrando {pacientesFiltrados.length} de {pacientes.length} pacientes
+          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+            <span>Mostrando {pacientesVisibles.length} de {pacientesFiltrados.length}{pacientesFiltrados.length !== pacientes.length ? ` (de ${pacientes.length} en total)` : ""}</span>
+            {cantidadVisible < pacientesFiltrados.length && (
+              <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                Mostrar 25 más
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -760,9 +868,10 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
                     <input
                       id="p-correo" type="email" placeholder="correo@ejemplo.com"
                       value={correo} onChange={(e) => setCorreo(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.correo ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
                     />
                   </div>
+                  {erroresForm.correo && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.correo}</p>}
                 </div>
               </div>
 
@@ -899,7 +1008,7 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-base font-black" style={{ color: "#2563EB" }}>{claveGen}</span>
                     <button type="button" onClick={regenerarClave} title="Generar otra clave" className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-blue-600 cursor-pointer">
-                      <TrendingUp size={14} className="rotate-90" />
+                      <RefreshCw size={14} />
                     </button>
                   </div>
                 </div>
@@ -915,11 +1024,11 @@ export default function Pacientes({ pacientes = [], setPacientes, consultas = []
               </p>
 
               <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setCuentaPaciente(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+                <button type="button" onClick={() => setCuentaPaciente(null)} disabled={guardandoCuenta} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                   Cancelar
                 </button>
-                <button type="button" onClick={guardarCuenta} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
-                  {cuentaPaciente.tieneCuenta ? "Guardar nueva clave" : "Crear cuenta"}
+                <button type="button" onClick={guardarCuenta} disabled={guardandoCuenta} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+                  {guardandoCuenta ? "Guardando…" : cuentaPaciente.tieneCuenta ? "Guardar nueva clave" : "Crear cuenta"}
                 </button>
               </div>
             </div>

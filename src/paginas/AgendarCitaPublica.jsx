@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   User,
   Phone,
+  Mail,
   Clock,
   Check,
   Eye,
@@ -18,7 +19,8 @@ import {
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal } from "../utilidades/disponibilidad"
-import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
+import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido } from "../utilidades/validaciones"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el login) ───
 const INK = "#0E2B33"
@@ -26,13 +28,17 @@ const PORCELAIN = "#F7F5F0"
 const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad }) {
+export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica }) {
+  const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "esta óptica"
   const [paso, setPaso] = useState(1)
+  const [enviando, setEnviando] = useState(false)
+  const [errorReserva, setErrorReserva] = useState("")
 
   const [formData, setFormData] = useState({
     nombres: "",
     apellidos: "",
     telefono: "",
+    correo: "",
     motivo: "Medición y examen visual",
     fecha: null,
     hora: "",
@@ -80,7 +86,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
 
   const anteriorPaso = () => setPaso((prev) => Math.max(prev - 1, 1))
 
-  const confirmarReserva = () => {
+  const confirmarReserva = async () => {
     const codigoGenerado = `CIT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`
     const nombreCompleto = [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
     const partesNombre = nombreCompleto.split(" ").filter(Boolean)
@@ -88,19 +94,48 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       ? (partesNombre[0][0] + partesNombre[1][0]).toUpperCase()
       : (partesNombre[0]?.[0] || "P").toUpperCase()
 
+    const motivoInterno = MOTIVO_INTERNO[formData.motivo] || "Consulta General"
     const nuevaCita = {
-      id: Date.now(),
       paciente: nombreCompleto,
       telefono: formData.telefono,
       fecha: formData.fecha || "",
       hora: formData.hora,
-      motivo: MOTIVO_INTERNO[formData.motivo] || "Consulta General",
+      motivo: motivoInterno,
       motivoPublico: formData.motivo,
       iniciales,
       estado: "Pendiente",
     }
+
+    setErrorReserva("")
+    if (formData.correo && !esEmailValido(formData.correo, false)) {
+      setErrorReserva("Ese correo no es válido — corrígelo o déjalo vacío.")
+      return
+    }
+    setEnviando(true)
+    if (supabase && opticaId) {
+      const { data, error } = await supabase.rpc("crear_cita_publica", {
+        p_optica_id: opticaId,
+        p_paciente: nuevaCita.paciente,
+        p_fecha: nuevaCita.fecha,
+        p_hora: nuevaCita.hora,
+        p_telefono: nuevaCita.telefono || null,
+        p_motivo: motivoInterno,
+        p_motivo_publico: formData.motivo,
+        p_correo: formData.correo || null,
+      })
+      if (error) {
+        setEnviando(false)
+        setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+        return
+      }
+      nuevaCita.id = data
+    } else {
+      nuevaCita.id = Date.now()
+    }
+
     setCitas?.([...citas, nuevaCita])
     setFormData((prev) => ({ ...prev, codigoCita: codigoGenerado }))
+    setEnviando(false)
     setConfirmando(false)
     setPaso(3)
   }
@@ -154,7 +189,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
               <Eye size={18} />
             </div>
             <span className="font-bold tracking-tight" style={{ color: INK }}>
-              Diego Óptica
+              {nombreOptica}
             </span>
           </div>
 
@@ -202,7 +237,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                   <ResumenFila icon={User} label="Paciente" valor={nombreCompleto || null} />
                   <ResumenFila icon={CalendarDays} label="Fecha" valor={fechaTexto} />
                   <ResumenFila icon={Clock} label="Hora" valor={formData.hora || null} />
-                  <ResumenFila icon={Stethoscope} label="Profesional" valor="Optómetra Diego" />
+                  <ResumenFila icon={Stethoscope} label="Profesional" valor={`Equipo de ${nombreOptica}`} />
                 </div>
 
                 <div className="mt-7 flex flex-col gap-2.5 border-t border-white/10 pt-6">
@@ -259,10 +294,13 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                       value={formData.apellidos} onChange={(v) => setFormData({ ...formData, apellidos: filtrarSoloLetras(v) })} />
                   </div>
 
-                  <div className="mt-4">
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Campo label="Teléfono / WhatsApp" icon={Phone} type="tel" placeholder="Ej. 0991234567" maxLength={10}
                       value={formData.telefono} onChange={(v) => setFormData({ ...formData, telefono: filtrarSoloNumeros(v, 10) })} />
+                    <Campo label="Correo (opcional)" icon={Mail} type="email" placeholder="tucorreo@ejemplo.com"
+                      value={formData.correo} onChange={(v) => setFormData({ ...formData, correo: v })} />
                   </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400">Si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
                 </div>
 
                 <div>
@@ -376,7 +414,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                   <ReciboFila label="Motivo" valor={formData.motivo} />
                   <ReciboFila label="Fecha" valor={fechaTexto} />
                   <ReciboFila label="Hora" valor={formData.hora} />
-                  <ReciboFila label="Profesional" valor="Optómetra Diego" ultima />
+                  <ReciboFila label="Profesional" valor={`Equipo de ${nombreOptica}`} ultima />
                 </div>
 
                 <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
@@ -413,6 +451,8 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
           hora={formData.hora}
           onCancelar={() => setConfirmando(false)}
           onConfirmar={confirmarReserva}
+          guardando={enviando}
+          error={errorReserva}
         />
       )}
     </div>

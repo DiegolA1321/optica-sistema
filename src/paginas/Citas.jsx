@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef } from "react"
+import { supabase } from "../lib/supabaseClient"
 import {
   Calendar,
   Plus,
@@ -78,7 +79,8 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
   )
 }
 
-export default function Citas({ citas = [], setCitas, pacientes = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [] }) {
+export default function Citas({ usuario, citas = [], setCitas, pacientes = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [] }) {
+  const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   const [pacienteId, setPacienteId] = useState(null)
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
@@ -89,6 +91,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
   const [motivo, setMotivo] = useState("")
   const [guardadoExitoso, setGuardadoExitoso] = useState(false)
   const [error, setError] = useState("")
+  const [bannerError, setBannerError] = useState("")
   const [confirmando, setConfirmando] = useState(false)
 
   // Acceso directo desde "Agendar cita" en Inicio: abre este modal sin pasar
@@ -168,7 +171,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
     setConfirmando(true)
   }
 
-  const agendarCita = () => {
+  const agendarCita = async () => {
     const paciente = pacienteSeleccionado
     const partesNombre = paciente.nombre.trim().split(" ").filter(Boolean)
     const iniciales =
@@ -177,7 +180,6 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
         : partesNombre[0][0].toUpperCase()
 
     const nuevaCita = {
-      id: Date.now(),
       pacienteId: paciente.id,
       paciente: paciente.nombre,
       cedula: paciente.cedula,
@@ -188,6 +190,21 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
       iniciales: iniciales || "P",
       estado: "Pendiente",
     }
+
+    if (supabase && opticaId) {
+      const { data } = await supabase
+        .from("citas")
+        .insert({
+          optica_id: opticaId,
+          paciente_id: typeof paciente.id === "string" ? paciente.id : null,
+          paciente: nuevaCita.paciente, cedula: nuevaCita.cedula, telefono: nuevaCita.telefono,
+          fecha: nuevaCita.fecha, hora: nuevaCita.hora, motivo: nuevaCita.motivo, estado: nuevaCita.estado,
+        })
+        .select()
+        .single()
+      if (data) nuevaCita.id = data.id
+    }
+    if (nuevaCita.id == null) nuevaCita.id = Date.now()
 
     setCitas([...citas, nuevaCita])
 
@@ -209,8 +226,17 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
     setError("")
   }
 
-  const confirmarCancelacion = () => {
+  const confirmarCancelacion = async () => {
     if (porCancelar == null) return
+    if (supabase && opticaId) {
+      const { error: errorCancelar } = await supabase.from("citas").delete().eq("id", porCancelar)
+      if (errorCancelar) {
+        setBannerError("No se pudo cancelar la cita. Revisa tu conexión e intenta de nuevo.")
+        setPorCancelar(null)
+        return
+      }
+    }
+    setBannerError("")
     setCitas(citas.filter((c) => c.id !== porCancelar))
     setPorCancelar(null)
   }
@@ -219,7 +245,15 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
   // a tocar cita.estado después de crearla, así que "Atendida" se inferÍa solo
   // por si la fecha ya había pasado (una cita de hace un mes con paciente que
   // nunca llegó se contaba igual como "atendida" que una que sí se realizó).
-  const marcarEstado = (citaId, nuevoEstado) => {
+  const marcarEstado = async (citaId, nuevoEstado) => {
+    if (supabase && opticaId) {
+      const { error: errorEstado } = await supabase.from("citas").update({ estado: nuevoEstado }).eq("id", citaId)
+      if (errorEstado) {
+        setBannerError("No se pudo actualizar el estado de la cita. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+    }
+    setBannerError("")
     setCitas(citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)))
   }
 
@@ -247,7 +281,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
     setErrorReagendar("")
   }
 
-  const confirmarReagendar = (e) => {
+  const confirmarReagendar = async (e) => {
     e.preventDefault()
     if (!nuevoMotivo) {
       setErrorReagendar("Selecciona el motivo del examen.")
@@ -258,6 +292,13 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
       return
     }
     const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: "Pendiente" }
+    if (supabase && opticaId) {
+      const { error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: "Pendiente" }).eq("id", reagendando.id)
+      if (errorUpdate) {
+        setErrorReagendar("No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+    }
     setCitas(citas.map((c) => (c.id === reagendando.id ? citaActualizada : c)))
     cerrarReagendar()
     setReagendada(citaActualizada)
@@ -268,7 +309,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
     let numeroLimpio = (cita.telefono || "").replace(/\D/g, "")
     if (numeroLimpio.startsWith("0")) numeroLimpio = "593" + numeroLimpio.substring(1)
     if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) numeroLimpio = "593" + numeroLimpio
-    const texto = `Hola ${cita.paciente}, te escribimos de Diego Óptica para avisarte que tu cita fue reagendada. Nueva fecha: ${cita.fecha} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
+    const texto = `Hola ${cita.paciente}, te escribimos de ${usuario?.opticaNombre || "tu óptica"} para avisarte que tu cita fue reagendada. Nueva fecha: ${cita.fecha} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
   }
@@ -311,7 +352,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
   }
 
   return (
-    <div className="w-full space-y-6 text-left">
+    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3.5">
@@ -319,7 +360,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
             <CalendarDays size={24} />
           </div>
           <div>
-            <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Agenda de citas</h1>
+            <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Citas médicas</h1>
             <p className="text-sm text-slate-500">Planificación y control de consultas de refracción.</p>
           </div>
         </div>
@@ -346,6 +387,14 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
           <CheckCircle2 className="text-emerald-500" size={20} />
           <p className="text-sm font-semibold">Cita registrada y guardada correctamente.</p>
+        </div>
+      )}
+
+      {/* ─── ERROR (cancelar / cambiar estado / reagendar) ─── */}
+      {bannerError && (
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">
+          <AlertTriangle className="text-red-500" size={20} />
+          <p className="text-sm font-semibold">{bannerError}</p>
         </div>
       )}
 
@@ -533,7 +582,7 @@ export default function Citas({ citas = [], setCitas, pacientes = [], disponibil
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <Stethoscope size={20} />
                 </div>
-                <h4 className="text-lg font-bold" style={{ color: INK }}>Agendar turno óptico</h4>
+                <h4 className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h4>
               </div>
               <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import {
   Package,
   PlusCircle,
@@ -15,22 +15,27 @@ import {
   Pencil,
 } from "lucide-react"
 import { esStockBajo } from "../utilidades/inventario"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-const CATEGORIAS = ["Armazones", "Accesorios"]
+const CATEGORIAS_FALLBACK = ["Armazones", "Accesorios"]
 const COLOR_CAT = {
   Armazones: { fg: "#2563EB", bg: "#eff6ff" },
   Accesorios: { fg: "#7c3aed", bg: "#f5f3ff" },
 }
 const catColor = (c) => COLOR_CAT[c] || { fg: "#475569", bg: "#f1f5f9" }
 
-export default function Inventario({ inventario: productos = [], setInventario: setProductos }) {
+export default function Inventario({ usuario, inventario: productos = [], setInventario: setProductos, categorias = [] }) {
+  const opticaId = usuario?.opticaId
+  // Catálogo de categorías editable desde Configuración (feedback de la
+  // revisión total: antes era una lista fija de 2 valores en el código).
+  const CATEGORIAS = categorias.length > 0 ? categorias : CATEGORIAS_FALLBACK
   const [busqueda, setBusqueda] = useState("")
   const [nombre, setNombre] = useState("")
-  const [categoria, setCategoria] = useState("Armazones")
+  const [categoria, setCategoria] = useState(CATEGORIAS[0] || "Armazones")
   const [stock, setStock] = useState("")
   const [precio, setPrecio] = useState("")
   const [observacion, setObservacion] = useState("")
@@ -39,6 +44,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
   const [soloBajo, setSoloBajo] = useState(false)
   const [porEliminar, setPorEliminar] = useState(null)
+  const [errorEliminar, setErrorEliminar] = useState("")
   const [erroresForm, setErroresForm] = useState({})
   const [modalAbierto, setModalAbierto] = useState(false)
 
@@ -50,7 +56,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
   // Editar producto existente (nombre, categoría, stock, precio pueden variar)
   const [editando, setEditando] = useState(null)
   const [edNombre, setEdNombre] = useState("")
-  const [edCategoria, setEdCategoria] = useState("Armazones")
+  const [edCategoria, setEdCategoria] = useState(CATEGORIAS[0] || "Armazones")
   const [edStock, setEdStock] = useState("")
   const [edPrecio, setEdPrecio] = useState("")
   const [edObservacion, setEdObservacion] = useState("")
@@ -68,7 +74,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
   const abrirModal = () => { limpiarFormulario(); setModalAbierto(true) }
   const cerrarModal = () => { setModalAbierto(false); limpiarFormulario() }
 
-  const registrarProducto = (e) => {
+  const registrarProducto = async (e) => {
     e.preventDefault()
     const stockNum = parseInt(stock, 10)
     const precioNum = parseFloat(precio)
@@ -84,13 +90,22 @@ export default function Inventario({ inventario: productos = [], setInventario: 
     if (Object.keys(errs).length > 0) return
 
     const nuevo = {
-      id: Date.now(),
       nombre,
       categoria,
       stock: stockNum,
       precio: precioNum,
       observacion: observacion || "",
     }
+
+    if (supabase && opticaId) {
+      const { data, error: errorInsert } = await supabase.from("inventario").insert({ ...nuevo, optica_id: opticaId }).select().single()
+      if (errorInsert) {
+        setErroresForm({ general: "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo." })
+        return
+      }
+      if (data) nuevo.id = data.id
+    }
+    if (nuevo.id == null) nuevo.id = Date.now()
 
     setProductos([nuevo, ...productos])
     setGuardadoExitoso("Producto añadido al inventario.")
@@ -100,10 +115,18 @@ export default function Inventario({ inventario: productos = [], setInventario: 
     limpiarFormulario()
   }
 
-  const confirmarEliminar = () => {
+  const confirmarEliminar = async () => {
     if (porEliminar == null) return
+    if (supabase && opticaId) {
+      const { error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar)
+      if (errorDelete) {
+        setErrorEliminar("No se pudo eliminar el producto. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+    }
     setProductos(productos.filter((p) => p.id !== porEliminar))
     setPorEliminar(null)
+    setErrorEliminar("")
   }
 
   const abrirReabastecer = (prod) => {
@@ -112,14 +135,22 @@ export default function Inventario({ inventario: productos = [], setInventario: 
     setErrorReabastecer("")
   }
 
-  const confirmarReabastecer = (e) => {
+  const confirmarReabastecer = async (e) => {
     e.preventDefault()
     const cantidad = parseInt(cantidadReabastecer, 10)
     if (!cantidadReabastecer || isNaN(cantidad) || cantidad <= 0) {
       setErrorReabastecer("Ingresa una cantidad válida (mayor a 0).")
       return
     }
-    setProductos(productos.map((p) => (p.id === reabastecer.id ? { ...p, stock: (Number(p.stock) || 0) + cantidad } : p)))
+    const nuevoStock = (Number(reabastecer.stock) || 0) + cantidad
+    if (supabase && opticaId) {
+      const { error: errorUpdate } = await supabase.from("inventario").update({ stock: nuevoStock }).eq("id", reabastecer.id)
+      if (errorUpdate) {
+        setErrorReabastecer("No se pudo actualizar el stock. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+    }
+    setProductos(productos.map((p) => (p.id === reabastecer.id ? { ...p, stock: nuevoStock } : p)))
     setReabastecer(null)
     setGuardadoExitoso("Stock actualizado correctamente.")
     setTimeout(() => setGuardadoExitoso(""), 3000)
@@ -137,7 +168,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
 
   const cerrarEditar = () => { setEditando(null); setErroresEdicion({}) }
 
-  const guardarEdicion = (e) => {
+  const guardarEdicion = async (e) => {
     e.preventDefault()
     const stockNum = parseInt(edStock, 10)
     const precioNum = parseFloat(edPrecio)
@@ -152,14 +183,15 @@ export default function Inventario({ inventario: productos = [], setInventario: 
     setErroresEdicion(errs)
     if (Object.keys(errs).length > 0) return
 
-    setProductos(productos.map((p) => (p.id === editando.id ? {
-      ...p,
-      nombre: edNombre,
-      categoria: edCategoria,
-      stock: stockNum,
-      precio: precioNum,
-      observacion: edObservacion || "",
-    } : p)))
+    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "" }
+    if (supabase && opticaId) {
+      const { error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id)
+      if (errorUpdate) {
+        setErroresEdicion({ general: "No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo." })
+        return
+      }
+    }
+    setProductos(productos.map((p) => (p.id === editando.id ? { ...p, ...cambios } : p)))
     setEditando(null)
     setGuardadoExitoso("Cambios guardados correctamente.")
     setTimeout(() => setGuardadoExitoso(""), 3000)
@@ -173,6 +205,11 @@ export default function Inventario({ inventario: productos = [], setInventario: 
     return coincideTexto && coincideCat && coincideBajo
   })
 
+  // Corte de rango — mismo criterio que Pacientes.jsx (feedback del ing).
+  const [cantidadVisible, setCantidadVisible] = useState(25)
+  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo])
+  const productosVisibles = productosFiltrados.slice(0, cantidadVisible)
+
   // Resumen (derivado de los datos reales)
   const resumen = useMemo(() => {
     const unidades = productos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
@@ -182,7 +219,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
   }, [productos])
 
   return (
-    <div className="w-full space-y-6 text-left">
+    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3.5">
@@ -308,7 +345,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
                   </td>
                 </tr>
               ) : (
-                productosFiltrados.map((prod) => {
+                productosVisibles.map((prod) => {
                   const col = catColor(prod.categoria)
                   const bajo = esStockBajo(prod)
                   return (
@@ -347,12 +384,22 @@ export default function Inventario({ inventario: productos = [], setInventario: 
             </tbody>
           </table>
         </div>
+        {productosFiltrados.length > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+            <span>Mostrando {productosVisibles.length} de {productosFiltrados.length}</span>
+            {cantidadVisible < productosFiltrados.length && (
+              <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                Mostrar 25 más
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ─── MODAL AGREGAR PRODUCTO ─── */}
       {modalAbierto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -364,40 +411,47 @@ export default function Inventario({ inventario: productos = [], setInventario: 
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={registrarProducto} className="space-y-4 p-6">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Descripción del producto</label>
-                <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                  className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Categoría</label>
-                <select value={categoria} onChange={(e) => setCategoria(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
-                  {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={registrarProducto} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock</label>
-                  <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
-                    className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                  {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Descripción del producto</label>
+                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
+                    className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                  {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Precio ($)</label>
-                  <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
-                    className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                  {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Categoría</label>
+                  <select value={categoria} onChange={(e) => setCategoria(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
+                    {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
+                  </select>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock</label>
+                    <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
+                      className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                    {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Precio ($)</label>
+                    <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
+                      className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                    {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                  <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                </div>
+                {erroresForm.general && (
+                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <AlertTriangle size={14} /> {erroresForm.general}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                  className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
-              </div>
-              <div className="flex gap-3 border-t border-slate-100 pt-4">
+              <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
                 <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
@@ -414,7 +468,7 @@ export default function Inventario({ inventario: productos = [], setInventario: 
       {/* ─── MODAL EDITAR PRODUCTO ─── */}
       {editando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarEditar}>
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -426,40 +480,47 @@ export default function Inventario({ inventario: productos = [], setInventario: 
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={guardarEdicion} className="space-y-4 p-6">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Descripción del producto</label>
-                <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                  className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Categoría</label>
-                <select value={edCategoria} onChange={(e) => setEdCategoria(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
-                  {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={guardarEdicion} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock</label>
-                  <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)} placeholder="10"
-                    className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                  {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Descripción del producto</label>
+                  <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
+                    className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                  {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Precio ($)</label>
-                  <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
-                    className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                  {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Categoría</label>
+                  <select value={edCategoria} onChange={(e) => setEdCategoria(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
+                    {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
+                  </select>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock</label>
+                    <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)} placeholder="10"
+                      className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                    {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Precio ($)</label>
+                    <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
+                      className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                    {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                  <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                </div>
+                {erroresEdicion.general && (
+                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <AlertTriangle size={14} /> {erroresEdicion.general}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                  className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
-              </div>
-              <div className="flex gap-3 border-t border-slate-100 pt-4">
+              <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
                 <button type="button" onClick={cerrarEditar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
@@ -482,8 +543,13 @@ export default function Inventario({ inventario: productos = [], setInventario: 
             </div>
             <h2 className="text-lg font-bold" style={{ color: INK }}>Eliminar producto</h2>
             <p className="mt-1.5 text-sm text-slate-500">¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer.</p>
+            {errorEliminar && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {errorEliminar}
+              </div>
+            )}
             <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setPorEliminar(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
               <button type="button" onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">Eliminar</button>
             </div>
           </div>

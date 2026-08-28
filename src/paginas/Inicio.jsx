@@ -33,6 +33,7 @@ export default function Inicio({
   onAbrirPaciente,
   onAgendarRapido,
   nombreUsuario = "Diego",
+  opticaNombre,
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
   const [busqueda, setBusqueda] = useState("")
@@ -95,7 +96,7 @@ export default function Inicio({
     if (!celular) return
     const numLimpio = celular.toString().replace(/\D/g, "")
     const mensaje = encodeURIComponent(
-      `¡Hola, ${nombre}! Te saludamos de parte de Diego Óptica. Queremos desearte un feliz cumpleaños. Por ser tu mes especial, cuentas con un examen de control visual de cortesía.`
+      `¡Hola, ${nombre}! Te saludamos de parte de ${opticaNombre || "tu óptica"}. Queremos desearte un feliz cumpleaños. Por ser tu mes especial, cuentas con un examen de control visual de cortesía.`
     )
     window.open(`https://wa.me/${numLimpio}?text=${mensaje}`, "_blank")
   }
@@ -220,7 +221,7 @@ export default function Inicio({
 
       {/* ─── OPCIONES RÁPIDAS (arriba, para que "rápida" signifique algo) ─── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <AccionRapida icon={Calendar} titulo="Agendar cita" desc="Abre el turno directo, sin pasos extra" onClick={() => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas"))} />
+        <AccionRapida icon={Calendar} titulo="Agendar cita" desc="Abre el formulario directo, sin pasos extra" onClick={() => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas"))} />
         <AccionRapida icon={FileText} titulo="Abrir ficha clínica" desc="Registrar refracción y diagnóstico" onClick={() => setVista?.("consultas")} />
       </div>
 

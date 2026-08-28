@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, obtenerReferidos } from "../utilidades/fidelizacion"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -43,43 +44,13 @@ const diffCumpleEnVentana = (mes, dia) => {
   return mejor
 }
 
-function cargarAvisos() {
-  try {
-    const raw = localStorage.getItem("optica_crm_avisos")
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-// Preferencia del administrador: activar/desactivar el saludo automático de
-// cumpleaños (feedback del asesor: debe ser configurable, no forzado).
-function cargarCumpleAuto() {
-  try {
-    return localStorage.getItem("optica_crm_cumple_auto") === "true"
-  } catch {
-    return false
-  }
-}
-
-// Registro de a quién ya se le "envió" el saludo automático hoy — evita
-// reenviar el mismo saludo en cada re-render mientras sea su cumpleaños.
-function cargarCumpleEnviados() {
-  try {
-    const raw = localStorage.getItem("optica_crm_cumple_enviados")
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-export default function CRM({ pacientes = [], consultas = [] }) {
+export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion }) {
   const [filtro, setFiltro] = useState("Todos")
 
   // Procesamiento conectado y en tiempo real
   const prospectosDinamicos = useMemo(() => {
     return pacientes.map((p) => {
-      let estado = "Cliente activo"
+      let estado = "Paciente activo"
       let motivo = "Mantener contacto postventa."
       let tipo = "Seguimiento"
       let dias = "Activo"
@@ -121,7 +92,7 @@ export default function CRM({ pacientes = [], consultas = [] }) {
         motivo = "Ya se venció su control visual recomendado. Ofrécele agendar una revisión."
       } else if (!esCumple && esClienteFrecuente(p, consultas)) {
         tipo = "Fiel"
-        estado = `Cliente frecuente · ${numConsultas} consultas`
+        estado = `Paciente frecuente · ${numConsultas} consultas`
         dias = "Fiel"
         motivo = "Te ha visitado varias veces. Un buen momento para agradecerle su confianza."
       }
@@ -135,11 +106,17 @@ export default function CRM({ pacientes = [], consultas = [] }) {
         tipo,
         dias,
         cumpleHoy: esCumple && dias === "Hoy",
+        saludoEnviadoEsteAnio: p.ultimoSaludoCumpleAnio === new Date().getFullYear(),
       }
     })
   }, [pacientes, consultas])
 
   const filtrados = prospectosDinamicos.filter((p) => filtro === "Todos" || p.tipo === filtro)
+
+  // Corte de rango — mismo criterio que Pacientes.jsx/Inventario.jsx (feedback del ing).
+  const [cantidadVisible, setCantidadVisible] = useState(25)
+  useEffect(() => { setCantidadVisible(25) }, [filtro])
+  const visibles = filtrados.slice(0, cantidadVisible)
 
   const totalCumpleanos = prospectosDinamicos.filter((p) => p.tipo === "Felicitar").length
   const totalInactivos = prospectosDinamicos.filter((p) => p.tipo === "Inactivo").length
@@ -152,48 +129,68 @@ export default function CRM({ pacientes = [], consultas = [] }) {
     [mapaReferidos],
   )
 
-  // Avisos globales (anuncios para todos los pacientes: cierres, promociones, etc.)
-  const [avisos, setAvisos] = useState(() => cargarAvisos())
+  // Avisos globales (anuncios para todos los pacientes: cierres, promociones,
+  // etc.) — antes vivían solo en localStorage (CRM.jsx no llamaba nunca a
+  // Supabase): un aviso publicado por un admin era invisible para un
+  // asistente en otra máquina, y se perdía si se limpiaba el navegador.
+  const [avisos, setAvisos] = useState([])
   const [nuevoAviso, setNuevoAviso] = useState("")
+  const [avisoDestinoId, setAvisoDestinoId] = useState("")
+  const [avisoError, setAvisoError] = useState("")
   const [copiadoAviso, setCopiadoAviso] = useState(null)
 
   useEffect(() => {
-    localStorage.setItem("optica_crm_avisos", JSON.stringify(avisos))
-  }, [avisos])
+    if (!supabase || !usuario?.opticaId) return
+    supabase.from("avisos").select("*").eq("optica_id", usuario.opticaId).order("created_at", { ascending: false }).then(({ data }) => {
+      if (!data) return
+      setAvisos(data.map((a) => ({
+        id: a.id, texto: a.texto, fecha: new Date(a.created_at).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+        destinatarioId: a.destinatario_id, destinatarioNombre: a.destinatario_nombre, destinatarioTelefono: a.destinatario_telefono,
+      })))
+    })
+  }, [usuario?.opticaId])
 
   // Saludo automático de cumpleaños: preferencia on/off del administrador,
-  // más el registro de a quién ya se le "envió" hoy para no repetirlo.
-  const [cumpleAuto, setCumpleAuto] = useState(() => cargarCumpleAuto())
-  const [cumpleEnviados, setCumpleEnviados] = useState(() => cargarCumpleEnviados())
-  const hoyISO = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  // parte de la parametrización de la óptica (mismo mecanismo ya usado para
+  // "mostrar medidas", etc.) — así es la misma preferencia sin importar
+  // quién ni desde dónde entre. El envío en sí ya no es un mockup: lo manda
+  // de verdad un cron diario por correo (enviar_saludos_cumpleanos, ver
+  // migración 0033) a quien tenga cumpleAuto activo y el paciente tenga
+  // correo real; "saludoEnviadoEsteAnio" (arriba, en prospectosDinamicos)
+  // refleja si ese envío ya ocurrió este año, no un candado local.
+  const cumpleAuto = parametrizacion?.cumpleAuto === true
+  const setCumpleAuto = (valorOFn) => setParametrizacion?.((prev) => ({
+    ...prev,
+    cumpleAuto: typeof valorOFn === "function" ? valorOFn(prev?.cumpleAuto === true) : valorOFn,
+  }))
 
-  useEffect(() => {
-    localStorage.setItem("optica_crm_cumple_auto", String(cumpleAuto))
-  }, [cumpleAuto])
-
-  useEffect(() => {
-    localStorage.setItem("optica_crm_cumple_enviados", JSON.stringify(cumpleEnviados))
-  }, [cumpleEnviados])
-
-  // Mientras el saludo automático esté activo, registra (sin abrir WhatsApp
-  // solo) a cada paciente que cumple años hoy y todavía no fue marcado —
-  // es un mockup de frontend: representa el envío, no dispara mensajes reales.
-  useEffect(() => {
-    if (!cumpleAuto) return
-    const pendientes = prospectosDinamicos.filter((p) => p.cumpleHoy && cumpleEnviados[p.id] !== hoyISO)
-    if (pendientes.length === 0) return
-    setCumpleEnviados((prev) => {
-      const actualizado = { ...prev }
-      pendientes.forEach((p) => { actualizado[p.id] = hoyISO })
-      return actualizado
-    })
-  }, [cumpleAuto, prospectosDinamicos, cumpleEnviados, hoyISO])
-
-  const publicarAviso = () => {
+  const publicarAviso = async () => {
     if (!nuevoAviso.trim()) return
-    const aviso = { id: Date.now(), texto: nuevoAviso.trim(), fecha: new Date().toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
+    const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
+    const aviso = {
+      texto: nuevoAviso.trim(),
+      fecha: new Date().toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+      destinatarioId: destinatario?.id || null,
+      destinatarioNombre: destinatario?.nombre || null,
+      destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",
+    }
+    if (supabase && usuario?.opticaId) {
+      const { data, error } = await supabase.from("avisos").insert({
+        optica_id: usuario.opticaId, texto: aviso.texto,
+        destinatario_id: typeof aviso.destinatarioId === "string" ? aviso.destinatarioId : null,
+        destinatario_nombre: aviso.destinatarioNombre, destinatario_telefono: aviso.destinatarioTelefono,
+      }).select().single()
+      if (error) {
+        setAvisoError("No se pudo publicar el aviso. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+      if (data) aviso.id = data.id
+    }
+    if (aviso.id == null) aviso.id = Date.now()
+    setAvisoError("")
     setAvisos([aviso, ...avisos])
     setNuevoAviso("")
+    setAvisoDestinoId("")
   }
 
   const copiarAviso = (aviso) => {
@@ -202,7 +199,17 @@ export default function CRM({ pacientes = [], consultas = [] }) {
     setTimeout(() => setCopiadoAviso(null), 2000)
   }
 
-  const eliminarAviso = (id) => setAvisos(avisos.filter((a) => a.id !== id))
+  const eliminarAviso = async (id) => {
+    if (supabase && usuario?.opticaId) {
+      const { error } = await supabase.from("avisos").delete().eq("id", id)
+      if (error) {
+        setAvisoError("No se pudo eliminar el aviso. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+    }
+    setAvisoError("")
+    setAvisos(avisos.filter((a) => a.id !== id))
+  }
 
   // Envío por WhatsApp con prefijo internacional (Ecuador)
   const enviarRecordatorio = (nombre, motivo, telefono) => {
@@ -213,7 +220,7 @@ export default function CRM({ pacientes = [], consultas = [] }) {
     if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) {
       numeroLimpio = "593" + numeroLimpio
     }
-    const texto = `Hola ${nombre}, te saludamos de Diego Óptica. Queremos recordarte: ${motivo} ¡Escríbenos para agendar tu cita!`
+    const texto = `Hola ${nombre}, te saludamos de ${usuario?.opticaNombre || "tu óptica"}. Queremos recordarte: ${motivo} ¡Escríbenos para agendar tu cita!`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
   }
@@ -222,26 +229,26 @@ export default function CRM({ pacientes = [], consultas = [] }) {
     let numeroLimpio = (telefono || "").replace(/\D/g, "")
     if (numeroLimpio.startsWith("0")) numeroLimpio = "593" + numeroLimpio.substring(1)
     if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) numeroLimpio = "593" + numeroLimpio
-    const texto = `Hola ${nombre}, ¡gracias por confiar en Diego Óptica y recomendarnos a ${cantidad > 1 ? `${cantidad} personas` : "un amigo"}! Como agradecimiento, tenemos un beneficio especial para ti en tu próxima visita. 🎁`
+    const texto = `Hola ${nombre}, ¡gracias por confiar en ${usuario?.opticaNombre || "nuestra óptica"} y recomendarnos a ${cantidad > 1 ? `${cantidad} personas` : "un amigo"}! Como agradecimiento, tenemos un beneficio especial para ti en tu próxima visita. 🎁`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
   }
 
   const METRICAS = [
-    { icon: Users, valor: pacientes.length, label: "Total de clientes", tile: GRAD, tileText: "#fff", filtroId: "Todos", ring: "#2563EB" },
+    { icon: Users, valor: pacientes.length, label: "Total de pacientes", tile: GRAD, tileText: "#fff", filtroId: "Todos", ring: "#2563EB" },
     { icon: Cake, valor: totalCumpleanos, label: "Cumpleaños cercanos", tile: "#fef3c7", tileText: "#b45309", filtroId: "Felicitar", ring: "#d97706" },
     { icon: Clock, valor: totalInactivos, label: "Sin visitar hace tiempo", tile: "#fee2e2", tileText: "#dc2626", filtroId: "Inactivo", ring: "#dc2626" },
-    { icon: Star, valor: totalFieles, label: "Clientes frecuentes", tile: "#ecfdf5", tileText: "#059669", filtroId: "Fiel", ring: "#059669" },
+    { icon: Star, valor: totalFieles, label: "Pacientes frecuentes", tile: "#ecfdf5", tileText: "#059669", filtroId: "Fiel", ring: "#059669" },
   ]
 
   const etiquetaFiltro =
     filtro === "Felicitar" ? "Cumpleaños cercanos"
     : filtro === "Inactivo" ? "Sin visitar hace tiempo"
-    : filtro === "Fiel" ? "Clientes frecuentes"
+    : filtro === "Fiel" ? "Pacientes frecuentes"
     : "Todos los contactos"
 
   return (
-    <div className="w-full space-y-6 text-left">
+    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
       <div className="flex items-start gap-3.5">
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
@@ -249,7 +256,7 @@ export default function CRM({ pacientes = [], consultas = [] }) {
         </div>
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>CRM y fidelización</h1>
-          <p className="text-sm text-slate-500">Cumpleaños, inactividad, clientes fieles y comunicación con tus pacientes.</p>
+          <p className="text-sm text-slate-500">Cumpleaños, inactividad, pacientes fieles y comunicación con tus pacientes.</p>
         </div>
       </div>
 
@@ -257,7 +264,7 @@ export default function CRM({ pacientes = [], consultas = [] }) {
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar los contactos</p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {METRICAS.map((m) => {
+          {METRICAS.map((m, i) => {
             const activo = filtro === m.filtroId
             return (
               <button
@@ -268,6 +275,8 @@ export default function CRM({ pacientes = [], consultas = [] }) {
                 style={{
                   borderColor: activo ? m.ring : "rgba(14,43,51,0.08)",
                   boxShadow: activo ? `0 0 0 3px ${m.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
+                  animation: "rise-in 320ms ease-out both",
+                  animationDelay: `${i * 50}ms`,
                 }}
               >
                 <div>
@@ -293,7 +302,7 @@ export default function CRM({ pacientes = [], consultas = [] }) {
             <h4 className="text-sm font-bold" style={{ color: INK }}>Saludo automático de cumpleaños</h4>
             <p className="text-[11px] text-slate-500">
               {cumpleAuto
-                ? "Activo: el día del cumpleaños, el paciente queda marcado como saludado sin que tengas que hacerlo manualmente."
+                ? "Activo: el día del cumpleaños le mandamos un correo de saludo automático a quien tenga correo registrado, sin que tengas que hacerlo manualmente."
                 : "Apagado: tú decides a quién saludar con el botón \"Notificar WhatsApp\" de la lista."}
             </p>
           </div>
@@ -324,14 +333,18 @@ export default function CRM({ pacientes = [], consultas = [] }) {
               <p className="text-sm font-medium text-slate-500">No hay acciones pendientes en este filtro.</p>
             </div>
           ) : (
-            filtrados.map((prospecto) => {
+            visibles.map((prospecto, idx) => {
               const esCumple = prospecto.tipo === "Felicitar"
               const esInactivoTipo = prospecto.tipo === "Inactivo"
               const esFiel = prospecto.tipo === "Fiel"
               const inicial = (prospecto.paciente || "P").charAt(0).toUpperCase()
               const avatarBg = esCumple ? "linear-gradient(135deg,#e0b64e,#b45309)" : esInactivoTipo ? "linear-gradient(135deg,#f87171,#dc2626)" : esFiel ? "linear-gradient(135deg,#34d399,#059669)" : GRAD
               return (
-                <div key={prospecto.id} className="flex flex-col items-start justify-between gap-4 p-4 transition hover:bg-slate-50/60 sm:flex-row sm:items-center">
+                <div
+                  key={prospecto.id}
+                  className="flex flex-col items-start justify-between gap-4 p-4 transition hover:bg-slate-50/60 sm:flex-row sm:items-center"
+                  style={{ animation: "rise-in 260ms ease-out both", animationDelay: `${Math.min(idx * 30, 240)}ms` }}
+                >
                   <div className="flex items-start gap-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: avatarBg }}>
                       {esCumple ? <Gift size={17} /> : esInactivoTipo ? <Clock size={17} /> : esFiel ? <Star size={17} /> : inicial}
@@ -359,10 +372,10 @@ export default function CRM({ pacientes = [], consultas = [] }) {
                     <span className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1 font-mono text-[11px] font-semibold text-slate-500">
                       {prospecto.dias}
                     </span>
-                    {prospecto.cumpleHoy && cumpleAuto && cumpleEnviados[prospecto.id] === hoyISO ? (
+                    {prospecto.cumpleHoy && cumpleAuto && prospecto.saludoEnviadoEsteAnio ? (
                       <span
                         className="flex select-none items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700"
-                        title="El saludo automático ya quedó marcado como enviado para hoy"
+                        title="El correo de saludo automático ya se envió este año"
                       >
                         <CheckCircle2 size={13} />
                         Enviado automáticamente
@@ -385,6 +398,13 @@ export default function CRM({ pacientes = [], consultas = [] }) {
             })
           )}
         </div>
+        {cantidadVisible < filtrados.length && (
+          <div className="border-t border-slate-100 px-4 py-3 text-center">
+            <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+              Mostrar 25 más
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -394,7 +414,7 @@ export default function CRM({ pacientes = [], consultas = [] }) {
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}><Award size={18} /></span>
             <div>
               <h4 className="text-sm font-bold" style={{ color: INK }}>Programa de referidos</h4>
-              <p className="text-[11px] text-slate-500">Pacientes que han traído nuevos clientes</p>
+              <p className="text-[11px] text-slate-500">Pacientes que han traído nuevos pacientes</p>
             </div>
           </div>
 
@@ -432,22 +452,51 @@ export default function CRM({ pacientes = [], consultas = [] }) {
           </div>
         </div>
 
-        {/* ─── AVISOS GLOBALES ─── */}
+        {/* ─── AVISOS ─── */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Megaphone size={18} /></span>
             <div>
-              <h4 className="text-sm font-bold" style={{ color: INK }}>Avisos globales</h4>
-              <p className="text-[11px] text-slate-500">Cierres, promociones u otros anuncios para todos</p>
+              <h4 className="text-sm font-bold" style={{ color: INK }}>Avisos</h4>
+              <p className="text-[11px] text-slate-500">Cierres, promociones o un mensaje puntual para un paciente</p>
             </div>
           </div>
 
           <div className="space-y-3 p-4">
+            <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setAvisoDestinoId("")}
+                className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (!avisoDestinoId ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                style={!avisoDestinoId ? { color: INK } : undefined}
+              >
+                Todos los pacientes
+              </button>
+              <button
+                type="button"
+                onClick={() => setAvisoDestinoId(pacientes[0]?.id || "")}
+                className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestinoId ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                style={avisoDestinoId ? { color: INK } : undefined}
+              >
+                Un paciente puntual
+              </button>
+            </div>
+            {avisoDestinoId && (
+              <select
+                value={avisoDestinoId}
+                onChange={(e) => setAvisoDestinoId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+              >
+                {pacientes.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+              </select>
+            )}
             <textarea
               value={nuevoAviso}
               onChange={(e) => setNuevoAviso(e.target.value)}
               rows={2}
-              placeholder="Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."
+              placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, podés pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
               className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
             />
             <button
@@ -457,21 +506,44 @@ export default function CRM({ pacientes = [], consultas = [] }) {
               className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               style={{ background: GRAD }}
             >
-              <Send size={14} /> Publicar aviso
+              <Send size={14} /> {avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
             </button>
             <p className="text-[11px] text-slate-500">
-              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu lista de difusión de WhatsApp o donde avises a tus pacientes.
+              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o enviaselo directo al paciente si elegiste uno puntual.
             </p>
+            {avisoError && <p className="text-[11px] font-semibold text-red-600">{avisoError}</p>}
 
             {avisos.length > 0 && (
               <div className="max-h-52 space-y-2 overflow-y-auto border-t border-slate-100 pt-3">
                 {avisos.map((a) => (
                   <div key={a.id} className="flex items-start justify-between gap-2 rounded-lg bg-slate-50 p-2.5">
                     <div className="min-w-0">
-                      <p className="text-xs text-slate-700">{a.texto}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {a.destinatarioNombre ? (
+                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #dbeafe" }}>
+                            Para: {a.destinatarioNombre}
+                          </span>
+                        ) : (
+                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}>
+                            General
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-700">{a.texto}</p>
                       <p className="mt-0.5 text-[10px] text-slate-500">{a.fecha}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
+                      {a.destinatarioNombre && (
+                        <button
+                          type="button"
+                          onClick={() => enviarRecordatorio(a.destinatarioNombre, a.texto, a.destinatarioTelefono)}
+                          disabled={!a.destinatarioTelefono}
+                          title={a.destinatarioTelefono ? "Enviar por WhatsApp" : "Sin número registrado"}
+                          className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                        >
+                          <MessageSquare size={13} />
+                        </button>
+                      )}
                       <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                         {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                       </button>

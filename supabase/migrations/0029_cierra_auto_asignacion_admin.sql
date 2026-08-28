@@ -1,0 +1,36 @@
+-- Ciberseguridad (2026-08-28) — el hallazgo más grave de toda la revisión.
+--
+-- perfiles_insert_self_admin (migración 0001) y perfiles_insert_self_asistente
+-- (migración 0009) permiten que cualquier usuario recién autenticado se
+-- inserte su propia fila en `perfiles` con rol='admin' o rol='asistente' —
+-- SIN NINGUNA restricción sobre qué optica_id puede elegir:
+--
+--   perfiles_insert_self_admin:      with check (id = auth.uid() and rol = 'admin')
+--   perfiles_insert_self_asistente:  with check (id = auth.uid() and rol = 'asistente')
+--
+-- El registro de cuentas (Supabase Auth signUp) es público — usa la anon
+-- key, que va en el bundle JS del sitio. Eso significa que CUALQUIERA, sin
+-- pasar por la app en absoluto, podía:
+--   1. POST a .../auth/v1/signup con cualquier correo/clave (crea una
+--      cuenta real).
+--   2. POST a .../rest/v1/perfiles con ese JWT: { optica_id: <UUID de
+--      CUALQUIER óptica real>, rol: 'admin', nombre: '...' }.
+--   3. Quedar con acceso admin completo a esa óptica — todas sus policies
+--      de citas/pacientes/consultas/inventario/disponibilidad/avisos son
+--      "optica_id = (select optica_id from perfiles where id = auth.uid())",
+--      así que ese admin falso pasa exactamente igual que uno real.
+-- Toma total de cualquier óptica del sistema, sin necesitar ninguna
+-- credencial previa. El "flujo real" (Diego verifica un lead y crea la
+-- cuenta desde SuperadminPanel, o un admin crea a su asistente desde
+-- Usuarios.jsx) nunca fue la única puerta — solo era la que usaba la UI.
+--
+-- La app en sí ya no necesita estas policies: SuperadminPanel.jsx y
+-- Usuarios.jsx ahora insertan la fila de perfiles usando la sesión de quien
+-- YA está autenticado y autorizado (el superadmin, o el admin dueño de esa
+-- óptica) — cubierto por perfiles_superadmin_all y
+-- perfiles_admin_gestiona_asistentes respectivamente. El único rol que
+-- necesita seguir insertándose a sí mismo es... ninguno: hasta la creación
+-- del primer superadmin es manual (bootstrap, ver migración 0001).
+
+drop policy if exists perfiles_insert_self_admin on perfiles;
+drop policy if exists perfiles_insert_self_asistente on perfiles;
