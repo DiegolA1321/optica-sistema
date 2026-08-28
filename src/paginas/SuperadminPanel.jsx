@@ -2386,6 +2386,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   onClick={() => setSuperadminAEliminar(s)}
                   disabled={s.id === usuario?.id || superadmins.length <= 1}
                   title={s.id === usuario?.id ? "No podés quitarte a vos mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
+                  aria-label={s.id === usuario?.id ? "No podés quitarte a vos mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
                   className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 cursor-pointer"
                 >
                   <Trash2 size={16} />
@@ -2444,7 +2445,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                 <p className="text-[11px] font-medium tracking-wide text-white/40">SUPERADMIN</p>
               </div>
             </div>
-            <button type="button" onClick={() => setMenuAbierto(false)} className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
+            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
               <X size={20} />
             </button>
           </div>
@@ -2460,6 +2461,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   type="button"
                   onClick={() => { setSeccion(opcion.id); setMenuAbierto(false) }}
                   title={colapsado ? opcion.nombre : undefined}
+                  aria-label={opcion.nombre}
                   className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
                   style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}
                 >
@@ -2501,10 +2503,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
       <main className="flex flex-1 flex-col overflow-hidden">
         <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button type="button" onClick={() => setMenuAbierto(true)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer">
+            <button type="button" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer">
               <Menu size={22} />
             </button>
-            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"}>
+            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"} aria-label={colapsado ? "Expandir menú" : "Colapsar menú"}>
               {colapsado ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
             </button>
             <div className="min-w-0">
@@ -2649,7 +2651,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   <p className="font-mono text-xs text-slate-500">{detalle.slug}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setDetalle(null)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setDetalle(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -2757,7 +2759,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                           type={verClaveExtra ? "text" : "password"} placeholder="Contraseña" value={camposAdminExtra.clave} onChange={(e) => actualizarCampoAdminExtra("clave", e.target.value)}
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                         />
-                        <button type="button" onClick={() => setVerClaveExtra((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{verClaveExtra ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                        <button type="button" onClick={() => setVerClaveExtra((v) => !v)} aria-label={verClaveExtra ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{verClaveExtra ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                       </div>
                       <input
                         type={verClaveExtra ? "text" : "password"} placeholder="Confirmar" value={camposAdminExtra.confirmarClave} onChange={(e) => actualizarCampoAdminExtra("confirmarClave", e.target.value)}
@@ -3056,7 +3058,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   </p>
                 </div>
               </div>
-              <button type="button" onClick={() => setMensajeAbierto(null)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setMensajeAbierto(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -3120,7 +3122,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   </p>
                 </div>
               </div>
-              <button type="button" onClick={() => setModalAvisoAbierto(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
+              <button type="button" onClick={() => setModalAvisoAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -3215,7 +3217,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   <p className="text-xs text-slate-500">Se crea la óptica y la cuenta de su administrador en un solo paso.</p>
                 </div>
               </div>
-              <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
                 <X size={20} />
               </button>
             </div>
@@ -3335,7 +3337,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                             placeholder="Mínimo 6 caracteres"
                             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                           />
-                          <button type="button" onClick={() => setVerClave((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
+                          <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                             {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
@@ -3403,7 +3405,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   <p className="text-xs text-slate-500">Tendrá el mismo acceso total que vos.</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setModalSuperadminAbierto(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
+              <button type="button" onClick={() => setModalSuperadminAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -3447,7 +3449,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                         placeholder="Mínimo 6 caracteres"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
-                      <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                      <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} aria-label={verClaveSuperadmin ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                     </div>
                   </div>
                   <div>
@@ -3527,7 +3529,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   <p className="text-xs text-slate-500">Tus datos y tu acceso a este panel.</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setModalMiCuentaAbierto(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
+              <button type="button" onClick={() => setModalMiCuentaAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -3593,7 +3595,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                         type={verClaveNueva ? "text" : "password"} placeholder="Nueva contraseña" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
-                      <button type="button" onClick={() => setVerClaveNueva((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
+                      <button type="button" onClick={() => setVerClaveNueva((v) => !v)} aria-label={verClaveNueva ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                         {verClaveNueva ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>

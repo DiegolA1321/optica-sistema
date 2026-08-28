@@ -356,7 +356,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
                 <p className="text-[11px] font-medium tracking-wide text-white/40">PANEL DE CONTROL</p>
               </div>
             </div>
-            <button type="button" onClick={() => setMenuAbierto(false)} className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
+            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
               <X size={20} />
             </button>
           </div>
@@ -372,6 +372,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
                   type="button"
                   onClick={() => navegar(opcion.id)}
                   title={colapsado ? opcion.nombre : undefined}
+                  aria-label={opcion.nombre}
                   className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
                   style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}
                 >
@@ -397,10 +398,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
         {/* Barra superior */}
         <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button type="button" onClick={() => setMenuAbierto(true)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer">
+            <button type="button" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer">
               <Menu size={22} />
             </button>
-            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"}>
+            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"} aria-label={colapsado ? "Expandir menú" : "Colapsar menú"}>
               {colapsado ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
             </button>
             <div className="min-w-0">
@@ -419,6 +420,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
                 onClick={() => setNotifAbierta((v) => !v)}
                 className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
                 title="Notificaciones"
+                aria-label="Notificaciones"
               >
                 <Bell size={18} />
                 {alertas.length > 0 && (

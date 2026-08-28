@@ -201,10 +201,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <button type="button" onClick={() => abrirEditar(a)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar">
+                      <button type="button" onClick={() => abrirEditar(a)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar" aria-label={`Editar ${a.nombre}`}>
                         <Pencil size={15} />
                       </button>
-                      <button type="button" onClick={() => setPorEliminar(a.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar">
+                      <button type="button" onClick={() => setPorEliminar(a.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar" aria-label={`Eliminar ${a.nombre}`}>
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -242,7 +242,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                 </div>
                 <h4 className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar asistente" : "Crear asistente"}</h4>
               </div>
-              <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -293,7 +293,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                           placeholder="Mínimo 6 caracteres"
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
-                        <button type="button" onClick={() => setVerClave((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
+                        <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                           {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>

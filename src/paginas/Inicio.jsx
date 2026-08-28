@@ -280,6 +280,7 @@ export default function Inicio({
                       onClick={() => enviarFelicitacionWhatsApp(c.nombre, c.contacto || c.telefono || c.celular)}
                       className="flex items-center justify-center rounded-lg p-1 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
                       title="Enviar felicitación por WhatsApp"
+                      aria-label="Enviar felicitación por WhatsApp"
                     >
                       <MessageCircle size={15} />
                     </button>
@@ -494,13 +495,13 @@ export default function Inicio({
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex justify-center gap-1">
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "historial")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Ver historial clínico">
+                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "historial")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Ver historial clínico" aria-label="Ver historial clínico">
                             <Eye size={14} />
                           </button>
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "editar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar paciente">
+                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "editar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar paciente" aria-label="Editar paciente">
                             <Pencil size={14} />
                           </button>
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "eliminar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar paciente">
+                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "eliminar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar paciente" aria-label="Eliminar paciente">
                             <Trash2 size={14} />
                           </button>
                         </div>

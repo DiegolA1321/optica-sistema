@@ -311,6 +311,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           type="button"
           role="switch"
           aria-checked={cumpleAuto}
+          aria-label="Saludo automático de cumpleaños"
           onClick={() => setCumpleAuto((v) => !v)}
           className={"relative h-7 w-12 shrink-0 self-start rounded-full transition-colors cursor-pointer sm:self-auto " + (cumpleAuto ? "" : "bg-slate-200")}
           style={cumpleAuto ? { background: GRAD } : undefined}
@@ -539,15 +540,16 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
                           onClick={() => enviarRecordatorio(a.destinatarioNombre, a.texto, a.destinatarioTelefono)}
                           disabled={!a.destinatarioTelefono}
                           title={a.destinatarioTelefono ? "Enviar por WhatsApp" : "Sin número registrado"}
+                          aria-label={a.destinatarioTelefono ? "Enviar por WhatsApp" : "Sin número registrado"}
                           className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                         >
                           <MessageSquare size={13} />
                         </button>
                       )}
-                      <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
+                      <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" aria-label="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                         {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                       </button>
-                      <button type="button" onClick={() => eliminarAviso(a.id)} title="Eliminar" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer">
+                      <button type="button" onClick={() => eliminarAviso(a.id)} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer">
                         <Trash2 size={13} />
                       </button>
                     </div>

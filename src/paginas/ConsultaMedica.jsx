@@ -1240,7 +1240,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             <span className="font-semibold text-blue-800">{productoSeleccionado.nombre}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-blue-600">{productoSeleccionado.stock} u. en stock</span>
-                              <button type="button" onClick={quitarProducto} className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">
+                              <button type="button" onClick={quitarProducto} aria-label="Quitar producto vinculado" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">
                                 ×
                               </button>
                             </div>
@@ -1435,7 +1435,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   <p className="text-xs text-slate-500">{pacienteSeleccionado}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setMostrarHistorial(false)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setMostrarHistorial(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>

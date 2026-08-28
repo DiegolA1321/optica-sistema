@@ -366,13 +366,13 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                       <td className="px-4 py-3 font-mono font-bold text-slate-600">${Number(prod.precio).toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => abrirEditar(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar producto">
+                          <button type="button" onClick={() => abrirEditar(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar producto" aria-label="Editar producto">
                             <Pencil size={16} />
                           </button>
-                          <button type="button" onClick={() => abrirReabastecer(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer" title="Agregar stock">
+                          <button type="button" onClick={() => abrirReabastecer(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer" title="Agregar stock" aria-label="Agregar stock">
                             <PlusCircle size={16} />
                           </button>
-                          <button type="button" onClick={() => setPorEliminar(prod.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar producto">
+                          <button type="button" onClick={() => setPorEliminar(prod.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar producto" aria-label="Eliminar producto">
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -407,7 +407,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 </div>
                 <h2 className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
               </div>
-              <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -476,7 +476,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 </div>
                 <h2 className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
               </div>
-              <button type="button" onClick={cerrarEditar} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarEditar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -570,7 +570,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                   <p className="text-xs text-slate-500">{reabastecer.nombre}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setReabastecer(null)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setReabastecer(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>

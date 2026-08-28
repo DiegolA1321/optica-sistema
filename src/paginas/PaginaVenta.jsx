@@ -580,7 +580,7 @@ export default function PaginaVenta() {
                 </div>
                 <h4 className="text-lg font-bold" style={{ color: INK }}>Obtener sistema</h4>
               </div>
-              <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>

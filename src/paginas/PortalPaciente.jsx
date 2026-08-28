@@ -285,7 +285,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <p className="text-[11px] font-medium tracking-wide text-white/40">PORTAL DEL PACIENTE</p>
               </div>
             </div>
-            <button type="button" onClick={() => setMenuAbierto(false)} className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer"><X size={20} /></button>
+            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer"><X size={20} /></button>
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
@@ -296,6 +296,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               return (
                 <button key={o.id} type="button" onClick={() => navegar(o.id)}
                   title={colapsado ? o.nombre : undefined}
+                  aria-label={o.nombre}
                   className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
                   style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}>
                   <Icono size={20} className={activo ? "text-white" : "text-white/55 group-hover:text-white"} />
@@ -333,8 +334,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         {/* Barra superior */}
         <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <button type="button" onClick={() => setMenuAbierto(true)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer"><Menu size={22} /></button>
-            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"}>
+            <button type="button" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer"><Menu size={22} /></button>
+            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"} aria-label={colapsado ? "Expandir menú" : "Colapsar menú"}>
               {colapsado ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
             </button>
             <div className="min-w-0">
@@ -619,7 +620,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Stethoscope size={20} /></div>
                 <h3 className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h3>
               </div>
-              <button onClick={() => setModalAgendar(false)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
+              <button onClick={() => setModalAgendar(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
             </div>
             <form onSubmit={validarYPedirConfirmacion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
@@ -664,7 +665,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                   <p className="text-xs text-slate-500">Tenías: {etiquetaFecha(reagendando.fecha)} · {reagendando.hora}</p>
                 </div>
               </div>
-              <button onClick={() => !guardandoReagenda && setReagendando(null)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
+              <button onClick={() => !guardandoReagenda && setReagendando(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
               {errorReagenda && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
@@ -716,7 +717,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><KeyRound size={20} /></div>
                 <h3 className="text-lg font-bold" style={{ color: INK }}>Cambiar contraseña</h3>
               </div>
-              <button onClick={() => setModalClave(false)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
+              <button onClick={() => setModalClave(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
             </div>
             <form onSubmit={handleCambiarClave} className="space-y-4 p-5">
               <p className="text-sm text-slate-500">Elige una contraseña nueva para reemplazar la temporal.</p>

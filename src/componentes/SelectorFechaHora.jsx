@@ -62,6 +62,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
               type="button"
               onClick={irMesAnterior}
               disabled={!puedeAnterior}
+              aria-label="Mes anterior"
               className={"rounded-md p-0.5 transition-colors " + (puedeAnterior ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}
             >
               <ChevronLeft size={14} />
@@ -70,6 +71,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
               type="button"
               onClick={irMesSiguiente}
               disabled={!puedeSiguiente}
+              aria-label="Mes siguiente"
               className={"rounded-md p-0.5 transition-colors " + (puedeSiguiente ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}
             >
               <ChevronRight size={14} />

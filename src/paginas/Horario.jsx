@@ -273,10 +273,13 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
                                 </span>
                                 <button
                                   type="button"
+                                  role="switch"
+                                  aria-checked={s.activo}
                                   onClick={() => actualizarBorrador(dia, clave, { activo: !s.activo })}
                                   className="relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors"
                                   style={{ backgroundColor: s.activo ? "#2563EB" : "#e2e8f0" }}
                                   title={s.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
+                                  aria-label={s.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
                                 >
                                   <span className={"absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform " + (s.activo ? "translate-x-[16px]" : "translate-x-0")} />
                                 </button>
@@ -360,8 +363,8 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
             <div className="mb-3 flex items-center justify-between px-1">
               <span className="text-sm font-bold capitalize" style={{ color: INK }}>{MESES[mesVista.getMonth()]} {mesVista.getFullYear()}</span>
               <div className="flex gap-1 text-slate-500">
-                <button type="button" onClick={irMesAnterior} className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
-                <button type="button" onClick={irMesSiguiente} className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
+                <button type="button" onClick={irMesAnterior} aria-label="Mes anterior" className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
+                <button type="button" onClick={irMesSiguiente} aria-label="Mes siguiente" className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
               </div>
             </div>
 
@@ -522,6 +525,9 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icono size={14} /> {etiqueta}</span>
                 <button
                   type="button" onClick={() => setValor((v) => ({ ...v, activo: !v.activo }))}
+                  role="switch"
+                  aria-checked={valor.activo}
+                  aria-label={valor.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
                   className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
                   style={{ backgroundColor: valor.activo ? "#059669" : "#e2e8f0" }}
                 >
@@ -541,7 +547,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
 
           <div className="flex gap-3 border-t border-slate-100 pt-4">
             {onQuitar && (
-              <button type="button" onClick={onQuitar} title="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={onQuitar} title="Volver al horario habitual" aria-label="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
                 <RotateCcw size={14} />
               </button>
             )}

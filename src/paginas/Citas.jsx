@@ -482,6 +482,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                                       onClick={() => setMenuEstadoId((prev) => (prev === cita.id ? null : cita.id))}
                                       className={"rounded-md p-1.5 transition cursor-pointer " + (menuEstadoId === cita.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
                                       title="Cambiar estado de la cita"
+                                      aria-label="Cambiar estado de la cita"
                                     >
                                       <Activity size={16} />
                                     </button>
@@ -515,11 +516,11 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                                   </div>
                                 )}
                                 {!resuelta && (
-                                  <button type="button" onClick={() => abrirReagendar(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar cita (motivo, fecha u hora)">
+                                  <button type="button" onClick={() => abrirReagendar(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar cita (motivo, fecha u hora)" aria-label="Editar cita">
                                     <CalendarClock size={16} />
                                   </button>
                                 )}
-                                <button type="button" onClick={() => setPorCancelar(cita.id)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-500 cursor-pointer" title="Cancelar cita">
+                                <button type="button" onClick={() => setPorCancelar(cita.id)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-500 cursor-pointer" title="Cancelar cita" aria-label="Cancelar cita">
                                   <Trash2 size={16} />
                                 </button>
                               </div>
@@ -584,7 +585,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                 </div>
                 <h4 className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h4>
               </div>
-              <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -720,7 +721,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                   <p className="text-xs text-slate-500">{reagendando.paciente}</p>
                 </div>
               </div>
-              <button type="button" onClick={cerrarReagendar} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarReagendar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>

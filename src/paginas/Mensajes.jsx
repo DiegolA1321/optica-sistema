@@ -184,6 +184,7 @@ export default function Mensajes({ usuario }) {
                     type="button"
                     onClick={() => { setFacturaImprimir(f); setTimeout(() => imprimirDocumento("factura-imprimible-admin", "printing-factura-admin"), 50) }}
                     title="Imprimir factura"
+                    aria-label="Imprimir factura"
                     className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
                   >
                     <Printer size={14} />

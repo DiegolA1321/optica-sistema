@@ -721,10 +721,10 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
 
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }} title="Ver historial clínico" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer">
+                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }} title="Ver historial clínico" aria-label="Ver historial clínico" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer">
                             <Eye size={16} />
                           </button>
-                          <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer">
+                          <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer">
                             <CalendarPlus size={16} />
                           </button>
                           <div className="relative" ref={menuAccionesId === paciente.id ? menuAccionesRef : null}>
@@ -732,6 +732,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                               type="button"
                               onClick={() => setMenuAccionesId((prev) => (prev === paciente.id ? null : paciente.id))}
                               title="Más acciones"
+                              aria-label="Más acciones"
                               className={"rounded-lg p-2 transition-colors cursor-pointer " + (menuAccionesId === paciente.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
                             >
                               <MoreVertical size={16} />
@@ -800,7 +801,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                   {idEditando ? "Editar paciente" : "Crear paciente"}
                 </h2>
               </div>
-              <button type="button" onClick={cerrarModal} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -987,7 +988,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                   <p className="text-xs text-slate-500">Portal del paciente</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setCuentaPaciente(null)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setCuentaPaciente(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -1007,7 +1008,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Clave temporal</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-base font-black" style={{ color: "#2563EB" }}>{claveGen}</span>
-                    <button type="button" onClick={regenerarClave} title="Generar otra clave" className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-blue-600 cursor-pointer">
+                    <button type="button" onClick={regenerarClave} title="Generar otra clave" aria-label="Generar otra clave" className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-blue-600 cursor-pointer">
                       <RefreshCw size={14} />
                     </button>
                   </div>
@@ -1050,7 +1051,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                   <p className="text-xs text-slate-500">{pacienteHistorial.nombre}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setPacienteHistorial(null)} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setPacienteHistorial(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -1305,7 +1306,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                   <p className="text-xs text-slate-500">Para {agendarPara.nombre}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setAgendarPara(null)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setAgendarPara(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>

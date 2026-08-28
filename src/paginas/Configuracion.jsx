@@ -8,12 +8,13 @@ const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Interruptor tipo iOS reutilizable (mismo patrón que el de CRM.jsx)
-function Interruptor({ activo, onClick }) {
+function Interruptor({ activo, onClick, etiqueta }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={activo}
+      aria-label={etiqueta}
       onClick={onClick}
       className={"relative h-7 w-12 shrink-0 rounded-full transition-colors cursor-pointer " + (activo ? "" : "bg-slate-200")}
       style={activo ? { background: GRAD } : undefined}
@@ -38,7 +39,7 @@ function FilaParametro({ icon: Icon, titulo, descripcion, activo, onClick, etiqu
           </p>
         </div>
       </div>
-      <Interruptor activo={activo} onClick={onClick} />
+      <Interruptor activo={activo} onClick={onClick} etiqueta={titulo} />
     </div>
   )
 }
@@ -92,10 +93,10 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
                 ) : (
                   <span className="flex-1 truncate text-sm font-medium text-slate-700">{item}</span>
                 )}
-                <button type="button" onClick={() => iniciarEdicion(idx)} title="Renombrar" className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
+                <button type="button" onClick={() => iniciarEdicion(idx)} title="Renombrar" aria-label={`Renombrar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                   <Pencil size={13} />
                 </button>
-                <button type="button" onClick={() => eliminar(idx)} title="Eliminar" className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer">
+                <button type="button" onClick={() => eliminar(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer">
                   <Trash2 size={13} />
                 </button>
               </div>
