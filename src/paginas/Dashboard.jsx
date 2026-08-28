@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect, useRef } from "react"
+import React, { useState, useMemo, useEffect, useRef, Suspense, lazy } from "react"
 import {
   Users,
   Calendar,
@@ -22,20 +22,25 @@ import {
   ShieldCheck,
   Settings,
   MessageSquare,
+  Loader2,
 } from "lucide-react"
 
-// Módulos del sistema
-import Pacientes from "./Pacientes"
-import ConsultaMedica from "./ConsultaMedica"
-import Inventario from "./Inventario"
-import Citas from "./Citas"
-import Horario from "./Horario"
+// Módulos del sistema — Inicio se queda como import normal porque es lo
+// primero que ve un admin/asistente al entrar (sin parpadeo de carga en el
+// camino más común); el resto se carga bajo demanda (code-splitting: nadie
+// que solo use Citas necesita bajar el código de Reportes, Usuarios, etc.
+// de una sola vez al entrar al panel).
 import Inicio from "./Inicio"
-import CRM from "./CRM"
-import Reportes from "./Reportes"
-import Usuarios from "./Usuarios"
-import Configuracion from "./Configuracion"
-import Mensajes from "./Mensajes"
+const Pacientes = lazy(() => import("./Pacientes"))
+const ConsultaMedica = lazy(() => import("./ConsultaMedica"))
+const Inventario = lazy(() => import("./Inventario"))
+const Citas = lazy(() => import("./Citas"))
+const Horario = lazy(() => import("./Horario"))
+const CRM = lazy(() => import("./CRM"))
+const Reportes = lazy(() => import("./Reportes"))
+const Usuarios = lazy(() => import("./Usuarios"))
+const Configuracion = lazy(() => import("./Configuracion"))
+const Mensajes = lazy(() => import("./Mensajes"))
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 import { diasVencido } from "../utilidades/fidelizacion"
@@ -503,7 +508,11 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
         </header>
 
         {/* Espacio de trabajo */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{renderSeccion()}</div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
+            {renderSeccion()}
+          </Suspense>
+        </div>
       </main>
     </div>
   )

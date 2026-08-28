@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Login from './paginas/Login';
-import PaginaVenta from './paginas/PaginaVenta';
-import Dashboard from './paginas/Dashboard';
-import AgendarCitaPublica from './paginas/AgendarCitaPublica';
-import PortalPaciente from './paginas/PortalPaciente';
-import SuperadminPanel from './paginas/SuperadminPanel';
-import ConfirmarCita from './paginas/ConfirmarCita';
-import PaginaLegal from './paginas/PaginaLegal';
 import { hoyISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
+
+// Login se queda como import normal: es la pantalla de entrada más común
+// (cualquier visitante público, paciente o staff pasa por acá primero) — el
+// resto de "pantallas" son mutuamente excluyentes entre sí y bastante
+// pesadas (paneles completos), así que se cargan bajo demanda: un paciente
+// nunca necesita bajar el código de SuperadminPanel, un visitante público
+// nunca necesita el de PortalPaciente, etc.
+const PaginaVenta = lazy(() => import('./paginas/PaginaVenta'));
+const Dashboard = lazy(() => import('./paginas/Dashboard'));
+const AgendarCitaPublica = lazy(() => import('./paginas/AgendarCitaPublica'));
+const PortalPaciente = lazy(() => import('./paginas/PortalPaciente'));
+const SuperadminPanel = lazy(() => import('./paginas/SuperadminPanel'));
+const ConfirmarCita = lazy(() => import('./paginas/ConfirmarCita'));
+const PaginaLegal = lazy(() => import('./paginas/PaginaLegal'));
 
 // ─── Datos de arranque (solo se usan si no hay nada guardado aún) ───
 // Cédulas con dígito verificador real (algoritmo módulo 10) — antes eran
@@ -162,6 +169,18 @@ function cargarSesion(pacientesActuales) {
     if (paciente) return { usuario: { ...paciente, rol: 'paciente', token: sesion.token }, pantalla: 'panel_paciente' };
   }
   return { usuario: null, pantalla: 'login' };
+}
+
+// Fallback mientras carga el chunk de una pantalla (code-splitting: cada
+// pantalla completa — Dashboard, SuperadminPanel, etc. — se baja bajo
+// demanda, no todas juntas al entrar al sitio). Solo se ve un instante en
+// una conexión normal; no vale la pena un spinner de marca completo acá.
+function PantallaCargando() {
+  return (
+    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#F7F5F0' }}>
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500" />
+    </div>
+  );
 }
 
 function App() {
@@ -536,7 +555,11 @@ function App() {
   // pantalla si la URL trae el parámetro.
   const citaAConfirmar = new URLSearchParams(window.location.search).get('confirmar_cita');
   if (citaAConfirmar) {
-    return <ConfirmarCita citaId={citaAConfirmar} />;
+    return (
+      <Suspense fallback={<PantallaCargando />}>
+        <ConfirmarCita citaId={citaAConfirmar} />
+      </Suspense>
+    );
   }
 
   // Política de privacidad / términos — enlaces del footer del login y de la
@@ -544,19 +567,21 @@ function App() {
   const vistaLegal = new URLSearchParams(window.location.search).get('legal');
   if (vistaLegal) {
     return (
-      <PaginaLegal
-        vistaInicial={vistaLegal === 'terminos' ? 'terminos' : 'privacidad'}
-        onVolver={() => {
-          const url = new URL(window.location);
-          url.searchParams.delete('legal');
-          window.location.href = url.toString();
-        }}
-      />
+      <Suspense fallback={<PantallaCargando />}>
+        <PaginaLegal
+          vistaInicial={vistaLegal === 'terminos' ? 'terminos' : 'privacidad'}
+          onVolver={() => {
+            const url = new URL(window.location);
+            url.searchParams.delete('legal');
+            window.location.href = url.toString();
+          }}
+        />
+      </Suspense>
     );
   }
 
   return (
-    <>
+    <Suspense fallback={<PantallaCargando />}>
       {/* 1. DASHBOARD ADMINISTRATIVO */}
       {pantallaActual === 'dashboard' && (
         <Dashboard
@@ -644,7 +669,7 @@ function App() {
           alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
         />
       )}
-    </>
+    </Suspense>
   );
 }
 
