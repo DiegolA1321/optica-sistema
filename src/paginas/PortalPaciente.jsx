@@ -78,7 +78,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [guardandoReagenda, setGuardandoReagenda] = useState(false)
   const [errorReagenda, setErrorReagenda] = useState("")
 
-  const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 24
+  const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
   const puedeReagendar = (cita) => {
     if (!parametrizacion?.permitirReagendarPaciente) return false
     if (cita.estado !== "Pendiente") return false
@@ -92,6 +92,33 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setFechaReagenda(null)
     setHoraReagenda("")
     setErrorReagenda("")
+  }
+
+  // Cancelar — misma ventana de anticipación y permiso que reagendar (feedback
+  // de Diego: "el paciente podía cambiar el horario de la cita o hasta
+  // cancelarla hasta con 2 horas de anticipación").
+  const [cancelando, setCancelando] = useState(null)
+  const [guardandoCancelar, setGuardandoCancelar] = useState(false)
+  const [errorCancelar, setErrorCancelar] = useState("")
+  const confirmarCancelar = async () => {
+    if (!cancelando) return
+    setGuardandoCancelar(true)
+    setErrorCancelar("")
+    if (supabase && opticaId) {
+      const { data, error: errorRpc } = await supabase.rpc("cancelar_cita_publica", {
+        p_cita_id: cancelando.id,
+        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
+        p_token: usuario?.token,
+      })
+      if (errorRpc || data !== true) {
+        setGuardandoCancelar(false)
+        setErrorCancelar("No pudimos cancelar tu cita. Intenta de nuevo en un momento.")
+        return
+      }
+    }
+    setCitas(citas.map((c) => (c.id === cancelando.id ? { ...c, estado: "Cancelada" } : c)))
+    setGuardandoCancelar(false)
+    setCancelando(null)
   }
   const confirmarReagenda = async () => {
     if (!fechaReagenda || !horaReagenda) { setErrorReagenda("Selecciona fecha y hora."); return }
@@ -151,14 +178,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const citasPendientes = useMemo(
     () =>
       misCitas
-        .filter((c) => c.estado !== "Atendida" && c.estado !== "No Asistió")
+        .filter((c) => c.estado !== "Atendida" && c.estado !== "No Asistió" && c.estado !== "Cancelada")
         .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))),
     [misCitas],
   )
   const citasPasadas = useMemo(
     () =>
       misCitas
-        .filter((c) => c.estado === "Atendida" || c.estado === "No Asistió")
+        .filter((c) => c.estado === "Atendida" || c.estado === "No Asistió" || c.estado === "Cancelada")
         .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha > b.fecha ? -1 : 1) : minutosDesdeMedianoche(b.hora) - minutosDesdeMedianoche(a.hora))),
     [misCitas],
   )
@@ -376,7 +403,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                       <KeyRound size={16} /> Cambiar contraseña
                     </button>
                     {onCerrarSesion && (
-                      <button type="button" onClick={onCerrarSesion} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
+                      <button type="button" onClick={() => onCerrarSesion()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
                         <LogOut size={16} /> Cerrar sesión
                       </button>
                     )}
@@ -391,9 +418,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {/* Alertas */}
           {exito && (
-            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-              <CheckCircle2 className="text-emerald-600" size={20} />
-              <p className="text-sm font-semibold">Tu cita ha sido agendada con éxito. ¡Te esperamos!</p>
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+              <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
+              <div>
+                <p className="text-sm font-semibold">Tu cita ha sido agendada con éxito. ¡Te esperamos!</p>
+                {parametrizacion?.permitirReagendarPaciente && (
+                  <p className="mt-0.5 text-xs text-emerald-800">
+                    Puedes cambiar el horario o cancelarla hasta con {horasAntesPermitidas} hora{horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde "Mis citas".
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -432,7 +466,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <p className="py-6 text-center text-sm text-slate-500">No tienes citas pendientes.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} />)}
+                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}
                     </div>
                   )}
                 </div>
@@ -471,7 +505,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <button onClick={() => setModalAgendar(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline cursor-pointer">Agendar ahora <ChevronRight size={15} /></button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} />)}</div>
+                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}</div>
                 )}
               </div>
 
@@ -694,6 +728,32 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         </div>
       )}
 
+      {/* ─── MODAL CANCELAR CITA ─── */}
+      {cancelando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => !guardandoCancelar && setCancelando(null)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-5">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
+                <AlertCircle size={22} />
+              </div>
+              <h2 className="text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h2>
+              <p className="mt-1.5 text-sm text-slate-500">
+                {etiquetaFecha(cancelando.fecha)} · {cancelando.hora}. Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.
+              </p>
+              {errorCancelar && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errorCancelar}</p>}
+            </div>
+            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+              <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                Volver
+              </button>
+              <button type="button" disabled={guardandoCancelar} onClick={confirmarCancelar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
+                {guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
       {confirmandoCita && (
         <ConfirmarCitaModal
@@ -760,11 +820,12 @@ function TarjetaResumen({ label, valor, sub, icon: Icon, tile, tileText }) {
   )
 }
 
-function FilaCita({ cita, puedeReagendar, onReagendar }) {
+function FilaCita({ cita, puedeReagendar, onReagendar, onCancelar }) {
   const atendida = cita.estado === "Atendida"
   const noAsistio = cita.estado === "No Asistió"
+  const cancelada = cita.estado === "Cancelada"
   const enAtencion = cita.estado === "En Atención"
-  const resuelta = atendida || noAsistio
+  const resuelta = atendida || noAsistio || cancelada
   const reagendable = puedeReagendar?.(cita)
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 py-3.5">
@@ -788,10 +849,21 @@ function FilaCita({ cita, puedeReagendar, onReagendar }) {
             <CalendarClock size={13} /> Reagendar
           </button>
         )}
+        {reagendable && (
+          <button
+            type="button"
+            onClick={() => onCancelar?.(cita)}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 cursor-pointer"
+          >
+            <X size={13} /> Cancelar
+          </button>
+        )}
         {atendida ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"><CheckCircle2 size={12} /> Atendida</span>
         ) : noAsistio ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600"><AlertCircle size={12} /> No asistió</span>
+        ) : cancelada ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500"><X size={12} /> Cancelada</span>
         ) : enAtencion ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600"><Activity size={12} /> Te están atendiendo</span>
         ) : (

@@ -52,6 +52,7 @@ import {
   BarChart3,
   Users,
   Stethoscope,
+  Image as ImageIcon,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
@@ -361,6 +362,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const [campoMarca, setCampoMarca] = useState({ nombreMarca: "", eslogan: "", colorAcento: "#2563EB", mensaje: "", servicios: SERVICIOS_VACIOS() })
   const [campoLogoUrl, setCampoLogoUrl] = useState("")
   const [guardandoMarca, setGuardandoMarca] = useState(false)
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
+  const [errorLogo, setErrorLogo] = useState("")
   const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false)
   const [facturasOptica, setFacturasOptica] = useState([])
   const [cargandoFacturas, setCargandoFacturas] = useState(false)
@@ -800,6 +803,36 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     setGuardandoMarca(false)
   }
 
+  // Muchas ópticas (sobre todo pequeñas) no tienen un logo ya alojado en
+  // algún lado para pegar como URL — se sube el archivo directo al bucket
+  // público "logos" (migración 0037) y se guarda la URL pública resultante,
+  // exactamente como si la hubieran pegado a mano.
+  const subirLogo = async (archivo) => {
+    if (!archivo || !detalle) return
+    if (archivo.size > 2 * 1024 * 1024) {
+      setErrorLogo("La imagen no puede pesar más de 2 MB.")
+      return
+    }
+    setErrorLogo("")
+    setSubiendoLogo(true)
+    const extension = archivo.name.split(".").pop()?.toLowerCase() || "png"
+    const ruta = `${detalle.id}/${Date.now()}.${extension}`
+    const { error: errorSubida } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true })
+    if (errorSubida) {
+      setSubiendoLogo(false)
+      setErrorLogo("No se pudo subir la imagen. Intenta de nuevo.")
+      return
+    }
+    const { data } = supabase.storage.from("logos").getPublicUrl(ruta)
+    setCampoLogoUrl(data.publicUrl)
+    setSubiendoLogo(false)
+    const { error } = await supabase.from("opticas").update({ logo_url: data.publicUrl }).eq("id", detalle.id)
+    if (!error) {
+      setDetalle((prev) => (prev ? { ...prev, logo_url: data.publicUrl } : prev))
+      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, logo_url: data.publicUrl } : o)))
+    }
+  }
+
   // created_at viene de Supabase en UTC — recortar el string ISO tal cual
   // desalinea "hoy" con la fecha local del navegador (ej. un evento de las
   // 21:48 en Ecuador ya cayó en el día siguiente en UTC). Hay que pasarlo
@@ -1078,7 +1111,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
 
     setGuardando(false)
     setModalAbierto(false)
-    cargarDatos()
+    await cargarDatos()
+    // Feedback de Diego: al crear una óptica, de una vez ofrecer editar cómo
+    // se ve su login (logo, marca, servicios) en vez de dejarlo para que lo
+    // busque después entre la lista de ópticas.
+    setSeccion("opticas")
+    abrirDetalleOptica(nuevaOptica)
   }
 
   const alternarActiva = async (optica) => {
@@ -2490,7 +2528,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
           )}
           <button
             type="button"
-            onClick={alSalir}
+            onClick={() => alSalir()}
             className={"flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/55 transition-colors hover:bg-white/5 hover:text-white cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
           >
             <LogOut size={18} />
@@ -2557,7 +2595,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   </button>
                   <button
                     type="button"
-                    onClick={alSalir}
+                    onClick={() => alSalir()}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
                   >
                     <LogOut size={17} />
@@ -2915,11 +2953,26 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                       </div>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-slate-500">URL del logo</label>
+                      <label className="mb-1 block text-xs text-slate-500">Logo</label>
+                      <div className="flex items-center gap-2">
+                        {campoLogoUrl && (
+                          <img src={campoLogoUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
+                        )}
+                        <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogo ? "pointer-events-none opacity-60" : "")}>
+                          <ImageIcon size={13} />
+                          {subiendoLogo ? "Subiendo…" : "Subir imagen"}
+                          <input
+                            type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogo(f); e.target.value = "" }}
+                          />
+                        </label>
+                      </div>
+                      {errorLogo && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogo}</p>}
+                      <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
                       <input
                         type="text" value={campoLogoUrl} onChange={(e) => setCampoLogoUrl(e.target.value)} onBlur={guardarMarca}
                         placeholder="https://…"
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
                       />
                     </div>
                   </div>

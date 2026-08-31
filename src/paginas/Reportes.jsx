@@ -125,7 +125,8 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [] })
   // "pendiente" en vez de asumirse "atendida" solo porque el día ya pasó.
   const citasAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
   const citasNoAsistio = useMemo(() => citas.filter((c) => c.estado === "No Asistió").length, [citas])
-  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio, [citas, citasAtendidas, citasNoAsistio])
+  const citasCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
+  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas, [citas, citasAtendidas, citasNoAsistio, citasCanceladas])
   const totalCitasDist = Math.max(1, citas.length)
 
   const kpis = [
@@ -324,10 +325,18 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [] })
                       onMouseLeave={() => setHoverCitaEstado(null)}
                     />
                   )}
+                  {citasCanceladas > 0 && (
+                    <div
+                      className="transition-[filter] duration-150"
+                      style={{ width: `${(citasCanceladas / totalCitasDist) * 100}%`, backgroundColor: "#94a3b8", filter: hoverCitaEstado === "Canceladas" ? "brightness(1.12)" : "none" }}
+                      onMouseEnter={() => setHoverCitaEstado("Canceladas")}
+                      onMouseLeave={() => setHoverCitaEstado(null)}
+                    />
+                  )}
                 </div>
                 {hoverCitaEstado && (
                   <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg" style={{ background: INK }}>
-                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "Atendidas" ? citasAtendidas : citasNoAsistio}
+                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "Atendidas" ? citasAtendidas : hoverCitaEstado === "No asistió" ? citasNoAsistio : citasCanceladas}
                   </div>
                 )}
               </div>
@@ -343,6 +352,10 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [] })
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                   <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
                   No asistió <span className="text-slate-500">({citasNoAsistio})</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                  <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+                  Canceladas <span className="text-slate-500">({citasCanceladas})</span>
                 </span>
               </div>
             </>

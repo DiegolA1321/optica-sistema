@@ -48,16 +48,22 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
 
   // Confirmación visual breve tras guardar (horario semanal con su botón, o
   // una excepción puntual que sigue aplicándose al instante desde su modal).
+  // Antes esto era un useEffect atado a `disponibilidad` completo: se disparaba
+  // también cuando ese objeto llegaba/cambiaba por la carga inicial desde
+  // Supabase (sin que el admin hubiera tocado nada), mostrando "Cambios
+  // guardados" al simple abrir la pantalla. Ahora se dispara explícitamente
+  // solo desde las funciones que de verdad guardan (aplicarHorarioSemanal,
+  // aplicarExcepcion, quitarExcepcion).
   const [guardadoVisible, setGuardadoVisible] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState("")
   const [guardando, setGuardando] = useState(false)
-  const primerRender = useRef(true)
-  useEffect(() => {
-    if (primerRender.current) { primerRender.current = false; return }
+  const timeoutGuardadoRef = useRef(null)
+  const mostrarGuardado = () => {
     setGuardadoVisible(true)
-    const t = setTimeout(() => setGuardadoVisible(false), 2600)
-    return () => clearTimeout(t)
-  }, [disponibilidad])
+    clearTimeout(timeoutGuardadoRef.current)
+    timeoutGuardadoRef.current = setTimeout(() => setGuardadoVisible(false), 2600)
+  }
+  useEffect(() => () => clearTimeout(timeoutGuardadoRef.current), [])
 
   // El horario semanal habitual ya NO se guarda solo al tocar un switch u
   // hora — se edita en un borrador local y solo se aplica (persiste en
@@ -107,7 +113,7 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
     DIAS_SEMANA.forEach((d) => { mapa[d] = [] })
     citas.forEach((c) => {
       if (!c.fecha) return
-      if (c.estado === "Atendida" || c.estado === "No Asistió") return
+      if (c.estado === "Atendida" || c.estado === "No Asistió" || c.estado === "Cancelada") return
       if (!(esFechaHoy(c.fecha) || esFutura(c.fecha))) return
       const fechaObj = parseFechaFlexible(c.fecha)
       if (!fechaObj) return
@@ -150,6 +156,7 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
       return
     }
     setErrorGuardar("")
+    mostrarGuardado()
   }
 
   const dias = useMemo(() => {
@@ -180,12 +187,13 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
   const aplicarExcepcion = (fecha, cambios) => {
     setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [fecha]: cambios } }))
     setFechaEditando(null)
+    mostrarGuardado()
   }
 
   const guardarExcepcion = (cambios) => {
     const afectadas = citas.filter((c) => {
       if (c.fecha !== fechaEditando) return false
-      if (c.estado === "Atendida" || c.estado === "No Asistió") return false
+      if (c.estado === "Atendida" || c.estado === "No Asistió" || c.estado === "Cancelada") return false
       return citaFueraDeHorario(c, cambios)
     })
     if (afectadas.length > 0) {
@@ -202,6 +210,7 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
       return { ...prev, excepciones: n }
     })
     setFechaEditando(null)
+    mostrarGuardado()
   }
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -242,6 +251,10 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
                 <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>
               )}
             </h4>
+            <p className="-mt-2 mb-3 text-xs text-slate-500">
+              Esto define la regla general: si apagas "Lunes" aquí, cierras <span className="font-semibold">todos</span> los lunes.
+              Para cerrar solo un día puntual (ej. un lunes feriado) sin tocar el resto, usa "Excepciones puntuales" en el calendario de al lado.
+            </p>
             <div className="space-y-2.5">
               {ORDEN_LV.map((dia) => {
                 const d = borradorHorario[dia]

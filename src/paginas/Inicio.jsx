@@ -121,7 +121,7 @@ export default function Inicio({
   // jamás agendadas — el primer número que ve el optómetra al entrar era falso
   // y crecía para siempre). Se ordenan por hora, más temprano primero.
   const citasHoy = useMemo(
-    () => citas.filter((c) => esHoy(c.fecha)).sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)),
+    () => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)),
     [citas]
   )
 

@@ -338,8 +338,8 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
     return Array.from(mapa.entries())
   }, [citas, busqueda, filtro])
 
-  const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha)).length, [citas])
-  const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha)).length, [citas])
+  const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
+  const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
 
   const tituloDia = (dia) => {
@@ -460,7 +460,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {citasDia.map((cita) => {
                       const info = motivoInfo(cita.motivo, motivosConsulta)
-                      const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió"
+                      const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
                       // Sólo se puede marcar el desenlace de una cita que ya debió ocurrir —
                       // no tiene sentido registrar "atendida"/"no asistió" para el futuro.
                       const puedeMarcarse = !esFutura(cita.fecha) && !resuelta
@@ -552,6 +552,10 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                               <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
                                 <UserX size={12} /> No asistió
                               </span>
+                            ) : cita.estado === "Cancelada" ? (
+                              <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                                <X size={12} /> Cancelada por el paciente
+                              </span>
                             ) : cita.estado === "En Atención" ? (
                               <span className="flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
                                 <Activity size={12} /> En atención
@@ -577,7 +581,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -710,7 +714,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
       {/* ─── MODAL REAGENDAR ─── */}
       {reagendando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarReagendar}>
-          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>

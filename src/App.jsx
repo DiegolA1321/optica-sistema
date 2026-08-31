@@ -641,6 +641,7 @@ function App() {
           disponibilidad={disponibilidad}
           opticaId={opticaPublica?.id}
           opticaPublica={opticaPublica}
+          parametrizacion={parametrizacion}
           onVolver={() => setPantallaActual('login')}
         />
       )}

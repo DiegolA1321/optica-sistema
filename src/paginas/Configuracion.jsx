@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package } from "lucide-react"
+import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff } from "lucide-react"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -171,8 +171,8 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
                 {parametrizacion.permitirReagendarPaciente ? <CalendarCheck size={18} /> : <CalendarX size={18} />}
               </span>
               <div>
-                <p className="text-sm font-bold" style={{ color: INK }}>El paciente puede reagendar su propia cita</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Solo aplica a citas hechas por un paciente con cuenta desde su portal. Si la desactivas, tiene que escribirte para cambiar su cita.</p>
+                <p className="text-sm font-bold" style={{ color: INK }}>El paciente puede reagendar o cancelar su propia cita</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Solo aplica a citas hechas por un paciente con cuenta desde su portal. Si la desactivas, tiene que escribirte para cambiar o cancelar su cita.</p>
                 <p className="mt-1.5 text-[11px] font-semibold" style={{ color: parametrizacion.permitirReagendarPaciente ? "#059669" : "#94a3b8" }}>
                   {parametrizacion.permitirReagendarPaciente ? "Permitido" : "No permitido"}
                 </p>
@@ -183,7 +183,7 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
                       type="number"
                       min={1}
                       max={168}
-                      value={parametrizacion.horasAntesReagendar ?? 24}
+                      value={parametrizacion.horasAntesReagendar ?? 2}
                       onChange={(e) => setParametrizacion((prev) => ({ ...prev, horasAntesReagendar: Math.max(1, Number(e.target.value) || 1) }))}
                       className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-center font-semibold text-slate-800 outline-none focus:border-blue-500"
                     />
@@ -194,6 +194,16 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
             </div>
             <Interruptor activo={parametrizacion.permitirReagendarPaciente} onClick={() => alternar("permitirReagendarPaciente")} />
           </div>
+
+          <FilaParametro
+            icon={parametrizacion.recordatoriosCitaActivo === false ? BellOff : BellRing}
+            titulo="Recordatorio automático un día antes de la cita"
+            descripcion="Se envía por correo a cada paciente con cita al día siguiente (tenga o no cuenta en el portal), con un link para confirmar su asistencia. Reduce las inasistencias por olvido."
+            activo={parametrizacion.recordatoriosCitaActivo !== false}
+            onClick={() => setParametrizacion((prev) => ({ ...prev, recordatoriosCitaActivo: !(prev.recordatoriosCitaActivo !== false) }))}
+            etiquetaOn="Activo"
+            etiquetaOff="Desactivado — nadie recibirá el recordatorio"
+          />
         </div>
       </div>
 

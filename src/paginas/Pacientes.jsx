@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import {
   UserPlus,
   Search,
@@ -93,14 +94,34 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
   const [filtroCorreccion, setFiltroCorreccion] = useState("Todos")
   const [filtroFecha, setFiltroFecha] = useState("")
 
-  // Menú "más acciones" por fila de la tabla
+  // Menú "más acciones" por fila de la tabla — se renderiza en un portal a
+  // document.body con posición fija calculada desde el botón, en vez de
+  // quedar anidado en el contenedor de la tabla, porque ese contenedor
+  // scrollea horizontalmente (overflow-x-auto), lo que en la mayoría de
+  // navegadores también activa overflow-y:auto y corta/atraviesa el menú con
+  // su propio scrollbar en vez de dejarlo flotar limpio encima del contenido
+  // (mismo bug y misma solución que "más acciones" en SuperadminPanel.jsx).
   const [menuAccionesId, setMenuAccionesId] = useState(null)
+  const [menuAccionesPos, setMenuAccionesPos] = useState(null)
   const menuAccionesRef = useRef(null)
+  const abrirMenuAcciones = (id, e) => {
+    if (menuAccionesId === id) { setMenuAccionesId(null); return }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuAccionesPos({ top: rect.bottom + 6, left: rect.right - 208 })
+    setMenuAccionesId(id)
+  }
   useEffect(() => {
     if (menuAccionesId == null) return
     const onDown = (e) => { if (menuAccionesRef.current && !menuAccionesRef.current.contains(e.target)) setMenuAccionesId(null) }
+    const cerrarYa = () => setMenuAccionesId(null)
     document.addEventListener("mousedown", onDown)
-    return () => document.removeEventListener("mousedown", onDown)
+    window.addEventListener("scroll", cerrarYa, true)
+    window.addEventListener("resize", cerrarYa)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      window.removeEventListener("scroll", cerrarYa, true)
+      window.removeEventListener("resize", cerrarYa)
+    }
   }, [menuAccionesId])
 
   const [notificacion, setNotificacion] = useState("")
@@ -142,7 +163,10 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
 
   const abrirCuenta = (paciente) => {
     setCuentaPaciente(paciente)
-    setClaveGen(paciente.tieneCuenta && paciente.claveTemporal ? paciente.claveTemporal : generarClave())
+    // clave_temporal en la base es un hash bcrypt desde la migración 0023 (nunca
+    // texto plano) — reusarlo aquí mostraría el hash en vez de una clave que el
+    // paciente pueda escribir. Siempre se genera una clave temporal nueva.
+    setClaveGen(generarClave())
     setCopiadoCred(false)
   }
 
@@ -727,41 +751,16 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                           <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer">
                             <CalendarPlus size={16} />
                           </button>
-                          <div className="relative" ref={menuAccionesId === paciente.id ? menuAccionesRef : null}>
+                          <div className="relative">
                             <button
                               type="button"
-                              onClick={() => setMenuAccionesId((prev) => (prev === paciente.id ? null : paciente.id))}
+                              onClick={(e) => abrirMenuAcciones(paciente.id, e)}
                               title="Más acciones"
                               aria-label="Más acciones"
                               className={"rounded-lg p-2 transition-colors cursor-pointer " + (menuAccionesId === paciente.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
                             >
                               <MoreVertical size={16} />
                             </button>
-                            {menuAccionesId === paciente.id && (
-                              <div className="absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl">
-                                <button
-                                  type="button"
-                                  onClick={() => { setMenuAccionesId(null); abrirCuenta(paciente) }}
-                                  className={"flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer " + (paciente.tieneCuenta ? "text-slate-600 hover:bg-slate-50" : "text-blue-600 hover:bg-blue-50")}
-                                >
-                                  <KeyRound size={15} /> {paciente.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setMenuAccionesId(null); abrirEdicion(paciente) }}
-                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
-                                >
-                                  <Pencil size={15} /> Editar datos
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setMenuAccionesId(null); setPacienteAEliminar(paciente) }}
-                                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-                                >
-                                  <Trash2 size={15} /> Eliminar
-                                </button>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -939,6 +938,42 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
           </div>
         </div>
       )}
+
+      {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) ─── */}
+      {menuAccionesId != null && menuAccionesPos && (() => {
+        const paciente = pacientes.find((p) => p.id === menuAccionesId)
+        if (!paciente) return null
+        return createPortal(
+          <div
+            ref={menuAccionesRef}
+            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
+            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
+          >
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); abrirCuenta(paciente) }}
+              className={"flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer " + (paciente.tieneCuenta ? "text-slate-600 hover:bg-slate-50" : "text-blue-600 hover:bg-blue-50")}
+            >
+              <KeyRound size={15} /> {paciente.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); abrirEdicion(paciente) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+            >
+              <Pencil size={15} /> Editar datos
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); setPacienteAEliminar(paciente) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+            >
+              <Trash2 size={15} /> Eliminar
+            </button>
+          </div>,
+          document.body,
+        )
+      })()}
 
       {/* ─── MODAL ELIMINAR ─── */}
       {pacienteAEliminar && (

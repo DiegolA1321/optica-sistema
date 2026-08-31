@@ -28,7 +28,8 @@ const PORCELAIN = "#F7F5F0"
 const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica }) {
+export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica, parametrizacion }) {
+  const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
   const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "esta óptica"
   const [paso, setPaso] = useState(1)
   const [enviando, setEnviando] = useState(false)
@@ -421,6 +422,12 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                   <ShieldCheck size={14} className="text-emerald-600" />
                   Te enviaremos un recordatorio por WhatsApp antes de tu cita.
                 </p>
+
+                {parametrizacion?.permitirReagendarPaciente && (
+                  <p className="mx-auto max-w-sm text-xs leading-relaxed text-slate-500">
+                    Puedes cambiar el horario o cancelar tu cita hasta con {horasAntesPermitidas} hora{horasAntesPermitidas === 1 ? "" : "s"} de anticipación. Escríbenos o pídelo directamente si tienes cuenta de paciente.
+                  </p>
+                )}
 
                 <div className="mx-auto max-w-sm rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left">
                   <p className="text-xs leading-relaxed text-slate-500">
