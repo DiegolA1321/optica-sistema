@@ -368,6 +368,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         const { data: filas } = await supabase.rpc("verificar_login_paciente", {
           p_usuario: usuario.trim(),
           p_clave: password,
+          p_optica_id: opticaPublica?.id,
         })
         const fila = filas?.[0]
         if (fila?.bloqueado) {
@@ -396,6 +397,20 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         const { data: perfil } = await supabase.from("perfiles").select("*").eq("id", data.user.id).single()
         if (perfil?.rol === "superadmin") {
           AlTenerExito({ rol: "superadmin", nombre: perfil.nombre, id: perfil.id })
+          return
+        }
+        // El admin/asistente de una óptica solo puede entrar por el link de
+        // SU PROPIA óptica — antes cualquier cuenta real (de cualquier
+        // óptica) autenticaba en el link de cualquier otra, y aunque no se
+        // filtraba ningún dato ajeno (el resto del flujo igual carga por
+        // perfil.optica_id, nunca por lo que diga la URL), confundía y
+        // permitía "probar" credenciales de una óptica contra el link de
+        // otra. opticaPublica ya resuelve siempre a alguna óptica (la del
+        // slug, o la de referencia si no hay slug), así que esta comparación
+        // aplica sin excepción para todo lo que no sea superadmin.
+        if (perfil && perfil.optica_id !== opticaPublica?.id) {
+          await supabase.auth.signOut()
+          setErrorLogin("Esta cuenta no pertenece a esta óptica.")
           return
         }
         if (perfil?.rol === "admin") {
