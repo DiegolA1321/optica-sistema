@@ -8,6 +8,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   CalendarClock,
+  DollarSign,
+  TrendingUp,
+  Star,
 } from "lucide-react"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { useAnchoElemento } from "../utilidades/graficos"
@@ -36,7 +39,7 @@ function ultimosNMeses(n) {
   return arr
 }
 
-export default function Reportes({ pacientes = [], consultas = [], citas = [] }) {
+export default function Reportes({ pacientes = [], consultas = [], citas = [], respuestasSatisfaccion = [] }) {
   const mesActualClave = useMemo(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
@@ -60,6 +63,32 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [] })
   }, [pacientes])
 
   const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultas)).length, [pacientes, consultas])
+
+  // Vínculo receta → venta (anteproyecto: "tasa de conversión de recetas a
+  // ventas" e "ingresos" como indicadores de impacto operativo). Se apoya en
+  // consultas.productoId/montoVenta, que ya cierran el ciclo clínico →
+  // inventario (ver ConsultaMedica.jsx) — acá solo se agregan los números.
+  const consultasEsteMesArr = useMemo(() => consultas.filter((c) => (c.fecha || "").startsWith(mesActualClave)), [consultas, mesActualClave])
+  const ventasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
+  const ingresosEsteMes = useMemo(() => ventasEsteMes.reduce((sum, c) => sum + (Number(c.montoVenta) || 0), 0), [ventasEsteMes])
+  const conversionVenta = useMemo(() => {
+    if (consultasEsteMesArr.length === 0) return null
+    return Math.round((ventasEsteMes.length / consultasEsteMesArr.length) * 100)
+  }, [consultasEsteMesArr, ventasEsteMes])
+
+  // Satisfacción de pacientes (CSAT, 1 a 5) — respuestas de la encuesta
+  // automática enviada al marcar una cita "Atendida" (migración 0041).
+  const promedioSatisfaccion = useMemo(() => {
+    if (respuestasSatisfaccion.length === 0) return null
+    const suma = respuestasSatisfaccion.reduce((s, r) => s + (Number(r.puntaje) || 0), 0)
+    return suma / respuestasSatisfaccion.length
+  }, [respuestasSatisfaccion])
+  const distSatisfaccion = useMemo(() => {
+    const base = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    respuestasSatisfaccion.forEach((r) => { if (base[r.puntaje] != null) base[r.puntaje]++ })
+    return base
+  }, [respuestasSatisfaccion])
+  const maxSatisfaccion = Math.max(1, ...Object.values(distSatisfaccion))
 
   const consultasPorMes = useMemo(() => {
     const meses = ultimosNMeses(6)
@@ -134,6 +163,9 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [] })
     { key: "nuevos", label: "Pacientes nuevos", valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: "de los pacientes evaluados", icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600" },
     { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, icon: AlertTriangle, iconClass: "bg-red-50 text-red-600" },
+    { key: "ingresos", label: "Ingresos este mes", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasEsteMes.length} venta${ventasEsteMes.length === 1 ? "" : "s"} vinculada${ventasEsteMes.length === 1 ? "" : "s"} a receta`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: "de las consultas de este mes", icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
+    { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
 
   return (
@@ -359,6 +391,32 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [] })
                 </span>
               </div>
             </>
+          )}
+        </div>
+
+        {/* ─── SATISFACCIÓN DE PACIENTES (CSAT) ─── */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "320ms" }}>
+          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Satisfacción de pacientes</h3>
+          <p className="mb-5 text-xs text-slate-500">Encuesta enviada por correo al marcar una cita como atendida — {respuestasSatisfaccion.length} respuesta{respuestasSatisfaccion.length === 1 ? "" : "s"} hasta ahora</p>
+          {respuestasSatisfaccion.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">Aún no hay respuestas de la encuesta de satisfacción.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {[5, 4, 3, 2, 1].map((n) => (
+                <div key={n} className="flex items-center gap-3">
+                  <span className="flex w-14 shrink-0 items-center gap-1 text-xs font-semibold text-slate-600">
+                    {n} <Star size={12} fill="#C8A24E" stroke="#C8A24E" />
+                  </span>
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full transition-all duration-200"
+                      style={{ width: `${Math.max(distSatisfaccion[n] > 0 ? 4 : 0, (distSatisfaccion[n] / maxSatisfaccion) * 100)}%`, background: GRAD }}
+                    />
+                  </div>
+                  <span className="w-6 shrink-0 text-right font-mono text-xs font-bold text-slate-500">{distSatisfaccion[n]}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

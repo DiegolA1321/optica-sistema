@@ -535,6 +535,15 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                                 {cita.motivoPublico && (
                                   <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Agendada en línea: {cita.motivoPublico}</span>
                                 )}
+                                {cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle) && (
+                                  <span
+                                    className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-700"
+                                    title={[cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")}
+                                  >
+                                    <AlertTriangle size={12} className="shrink-0" />
+                                    Pre-triage: {[cita.triage.sintomas?.join(", "), cita.triage.desdeCuando].filter(Boolean).join(" · ") || "ver detalle"}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>

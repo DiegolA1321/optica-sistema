@@ -33,6 +33,7 @@ import {
   Lock,
   MoreVertical,
   RefreshCw,
+  Image as ImageIcon,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -72,7 +73,26 @@ const TENDENCIA = {
   "Sin cambios": { label: "Sin cambios", icon: Minus, fg: "#64748b" },
 }
 
-export default function Pacientes({ usuario, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica }) {
+// Miniatura de un adjunto clínico — el bucket es privado (a diferencia de
+// logos), así que no hay URL pública fija: se pide una firmada al montar.
+function MiniaturaAdjunto({ path }) {
+  const [url, setUrl] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    supabase?.storage.from("consultas-adjuntos").createSignedUrl(path, 3600).then(({ data }) => {
+      if (vivo && data?.signedUrl) setUrl(data.signedUrl)
+    })
+    return () => { vivo = false }
+  }, [path])
+  if (!url) return <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-slate-100"><ImageIcon size={16} className="text-slate-300" /></div>
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200">
+      <img src={url} alt="Adjunto clínico" className="h-full w-full object-cover" />
+    </a>
+  )
+}
+
+export default function Pacientes({ usuario, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1092,6 +1112,30 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
             </div>
 
             {(() => {
+              const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id)
+              if (!solicitudEliminacion) return null
+              return (
+                <div className="flex items-start justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">Este paciente solicitó eliminar su cuenta y sus datos.</p>
+                      {solicitudEliminacion.motivo && <p className="text-xs text-amber-700">Motivo: {solicitudEliminacion.motivo}</p>}
+                      <p className="text-[11px] text-amber-600">Usa "Eliminar paciente" en el menú de acciones para completarlo, y marca esta solicitud como atendida.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => marcarSolicitudEliminacionAtendida?.(solicitudEliminacion.id)}
+                    className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
+                  >
+                    Marcar atendida
+                  </button>
+                </div>
+              )
+            })()}
+
+            {(() => {
               const consultasPaciente = consultas
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
@@ -1262,7 +1306,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                                   <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
                                 </div>
                               </div>
-                              {(c.diagnostico || c.indicaciones || c.lenteRecomendado) && (
+                              {(c.diagnostico || c.indicaciones || c.lenteRecomendado || c.imagenes?.length > 0) && (
                                 <div className="mt-2.5 space-y-1.5 border-t border-slate-200 pt-2.5 text-sm">
                                   {c.diagnostico && (
                                     <p><span className="font-semibold text-slate-700">Diagnóstico:</span> <span className="text-slate-600">{c.diagnostico}</span></p>
@@ -1297,6 +1341,14 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                                   )}
                                   {(c.retinoscopia?.od || c.retinoscopia?.oi) && (
                                     <p className="text-xs text-slate-500"><span className="font-semibold text-slate-600">Retinoscopía:</span> OD {c.retinoscopia?.od || "—"} · OI {c.retinoscopia?.oi || "—"}</p>
+                                  )}
+                                  {c.imagenes?.length > 0 && (
+                                    <div>
+                                      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {c.imagenes.map((img) => <MiniaturaAdjunto key={img.path} path={img.path} />)}
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
                               )}

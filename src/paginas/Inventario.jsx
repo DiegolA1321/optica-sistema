@@ -14,7 +14,7 @@ import {
   Plus,
   Pencil,
 } from "lucide-react"
-import { esStockBajo } from "../utilidades/inventario"
+import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -39,6 +39,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
   const [stock, setStock] = useState("")
   const [precio, setPrecio] = useState("")
   const [observacion, setObservacion] = useState("")
+  const [critico, setCritico] = useState("")
   const [guardadoExitoso, setGuardadoExitoso] = useState("")
 
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
@@ -60,6 +61,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
   const [edStock, setEdStock] = useState("")
   const [edPrecio, setEdPrecio] = useState("")
   const [edObservacion, setEdObservacion] = useState("")
+  const [edCritico, setEdCritico] = useState("")
   const [erroresEdicion, setErroresEdicion] = useState({})
 
   const limpiarFormulario = () => {
@@ -68,6 +70,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     setStock("")
     setPrecio("")
     setObservacion("")
+    setCritico("")
     setErroresForm({})
   }
 
@@ -95,6 +98,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
       stock: stockNum,
       precio: precioNum,
       observacion: observacion || "",
+      critico: critico === "" ? null : Math.max(0, parseInt(critico, 10) || 0),
     }
 
     if (supabase && opticaId) {
@@ -163,6 +167,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     setEdStock(String(prod.stock))
     setEdPrecio(String(prod.precio))
     setEdObservacion(prod.observacion || "")
+    setEdCritico(prod.critico != null ? String(prod.critico) : "")
     setErroresEdicion({})
   }
 
@@ -183,7 +188,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     setErroresEdicion(errs)
     if (Object.keys(errs).length > 0) return
 
-    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "" }
+    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", critico: edCritico === "" ? null : Math.max(0, parseInt(edCritico, 10) || 0) }
     if (supabase && opticaId) {
       const { error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id)
       if (errorUpdate) {
@@ -445,6 +450,11 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                   <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
                     className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                  <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                </div>
                 {erroresForm.general && (
                   <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertTriangle size={14} /> {erroresForm.general}
@@ -513,6 +523,11 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                   <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                   <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
                     className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                  <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 {erroresEdicion.general && (
                   <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">

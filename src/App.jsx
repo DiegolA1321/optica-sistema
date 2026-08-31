@@ -17,6 +17,7 @@ const AgendarCitaPublica = lazy(() => import('./paginas/AgendarCitaPublica'));
 const PortalPaciente = lazy(() => import('./paginas/PortalPaciente'));
 const SuperadminPanel = lazy(() => import('./paginas/SuperadminPanel'));
 const ConfirmarCita = lazy(() => import('./paginas/ConfirmarCita'));
+const EncuestaSatisfaccion = lazy(() => import('./paginas/EncuestaSatisfaccion'));
 const PaginaLegal = lazy(() => import('./paginas/PaginaLegal'));
 
 // ─── Datos de arranque (solo se usan si no hay nada guardado aún) ───
@@ -143,7 +144,7 @@ function mapPaciente(p) {
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
-  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, motivo: c.motivo, motivoPublico: c.motivo_publico, iniciales, estado: c.estado }
+  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado }
 }
 function mapConsulta(c) {
   return {
@@ -153,8 +154,15 @@ function mapConsulta(c) {
     medidas: c.datos_clinicos?.medidas, examen: c.datos_clinicos?.examen,
     diagnostico: c.diagnostico, lenteRecomendado: c.lente_recomendado, indicaciones: c.indicaciones,
     proximoControlDias: c.proximo_control_dias, evolucionCalculada: c.evolucion_calculada, estadoCorreccion: c.estado_correccion,
-    productoId: c.producto_id, productoNombre: c.producto_nombre, profesionalNombre: c.profesional_nombre,
+    productoId: c.producto_id, productoNombre: c.producto_nombre, montoVenta: c.monto_venta != null ? Number(c.monto_venta) : null,
+    profesionalNombre: c.profesional_nombre, imagenes: c.imagenes || [],
   }
+}
+function mapRespuestaSatisfaccion(r) {
+  return { id: r.id, citaId: r.cita_id, puntaje: r.puntaje, comentario: r.comentario, creadoEn: r.created_at }
+}
+function mapSolicitudEliminacion(s) {
+  return { id: s.id, pacienteId: s.paciente_id, motivo: s.motivo, estado: s.estado, creadoEn: s.created_at }
 }
 
 // Reconstruye la sesión activa (si hay una guardada) a partir de los pacientes ya
@@ -219,6 +227,15 @@ function App() {
   });
   const [inventario, setInventario] = useState(INVENTARIO_SEED);
   const [consultas, setConsultas] = useState(() => cargarDeStorage('optica_consultas', []));
+  // Solo lectura desde Reportes — no hay wrapper de escritura porque nunca
+  // se edita desde la app, solo se llena vía la página pública de la
+  // encuesta (enviar_encuesta_satisfaccion, migración 0041).
+  const [respuestasSatisfaccion, setRespuestasSatisfaccion] = useState([]);
+  // Solicitudes de eliminación de cuenta que dejan los pacientes desde su
+  // portal (migración 0045) — solo lectura + marcar atendida, el borrado
+  // real lo sigue haciendo el admin con el flujo que ya existía en
+  // Pacientes.jsx.
+  const [solicitudesEliminacion, setSolicitudesEliminacion] = useState([]);
   const [disponibilidad, setDisponibilidadState] = useState(DISPONIBILIDAD_SEED);
   const [asistentes, setAsistentes] = useState([]);
   const [parametrizacion, setParametrizacionState] = useState(PARAMETRIZACION_SEED);
@@ -316,7 +333,7 @@ function App() {
 
     if (esAdmin) {
       supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
-        if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '' })))
+        if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico })))
       })
 
       // pacientes/citas/consultas: hidratan el estado local con lo real de
@@ -337,6 +354,14 @@ function App() {
         if (data) setConsultas(data.map(mapConsulta))
       })
 
+      supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data }) => {
+        if (data) setRespuestasSatisfaccion(data.map(mapRespuestaSatisfaccion))
+      })
+
+      supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data }) => {
+        if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
+      })
+
       supabase.from('perfiles').select('id, nombre, email, permisos').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data }) => {
         if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {} })))
       })
@@ -347,6 +372,13 @@ function App() {
   // aceptan función o valor) y persisten en Supabase en segundo plano. Solo
   // el administrador puede escribir (usuario.opticaId real) — sin eso, el
   // cambio queda solo en memoria de esta sesión, sin persistir.
+  const marcarSolicitudEliminacionAtendida = async (solicitudId) => {
+    if (!supabase) return
+    const { data, error } = await supabase.rpc('marcar_solicitud_eliminacion_atendida', { p_solicitud_id: solicitudId })
+    if (error || !data) return
+    setSolicitudesEliminacion((prev) => prev.filter((s) => s.id !== solicitudId))
+  }
+
   const setParametrizacion = (updater) => {
     setParametrizacionState((prev) => {
       const siguiente = typeof updater === 'function' ? updater(prev) : updater
@@ -562,6 +594,17 @@ function App() {
     );
   }
 
+  // Link "Calificar mi visita" del correo de encuesta (migración 0041) —
+  // mismo criterio que confirmar_cita: independiente de sitio/sesión.
+  const citaAEncuestar = new URLSearchParams(window.location.search).get('encuesta_cita');
+  if (citaAEncuestar) {
+    return (
+      <Suspense fallback={<PantallaCargando />}>
+        <EncuestaSatisfaccion citaId={citaAEncuestar} />
+      </Suspense>
+    );
+  }
+
   // Política de privacidad / términos — enlaces del footer del login y de la
   // página de venta (?legal=privacidad o ?legal=terminos).
   const vistaLegal = new URLSearchParams(window.location.search).get('legal');
@@ -594,6 +637,9 @@ function App() {
           setInventario={setInventario}
           consultas={consultas}
           setConsultas={setConsultas}
+          respuestasSatisfaccion={respuestasSatisfaccion}
+          solicitudesEliminacion={solicitudesEliminacion}
+          marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           disponibilidad={disponibilidad}
           setDisponibilidad={setDisponibilidad}
           asistentes={asistentes}

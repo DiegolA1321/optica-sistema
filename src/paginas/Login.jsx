@@ -282,6 +282,39 @@ function EstilosFirma() {
   )
 }
 
+// ─── Paso 2 del login: código de verificación en dos pasos — mismo look que
+// el resto del formulario, reutilizado en el modal compartido y en la
+// pantalla soloModal del superadmin.
+function FormularioCodigoMfa({ codigo, setCodigo, errorLogin, enviando, onSubmit, onCancelar }) {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      {errorLogin && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+          <X size={16} className="mt-0.5 shrink-0" />
+          {errorLogin}
+        </div>
+      )}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="codigo-mfa" className="text-sm font-medium text-slate-700">Código de verificación</label>
+        <p className="text-xs text-slate-500">Abre tu app de autenticación e ingresa el código de 6 dígitos.</p>
+        <input
+          id="codigo-mfa" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus
+          value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))} placeholder="123456"
+          className="w-full rounded-xl border border-slate-300 bg-white py-3 text-center font-mono text-xl tracking-[0.4em] text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+        />
+      </div>
+      <button type="submit" disabled={enviando || codigo.length !== 6}
+        className="mt-2 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+        style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
+        {enviando ? "Verificando…" : "Verificar"}
+      </button>
+      <button type="button" onClick={onCancelar} className="text-sm font-medium text-slate-500 underline-offset-4 transition-colors hover:text-slate-800 hover:underline cursor-pointer">
+        Cancelar e iniciar sesión de nuevo
+      </button>
+    </form>
+  )
+}
+
 export default function Login({ pacientes = [], opticaPublica = null, disponibilidad = null, soloModal = false, avisoInicial = null, AlTenerExito = () => {}, AlIrARegistro = () => {} }) {
   // Personalización por óptica (nombre de marca, eslogan, color de acento,
   // logo, mensaje de bienvenida, servicios) — con los valores de siempre
@@ -325,6 +358,12 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   const [mostrarModal, setMostrarModal] = useState(false)
   const [errorLogin, setErrorLogin] = useState("")
   const [enviando, setEnviando] = useState(false)
+  // Verificación en dos pasos (MFA/TOTP) — null hasta que un admin/asistente/
+  // superadmin con la verificación activada entra con su contraseña; a
+  // partir de ahí se pide el código antes de dar acceso (ver SeccionMfa.jsx
+  // para dónde se activa).
+  const [mfaPendiente, setMfaPendiente] = useState(null)
+  const [codigoMfa, setCodigoMfa] = useState("")
 
   // Ciberseguridad: si App.jsx cerró la sesión sola por inactividad, muestra
   // el aviso aquí — y abre el modal para que se vea (en el sitio de una
@@ -370,6 +409,102 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   const abrirLogin = () => {
     setErrorLogin("")
     setMostrarModal(true)
+  }
+
+  // Resuelve el perfil real (superadmin/admin/asistente) y llama a
+  // AlTenerExito — factorizado aparte de manejarEnvio porque se necesita
+  // llamar desde dos lugares: justo tras la contraseña (si la cuenta no
+  // tiene MFA activado) o tras verificar el código MFA (si sí lo tiene).
+  // Devuelve true si ya se manejó el caso (éxito o un error específico ya
+  // mostrado), false si no hubo perfil coincidente y debe caer al mensaje
+  // genérico de "usuario o contraseña incorrectos".
+  const completarLoginConPerfil = async (userId) => {
+    const { data: perfil } = await supabase.from("perfiles").select("*").eq("id", userId).single()
+    if (perfil?.rol === "superadmin") {
+      AlTenerExito({ rol: "superadmin", nombre: perfil.nombre, id: perfil.id })
+      return true
+    }
+    // El admin/asistente de una óptica solo puede entrar por el link de SU
+    // PROPIA óptica — antes cualquier cuenta real (de cualquier óptica)
+    // autenticaba en el link de cualquier otra, y aunque no se filtraba
+    // ningún dato ajeno (el resto del flujo igual carga por
+    // perfil.optica_id, nunca por lo que diga la URL), confundía y permitía
+    // "probar" credenciales de una óptica contra el link de otra.
+    // opticaPublica ya resuelve siempre a alguna óptica (la del slug, o la
+    // de referencia si no hay slug), así que esta comparación aplica sin
+    // excepción para todo lo que no sea superadmin.
+    if (perfil && perfil.optica_id !== opticaPublica?.id) {
+      await supabase.auth.signOut()
+      setErrorLogin("Esta cuenta no pertenece a esta óptica.")
+      return true
+    }
+    if (perfil?.rol === "admin") {
+      const { data: optica } = await supabase.from("opticas").select("*").eq("id", perfil.optica_id).single()
+      if (optica && !optica.activa) {
+        await supabase.auth.signOut()
+        setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
+        return true
+      }
+      AlTenerExito({
+        rol: "admin",
+        nombre: perfil.nombre,
+        id: perfil.id,
+        opticaId: perfil.optica_id,
+        opticaNombre: optica?.nombre,
+        opticaMarca: optica?.marca || null,
+      })
+      return true
+    }
+    if (perfil?.rol === "asistente") {
+      const { data: optica } = await supabase.from("opticas").select("*").eq("id", perfil.optica_id).single()
+      if (optica && !optica.activa) {
+        await supabase.auth.signOut()
+        setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
+        return true
+      }
+      AlTenerExito({
+        rol: "asistente",
+        nombre: perfil.nombre,
+        id: perfil.id,
+        opticaId: perfil.optica_id,
+        opticaNombre: optica?.nombre,
+        opticaMarca: optica?.marca || null,
+        permisos: perfil.permisos || {},
+      })
+      return true
+    }
+    return false
+  }
+
+  // Paso 2 del login cuando la cuenta tiene verificación en dos pasos
+  // activada (ver la comprobación de aal en manejarEnvio, más abajo).
+  const verificarCodigoMfa = async (e) => {
+    e.preventDefault()
+    if (enviando || !mfaPendiente) return
+    setErrorLogin("")
+    setEnviando(true)
+    const { error } = await supabase.auth.mfa.verify({
+      factorId: mfaPendiente.factorId,
+      challengeId: mfaPendiente.challengeId,
+      code: codigoMfa.trim(),
+    })
+    if (error) {
+      setErrorLogin("Código incorrecto. Verifica la app de autenticación e intenta de nuevo.")
+      setEnviando(false)
+      return
+    }
+    const userId = mfaPendiente.userId
+    setMfaPendiente(null)
+    setCodigoMfa("")
+    await completarLoginConPerfil(userId)
+    setEnviando(false)
+  }
+
+  const cancelarMfa = async () => {
+    await supabase.auth.signOut()
+    setMfaPendiente(null)
+    setCodigoMfa("")
+    setErrorLogin("")
   }
 
   const manejarEnvio = async (e) => {
@@ -431,60 +566,31 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         ? await supabase.auth.signInWithPassword({ email: usuario.trim(), password })
         : { data: null, error: true }
       if (!error && data?.user) {
-        const { data: perfil } = await supabase.from("perfiles").select("*").eq("id", data.user.id).single()
-        if (perfil?.rol === "superadmin") {
-          AlTenerExito({ rol: "superadmin", nombre: perfil.nombre, id: perfil.id })
-          return
-        }
-        // El admin/asistente de una óptica solo puede entrar por el link de
-        // SU PROPIA óptica — antes cualquier cuenta real (de cualquier
-        // óptica) autenticaba en el link de cualquier otra, y aunque no se
-        // filtraba ningún dato ajeno (el resto del flujo igual carga por
-        // perfil.optica_id, nunca por lo que diga la URL), confundía y
-        // permitía "probar" credenciales de una óptica contra el link de
-        // otra. opticaPublica ya resuelve siempre a alguna óptica (la del
-        // slug, o la de referencia si no hay slug), así que esta comparación
-        // aplica sin excepción para todo lo que no sea superadmin.
-        if (perfil && perfil.optica_id !== opticaPublica?.id) {
-          await supabase.auth.signOut()
-          setErrorLogin("Esta cuenta no pertenece a esta óptica.")
-          return
-        }
-        if (perfil?.rol === "admin") {
-          const { data: optica } = await supabase.from("opticas").select("*").eq("id", perfil.optica_id).single()
-          if (optica && !optica.activa) {
-            await supabase.auth.signOut()
-            setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
-            return
+        // Verificación en dos pasos: si esta cuenta tiene un factor TOTP
+        // verificado, Supabase la deja en aal1 tras la contraseña y solo
+        // sube a aal2 después del código — se pide acá antes de resolver el
+        // perfil. Envuelto en try/catch a propósito: si esta comprobación
+        // fallara por lo que sea, el login de alguien SIN MFA activado
+        // nunca debe quedar bloqueado por eso.
+        try {
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+          if (aal && aal.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+            const { data: factoresData } = await supabase.auth.mfa.listFactors()
+            const factor = factoresData?.totp?.find((f) => f.status === "verified")
+            if (factor) {
+              const { data: challenge, error: errorChallenge } = await supabase.auth.mfa.challenge({ factorId: factor.id })
+              if (!errorChallenge) {
+                setMfaPendiente({ factorId: factor.id, challengeId: challenge.id, userId: data.user.id })
+                return
+              }
+            }
           }
-          AlTenerExito({
-            rol: "admin",
-            nombre: perfil.nombre,
-            id: perfil.id,
-            opticaId: perfil.optica_id,
-            opticaNombre: optica?.nombre,
-            opticaMarca: optica?.marca || null,
-          })
-          return
+        } catch {
+          // seguir con el login normal
         }
-        if (perfil?.rol === "asistente") {
-          const { data: optica } = await supabase.from("opticas").select("*").eq("id", perfil.optica_id).single()
-          if (optica && !optica.activa) {
-            await supabase.auth.signOut()
-            setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
-            return
-          }
-          AlTenerExito({
-            rol: "asistente",
-            nombre: perfil.nombre,
-            id: perfil.id,
-            opticaId: perfil.optica_id,
-            opticaNombre: optica?.nombre,
-            opticaMarca: optica?.marca || null,
-            permisos: perfil.permisos || {},
-          })
-          return
-        }
+
+        const manejado = await completarLoginConPerfil(data.user.id)
+        if (manejado) return
       }
 
       setErrorLogin("Usuario o contraseña incorrectos. Verifica tus datos o pídelos de nuevo al optómetra.")
@@ -586,6 +692,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               </div>
             </div>
 
+            {mfaPendiente ? (
+              <FormularioCodigoMfa codigo={codigoMfa} setCodigo={setCodigoMfa} errorLogin={errorLogin} enviando={enviando} onSubmit={verificarCodigoMfa} onCancelar={cancelarMfa} />
+            ) : (
             <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
               {errorLogin && (
                 <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
@@ -621,6 +730,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 {enviando ? "Entrando…" : "Entrar"}
               </button>
             </form>
+            )}
             </div>
           </div>
         </div>
@@ -1001,6 +1111,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
             </div>
 
             <div className="p-6 sm:p-8">
+              {mfaPendiente ? (
+                <FormularioCodigoMfa codigo={codigoMfa} setCodigo={setCodigoMfa} errorLogin={errorLogin} enviando={enviando} onSubmit={verificarCodigoMfa} onCancelar={cancelarMfa} />
+              ) : (
               <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
                 {errorLogin && (
                   <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
@@ -1036,13 +1149,16 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   {enviando ? "Entrando…" : "Entrar"}
                 </button>
               </form>
+              )}
 
               <p className="mt-5 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400">
                 <ShieldCheck size={13} /> Conexión segura
               </p>
-              <p className="mt-3 border-t border-slate-100 pt-3 text-center text-sm leading-relaxed text-slate-500">
-                ¿No tienes cuenta? Solicítala al optómetra durante tu visita.
-              </p>
+              {!mfaPendiente && (
+                <p className="mt-3 border-t border-slate-100 pt-3 text-center text-sm leading-relaxed text-slate-500">
+                  ¿No tienes cuenta? Solicítala al optómetra durante tu visita.
+                </p>
+              )}
             </div>
           </div>
           </div>

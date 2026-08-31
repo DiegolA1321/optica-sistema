@@ -41,6 +41,13 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     telefono: "",
     correo: "",
     motivo: "Medición y examen visual",
+    // Pre-triage remoto: solo se le pide al paciente cuando el motivo es una
+    // molestia real (ver marco referencial del anteproyecto — la
+    // teleoptometría se usa sobre todo para esto, decidir con más contexto
+    // si hace falta ver al paciente antes de su cita). No es un test de
+    // agudeza visual ni reemplaza el examen — es lo que el optómetra ve al
+    // revisar la cita antes de atenderla.
+    triage: { sintomas: [], desdeCuando: "", detalle: "" },
     fecha: null,
     hora: "",
     codigoCita: "",
@@ -83,6 +90,15 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     "Compra de lentes o monturas": "Adaptación de Lentes",
   }
 
+  const SINTOMAS = ["Dolor", "Enrojecimiento", "Visión borrosa", "Picazón o ardor", "Secreción", "Sensibilidad a la luz", "Golpe o trauma"]
+  const alternarSintoma = (s) => {
+    setFormData((prev) => {
+      const actuales = prev.triage.sintomas
+      const siguientes = actuales.includes(s) ? actuales.filter((x) => x !== s) : [...actuales, s]
+      return { ...prev, triage: { ...prev.triage, sintomas: siguientes } }
+    })
+  }
+
   const siguientePaso = () => setPaso((prev) => Math.min(prev + 1, 3))
 
   const anteriorPaso = () => setPaso((prev) => Math.max(prev - 1, 1))
@@ -96,6 +112,9 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       : (partesNombre[0]?.[0] || "P").toUpperCase()
 
     const motivoInterno = MOTIVO_INTERNO[formData.motivo] || "Consulta General"
+    const triageAEnviar = formData.triage.sintomas.length > 0 || formData.triage.desdeCuando || formData.triage.detalle.trim()
+      ? formData.triage
+      : null
     const nuevaCita = {
       paciente: nombreCompleto,
       telefono: formData.telefono,
@@ -103,6 +122,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       hora: formData.hora,
       motivo: motivoInterno,
       motivoPublico: formData.motivo,
+      triage: triageAEnviar,
       iniciales,
       estado: "Pendiente",
     }
@@ -123,6 +143,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
         p_motivo: motivoInterno,
         p_motivo_publico: formData.motivo,
         p_correo: formData.correo || null,
+        p_triage: triageAEnviar,
       })
       if (error) {
         setEnviando(false)
@@ -344,6 +365,58 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                       )
                     })}
                   </div>
+
+                  {formData.motivo === "Atención por molestia o enfermedad" && (
+                    <div className="ac-step mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <h4 className="text-sm font-bold" style={{ color: INK }}>Cuéntanos un poco más</h4>
+                      <p className="text-[11px] text-slate-500">Esto le llega al optómetra antes de tu cita para revisarlo con más contexto — es opcional.</p>
+
+                      <p className="mb-1.5 mt-3 text-xs font-semibold text-slate-600">¿Qué síntomas tienes?</p>
+                      <div className="flex flex-wrap gap-2">
+                        {SINTOMAS.map((s) => {
+                          const activo = formData.triage.sintomas.includes(s)
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => alternarSintoma(s)}
+                              className={
+                                "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " +
+                                (activo ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                              }
+                            >
+                              {s}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      <p className="mb-1.5 mt-4 text-xs font-semibold text-slate-600">¿Desde cuándo?</p>
+                      <div className="flex flex-wrap gap-2">
+                        {["Hoy", "Hace unos días", "Hace más de una semana"].map((op) => (
+                          <button
+                            key={op}
+                            type="button"
+                            onClick={() => setFormData((prev) => ({ ...prev, triage: { ...prev.triage, desdeCuando: op } }))}
+                            className={
+                              "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " +
+                              (formData.triage.desdeCuando === op ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
+                            }
+                          >
+                            {op}
+                          </button>
+                        ))}
+                      </div>
+
+                      <textarea
+                        rows={2}
+                        value={formData.triage.detalle}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, triage: { ...prev.triage, detalle: e.target.value } }))}
+                        placeholder="Algo más que quieras contarnos (opcional)"
+                        className="mt-3 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end pt-1">

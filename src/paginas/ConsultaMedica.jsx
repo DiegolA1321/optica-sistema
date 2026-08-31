@@ -31,6 +31,7 @@ import {
   History,
   ChevronDown,
   X,
+  Image as ImageIcon,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
@@ -181,17 +182,34 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }, [inventario, busquedaProducto])
 
   const productoSeleccionado = useMemo(() => inventario.find((p) => p.id === productoId) || null, [inventario, productoId])
+  // Monto real cobrado por la venta — precarga con el precio de lista pero
+  // queda editable (descuentos, promociones) porque no siempre coincide.
+  // Cierra el vínculo receta→venta que pide el anteproyecto (conversión de
+  // recetas a ventas + ingresos, ver Reportes.jsx).
+  const [montoVenta, setMontoVenta] = useState("")
+
+  // --- Imágenes adjuntas (opcional) — se suben a Storage recién al
+  // confirmar guardado, no antes, para no dejar archivos huérfanos si el
+  // optómetra cancela la ficha a medio llenar. ---
+  const [archivosImagenes, setArchivosImagenes] = useState([])
+  const agregarArchivosImagenes = (lista) => {
+    const nuevos = Array.from(lista).filter((f) => f.type.startsWith("image/"))
+    setArchivosImagenes((prev) => [...prev, ...nuevos].slice(0, 6))
+  }
+  const quitarArchivoImagen = (idx) => setArchivosImagenes((prev) => prev.filter((_, i) => i !== idx))
 
   const seleccionarProducto = (p) => {
     setProductoId(p.id)
     setBusquedaProducto(p.nombre)
     setMostrarDropdownProducto(false)
+    setMontoVenta(String(p.precio ?? ""))
     if (!lenteRecomendado.trim()) setLenteRecomendado(p.nombre)
   }
 
   const quitarProducto = () => {
     setProductoId(null)
     setBusquedaProducto("")
+    setMontoVenta("")
   }
 
   const [notificacion, setNotificacion] = useState(false)
@@ -407,11 +425,24 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       estadoCorreccion,
       productoId: productoSeleccionado?.id || null,
       productoNombre: productoSeleccionado?.nombre || null,
+      montoVenta: productoSeleccionado ? (Number(montoVenta) || 0) : null,
     }
 
     nuevaFicha.profesionalNombre = usuario?.nombre || null
 
     if (supabase && usuario?.opticaId) {
+      // Sube las imágenes seleccionadas recién ahora (confirmado el
+      // guardado) — un archivo que no llega a subir no bloquea la ficha,
+      // solo se omite y se avisa aparte (nunca se pierde la consulta por
+      // un adjunto fallido).
+      const imagenesSubidas = []
+      for (const archivo of archivosImagenes) {
+        const ruta = `${usuario.opticaId}/${pacienteId || "sin-paciente"}-${Date.now()}-${archivo.name}`
+        const { error: errorSubida } = await supabase.storage.from("consultas-adjuntos").upload(ruta, archivo)
+        if (!errorSubida) imagenesSubidas.push({ path: ruta, nombre: archivo.name })
+      }
+      nuevaFicha.imagenes = imagenesSubidas
+
       const { data, error } = await supabase
         .from("consultas")
         .insert({
@@ -433,7 +464,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           estado_correccion: nuevaFicha.estadoCorreccion,
           producto_id: nuevaFicha.productoId,
           producto_nombre: nuevaFicha.productoNombre,
+          monto_venta: nuevaFicha.montoVenta,
           profesional_nombre: nuevaFicha.profesionalNombre,
+          imagenes: nuevaFicha.imagenes,
         })
         .select()
         .single()
@@ -1236,10 +1269,18 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           <Glasses size={12} /> Vincular producto de bodega <span className="font-normal normal-case text-slate-500">(opcional — descuenta 1 unidad de stock al guardar)</span>
                         </label>
                         {productoSeleccionado ? (
-                          <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+                          <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
                             <span className="font-semibold text-blue-800">{productoSeleccionado.nombre}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-blue-600">{productoSeleccionado.stock} u. en stock</span>
+                              <label className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-1.5 py-0.5">
+                                <span className="text-xs font-bold text-blue-500">$</span>
+                                <input
+                                  type="number" min="0" step="0.01" value={montoVenta} onChange={(e) => setMontoVenta(e.target.value)}
+                                  aria-label="Monto de la venta"
+                                  className="w-16 text-right font-mono text-xs text-blue-800 outline-none"
+                                />
+                              </label>
                               <button type="button" onClick={quitarProducto} aria-label="Quitar producto vinculado" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">
                                 ×
                               </button>
@@ -1284,6 +1325,30 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
                         <Glasses size={13} className="text-blue-500" /> Vinculado a <span className="font-semibold text-slate-700">{productoSeleccionado.nombre}</span> — se descontó 1 unidad del inventario.
                       </p>
+                    )}
+
+                    {!fichaGuardada && (
+                      <div className="no-print rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
+                        <label className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                          <ImageIcon size={12} /> Adjuntar imágenes <span className="font-normal normal-case text-slate-500">(opcional — hasta 6)</span>
+                        </label>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          {archivosImagenes.map((f, i) => (
+                            <div key={i} className="relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200">
+                              <img src={URL.createObjectURL(f)} alt={f.name} className="h-full w-full object-cover" />
+                              <button type="button" onClick={() => quitarArchivoImagen(i)} aria-label="Quitar imagen" className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-black/60 text-white cursor-pointer">
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ))}
+                          {archivosImagenes.length < 6 && (
+                            <label className="grid h-14 w-14 cursor-pointer place-items-center rounded-lg border border-dashed border-slate-300 text-slate-400 transition hover:border-blue-300 hover:text-blue-500">
+                              <ImageIcon size={18} />
+                              <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(e) => { agregarArchivosImagenes(e.target.files); e.target.value = "" }} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
                     )}
 
                     {(indicaciones || !fichaGuardada) && (

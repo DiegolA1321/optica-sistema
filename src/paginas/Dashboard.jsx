@@ -45,6 +45,7 @@ import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 import { diasVencido } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
+import SeccionMfa from "./SeccionMfa"
 
 // ─── Paleta de firma ───
 const INK = "#0E2B33"
@@ -92,7 +93,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, disponibilidad, setDisponibilidad, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir }) {
+export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -120,6 +121,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   const [colapsado, setColapsado] = useState(false)
   const [notifAbierta, setNotifAbierta] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
+  const [modalMiCuentaAbierto, setModalMiCuentaAbierto] = useState(false)
   const notifRef = useRef(null)
   const userRef = useRef(null)
 
@@ -224,6 +226,8 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
             onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); navegar("consultas") }}
+            solicitudesEliminacion={solicitudesEliminacion}
+            marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           />
         )
       case "consultas":
@@ -262,7 +266,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
       case "reportes":
-        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} />
+        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} respuestasSatisfaccion={respuestasSatisfaccion} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
@@ -494,6 +498,14 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
                   <div className="p-2">
                     <button
                       type="button"
+                      onClick={() => { setUserMenuAbierto(false); setModalMiCuentaAbierto(true) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Settings size={17} />
+                      Mi cuenta
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => alSalir()}
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
                     >
@@ -514,6 +526,39 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           </Suspense>
         </div>
       </main>
+
+      {/* ─── MODAL MI CUENTA ─── */}
+      {modalMiCuentaAbierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
+          onClick={() => setModalMiCuentaAbierto(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
+                  <Settings size={20} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
+                  <p className="text-xs text-slate-500">{nombreUsuario} · {rolUsuario}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setModalMiCuentaAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <SeccionMfa />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

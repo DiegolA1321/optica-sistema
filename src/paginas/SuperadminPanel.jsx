@@ -55,6 +55,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
+import SeccionMfa from "./SeccionMfa"
 import { esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
@@ -3663,6 +3664,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                     </button>
                   </div>
                 </form>
+              </div>
+
+              <div className="border-t border-slate-100 pt-5">
+                <SeccionMfa />
               </div>
             </div>
           </div>
