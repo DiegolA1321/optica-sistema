@@ -24,6 +24,14 @@ import {
   LayoutGrid,
   Tag,
   Menu,
+  FileText,
+  Activity,
+  UserCheck,
+  RefreshCw,
+  Globe,
+  Palette,
+  UserCog,
+  Lock,
 } from "lucide-react"
 
 const NAV_LINKS = [
@@ -93,41 +101,89 @@ function MockCRM() {
   )
 }
 
-const BENEFICIOS = [
+// ─── Vitrina de módulos: una sección grande y alternada por módulo real del
+// sistema (inspirado en cómo sistemaoptica.com presenta cada función a fondo,
+// en vez de una sola grilla apretada de tarjetas). "mock" reutiliza las
+// vistas previas ya existentes; "chips" arma una grilla de sub-funciones
+// cuando no hay una vista previa dedicada.
+const MODULOS = [
   {
     icon: Users,
-    titulo: "Pacientes e historiales clínicos",
-    texto: "Ficha clínica completa, medidas de corrección y evolución de cada paciente, siempre a mano.",
-    grande: true,
+    titulo: "Historiales que no viven en un cuaderno",
+    texto: "Ficha clínica completa de cada paciente: medidas de corrección, evolución de cada control y datos de contacto, siempre a un clic.",
+    dark: false,
     mock: MockHistorial,
+    etiqueta: "historial · María G.",
+    grad: "linear-gradient(135deg,#22D3EE,#2563EB)",
+    glow: "rgba(37,99,235,0.55)",
+    accent: "#2563EB",
   },
   {
     icon: Calendar,
-    titulo: "Citas y agenda",
-    texto: "Reservas con y sin cuenta, horario del optómetra y control de asistencia, sin choques de agenda.",
+    titulo: "Tu agenda real, sin choques de horario",
+    texto: "Reservas con y sin cuenta de paciente, conectadas al horario real del optómetra — con confirmación por código y control de asistencia.",
+    dark: true,
+    grad: "linear-gradient(135deg,#34D399,#0D9488)",
+    glow: "rgba(13,148,136,0.5)",
+    accent: "#2DD4BF",
+    chips: [
+      { icon: Calendar, txt: "Reservas con y sin cuenta" },
+      { icon: Clock, txt: "Horario real del optómetra" },
+      { icon: Check, txt: "Confirmación por código" },
+      { icon: UserCheck, txt: "Control de asistencia" },
+    ],
   },
   {
     icon: Stethoscope,
     titulo: "Consulta médica digital",
-    texto: "Retinoscopia, refracción y diagnóstico en un flujo guiado, con historial siempre disponible.",
+    texto: "Retinoscopia, refracción y transposición en un flujo guiado, con receta imprimible y el historial del paciente siempre a mano.",
+    dark: false,
+    grad: "linear-gradient(135deg,#A78BFA,#7C3AED)",
+    glow: "rgba(124,58,237,0.45)",
+    accent: "#7C3AED",
+    chips: [
+      { icon: Stethoscope, txt: "Retinoscopia y refracción" },
+      { icon: RefreshCw, txt: "Transposición automática" },
+      { icon: FileText, txt: "Receta en PDF" },
+      { icon: Activity, txt: "Diagnósticos guiados" },
+    ],
   },
   {
     icon: MessageSquare,
-    titulo: "CRM y fidelización",
-    texto: "Seguimiento de próximos controles, cumpleaños y avisos de pago — sin depender de una libreta.",
+    titulo: "El seguimiento que antes se olvidaba",
+    texto: "Recordatorios de cita, saludos de cumpleaños y avisos de pago, enviados automáticamente — sin que nadie tenga que acordarse de hacerlo a mano.",
+    dark: true,
     mock: MockCRM,
+    etiqueta: "CRM · recordatorios",
+    grad: `linear-gradient(135deg,#FCD34D,${GOLD})`,
+    glow: "rgba(200,162,78,0.5)",
+    accent: "#F0B429",
   },
   {
     icon: BarChart3,
-    titulo: "Reportes e inventario",
-    texto: "Stock de armazones y lentes, alertas de reabastecimiento, y reportes claros del negocio.",
+    titulo: "Sabés exactamente qué tenés y qué vendés",
+    texto: "Stock de armazones y lentes con alertas de reabastecimiento, y reportes claros de ingresos y consultas para decidir con datos reales.",
+    dark: false,
     mock: MockInventario,
+    etiqueta: "inventario · stock",
+    grad: "linear-gradient(135deg,#FB7185,#E11D48)",
+    glow: "rgba(225,29,72,0.4)",
+    accent: "#E11D48",
   },
   {
     icon: ShieldCheck,
-    titulo: "Tu propio dominio y marca",
-    texto: "Tu óptica tiene su propio link, personalizado con tu nombre y tus colores.",
-    grande: true,
+    titulo: "Tu óptica, con tu marca — no la nuestra",
+    texto: "Tu propio link, tu logo y tus colores. Cada persona del equipo entra con su rol y sus permisos, y los datos de tu óptica quedan completamente aislados de cualquier otra.",
+    dark: true,
+    grad: "linear-gradient(135deg,#22D3EE,#2563EB)",
+    glow: "rgba(37,99,235,0.55)",
+    accent: "#67E8F9",
+    chips: [
+      { icon: Globe, txt: "Tu propio link" },
+      { icon: Palette, txt: "Logo y colores propios" },
+      { icon: UserCog, txt: "Roles con permisos" },
+      { icon: Lock, txt: "Datos aislados por óptica" },
+    ],
   },
 ]
 
@@ -181,12 +237,47 @@ const DESPUES = [
 
 const camposIniciales = { nombreOptica: "", slugDeseado: "", nombreAdmin: "", emailAdmin: "", telefono: "", mensaje: "" }
 
-function Eyebrow({ children }) {
+function Eyebrow({ children, dark = false }) {
   return (
-    <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+    <span className={`inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] ${dark ? "text-white/60" : "text-slate-500"}`}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
       {children}
     </span>
+  )
+}
+
+// ─── Vista previa "de navegador" reutilizada en la vitrina de módulos —
+// mismo lenguaje visual que la sección de capturas reales, para que un mock
+// pequeño no se sienta como un elemento distinto al resto de la página.
+function PanelVistaPrevia({ etiqueta, children }) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white" style={{ boxShadow: "0 30px 60px -24px rgba(14,43,51,0.4)" }}>
+      <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+        <span className="ml-2 truncate text-[11px] font-medium text-slate-400">{etiqueta}</span>
+      </div>
+      <div className="p-5 [&>div]:mt-0">{children}</div>
+    </div>
+  )
+}
+
+// ─── Grilla de sub-funciones (para módulos sin una vista previa dedicada) —
+// mismo formato "chip" en claro u oscuro según la sección donde caiga.
+function ChipsModulo({ chips, dark, accent }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {chips.map((c) => (
+        <div
+          key={c.txt}
+          className={"flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-sm font-semibold " + (dark ? "border-white/15 bg-white/[0.06] text-white/90" : "border-slate-200 bg-white text-slate-700")}
+        >
+          <c.icon size={17} className="shrink-0" style={{ color: accent }} />
+          {c.txt}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -256,7 +347,7 @@ export default function PaginaVenta() {
             <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
               <Eye size={18} />
             </div>
-            <span className="font-serif text-lg font-bold text-white">Sistema Óptica</span>
+            <span className="font-heading text-lg font-extrabold tracking-tight text-white">Sistema Óptica</span>
           </div>
           <nav className="hidden items-center gap-1 md:flex">
             {NAV_LINKS.map((l) => (
@@ -334,7 +425,7 @@ export default function PaginaVenta() {
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
               Gestión clínica y de citas para ópticas
             </span>
-            <h1 className="pv-rise pv-d2 mt-5 font-serif text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl" style={{ color: INK }}>
+            <h1 className="pv-rise pv-d2 mt-5 font-heading text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl" style={{ color: INK }}>
               El sistema web para gestionar tu óptica, de principio a fin
             </h1>
             <p className="pv-rise pv-d2 mt-5 max-w-xl text-base leading-relaxed text-slate-600">
@@ -407,7 +498,7 @@ export default function PaginaVenta() {
       <section className="mx-auto max-w-5xl px-6 py-20 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow>El cambio real</Eyebrow>
-          <h2 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             De administrar a los saltos, a tenerlo todo bajo control
           </h2>
         </div>
@@ -446,7 +537,7 @@ export default function PaginaVenta() {
       <section id="como-funciona" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow>Cómo funciona</Eyebrow>
-          <h2 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             De la solicitud a tu primer paciente
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-500">
@@ -459,7 +550,7 @@ export default function PaginaVenta() {
           {PASOS.map((p) => (
             <div key={p.numero} className="relative rounded-3xl border border-slate-200 bg-white p-7">
               <div className="flex items-center justify-between">
-                <span className="font-serif text-3xl font-bold text-slate-200">{p.numero}</span>
+                <span className="font-heading text-3xl font-bold text-slate-200">{p.numero}</span>
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <p.icon size={19} />
                 </div>
@@ -471,37 +562,57 @@ export default function PaginaVenta() {
         </div>
       </section>
 
-      {/* ─── BENEFICIOS ─── */}
-      <section id="funciones" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 md:px-12">
-        <div className="mx-auto max-w-2xl text-center">
+      {/* ─── VITRINA DE MÓDULOS ───
+          Una sección grande y alternada (fondo claro/oscuro) por cada módulo
+          real del sistema, en vez de una sola grilla apretada — el mismo
+          formato "vitrina de producto" que sistemaoptica.com usa en su
+          página completa. */}
+      <div id="funciones" className="scroll-mt-24">
+        <div className="mx-auto max-w-2xl px-6 pt-20 text-center md:px-12">
           <Eyebrow>Todo lo que necesita tu óptica</Eyebrow>
-          <h2 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             Un solo sistema, sin cuadernos ni hojas de cálculo sueltas
           </h2>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {BENEFICIOS.map((b) => (
-            <div
-              key={b.titulo}
-              className={`rounded-3xl border border-slate-200 bg-white p-7 transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/60 ${b.grande ? "lg:col-span-2" : ""}`}
-            >
-              <div className="grid h-14 w-14 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-                <b.icon size={24} />
+        {MODULOS.map((m, i) => (
+          <section
+            key={m.titulo}
+            className="relative overflow-hidden px-6 py-16 md:px-12 md:py-20"
+            style={{ backgroundColor: m.dark ? INK : PORCELAIN }}
+          >
+            {m.dark && (
+              <div className="pointer-events-none absolute -right-24 top-0 h-80 w-80 rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.16), transparent 70%)" }} />
+            )}
+            <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+              <div className={i % 2 === 1 ? "lg:order-2" : ""}>
+                <Eyebrow dark={m.dark}>Módulo {String(i + 1).padStart(2, "0")}</Eyebrow>
+                <div className="mt-4 flex items-center gap-3.5">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: m.grad, boxShadow: `0 12px 24px -10px ${m.glow}` }}>
+                    <m.icon size={22} />
+                  </div>
+                  <h3 className="font-heading text-2xl font-bold leading-tight sm:text-3xl" style={{ color: m.dark ? "#fff" : INK }}>
+                    {m.titulo}
+                  </h3>
+                </div>
+                <p className={"mt-4 max-w-lg text-base leading-relaxed " + (m.dark ? "text-white/70" : "text-slate-600")}>
+                  {m.texto}
+                </p>
               </div>
-              <h3 className="mt-5 text-lg font-bold" style={{ color: INK }}>{b.titulo}</h3>
-              <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-500">{b.texto}</p>
-              {b.mock && <b.mock />}
+
+              <div className={i % 2 === 1 ? "lg:order-1" : ""}>
+                {m.mock ? <PanelVistaPrevia etiqueta={m.etiqueta}><m.mock /></PanelVistaPrevia> : <ChipsModulo chips={m.chips} dark={m.dark} accent={m.accent} />}
+              </div>
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+        ))}
+      </div>
 
       {/* ─── CAPTURAS REALES DEL PANEL ─── */}
       <section className="mx-auto max-w-6xl px-6 py-10 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow>No es un mockup</Eyebrow>
-          <h2 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             Así se ve el panel por dentro
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-500">
@@ -542,7 +653,7 @@ export default function PaginaVenta() {
           />
           <div className="relative">
             <Eyebrow>Un plan a tu medida</Eyebrow>
-            <h2 className="mt-4 font-serif text-3xl font-bold tracking-tight" style={{ color: INK }}>Contáctanos y te armamos una propuesta</h2>
+            <h2 className="mt-4 font-heading text-3xl font-extrabold tracking-tight" style={{ color: INK }}>Contáctanos y te armamos una propuesta</h2>
             <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-slate-500">
               El costo depende del tamaño de tu óptica y de los módulos que necesites. Dejanos tus datos y
               te contactamos para mostrarte el sistema completo y armar un plan.
@@ -677,7 +788,7 @@ export default function PaginaVenta() {
             <div className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
               <Eye size={15} />
             </div>
-            <span className="font-serif text-base font-bold text-white">Sistema Óptica</span>
+            <span className="font-heading text-base font-bold text-white">Sistema Óptica</span>
           </div>
           <p className="text-xs text-white/50">
             © {new Date().getFullYear()} Sistema Óptica — gestión clínica y de citas para ópticas.

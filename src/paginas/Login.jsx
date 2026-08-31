@@ -19,6 +19,8 @@ import {
   LogIn,
   Check,
   ChevronDown,
+  MessageSquare,
+  UserCog,
 } from "lucide-react"
 
 // ─── Paleta de firma (inline para no depender de config de Tailwind) ───
@@ -132,6 +134,8 @@ const SERVICIOS = [
     titulo: "Exámenes optométricos",
     texto: "Evaluación completa de tu salud visual con equipos de precisión.",
     features: ["Agudeza visual y refracción", "Historial clínico digital", "Detección temprana de patologías"],
+    grad: "linear-gradient(135deg,#22D3EE,#2563EB)",
+    glow: "rgba(37,99,235,0.6)",
   },
   {
     icon: Glasses,
@@ -139,6 +143,8 @@ const SERVICIOS = [
     titulo: "Monturas y lentes",
     texto: "Un catálogo pensado para tu estilo y tu graduación exacta.",
     features: ["Armazones para cada rostro", "Lentes según tu receta", "Asesoría de estilo personalizada"],
+    grad: "linear-gradient(135deg,#A78BFA,#7C3AED)",
+    glow: "rgba(124,58,237,0.5)",
   },
   {
     icon: Activity,
@@ -146,6 +152,8 @@ const SERVICIOS = [
     titulo: "Seguimiento personalizado",
     texto: "No te dejamos solo después de la compra: te acompañamos.",
     features: ["Seguimiento de tu próximo control visual", "Acceso a tu portal de paciente", "Atención posventa y garantía"],
+    grad: "linear-gradient(135deg,#34D399,#0D9488)",
+    glow: "rgba(13,148,136,0.5)",
   },
 ]
 const PASOS = [
@@ -242,6 +250,35 @@ function IrisOptico() {
         <circle cx="214" cy="210" r="5" fill="#ffffff" fillOpacity="0.4" />
       </svg>
     </div>
+  )
+}
+
+// ─── Estilos de firma (animaciones) — compartidos entre la pantalla soloModal
+// (login del superadmin) y la página pública completa, así que viven en su
+// propio componente en vez de estar en línea dentro de un solo return.
+function EstilosFirma() {
+  return (
+    <style>{`
+      html { scroll-behavior: smooth; }
+      @keyframes lgFocus { from { filter: blur(16px); opacity: 0; } to { filter: blur(0); opacity: 1; } }
+      @keyframes lgRise  { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+      @keyframes lgSpin    { to { transform: rotate(360deg); } }
+      @keyframes lgSpinRev { to { transform: rotate(-360deg); } }
+      @keyframes lgGlow  { 0%,100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+      @keyframes lgNudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+      .lg-focus { animation: lgFocus 1.1s cubic-bezier(0.2,0.7,0.2,1) both; }
+      .lg-rise  { animation: lgRise 0.8s ease-out both; }
+      .lg-spin     { animation: lgSpin 48s linear infinite; }
+      .lg-spin-rev { animation: lgSpinRev 90s linear infinite; }
+      .lg-glow  { animation: lgGlow 6s ease-in-out infinite; }
+      .lg-nudge { animation: lgNudge 1.8s ease-in-out infinite; }
+      .lg-d1 { animation-delay: .05s; } .lg-d2 { animation-delay: .18s; }
+      .lg-d3 { animation-delay: .31s; } .lg-d4 { animation-delay: .44s; }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .lg-focus,.lg-rise,.lg-spin,.lg-spin-rev,.lg-glow,.lg-nudge { animation: none !important; }
+      }
+    `}</style>
   )
 }
 
@@ -471,11 +508,36 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
     const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
 
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 sm:p-8" style={{ backgroundColor: PORCELAIN }}>
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.16), transparent 70%)" }} />
-        <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(46,107,255,0.14), transparent 70%)" }} />
+      <div
+        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4 sm:p-8"
+        style={{ background: `linear-gradient(155deg, ${INK} 0%, #123b46 42%, #0c2e5c 100%)` }}
+      >
+        <EstilosFirma />
+        {/* Resplandores ambientales — la pantalla del superadmin no es la
+            "vitrina" pública de ninguna óptica (es un acceso de sistema
+            aparte, en su propia URL), así que sí puede llevar el tono
+            oscuro/premium que el hero público no puede. */}
+        <div className="lg-glow pointer-events-none absolute -left-32 -top-32 h-[32rem] w-[32rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
+        <div className="lg-glow lg-d2 pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(200,162,78,0.22), transparent 70%)" }} />
+        <svg aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
+          {[80, 140, 200].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
+        </svg>
 
-        <div className="relative z-10 grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-[1fr_1px_1fr]">
+        {/* ─── Marca del sistema, flotando sobre la tarjeta ─── */}
+        <div className="lg-rise relative z-10 mb-7 flex items-center gap-3">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-white/15 text-white backdrop-blur-md" style={{ background: "rgba(255,255,255,0.08)", boxShadow: "0 8px 30px -10px rgba(0,0,0,0.5)" }}>
+            <Eye size={26} strokeWidth={2.2} />
+          </div>
+          <div className="leading-tight">
+            <p className="font-heading text-xl font-extrabold tracking-tight text-white">Sistema Óptica</p>
+            <p className="text-xs font-medium tracking-[0.18em] text-white/50">PANEL DEL SISTEMA</p>
+          </div>
+        </div>
+
+        <div
+          className="lg-rise lg-d1 relative z-10 grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-[2rem] bg-white lg:grid-cols-[1fr_1px_1fr]"
+          style={{ boxShadow: "0 50px 100px -30px rgba(3,15,20,0.55), 0 0 0 1px rgba(255,255,255,0.06)" }}
+        >
           {/* ─── Saludo y marca ─── */}
           <div className="hidden flex-col items-center justify-center p-10 lg:flex xl:p-14">
             <div className="w-40 xl:w-48">
@@ -486,7 +548,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
                 {saludo}
               </span>
-              <h2 className="mt-3 font-serif text-3xl font-bold leading-tight" style={{ color: INK }}>
+              <h2 className="mt-3 font-heading text-3xl font-extrabold leading-tight tracking-tight" style={{ color: INK }}>
                 Bienvenido de nuevo
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
@@ -559,13 +621,13 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 {enviando ? "Entrando…" : "Entrar"}
               </button>
             </form>
-
-              <p className="mt-5 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400">
-                <ShieldCheck size={13} /> Conexión segura · acceso registrado
-              </p>
             </div>
           </div>
         </div>
+
+        <p className="lg-rise lg-d3 relative z-10 mt-6 flex items-center justify-center gap-1.5 text-xs font-medium text-white/50">
+          <ShieldCheck size={13} /> Conexión segura · acceso registrado
+        </p>
       </div>
     )
   }
@@ -576,27 +638,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
       style={{ backgroundColor: PORCELAIN }}
     >
       {/* ─── ESTILOS DE FIRMA ─── */}
-      <style>{`
-        html { scroll-behavior: smooth; }
-        @keyframes lgFocus { from { filter: blur(16px); opacity: 0; } to { filter: blur(0); opacity: 1; } }
-        @keyframes lgRise  { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
-        @keyframes lgSpin    { to { transform: rotate(360deg); } }
-        @keyframes lgSpinRev { to { transform: rotate(-360deg); } }
-        @keyframes lgGlow  { 0%,100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
-        @keyframes lgNudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
-        .lg-focus { animation: lgFocus 1.1s cubic-bezier(0.2,0.7,0.2,1) both; }
-        .lg-rise  { animation: lgRise 0.8s ease-out both; }
-        .lg-spin     { animation: lgSpin 48s linear infinite; }
-        .lg-spin-rev { animation: lgSpinRev 90s linear infinite; }
-        .lg-glow  { animation: lgGlow 6s ease-in-out infinite; }
-        .lg-nudge { animation: lgNudge 1.8s ease-in-out infinite; }
-        .lg-d1 { animation-delay: .05s; } .lg-d2 { animation-delay: .18s; }
-        .lg-d3 { animation-delay: .31s; } .lg-d4 { animation-delay: .44s; }
-        @media (prefers-reduced-motion: reduce) {
-          html { scroll-behavior: auto; }
-          .lg-focus,.lg-rise,.lg-spin,.lg-spin-rev,.lg-glow,.lg-nudge { animation: none !important; }
-        }
-      `}</style>
+      <EstilosFirma />
 
       {/* ─── NAVBAR (persistente, oscuro) ─── */}
       <header
@@ -646,7 +688,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               Óptica &amp; consultorio optométrico
             </span>
 
-            <h1 className="font-serif text-5xl font-bold leading-[1.04] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: INK }}>
+            <h1 className="font-heading text-5xl font-extrabold leading-[1.04] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: INK }}>
               {esloganPersonalizado ? esloganPersonalizado : (
                 <>
                   Ve el mundo
@@ -719,7 +761,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
             Nuestros servicios
           </span>
-          <h2 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             Todo lo que tu visión necesita, en un solo lugar
           </h2>
           <p className="mt-3 text-base leading-relaxed text-slate-600">
@@ -743,7 +785,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               </div>
               <div
                 className="-mt-9 grid h-14 w-14 place-items-center rounded-2xl text-white"
-                style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}
+                style={{ background: s.grad, boxShadow: `0 12px 24px -10px ${s.glow}` }}
               >
                 <s.icon size={24} />
               </div>
@@ -764,6 +806,43 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         </div>
       </section>
 
+      {/* ─── PARA EL EQUIPO: LO QUE VE QUIEN INICIA SESIÓN ───
+          Acento oscuro deliberado a media página (no es el hero, así que no
+          contradice la regla de "claridad" — ver EstilosFirma/no-dark-hero).
+          Mensaje genérico del sistema, no de la marca de la óptica, por eso
+          no depende de la personalización de `servicios`. */}
+      <section className="relative z-10 mt-4 overflow-hidden" style={{ backgroundColor: INK }}>
+        <div className="pointer-events-none absolute -right-24 top-0 h-80 w-80 rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.16), transparent 70%)" }} />
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-12 md:py-20">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-white/50">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
+              Para el equipo de {nombreMarca}
+            </span>
+            <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">
+              Un solo panel para optómetras y administración
+            </h2>
+            <p className="mt-3 text-base leading-relaxed text-white/70">
+              Quien inicia sesión con su cuenta ve su propia agenda, el historial clínico de cada paciente
+              y recordatorios automáticos — con el rol y los permisos que le correspondan.
+            </p>
+          </div>
+          <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { icon: Calendar, txt: "Agenda sin choques de horario" },
+              { icon: Stethoscope, txt: "Consulta médica digital" },
+              { icon: MessageSquare, txt: "Recordatorios automáticos" },
+              { icon: UserCog, txt: "Rol y permisos propios" },
+            ].map((c) => (
+              <div key={c.txt} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white/90">
+                <c.icon size={17} className="shrink-0" style={{ color: "#67E8F9" }} />
+                {c.txt}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── CÓMO FUNCIONA + VISTA PREVIA ─── */}
       <section id="como-funciona" className="relative z-10 mx-auto w-full max-w-6xl scroll-mt-24 px-6 pt-24 pb-24 md:px-12">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
@@ -773,7 +852,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
               Reservar es simple
             </span>
-            <h2 className="mt-4 font-serif text-3xl font-bold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+            <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
               Tu cita en tres pasos, sin crear cuenta
             </h2>
 
@@ -879,9 +958,27 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
 
       {/* ─── MODAL DE INICIO DE SESIÓN ─── */}
       {mostrarModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="titulo-login">
-          <div onClick={() => setMostrarModal(false)} className="absolute inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.6)" }} />
-          <div ref={modalRef} className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-2xl animate-in zoom-in-95 fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain p-4 py-8 animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="titulo-login">
+          <div onClick={() => setMostrarModal(false)} className="fixed inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.68)" }} />
+          {/* Resplandores sutiles detrás del blur — el mismo lenguaje que el
+              hero, en pequeño, para que el modal no se sienta como una caja
+              plana encima de una cortina oscura sin vida. */}
+          <div className="lg-glow pointer-events-none absolute -left-20 top-1/4 h-72 w-72 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.22), transparent 70%)" }} />
+          <div className="lg-glow lg-d2 pointer-events-none absolute -right-16 bottom-1/4 h-72 w-72 rounded-full blur-3xl" style={{ background: `radial-gradient(circle, ${colorAcento}38, transparent 70%)` }} />
+
+          <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-5 animate-in zoom-in-95 fade-in duration-200">
+            {/* ─── Marca de la óptica, flotando sobre la tarjeta ─── */}
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/20 text-white backdrop-blur-md" style={{ background: "rgba(255,255,255,0.08)", boxShadow: "0 8px 24px -10px rgba(0,0,0,0.5)" }}>
+                {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
+              </div>
+              <div className="leading-tight">
+                <p className="text-lg font-bold text-white">{nombreMarca}</p>
+                <p className="text-[11px] font-medium tracking-[0.16em] text-white/50">SALUD VISUAL &amp; CRM</p>
+              </div>
+            </div>
+
+          <div ref={modalRef} className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left" style={{ boxShadow: "0 40px 90px -25px rgba(3,15,20,0.5)" }}>
             <div className="relative overflow-hidden px-6 pb-6 pt-6 sm:px-8" style={{ background: `linear-gradient(135deg,#0E2B33,${colorAcento})` }}>
               <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
               <button onClick={() => setMostrarModal(false)} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer">
@@ -943,10 +1040,11 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               <p className="mt-5 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400">
                 <ShieldCheck size={13} /> Conexión segura
               </p>
-              <p className="mt-3 text-center text-sm leading-relaxed text-slate-500">
+              <p className="mt-3 border-t border-slate-100 pt-3 text-center text-sm leading-relaxed text-slate-500">
                 ¿No tienes cuenta? Solicítala al optómetra durante tu visita.
               </p>
             </div>
+          </div>
           </div>
         </div>
       )}
