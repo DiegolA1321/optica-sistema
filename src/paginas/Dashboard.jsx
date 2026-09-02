@@ -358,9 +358,9 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                 <Eye size={22} strokeWidth={2.2} />
               </div>
-              <div className={"leading-tight " + (colapsado ? "lg:hidden" : "")}>
-                <p className="text-lg font-bold tracking-tight text-white">
-                  Diego <span style={{ color: "#22D3EE" }}>Óptica</span>
+              <div className={"min-w-0 leading-tight " + (colapsado ? "lg:hidden" : "")}>
+                <p className="truncate text-lg font-bold tracking-tight text-white">
+                  {usuario?.opticaNombre || "Mi Óptica"}
                 </p>
                 <p className="text-[11px] font-medium tracking-wide text-white/40">PANEL DE CONTROL</p>
               </div>

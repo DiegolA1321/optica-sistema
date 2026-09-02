@@ -250,6 +250,17 @@ function App() {
   // que Login.jsx pueda personalizarse — null mientras no se resuelve o
   // cuando el sitio no es de tipo 'optica'.
   const [opticaPublica, setOpticaPublica] = useState(null);
+  // Evita el parpadeo al recargar: si ya hay (o podría haber) una sesión de
+  // Supabase Auth (superadmin/admin/asistente) por restaurar, no se sabe
+  // todavía si pantallaActual='login' es la respuesta correcta o solo el
+  // valor inicial mientras se espera el evento INITIAL_SESSION — mostrar
+  // Login de entrada en ese caso es mostrar una pantalla que un instante
+  // después puede resultar falsa. Arranca en false (nada que esperar) si ya
+  // hay sesión de paciente resuelta, no hay supabase configurado, o el sitio
+  // es la página de venta (pública siempre, sin importar sesión).
+  const [restaurandoSesion, setRestaurandoSesion] = useState(
+    () => !!supabase && sitio.modo !== 'venta' && !cargarSesion(pacientes).usuario
+  );
 
   // Restaura la sesión de un paciente real al recargar la página. cargarSesion()
   // (más arriba) solo puede resolverla sincrónicamente si el pacienteId guardado
@@ -468,10 +479,21 @@ function App() {
   useEffect(() => {
     if (usuario || !supabase || sitio.modo === 'venta') return;
     const { data: suscripcion } = supabase.auth.onAuthStateChange(async (evento, session) => {
-      // Ignora TOKEN_REFRESHED/USER_UPDATED — si no, un refresh de token en
-      // segundo plano mientras el usuario navega el panel reiniciaría
-      // pantallaActual de vuelta a la pantalla de entrada.
-      if (!session || !['INITIAL_SESSION', 'SIGNED_IN', 'PASSWORD_RECOVERY'].includes(evento)) return;
+      // INITIAL_SESSION es la única señal de "ya se sabe si hay sesión o no
+      // al cargar la página" — se apaga el gate de carga apenas llega, haya
+      // o no sesión (las ramas de abajo deciden qué hacer si la hay).
+      if (evento === 'INITIAL_SESSION') setRestaurandoSesion(false);
+      // Deliberadamente NO se escucha 'SIGNED_IN' acá: Login.jsx ya llama a
+      // AlTenerExito()/manejarExitoLogin sincrónicamente apenas termina su
+      // propio flujo (incluida la verificación MFA cuando aplica). Si este
+      // listener también reaccionara a SIGNED_IN, correría en paralelo su
+      // propia consulta de perfil y pisaría/duplicaría ese setUsuario — una
+      // carrera real que producía la pantalla "Algo salió mal" justo después
+      // de iniciar sesión (y, para cuentas con MFA, podía incluso completar
+      // el login saltándose el paso del código). TOKEN_REFRESHED/USER_UPDATED
+      // tampoco se escuchan por la misma razón de siempre: un refresh de
+      // token en segundo plano no debe reiniciar pantallaActual.
+      if (!session || !['INITIAL_SESSION', 'PASSWORD_RECOVERY'].includes(evento)) return;
       const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
       if (!perfil) return;
       if (perfil.rol === 'superadmin') {
@@ -621,6 +643,14 @@ function App() {
         />
       </Suspense>
     );
+  }
+
+  // Mientras se espera saber si hay una sesión de Supabase Auth para
+  // restaurar (ver restaurandoSesion más arriba), no se muestra nada
+  // definitivo todavía — ni Login ni el panel — para no parpadear de uno a
+  // otro en cuanto llegue la respuesta real.
+  if (restaurandoSesion) {
+    return <PantallaCargando />;
   }
 
   return (

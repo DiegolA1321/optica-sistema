@@ -810,8 +810,8 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
       {/* ─── MODAL CREAR / EDITAR ─── */}
       {modalAbierto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}>
                   <UserPlus size={20} />
@@ -825,7 +825,8 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
               </button>
             </div>
 
-            <form onSubmit={manejarEnvio} className="space-y-4 px-6 py-5">
+            <form onSubmit={manejarEnvio} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
               <div>
                 <label htmlFor="p-nombre" className="mb-1.5 block text-sm font-medium text-slate-600">
                   Apellidos y nombres <span className="text-red-500">*</span>
@@ -913,8 +914,9 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Si vino recomendado por otro paciente, selecciónalo aquí para reconocerlo en el CRM.</p>
               </div>
+              </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4">
                 <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>

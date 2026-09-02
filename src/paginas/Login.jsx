@@ -856,9 +856,23 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
             </div>
           </div>
 
-          {/* Firma: iris óptico */}
+          {/* Firma: el logo propio de la óptica reemplaza la ilustración
+              genérica del iris en cuanto lo suben — antes el logo subido
+              solo se veía en el ícono chico del header, y esta pieza
+              grande (lo primero que se ve del lado derecho) se quedaba
+              siempre con el mismo ojo azul de referencia sin importar qué
+              tan personalizada estuviera la óptica. */}
           <div className="lg-rise lg-d2 order-first lg:order-last">
-            <IrisOptico />
+            {logoUrl ? (
+              <div
+                className="mx-auto flex aspect-square w-full max-w-md items-center justify-center rounded-[2.5rem] border border-slate-200 bg-white p-10"
+                style={{ boxShadow: "0 30px 80px -30px rgba(37,99,235,0.25)" }}
+              >
+                <img src={logoUrl} alt={nombreMarca} className="max-h-full max-w-full object-contain" />
+              </div>
+            ) : (
+              <IrisOptico />
+            )}
           </div>
         </div>
 

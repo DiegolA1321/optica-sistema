@@ -53,6 +53,7 @@ import {
   Users,
   Stethoscope,
   Image as ImageIcon,
+  Save,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
@@ -111,7 +112,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-const camposOpticaIniciales = { nombreOptica: "", slug: "", nombreAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "" }
+const camposOpticaIniciales = { nombreOptica: "", slug: "", eslogan: "", colorAcento: "#2563EB", logoUrl: "", nombreAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "" }
 const camposCuentaIniciales = { nombre: "", email: "", clave: "", confirmarClave: "" }
 
 const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })
@@ -363,6 +364,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const [campoMarca, setCampoMarca] = useState({ nombreMarca: "", eslogan: "", colorAcento: "#2563EB", mensaje: "", servicios: SERVICIOS_VACIOS() })
   const [campoLogoUrl, setCampoLogoUrl] = useState("")
   const [guardandoMarca, setGuardandoMarca] = useState(false)
+  // Confirmación visible tras guardar la personalización — el autoguardado
+  // al salir de cada campo (onBlur) es cómodo pero invisible: sin esto no
+  // había ninguna señal de que sí se guardó, y parecía que faltaba un botón
+  // de guardar (feedback de Diego). Se apaga sola a los 2.5s.
+  const [marcaGuardadaOk, setMarcaGuardadaOk] = useState(false)
   const [subiendoLogo, setSubiendoLogo] = useState(false)
   const [errorLogo, setErrorLogo] = useState("")
   const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false)
@@ -800,6 +806,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     if (!error) {
       setDetalle((prev) => (prev ? { ...prev, marca, logo_url: campoLogoUrl.trim() || null } : prev))
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca, logo_url: campoLogoUrl.trim() || null } : o)))
+      setMarcaGuardadaOk(true)
+      setTimeout(() => setMarcaGuardadaOk(false), 2500)
     }
     setGuardandoMarca(false)
   }
@@ -1015,7 +1023,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const guardar = async (e) => {
     e.preventDefault()
     setError("")
-    const { nombreOptica, slug, nombreAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave } = campos
+    const { nombreOptica, slug, eslogan, colorAcento, logoUrl, nombreAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave } = campos
     if (!nombreOptica.trim() || !slug.trim() || !clave) {
       setError("Completa todos los campos.")
       return
@@ -1055,10 +1063,22 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
       // valor por defecto (para no romper la óptica de referencia ya
       // creada) — sin esto, cada óptica nueva arrancaría mostrando el
       // nombre de otra empresa en su propio login hasta que alguien entrara
-      // a cambiarlo a mano.
+      // a cambiarlo a mano. Eslogan/color/logo son opcionales acá mismo
+      // (antes solo se podían tocar después, entrando de nuevo al detalle
+      // de la óptica ya creada — pedido explícito de Diego de poder
+      // personalizarla desde el mismo paso de creación).
       const { data: creada, error: errorOptica } = await supabase
         .from("opticas")
-        .insert({ nombre: nombreOptica.trim(), slug: slug.trim(), marca: { nombreMarca: nombreOptica.trim(), eslogan: "Ve el mundo con claridad.", colorAcento: "#2563EB" } })
+        .insert({
+          nombre: nombreOptica.trim(),
+          slug: slug.trim(),
+          logo_url: logoUrl.trim() || null,
+          marca: {
+            nombreMarca: nombreOptica.trim(),
+            eslogan: eslogan.trim() || "Ve el mundo con claridad.",
+            colorAcento: colorAcento || "#2563EB",
+          },
+        })
         .select()
         .single()
       if (errorOptica) {
@@ -1146,11 +1166,22 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     const nuevo = nombreEditado.trim()
     if (!nuevo || nuevo === detalle.nombre) { setRenombrando(false); return }
     setGuardandoNombre(true)
-    const { error: errorUpdate } = await supabase.from("opticas").update({ nombre: nuevo }).eq("id", detalle.id)
+    // El nombre público que ve el cliente (marca.nombreMarca, mostrado en
+    // Login.jsx) es un campo aparte del nombre interno de la óptica — a
+    // propósito, para poder personalizarlo distinto. Pero si nunca se
+    // personalizó (sigue igual al nombre anterior), renombrar la óptica acá
+    // debe arrastrarlo también: si no, el nombre nuevo nunca se ve reflejado
+    // en la página pública (quedaba pegado al nombre viejo/al de creación
+    // para siempre) — justo lo que reportó Diego.
+    const marcaSinPersonalizar = (detalle.marca?.nombreMarca || "") === detalle.nombre
+    const marcaActualizada = marcaSinPersonalizar ? { ...(detalle.marca || {}), nombreMarca: nuevo } : detalle.marca
+    const cambios = marcaSinPersonalizar ? { nombre: nuevo, marca: marcaActualizada } : { nombre: nuevo }
+    const { error: errorUpdate } = await supabase.from("opticas").update(cambios).eq("id", detalle.id)
     if (!errorUpdate) {
       const anterior = detalle.nombre
-      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, nombre: nuevo } : o)))
-      setDetalle((prev) => ({ ...prev, nombre: nuevo }))
+      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
+      setDetalle((prev) => ({ ...prev, ...cambios }))
+      if (marcaSinPersonalizar) setCampoMarca((p) => ({ ...p, nombreMarca: nuevo }))
       await registrarAuditoria("renombrar_optica", { opticaId: detalle.id, opticaNombre: nuevo, detalle: anterior })
       cargarAuditoria(true)
       setRenombrando(false)
@@ -2985,7 +3016,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                       className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
-                  {guardandoMarca && <p className="text-xs text-slate-400">Guardando…</p>}
                 </div>
               </div>
 
@@ -3026,6 +3056,27 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* ─── Guardar (aparte del autoguardado onBlur de cada campo:
+                  Diego no la veía guardarse, no había ningún botón ni
+                  confirmación visible de que sí funcionó) ─── */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={guardarMarca}
+                  disabled={guardandoMarca}
+                  className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-60"
+                  style={{ background: GRAD }}
+                >
+                  {guardandoMarca ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  {guardandoMarca ? "Guardando…" : "Guardar cambios"}
+                </button>
+                {marcaGuardadaOk && (
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
+                    <Check size={15} /> Guardado
+                  </span>
+                )}
               </div>
 
               <div>
@@ -3330,6 +3381,56 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                             : "Se genera automáticamente a partir del nombre."}
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* ─── Sección: personalización del login (opcional) — se
+                    puede dejar en blanco y completar después desde el
+                    detalle de la óptica ya creada; acá mismo ahorra ese
+                    paso extra cuando ya se tienen los datos a mano. ─── */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(37,99,235,0.1)", color: "#2563EB" }}>
+                      <ImageIcon size={14} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">Personalización del login <span className="font-normal text-slate-400">(opcional)</span></p>
+                      <p className="text-xs text-slate-500">Se puede completar ahora o después, desde el detalle de la óptica.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4 rounded-xl border border-slate-200 p-4">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Eslogan</label>
+                      <input
+                        type="text" value={campos.eslogan} onChange={(e) => actualizarCampo("eslogan", e.target.value)}
+                        placeholder="Ej. Ve el mundo con claridad."
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Color de acento</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
+                            className="h-[42px] w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                          />
+                          <input
+                            type="text" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Logo (URL)</label>
+                        <input
+                          type="text" value={campos.logoUrl} onChange={(e) => actualizarCampo("logoUrl", e.target.value)}
+                          placeholder="https://…"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400">Subir el logo como archivo (en vez de pegar una URL) y las tarjetas de servicios quedan disponibles después, ya con la óptica creada.</p>
                   </div>
                 </div>
 

@@ -404,7 +404,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
       {/* ─── MODAL AGREGAR PRODUCTO ─── */}
       {modalAbierto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -419,13 +419,13 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
             <form onSubmit={registrarProducto} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Descripción del producto</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
                   <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
                     className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                   {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Categoría</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
                   <select value={categoria} onChange={(e) => setCategoria(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
                     {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
@@ -433,25 +433,25 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
                     <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
                       className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                     {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Precio ($)</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
                     <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
                       className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                     {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                   <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
                     className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                   <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
@@ -478,7 +478,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
       {/* ─── MODAL EDITAR PRODUCTO ─── */}
       {editando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={cerrarEditar}>
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -493,13 +493,13 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
             <form onSubmit={guardarEdicion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Descripción del producto</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
                   <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
                     className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                   {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Categoría</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
                   <select value={edCategoria} onChange={(e) => setEdCategoria(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
                     {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
@@ -507,25 +507,25 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
                     <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)} placeholder="10"
                       className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                     {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Precio ($)</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
                     <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
                       className={"w-full rounded-lg border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                     {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                   <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
                     className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                   <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
@@ -594,7 +594,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 Existencia actual: <span className="font-mono font-bold text-slate-800">{reabastecer.stock} u.</span>
               </p>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Unidades a agregar</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Unidades a agregar</label>
                 <input
                   type="number" min="1" step="1" autoFocus value={cantidadReabastecer}
                   onChange={(e) => { setCantidadReabastecer(e.target.value); setErrorReabastecer("") }}

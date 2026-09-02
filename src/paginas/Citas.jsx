@@ -291,9 +291,15 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
       setErrorReagendar("Selecciona la nueva fecha y hora.")
       return
     }
-    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: "Pendiente" }
+    // Editar ya no está bloqueado para una cita resuelta (Atendida/No Asistió/
+    // Cancelada) — se puede corregir motivo/fecha/hora de un registro pasado
+    // sin que eso la reabra como "Pendiente" por accidente; ese cambio de
+    // estado sigue siendo una acción aparte y explícita ("Cambiar estado").
+    const resueltaAlEditar = ["Atendida", "No Asistió", "Cancelada"].includes(reagendando.estado)
+    const nuevoEstado = resueltaAlEditar ? reagendando.estado : "Pendiente"
+    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }
     if (supabase && opticaId) {
-      const { error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: "Pendiente" }).eq("id", reagendando.id)
+      const { error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }).eq("id", reagendando.id)
       if (errorUpdate) {
         setErrorReagendar("No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
         return
@@ -463,7 +469,12 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                       const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
                       // Sólo se puede marcar el desenlace de una cita que ya debió ocurrir —
                       // no tiene sentido registrar "atendida"/"no asistió" para el futuro.
-                      const puedeMarcarse = !esFutura(cita.fecha) && !resuelta
+                      // Se puede seguir cambiando el estado (y editando) incluso ya
+                      // resuelta — para corregir un estado marcado por error, no solo
+                      // para decidirlo la primera vez (pedido explícito de Diego: antes
+                      // una cita "Atendida" se quedaba sin edición ni cambio de estado
+                      // posible, ni forma de deshacerlo).
+                      const puedeMarcarse = !esFutura(cita.fecha)
                       return (
                         <div
                           key={cita.id}
@@ -515,12 +526,10 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                                     )}
                                   </div>
                                 )}
-                                {!resuelta && (
-                                  <button type="button" onClick={() => abrirReagendar(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar cita (motivo, fecha u hora)" aria-label="Editar cita">
-                                    <CalendarClock size={16} />
-                                  </button>
-                                )}
-                                <button type="button" onClick={() => setPorCancelar(cita.id)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-500 cursor-pointer" title="Cancelar cita" aria-label="Cancelar cita">
+                                <button type="button" onClick={() => abrirReagendar(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar cita (motivo, fecha u hora)" aria-label="Editar cita">
+                                  <CalendarClock size={16} />
+                                </button>
+                                <button type="button" onClick={() => setPorCancelar(cita.id)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-500 cursor-pointer" title="Eliminar cita" aria-label="Eliminar cita">
                                   <Trash2 size={16} />
                                 </button>
                               </div>
@@ -613,8 +622,8 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                 )}
 
                 {pacientes.length === 0 ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800">
-                    <AlertTriangle size={16} />
+                  <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
+                    <AlertTriangle size={16} className="shrink-0" />
                     Aún no hay pacientes registrados. Crea uno primero en el módulo Pacientes.
                   </div>
                 ) : (
@@ -706,14 +715,14 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
             </div>
-            <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h4>
-            <p className="mt-1.5 text-center text-sm text-slate-500">Esta acción quitará la cita de la agenda y no se puede deshacer.</p>
+            <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar esta cita?</h4>
+            <p className="mt-1.5 text-center text-sm text-slate-500">Esta acción borra el registro de la agenda por completo y no se puede deshacer.</p>
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setPorCancelar(null)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                 Volver
               </button>
               <button type="button" onClick={confirmarCancelacion} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">
-                Sí, cancelar
+                Sí, eliminar
               </button>
             </div>
           </div>
