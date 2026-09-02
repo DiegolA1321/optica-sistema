@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import {
   LayoutDashboard,
   Calendar,
@@ -725,7 +726,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       </main>
 
       {/* ─── MODAL SOLICITAR ELIMINACIÓN ─── */}
-      {modalEliminarAbierto && (
+      {modalEliminarAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !enviandoEliminar && setModalEliminarAbierto(false)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             {solicitudEliminarEnviada ? (
@@ -759,11 +760,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── MODAL AGENDAR ─── */}
-      {modalAgendar && (
+      {modalAgendar && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAgendar(false)}>
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -804,11 +806,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── MODAL REAGENDAR ─── */}
-      {reagendando && (
+      {reagendando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !guardandoReagenda && setReagendando(null)}>
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -845,11 +848,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── MODAL CANCELAR CITA ─── */}
-      {cancelando && (
+      {cancelando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !guardandoCancelar && setCancelando(null)}>
           <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5">
@@ -871,7 +875,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
@@ -889,7 +894,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       )}
 
       {/* ─── MODAL CAMBIAR CONTRASEÑA ─── */}
-      {modalClave && (
+      {modalClave && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalClave(false)}>
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -923,7 +928,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   Clock,
   CalendarClock,
@@ -470,7 +471,7 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
       )}
 
       {/* ─── AVISO: EL CAMBIO DEJA CITAS YA AGENDADAS FUERA DE HORARIO ─── */}
-      {avisoConflicto && (
+      {avisoConflicto && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAvisoConflicto(null)}>
           <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5">
@@ -507,7 +508,8 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -520,7 +522,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
 
   const fechaLegible = new Date(fecha + "T00:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-slate-100 px-6 py-4">
@@ -571,6 +573,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
