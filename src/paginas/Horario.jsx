@@ -471,8 +471,8 @@ export default function Horario({ disponibilidad, setDisponibilidad, citas = [] 
 
       {/* ─── AVISO: EL CAMBIO DEJA CITAS YA AGENDADAS FUERA DE HORARIO ─── */}
       {avisoConflicto && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={() => setAvisoConflicto(null)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAvisoConflicto(null)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
                 <AlertTriangle size={22} />
@@ -521,8 +521,8 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
   const fechaLegible = new Date(fecha + "T00:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)" }} onClick={onCerrar}>
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-slate-100 px-6 py-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Excepción de horario</p>
           <h2 className="text-lg font-bold capitalize" style={{ color: INK }}>{fechaLegible}</h2>

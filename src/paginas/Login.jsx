@@ -1072,7 +1072,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
       {/* ─── MODAL DE INICIO DE SESIÓN ─── */}
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain p-4 py-8 animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="titulo-login">
-          <div onClick={() => setMostrarModal(false)} className="fixed inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.68)" }} />
+          <div onClick={() => setMostrarModal(false)} className="fixed inset-0 cursor-pointer backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.68)", animation: "overlay-in 150ms ease-out" }} />
           {/* Resplandores sutiles detrás del blur — el mismo lenguaje que el
               hero, en pequeño, para que el modal no se sienta como una caja
               plana encima de una cortina oscura sin vida. */}
