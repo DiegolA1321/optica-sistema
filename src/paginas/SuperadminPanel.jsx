@@ -1177,9 +1177,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     await cargarDatos()
     // Feedback de Diego: al crear una óptica, de una vez ofrecer editar cómo
     // se ve su login (logo, marca, servicios) en vez de dejarlo para que lo
-    // busque después entre la lista de ópticas.
+    // busque después entre la lista de ópticas. El detalle abre con scroll
+    // arriba del todo (Estado/Admins/Suscripción/Facturación primero) — se
+    // baja directo a esa sección para que sea lo primero que se vea, en vez
+    // de obligar a scrollear pasando por datos de facturación que a esta
+    // óptica recién creada ni le aplican todavía.
     setSeccion("opticas")
     abrirDetalleOptica(nuevaOptica)
+    setTimeout(() => document.getElementById("personalizacion-login")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100)
   }
 
   const alternarActiva = async (optica) => {
@@ -2996,7 +3001,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
               </div>
 
               {/* ─── Personalización del login (lo único que ve el cliente) ─── */}
-              <div>
+              <div id="personalizacion-login">
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Personalización del login</p>
                 <div className="space-y-2.5 rounded-xl border border-slate-200 p-3.5">
                   <div>
