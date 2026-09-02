@@ -1080,30 +1080,19 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
           <div className="lg-glow lg-d2 pointer-events-none absolute -right-16 bottom-1/4 h-72 w-72 rounded-full blur-3xl" style={{ background: `radial-gradient(circle, ${colorAcento}38, transparent 70%)` }} />
 
           <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-5 animate-in zoom-in-95 fade-in duration-200">
-            {/* ─── Marca de la óptica, flotando sobre la tarjeta ─── */}
-            <div className="flex w-full min-w-0 items-center gap-3">
-              <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/20 text-white backdrop-blur-md" style={{ background: "rgba(255,255,255,0.08)", boxShadow: "0 8px 24px -10px rgba(0,0,0,0.5)" }}>
-                {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
-              </div>
-              <div className="min-w-0 leading-tight">
-                <p className="truncate text-lg font-bold text-white">{nombreMarca}</p>
-                <p className="text-[11px] font-medium tracking-[0.16em] text-white/50">SALUD VISUAL &amp; CRM</p>
-              </div>
-            </div>
-
           <div ref={modalRef} className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left" style={{ boxShadow: "0 40px 90px -25px rgba(3,15,20,0.5)" }}>
             <div className="relative overflow-hidden px-6 pb-6 pt-6 sm:px-8" style={{ background: `linear-gradient(135deg,#0E2B33,${colorAcento})` }}>
               <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
               <button onClick={() => setMostrarModal(false)} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer">
                 <X size={20} />
               </button>
-              <div className="relative flex items-center gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
-                  <LogIn size={22} />
+              <div className="relative flex min-w-0 items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
+                  {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <LogIn size={22} />}
                 </div>
-                <div>
-                  <h3 id="titulo-login" className="text-xl font-bold text-white">Iniciar sesión</h3>
-                  <p className="text-sm text-white/60">Un solo acceso para todo el equipo</p>
+                <div className="min-w-0">
+                  <h3 id="titulo-login" className="truncate text-xl font-bold text-white">{nombreMarca}</h3>
+                  <p className="text-sm text-white/60">Iniciar sesión · un solo acceso para todo el equipo</p>
                 </div>
               </div>
               <div className="relative mt-4 flex flex-wrap gap-1.5">
