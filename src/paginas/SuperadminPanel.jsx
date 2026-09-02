@@ -2737,7 +2737,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -3208,7 +3208,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -3272,7 +3272,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -3369,7 +3369,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -3622,7 +3622,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -3717,7 +3717,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
@@ -3746,7 +3746,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
         >
           <div
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }}
+            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
