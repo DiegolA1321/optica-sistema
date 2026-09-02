@@ -605,13 +605,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
 
   const abrirCrearDesdeLead = (lead) => {
     setCampos({
+      ...camposOpticaIniciales,
       nombreOptica: lead.nombre_optica || "",
       slug: lead.slug_deseado ? generarSlug(lead.slug_deseado) : generarSlug(lead.nombre_optica || ""),
       nombreAdmin: lead.nombre_admin || "",
       emailAdmin: lead.email_admin || "",
-      fechaNacimientoAdmin: "",
-      clave: "",
-      confirmarClave: "",
     })
     setSlugTocado(true)
     setSlugEstado("idle")
