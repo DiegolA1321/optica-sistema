@@ -812,6 +812,23 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     setGuardandoMarca(false)
   }
 
+  // "Cancelar cambios" de la barra de guardar: descarta lo tecleado en el
+  // formulario y vuelve a los valores realmente guardados en `detalle`
+  // (mismo cálculo que abrirDetalleOptica al abrir el modal por primera vez).
+  const cancelarCambiosMarca = () => {
+    if (!detalle) return
+    setCampoMarca({
+      nombreMarca: detalle.marca?.nombreMarca || "",
+      eslogan: detalle.marca?.eslogan || "",
+      colorAcento: detalle.marca?.colorAcento || "#2563EB",
+      mensaje: detalle.marca?.mensaje || "",
+      servicios: detalle.marca?.servicios?.length === 3
+        ? detalle.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""] }))
+        : SERVICIOS_VACIOS(),
+    })
+    setCampoLogoUrl(detalle.logo_url || "")
+  }
+
   // Muchas ópticas (sobre todo pequeñas) no tienen un logo ya alojado en
   // algún lado para pegar como URL — se sube el archivo directo al bucket
   // público "logos" (migración 0037) y se guarda la URL pública resultante,
@@ -2713,9 +2730,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                       <button type="button" onClick={() => setRenombrando(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 cursor-pointer"><X size={16} /></button>
                     </div>
                   ) : (
-                    <h4 className="flex items-center gap-1.5 truncate text-lg font-bold" style={{ color: INK }}>
-                      {detalle.nombre}
-                      <button type="button" onClick={iniciarRenombrar} title="Renombrar" className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
+                    <h4 className="flex min-w-0 items-center gap-1.5 text-lg font-bold" style={{ color: INK }} title={detalle.nombre}>
+                      <span className="truncate">{detalle.nombre}</span>
+                      <button type="button" onClick={iniciarRenombrar} title="Renombrar" className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
                     </h4>
                   )}
                   <p className="font-mono text-xs text-slate-500">{detalle.slug}</p>
@@ -3058,25 +3075,38 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                 </div>
               </div>
 
-              {/* ─── Guardar (aparte del autoguardado onBlur de cada campo:
-                  Diego no la veía guardarse, no había ningún botón ni
-                  confirmación visible de que sí funcionó) ─── */}
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={guardarMarca}
-                  disabled={guardandoMarca}
-                  className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-60"
-                  style={{ background: GRAD }}
-                >
-                  {guardandoMarca ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                  {guardandoMarca ? "Guardando…" : "Guardar cambios"}
-                </button>
-                {marcaGuardadaOk && (
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-                    <Check size={15} /> Guardado
-                  </span>
-                )}
+              {/* ─── Guardar, en una barra pegajosa (aparte del autoguardado
+                  onBlur de cada campo: quedaba enterrado varias pantallas
+                  más abajo, después de las 3 tarjetas de servicios — Diego
+                  nunca llegaba a verlo con solo bajar un poco) — así queda a
+                  la vista mientras se editan estos campos, sin tener que
+                  seguir bajando hasta el final del modal. ─── */}
+              <div className="sticky bottom-0 z-10 -mx-5 -mb-5 border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={guardarMarca}
+                    disabled={guardandoMarca}
+                    className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-60"
+                    style={{ background: GRAD }}
+                  >
+                    {guardandoMarca ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                    {guardandoMarca ? "Guardando…" : "Guardar cambios"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelarCambiosMarca}
+                    disabled={guardandoMarca}
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
+                  >
+                    Cancelar cambios
+                  </button>
+                  {marcaGuardadaOk && (
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
+                      <Check size={15} /> Guardado
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div>

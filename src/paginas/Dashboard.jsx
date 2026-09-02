@@ -353,8 +353,8 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
         <div className="pointer-events-none absolute -left-24 top-1/4 h-56 w-56 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.12), transparent 70%)" }} />
 
         <div className="relative z-10 flex-1 overflow-y-auto">
-          <div className={"flex items-center justify-between border-b border-white/10 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
-            <div className="flex items-center gap-3">
+          <div className={"flex min-w-0 items-center justify-between border-b border-white/10 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+            <div className="flex min-w-0 items-center gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                 <Eye size={22} strokeWidth={2.2} />
               </div>

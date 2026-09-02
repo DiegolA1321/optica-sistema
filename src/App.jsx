@@ -479,10 +479,6 @@ function App() {
   useEffect(() => {
     if (usuario || !supabase || sitio.modo === 'venta') return;
     const { data: suscripcion } = supabase.auth.onAuthStateChange(async (evento, session) => {
-      // INITIAL_SESSION es la única señal de "ya se sabe si hay sesión o no
-      // al cargar la página" — se apaga el gate de carga apenas llega, haya
-      // o no sesión (las ramas de abajo deciden qué hacer si la hay).
-      if (evento === 'INITIAL_SESSION') setRestaurandoSesion(false);
       // Deliberadamente NO se escucha 'SIGNED_IN' acá: Login.jsx ya llama a
       // AlTenerExito()/manejarExitoLogin sincrónicamente apenas termina su
       // propio flujo (incluida la verificación MFA cuando aplica). Si este
@@ -493,34 +489,48 @@ function App() {
       // el login saltándose el paso del código). TOKEN_REFRESHED/USER_UPDATED
       // tampoco se escuchan por la misma razón de siempre: un refresh de
       // token en segundo plano no debe reiniciar pantallaActual.
-      if (!session || !['INITIAL_SESSION', 'PASSWORD_RECOVERY'].includes(evento)) return;
-      const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
-      if (!perfil) return;
-      if (perfil.rol === 'superadmin') {
-        // El superadmin no pertenece a ninguna óptica en particular — si su
-        // sesión de Supabase sigue activa en este navegador (ej. login previo
-        // en otra pestaña) y el visitante entra al sitio público de UNA
-        // óptica (modo 'optica', sin slug o con slug de cualquier óptica), no
-        // debe colarse ahí dentro. Solo se sigue esa sesión en su propia
-        // puerta de entrada (?sitio=admin).
-        if (sitio.modo !== 'admin_sistema') return;
-        setUsuario({ rol: 'superadmin', nombre: perfil.nombre, id: perfil.id });
-        setPantallaActual('panel_superadmin');
-      } else if (perfil.rol === 'admin') {
-        const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
-        // Mismo problema que el superadmin arriba: si este admin tiene sesión
-        // activa en el navegador y entra al sitio público de OTRA óptica (o a
-        // la puerta del superadmin), no debe colarse a su propio dashboard —
-        // solo se sigue la sesión en el sitio de su propia óptica (o en el
-        // genérico sin slug, que es el caso normal en desarrollo).
-        if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-        setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null });
-        setPantallaActual('dashboard');
-      } else if (perfil.rol === 'asistente') {
-        const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
-        if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-        setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, permisos: perfil.permisos || {} });
-        setPantallaActual('dashboard');
+      if (!['INITIAL_SESSION', 'PASSWORD_RECOVERY'].includes(evento)) return;
+      // El gate de carga (restaurandoSesion) solo se apaga en el `finally`,
+      // después de que toda esta función terminó — incluidas las consultas
+      // await de perfil/óptica de abajo. Apagarlo apenas se sabe que hay
+      // sesión (antes de esperar esas consultas) dejaba una ventana real
+      // donde el gate ya bajó pero `usuario`/`pantallaActual` todavía no se
+      // habían actualizado — Login.jsx alcanzaba a pintarse en ese hueco
+      // igual, solo que más corto. Con el flag apagándose recién al final,
+      // cuando ya se llamó (o se decidió no llamar) a setUsuario, React
+      // aplica ambos cambios de estado juntos y no hay hueco que mostrar.
+      try {
+        if (!session) return;
+        const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
+        if (!perfil) return;
+        if (perfil.rol === 'superadmin') {
+          // El superadmin no pertenece a ninguna óptica en particular — si su
+          // sesión de Supabase sigue activa en este navegador (ej. login previo
+          // en otra pestaña) y el visitante entra al sitio público de UNA
+          // óptica (modo 'optica', sin slug o con slug de cualquier óptica), no
+          // debe colarse ahí dentro. Solo se sigue esa sesión en su propia
+          // puerta de entrada (?sitio=admin).
+          if (sitio.modo !== 'admin_sistema') return;
+          setUsuario({ rol: 'superadmin', nombre: perfil.nombre, id: perfil.id });
+          setPantallaActual('panel_superadmin');
+        } else if (perfil.rol === 'admin') {
+          const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
+          // Mismo problema que el superadmin arriba: si este admin tiene sesión
+          // activa en el navegador y entra al sitio público de OTRA óptica (o a
+          // la puerta del superadmin), no debe colarse a su propio dashboard —
+          // solo se sigue la sesión en el sitio de su propia óptica (o en el
+          // genérico sin slug, que es el caso normal en desarrollo).
+          if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
+          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null });
+          setPantallaActual('dashboard');
+        } else if (perfil.rol === 'asistente') {
+          const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
+          if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
+          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, permisos: perfil.permisos || {} });
+          setPantallaActual('dashboard');
+        }
+      } finally {
+        if (evento === 'INITIAL_SESSION') setRestaurandoSesion(false);
       }
     });
     return () => suscripcion.subscription.unsubscribe();

@@ -629,17 +629,6 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
           {[80, 140, 200].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
         </svg>
 
-        {/* ─── Marca del sistema, flotando sobre la tarjeta ─── */}
-        <div className="lg-rise relative z-10 mb-7 flex items-center gap-3">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-white/15 text-white backdrop-blur-md" style={{ background: "rgba(255,255,255,0.08)", boxShadow: "0 8px 30px -10px rgba(0,0,0,0.5)" }}>
-            <Eye size={26} strokeWidth={2.2} />
-          </div>
-          <div className="leading-tight">
-            <p className="font-heading text-xl font-extrabold tracking-tight text-white">Sistema Óptica</p>
-            <p className="text-xs font-medium tracking-[0.18em] text-white/50">PANEL DEL SISTEMA</p>
-          </div>
-        </div>
-
         <div
           className="lg-rise lg-d1 relative z-10 grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-[2rem] bg-white lg:grid-cols-[1fr_1px_1fr]"
           style={{ boxShadow: "0 50px 100px -30px rgba(3,15,20,0.55), 0 0 0 1px rgba(255,255,255,0.06)" }}
@@ -687,8 +676,8 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 <ShieldCheck size={22} />
               </div>
               <div>
-                <h3 className="text-xl font-bold" style={{ color: INK }}>Panel del sistema</h3>
-                <p className="text-sm text-slate-500">Acceso exclusivo del superadministrador</p>
+                <h3 className="font-heading text-xl font-extrabold tracking-tight" style={{ color: INK }}>Sistema Óptica</h3>
+                <p className="text-sm text-slate-500">Panel del sistema · acceso exclusivo del superadministrador</p>
               </div>
             </div>
 
@@ -755,15 +744,15 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         className="sticky top-0 z-40 flex w-full items-center justify-between border-b px-6 py-4 backdrop-blur-md md:px-12"
         style={{ backgroundColor: "rgba(14,43,51,0.97)", borderColor: "rgba(255,255,255,0.08)" }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div
             className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl text-white"
             style={{ background: `linear-gradient(135deg,#22D3EE,${colorAcento})`, boxShadow: "0 8px 24px -8px rgba(34,211,238,0.6)" }}
           >
             {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
           </div>
-          <div className="leading-tight">
-            <span className="text-xl font-bold tracking-tight text-white">{nombreMarca}</span>
+          <div className="min-w-0 leading-tight">
+            <span className="block truncate text-xl font-bold tracking-tight text-white">{nombreMarca}</span>
             <p className="text-xs font-medium tracking-wide text-white/50">SALUD VISUAL &amp; CRM</p>
           </div>
         </div>
@@ -864,12 +853,12 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               tan personalizada estuviera la óptica. */}
           <div className="lg-rise lg-d2 order-first lg:order-last">
             {logoUrl ? (
-              <div
-                className="mx-auto flex aspect-square w-full max-w-md items-center justify-center rounded-[2.5rem] border border-slate-200 bg-white p-10"
+              <img
+                src={logoUrl}
+                alt={nombreMarca}
+                className="mx-auto block aspect-square w-full max-w-md rounded-[2.5rem] object-cover"
                 style={{ boxShadow: "0 30px 80px -30px rgba(37,99,235,0.25)" }}
-              >
-                <img src={logoUrl} alt={nombreMarca} className="max-h-full max-w-full object-contain" />
-              </div>
+              />
             ) : (
               <IrisOptico />
             )}
@@ -1092,12 +1081,12 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
 
           <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-5 animate-in zoom-in-95 fade-in duration-200">
             {/* ─── Marca de la óptica, flotando sobre la tarjeta ─── */}
-            <div className="flex items-center gap-3">
+            <div className="flex w-full min-w-0 items-center gap-3">
               <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/20 text-white backdrop-blur-md" style={{ background: "rgba(255,255,255,0.08)", boxShadow: "0 8px 24px -10px rgba(0,0,0,0.5)" }}>
                 {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
               </div>
-              <div className="leading-tight">
-                <p className="text-lg font-bold text-white">{nombreMarca}</p>
+              <div className="min-w-0 leading-tight">
+                <p className="truncate text-lg font-bold text-white">{nombreMarca}</p>
                 <p className="text-[11px] font-medium tracking-[0.16em] text-white/50">SALUD VISUAL &amp; CRM</p>
               </div>
             </div>
@@ -1190,12 +1179,12 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
           <div className="flex flex-col justify-between gap-10 md:flex-row">
             {/* Marca */}
             <div className="max-w-sm">
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl text-white" style={{ background: `linear-gradient(135deg,#22D3EE,${colorAcento})`, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                   {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <Eye size={22} strokeWidth={2.2} />}
                 </div>
-                <div className="leading-tight">
-                  <p className="text-lg font-bold tracking-tight text-white">{nombreMarca}</p>
+                <div className="min-w-0 leading-tight">
+                  <p className="truncate text-lg font-bold tracking-tight text-white">{nombreMarca}</p>
                   <p className="text-[11px] font-medium tracking-wide text-white/40">SALUD VISUAL &amp; OPTOMETRÍA</p>
                 </div>
               </div>
