@@ -410,7 +410,10 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <PlusCircle size={20} />
                 </div>
-                <h2 className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
+                <div>
+                  <h2 className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
+                  <p className="text-xs text-slate-500">Agrega un producto nuevo a la bodega.</p>
+                </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
@@ -484,7 +487,10 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <Pencil size={20} />
                 </div>
-                <h2 className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
+                <div>
+                  <h2 className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
+                  <p className="text-xs text-slate-500">{edNombre || "Actualiza sus datos."}</p>
+                </div>
               </div>
               <button type="button" onClick={cerrarEditar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />

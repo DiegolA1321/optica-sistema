@@ -689,7 +689,10 @@ export default function PaginaVenta() {
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <ArrowRight size={20} />
                 </div>
-                <h4 className="text-lg font-bold" style={{ color: INK }}>Obtener sistema</h4>
+                <div>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>Obtener sistema</h4>
+                  <p className="text-xs text-slate-500">Contanos de tu óptica y te contactamos.</p>
+                </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />

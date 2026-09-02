@@ -240,7 +240,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <UserPlus size={20} />
                 </div>
-                <h4 className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar asistente" : "Crear asistente"}</h4>
+                <div>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar asistente" : "Crear asistente"}</h4>
+                  <p className="text-xs text-slate-500">{editandoId != null ? "Actualiza su nombre y permisos." : "Cuenta de acceso con permisos por módulo."}</p>
+                </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />

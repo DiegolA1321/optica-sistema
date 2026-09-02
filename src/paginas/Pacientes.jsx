@@ -816,9 +816,14 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}>
                   <UserPlus size={20} />
                 </div>
-                <h2 className="text-lg font-bold" style={{ color: INK }}>
-                  {idEditando ? "Editar paciente" : "Crear paciente"}
-                </h2>
+                <div>
+                  <h2 className="text-lg font-bold" style={{ color: INK }}>
+                    {idEditando ? "Editar paciente" : "Crear paciente"}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {idEditando ? "Actualiza sus datos de contacto y registro." : "Datos básicos para registrarlo en el sistema."}
+                  </p>
+                </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
