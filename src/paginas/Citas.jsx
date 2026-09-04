@@ -23,10 +23,17 @@ import {
   UserX,
   Activity,
   MessageCircle,
+  Eye,
+  UserPlus,
+  IdCard,
+  Phone,
+  Mail,
+  Cake,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO } from "../utilidades/disponibilidad"
+import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -80,9 +87,14 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
   )
 }
 
-export default function Citas({ usuario, citas = [], setCitas, pacientes = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [] }) {
+export default function Citas({ usuario, citas = [], setCitas, pacientes = [], setPacientes, disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
+  // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
+  // hoy y se habilita crear un paciente nuevo sin salir de aquí (feedback
+  // del ing: un walk-in o alguien que llegó desde la web sin cuenta no debía
+  // obligar a ir primero al módulo Pacientes).
+  const [modoGestionar, setModoGestionar] = useState(false)
   const [pacienteId, setPacienteId] = useState(null)
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
@@ -107,7 +119,83 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
 
   const [busqueda, setBusqueda] = useState("")
   const [filtro, setFiltro] = useState("todas") // todas | hoy | proximas | atendidas
+  // Eje independiente del filtro de estado — separa citas de alguien que
+  // nunca ha sido paciente (sin pacienteId todavía) de las de seguimiento.
+  const [filtroTipo, setFiltroTipo] = useState("todos") // todos | primera | seguimiento
   const [porCancelar, setPorCancelar] = useState(null)
+
+  // ── "+ Añadir nuevo paciente" inline, dentro del modal en modo Gestionar ──
+  const [mostrarNuevoPaciente, setMostrarNuevoPaciente] = useState(false)
+  const [npNombre, setNpNombre] = useState("")
+  const [npCedula, setNpCedula] = useState("")
+  const [npTelefono, setNpTelefono] = useState("")
+  const [npCorreo, setNpCorreo] = useState("")
+  const [npFechaNacimiento, setNpFechaNacimiento] = useState("")
+  const [npErrores, setNpErrores] = useState({})
+  const [npGuardando, setNpGuardando] = useState(false)
+
+  // ── "Atender" sobre una cita sin paciente vinculado todavía (primera cita
+  // agendada desde la web pública, o registrada como visita rápida) — pide
+  // completar el registro antes de abrir la ficha clínica ──
+  const [completarPara, setCompletarPara] = useState(null) // la cita, o null
+  const [cpNombre, setCpNombre] = useState("")
+  const [cpCedula, setCpCedula] = useState("")
+  const [cpTelefono, setCpTelefono] = useState("")
+  const [cpCorreo, setCpCorreo] = useState("")
+  const [cpFechaNacimiento, setCpFechaNacimiento] = useState("")
+  const [cpErrores, setCpErrores] = useState({})
+  const [cpGuardando, setCpGuardando] = useState(false)
+
+  // Inserta un paciente nuevo con el mismo shape que usa Pacientes.jsx —
+  // reutilizado tanto por "+ Añadir nuevo paciente" (Gestionar) como por
+  // "Completar registro" (Atender sobre una cita sin paciente vinculado).
+  const crearPacienteInline = async ({ nombre, cedula, telefono, correo, fechaNacimiento }) => {
+    const nuevoPaciente = {
+      nombre,
+      cedula,
+      telefono: telefono || "Sin Teléfono",
+      correo: correo || "Sin Correo",
+      fecha_nacimiento: fechaNacimiento || null,
+      referidoPor: "",
+      evolucion: "Sin evaluación",
+      ultimaConsulta: "Pendiente",
+      fechaRegistro: new Date().toISOString().split("T")[0],
+      estadoClinico: "Activo",
+    }
+    if (supabase && opticaId) {
+      const { data, error } = await supabase
+        .from("pacientes")
+        .insert({
+          optica_id: opticaId,
+          nombre: nuevoPaciente.nombre,
+          cedula: nuevoPaciente.cedula,
+          telefono: nuevoPaciente.telefono,
+          correo: nuevoPaciente.correo,
+          fecha_nacimiento: nuevoPaciente.fecha_nacimiento,
+          evolucion: nuevoPaciente.evolucion,
+          ultima_consulta: nuevoPaciente.ultimaConsulta,
+          fecha_registro: nuevoPaciente.fechaRegistro,
+          estado_clinico: nuevoPaciente.estadoClinico,
+        })
+        .select()
+        .single()
+      if (error) return { error }
+      if (data) nuevoPaciente.id = data.id
+    }
+    if (nuevoPaciente.id == null) nuevoPaciente.id = Date.now()
+    setPacientes?.([nuevoPaciente, ...pacientes])
+    return { paciente: nuevoPaciente }
+  }
+
+  const validarDatosPacienteInline = (nombre, cedula, telefono, correo, idEnEdicion) => {
+    const errs = {}
+    if (!esNombreValido(nombre)) errs.nombre = "Ingresa un nombre válido (solo letras)."
+    if (!esCedulaValida(cedula)) errs.cedula = "Esa cédula no es válida — revisa los dígitos."
+    else if (pacientes.some((p) => p.id !== idEnEdicion && p.cedula === cedula)) errs.cedula = "Ya existe un paciente registrado con esa cédula."
+    if (!esTelefonoValido(telefono)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos."
+    if (correo && !esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
+    return errs
+  }
 
   // Días colapsados manualmente (feedback del asesor: si hay muchas citas en un
   // día, poder colapsarlo para ver el siguiente sin tener que hacer scroll).
@@ -215,8 +303,15 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
     setTimeout(() => setGuardadoExitoso(false), 3000)
   }
 
+  const abrirModal = (gestionar = false) => {
+    setModoGestionar(gestionar)
+    if (gestionar) setFecha(hoyISO())
+    setModalAbierto(true)
+  }
+
   const cerrarModal = () => {
     setModalAbierto(false)
+    setModoGestionar(false)
     setConfirmando(false)
     setPacienteId(null)
     setBusquedaPaciente("")
@@ -225,6 +320,39 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
     setHora("")
     setMotivo("")
     setError("")
+    setMostrarNuevoPaciente(false)
+    setNpNombre("")
+    setNpCedula("")
+    setNpTelefono("")
+    setNpCorreo("")
+    setNpFechaNacimiento("")
+    setNpErrores({})
+  }
+
+  const guardarNuevoPacienteInline = async (e) => {
+    e.preventDefault()
+    const errs = validarDatosPacienteInline(npNombre, npCedula, npTelefono, npCorreo, null)
+    setNpErrores(errs)
+    if (Object.keys(errs).length > 0) return
+
+    setNpGuardando(true)
+    const { paciente: nuevoPaciente, error } = await crearPacienteInline({
+      nombre: npNombre, cedula: npCedula, telefono: npTelefono, correo: npCorreo, fechaNacimiento: npFechaNacimiento,
+    })
+    setNpGuardando(false)
+    if (error) {
+      setNpErrores({ cedula: "No se pudo registrar al paciente. Revisa tu conexión e intenta de nuevo." })
+      return
+    }
+    setPacienteId(nuevoPaciente.id)
+    setBusquedaPaciente(nuevoPaciente.nombre)
+    setMostrarNuevoPaciente(false)
+    setNpNombre("")
+    setNpCedula("")
+    setNpTelefono("")
+    setNpCorreo("")
+    setNpFechaNacimiento("")
+    setNpErrores({})
   }
 
   const confirmarCancelacion = async () => {
@@ -256,6 +384,67 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
     }
     setBannerError("")
     setCitas(citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)))
+  }
+
+  // ── Atender: pasa la cita a "En Atención" y abre la ficha clínica del
+  // paciente ya vinculado. Si la cita no tiene paciente vinculado (primera
+  // cita agendada desde la web pública), pide completar su registro primero. ──
+  const atenderCita = (cita) => {
+    if (cita.pacienteId) {
+      const paciente = pacientes.find((p) => p.id === cita.pacienteId)
+      if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
+      marcarEstado(cita.id, "En Atención")
+      onAtender?.(paciente, cita.id)
+      return
+    }
+    setCompletarPara(cita)
+    setCpNombre(cita.paciente || "")
+    setCpCedula(cita.cedula || "")
+    setCpTelefono(cita.telefono || "")
+    setCpCorreo(cita.correo || "")
+    setCpFechaNacimiento("")
+    setCpErrores({})
+  }
+
+  const cerrarCompletarRegistro = () => {
+    setCompletarPara(null)
+    setCpNombre("")
+    setCpCedula("")
+    setCpTelefono("")
+    setCpCorreo("")
+    setCpFechaNacimiento("")
+    setCpErrores({})
+  }
+
+  const guardarCompletarRegistro = async (e) => {
+    e.preventDefault()
+    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, null)
+    setCpErrores(errs)
+    if (Object.keys(errs).length > 0) return
+
+    setCpGuardando(true)
+    const { paciente: nuevoPaciente, error } = await crearPacienteInline({
+      nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento,
+    })
+    if (error) {
+      setCpGuardando(false)
+      setBannerError("No se pudo registrar al paciente. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+
+    const citaId = completarPara.id
+    if (supabase && opticaId) {
+      const { error: errorCita } = await supabase.from("citas").update({ paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }).eq("id", citaId)
+      if (errorCita) {
+        setCpGuardando(false)
+        setBannerError("El paciente se registró, pero no se pudo vincular a la cita. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+    }
+    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" } : c)))
+    setCpGuardando(false)
+    cerrarCompletarRegistro()
+    onAtender?.(nuevoPaciente, citaId)
   }
 
   // ── Reagendar cita (solo el optómetra, desde aquí — no hay autoservicio del paciente) ──
@@ -332,6 +521,11 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
         if (filtro === "atendidas") return c.estado === "Atendida"
         return true
       })
+      .filter((c) => {
+        if (filtroTipo === "primera") return !c.pacienteId
+        if (filtroTipo === "seguimiento") return Boolean(c.pacienteId)
+        return true
+      })
       .sort((a, b) => {
         if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1
         return minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)
@@ -343,7 +537,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
       mapa.get(c.fecha).push(c)
     }
     return Array.from(mapa.entries())
-  }, [citas, busqueda, filtro])
+  }, [citas, busqueda, filtro, filtroTipo])
 
   const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
@@ -371,14 +565,26 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
             <p className="text-sm text-slate-500">Planificación y control de consultas de refracción.</p>
           </div>
         </div>
-        <button
-          onClick={() => setModalAbierto(true)}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <Plus size={18} />
-          Agendar cita
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => abrirModal(true)}
+            className="flex items-center justify-center gap-2 rounded-xl border-2 px-5 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            style={{ borderColor: INK, color: INK }}
+          >
+            <UserPlus size={18} />
+            Gestionar
+          </button>
+          <button
+            type="button"
+            onClick={() => abrirModal(false)}
+            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
+          >
+            <Plus size={18} />
+            Agendar cita
+          </button>
+        </div>
       </div>
 
       {/* ─── KPIs / FILTROS ─── */}
@@ -405,8 +611,25 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
         </div>
       )}
 
-      {/* ─── BÚSQUEDA ─── */}
-      <div className="flex justify-end">
+      {/* ─── BÚSQUEDA + TIPO DE CITA ─── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          {[
+            { key: "todos", label: "Todas" },
+            { key: "primera", label: "Primera vez" },
+            { key: "seguimiento", label: "Seguimiento" },
+          ].map((op) => (
+            <button
+              key={op.key}
+              type="button"
+              onClick={() => setFiltroTipo(op.key)}
+              className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (filtroTipo === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+              style={filtroTipo === op.key ? { background: GRAD } : undefined}
+            >
+              {op.label}
+            </button>
+          ))}
+        </div>
         <div className="relative w-full sm:w-80">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
@@ -485,8 +708,23 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
 
                           <div className="p-5 pl-6">
                             <div className="mb-4 flex items-start justify-between gap-2">
-                              <span className={"rounded-md border px-2.5 py-1 text-xs font-semibold " + info.badge}>{cita.motivo}</span>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className={"rounded-md border px-2.5 py-1 text-xs font-semibold " + info.badge}>{cita.motivo}</span>
+                                {!cita.pacienteId && (
+                                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1">
+                                {!resuelta && puedeMarcarse && (
+                                  <button type="button" onClick={() => atenderCita(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Atender ahora" aria-label="Atender ahora">
+                                    <Stethoscope size={16} />
+                                  </button>
+                                )}
+                                {cita.pacienteId && (
+                                  <button type="button" onClick={() => onVerPerfil?.(cita.pacienteId)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Ver perfil del paciente" aria-label="Ver perfil del paciente">
+                                    <Eye size={16} />
+                                  </button>
+                                )}
                                 {puedeMarcarse && (
                                   <div className="relative" ref={menuEstadoId === cita.id ? menuEstadoRef : null}>
                                     <button
@@ -604,11 +842,11 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Stethoscope size={20} />
+                  {modoGestionar ? <UserPlus size={20} /> : <Stethoscope size={20} />}
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h4>
-                  <p className="text-xs text-slate-500">Elige paciente, motivo y horario disponible.</p>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>{modoGestionar ? "Gestionar cita" : "Agendar cita"}</h4>
+                  <p className="text-xs text-slate-500">{modoGestionar ? "Busca al paciente o regístralo si acaba de llegar." : "Elige paciente, motivo y horario disponible."}</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -625,38 +863,122 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
                   </div>
                 )}
 
-                {pacientes.length === 0 ? (
+                {!modoGestionar && pacientes.length === 0 ? (
                   <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
                     <AlertTriangle size={16} className="shrink-0" />
                     Aún no hay pacientes registrados. Crea uno primero en el módulo Pacientes.
                   </div>
                 ) : (
                   <div className="relative" ref={dropdownRef}>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
-                    <div className="relative">
-                      <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="text"
-                        value={busquedaPaciente}
-                        onFocus={() => setMostrarDropdown(true)}
-                        onChange={(e) => { setBusquedaPaciente(e.target.value); setPacienteId(null); setMostrarDropdown(true) }}
-                        placeholder="Escriba para buscar por nombre o cédula..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                      />
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-slate-700">Paciente</label>
+                      {modoGestionar && !mostrarNuevoPaciente && (
+                        <button
+                          type="button"
+                          onClick={() => { setMostrarNuevoPaciente(true); setPacienteId(null); setBusquedaPaciente("") }}
+                          className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
+                        >
+                          <UserPlus size={13} /> Añadir nuevo paciente
+                        </button>
+                      )}
                     </div>
-                    {mostrarDropdown && pacientesFiltrados.length > 0 && (
-                      <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                        {pacientesFiltrados.map((p) => (
-                          <li
-                            key={p.id}
-                            onClick={() => seleccionarPaciente(p)}
-                            className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                          >
-                            <span className="font-semibold">{p.nombre}</span>
-                            {p.cedula && <span className="font-mono text-xs text-slate-500">{p.cedula}</span>}
-                          </li>
-                        ))}
-                      </ul>
+
+                    {mostrarNuevoPaciente ? (
+                      <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-blue-700">Datos del paciente nuevo</p>
+                          <button type="button" onClick={() => setMostrarNuevoPaciente(false)} className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer">Cancelar</button>
+                        </div>
+                        <div>
+                          <input
+                            type="text" placeholder="Nombre completo" value={npNombre}
+                            onChange={(e) => setNpNombre(filtrarSoloLetras(e.target.value))}
+                            className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-2 " + (npErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                          />
+                          {npErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.nombre}</p>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <div className="relative">
+                              <IdCard size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                              <input
+                                type="text" inputMode="numeric" maxLength={10} placeholder="Cédula" value={npCedula}
+                                onChange={(e) => setNpCedula(filtrarSoloNumeros(e.target.value, 10))}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus:ring-2 " + (npErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                              />
+                            </div>
+                            {npErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.cedula}</p>}
+                          </div>
+                          <div>
+                            <div className="relative">
+                              <Phone size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                              <input
+                                type="text" inputMode="numeric" maxLength={10} placeholder="Teléfono" value={npTelefono}
+                                onChange={(e) => setNpTelefono(filtrarSoloNumeros(e.target.value, 10))}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                              />
+                            </div>
+                            {npErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.telefono}</p>}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <div className="relative">
+                              <Mail size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                              <input
+                                type="email" placeholder="Correo (opcional)" value={npCorreo}
+                                onChange={(e) => setNpCorreo(e.target.value)}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                              />
+                            </div>
+                            {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
+                          </div>
+                          <div className="relative">
+                            <Cake size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                            <input
+                              type="date" value={npFechaNacimiento}
+                              onChange={(e) => setNpFechaNacimiento(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={npGuardando}
+                          onClick={guardarNuevoPacienteInline}
+                          className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                        >
+                          {npGuardando ? "Registrando…" : "Registrar y seleccionar"}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                          <input
+                            type="text"
+                            value={busquedaPaciente}
+                            onFocus={() => setMostrarDropdown(true)}
+                            onChange={(e) => { setBusquedaPaciente(e.target.value); setPacienteId(null); setMostrarDropdown(true) }}
+                            placeholder="Escriba para buscar por nombre o cédula..."
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          />
+                        </div>
+                        {mostrarDropdown && pacientesFiltrados.length > 0 && (
+                          <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                            {pacientesFiltrados.map((p) => (
+                              <li
+                                key={p.id}
+                                onClick={() => seleccionarPaciente(p)}
+                                className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                              >
+                                <span className="font-semibold">{p.nombre}</span>
+                                {p.cedula && <span className="font-mono text-xs text-slate-500">{p.cedula}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -711,6 +1033,101 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], d
           onCancelar={() => setConfirmando(false)}
           onConfirmar={agendarCita}
         />
+      )}
+
+      {/* ─── COMPLETAR REGISTRO DEL PACIENTE (Atender sobre una cita sin paciente vinculado) ─── */}
+      {completarPara && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarCompletarRegistro}>
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>Completar registro</h4>
+                  <p className="text-xs text-slate-500">Antes de abrir la ficha clínica, confirma sus datos.</p>
+                </div>
+              </div>
+              <button type="button" onClick={cerrarCompletarRegistro} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={guardarCompletarRegistro} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto p-5">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
+                  <input
+                    type="text" value={cpNombre} onChange={(e) => setCpNombre(filtrarSoloLetras(e.target.value))}
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                  />
+                  {cpErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.nombre}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
+                    <div className="relative">
+                      <IdCard size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text" inputMode="numeric" maxLength={10} value={cpCedula}
+                        onChange={(e) => setCpCedula(filtrarSoloNumeros(e.target.value, 10))}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                      />
+                    </div>
+                    {cpErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.cedula}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono</label>
+                    <div className="relative">
+                      <Phone size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text" inputMode="numeric" maxLength={10} value={cpTelefono}
+                        onChange={(e) => setCpTelefono(filtrarSoloNumeros(e.target.value, 10))}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                      />
+                    </div>
+                    {cpErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.telefono}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo <span className="normal-case text-slate-500">(opcional)</span></label>
+                    <div className="relative">
+                      <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="email" value={cpCorreo} onChange={(e) => setCpCorreo(e.target.value)}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                      />
+                    </div>
+                    {cpErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.correo}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
+                    <div className="relative">
+                      <Cake size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="date" value={cpFechaNacimiento} onChange={(e) => setCpFechaNacimiento(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
+                <button type="button" onClick={cerrarCompletarRegistro} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                  {cpGuardando ? "Guardando…" : "Registrar y atender"}
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── MODAL CANCELAR ─── */}

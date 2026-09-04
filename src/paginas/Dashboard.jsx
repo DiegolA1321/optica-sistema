@@ -63,14 +63,19 @@ const OPCIONES = [
   { id: "crm", nombre: "CRM y fidelización", icono: HeartHandshake },
   { id: "horario", nombre: "Mi horario", icono: CalendarClock },
   { id: "reportes", nombre: "Reportes", icono: BarChart3 },
-  // soloAdmin: decisión de producto, no técnica — los asistentes ya tienen
-  // cuenta real de Supabase (podrían técnicamente usar Mensajes/Usuarios/
-  // Configuración si se les diera acceso), pero se mantienen ocultos por
-  // ahora: la relación con el superadmin y la gestión del propio personal
-  // le corresponden al administrador, no al asistente.
-  { id: "mensajes", nombre: "Mensajes", icono: MessageSquare, soloAdmin: true },
+  // soloAdmin + delegable: oculto por defecto, pero el admin puede delegarlo
+  // explícitamente desde Usuarios.jsx (categoría "Administración") — a nivel
+  // de base de datos ya tenían el mismo acceso que un admin (mensajes y
+  // opticas.settings no distinguen rol en RLS, solo optica_id), así que esto
+  // es una decisión de producto que el admin controla, no una restricción
+  // técnica nueva.
+  { id: "mensajes", nombre: "Mensajes", icono: MessageSquare, soloAdmin: true, delegable: true },
+  // soloAdmin sin delegable: Usuarios y permisos sí requiere rol='admin' a
+  // nivel de RLS (perfiles_admin_gestiona_asistentes) — delegarlo de verdad
+  // necesitaría una policy nueva, no solo un permiso de interfaz, así que se
+  // mantiene exclusivo del administrador principal.
   { id: "usuarios", nombre: "Usuarios y permisos", icono: ShieldCheck, soloAdmin: true },
-  { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true },
+  { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true, delegable: true },
 ]
 
 // Ventana de cumpleaños (-5 a +7 días) → diferencia en días o null
@@ -98,10 +103,19 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   const esAdmin = usuario?.rol === "admin"
 
   // Un asistente solo ve lo que el administrador le habilitó (default: todo
-  // menos lo marcado soloAdmin). El administrador ve siempre todo.
+  // menos lo marcado soloAdmin). El administrador ve siempre todo. Un
+  // soloAdmin+delegable es la excepción: un asistente lo ve si el admin se lo
+  // activó explícitamente (default false, a diferencia de los módulos
+  // operativos que son default true) — es la "administración delegada" que
+  // pidió el ing para cuando el optómetra contrata a alguien que le
+  // administre el sistema completo.
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
-      if (o.soloAdmin) return esAdmin
+      if (o.soloAdmin) {
+        if (esAdmin) return true
+        if (esAsistente && o.delegable) return usuario?.permisos?.[o.id] === true
+        return false
+      }
       if (esAsistente) return usuario?.permisos?.[o.id] !== false
       return true
     }),
@@ -117,6 +131,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   const [accionPacienteInicio, setAccionPacienteInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
+  // Viaja junto a fichaClinicaPacienteInicial cuando la ficha se abre desde
+  // "Atender" en Citas médicas — permite que ConsultaMedica marque esa cita
+  // como "Atendida" al guardar, sin que el optómetra tenga que hacerlo a mano.
+  const [fichaClinicaCitaId, setFichaClinicaCitaId] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [colapsado, setColapsado] = useState(false)
   const [notifAbierta, setNotifAbierta] = useState(false)
@@ -243,7 +261,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             parametrizacion={parametrizacion}
             diagnosticosRapidos={diagnosticosRapidos}
             pacienteInicial={fichaClinicaPacienteInicial}
-            onPacienteInicialConsumido={() => setFichaClinicaPacienteInicial(null)}
+            citaIdInicial={fichaClinicaCitaId}
+            citas={citas}
+            setCitas={setCitas}
+            onPacienteInicialConsumido={() => { setFichaClinicaPacienteInicial(null); setFichaClinicaCitaId(null) }}
           />
         )
       case "inventario":
@@ -255,10 +276,13 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             citas={citas}
             setCitas={setCitas}
             pacientes={pacientes}
+            setPacientes={setPacientes}
             disponibilidad={disponibilidad}
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
             motivosConsulta={motivosConsulta}
+            onAtender={(paciente, citaId) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaCitaId(citaId); navegar("consultas") }}
+            onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />
         )
       case "horario":

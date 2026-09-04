@@ -9,11 +9,15 @@ import {
   Trash2,
   X,
   ShieldCheck,
+  ShieldAlert,
   AlertTriangle,
   Eye,
   EyeOff,
   Mail,
   Info,
+  Tag,
+  CheckSquare,
+  Square,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
@@ -22,25 +26,68 @@ import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/
 const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-// Módulos que un asistente puede o no tener habilitados — mismos ids que las
-// secciones del sidebar en Dashboard.jsx. Por defecto todos activos: el
-// administrador decide qué le quita a cada perfil, no al revés.
-const MODULOS = [
-  { id: "pacientes", nombre: "Pacientes" },
-  { id: "consultas", nombre: "Ficha clínica" },
-  { id: "citas", nombre: "Citas médicas" },
-  { id: "horario", nombre: "Mi horario" },
-  { id: "inventario", nombre: "Inventario" },
-  { id: "crm", nombre: "CRM y fidelización" },
-  { id: "reportes", nombre: "Reportes" },
+// Módulos que un usuario puede o no tener habilitados — mismos ids que las
+// secciones del sidebar en Dashboard.jsx y que la función tiene_permiso_modulo()
+// en la base de datos (migración 0034: estos permisos no son solo de interfaz,
+// también limitan qué puede escribir por API). Agrupados en categorías para
+// que el administrador no tenga que leer una lista plana de 9 casillas
+// (feedback del ing) — y con "Administración" separada porque delegar Mensajes
+// o Configuración es delegar acceso a nivel de óptica completa, no un módulo
+// operativo más: por eso esos dos arrancan desactivados por defecto, a
+// diferencia del resto.
+const CATEGORIAS = [
+  {
+    id: "atencion",
+    nombre: "Atención al paciente",
+    modulos: [
+      { id: "pacientes", nombre: "Pacientes" },
+      { id: "consultas", nombre: "Ficha clínica" },
+      { id: "citas", nombre: "Citas médicas" },
+      { id: "crm", nombre: "CRM y fidelización" },
+    ],
+  },
+  {
+    id: "gestion",
+    nombre: "Gestión y operación",
+    modulos: [
+      { id: "inventario", nombre: "Inventario" },
+      { id: "reportes", nombre: "Reportes" },
+      { id: "horario", nombre: "Mi horario" },
+    ],
+  },
+  {
+    id: "administracion",
+    nombre: "Administración",
+    sensible: true,
+    modulos: [
+      { id: "mensajes", nombre: "Mensajes" },
+      { id: "configuracion", nombre: "Configuración" },
+    ],
+  },
 ]
+const MODULOS = CATEGORIAS.flatMap((c) => c.modulos)
 
-const permisosPorDefecto = () => MODULOS.reduce((acc, m) => ({ ...acc, [m.id]: true }), {})
+const permisosPorDefecto = () =>
+  CATEGORIAS.reduce((acc, c) => {
+    c.modulos.forEach((m) => { acc[m.id] = !c.sensible })
+    return acc
+  }, {})
+
+// El default por módulo depende de su categoría (true para los operativos,
+// false para los sensibles de Administración) — un perfil creado antes de
+// que existiera esta categoría no tiene esas claves guardadas todavía, así
+// que no puede asumirse "true si no está en false" como antes.
+const permisoActivo = (asistente, moduloId) => {
+  const categoria = CATEGORIAS.find((c) => c.modulos.some((m) => m.id === moduloId))
+  const valor = asistente.permisos?.[moduloId]
+  return valor === undefined ? !categoria?.sensible : valor
+}
 
 export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const [modalAbierto, setModalAbierto] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
   const [nombre, setNombre] = useState("")
+  const [etiquetaRol, setEtiquetaRol] = useState("")
   const [correo, setCorreo] = useState("")
   const [clave, setClave] = useState("")
   const [verClave, setVerClave] = useState(false)
@@ -53,6 +100,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const abrirCrear = () => {
     setEditandoId(null)
     setNombre("")
+    setEtiquetaRol("")
     setCorreo("")
     setClave("")
     setVerClave(false)
@@ -64,6 +112,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const abrirEditar = (a) => {
     setEditandoId(a.id)
     setNombre(a.nombre)
+    setEtiquetaRol(a.etiquetaRol || "")
     setCorreo(a.correo)
     setClave("")
     setVerClave(false)
@@ -76,6 +125,19 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
 
   const alternarPermiso = (id) => setPermisos((prev) => ({ ...prev, [id]: !prev[id] }))
 
+  // "Seleccionar toda la categoría" — si ya están todos activos, la desactiva
+  // todos; si falta alguno, los activa todos. Mismo patrón que pidió el ing
+  // ("le doy click a la sección general, se selecciona todo, o se deselecciona
+  // todo, o internamente le doy click a lo que me interesa").
+  const alternarCategoria = (categoria) => {
+    const todosActivos = categoria.modulos.every((m) => permisos[m.id])
+    setPermisos((prev) => {
+      const siguiente = { ...prev }
+      categoria.modulos.forEach((m) => { siguiente[m.id] = !todosActivos })
+      return siguiente
+    })
+  }
+
   // Editar solo cambia nombre/permisos — correo y contraseña quedan fijos
   // una vez creada la cuenta (son de Supabase Auth, no hay endpoint sin
   // privilegios elevados para cambiarlos desde acá).
@@ -86,10 +148,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     if (editandoId != null) {
       if (!esNombreValido(nombre)) { setError("Ingresa un nombre válido (solo letras)."); return }
       setGuardando(true)
-      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos }).eq("id", editandoId)
+      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null }).eq("id", editandoId)
       setGuardando(false)
       if (errorUpdate) { setError(errorUpdate.message); return }
-      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos } : a)))
+      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim() } : a)))
       setModalAbierto(false)
       return
     }
@@ -122,14 +184,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     // esto, scoped a la óptica del admin que llama.
     const { error: errorPerfil } = await supabase
       .from("perfiles")
-      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos })
+      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null })
     await temp.auth.signOut()
     setGuardando(false)
     if (errorPerfil) {
       setError(errorPerfil.message + " — la cuenta de correo ya quedó creada, contactá soporte si esto se repite.")
       return
     }
-    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos }])
+    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim() }])
     setModalAbierto(false)
   }
 
@@ -153,7 +215,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
           </div>
           <div>
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Usuarios y permisos</h1>
-            <p className="text-sm text-slate-500">Crea perfiles de asistente y define qué módulos puede ver cada uno.</p>
+            <p className="text-sm text-slate-500">Crea usuarios y define qué puede ver y hacer cada uno.</p>
           </div>
         </div>
         <button
@@ -163,7 +225,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
           style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
         >
           <UserPlus size={18} />
-          Crear asistente
+          Crear usuario
         </button>
       </div>
 
@@ -171,7 +233,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
         <ShieldCheck size={17} className="mt-0.5 shrink-0" />
         <p className="text-xs leading-relaxed">
-          Solo el administrador ve esta sección. Un perfil de asistente inicia sesión con el correo y contraseña que le asignes aquí (cuenta real, funciona desde cualquier dispositivo), y en su panel solo aparecen los módulos que dejes activados.
+          Solo el administrador principal ve esta sección. Cada usuario inicia sesión con el correo y contraseña que le asignes aquí (cuenta real, funciona desde cualquier dispositivo), y en su panel solo aparecen los módulos que dejes activados. Tú, como administrador principal, siempre conservas acceso completo — esto solo define qué le delegas a cada persona.
         </p>
       </div>
 
@@ -181,13 +243,15 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Users size={30} />
           </div>
-          <p className="mt-4 text-base font-semibold text-slate-600">Aún no hay perfiles de asistente</p>
-          <p className="mt-1 text-sm text-slate-500">Créalos para que tu personal contratado pueda usar el sistema sin tener acceso de administrador.</p>
+          <p className="mt-4 text-base font-semibold text-slate-600">Aún no hay usuarios creados</p>
+          <p className="mt-1 text-sm text-slate-500">Créalos para que tu personal contratado pueda usar el sistema con los permisos que tú definas.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {asistentes.map((a) => {
-            const activos = MODULOS.filter((m) => a.permisos?.[m.id] !== false)
+            const activos = MODULOS.filter((m) => permisoActivo(a, m.id))
+            const categoriaAdmin = CATEGORIAS.find((c) => c.sensible)
+            const tieneAdminDelegada = categoriaAdmin.modulos.some((m) => permisoActivo(a, m.id))
             return (
               <div key={a.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div>
@@ -199,6 +263,11 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <div>
                         <p className="text-sm font-bold text-slate-800">{a.nombre}</p>
                         <p className="font-mono text-xs text-slate-500">{a.correo}</p>
+                        {a.etiquetaRol && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            <Tag size={10} /> {a.etiquetaRol}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -211,9 +280,15 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-1.5">
+                  {tieneAdminDelegada && (
+                    <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-amber-700">
+                      <ShieldAlert size={12} /> Tiene administración delegada (Mensajes y/o Configuración)
+                    </p>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {MODULOS.map((m) => {
-                      const on = a.permisos?.[m.id] !== false
+                      const on = permisoActivo(a, m.id)
                       return (
                         <span
                           key={m.id}
@@ -242,8 +317,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar asistente" : "Crear asistente"}</h4>
-                  <p className="text-xs text-slate-500">{editandoId != null ? "Actualiza su nombre y permisos." : "Cuenta de acceso con permisos por módulo."}</p>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar usuario" : "Crear usuario"}</h4>
+                  <p className="text-xs text-slate-500">{editandoId != null ? "Actualiza su nombre, alias y permisos." : "Cuenta de acceso con permisos por módulo."}</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -260,14 +335,28 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                   </div>
                 )}
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
-                  <input
-                    type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
-                    placeholder="Ej. Ana Torres"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                  />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
+                    <input
+                      type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
+                      placeholder="Ej. Ana Torres"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Alias / rol <span className="normal-case text-slate-500">(opcional)</span></label>
+                    <div className="relative">
+                      <Tag size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text" value={etiquetaRol} onChange={(e) => setEtiquetaRol(e.target.value)}
+                        placeholder="Ej. Secretaria, Asesor de ventas"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
                 </div>
+                <p className="-mt-2.5 text-[11px] text-slate-500">Solo una etiqueta para que recuerdes para qué lo contrataste — no cambia sus permisos, esos se definen abajo.</p>
 
                 {editandoId != null ? (
                   <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-600">
@@ -305,22 +394,53 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                   </div>
                 )}
 
-                <div>
-                  <p className="mb-2 text-sm font-semibold text-slate-700">Módulos que puede ver</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {MODULOS.map((m) => (
-                      <label key={m.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:border-blue-300">
-                        <input
-                          type="checkbox"
-                          checked={permisos[m.id] !== false}
-                          onChange={() => alternarPermiso(m.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        {m.nombre}
-                      </label>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[11px] text-slate-500">"Inicio" siempre está disponible; el panel de administrador nunca lo ve un asistente.</p>
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-slate-700">Módulos y permisos</p>
+                  {CATEGORIAS.map((categoria) => {
+                    const todosActivos = categoria.modulos.every((m) => permisos[m.id])
+                    const algunoActivo = categoria.modulos.some((m) => permisos[m.id])
+                    return (
+                      <div
+                        key={categoria.id}
+                        className={"rounded-xl border p-3 " + (categoria.sensible ? "border-amber-200 bg-amber-50/50" : "border-slate-200 bg-slate-50")}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => alternarCategoria(categoria)}
+                          className="flex w-full items-center gap-2 text-left cursor-pointer"
+                        >
+                          {todosActivos ? (
+                            <CheckSquare size={16} className={categoria.sensible ? "text-amber-600" : "text-blue-600"} />
+                          ) : (
+                            <Square size={16} className={algunoActivo ? "text-slate-500" : "text-slate-300"} />
+                          )}
+                          <span className={"text-xs font-bold uppercase tracking-wide " + (categoria.sensible ? "text-amber-700" : "text-slate-600")}>
+                            {categoria.nombre}
+                          </span>
+                          {categoria.sensible && <ShieldAlert size={13} className="text-amber-600" />}
+                        </button>
+                        {categoria.sensible && (
+                          <p className="mb-2 mt-1 pl-6 text-[11px] leading-relaxed text-amber-700">
+                            Activar esto le da acceso de administración de la óptica (no solo de un módulo operativo) — úsalo solo si de verdad va a ayudarte a gestionar el sistema.
+                          </p>
+                        )}
+                        <div className="mt-2 grid grid-cols-1 gap-2 pl-6 sm:grid-cols-2">
+                          {categoria.modulos.map((m) => (
+                            <label key={m.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(permisos[m.id])}
+                                onChange={() => alternarPermiso(m.id)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              {m.nombre}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <p className="text-[11px] text-slate-500">"Inicio" siempre está disponible; el panel de administrador principal nunca lo ve un usuario delegado.</p>
                 </div>
               </div>
 
@@ -329,7 +449,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {guardando ? "Guardando..." : editandoId != null ? "Guardar cambios" : "Crear perfil"}
+                  {guardando ? "Guardando..." : editandoId != null ? "Guardar cambios" : "Crear usuario"}
                 </button>
               </div>
             </form>

@@ -71,8 +71,13 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, onPacienteInicialConsumido }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, citas = [], setCitas, onPacienteInicialConsumido }) {
   const [subTab, setSubTab] = useState("anamnesis")
+  // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
+  // médicas (ver citaIdInicial más abajo) — se guarda aparte de
+  // pacienteInicial porque debe seguir disponible al guardar, no solo al
+  // momento de precargar el paciente.
+  const [citaEnAtencionId, setCitaEnAtencionId] = useState(null)
   // Si la óptica no ofrece progresión, no tiene sentido pedir ese dato (configurable en Configuración)
   const manejaProgresion = parametrizacion?.manejaProgresion !== false
   // Política de la óptica (Configuración > Políticas hacia el paciente) — debe
@@ -317,10 +322,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }
 
   // Llega desde "¿Deseas abrir su ficha clínica ahora?" al crear un paciente en
-  // Pacientes.jsx — lo preselecciona para no tener que buscarlo de nuevo aquí.
+  // Pacientes.jsx, o desde "Atender" en Citas médicas (en ese caso también
+  // trae citaIdInicial) — lo preselecciona para no tener que buscarlo de
+  // nuevo aquí.
   useEffect(() => {
     if (!pacienteInicial) return
     seleccionarPacienteCombo(pacienteInicial)
+    if (citaIdInicial) setCitaEnAtencionId(citaIdInicial)
     onPacienteInicialConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pacienteInicial])
@@ -483,6 +491,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (data) nuevaFicha.id = data.id
       const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
+
+      // Si esta ficha se abrió desde "Atender" en Citas médicas, guardarla
+      // resuelve esa cita — el optómetra no tiene que ir a marcarla aparte.
+      if (citaEnAtencionId) {
+        const { error: errorCita } = await supabase.from("citas").update({ estado: "Atendida" }).eq("id", citaEnAtencionId)
+        if (errorCita) console.error("La ficha se guardó, pero no se pudo marcar la cita como atendida:", errorCita.message)
+        else setCitas?.(citas.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
+      }
     }
     if (nuevaFicha.id == null) nuevaFicha.id = Date.now()
 

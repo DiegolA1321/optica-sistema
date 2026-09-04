@@ -144,7 +144,7 @@ function mapPaciente(p) {
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
-  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado }
+  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, correo: c.correo, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado }
 }
 function mapConsulta(c) {
   return {
@@ -373,8 +373,8 @@ function App() {
         if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
       })
 
-      supabase.from('perfiles').select('id, nombre, email, permisos').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data }) => {
-        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {} })))
+      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data }) => {
+        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '' })))
       })
     }
   }
