@@ -34,11 +34,17 @@ import {
   MoreVertical,
   RefreshCw,
   Image as ImageIcon,
+  Wallet,
+  ShoppingCart,
+  CreditCard,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
+import VentaProductoModal from "./VentaProductoModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
+import { saldoVenta, METODOS_PAGO } from "../utilidades/ventas"
+import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
@@ -92,7 +98,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
+export default function Pacientes({ usuario, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, ventas = [], setVentas, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -155,6 +161,35 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
   // Historial clínico (consultas y citas del paciente)
   const [pacienteHistorial, setPacienteHistorial] = useState(null)
   const [tabHistorial, setTabHistorial] = useState("valoraciones")
+  // "Pagos pendientes" en el perfil del paciente + "Vender producto" desde
+  // ahí mismo — caso de la reunión con el ing (ver Sexta Mirada, Inventario
+  // puntos 5 y 6). Reusa el mismo VentaProductoModal que Inventario.jsx.
+  const [mostrarVenta, setMostrarVenta] = useState(false)
+  useEffect(() => { if (!pacienteHistorial) setMostrarVenta(false) }, [pacienteHistorial])
+
+  const registrarVenta = (venta) => {
+    setVentas?.((prev) => [venta, ...prev])
+  }
+
+  const marcarVentaPagada = async (venta) => {
+    const cuotasFinales = venta.cuotasTotales || venta.cuotasPagadas
+    if (supabase) {
+      const { error } = await supabase.from("ventas").update({ estado: "completado", cuotas_pagadas: cuotasFinales }).eq("id", venta.id)
+      if (error) return
+    }
+    setVentas?.((prev) => prev.map((v) => (v.id === venta.id ? { ...v, estado: "completado", cuotasPagadas: cuotasFinales } : v)))
+  }
+
+  const registrarCuotaPagada = async (venta) => {
+    const nuevasCuotas = (venta.cuotasPagadas || 0) + 1
+    const completado = venta.cuotasTotales != null && nuevasCuotas >= venta.cuotasTotales
+    const estadoNuevo = completado ? "completado" : "pendiente"
+    if (supabase) {
+      const { error } = await supabase.from("ventas").update({ cuotas_pagadas: nuevasCuotas, estado: estadoNuevo }).eq("id", venta.id)
+      if (error) return
+    }
+    setVentas?.((prev) => prev.map((v) => (v.id === venta.id ? { ...v, cuotasPagadas: nuevasCuotas, estado: estadoNuevo } : v)))
+  }
 
   // Agendar cita desde el perfil del paciente
   const [agendarPara, setAgendarPara] = useState(null)
@@ -308,6 +343,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
         }
       }
       setPacientes(pacientes.map((p) => (p.id === idEditando ? { ...p, ...cambios } : p)))
+      registrarLog(usuario, "pacientes", "Editó el expediente de un paciente", cambios.nombre)
       mostrarNotif("Expediente del paciente actualizado correctamente.")
     } else {
       const nuevoPaciente = {
@@ -349,6 +385,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
       if (nuevoPaciente.id == null) nuevoPaciente.id = Date.now()
 
       setPacientes([nuevoPaciente, ...pacientes])
+      registrarLog(usuario, "pacientes", "Registró un paciente nuevo", nuevoPaciente.nombre)
       mostrarNotif("Paciente ingresado al sistema exitosamente.")
       cerrarModal()
       setPacienteRecienCreado(nuevoPaciente)
@@ -388,6 +425,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
     setPacientes(pacientes.filter((p) => p.id !== pacienteAEliminar.id))
     setCitas?.(citas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
     setConsultas?.(consultas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
+    registrarLog(usuario, "pacientes", "Eliminó a un paciente", pacienteAEliminar.nombre)
     mostrarNotif("Paciente removido de la base de datos, junto con sus citas y consultas asociadas.")
     setPacienteAEliminar(null)
   }
@@ -1155,9 +1193,25 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
                 .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? 1 : -1) : minutosDesdeMedianoche(b.hora) - minutosDesdeMedianoche(a.hora)))
+              const ventasPaciente = ventas
+                .filter((v) => v.pacienteId === pacienteHistorial.id)
+                .slice()
+                .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
+              const deudaTotal = ventasPaciente.filter((v) => v.estado === "pendiente").reduce((a, v) => a + saldoVenta(v), 0)
 
               return (
                 <>
+                  {deudaTotal > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTabHistorial("pagos")}
+                      className="flex w-full items-center gap-2.5 border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-left transition hover:bg-amber-100 cursor-pointer"
+                    >
+                      <Wallet size={16} className="shrink-0 text-amber-600" />
+                      <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
+                      <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
+                    </button>
+                  )}
                   <div className="flex gap-1 border-b border-slate-100 bg-slate-50/70 px-4 pt-3">
                     <button
                       type="button"
@@ -1182,10 +1236,72 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     >
                       <Activity size={14} /> Evolución
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setTabHistorial("pagos")}
+                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "bg-white text-blue-600 shadow-[0_-1px_0_0_#fff]" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      <Wallet size={14} /> Pagos
+                      {deudaTotal > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">${deudaTotal.toFixed(0)}</span>}
+                    </button>
                   </div>
 
                   <div className="flex-1 overflow-y-auto px-6 py-5">
-                    {tabHistorial === "evolucion" ? (
+                    {tabHistorial === "pagos" ? (
+                      <div className="space-y-4">
+                        <button
+                          type="button"
+                          onClick={() => setMostrarVenta(true)}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                          style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+                        >
+                          <ShoppingCart size={16} /> Vender producto
+                        </button>
+                        {ventasPaciente.length === 0 ? (
+                          <div className="flex flex-col items-center gap-2 py-10 text-center">
+                            <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
+                            <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                            {ventasPaciente.map((v) => {
+                              const saldo = saldoVenta(v)
+                              return (
+                                <div key={v.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800">{v.productoNombre}</p>
+                                    <p className="text-[11px] text-slate-500">
+                                      {v.cantidad} u. · ${Number(v.montoTotal).toFixed(2)} · {METODOS_PAGO[v.metodoPago] || v.metodoPago}
+                                      {v.metodoPago === "cuotas" && v.cuotasTotales ? ` (${v.cuotasPagadas || 0}/${v.cuotasTotales})` : ""}
+                                      {" · "}{new Date(v.creadoEn).toLocaleDateString("es-ES")}
+                                    </p>
+                                  </div>
+                                  {v.estado === "completado" ? (
+                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                      <CheckCircle size={12} /> Pagado
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                        <CreditCard size={12} /> Debe ${saldo.toFixed(2)}
+                                      </span>
+                                      {v.metodoPago === "cuotas" && v.cuotasTotales ? (
+                                        <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                                          Registrar cuota
+                                        </button>
+                                      ) : null}
+                                      <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
+                                        Marcar pagado
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : tabHistorial === "evolucion" ? (
                       consultasPaciente.length === 0 ? (
                         <div className="flex flex-col items-center gap-2 py-12 text-center">
                           <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Activity size={24} /></div>
@@ -1389,6 +1505,19 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
           </div>
         </div>,
         document.body
+      )}
+
+      {/* ─── MODAL VENDER PRODUCTO (desde el perfil del paciente) ─── */}
+      {mostrarVenta && pacienteHistorial && (
+        <VentaProductoModal
+          usuario={usuario}
+          pacientes={pacientes}
+          inventario={inventario}
+          setInventario={setInventario}
+          pacienteFijo={pacienteHistorial}
+          onGuardado={registrarVenta}
+          onCerrar={() => setMostrarVenta(false)}
+        />
       )}
 
       {/* ─── MODAL AGENDAR CITA (desde el perfil del paciente) ─── */}

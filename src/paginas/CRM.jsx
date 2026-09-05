@@ -1,16 +1,14 @@
 "use client"
 
 import React, { useState, useMemo, useEffect } from "react"
+import { createPortal } from "react-dom"
 import {
   HeartHandshake,
   MessageSquare,
   Cake,
   Users,
-  Gift,
-  ShieldAlert,
   Clock,
   Star,
-  Award,
   Megaphone,
   Copy,
   Check,
@@ -18,8 +16,12 @@ import {
   Trash2,
   Zap,
   CheckCircle2,
+  X,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from "lucide-react"
-import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, obtenerReferidos } from "../utilidades/fidelizacion"
+import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -45,8 +47,6 @@ const diffCumpleEnVentana = (mes, dia) => {
 }
 
 export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion }) {
-  const [filtro, setFiltro] = useState("Todos")
-
   // Procesamiento conectado y en tiempo real
   const prospectosDinamicos = useMemo(() => {
     return pacientes.map((p) => {
@@ -57,6 +57,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
       const fn = p.fechaNacimiento || p.fecha_nacimiento
       let esCumple = false
+      let diaCumple = 0
       if (fn) {
         const partes = fn.split(/[-/T]/)
         const mes = Number(partes[1])
@@ -64,6 +65,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         const d = diffCumpleEnVentana(mes, dia)
         if (d !== null) {
           esCumple = true
+          diaCumple = d
           tipo = "Felicitar"
           if (d === 0) {
             estado = "Cumpleaños hoy"
@@ -84,17 +86,23 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
       const diasInactivo = diasDesdeUltimaVisita(p, consultas)
       const numConsultas = contarConsultas(p, consultas)
+      // Valor numérico para ordenar en "Ver detalles" — depende del tipo:
+      // cercanía de cumpleaños (0 = hoy), meses de inactividad, o frecuencia
+      // de atención (caso de la reunión con el ing).
+      let ordenValor = esCumple ? diaCumple : 0
 
       if (!esCumple && esInactivo(p, consultas)) {
         tipo = "Inactivo"
         estado = `Sin visitar hace ${diasInactivo} días`
         dias = `Hace ${diasInactivo} días`
         motivo = "Ya se venció su control visual recomendado. Ofrécele agendar una revisión."
+        ordenValor = diasInactivo ?? 0
       } else if (!esCumple && esClienteFrecuente(p, consultas)) {
         tipo = "Fiel"
         estado = `Paciente frecuente · ${numConsultas} consultas`
         dias = "Fiel"
         motivo = "Te ha visitado varias veces. Un buen momento para agradecerle su confianza."
+        ordenValor = numConsultas
       }
 
       return {
@@ -105,29 +113,23 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         telefono: p.telefono || p.contacto || p.celular || "",
         tipo,
         dias,
+        numConsultas,
         cumpleHoy: esCumple && dias === "Hoy",
         saludoEnviadoEsteAnio: p.ultimoSaludoCumpleAnio === new Date().getFullYear(),
+        ordenValor,
       }
     })
   }, [pacientes, consultas])
 
-  const filtrados = prospectosDinamicos.filter((p) => filtro === "Todos" || p.tipo === filtro)
+  // Tres bloques curados (top 5 cada uno) en vez de una sola lista con los
+  // 100+ pacientes de la óptica — caso de la reunión con el ing. Cada uno
+  // ordenado por lo más relevante de esa categoría; "Ver detalles" reordena
+  // sobre la lista completa, no solo el top 5.
+  const listaFieles = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Fiel").sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos])
+  const listaCumpleanos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Felicitar").sort((a, b) => Math.abs(a.ordenValor) - Math.abs(b.ordenValor)), [prospectosDinamicos])
+  const listaInactivos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Inactivo").sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos])
 
-  // Corte de rango — mismo criterio que Pacientes.jsx/Inventario.jsx (feedback del ing).
-  const [cantidadVisible, setCantidadVisible] = useState(25)
-  useEffect(() => { setCantidadVisible(25) }, [filtro])
-  const visibles = filtrados.slice(0, cantidadVisible)
-
-  const totalCumpleanos = prospectosDinamicos.filter((p) => p.tipo === "Felicitar").length
-  const totalInactivos = prospectosDinamicos.filter((p) => p.tipo === "Inactivo").length
-  const totalFieles = prospectosDinamicos.filter((p) => p.tipo === "Fiel").length
-
-  // Referidos: quién ha traído pacientes nuevos
-  const mapaReferidos = useMemo(() => obtenerReferidos(pacientes), [pacientes])
-  const referentes = useMemo(
-    () => Array.from(mapaReferidos.entries()).sort((a, b) => b[1].length - a[1].length),
-    [mapaReferidos],
-  )
+  const [detalleAbierto, setDetalleAbierto] = useState(null) // "fieles" | "cumpleanos" | "inactivos" | null
 
   // Avisos globales (anuncios para todos los pacientes: cierres, promociones,
   // etc.) — antes vivían solo en localStorage (CRM.jsx no llamaba nunca a
@@ -225,27 +227,12 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
     window.open(url, "_blank")
   }
 
-  const reconocerReferente = (nombre, telefono, cantidad) => {
-    let numeroLimpio = (telefono || "").replace(/\D/g, "")
-    if (numeroLimpio.startsWith("0")) numeroLimpio = "593" + numeroLimpio.substring(1)
-    if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) numeroLimpio = "593" + numeroLimpio
-    const texto = `Hola ${nombre}, ¡gracias por confiar en ${usuario?.opticaNombre || "nuestra óptica"} y recomendarnos a ${cantidad > 1 ? `${cantidad} personas` : "un amigo"}! Como agradecimiento, tenemos un beneficio especial para ti en tu próxima visita. 🎁`
-    const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
-    window.open(url, "_blank")
-  }
-
   const METRICAS = [
-    { icon: Users, valor: pacientes.length, label: "Total de pacientes", tile: GRAD, tileText: "#fff", filtroId: "Todos", ring: "#2563EB" },
-    { icon: Cake, valor: totalCumpleanos, label: "Cumpleaños cercanos", tile: "#fef3c7", tileText: "#b45309", filtroId: "Felicitar", ring: "#d97706" },
-    { icon: Clock, valor: totalInactivos, label: "Sin visitar hace tiempo", tile: "#fee2e2", tileText: "#dc2626", filtroId: "Inactivo", ring: "#dc2626" },
-    { icon: Star, valor: totalFieles, label: "Pacientes frecuentes", tile: "#ecfdf5", tileText: "#059669", filtroId: "Fiel", ring: "#059669" },
+    { icon: Users, valor: pacientes.length, label: "Total de pacientes", tile: GRAD, tileText: "#fff" },
+    { icon: Cake, valor: listaCumpleanos.length, label: "Cumpleaños cercanos", tile: "#fef3c7", tileText: "#b45309" },
+    { icon: Clock, valor: listaInactivos.length, label: "Sin visitar hace tiempo", tile: "#fee2e2", tileText: "#dc2626" },
+    { icon: Star, valor: listaFieles.length, label: "Pacientes frecuentes", tile: "#ecfdf5", tileText: "#059669" },
   ]
-
-  const etiquetaFiltro =
-    filtro === "Felicitar" ? "Cumpleaños cercanos"
-    : filtro === "Inactivo" ? "Sin visitar hace tiempo"
-    : filtro === "Fiel" ? "Pacientes frecuentes"
-    : "Todos los contactos"
 
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -262,33 +249,22 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
       {/* ─── MÉTRICAS (también filtran) ─── */}
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar los contactos</p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {METRICAS.map((m, i) => {
-            const activo = filtro === m.filtroId
-            return (
-              <button
-                key={m.label}
-                type="button"
-                onClick={() => setFiltro(m.filtroId)}
-                className="flex items-center justify-between rounded-2xl border bg-white p-5 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
-                style={{
-                  borderColor: activo ? m.ring : "rgba(14,43,51,0.08)",
-                  boxShadow: activo ? `0 0 0 3px ${m.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
-                  animation: "rise-in 320ms ease-out both",
-                  animationDelay: `${i * 50}ms`,
-                }}
-              >
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{m.label}</p>
-                  <p className="mt-1 text-3xl font-black" style={{ color: INK }}>{m.valor}</p>
-                </div>
-                <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: m.tile, color: m.tileText }}>
-                  <m.icon size={22} />
-                </div>
-              </button>
-            )
-          })}
+          {METRICAS.map((m, i) => (
+            <div
+              key={m.label}
+              className="flex items-center justify-between rounded-2xl border bg-white p-5"
+              style={{ borderColor: "rgba(14,43,51,0.08)", boxShadow: "0 1px 2px rgba(14,43,51,0.04)", animation: "rise-in 320ms ease-out both", animationDelay: `${i * 50}ms` }}
+            >
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{m.label}</p>
+                <p className="mt-1 text-3xl font-black" style={{ color: INK }}>{m.valor}</p>
+              </div>
+              <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: m.tile, color: m.tileText }}>
+                <m.icon size={22} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -320,140 +296,56 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         </button>
       </div>
 
-      {/* ─── PANEL DE TAREAS ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 p-4">
-          <h4 className="text-sm font-bold" style={{ color: INK }}>{etiquetaFiltro}</h4>
-          <span className="text-xs text-slate-500">{filtrados.length} {filtrados.length === 1 ? "contacto" : "contactos"}</span>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {filtrados.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-14 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><ShieldAlert size={24} /></div>
-              <p className="text-sm font-medium text-slate-500">No hay acciones pendientes en este filtro.</p>
-            </div>
-          ) : (
-            visibles.map((prospecto, idx) => {
-              const esCumple = prospecto.tipo === "Felicitar"
-              const esInactivoTipo = prospecto.tipo === "Inactivo"
-              const esFiel = prospecto.tipo === "Fiel"
-              const inicial = (prospecto.paciente || "P").charAt(0).toUpperCase()
-              const avatarBg = esCumple ? "linear-gradient(135deg,#e0b64e,#b45309)" : esInactivoTipo ? "linear-gradient(135deg,#f87171,#dc2626)" : esFiel ? "linear-gradient(135deg,#34d399,#059669)" : GRAD
-              return (
-                <div
-                  key={prospecto.id}
-                  className="flex flex-col items-start justify-between gap-4 p-4 transition hover:bg-slate-50/60 sm:flex-row sm:items-center"
-                  style={{ animation: "rise-in 260ms ease-out both", animationDelay: `${Math.min(idx * 30, 240)}ms` }}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: avatarBg }}>
-                      {esCumple ? <Gift size={17} /> : esInactivoTipo ? <Clock size={17} /> : esFiel ? <Star size={17} /> : inicial}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-slate-800">{prospecto.paciente}</span>
-                        <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider"
-                          style={
-                            esCumple ? { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }
-                            : esInactivoTipo ? { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" }
-                            : esFiel ? { backgroundColor: "#d1fae5", color: "#065f46", border: "1px solid #a7f3d0" }
-                            : { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #dbeafe" }
-                          }
-                        >
-                          {prospecto.estado}
-                        </span>
-                      </div>
-                      <p className="text-xs font-medium text-slate-500">{prospecto.motivo}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex w-full items-center justify-between gap-3 border-t border-slate-100 pt-2 sm:w-auto sm:justify-end sm:border-t-0 sm:pt-0">
-                    <span className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1 font-mono text-[11px] font-semibold text-slate-500">
-                      {prospecto.dias}
-                    </span>
-                    {prospecto.cumpleHoy && cumpleAuto && prospecto.saludoEnviadoEsteAnio ? (
-                      <span
-                        className="flex select-none items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700"
-                        title="El correo de saludo automático ya se envió este año"
-                      >
-                        <CheckCircle2 size={13} />
-                        Enviado automáticamente
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => enviarRecordatorio(prospecto.paciente, prospecto.motivo, prospecto.telefono)}
-                        disabled={!prospecto.telefono}
-                        className="flex select-none items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                        title={prospecto.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-                      >
-                        <MessageSquare size={13} />
-                        Notificar WhatsApp
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-        {cantidadVisible < filtrados.length && (
-          <div className="border-t border-slate-100 px-4 py-3 text-center">
-            <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-              Mostrar 25 más
-            </button>
-          </div>
-        )}
+      {/* ─── TRES BLOQUES CURADOS (top 5 cada uno) ─── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <BloqueContacto
+          titulo="Pacientes más atendidos"
+          icono={Star}
+          bgIcono="linear-gradient(135deg,#34d399,#059669)"
+          lista={listaFieles}
+          cumpleAuto={cumpleAuto}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          onVerDetalles={() => setDetalleAbierto("fieles")}
+          vacioTexto="Todavía nadie cruza el mínimo de consultas para ser paciente frecuente."
+        />
+        <BloqueContacto
+          titulo="Cumpleaños próximos"
+          icono={Cake}
+          bgIcono="linear-gradient(135deg,#e0b64e,#b45309)"
+          lista={listaCumpleanos}
+          cumpleAuto={cumpleAuto}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          onVerDetalles={() => setDetalleAbierto("cumpleanos")}
+          vacioTexto="Ningún paciente cumple años en los próximos días."
+        />
+        <BloqueContacto
+          titulo="Sin visitar hace tiempo"
+          icono={Clock}
+          bgIcono="linear-gradient(135deg,#f87171,#dc2626)"
+          lista={listaInactivos}
+          cumpleAuto={cumpleAuto}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          onVerDetalles={() => setDetalleAbierto("inactivos")}
+          vacioTexto="No hay pacientes con el control vencido por ahora."
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* ─── PROGRAMA DE REFERIDOS ─── */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
-            <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}><Award size={18} /></span>
-            <div>
-              <h4 className="text-sm font-bold" style={{ color: INK }}>Programa de referidos</h4>
-              <p className="text-[11px] text-slate-500">Pacientes que han traído nuevos pacientes</p>
-            </div>
-          </div>
+      {detalleAbierto && (
+        <ModalDetalleCRM
+          config={
+            detalleAbierto === "fieles"
+              ? { titulo: "Pacientes más atendidos", icono: Star, bgIcono: "linear-gradient(135deg,#34d399,#059669)", lista: listaFieles, columnaLabel: "Consultas", columnaValor: (p) => p.numConsultas, dirDefecto: "desc" }
+              : detalleAbierto === "cumpleanos"
+              ? { titulo: "Cumpleaños próximos", icono: Cake, bgIcono: "linear-gradient(135deg,#e0b64e,#b45309)", lista: listaCumpleanos, columnaLabel: "Cuándo", columnaValor: (p) => p.dias, dirDefecto: "asc", ordenAbsoluto: true }
+              : { titulo: "Sin visitar hace tiempo", icono: Clock, bgIcono: "linear-gradient(135deg,#f87171,#dc2626)", lista: listaInactivos, columnaLabel: "Días sin visitar", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
+          }
+          cumpleAuto={cumpleAuto}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          onCerrar={() => setDetalleAbierto(null)}
+        />
+      )}
 
-          <div className="divide-y divide-slate-100">
-            {referentes.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-                <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><Award size={22} /></div>
-                <p className="text-sm font-medium text-slate-500">Aún nadie ha referido pacientes.</p>
-                <p className="text-xs text-slate-500">Se registra al crear un paciente con el campo "Referido por".</p>
-              </div>
-            ) : (
-              referentes.map(([nombreReferente, referidos]) => {
-                const referente = pacientes.find((p) => p.nombre === nombreReferente)
-                return (
-                  <div key={nombreReferente} className="flex flex-col items-start justify-between gap-3 p-4 sm:flex-row sm:items-center">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{nombreReferente}</p>
-                      <p className="text-xs text-slate-500">
-                        Trajo a {referidos.map((r) => r.nombre).join(", ")}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => reconocerReferente(nombreReferente, referente?.telefono, referidos.length)}
-                      disabled={!referente?.telefono}
-                      className="flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                      style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}
-                    >
-                      <Gift size={13} /> Reconocer
-                    </button>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-        {/* ─── AVISOS ─── */}
+      {/* ─── AVISOS ─── */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Megaphone size={18} /></span>
@@ -559,7 +451,166 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
             )}
           </div>
         </div>
+    </div>
+  )
+}
+
+// ─── Bloque curado (top 5) — pacientes más atendidos / cumpleaños / inactivos ───
+// Mismo componente para los tres: la fila de contacto (nombre, estado,
+// WhatsApp) es idéntica, solo cambian los datos que recibe.
+function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, onEnviar, onVerDetalles, vacioTexto }) {
+  const top5 = lista.slice(0, 5)
+  return (
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/70 p-4">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ background: bgIcono }}><Icono size={18} /></span>
+          <div>
+            <h4 className="text-sm font-bold" style={{ color: INK }}>{titulo}</h4>
+            <p className="text-[11px] text-slate-500">{lista.length} en total</p>
+          </div>
+        </div>
+        {lista.length > 5 && (
+          <button type="button" onClick={onVerDetalles} className="shrink-0 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+            Ver detalles
+          </button>
+        )}
+      </div>
+      <div className="flex-1 divide-y divide-slate-100">
+        {top5.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-300"><Icono size={18} /></div>
+            <p className="text-xs font-medium text-slate-500">{vacioTexto}</p>
+          </div>
+        ) : (
+          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} onEnviar={onEnviar} />)
+        )}
       </div>
     </div>
+  )
+}
+
+function FilaContacto({ prospecto: p, cumpleAuto, onEnviar }) {
+  return (
+    <div className="flex items-center justify-between gap-2 p-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-slate-800">{p.paciente}</p>
+        <p className="truncate text-[11px] text-slate-500">{p.estado}</p>
+      </div>
+      {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
+        <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
+          <CheckCircle2 size={11} /> Enviado
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onEnviar(p)}
+          disabled={!p.telefono}
+          title={p.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+        >
+          <MessageSquare size={11} /> WhatsApp
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Modal "Ver detalles" — tabla completa, ordenable ───
+// Caso de la reunión con el ing: cada bloque tiene su botón "Ver detalles"
+// con la tabla completa, ordenable (cercanía de cumpleaños, frecuencia de
+// atención, meses de inactividad).
+function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
+  const { titulo, icono: Icono, bgIcono, lista, columnaLabel, columnaValor, dirDefecto, ordenAbsoluto } = config
+  const [orden, setOrden] = useState({ campo: "metrica", dir: dirDefecto })
+
+  const ordenadas = useMemo(() => {
+    const valorMetrica = (p) => (ordenAbsoluto ? Math.abs(p.ordenValor) : p.ordenValor)
+    const arr = [...lista]
+    arr.sort((a, b) => {
+      const va = orden.campo === "paciente" ? a.paciente.toLowerCase() : valorMetrica(a)
+      const vb = orden.campo === "paciente" ? b.paciente.toLowerCase() : valorMetrica(b)
+      if (va < vb) return orden.dir === "asc" ? -1 : 1
+      if (va > vb) return orden.dir === "asc" ? 1 : -1
+      return 0
+    })
+    return arr
+  }, [lista, orden, ordenAbsoluto])
+
+  const cambiarOrden = (campo) => {
+    setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: campo === "paciente" ? "asc" : dirDefecto }))
+  }
+
+  const IconoOrden = ({ campo }) => {
+    if (orden.campo !== campo) return <ArrowUpDown size={11} className="text-slate-300" />
+    return orden.dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+      <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: bgIcono }}>
+              <Icono size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
+              <p className="text-xs text-slate-500">{lista.length} paciente{lista.length === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead className="sticky top-0 bg-slate-50">
+              <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("paciente")}>
+                  <span className="flex items-center gap-1">Paciente <IconoOrden campo="paciente" /></span>
+                </th>
+                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("metrica")}>
+                  <span className="flex items-center gap-1">{columnaLabel} <IconoOrden campo="metrica" /></span>
+                </th>
+                <th className="px-4 py-3 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {ordenadas.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50/70">
+                  <td className="px-4 py-2.5 font-semibold text-slate-800">{p.paciente}</td>
+                  <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                        <CheckCircle2 size={11} /> Enviado
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onEnviar(p)}
+                        disabled={!p.telefono}
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                      >
+                        <MessageSquare size={11} /> WhatsApp
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-slate-100 p-4">
+          <button type="button" onClick={onCerrar} className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   )
 }

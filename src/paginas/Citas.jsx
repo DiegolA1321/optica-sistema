@@ -34,6 +34,7 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
+import { registrarLog } from "../utilidades/logs"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -296,6 +297,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     if (nuevaCita.id == null) nuevaCita.id = Date.now()
 
     setCitas([...citas, nuevaCita])
+    registrarLog(usuario, "citas", "Agendó una cita", `${nuevaCita.paciente} · ${nuevaCita.fecha}`)
 
     setConfirmando(false)
     cerrarModal()
@@ -357,6 +359,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
 
   const confirmarCancelacion = async () => {
     if (porCancelar == null) return
+    const cancelada = citas.find((c) => c.id === porCancelar)
     if (supabase && opticaId) {
       const { error: errorCancelar } = await supabase.from("citas").delete().eq("id", porCancelar)
       if (errorCancelar) {
@@ -367,6 +370,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     }
     setBannerError("")
     setCitas(citas.filter((c) => c.id !== porCancelar))
+    registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${cancelada.fecha}` : "")
     setPorCancelar(null)
   }
 

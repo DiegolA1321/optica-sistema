@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
   Users,
@@ -18,9 +18,16 @@ import {
   Tag,
   CheckSquare,
   Square,
+  History,
+  Loader2,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
+import { registrarLog } from "../utilidades/logs"
+
+// Nombre legible de cada módulo para el log de actividad — mismos ids que
+// tiene_permiso_modulo() en la base de datos.
+const NOMBRE_MODULO = { pacientes: "Pacientes", consultas: "Ficha clínica", citas: "Citas médicas", crm: "CRM", inventario: "Inventario", reportes: "Reportes", horario: "Mi horario", mensajes: "Mensajes", configuracion: "Configuración", usuarios: "Usuarios y permisos" }
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -97,6 +104,36 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const [porEliminar, setPorEliminar] = useState(null)
   const [eliminando, setEliminando] = useState(false)
 
+  // Log de actividad por usuario — caso de la reunión con el ing ("tengo
+  // tres asistentes, se eliminó algo de inventario, ¿cómo sé quién lo
+  // hizo?"). Solo lo ve el administrador principal (RLS: logs_optica_admin_select).
+  const [mostrarActividad, setMostrarActividad] = useState(false)
+  const [logs, setLogs] = useState([])
+  const [cargandoLogs, setCargandoLogs] = useState(false)
+  const [filtroUsuarioLog, setFiltroUsuarioLog] = useState("todos")
+
+  const cargarActividad = async () => {
+    if (!supabase || !usuario?.opticaId) return
+    setCargandoLogs(true)
+    const { data } = await supabase
+      .from("logs_optica")
+      .select("*")
+      .eq("optica_id", usuario.opticaId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+    setLogs(data || [])
+    setCargandoLogs(false)
+  }
+
+  const alternarActividad = () => {
+    const abrir = !mostrarActividad
+    setMostrarActividad(abrir)
+    if (abrir && logs.length === 0) cargarActividad()
+  }
+
+  const usuariosEnLogs = [...new Set(logs.map((l) => l.usuario_nombre))]
+  const logsFiltrados = filtroUsuarioLog === "todos" ? logs : logs.filter((l) => l.usuario_nombre === filtroUsuarioLog)
+
   const abrirCrear = () => {
     setEditandoId(null)
     setNombre("")
@@ -152,6 +189,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       setGuardando(false)
       if (errorUpdate) { setError(errorUpdate.message); return }
       setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim() } : a)))
+      registrarLog(usuario, "usuarios", "Editó los permisos de un usuario", nombre.trim())
       setModalAbierto(false)
       return
     }
@@ -192,16 +230,19 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       return
     }
     setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim() }])
+    registrarLog(usuario, "usuarios", "Creó un usuario nuevo", nombre.trim())
     setModalAbierto(false)
   }
 
   const confirmarEliminar = async () => {
     if (porEliminar == null) return
+    const eliminado = asistentes.find((a) => a.id === porEliminar)
     setEliminando(true)
     const { error: errorDelete } = await supabase.from("perfiles").delete().eq("id", porEliminar)
     setEliminando(false)
     if (errorDelete) { setError(errorDelete.message); return }
     setAsistentes(asistentes.filter((a) => a.id !== porEliminar))
+    registrarLog(usuario, "usuarios", "Eliminó un usuario", eliminado?.nombre || "")
     setPorEliminar(null)
   }
 
@@ -218,16 +259,78 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             <p className="text-sm text-slate-500">Crea usuarios y define qué puede ver y hacer cada uno.</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={abrirCrear}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <UserPlus size={18} />
-          Crear usuario
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={alternarActividad}
+            className={"flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition cursor-pointer " + (mostrarActividad ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
+          >
+            <History size={17} />
+            Actividad
+          </button>
+          <button
+            type="button"
+            onClick={abrirCrear}
+            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
+          >
+            <UserPlus size={18} />
+            Crear usuario
+          </button>
+        </div>
       </div>
+
+      {/* ─── ACTIVIDAD ─── */}
+      {mostrarActividad && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
+                <History size={16} /> Actividad reciente
+              </h4>
+              <p className="mt-0.5 text-xs text-slate-500">Qué hizo cada usuario que administras — últimas 100 acciones.</p>
+            </div>
+            {usuariosEnLogs.length > 0 && (
+              <select
+                value={filtroUsuarioLog}
+                onChange={(e) => setFiltroUsuarioLog(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+              >
+                <option value="todos">Todos los usuarios</option>
+                {usuariosEnLogs.map((n) => (<option key={n} value={n}>{n}</option>))}
+              </select>
+            )}
+          </div>
+
+          <div className="mt-4">
+            {cargandoLogs ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+                <Loader2 size={16} className="animate-spin" /> Cargando actividad...
+              </div>
+            ) : logsFiltrados.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={22} /></div>
+                <p className="text-sm font-medium text-slate-500">Todavía no hay actividad registrada.</p>
+              </div>
+            ) : (
+              <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+                {logsFiltrados.map((l) => (
+                  <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-700">
+                        <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
+                        {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo}</p>
+                    </div>
+                    <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{new Date(l.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─── NOTA DE ALCANCE ─── */}
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">

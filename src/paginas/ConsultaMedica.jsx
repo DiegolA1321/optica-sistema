@@ -169,6 +169,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [biomicroCamara, setBiomicroCamara] = useState("")
 
   // --- Diagnóstico ---
+  // Categorías fijas (miopía, astigmatismo, presbicia...) + un detalle libre
+  // aparte — caso de la reunión con el ing: antes era un solo campo de texto
+  // libre, lo que no permitía luego reportar "cuántos pacientes tengo con
+  // miopía". `diagnostico` ahora es el detalle opcional; el texto final que
+  // se guarda para mostrar en el resto del sistema (historial, receta
+  // impresa) se compone de categorías + detalle al guardar la ficha.
+  const [diagnosticoCategorias, setDiagnosticoCategorias] = useState([])
   const [diagnostico, setDiagnostico] = useState("")
   const [lenteRecomendado, setLenteRecomendado] = useState("")
   const [indicaciones, setIndicaciones] = useState("")
@@ -370,6 +377,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setBiomicroParpados("")
     setBiomicroCornea("")
     setBiomicroCamara("")
+    setDiagnosticoCategorias([])
     setDiagnostico("")
     setLenteRecomendado("")
     setIndicaciones("")
@@ -426,7 +434,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
         biomicroscopia: { parpados: biomicroParpados, cornea: biomicroCornea, camara: biomicroCamara },
       },
-      diagnostico,
+      diagnosticoCategorias,
+      // Texto compuesto (categorías + detalle) — es lo que sigue mostrando
+      // el historial del paciente y la receta impresa, sin tener que tocar
+      // esas pantallas.
+      diagnostico: [diagnosticoCategorias.join(", "), diagnostico.trim()].filter(Boolean).join(" — "),
       lenteRecomendado,
       indicaciones,
       proximoControlDias,
@@ -466,6 +478,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
           datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
           diagnostico: nuevaFicha.diagnostico,
+          diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
           indicaciones: nuevaFicha.indicaciones,
           proximo_control_dias: nuevaFicha.proximoControlDias,
@@ -554,7 +567,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (!esNumero(oiEje)) errs.oi_eje = "Número requerido"
       else if (parseFloat(oiEje) < 0 || parseFloat(oiEje) > 180) errs.oi_eje = "El eje va de 0° a 180°"
     } else if (paso === "diagnostico") {
-      if (!diagnostico.trim()) errs.diagnostico = "Escribe el diagnóstico clínico."
+      if (diagnosticoCategorias.length === 0) errs.diagnostico = "Selecciona al menos una categoría de diagnóstico."
     }
     return errs
   }
@@ -562,7 +575,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const mensajeBanner = (paso) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
     if (paso === "refraccion") return "Revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
-    if (paso === "diagnostico") return "Escribe el diagnóstico clínico antes de guardar la receta."
+    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico antes de guardar la receta."
     return "Hay campos por completar."
   }
 
@@ -1227,37 +1240,52 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
                   <div className="space-y-3.5 px-8 pt-5">
                     <div className="print-force-color rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                      <label htmlFor="diagnostico" className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
                         <Stethoscope size={12} /> Diagnóstico
                       </label>
-                      <input
-                        id="diagnostico"
-                        type="text"
-                        placeholder="Ej. Astigmatismo miópico compuesto / Presbicia"
-                        value={diagnostico}
-                        readOnly={fichaGuardada}
-                        onChange={(e) => { setDiagnostico(e.target.value); if (e.target.value.trim()) limpiarError("diagnostico") }}
-                        className={"w-full bg-transparent text-base font-bold outline-none focus:underline " + (errores.diagnostico ? "text-red-600" : "")}
-                        style={errores.diagnostico ? undefined : { color: INK }}
-                      />
-                      {errores.diagnostico && (
-                        <p className="no-print mt-1 flex items-center gap-1 text-xs font-medium text-red-600">
-                          <AlertCircle size={13} /> {errores.diagnostico}
+                      {fichaGuardada ? (
+                        <p className="text-base font-bold" style={{ color: INK }}>
+                          {diagnosticoCategorias.join(", ")}{diagnostico.trim() ? ` — ${diagnostico.trim()}` : ""}
                         </p>
-                      )}
-                      {!fichaGuardada && (
-                        <div className="no-print mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-200 pt-2.5">
-                          {diagnosticosRapidos.map((d) => (
-                            <button
-                              key={d}
-                              type="button"
-                              onClick={() => { setDiagnostico(d); limpiarError("diagnostico") }}
-                              className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 cursor-pointer"
-                            >
-                              {d}
-                            </button>
-                          ))}
-                        </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-wrap gap-1.5">
+                            {diagnosticosRapidos.map((cat) => {
+                              const activo = diagnosticoCategorias.includes(cat)
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => {
+                                    setDiagnosticoCategorias((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]))
+                                    limpiarError("diagnostico")
+                                  }}
+                                  className="rounded-full border px-3 py-1.5 text-xs font-bold transition cursor-pointer"
+                                  style={activo ? { backgroundColor: "#2563eb", borderColor: "#2563eb", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}
+                                >
+                                  {cat}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {errores.diagnostico && (
+                            <p className="no-print mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                              <AlertCircle size={13} /> {errores.diagnostico}
+                            </p>
+                          )}
+                          <label htmlFor="diagnostico" className="mb-1 mt-3 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                            Detalle <span className="font-normal normal-case text-slate-400">(opcional)</span>
+                          </label>
+                          <input
+                            id="diagnostico"
+                            type="text"
+                            placeholder="Ej. Se determina progresión leve, control en 6 meses"
+                            value={diagnostico}
+                            onChange={(e) => setDiagnostico(e.target.value)}
+                            className="w-full bg-transparent text-sm font-medium outline-none focus:underline"
+                            style={{ color: INK }}
+                          />
+                        </>
                       )}
                     </div>
 

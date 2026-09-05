@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   CalendarClock,
+  CalendarCheck,
   DollarSign,
   TrendingUp,
   Star,
@@ -123,12 +124,17 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], r
   const [hoverCorreccion, setHoverCorreccion] = useState(null)
   const [hoverCitaEstado, setHoverCitaEstado] = useState(null)
 
+  // Cuenta por categoría de diagnóstico, no por el texto completo de la
+  // ficha — caso de la reunión con el ing: "cuántos pacientes tengo con
+  // miopía, cuántos con astigmatismo, cuántos con presbicia". Antes esto
+  // agrupaba por el texto libre completo, así que dos fichas con la misma
+  // categoría pero distinto detalle contaban como diagnósticos distintos.
+  // Cae al texto completo solo para fichas viejas sin categorías guardadas.
   const diagnosticosTop = useMemo(() => {
     const mapa = new Map()
     consultas.forEach((c) => {
-      const dx = (c.diagnostico || "").trim()
-      if (!dx) return
-      mapa.set(dx, (mapa.get(dx) || 0) + 1)
+      const categorias = c.diagnosticoCategorias?.length > 0 ? c.diagnosticoCategorias : [(c.diagnostico || "").trim()].filter(Boolean)
+      categorias.forEach((dx) => mapa.set(dx, (mapa.get(dx) || 0) + 1))
     })
     return Array.from(mapa.entries())
       .map(([label, valor]) => ({ label, valor }))
@@ -158,11 +164,21 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], r
   const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas, [citas, citasAtendidas, citasNoAsistio, citasCanceladas])
   const totalCitasDist = Math.max(1, citas.length)
 
+  // % de citas solicitadas que terminan en un paciente atendido — caso de
+  // la reunión con el ing: "100 personas solicitan cita, 90 se atienden =
+  // 90% de conversión". Sobre el total histórico de citas, mismo criterio
+  // que el resto de las métricas de citas de este reporte (no solo del mes).
+  const conversionCitas = useMemo(() => {
+    if (citas.length === 0) return null
+    return Math.round((citasAtendidas / citas.length) * 100)
+  }, [citas, citasAtendidas])
+
   const kpis = [
     { key: "consultas", label: "Consultas este mes", valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: "de los pacientes evaluados", icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600" },
     { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, icon: AlertTriangle, iconClass: "bg-red-50 text-red-600" },
+    { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
     { key: "ingresos", label: "Ingresos este mes", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasEsteMes.length} venta${ventasEsteMes.length === 1 ? "" : "s"} vinculada${ventasEsteMes.length === 1 ? "" : "s"} a receta`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: "de las consultas de este mes", icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },

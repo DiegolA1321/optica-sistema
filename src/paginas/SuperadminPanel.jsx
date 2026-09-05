@@ -112,8 +112,8 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-const camposOpticaIniciales = { nombreOptica: "", slug: "", eslogan: "", colorAcento: "#2563EB", logoUrl: "", nombreAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "" }
-const camposCuentaIniciales = { nombre: "", email: "", clave: "", confirmarClave: "" }
+const camposOpticaIniciales = { nombreOptica: "", slug: "", eslogan: "", colorAcento: "#2563EB", logoUrl: "", nombreAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "", esOptometra: true }
+const camposCuentaIniciales = { nombre: "", email: "", clave: "", confirmarClave: "", esOptometra: true }
 
 const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })
 const formatearFechaHora = (fecha) =>
@@ -526,7 +526,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     setCargando(true)
     const [{ data: opticasData }, { data: adminsData }, { data: superadminsData }, { data: asistentesData }, { data: pacientesData }] = await Promise.all([
       supabase.from("opticas").select("*").order("created_at", { ascending: false }),
-      supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento").eq("rol", "admin"),
+      supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra").eq("rol", "admin"),
       supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
       supabase.from("perfiles").select("optica_id").eq("rol", "asistente"),
       supabase.from("pacientes").select("optica_id"),
@@ -1065,7 +1065,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const guardar = async (e) => {
     e.preventDefault()
     setError("")
-    const { nombreOptica, slug, eslogan, colorAcento, logoUrl, nombreAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave } = campos
+    const { nombreOptica, slug, eslogan, colorAcento, logoUrl, nombreAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave, esOptometra } = campos
     if (!nombreOptica.trim() || !slug.trim() || !clave) {
       setError("Completa todos los campos.")
       return
@@ -1154,7 +1154,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     // superadmin de verdad.
     const { error: errorPerfil } = await supabase
       .from("perfiles")
-      .insert({ id: alta.user.id, optica_id: nuevaOptica.id, rol: "admin", nombre: nombreAdmin.trim(), email: emailAdmin.trim(), fecha_nacimiento: fechaNacimientoAdmin || null })
+      .insert({ id: alta.user.id, optica_id: nuevaOptica.id, rol: "admin", nombre: nombreAdmin.trim(), email: emailAdmin.trim(), fecha_nacimiento: fechaNacimientoAdmin || null, es_optometra: esOptometra })
 
     await temp.auth.signOut()
 
@@ -1382,6 +1382,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     setGuardandoCumple(null)
   }
 
+  // ¿Es también el optómetra/licenciado? — caso "Usuarios y permisos" de la
+  // reunión con el ing, punto 1: solo un dato informativo para saber si ese
+  // admin va a administrar el sistema él mismo o va a delegarlo.
+  const guardarEsOptometra = async (adminId, valor) => {
+    const { error } = await supabase.from("perfiles").update({ es_optometra: valor }).eq("id", adminId)
+    if (!error) setAdmins((prev) => prev.map((a) => (a.id === adminId ? { ...a, es_optometra: valor } : a)))
+  }
+
   const abrirAgregarAdmin = () => {
     setCamposAdminExtra(camposCuentaIniciales)
     setVerClaveExtra(false)
@@ -1392,7 +1400,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const guardarAdminExtra = async (e) => {
     e.preventDefault()
     setErrorAdminExtra("")
-    const { nombre, email, clave, confirmarClave } = camposAdminExtra
+    const { nombre, email, clave, confirmarClave, esOptometra } = camposAdminExtra
     if (!esNombreValido(nombre)) { setErrorAdminExtra("Ingresa un nombre válido (solo letras)."); return }
     if (!esEmailValido(email, false)) { setErrorAdminExtra("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
     if (!clave) { setErrorAdminExtra("Completa la contraseña."); return }
@@ -1409,7 +1417,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     // Ciberseguridad: insert con la sesión del superadmin (supabase), no con
     // la del usuario recién creado — ver nota igual en crearOptica más
     // arriba.
-    const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, optica_id: detalle.id, rol: "admin", nombre: nombre.trim(), email: email.trim() })
+    const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, optica_id: detalle.id, rol: "admin", nombre: nombre.trim(), email: email.trim(), es_optometra: esOptometra })
     await temp.auth.signOut()
     if (errorPerfil) {
       setErrorAdminExtra(errorPerfil.message + " — la cuenta de correo ya quedó creada, revisá en Supabase.")
@@ -2852,6 +2860,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                             />
                             {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
                           </div>
+                          <label className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={!!a.es_optometra}
+                              onChange={(e) => guardarEsOptometra(a.id, e.target.checked)}
+                              className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Es también el optómetra/licenciado
+                          </label>
                         </div>
                       )
                     ))}
@@ -2886,6 +2903,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                       />
                     </div>
+                    <label className="flex items-start gap-2 text-xs text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={camposAdminExtra.esOptometra}
+                        onChange={(e) => actualizarCampoAdminExtra("esOptometra", e.target.checked)}
+                        className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Es también el optómetra/licenciado</span>
+                    </label>
                     <div className="flex justify-end gap-2">
                       <button type="button" onClick={() => setAgregarAdminAbierto(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
                       <button type="submit" disabled={guardandoAdminExtra} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
@@ -3599,6 +3625,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                         </span>
                       </div>
                     )}
+                    <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={campos.esOptometra}
+                        onChange={(e) => actualizarCampo("esOptometra", e.target.checked)}
+                        className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>¿Este administrador es también el optómetra/licenciado? Es solo informativo, para saber si va a administrar el sistema él mismo o a delegarlo.</span>
+                    </label>
                   </div>
                 </div>
               </div>

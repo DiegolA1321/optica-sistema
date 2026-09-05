@@ -58,13 +58,15 @@ const PARAMETRIZACION_SEED = {
 // lenguaje clínico.
 const MOTIVOS_SEED = ["Consulta General", "Adaptación de Lentes", "Examen de Control", "Garantía / Ajuste"]
 const CATEGORIAS_INVENTARIO_SEED = ["Armazones", "Accesorios"]
+// Categorías fijas de diagnóstico (caso de la reunión con el ing: se pueden
+// marcar varias a la vez en la ficha clínica, así que ya no hacen falta
+// combos como "Miopía y astigmatismo" — se seleccionan ambas por separado).
 const DIAGNOSTICOS_SEED = [
   "Miopía",
   "Hipermetropía",
   "Astigmatismo",
   "Presbicia",
-  "Miopía y astigmatismo",
-  "Hipermetropía y astigmatismo",
+  "Ambliopía",
   "Sin alteración refractiva",
 ]
 
@@ -152,10 +154,18 @@ function mapConsulta(c) {
     usaLentes: c.usa_lentes, antecedentes: c.antecedentes, alergias: c.alergias, antecedentesFamiliares: c.antecedentes_familiares,
     retinoscopia: c.datos_clinicos?.retinoscopia, od: c.datos_clinicos?.od, oi: c.datos_clinicos?.oi,
     medidas: c.datos_clinicos?.medidas, examen: c.datos_clinicos?.examen,
-    diagnostico: c.diagnostico, lenteRecomendado: c.lente_recomendado, indicaciones: c.indicaciones,
+    diagnostico: c.diagnostico, diagnosticoCategorias: c.diagnostico_categorias || [], lenteRecomendado: c.lente_recomendado, indicaciones: c.indicaciones,
     proximoControlDias: c.proximo_control_dias, evolucionCalculada: c.evolucion_calculada, estadoCorreccion: c.estado_correccion,
     productoId: c.producto_id, productoNombre: c.producto_nombre, montoVenta: c.monto_venta != null ? Number(c.monto_venta) : null,
     profesionalNombre: c.profesional_nombre, imagenes: c.imagenes || [],
+  }
+}
+function mapVenta(v) {
+  return {
+    id: v.id, pacienteId: v.paciente_id, productoId: v.producto_id, productoNombre: v.producto_nombre,
+    cantidad: v.cantidad, precioUnitario: Number(v.precio_unitario), montoTotal: Number(v.monto_total),
+    metodoPago: v.metodo_pago, cuotasTotales: v.cuotas_totales, cuotasPagadas: v.cuotas_pagadas,
+    estado: v.estado, creadoEn: v.created_at,
   }
 }
 function mapRespuestaSatisfaccion(r) {
@@ -227,6 +237,10 @@ function App() {
   });
   const [inventario, setInventario] = useState(INVENTARIO_SEED);
   const [consultas, setConsultas] = useState(() => cargarDeStorage('optica_consultas', []));
+  // Ventas de productos a pacientes (caso "Inventario" de la reunión con el
+  // ing — migración 0047_ventas_productos.sql). Solo vive en Supabase, sin
+  // seed ni localStorage: es un módulo nuevo, no hay datos viejos que migrar.
+  const [ventas, setVentas] = useState([]);
   // Solo lectura desde Reportes — no hay wrapper de escritura porque nunca
   // se edita desde la app, solo se llena vía la página pública de la
   // encuesta (enviar_encuesta_satisfaccion, migración 0041).
@@ -237,6 +251,10 @@ function App() {
   // Pacientes.jsx.
   const [solicitudesEliminacion, setSolicitudesEliminacion] = useState([]);
   const [disponibilidad, setDisponibilidadState] = useState(DISPONIBILIDAD_SEED);
+  // Horario personal por usuario — caso "Mi horario" de la reunión con el
+  // ing: distinto del horario general de arriba (que es el de la óptica,
+  // público). null mientras no se sabe todavía si existe una fila propia.
+  const [horarioPersonal, setHorarioPersonalState] = useState(null);
   const [asistentes, setAsistentes] = useState([]);
   const [parametrizacion, setParametrizacionState] = useState(PARAMETRIZACION_SEED);
   const [motivosConsulta, setMotivosConsultaState] = useState(MOTIVOS_SEED);
@@ -330,6 +348,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuario?.opticaId, usuario?.rol])
 
+  // Horario personal — aparte de la hidratación de arriba a propósito: es
+  // personal de quien esté logueado (admin o asistente por igual), no un
+  // dato público ni un dato exclusivo del admin como pacientes/inventario.
+  useEffect(() => {
+    if (!supabase || !usuario?.id || (usuario.rol !== 'admin' && usuario.rol !== 'asistente')) return
+    supabase.from('horarios_usuario').select('horario_semanal, ausencias').eq('usuario_id', usuario.id).maybeSingle().then(({ data }) => {
+      setHorarioPersonalState(data ? { horarioSemanal: data.horario_semanal || {}, ausencias: data.ausencias || {} } : { horarioSemanal: {}, ausencias: {} })
+    })
+  }, [usuario?.id, usuario?.rol])
+
   // Lo que dependía únicamente del optica_id ya resuelto (admin o público) —
   // separado del efecto de arriba para no repetir esta parte en las dos ramas.
   function hidratarOpticaId(opticaId, esAdmin) {
@@ -363,6 +391,10 @@ function App() {
 
       supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
         if (data) setConsultas(data.map(mapConsulta))
+      })
+
+      supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
+        if (data) setVentas(data.map(mapVenta))
       })
 
       supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data }) => {
@@ -451,6 +483,25 @@ function App() {
         horario_semanal: siguiente.horarioSemanal,
         excepciones: siguiente.excepciones,
         duracion_cita: siguiente.duracionCita,
+      })
+    }
+    return Promise.resolve({ error: null })
+  }
+
+  // Mismo criterio que setDisponibilidad: acepta función o valor, persiste
+  // en segundo plano (upsert porque la fila puede no existir todavía — es la
+  // primera vez que este usuario toca "Mi horario") y devuelve el error si
+  // lo hay, para que Horario.jsx pueda avisar si falló el guardado real.
+  const setHorarioPersonal = (updater) => {
+    const base = horarioPersonal || { horarioSemanal: {}, ausencias: {} }
+    const siguiente = typeof updater === 'function' ? updater(base) : updater
+    setHorarioPersonalState(siguiente)
+    if (supabase && usuario?.id && usuario?.opticaId) {
+      return supabase.from('horarios_usuario').upsert({
+        usuario_id: usuario.id,
+        optica_id: usuario.opticaId,
+        horario_semanal: siguiente.horarioSemanal,
+        ausencias: siguiente.ausencias,
       })
     }
     return Promise.resolve({ error: null })
@@ -677,11 +728,15 @@ function App() {
           setInventario={setInventario}
           consultas={consultas}
           setConsultas={setConsultas}
+          ventas={ventas}
+          setVentas={setVentas}
           respuestasSatisfaccion={respuestasSatisfaccion}
           solicitudesEliminacion={solicitudesEliminacion}
           marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           disponibilidad={disponibilidad}
           setDisponibilidad={setDisponibilidad}
+          horarioPersonal={horarioPersonal}
+          setHorarioPersonal={setHorarioPersonal}
           asistentes={asistentes}
           setAsistentes={setAsistentes}
           parametrizacion={parametrizacion}

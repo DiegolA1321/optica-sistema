@@ -96,16 +96,4 @@ export function esClienteFrecuente(paciente, consultas = [], minimo = MINIMO_CLI
   return contarConsultas(paciente, consultas) >= minimo
 }
 
-// Mapa: nombre del paciente que refiere → lista de pacientes que trajo
-export function obtenerReferidos(pacientes = []) {
-  const mapa = new Map()
-  pacientes.forEach((p) => {
-    const refPor = p.referidoPor
-    if (!refPor) return
-    if (!mapa.has(refPor)) mapa.set(refPor, [])
-    mapa.get(refPor).push(p)
-  })
-  return mapa
-}
-
 export { UMBRAL_INACTIVO_DIAS, MINIMO_CLIENTE_FRECUENTE }

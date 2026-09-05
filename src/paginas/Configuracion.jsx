@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff } from "lucide-react"
+import { createPortal } from "react-dom"
+import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle } from "lucide-react"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -128,7 +129,18 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
 }
 
 export default function Configuracion({ parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
-  const alternar = (clave) => setParametrizacion((prev) => ({ ...prev, [clave]: !prev[clave] }))
+  // Alerta de confirmación antes de guardar — caso de la reunión con el ing:
+  // un click accidental en un interruptor no debe activar/desactivar algo
+  // sin que el usuario se dé cuenta. Los toggles ya no aplican el cambio de
+  // inmediato: piden confirmación primero.
+  const [pendiente, setPendiente] = useState(null) // { titulo, mensaje, aplicar }
+  const pedirConfirmacion = (titulo, mensaje, aplicar) => setPendiente({ titulo, mensaje, aplicar })
+  const confirmarPendiente = () => { pendiente?.aplicar(); setPendiente(null) }
+
+  const alternar = (clave, titulo, mensajeOn, mensajeOff) => {
+    const activar = !parametrizacion[clave]
+    pedirConfirmacion(titulo, activar ? mensajeOn : mensajeOff, () => setParametrizacion((prev) => ({ ...prev, [clave]: !prev[clave] })))
+  }
 
   return (
     <div className="w-full space-y-6 text-left">
@@ -160,7 +172,12 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
             titulo="Medidas de la receta en el portal del paciente"
             descripcion="Esfera, cilindro y eje son datos técnicos de la receta. Podés dejarlos visibles gratis en el portal, o mantenerlos protegidos y ofrecerlos solo bajo solicitud (con costo adicional)."
             activo={parametrizacion.mostrarMedidasPaciente}
-            onClick={() => alternar("mostrarMedidasPaciente")}
+            onClick={() => alternar(
+              "mostrarMedidasPaciente",
+              "Medidas de la receta en el portal del paciente",
+              "Vas a mostrar esfera, cilindro y eje sin costo adicional en el portal del paciente.",
+              "Vas a proteger esos datos — el paciente tendrá que solicitarlos.",
+            )}
             etiquetaOn="Visibles sin costo adicional"
             etiquetaOff="Protegidas · el paciente debe solicitarlas"
           />
@@ -192,7 +209,15 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
                 )}
               </div>
             </div>
-            <Interruptor activo={parametrizacion.permitirReagendarPaciente} onClick={() => alternar("permitirReagendarPaciente")} />
+            <Interruptor
+              activo={parametrizacion.permitirReagendarPaciente}
+              onClick={() => alternar(
+                "permitirReagendarPaciente",
+                "Reagendar o cancelar su propia cita",
+                "El paciente con cuenta va a poder reagendar o cancelar su propia cita desde el portal.",
+                "El paciente va a tener que escribirte para cambiar o cancelar su cita.",
+              )}
+            />
           </div>
 
           <FilaParametro
@@ -200,7 +225,14 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
             titulo="Recordatorio automático un día antes de la cita"
             descripcion="Se envía por correo a cada paciente con cita al día siguiente (tenga o no cuenta en el portal), con un link para confirmar su asistencia. Reduce las inasistencias por olvido."
             activo={parametrizacion.recordatoriosCitaActivo !== false}
-            onClick={() => setParametrizacion((prev) => ({ ...prev, recordatoriosCitaActivo: !(prev.recordatoriosCitaActivo !== false) }))}
+            onClick={() => {
+              const activar = parametrizacion.recordatoriosCitaActivo === false
+              pedirConfirmacion(
+                "Recordatorio automático de citas",
+                activar ? "Vas a activar el recordatorio por correo un día antes de cada cita." : "Vas a desactivar el recordatorio — nadie lo recibirá.",
+                () => setParametrizacion((prev) => ({ ...prev, recordatoriosCitaActivo: !(prev.recordatoriosCitaActivo !== false) })),
+              )
+            }}
             etiquetaOn="Activo"
             etiquetaOff="Desactivado — nadie recibirá el recordatorio"
           />
@@ -216,7 +248,12 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
             titulo="Adaptación de lentes de progresión"
             descripcion="Si no ofreces este servicio, el campo de adición (ADD) se oculta en la ficha clínica para no pedir un dato que no vas a usar."
             activo={parametrizacion.manejaProgresion}
-            onClick={() => alternar("manejaProgresion")}
+            onClick={() => alternar(
+              "manejaProgresion",
+              "Adaptación de lentes de progresión",
+              "Vas a mostrar el campo de adición (ADD) en la ficha clínica.",
+              "Vas a ocultar el campo de adición (ADD) en la ficha clínica.",
+            )}
             etiquetaOn="Disponible en la ficha clínica"
             etiquetaOff="No se ofrece — campo oculto"
           />
@@ -237,8 +274,8 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
           />
           <CatalogoEditable
             icon={Stethoscope}
-            titulo="Diagnósticos rápidos"
-            descripcion="Aparecen como accesos rápidos al registrar el diagnóstico en la ficha clínica — el texto libre siempre sigue disponible."
+            titulo="Categorías de diagnóstico"
+            descripcion="Categorías fijas que se seleccionan en la ficha clínica (pueden marcarse varias a la vez), más un detalle libre aparte. Permite luego reportar cuántos pacientes tienes con cada una."
             items={diagnosticosRapidos}
             setItems={setDiagnosticosRapidos}
             placeholder="Ej. Ambliopía"
@@ -253,6 +290,24 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
           />
         </div>
       </div>
+
+      {/* ─── CONFIRMACIÓN ANTES DE GUARDAR ─── */}
+      {pendiente && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPendiente(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-blue-50 text-blue-600">
+              <AlertTriangle size={22} />
+            </div>
+            <h2 className="text-lg font-bold" style={{ color: INK }}>{pendiente.titulo}</h2>
+            <p className="mt-1.5 text-sm text-slate-500">{pendiente.mensaje}</p>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setPendiente(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={confirmarPendiente} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Confirmar</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

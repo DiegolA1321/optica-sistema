@@ -98,7 +98,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir }) {
+export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -241,6 +241,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             setCitas={setCitas}
             disponibilidad={disponibilidad}
             motivosConsulta={motivosConsulta}
+            inventario={inventario}
+            setInventario={setInventario}
+            ventas={ventas}
+            setVentas={setVentas}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
             onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); navegar("consultas") }}
@@ -268,7 +272,18 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           />
         )
       case "inventario":
-        return <Inventario usuario={usuario} inventario={inventario} setInventario={setInventario} categorias={categoriasInventario} />
+        return (
+          <Inventario
+            usuario={usuario}
+            inventario={inventario}
+            setInventario={setInventario}
+            categorias={categoriasInventario}
+            setCategorias={setCategoriasInventario}
+            pacientes={pacientes}
+            ventas={ventas}
+            setVentas={setVentas}
+          />
+        )
       case "citas":
         return (
           <Citas
@@ -286,7 +301,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           />
         )
       case "horario":
-        return <Horario disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} citas={citas} />
+        return <Horario usuario={usuario} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} citas={citas} />
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
       case "reportes":
@@ -338,6 +353,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               setCitas={setCitas}
               disponibilidad={disponibilidad}
               motivosConsulta={motivosConsulta}
+              inventario={inventario}
+              setInventario={setInventario}
+              ventas={ventas}
+              setVentas={setVentas}
               accionInicial={accionPacienteInicio}
               onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
               onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); navegar("consultas") }}

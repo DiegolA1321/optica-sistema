@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
   Package,
-  PlusCircle,
   Search,
   AlertTriangle,
   CheckCircle,
@@ -14,9 +13,15 @@ import {
   X,
   Plus,
   Pencil,
+  ShoppingCart,
+  BarChart3,
+  Users,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
+import { resumenVentasProducto } from "../utilidades/ventas"
+import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
+import VentaProductoModal from "./VentaProductoModal"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -29,7 +34,69 @@ const COLOR_CAT = {
 }
 const catColor = (c) => COLOR_CAT[c] || { fg: "#475569", bg: "#f1f5f9" }
 
-export default function Inventario({ usuario, inventario: productos = [], setInventario: setProductos, categorias = [] }) {
+// Selector de categoría con creación rápida inline — caso de la reunión con
+// el ing: poder crear una categoría nueva sin salir del flujo de registrar
+// (o editar) un producto, en vez de obligar a ir antes a Configuración.
+function CampoCategoria({ valor, onChange, categorias, setCategorias }) {
+  const [creando, setCreando] = useState(false)
+  const [nueva, setNueva] = useState("")
+
+  const confirmar = () => {
+    const v = nueva.trim()
+    if (!v) { setCreando(false); return }
+    if (!categorias.includes(v)) setCategorias?.([...categorias, v])
+    onChange(v)
+    setNueva("")
+    setCreando(false)
+  }
+
+  if (creando) {
+    return (
+      <div className="flex gap-2">
+        <input
+          autoFocus
+          value={nueva}
+          onChange={(e) => setNueva(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmar() } if (e.key === "Escape") setCreando(false) }}
+          placeholder="Nombre de la categoría"
+          className="flex-1 rounded-xl border border-blue-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+        />
+        <button type="button" onClick={confirmar} className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>
+          Crear
+        </button>
+        <button type="button" onClick={() => setCreando(false)} className="shrink-0 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-500 cursor-pointer">
+          Cancelar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex gap-2">
+      <select value={valor} onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
+        {categorias.map((c) => (<option key={c} value={c}>{c}</option>))}
+      </select>
+      {setCategorias && (
+        <button type="button" onClick={() => setCreando(true)} title="Nueva categoría" aria-label="Nueva categoría"
+          className="shrink-0 rounded-xl border border-slate-200 px-3 text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 cursor-pointer">
+          <Plus size={16} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function Inventario({
+  usuario,
+  inventario: productos = [],
+  setInventario: setProductos,
+  categorias = [],
+  setCategorias,
+  pacientes = [],
+  ventas = [],
+  setVentas,
+}) {
   const opticaId = usuario?.opticaId
   // Catálogo de categorías editable desde Configuración (feedback de la
   // revisión total: antes era una lista fija de 2 valores en el código).
@@ -50,12 +117,10 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
   const [erroresForm, setErroresForm] = useState({})
   const [modalAbierto, setModalAbierto] = useState(false)
 
-  // Reabastecer stock de un producto ya existente (evita crear duplicados)
-  const [reabastecer, setReabastecer] = useState(null)
-  const [cantidadReabastecer, setCantidadReabastecer] = useState("")
-  const [errorReabastecer, setErrorReabastecer] = useState("")
-
-  // Editar producto existente (nombre, categoría, stock, precio pueden variar)
+  // Editar producto + añadir stock — antes eran dos acciones/modales
+  // separados (feedback del ing: "editar es lo mismo que añadir stock"),
+  // ahora es un solo flujo con un atajo de "+N unidades" sobre el mismo
+  // campo de existencia.
   const [editando, setEditando] = useState(null)
   const [edNombre, setEdNombre] = useState("")
   const [edCategoria, setEdCategoria] = useState(CATEGORIAS[0] || "Armazones")
@@ -63,11 +128,19 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
   const [edPrecio, setEdPrecio] = useState("")
   const [edObservacion, setEdObservacion] = useState("")
   const [edCritico, setEdCritico] = useState("")
+  const [sumarStock, setSumarStock] = useState("")
   const [erroresEdicion, setErroresEdicion] = useState({})
+
+  // Vender producto (busca/selecciona paciente) — caso de la reunión.
+  const [vendiendo, setVendiendo] = useState(null)
+
+  // Reporte por producto: unidades vendidas, ingreso, pacientes distintos,
+  // pagos pendientes — caso de la reunión.
+  const [verReporte, setVerReporte] = useState(null)
 
   const limpiarFormulario = () => {
     setNombre("")
-    setCategoria("Armazones")
+    setCategoria(CATEGORIAS[0] || "Armazones")
     setStock("")
     setPrecio("")
     setObservacion("")
@@ -88,7 +161,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     if (precio === "" || isNaN(precioNum) || precioNum < 0) errs.precio = "Ingresa un precio válido."
     const duplicado = productos.find((p) => p.nombre.trim().toLowerCase() === nombre.trim().toLowerCase())
     if (!errs.nombre && duplicado) {
-      errs.nombre = `Ya existe "${duplicado.nombre}" en bodega (${duplicado.stock} u.). Usa el botón "+" de esa fila para sumar stock, en vez de crear un producto duplicado.`
+      errs.nombre = `Ya existe "${duplicado.nombre}" en bodega (${duplicado.stock} u.). Usa el botón de editar de esa fila para sumar stock, en vez de crear un producto duplicado.`
     }
     setErroresForm(errs)
     if (Object.keys(errs).length > 0) return
@@ -113,6 +186,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     if (nuevo.id == null) nuevo.id = Date.now()
 
     setProductos([nuevo, ...productos])
+    registrarLog(usuario, "inventario", "Agregó un producto al inventario", nuevo.nombre)
     setGuardadoExitoso("Producto añadido al inventario.")
     setTimeout(() => setGuardadoExitoso(""), 3000)
 
@@ -122,6 +196,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
 
   const confirmarEliminar = async () => {
     if (porEliminar == null) return
+    const eliminado = productos.find((p) => p.id === porEliminar)
     if (supabase && opticaId) {
       const { error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar)
       if (errorDelete) {
@@ -130,35 +205,9 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
       }
     }
     setProductos(productos.filter((p) => p.id !== porEliminar))
+    registrarLog(usuario, "inventario", "Eliminó un producto del inventario", eliminado?.nombre || "")
     setPorEliminar(null)
     setErrorEliminar("")
-  }
-
-  const abrirReabastecer = (prod) => {
-    setReabastecer(prod)
-    setCantidadReabastecer("")
-    setErrorReabastecer("")
-  }
-
-  const confirmarReabastecer = async (e) => {
-    e.preventDefault()
-    const cantidad = parseInt(cantidadReabastecer, 10)
-    if (!cantidadReabastecer || isNaN(cantidad) || cantidad <= 0) {
-      setErrorReabastecer("Ingresa una cantidad válida (mayor a 0).")
-      return
-    }
-    const nuevoStock = (Number(reabastecer.stock) || 0) + cantidad
-    if (supabase && opticaId) {
-      const { error: errorUpdate } = await supabase.from("inventario").update({ stock: nuevoStock }).eq("id", reabastecer.id)
-      if (errorUpdate) {
-        setErrorReabastecer("No se pudo actualizar el stock. Revisa tu conexión e intenta de nuevo.")
-        return
-      }
-    }
-    setProductos(productos.map((p) => (p.id === reabastecer.id ? { ...p, stock: nuevoStock } : p)))
-    setReabastecer(null)
-    setGuardadoExitoso("Stock actualizado correctamente.")
-    setTimeout(() => setGuardadoExitoso(""), 3000)
   }
 
   const abrirEditar = (prod) => {
@@ -169,10 +218,21 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     setEdPrecio(String(prod.precio))
     setEdObservacion(prod.observacion || "")
     setEdCritico(prod.critico != null ? String(prod.critico) : "")
+    setSumarStock("")
     setErroresEdicion({})
   }
 
   const cerrarEditar = () => { setEditando(null); setErroresEdicion({}) }
+
+  // Atajo: suma unidades al campo de existencia sin salir del modal — no
+  // hace un guardado aparte, solo actualiza el número que se persiste junto
+  // con el resto de cambios al pulsar "Guardar cambios".
+  const aplicarSumaStock = () => {
+    const cantidad = parseInt(sumarStock, 10)
+    if (!cantidad || cantidad <= 0) return
+    setEdStock(String((parseInt(edStock, 10) || 0) + cantidad))
+    setSumarStock("")
+  }
 
   const guardarEdicion = async (e) => {
     e.preventDefault()
@@ -198,6 +258,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
       }
     }
     setProductos(productos.map((p) => (p.id === editando.id ? { ...p, ...cambios } : p)))
+    registrarLog(usuario, "inventario", "Editó un producto del inventario", cambios.nombre)
     setEditando(null)
     setGuardadoExitoso("Cambios guardados correctamente.")
     setTimeout(() => setGuardadoExitoso(""), 3000)
@@ -223,6 +284,15 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
     const bajos = productos.filter(esStockBajo)
     return { total: productos.length, unidades, valor, bajos }
   }, [productos])
+
+  const reporteProducto = useMemo(() => (verReporte ? resumenVentasProducto(ventas, verReporte.id) : null), [ventas, verReporte])
+  const nombrePaciente = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
+
+  const registrarVenta = (venta) => {
+    setVentas?.((prev) => [venta, ...prev])
+    setGuardadoExitoso("Venta registrada correctamente.")
+    setTimeout(() => setGuardadoExitoso(""), 3000)
+  }
 
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -372,11 +442,16 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                       <td className="px-4 py-3 font-mono font-bold text-slate-600">${Number(prod.precio).toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => abrirEditar(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar producto" aria-label="Editar producto">
+                          <button type="button" onClick={() => abrirEditar(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar / añadir stock" aria-label="Editar o añadir stock">
                             <Pencil size={16} />
                           </button>
-                          <button type="button" onClick={() => abrirReabastecer(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer" title="Agregar stock" aria-label="Agregar stock">
-                            <PlusCircle size={16} />
+                          <button type="button" onClick={() => setVendiendo(prod)} disabled={(Number(prod.stock) || 0) <= 0}
+                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                            title={(Number(prod.stock) || 0) <= 0 ? "Sin stock disponible" : "Vender a un paciente"} aria-label="Vender a un paciente">
+                            <ShoppingCart size={16} />
+                          </button>
+                          <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
+                            <BarChart3 size={16} />
                           </button>
                           <button type="button" onClick={() => setPorEliminar(prod.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar producto" aria-label="Eliminar producto">
                             <Trash2 size={16} />
@@ -409,7 +484,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <PlusCircle size={20} />
+                  <Plus size={20} />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
@@ -423,17 +498,14 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
             <form onSubmit={registrarProducto} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
                 <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
+                  <CampoCategoria valor={categoria} onChange={setCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
+                </div>
+                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
                   <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
                     className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                   {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
-                  <select value={categoria} onChange={(e) => setCategoria(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
-                    {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
-                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -480,7 +552,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
         document.body
       )}
 
-      {/* ─── MODAL EDITAR PRODUCTO ─── */}
+      {/* ─── MODAL EDITAR PRODUCTO / AÑADIR STOCK (unificado) ─── */}
       {editando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarEditar}>
           <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
@@ -491,7 +563,7 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
                 </div>
                 <div>
                   <h2 className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
-                  <p className="text-xs text-slate-500">{edNombre || "Actualiza sus datos."}</p>
+                  <p className="text-xs text-slate-500">{edNombre || "Actualiza sus datos o suma stock."}</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarEditar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -501,31 +573,39 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
             <form onSubmit={guardarEdicion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
                 <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
+                  <CampoCategoria valor={edCategoria} onChange={setEdCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
+                </div>
+                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
                   <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
                     className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
                   {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
-                  <select value={edCategoria} onChange={(e) => setEdCategoria(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
-                    {CATEGORIAS.map((c) => (<option key={c} value={c}>{c}</option>))}
-                  </select>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Existencia</label>
+                  <div className="flex gap-2">
+                    <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)}
+                      className={"w-24 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                    <span className="self-center text-xs text-slate-500">unidades ·</span>
+                    <input type="number" min="1" step="1" value={sumarStock} onChange={(e) => setSumarStock(e.target.value)} placeholder="+ agregar"
+                      className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50" />
+                    <button type="button" onClick={aplicarSumaStock} disabled={!sumarStock}
+                      className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                      style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
+                      Sumar
+                    </button>
+                  </div>
+                  {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
+                  <p className="mt-1.5 text-[11px] text-slate-500">Escribe la existencia final directamente, o usa "+ agregar" para sumar unidades recibidas.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
-                    <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)} placeholder="10"
-                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                    {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
-                    <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
-                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
-                    {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
-                  </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
+                  <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                  {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
@@ -581,52 +661,85 @@ export default function Inventario({ usuario, inventario: productos = [], setInv
         document.body
       )}
 
-      {/* ─── MODAL REABASTECER ─── */}
-      {reabastecer && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setReabastecer(null)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      {/* ─── MODAL VENDER PRODUCTO ─── */}
+      {vendiendo && (
+        <VentaProductoModal
+          usuario={usuario}
+          pacientes={pacientes}
+          inventario={productos}
+          setInventario={setProductos}
+          productoFijo={vendiendo}
+          onGuardado={registrarVenta}
+          onCerrar={() => setVendiendo(null)}
+        />
+      )}
+
+      {/* ─── MODAL REPORTE POR PRODUCTO ─── */}
+      {verReporte && reporteProducto && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setVerReporte(null)}>
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-                  <PlusCircle size={20} />
+                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
+                  <BarChart3 size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>Agregar stock</h2>
-                  <p className="text-xs text-slate-500">{reabastecer.nombre}</p>
+                  <h2 className="text-lg font-bold" style={{ color: INK }}>Reporte de ventas</h2>
+                  <p className="text-xs text-slate-500">{verReporte.nombre}</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setReabastecer(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+              <button type="button" onClick={() => setVerReporte(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={confirmarReabastecer} className="space-y-4 p-5">
-              <p className="rounded-lg bg-slate-50 p-2.5 text-center text-sm text-slate-600">
-                Existencia actual: <span className="font-mono font-bold text-slate-800">{reabastecer.stock} u.</span>
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+                  <p className="text-xl font-black" style={{ color: INK }}>{reporteProducto.unidades}</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">Unidades vendidas</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+                  <p className="text-xl font-black text-emerald-700">${reporteProducto.ingreso.toFixed(2)}</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-emerald-600">Ingreso generado</p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
+                  <p className="text-xl font-black text-amber-700">{reporteProducto.pendientes}</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-amber-600">Con pago pendiente</p>
+                </div>
+              </div>
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                <Users size={13} /> {reporteProducto.pacientes} paciente{reporteProducto.pacientes === 1 ? "" : "s"} distinto{reporteProducto.pacientes === 1 ? "" : "s"} lo ha{reporteProducto.pacientes === 1 ? "" : "n"} comprado.
               </p>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Unidades a agregar</label>
-                <input
-                  type="number" min="1" step="1" autoFocus value={cantidadReabastecer}
-                  onChange={(e) => { setCantidadReabastecer(e.target.value); setErrorReabastecer("") }}
-                  placeholder="Ej. 10"
-                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (errorReabastecer ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
-                />
-                {errorReabastecer && <p className="mt-1 text-[11px] font-medium text-red-600">{errorReabastecer}</p>}
-              </div>
-              {cantidadReabastecer && !isNaN(parseInt(cantidadReabastecer, 10)) && parseInt(cantidadReabastecer, 10) > 0 && (
-                <p className="text-center text-xs text-slate-500">
-                  Nueva existencia: <span className="font-mono font-semibold text-emerald-600">{(Number(reabastecer.stock) || 0) + parseInt(cantidadReabastecer, 10)} u.</span>
-                </p>
+
+              {reporteProducto.ventas.length === 0 ? (
+                <div className="mt-4 flex flex-col items-center gap-2 py-8 text-center">
+                  <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><ShoppingCart size={20} /></div>
+                  <p className="text-sm font-medium text-slate-500">Todavía no se ha vendido este producto.</p>
+                </div>
+              ) : (
+                <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                  {reporteProducto.ventas.map((v) => (
+                    <div key={v.id} className="flex items-center justify-between px-3 py-2.5">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
+                        <p className="text-[11px] text-slate-500">{v.cantidad} u. · {new Date(v.creadoEn).toLocaleDateString("es-ES")}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-bold text-slate-700">${Number(v.montoTotal).toFixed(2)}</span>
+                        <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + (v.estado === "completado" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                          {v.estado === "completado" ? "Pagado" : "Pendiente"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-              <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setReabastecer(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-                  Agregar stock
-                </button>
-              </div>
-            </form>
+            </div>
+            <div className="border-t border-slate-100 p-6 pt-4">
+              <button type="button" onClick={() => setVerReporte(null)} className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>,
         document.body

@@ -7,7 +7,6 @@ import {
   esInactivo,
   contarConsultas,
   esClienteFrecuente,
-  obtenerReferidos,
   UMBRAL_INACTIVO_DIAS,
 } from "./fidelizacion"
 
@@ -92,23 +91,6 @@ describe("fidelizacion (con fecha fija: 10 de marzo de 2026)", () => {
       const paciente = { id: 1, nombre: "Ana" }
       const unaConsulta = [{ pacienteId: 1, fecha: "2026-01-01" }]
       expect(esClienteFrecuente(paciente, unaConsulta, 1)).toBe(true)
-    })
-  })
-
-  describe("obtenerReferidos", () => {
-    it("agrupa pacientes por quién los refirió", () => {
-      const pacientes = [
-        { id: 1, nombre: "Ana", referidoPor: "Carlos" },
-        { id: 2, nombre: "Beto", referidoPor: "Carlos" },
-        { id: 3, nombre: "Diana", referidoPor: null },
-      ]
-      const mapa = obtenerReferidos(pacientes)
-      expect(mapa.get("Carlos")).toHaveLength(2)
-      expect(mapa.has(null)).toBe(false)
-    })
-
-    it("mapa vacío sin pacientes", () => {
-      expect(obtenerReferidos([]).size).toBe(0)
     })
   })
 
