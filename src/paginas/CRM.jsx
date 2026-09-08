@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Cake,
   Users,
+  UserPlus,
   Clock,
   Star,
   Megaphone,
@@ -21,7 +22,7 @@ import {
   ChevronDown,
   ArrowUpDown,
 } from "lucide-react"
-import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas } from "../utilidades/fidelizacion"
+import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -121,7 +122,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
     })
   }, [pacientes, consultas])
 
-  // Tres bloques curados (top 5 cada uno) en vez de una sola lista con los
+  // Cuatro bloques curados (top 5 cada uno) en vez de una sola lista con los
   // 100+ pacientes de la óptica — caso de la reunión con el ing. Cada uno
   // ordenado por lo más relevante de esa categoría; "Ver detalles" reordena
   // sobre la lista completa, no solo el top 5.
@@ -129,7 +130,34 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   const listaCumpleanos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Felicitar").sort((a, b) => Math.abs(a.ordenValor) - Math.abs(b.ordenValor)), [prospectosDinamicos])
   const listaInactivos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Inactivo").sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos])
 
-  const [detalleAbierto, setDetalleAbierto] = useState(null) // "fieles" | "cumpleanos" | "inactivos" | null
+  // Referidos: a diferencia de los otros tres bloques, no viene de
+  // prospectosDinamicos (esa lista le asigna a cada paciente un solo "tipo"
+  // exclusivo) — un paciente fiel también puede ser quien más ha referido,
+  // así que se calcula aparte a partir del campo "referidoPor" que ya se
+  // captura al registrar un paciente. Solo entran quienes refirieron a
+  // alguien (0 referidos no aporta a este bloque).
+  const listaReferidos = useMemo(() => {
+    return pacientes
+      .map((p) => {
+        const num = contarReferidos(p, pacientes)
+        return {
+          id: p.id,
+          paciente: p.nombre,
+          estado: `${num} paciente${num === 1 ? "" : "s"} referido${num === 1 ? "" : "s"}`,
+          motivo: "Te ha ayudado a traer pacientes nuevos. Un buen momento para agradecerle o premiar su recomendación.",
+          telefono: p.telefono || p.contacto || p.celular || "",
+          tipo: "Referidor",
+          dias: `${num} referido${num === 1 ? "" : "s"}`,
+          cumpleHoy: false,
+          saludoEnviadoEsteAnio: false,
+          ordenValor: num,
+        }
+      })
+      .filter((p) => p.ordenValor > 0)
+      .sort((a, b) => b.ordenValor - a.ordenValor)
+  }, [pacientes])
+
+  const [detalleAbierto, setDetalleAbierto] = useState(null) // "fieles" | "cumpleanos" | "inactivos" | "referidos" | null
 
   // Avisos globales (anuncios para todos los pacientes: cierres, promociones,
   // etc.) — antes vivían solo en localStorage (CRM.jsx no llamaba nunca a
@@ -296,8 +324,18 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         </button>
       </div>
 
-      {/* ─── TRES BLOQUES CURADOS (top 5 cada uno) ─── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* ─── CUATRO BLOQUES CURADOS (top 5 cada uno) ─── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <BloqueContacto
+          titulo="Pacientes que más refieren"
+          icono={UserPlus}
+          bgIcono="linear-gradient(135deg,#818cf8,#4f46e5)"
+          lista={listaReferidos}
+          cumpleAuto={cumpleAuto}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          onVerDetalles={() => setDetalleAbierto("referidos")}
+          vacioTexto="Todavía ningún paciente aparece como quien refirió a otro."
+        />
         <BloqueContacto
           titulo="Pacientes más atendidos"
           icono={Star}
@@ -333,7 +371,9 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       {detalleAbierto && (
         <ModalDetalleCRM
           config={
-            detalleAbierto === "fieles"
+            detalleAbierto === "referidos"
+              ? { titulo: "Pacientes que más refieren", icono: UserPlus, bgIcono: "linear-gradient(135deg,#818cf8,#4f46e5)", lista: listaReferidos, columnaLabel: "Referidos", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
+              : detalleAbierto === "fieles"
               ? { titulo: "Pacientes más atendidos", icono: Star, bgIcono: "linear-gradient(135deg,#34d399,#059669)", lista: listaFieles, columnaLabel: "Consultas", columnaValor: (p) => p.numConsultas, dirDefecto: "desc" }
               : detalleAbierto === "cumpleanos"
               ? { titulo: "Cumpleaños próximos", icono: Cake, bgIcono: "linear-gradient(135deg,#e0b64e,#b45309)", lista: listaCumpleanos, columnaLabel: "Cuándo", columnaValor: (p) => p.dias, dirDefecto: "asc", ordenAbsoluto: true }

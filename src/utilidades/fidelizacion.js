@@ -96,4 +96,13 @@ export function esClienteFrecuente(paciente, consultas = [], minimo = MINIMO_CLI
   return contarConsultas(paciente, consultas) >= minimo
 }
 
+// Cuántos pacientes distintos señalaron a este paciente como quien los
+// refirió (campo "referidoPor", texto libre que se captura al registrar un
+// paciente nuevo — se normaliza para comparar, no es una relación por id).
+export function contarReferidos(paciente, pacientes = []) {
+  const nombre = (paciente.nombre || "").trim().toLowerCase()
+  if (!nombre) return 0
+  return pacientes.filter((p) => (p.referidoPor || "").trim().toLowerCase() === nombre).length
+}
+
 export { UMBRAL_INACTIVO_DIAS, MINIMO_CLIENTE_FRECUENTE }
