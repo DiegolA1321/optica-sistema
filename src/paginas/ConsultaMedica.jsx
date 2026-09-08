@@ -71,7 +71,7 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, origenNombre = "Pacientes" }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -718,17 +718,20 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         }
       `}</style>
 
-      {/* ─── VOLVER ───
+      {/* ─── VOLVER / CERRAR ───
           Ficha clínica ya no tiene entrada propia en el sidebar (se llega
           acá desde "Atender" en Citas médicas o desde "Ficha clínica" en el
           perfil del paciente) — sin esto no había forma de salir salvo
-          eligiendo otra sección al azar en el menú. */}
-      {onVolver && (
+          eligiendo otra sección al azar en el menú. Volver y Cerrar no son
+          lo mismo: "Volver" reabre lo que había antes (el perfil del
+          paciente, si se entró desde ahí — lo maneja Dashboard.jsx), "Cerrar"
+          siempre sale a la lista de origen sin importar de dónde se venía. */}
+      {(onVolver || onCerrar) && (
         <div className="no-print -mt-2 flex items-center justify-between">
-          <button type="button" onClick={onVolver} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
+          <button type="button" onClick={onVolver || onCerrar} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
             <ArrowLeft size={18} /> {origenNombre}
           </button>
-          <button type="button" onClick={onVolver} aria-label="Cerrar ficha clínica" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+          <button type="button" onClick={onCerrar || onVolver} aria-label="Cerrar ficha clínica" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
             <X size={20} />
           </button>
         </div>

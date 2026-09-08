@@ -5,7 +5,6 @@ import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
 import {
   Calendar,
-  Plus,
   Clock,
   User,
   CheckCircle2,
@@ -95,7 +94,6 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
   // hoy y se habilita crear un paciente nuevo sin salir de aquí (feedback
   // del ing: un walk-in o alguien que llegó desde la web sin cuenta no debía
   // obligar a ir primero al módulo Pacientes).
-  const [modoGestionar, setModoGestionar] = useState(false)
   const [pacienteId, setPacienteId] = useState(null)
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
@@ -305,15 +303,13 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     setTimeout(() => setGuardadoExitoso(false), 3000)
   }
 
-  const abrirModal = (gestionar = false) => {
-    setModoGestionar(gestionar)
-    if (gestionar) setFecha(hoyISO())
+  const abrirModal = () => {
+    setFecha(hoyISO())
     setModalAbierto(true)
   }
 
   const cerrarModal = () => {
     setModalAbierto(false)
-    setModoGestionar(false)
     setConfirmando(false)
     setPacienteId(null)
     setBusquedaPaciente("")
@@ -570,23 +566,18 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          {/* "Agendar cita" existía como botón aparte, más limitado (fecha en
+              blanco, y sin forma de crear un paciente nuevo si no había
+              ninguno todavía) — "Gestionar" ya cubre ese caso y más, así que
+              se quedó como el único punto de entrada (feedback de Diego). */}
           <button
             type="button"
-            onClick={() => abrirModal(true)}
-            className="flex items-center justify-center gap-2 rounded-xl border-2 px-5 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-            style={{ borderColor: INK, color: INK }}
-          >
-            <UserPlus size={18} />
-            Gestionar
-          </button>
-          <button
-            type="button"
-            onClick={() => abrirModal(false)}
+            onClick={() => abrirModal()}
             className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
           >
-            <Plus size={18} />
-            Agendar cita
+            <UserPlus size={18} />
+            Gestionar cita
           </button>
         </div>
       </div>
@@ -846,11 +837,11 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  {modoGestionar ? <UserPlus size={20} /> : <Stethoscope size={20} />}
+                  <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>{modoGestionar ? "Gestionar cita" : "Agendar cita"}</h4>
-                  <p className="text-xs text-slate-500">{modoGestionar ? "Busca al paciente o regístralo si acaba de llegar." : "Elige paciente, motivo y horario disponible."}</p>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>Gestionar cita</h4>
+                  <p className="text-xs text-slate-500">Busca al paciente o regístralo si acaba de llegar.</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -867,16 +858,10 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                   </div>
                 )}
 
-                {!modoGestionar && pacientes.length === 0 ? (
-                  <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
-                    <AlertTriangle size={16} className="shrink-0" />
-                    Aún no hay pacientes registrados. Crea uno primero en el módulo Pacientes.
-                  </div>
-                ) : (
-                  <div className="relative" ref={dropdownRef}>
+                <div className="relative" ref={dropdownRef}>
                     <div className="mb-1.5 flex items-center justify-between">
                       <label className="block text-sm font-semibold text-slate-700">Paciente</label>
-                      {modoGestionar && !mostrarNuevoPaciente && (
+                      {!mostrarNuevoPaciente && (
                         <button
                           type="button"
                           onClick={() => { setMostrarNuevoPaciente(true); setPacienteId(null); setBusquedaPaciente("") }}
@@ -973,11 +958,28 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                             {pacientesFiltrados.map((p) => (
                               <li
                                 key={p.id}
-                                onClick={() => seleccionarPaciente(p)}
-                                className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                                className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                               >
-                                <span className="font-semibold">{p.nombre}</span>
-                                {p.cedula && <span className="font-mono text-xs text-slate-500">{p.cedula}</span>}
+                                <button
+                                  type="button"
+                                  onClick={() => seleccionarPaciente(p)}
+                                  className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left"
+                                >
+                                  <span className="truncate font-semibold">{p.nombre}</span>
+                                  {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-500">{p.cedula}</span>}
+                                </button>
+                                {/* Ya está registrado — atajo directo a su perfil completo
+                                    (ficha clínica, historial, etc.) sin tener que salir de
+                                    acá, buscarlo de nuevo en Pacientes. */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); cerrarModal(); onVerPerfil?.(p.id) }}
+                                  title="Ver perfil del paciente"
+                                  aria-label="Ver perfil del paciente"
+                                  className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-100 hover:text-blue-700 cursor-pointer"
+                                >
+                                  <Eye size={15} />
+                                </button>
                               </li>
                             ))}
                           </ul>
@@ -985,7 +987,6 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                       </>
                     )}
                   </div>
-                )}
 
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo del examen</label>

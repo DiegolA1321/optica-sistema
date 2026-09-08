@@ -147,6 +147,9 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   // que "Volver"/"X" ahí adentro regrese al lugar correcto, ya que esta
   // sección no tiene entrada propia en el sidebar.
   const [fichaClinicaOrigen, setFichaClinicaOrigen] = useState("pacientes")
+  // Cuando el origen es "pacientes", "Volver" reabre el perfil de este
+  // paciente (accionPacienteInicio) en vez de solo listar a todos de nuevo.
+  const [fichaClinicaPacienteOrigenId, setFichaClinicaPacienteOrigenId] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [colapsado, setColapsado] = useState(false)
   const [notifAbierta, setNotifAbierta] = useState(false)
@@ -180,6 +183,19 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
     setSeccionActiva(mapa[vista] || vista)
     setMenuAbierto(false)
     setNotifAbierta(false)
+  }
+
+  // Único punto de entrada a Ficha clínica, sea desde el perfil de un
+  // paciente o desde "Atender" en Citas médicas — centraliza qué debe
+  // recordar Dashboard para que "Volver" (a diferencia de "X", que siempre
+  // sale a la lista de origen) pueda reabrir el perfil del paciente en vez
+  // de aterrizar en la lista pelada.
+  const irAFichaClinica = (paciente, { citaId = null, origen = "pacientes" } = {}) => {
+    setFichaClinicaPacienteInicial(paciente)
+    setFichaClinicaCitaId(citaId)
+    setFichaClinicaOrigen(origen)
+    setFichaClinicaPacienteOrigenId(origen === "pacientes" ? paciente?.id ?? null : null)
+    navegar("consultas")
   }
 
   // Resumen de Mensajes para la campanita — única llamada a Supabase de este
@@ -259,7 +275,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             setVentas={setVentas}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-            onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaOrigen("pacientes"); navegar("consultas") }}
+            onIrAFichaClinica={(paciente) => irAFichaClinica(paciente, { origen: "pacientes" })}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           />
@@ -281,7 +297,13 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             citas={citas}
             setCitas={setCitas}
             onPacienteInicialConsumido={() => { setFichaClinicaPacienteInicial(null); setFichaClinicaCitaId(null) }}
-            onVolver={() => navegar(fichaClinicaOrigen)}
+            onCerrar={() => navegar(fichaClinicaOrigen)}
+            onVolver={() => {
+              if (fichaClinicaOrigen === "pacientes" && fichaClinicaPacienteOrigenId) {
+                setAccionPacienteInicio({ pacienteId: fichaClinicaPacienteOrigenId, accion: "historial" })
+              }
+              navegar(fichaClinicaOrigen)
+            }}
             origenNombre={fichaClinicaOrigen === "citas" ? "Citas médicas" : "Pacientes"}
           />
         )
@@ -310,7 +332,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
             motivosConsulta={motivosConsulta}
-            onAtender={(paciente, citaId) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaCitaId(citaId); setFichaClinicaOrigen("citas"); navegar("consultas") }}
+            onAtender={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "citas" })}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />
         )
@@ -373,7 +395,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               setVentas={setVentas}
               accionInicial={accionPacienteInicio}
               onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-              onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaOrigen("pacientes"); navegar("consultas") }}
+              onIrAFichaClinica={(paciente) => irAFichaClinica(paciente, { origen: "pacientes" })}
             />
           </>
         )

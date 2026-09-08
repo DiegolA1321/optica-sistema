@@ -358,6 +358,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const [filtroEstado, setFiltroEstado] = useState("Todas") // Todas | Activas | Suspendidas
   const [detalle, setDetalle] = useState(null)
   const [procesandoId, setProcesandoId] = useState(null)
+  // Confirmación antes de suspender/reactivar — antes alternarActiva() se
+  // llamaba directo desde el botón, sin ningún paso de "¿estás seguro?" (un
+  // solo clic accidental en el menú de la tabla cortaba el acceso de una
+  // óptica entera). Reactivar no es tan delicado, pero se confirma igual
+  // por consistencia y para no tener dos comportamientos distintos según el
+  // estado actual.
+  const [opticaAConfirmar, setOpticaAConfirmar] = useState(null)
   const [slugCopiado, setSlugCopiado] = useState(false)
 
   // ─── Detalle: renombrar óptica ───
@@ -2857,7 +2864,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
           >
             <button
               type="button"
-              onClick={() => { setMenuAccionesId(null); alternarActiva(o) }}
+              onClick={() => { setMenuAccionesId(null); setOpticaAConfirmar(o) }}
               className={"flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer " + (o.activa ? "text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-50")}
             >
               {o.activa ? <Ban size={15} /> : <CheckCircle2 size={15} />}
@@ -2932,7 +2939,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                 <button
                   type="button"
                   disabled={procesandoId === detalle.id}
-                  onClick={() => alternarActiva(detalle)}
+                  onClick={() => setOpticaAConfirmar(detalle)}
                   className={"rounded-xl px-4 py-2.5 text-sm font-semibold transition cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 " + (detalle.activa ? "border border-rose-200 text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-400/60" : "border border-emerald-200 text-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-400/60")}
                 >
                   {procesandoId === detalle.id ? "Actualizando…" : detalle.activa ? "Suspender" : "Reactivar"}
@@ -4128,6 +4135,42 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
             </div>
           </div>
         </div>
+      )}
+
+      {/* ─── CONFIRMAR SUSPENDER/REACTIVAR ÓPTICA ───
+          Antes esto pasaba con un solo clic, sin ningún paso de confirmación
+          — el mismo menú de "⋮" que tiene "Copiar slug" al lado. */}
+      {opticaAConfirmar && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setOpticaAConfirmar(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className={"mb-4 grid h-12 w-12 place-items-center rounded-full " + (opticaAConfirmar.activa ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600")}>
+              {opticaAConfirmar.activa ? <Ban size={22} /> : <CheckCircle2 size={22} />}
+            </div>
+            <h2 className="text-lg font-bold" style={{ color: INK }}>
+              {opticaAConfirmar.activa ? "Suspender óptica" : "Reactivar óptica"}
+            </h2>
+            <p className="mt-1.5 text-sm text-slate-500">
+              {opticaAConfirmar.activa ? (
+                <>¿Seguro que deseas suspender <span className="font-semibold text-slate-700">{opticaAConfirmar.nombre}</span>? Su administrador y todo su equipo pierden acceso al sistema de inmediato.</>
+              ) : (
+                <>¿Reactivar <span className="font-semibold text-slate-700">{opticaAConfirmar.nombre}</span>? Recupera el acceso al sistema de inmediato.</>
+              )}
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => { const o = opticaAConfirmar; setOpticaAConfirmar(null); await alternarActiva(o) }}
+                className={"flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer " + (opticaAConfirmar.activa ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700")}
+              >
+                {opticaAConfirmar.activa ? "Suspender" : "Reactivar"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
