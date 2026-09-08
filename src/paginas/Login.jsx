@@ -19,8 +19,6 @@ import {
   LogIn,
   Check,
   ChevronDown,
-  MessageSquare,
-  UserCog,
 } from "lucide-react"
 
 // ─── Paleta de firma (inline para no depender de config de Tailwind) ───
@@ -967,37 +965,41 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
       </section>
       )}
 
-      {/* ─── PARA EL EQUIPO: LO QUE VE QUIEN INICIA SESIÓN ───
-          Acento oscuro deliberado a media página (no es el hero, así que no
-          contradice la regla de "claridad" — ver EstilosFirma/no-dark-hero).
-          Mensaje genérico del sistema, no de la marca de la óptica, por eso
-          no depende de la personalización de `servicios`. */}
+      {/* ─── PREGUNTAS FRECUENTES ───
+          Diego pidió quitar el bloque anterior ("Para el equipo... un solo
+          panel para optómetras") — le hablaba al paciente sobre el software
+          interno del staff (agenda, roles y permisos), un pitch de venta de
+          sistema fuera de lugar en la página pública de UNA óptica para SUS
+          pacientes (esa mensajería sí encaja en PaginaVenta.jsx, que le
+          vende el sistema a otros ópticos, no acá). Se reemplaza por FAQ
+          real y útil para quien está por reservar — mismo acento oscuro a
+          media página que ya estaba vetado contra la regla de "claridad"
+          (no es el hero, ver EstilosFirma/no-dark-hero), así la página no
+          queda "pobre" tras quitar el bloque anterior. Copy genérico del
+          sistema (no depende de `marca`), mismo criterio que "Cómo
+          funciona" más abajo. */}
       <section className="relative z-10 mt-4 overflow-hidden" style={{ backgroundColor: INK }}>
         <div className="pointer-events-none absolute -right-24 top-0 h-80 w-80 rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.16), transparent 70%)" }} />
         <div className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-12 md:py-20">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-white/50">
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
-              Para el equipo de {nombreMarca}
+              Antes de reservar
             </span>
             <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">
-              Un solo panel para optómetras y administración
+              Preguntas frecuentes
             </h2>
-            <p className="mt-3 text-base leading-relaxed text-white/70">
-              Quien inicia sesión con su cuenta ve su propia agenda, el historial clínico de cada paciente
-              y recordatorios automáticos — con el rol y los permisos que le correspondan.
-            </p>
           </div>
-          <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
             {[
-              { icon: Calendar, txt: "Agenda sin choques de horario" },
-              { icon: Stethoscope, txt: "Consulta médica digital" },
-              { icon: MessageSquare, txt: "Recordatorios automáticos" },
-              { icon: UserCog, txt: "Rol y permisos propios" },
-            ].map((c) => (
-              <div key={c.txt} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white/90">
-                <c.icon size={17} className="shrink-0" style={{ color: "#67E8F9" }} />
-                {c.txt}
+              { p: "¿Necesito agendar cita o puedo llegar directamente?", r: "Podés reservar en línea en menos de un minuto, sin crear una cuenta — o escribinos si preferís coordinar por teléfono." },
+              { p: "¿Cuánto dura un examen visual completo?", r: "Entre 20 y 30 minutos, según si es tu primera consulta o un control de seguimiento." },
+              { p: "¿Puedo ver mi receta después de la consulta?", r: "Sí — activá tu cuenta del portal y accedé a tu historial y receta desde cualquier dispositivo, cuando quieras." },
+              { p: "¿Qué debo llevar a mi cita?", r: "Si usás lentes o lentillas actualmente, traelos, junto con tu receta anterior si la tenés a mano." },
+            ].map((f) => (
+              <div key={f.p} className="rounded-2xl border border-white/15 bg-white/[0.06] p-5">
+                <p className="text-sm font-bold text-white">{f.p}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-white/70">{f.r}</p>
               </div>
             ))}
           </div>
