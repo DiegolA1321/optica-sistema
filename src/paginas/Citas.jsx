@@ -28,6 +28,7 @@ import {
   Phone,
   Mail,
   Cake,
+  MoreVertical,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -208,10 +209,20 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     })
   }
 
-  // Menú "cambiar estado" por tarjeta de cita (mismo patrón que el menú
-  // "más acciones" de Pacientes.jsx)
-  const [menuEstadoId, setMenuEstadoId] = useState(null)
-  const menuEstadoRef = useRef(null)
+  // Menú "más acciones" por tarjeta de cita — portal a document.body con
+  // posición calculada (no basta con position:absolute dentro de la
+  // tarjeta: la tarjeta tiene overflow-hidden por la barra de color a la
+  // izquierda, y con 5 ítems el menú ya no entra y se corta. Mismo patrón
+  // que "más acciones" en Pacientes.jsx / SuperadminPanel.jsx).
+  const [menuAccionesId, setMenuAccionesId] = useState(null)
+  const [menuAccionesPos, setMenuAccionesPos] = useState(null)
+  const menuAccionesRef = useRef(null)
+  const abrirMenuAcciones = (id, e) => {
+    if (menuAccionesId === id) { setMenuAccionesId(null); return }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuAccionesPos({ top: rect.bottom + 6, left: rect.right - 208 })
+    setMenuAccionesId(id)
+  }
 
   const pacientesFiltrados = useMemo(() => {
     const q = busquedaPaciente.trim().toLowerCase()
@@ -226,11 +237,18 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
   }, [])
 
   useEffect(() => {
-    if (menuEstadoId == null) return
-    const onDown = (e) => { if (menuEstadoRef.current && !menuEstadoRef.current.contains(e.target)) setMenuEstadoId(null) }
+    if (menuAccionesId == null) return
+    const onDown = (e) => { if (menuAccionesRef.current && !menuAccionesRef.current.contains(e.target)) setMenuAccionesId(null) }
+    const cerrarYa = () => setMenuAccionesId(null)
     document.addEventListener("mousedown", onDown)
-    return () => document.removeEventListener("mousedown", onDown)
-  }, [menuEstadoId])
+    window.addEventListener("scroll", cerrarYa, true)
+    window.addEventListener("resize", cerrarYa)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      window.removeEventListener("scroll", cerrarYa, true)
+      window.removeEventListener("resize", cerrarYa)
+    }
+  }, [menuAccionesId])
 
   const seleccionarPaciente = (p) => {
     setPacienteId(p.id)
@@ -709,6 +727,11 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                                   <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
                                 )}
                               </div>
+                              {/* Dos acciones primarias a la vista + el resto (cambiar
+                                  estado, editar, eliminar) bajo "Más acciones" — antes
+                                  eran 5 íconos sueltos sin etiqueta en la misma fila,
+                                  mismo patrón consolidado que ya quedó en Pacientes
+                                  (Séptima Mirada, hallazgo #1). */}
                               <div className="flex items-center gap-1">
                                 {!resuelta && puedeMarcarse && (
                                   <button type="button" onClick={() => atenderCita(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Atender ahora" aria-label="Atender ahora">
@@ -720,51 +743,14 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                                     <Eye size={16} />
                                   </button>
                                 )}
-                                {puedeMarcarse && (
-                                  <div className="relative" ref={menuEstadoId === cita.id ? menuEstadoRef : null}>
-                                    <button
-                                      type="button"
-                                      onClick={() => setMenuEstadoId((prev) => (prev === cita.id ? null : cita.id))}
-                                      className={"rounded-md p-1.5 transition cursor-pointer " + (menuEstadoId === cita.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
-                                      title="Cambiar estado de la cita"
-                                      aria-label="Cambiar estado de la cita"
-                                    >
-                                      <Activity size={16} />
-                                    </button>
-                                    {menuEstadoId === cita.id && (
-                                      <div className="absolute right-0 top-full z-20 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl">
-                                        {cita.estado !== "En Atención" && (
-                                          <button
-                                            type="button"
-                                            onClick={() => { setMenuEstadoId(null); marcarEstado(cita.id, "En Atención") }}
-                                            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
-                                          >
-                                            <Activity size={15} /> Paciente en atención
-                                          </button>
-                                        )}
-                                        <button
-                                          type="button"
-                                          onClick={() => { setMenuEstadoId(null); marcarEstado(cita.id, "Atendida") }}
-                                          className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
-                                        >
-                                          <CheckCircle2 size={15} /> Marcar atendida
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => { setMenuEstadoId(null); marcarEstado(cita.id, "No Asistió") }}
-                                          className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-                                        >
-                                          <UserX size={15} /> No asistió
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                                <button type="button" onClick={() => abrirReagendar(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar cita (motivo, fecha u hora)" aria-label="Editar cita">
-                                  <CalendarClock size={16} />
-                                </button>
-                                <button type="button" onClick={() => setPorCancelar(cita.id)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-500 cursor-pointer" title="Eliminar cita" aria-label="Eliminar cita">
-                                  <Trash2 size={16} />
+                                <button
+                                  type="button"
+                                  onClick={(e) => abrirMenuAcciones(cita.id, e)}
+                                  className={"rounded-md p-1.5 transition cursor-pointer " + (menuAccionesId === cita.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
+                                  title="Más acciones"
+                                  aria-label="Más acciones"
+                                >
+                                  <MoreVertical size={16} />
                                 </button>
                               </div>
                             </div>
@@ -829,6 +815,64 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
           })}
         </div>
       )}
+
+      {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) ─── */}
+      {menuAccionesId != null && menuAccionesPos && (() => {
+        const cita = citas.find((c) => c.id === menuAccionesId)
+        if (!cita) return null
+        const puedeMarcarseAqui = !esFutura(cita.fecha)
+        return createPortal(
+          <div
+            ref={menuAccionesRef}
+            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
+            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
+          >
+            {puedeMarcarseAqui && (
+              <>
+                {cita.estado !== "En Atención" && (
+                  <button
+                    type="button"
+                    onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "En Atención") }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
+                  >
+                    <Activity size={15} /> Paciente en atención
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "Atendida") }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
+                >
+                  <CheckCircle2 size={15} /> Marcar atendida
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "No Asistió") }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+                >
+                  <UserX size={15} /> No asistió
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); abrirReagendar(cita) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+            >
+              <CalendarClock size={15} /> Editar cita
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+            >
+              <Trash2 size={15} /> Eliminar cita
+            </button>
+          </div>,
+          document.body,
+        )
+      })()}
 
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && createPortal(
