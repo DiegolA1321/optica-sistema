@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import {
+  ArrowLeft,
   UserPlus,
   Search,
   Trash2,
@@ -1143,48 +1144,90 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
 
       {/* ─── MODAL HISTORIAL CLÍNICO ─── */}
       {pacienteHistorial && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPacienteHistorial(null)}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <IdCard size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>Perfil del paciente</h2>
-                  <p className="text-xs text-slate-500">{pacienteHistorial.nombre}{pacienteHistorial.cedula ? ` · ${pacienteHistorial.cedula}` : ""}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setPacienteHistorial(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
+        <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 200ms ease-out" }}>
+          {/* Barra superior de la vista — volver (breadcrumb) y cerrar (X) llevan
+              al mismo lugar: la lista de pacientes. Se ofrecen los dos porque
+              son gestos distintos con los que la gente ya está familiarizada. */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 sm:px-8">
+            <button type="button" onClick={() => setPacienteHistorial(null)} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
+              <ArrowLeft size={18} /> Pacientes
+            </button>
+            <button type="button" onClick={() => setPacienteHistorial(null)} aria-label="Cerrar" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+              <X size={20} />
+            </button>
+          </div>
 
-            {(() => {
-              const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id)
-              if (!solicitudEliminacion) return null
-              return (
-                <div className="flex items-start justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3">
-                  <div className="flex items-start gap-2.5">
-                    <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800">Este paciente solicitó eliminar su cuenta y sus datos.</p>
-                      {solicitudEliminacion.motivo && <p className="text-xs text-amber-700">Motivo: {solicitudEliminacion.motivo}</p>}
-                      <p className="text-[11px] text-amber-600">Usa "Eliminar paciente" en el menú de acciones para completarlo, y marca esta solicitud como atendida.</p>
+          {(() => {
+            const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id)
+            if (!solicitudEliminacion) return null
+            return (
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 sm:px-8">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Este paciente solicitó eliminar su cuenta y sus datos.</p>
+                    {solicitudEliminacion.motivo && <p className="text-xs text-amber-700">Motivo: {solicitudEliminacion.motivo}</p>}
+                    <p className="text-[11px] text-amber-600">Usa "Eliminar paciente" en el menú de acciones para completarlo, y marca esta solicitud como atendida.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => marcarSolicitudEliminacionAtendida?.(solicitudEliminacion.id)}
+                  className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
+                >
+                  Marcar atendida
+                </button>
+              </div>
+            )
+          })()}
+
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
+              {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
+              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
+                    {pacienteHistorial.nombre.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>{pacienteHistorial.nombre}</h1>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                      {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
+                      {pacienteHistorial.telefono && <span className="flex items-center gap-1.5"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
+                      {pacienteHistorial.correo && <span className="flex items-center gap-1.5"><Mail size={14} /> {pacienteHistorial.correo}</span>}
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.estadoClinico === "Activo" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                        {pacienteHistorial.estadoClinico}
+                      </span>
+                      <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
+                        {pacienteHistorial.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
+                      </span>
                     </div>
                   </div>
+                </div>
+                <div className="flex shrink-0 gap-2.5 sm:flex-col sm:w-48">
                   <button
                     type="button"
-                    onClick={() => marcarSolicitudEliminacionAtendida?.(solicitudEliminacion.id)}
-                    className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
+                    onClick={() => abrirAgendar(pacienteHistorial)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer sm:flex-none"
                   >
-                    Marcar atendida
+                    <CalendarPlus size={16} /> Agendar cita
+                  </button>
+                  {/* Único punto de entrada a la ficha clínica desde acá — ya no
+                      existe "Ficha clínica" como sección aparte del sidebar. */}
+                  <button
+                    type="button"
+                    onClick={() => { const p = pacienteHistorial; setPacienteHistorial(null); onIrAFichaClinica?.(p) }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
+                    style={{ background: GRAD }}
+                  >
+                    <Stethoscope size={16} /> Ficha clínica
                   </button>
                 </div>
-              )
-            })()}
+              </div>
 
-            {(() => {
+              {(() => {
               const consultasPaciente = consultas
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
@@ -1205,18 +1248,18 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     <button
                       type="button"
                       onClick={() => setTabHistorial("pagos")}
-                      className="flex w-full items-center gap-2.5 border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-left transition hover:bg-amber-100 cursor-pointer"
+                      className="mt-5 flex w-full items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
                     >
                       <Wallet size={16} className="shrink-0 text-amber-600" />
                       <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
                       <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
                     </button>
                   )}
-                  <div className="flex gap-1 border-b border-slate-100 bg-slate-50/70 px-4 pt-3">
+                  <div className="mt-6 flex gap-1 border-b border-slate-200">
                     <button
                       type="button"
                       onClick={() => setTabHistorial("valoraciones")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "valoraciones" ? "bg-white text-blue-600 shadow-[0_-1px_0_0_#fff]" : "text-slate-500 hover:text-slate-800")}
+                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "valoraciones" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
                       <Eye size={14} /> Valoraciones
                       {consultasPaciente.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{consultasPaciente.length}</span>}
@@ -1224,7 +1267,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     <button
                       type="button"
                       onClick={() => setTabHistorial("citas")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "citas" ? "bg-white text-blue-600 shadow-[0_-1px_0_0_#fff]" : "text-slate-500 hover:text-slate-800")}
+                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "citas" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
                       <Calendar size={14} /> Citas
                       {citasPaciente.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{citasPaciente.length}</span>}
@@ -1232,21 +1275,21 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     <button
                       type="button"
                       onClick={() => setTabHistorial("evolucion")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "evolucion" ? "bg-white text-blue-600 shadow-[0_-1px_0_0_#fff]" : "text-slate-500 hover:text-slate-800")}
+                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "evolucion" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
                       <Activity size={14} /> Evolución
                     </button>
                     <button
                       type="button"
                       onClick={() => setTabHistorial("pagos")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "bg-white text-blue-600 shadow-[0_-1px_0_0_#fff]" : "text-slate-500 hover:text-slate-800")}
+                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
                       <Wallet size={14} /> Pagos
                       {deudaTotal > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">${deudaTotal.toFixed(0)}</span>}
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto px-6 py-5">
+                  <div className="py-6">
                     {tabHistorial === "pagos" ? (
                       <div className="space-y-4">
                         <button
@@ -1488,32 +1531,10 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                 </>
               )
             })()}
-
-            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-              <button type="button" onClick={() => setPacienteHistorial(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                Cerrar
-              </button>
-              <button
-                type="button"
-                onClick={() => { const p = pacienteHistorial; setPacienteHistorial(null); abrirAgendar(p) }}
-                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-              >
-                Agendar nueva cita
-              </button>
-              {/* Único punto de entrada a la ficha clínica desde acá — ya no
-                  existe "Ficha clínica" como sección aparte del sidebar. */}
-              <button
-                type="button"
-                onClick={() => { const p = pacienteHistorial; setPacienteHistorial(null); onIrAFichaClinica?.(p) }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                style={{ background: GRAD }}
-              >
-                <Stethoscope size={16} /> Ficha clínica
-              </button>
             </div>
           </div>
         </div>,
-        document.body
+        document.getElementById("vista-completa-root") || document.body
       )}
 
       {/* ─── MODAL VENDER PRODUCTO (desde el perfil del paciente) ─── */}

@@ -454,7 +454,15 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       </aside>
 
       {/* ─── CONTENIDO ─── */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      {/* relative: ancla al perfil de paciente en pantalla completa (Pacientes.jsx
+          lo porta acá vía #vista-completa-root) — cubre todo este panel,
+          incluida esta barra superior, pero nunca el sidebar de al lado. */}
+      <main className="relative flex flex-1 flex-col overflow-hidden">
+        {/* Ancla de vistas a pantalla completa dentro del panel (perfil del
+            paciente, y cualquier otra a futuro) — position:relative en <main>
+            de arriba es lo que hace que "absolute inset-0" adentro cubra
+            justo este panel y no el sidebar. */}
+        <div id="vista-completa-root" />
         {/* Barra superior */}
         <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
