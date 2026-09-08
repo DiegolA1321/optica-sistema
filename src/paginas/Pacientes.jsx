@@ -316,6 +316,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
       if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }
       else if (accionInicial.accion === "editar") abrirEdicion(paciente)
       else if (accionInicial.accion === "eliminar") setPacienteAEliminar(paciente)
+      else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
     }
     onAccionInicialConsumida?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps

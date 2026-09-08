@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { createPortal } from "react-dom"
 import {
   Users,
   AlertTriangle,
@@ -14,6 +15,8 @@ import {
   Cake,
   MessageCircle,
   Clock,
+  CalendarPlus,
+  MoreVertical,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { esHoy, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
@@ -37,6 +40,30 @@ export default function Inicio({
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
   const [busqueda, setBusqueda] = useState("")
+
+  // Séptima Mirada, hallazgo #4: esta mini-tabla usaba un vocabulario de
+  // íconos distinto al de la tabla completa en Pacientes.jsx (ver/editar/
+  // eliminar acá, ver historial/agendar/más acciones allá) para la misma
+  // fila de datos — mismo paciente, dos significados distintos para el
+  // ícono del lápiz según la pantalla. Ahora reusa el mismo par de acciones
+  // primarias (historial, agendar) + un menú "Más acciones" para lo menos
+  // frecuente (editar, eliminar), igual que Pacientes y Citas médicas.
+  const [menuAccionesId, setMenuAccionesId] = useState(null)
+  const [menuAccionesPos, setMenuAccionesPos] = useState(null)
+  const menuAccionesRef = useRef(null)
+  useEffect(() => {
+    if (menuAccionesId == null) return
+    const onDown = (e) => { if (menuAccionesRef.current && !menuAccionesRef.current.contains(e.target)) setMenuAccionesId(null) }
+    const cerrarYa = () => setMenuAccionesId(null)
+    document.addEventListener("mousedown", onDown)
+    window.addEventListener("scroll", cerrarYa, true)
+    window.addEventListener("resize", cerrarYa)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      window.removeEventListener("scroll", cerrarYa, true)
+      window.removeEventListener("resize", cerrarYa)
+    }
+  }, [menuAccionesId])
 
   // Ventana de cumpleaños: -5 a +7 días, igual que CRM.jsx y el centro de
   // notificaciones de Dashboard.jsx (antes esta lista solo miraba 5 días
@@ -393,22 +420,28 @@ export default function Inicio({
             </button>
           </div>
 
-          <div className="mb-4 flex gap-1.5 rounded-xl bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setVistaStock("mayor")}
-              className={"flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaStock === "mayor" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              Mayor stock
-            </button>
-            <button
-              type="button"
-              onClick={() => setVistaStock("menor")}
-              className={"flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaStock === "menor" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              Menor stock
-            </button>
-          </div>
+          {/* Séptima Mirada, hallazgo #5: este selector no tiene nada que
+              ordenar todavía cuando el inventario está vacío — para una
+              óptica que recién se está dando de alta, es su primer vistazo
+              al sistema, y un control que no hace nada solo suma ruido. */}
+          {inventario.length > 0 && (
+            <div className="mb-4 flex gap-1.5 rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setVistaStock("mayor")}
+                className={"flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaStock === "mayor" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                Mayor stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setVistaStock("menor")}
+                className={"flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaStock === "menor" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                Menor stock
+              </button>
+            </div>
+          )}
 
           <div className="space-y-4">
             {productosVistaStock.length === 0 ? (
@@ -501,11 +534,22 @@ export default function Inicio({
                           <button type="button" onClick={() => onAbrirPaciente?.(paciente, "historial")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Ver historial clínico" aria-label="Ver historial clínico">
                             <Eye size={14} />
                           </button>
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "editar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar paciente" aria-label="Editar paciente">
-                            <Pencil size={14} />
+                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "agendar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer" title="Agendar cita" aria-label="Agendar cita">
+                            <CalendarPlus size={14} />
                           </button>
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "eliminar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar paciente" aria-label="Eliminar paciente">
-                            <Trash2 size={14} />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              if (menuAccionesId === paciente.id) { setMenuAccionesId(null); return }
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setMenuAccionesPos({ top: rect.bottom + 6, left: rect.right - 176 })
+                              setMenuAccionesId(paciente.id)
+                            }}
+                            className={"rounded-lg p-1.5 transition-colors cursor-pointer " + (menuAccionesId === paciente.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
+                            title="Más acciones"
+                            aria-label="Más acciones"
+                          >
+                            <MoreVertical size={14} />
                           </button>
                         </div>
                       </td>
@@ -526,6 +570,34 @@ export default function Inicio({
           )}
         </section>
       </div>
+
+      {/* ─── MENÚ "MÁS ACCIONES" de la búsqueda rápida (portal, ver comentario
+          junto a menuAccionesId) — no basta position:absolute dentro de la
+          fila: la tabla está en un contenedor overflow-x-auto que corta
+          cualquier menú que se salga de sus límites. ─── */}
+      {menuAccionesId != null && menuAccionesPos && createPortal(
+        <div
+          ref={menuAccionesRef}
+          className="fixed z-50 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
+          style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
+        >
+          <button
+            type="button"
+            onClick={() => { const id = menuAccionesId; setMenuAccionesId(null); onAbrirPaciente?.(pacientes.find((p) => p.id === id), "editar") }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+          >
+            <Pencil size={15} /> Editar datos
+          </button>
+          <button
+            type="button"
+            onClick={() => { const id = menuAccionesId; setMenuAccionesId(null); onAbrirPaciente?.(pacientes.find((p) => p.id === id), "eliminar") }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+          >
+            <Trash2 size={15} /> Eliminar
+          </button>
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }
