@@ -330,6 +330,13 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   const esloganPersonalizado = esloganCrudo && esloganCrudo !== ESLOGAN_DEFAULT ? esloganCrudo : null
   const nombreMarca = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "Tu óptica"
   const colorAcento = opticaPublica?.marca?.colorAcento || "#2563EB"
+  // Segundo color de marca — Sexta Mirada, "Página pública" punto 2: antes
+  // solo colorAcento reaccionaba a la marca, y la barra superior se quedaba
+  // fija en el mismo tono oscuro para todas las ópticas.
+  const colorSecundario = opticaPublica?.marca?.colorSecundario || null
+  // Bloque de 3 tarjetas de servicios activable/desactivable — punto 3.
+  // Default true (no romper ópticas ya personalizadas antes de este campo).
+  const serviciosActivos = opticaPublica?.marca?.serviciosActivos !== false
   const logoUrl = opticaPublica?.logo_url || null
 
   const MENSAJE_DEFAULT = "En Diego Óptica cuidamos tu salud visual de principio a fin: examen de precisión, lentes a tu medida y un acompañamiento cercano después de tu compra."
@@ -742,7 +749,10 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
       {/* ─── NAVBAR (persistente, oscuro) ─── */}
       <header
         className="sticky top-0 z-40 flex w-full items-center justify-between border-b px-6 py-4 backdrop-blur-md md:px-12"
-        style={{ backgroundColor: "rgba(14,43,51,0.97)", borderColor: "rgba(255,255,255,0.08)" }}
+        style={{
+          background: colorSecundario ? `linear-gradient(120deg, rgba(14,43,51,0.97), ${colorSecundario})` : "rgba(14,43,51,0.97)",
+          borderColor: "rgba(255,255,255,0.08)",
+        }}
       >
         <div className="flex min-w-0 items-center gap-3">
           <div
@@ -813,14 +823,27 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   Solicita tu cita ahora
                   <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
                 </button>
-                <a
-                  href="#servicios"
-                  className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-slate-300 cursor-pointer"
-                >
-                  Conoce nuestros servicios
-                  <ChevronDown size={18} className="lg-nudge" style={{ color: "#2563EB" }} />
-                </a>
+                {serviciosActivos && (
+                  <a
+                    href="#servicios"
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-slate-300 cursor-pointer"
+                  >
+                    Conoce nuestros servicios
+                    <ChevronDown size={18} className="lg-nudge" style={{ color: "#2563EB" }} />
+                  </a>
+                )}
               </div>
+
+              {/* Horario de atención — Sexta Mirada, "Página pública" punto 6:
+                  antes solo aparecía al final del footer y pasaba
+                  desapercibido. Se duplica acá, cerca de "Solicita tu cita
+                  ahora", y se mantiene también en el footer. */}
+              {horarioResumen.length > 0 && (
+                <p className="flex items-center gap-2 text-sm font-medium text-slate-500">
+                  <Clock size={16} style={{ color: colorAcento }} />
+                  {horarioResumen.map((h) => `${h.etiqueta} ${h.horario}`).join(" · ")}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={abrirLogin}
@@ -868,6 +891,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
       </section>
 
       {/* ─── SERVICIOS: EL ENGANCHE ─── */}
+      {serviciosActivos && (
       <section id="servicios" className="relative z-10 mx-auto w-full max-w-6xl scroll-mt-24 px-6 pt-12 md:px-12 lg:pt-16">
         <div className="max-w-2xl">
           <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
@@ -894,7 +918,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 style={{ backgroundColor: GOLD }}
               />
               <div className="-mx-7 -mt-7 mb-1 h-32 overflow-hidden bg-slate-50">
-                <s.ilustracion />
+                {s.imagenUrl ? <img src={s.imagenUrl} alt={s.titulo} className="h-full w-full object-cover" /> : <s.ilustracion />}
               </div>
               <div
                 className="-mt-9 grid h-14 w-14 place-items-center rounded-2xl text-white"
@@ -918,6 +942,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
           ))}
         </div>
       </section>
+      )}
 
       {/* ─── PARA EL EQUIPO: LO QUE VE QUIEN INICIA SESIÓN ───
           Acento oscuro deliberado a media página (no es el hero, así que no
@@ -1192,7 +1217,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Enlaces</p>
                 <ul className="mt-4 space-y-2.5 text-sm text-white/60">
-                  <li><a href="#servicios" className="transition-colors hover:text-white">Servicios</a></li>
+                  {serviciosActivos && <li><a href="#servicios" className="transition-colors hover:text-white">Servicios</a></li>}
                   <li><a href="#como-funciona" className="transition-colors hover:text-white">Cómo funciona</a></li>
                   <li><button type="button" onClick={abrirLogin} className="transition-colors hover:text-white cursor-pointer">Iniciar sesión</button></li>
                 </ul>

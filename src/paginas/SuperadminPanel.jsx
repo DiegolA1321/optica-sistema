@@ -47,6 +47,7 @@ import {
   Receipt,
   Printer,
   Wallet,
+  RefreshCw,
   Inbox,
   PhoneCall,
   BarChart3,
@@ -61,6 +62,7 @@ import { esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
+import { NOMBRE_MODULO } from "../utilidades/logs"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -74,6 +76,12 @@ const generarSlug = (texto) =>
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
+
+// Sexta Mirada (Panel superadministrador, punto 10): el slug NO debe
+// derivarse del nombre de la óptica — si la óptica cambia de nombre después,
+// la URL queda atada al nombre viejo. Se genera un código corto genérico en
+// vez, independiente de lo que el admin escriba como nombre.
+const generarCodigoOptica = () => Math.random().toString(36).slice(2, 8)
 
 // Ventana de cumpleaños (-5 a +7 días) → diferencia en días o null. Mismo
 // cálculo que ya usan Dashboard.jsx y CRM.jsx (que ya lo duplican entre sí
@@ -338,7 +346,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   // ─── Crear óptica ───
   const [modalAbierto, setModalAbierto] = useState(false)
   const [campos, setCampos] = useState(camposOpticaIniciales)
-  const [slugTocado, setSlugTocado] = useState(false)
   const [slugEstado, setSlugEstado] = useState("idle") // idle | verificando | disponible | ocupado
   const [verClave, setVerClave] = useState(false)
   const [error, setError] = useState("")
@@ -362,8 +369,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const [actualizandoPago, setActualizandoPago] = useState(false)
   const [campoMonto, setCampoMonto] = useState("")
   const [campoVencimiento, setCampoVencimiento] = useState("")
-  const SERVICIOS_VACIOS = () => Array.from({ length: 3 }, () => ({ titulo: "", texto: "", features: ["", "", ""] }))
-  const [campoMarca, setCampoMarca] = useState({ nombreMarca: "", eslogan: "", colorAcento: "#2563EB", mensaje: "", servicios: SERVICIOS_VACIOS() })
+  const SERVICIOS_VACIOS = () => Array.from({ length: 3 }, () => ({ titulo: "", texto: "", features: ["", "", ""], imagenUrl: "" }))
+  const [campoMarca, setCampoMarca] = useState({ nombreMarca: "", eslogan: "", colorAcento: "#2563EB", colorSecundario: "", serviciosActivos: true, mensaje: "", servicios: SERVICIOS_VACIOS() })
+  const [subiendoImagenServicio, setSubiendoImagenServicio] = useState(null) // índice de la tarjeta subiendo, o null
+  const [errorImagenServicio, setErrorImagenServicio] = useState("")
   const [campoLogoUrl, setCampoLogoUrl] = useState("")
   const [guardandoMarca, setGuardandoMarca] = useState(false)
   // Confirmación visible tras guardar la personalización — el autoguardado
@@ -376,6 +385,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false)
   const [facturasOptica, setFacturasOptica] = useState([])
   const [cargandoFacturas, setCargandoFacturas] = useState(false)
+
+  // ─── Detalle: "Ver actividades" de esa óptica (logs_optica) — caso de la
+  // Sexta Mirada, separado a propósito de la sección "Actividad" general del
+  // superadmin (esa solo registra acciones del propio superadmin, ver
+  // renderActividad). RLS: logs_optica_superadmin_all. ───
+  const [mostrarActividadOptica, setMostrarActividadOptica] = useState(false)
+  const [logsOptica, setLogsOptica] = useState([])
+  const [cargandoLogsOptica, setCargandoLogsOptica] = useState(false)
+  const [filtroUsuarioLogOptica, setFiltroUsuarioLogOptica] = useState("todos")
   const [generandoFactura, setGenerandoFactura] = useState(false)
   const [facturaImprimir, setFacturaImprimir] = useState(null)
   const [guardandoCumple, setGuardandoCumple] = useState(null) // id del admin en guardado
@@ -607,11 +625,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     setCampos({
       ...camposOpticaIniciales,
       nombreOptica: lead.nombre_optica || "",
-      slug: lead.slug_deseado ? generarSlug(lead.slug_deseado) : generarSlug(lead.nombre_optica || ""),
+      // slug_deseado es una elección explícita del lead (no una derivación
+      // automática del nombre), así que se respeta si la mandó — si no, se
+      // genera el mismo código corto genérico que en la creación manual.
+      slug: lead.slug_deseado ? generarSlug(lead.slug_deseado) : generarCodigoOptica(),
       nombreAdmin: lead.nombre_admin || "",
       emailAdmin: lead.email_admin || "",
     })
-    setSlugTocado(true)
     setSlugEstado("idle")
     setVerClave(false)
     setError("")
@@ -773,14 +793,19 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
       nombreMarca: o.marca?.nombreMarca || "",
       eslogan: o.marca?.eslogan || "",
       colorAcento: o.marca?.colorAcento || "#2563EB",
+      colorSecundario: o.marca?.colorSecundario || "",
+      serviciosActivos: o.marca?.serviciosActivos !== false,
       mensaje: o.marca?.mensaje || "",
       servicios: o.marca?.servicios?.length === 3
-        ? o.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""] }))
+        ? o.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""], imagenUrl: s.imagenUrl || "" }))
         : SERVICIOS_VACIOS(),
     })
     setCampoLogoUrl(o.logo_url || "")
     setFacturasOptica([])
     cargarFacturasOptica(o.id)
+    setMostrarActividadOptica(false)
+    setLogsOptica([])
+    setFiltroUsuarioLogOptica("todos")
   }
 
   const guardarMarca = async () => {
@@ -792,13 +817,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     // en absoluto, y Login.jsx cae de nuevo en el contenido genérico de
     // siempre en vez de mostrar tarjetas a medio llenar.
     const serviciosLimpios = campoMarca.servicios.map((s) => ({
-      titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()),
+      titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()), imagenUrl: s.imagenUrl || "",
     }))
     const serviciosCompletos = serviciosLimpios.every((s) => s.titulo) ? serviciosLimpios : null
     const marca = {
       nombreMarca: campoMarca.nombreMarca.trim(),
       eslogan: campoMarca.eslogan.trim(),
       colorAcento: campoMarca.colorAcento,
+      colorSecundario: campoMarca.colorSecundario.trim(),
+      serviciosActivos: campoMarca.serviciosActivos,
       mensaje: campoMarca.mensaje.trim(),
       ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
     }
@@ -821,9 +848,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
       nombreMarca: detalle.marca?.nombreMarca || "",
       eslogan: detalle.marca?.eslogan || "",
       colorAcento: detalle.marca?.colorAcento || "#2563EB",
+      colorSecundario: detalle.marca?.colorSecundario || "",
+      serviciosActivos: detalle.marca?.serviciosActivos !== false,
       mensaje: detalle.marca?.mensaje || "",
       servicios: detalle.marca?.servicios?.length === 3
-        ? detalle.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""] }))
+        ? detalle.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""], imagenUrl: s.imagenUrl || "" }))
         : SERVICIOS_VACIOS(),
     })
     setCampoLogoUrl(detalle.logo_url || "")
@@ -856,6 +885,82 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     if (!error) {
       setDetalle((prev) => (prev ? { ...prev, logo_url: data.publicUrl } : prev))
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, logo_url: data.publicUrl } : o)))
+    }
+  }
+
+  // Imagen propia por tarjeta de servicio — Sexta Mirada, "Página pública"
+  // punto 1: cuando existe, reemplaza el ícono/ilustración automática por
+  // completo en Login.jsx. Mismo bucket público "logos" que el logo (ya
+  // habilitado para es_superadmin() sin condicionar el path), carpeta
+  // distinta por índice de tarjeta. No llama a guardarMarca() a propósito
+  // — leería el campoMarca de este cierre, que React todavía no actualizó
+  // con el setCampoMarca de acá abajo (mismo motivo por el que subirLogo
+  // tampoco reutiliza guardarMarca).
+  const subirImagenServicio = async (archivo, i) => {
+    if (!archivo || !detalle) return
+    if (archivo.size > 2 * 1024 * 1024) {
+      setErrorImagenServicio("La imagen no puede pesar más de 2 MB.")
+      return
+    }
+    setErrorImagenServicio("")
+    setSubiendoImagenServicio(i)
+    const extension = archivo.name.split(".").pop()?.toLowerCase() || "png"
+    const ruta = `${detalle.id}/servicio-${i}-${Date.now()}.${extension}`
+    const { error: errorSubida } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true })
+    if (errorSubida) {
+      setSubiendoImagenServicio(null)
+      setErrorImagenServicio("No se pudo subir la imagen. Intenta de nuevo.")
+      return
+    }
+    const { data } = supabase.storage.from("logos").getPublicUrl(ruta)
+    const serviciosConImagen = campoMarca.servicios.map((sv, j) => (j === i ? { ...sv, imagenUrl: data.publicUrl } : sv))
+    setCampoMarca((p) => ({ ...p, servicios: serviciosConImagen }))
+    setSubiendoImagenServicio(null)
+    const serviciosCompletos = serviciosConImagen.every((s) => s.titulo.trim())
+      ? serviciosConImagen.map((s) => ({ titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()), imagenUrl: s.imagenUrl || "" }))
+      : null
+    const marca = {
+      nombreMarca: campoMarca.nombreMarca.trim(),
+      eslogan: campoMarca.eslogan.trim(),
+      colorAcento: campoMarca.colorAcento,
+      colorSecundario: campoMarca.colorSecundario.trim(),
+      serviciosActivos: campoMarca.serviciosActivos,
+      mensaje: campoMarca.mensaje.trim(),
+      ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
+    }
+    const { error } = await supabase.from("opticas").update({ marca }).eq("id", detalle.id)
+    if (!error) {
+      setDetalle((prev) => (prev ? { ...prev, marca } : prev))
+      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca } : o)))
+    }
+  }
+
+  // Checkbox aparte de guardarMarca a propósito: un checkbox debe guardar
+  // apenas se toca, no esperar a un onBlur — y llamar a guardarMarca() justo
+  // después de setCampoMarca leería el campoMarca de este cierre, todavía
+  // sin el cambio (mismo motivo que subirImagenServicio de arriba).
+  const alternarServiciosActivos = async (activo) => {
+    if (!detalle) return
+    setCampoMarca((p) => ({ ...p, serviciosActivos: activo }))
+    const serviciosLimpios = campoMarca.servicios.map((s) => ({
+      titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()), imagenUrl: s.imagenUrl || "",
+    }))
+    const serviciosCompletos = serviciosLimpios.every((s) => s.titulo) ? serviciosLimpios : null
+    const marca = {
+      nombreMarca: campoMarca.nombreMarca.trim(),
+      eslogan: campoMarca.eslogan.trim(),
+      colorAcento: campoMarca.colorAcento,
+      colorSecundario: campoMarca.colorSecundario.trim(),
+      serviciosActivos: activo,
+      mensaje: campoMarca.mensaje.trim(),
+      ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
+    }
+    const { error } = await supabase.from("opticas").update({ marca }).eq("id", detalle.id)
+    if (!error) {
+      setDetalle((prev) => (prev ? { ...prev, marca } : prev))
+      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca } : o)))
+      setMarcaGuardadaOk(true)
+      setTimeout(() => setMarcaGuardadaOk(false), 2500)
     }
   }
 
@@ -1020,9 +1125,22 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     return mapa
   }, [auditoria])
 
+  // Sexta Mirada (Panel superadministrador, punto 10): el nombre de la óptica
+  // sí debe validarse como único (a diferencia del slug, que ya no depende
+  // de él) — si ya existe, se sugiere un sufijo numérico automático, ej.
+  // "Carla Visión 01", en vez de solo rechazar el envío sin alternativa.
+  const nombreOpticaOcupado = (nombre) => opticas.some((o) => o.nombre.trim().toLowerCase() === nombre.trim().toLowerCase())
+  const sugerenciaNombreOptica = useMemo(() => {
+    const nombre = campos.nombreOptica.trim()
+    if (!nombre || !nombreOpticaOcupado(nombre)) return ""
+    let i = 1
+    let candidato = `${nombre} ${String(i).padStart(2, "0")}`
+    while (nombreOpticaOcupado(candidato)) { i += 1; candidato = `${nombre} ${String(i).padStart(2, "0")}` }
+    return candidato
+  }, [campos.nombreOptica, opticas])
+
   const abrirCrear = () => {
-    setCampos(camposOpticaIniciales)
-    setSlugTocado(false)
+    setCampos({ ...camposOpticaIniciales, slug: generarCodigoOptica() })
     setSlugEstado("idle")
     setVerClave(false)
     setError("")
@@ -1055,11 +1173,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
   }
 
   const actualizarCampo = (clave, valor) => {
-    setCampos((prev) => {
-      const siguiente = { ...prev, [clave]: valor }
-      if (clave === "nombreOptica" && !slugTocado) siguiente.slug = generarSlug(valor)
-      return siguiente
-    })
+    setCampos((prev) => ({ ...prev, [clave]: valor }))
   }
 
   const guardar = async (e) => {
@@ -1068,6 +1182,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     const { nombreOptica, slug, eslogan, colorAcento, logoUrl, nombreAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave, esOptometra } = campos
     if (!nombreOptica.trim() || !slug.trim() || !clave) {
       setError("Completa todos los campos.")
+      return
+    }
+    if (sugerenciaNombreOptica) {
+      setError(`Ya existe una óptica con ese nombre. Prueba con "${sugerenciaNombreOptica}".`)
       return
     }
     if (!esNombreValido(nombreAdmin)) { setError("Ingresa un nombre válido para el administrador (solo letras)."); return }
@@ -1244,6 +1362,24 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
     const { data } = await supabase.from("facturas").select("*").eq("optica_id", opticaId).order("emitida_at", { ascending: false })
     setFacturasOptica(data || [])
     setCargandoFacturas(false)
+  }
+
+  const cargarActividadOptica = async (opticaId) => {
+    setCargandoLogsOptica(true)
+    const { data } = await supabase
+      .from("logs_optica")
+      .select("*")
+      .eq("optica_id", opticaId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+    setLogsOptica(data || [])
+    setCargandoLogsOptica(false)
+  }
+
+  const alternarActividadOptica = () => {
+    const abrir = !mostrarActividadOptica
+    setMostrarActividadOptica(abrir)
+    if (abrir && logsOptica.length === 0 && detalle) cargarActividadOptica(detalle.id)
   }
 
   // Se corre después de cada cargarDatos() (o sea, cada vez que el superadmin
@@ -3026,6 +3162,59 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                 </div>
               </div>
 
+              {/* ─── Ver actividades de esta óptica (logs_optica) — separado de
+                  "Actividad" del panel general, que es solo del superadmin. ─── */}
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actividad de esta óptica</p>
+                  <button type="button" onClick={alternarActividadOptica} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                    <History size={13} /> {mostrarActividadOptica ? "Ocultar" : "Ver actividades"}
+                  </button>
+                </div>
+
+                {mostrarActividadOptica && (
+                  <div className="rounded-xl border border-slate-200 p-3.5">
+                    {(() => {
+                      const usuariosEnLogsOptica = [...new Set(logsOptica.map((l) => l.usuario_nombre))]
+                      const logsFiltradosOptica = filtroUsuarioLogOptica === "todos" ? logsOptica : logsOptica.filter((l) => l.usuario_nombre === filtroUsuarioLogOptica)
+                      return (
+                        <>
+                          {usuariosEnLogsOptica.length > 0 && (
+                            <select
+                              value={filtroUsuarioLogOptica}
+                              onChange={(e) => setFiltroUsuarioLogOptica(e.target.value)}
+                              className="mb-2.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                            >
+                              <option value="todos">Todos los usuarios</option>
+                              {usuariosEnLogsOptica.map((n) => (<option key={n} value={n}>{n}</option>))}
+                            </select>
+                          )}
+                          {cargandoLogsOptica ? (
+                            <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
+                              <Loader2 size={14} className="animate-spin" /> Cargando actividad…
+                            </div>
+                          ) : logsFiltradosOptica.length === 0 ? (
+                            <p className="py-4 text-center text-xs text-slate-400">Sin actividad registrada para esta óptica.</p>
+                          ) : (
+                            <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto">
+                              {logsFiltradosOptica.map((l) => (
+                                <div key={l.id} className="py-2">
+                                  <p className="text-xs text-slate-700">
+                                    <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
+                                    {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
+                                  </p>
+                                  <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo} · {new Date(l.created_at).toLocaleString("es-EC", { dateStyle: "medium", timeStyle: "short" })}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
+
               {/* ─── Personalización del login (lo único que ve el cliente) ─── */}
               <div id="personalizacion-login">
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Personalización del login</p>
@@ -3084,6 +3273,35 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                       />
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-500">Color secundario</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color" value={campoMarca.colorSecundario || "#0E2B33"} onChange={(e) => setCampoMarca((p) => ({ ...p, colorSecundario: e.target.value }))} onBlur={guardarMarca}
+                          className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                        />
+                        <input
+                          type="text" value={campoMarca.colorSecundario} onChange={(e) => setCampoMarca((p) => ({ ...p, colorSecundario: e.target.value }))} onBlur={guardarMarca}
+                          placeholder="Opcional"
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
+                        />
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-400">Se mezcla con el color de acento en la barra superior del login.</p>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-500">Tarjetas de servicios</label>
+                      <label className="flex h-8 items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox" checked={campoMarca.serviciosActivos}
+                          onChange={(e) => alternarServiciosActivos(e.target.checked)}
+                          className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Mostrar bloque de servicios
+                      </label>
+                      <p className="mt-1 text-[10px] text-slate-400">Si se desactiva, se oculta en el login y va directo a agendar cita.</p>
+                    </div>
+                  </div>
                   <div>
                     <label className="mb-1 block text-xs text-slate-500">Mensaje de bienvenida (hero)</label>
                     <textarea
@@ -3104,6 +3322,21 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   {campoMarca.servicios.map((s, i) => (
                     <div key={i} className="space-y-2 rounded-xl border border-slate-200 p-3.5">
                       <p className="text-xs font-semibold text-slate-400">Tarjeta {i + 1}</p>
+                      <div className="flex items-center gap-2">
+                        {s.imagenUrl && (
+                          <img src={s.imagenUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-cover bg-white" />
+                        )}
+                        <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoImagenServicio === i ? "pointer-events-none opacity-60" : "")}>
+                          <ImageIcon size={13} />
+                          {subiendoImagenServicio === i ? "Subiendo…" : "Imagen de la tarjeta"}
+                          <input
+                            type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirImagenServicio(f, i); e.target.value = "" }}
+                          />
+                        </label>
+                      </div>
+                      {errorImagenServicio && <p className="text-[11px] font-medium text-red-600">{errorImagenServicio}</p>}
+                      <p className="text-[10px] text-slate-400">Si se sube, reemplaza el ícono automático en el login.</p>
                       <input
                         type="text" value={s.titulo}
                         onChange={(e) => setCampoMarca((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, titulo: e.target.value } : sv) }))}
@@ -3444,30 +3677,39 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                       </div>
+                      {sugerenciaNombreOptica && (
+                        <p className="mt-1.5 text-xs font-medium text-amber-700">
+                          Ya existe una óptica con ese nombre. Prueba con{" "}
+                          <button type="button" onClick={() => actualizarCampo("nombreOptica", sugerenciaNombreOptica)} className="underline decoration-dotted underline-offset-2 hover:text-amber-800 cursor-pointer">
+                            "{sugerenciaNombreOptica}"
+                          </button>.
+                        </p>
+                      )}
                     </div>
 
                     <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Slug (identificador único)</label>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Slug (código interno)</label>
                       <div className="relative">
                         <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                           type="text" value={campos.slug}
-                          onChange={(e) => { setSlugTocado(true); actualizarCampo("slug", generarSlug(e.target.value)) }}
-                          placeholder="Ej. vision-clara"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 font-mono text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          onChange={(e) => actualizarCampo("slug", generarSlug(e.target.value))}
+                          placeholder="Ej. 4f9a2c"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-16 font-mono text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
                           {slugEstado === "verificando" && <Loader2 size={15} className="animate-spin text-slate-400" />}
                           {slugEstado === "disponible" && <CheckCircle2 size={15} className="text-emerald-600" />}
                           {slugEstado === "ocupado" && <XCircle size={15} className="text-rose-600" />}
+                          <button type="button" onClick={() => actualizarCampo("slug", generarCodigoOptica())} title="Generar otro código" className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 cursor-pointer">
+                            <RefreshCw size={14} />
+                          </button>
                         </div>
                       </div>
                       <p className={"mt-1.5 text-xs " + (slugEstado === "ocupado" ? "font-medium text-rose-600" : "text-slate-500")}>
                         {slugEstado === "ocupado"
-                          ? "Ese identificador ya está en uso — probá con otro."
-                          : campos.slug
-                            ? `Se identificará internamente como "${campos.slug}".`
-                            : "Se genera automáticamente a partir del nombre."}
+                          ? "Ese código ya está en uso — generá otro."
+                          : "Código genérico, independiente del nombre — así no queda atado si la óptica se renombra después."}
                       </p>
                     </div>
                   </div>

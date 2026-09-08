@@ -23,11 +23,7 @@ import {
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
-import { registrarLog } from "../utilidades/logs"
-
-// Nombre legible de cada módulo para el log de actividad — mismos ids que
-// tiene_permiso_modulo() en la base de datos.
-const NOMBRE_MODULO = { pacientes: "Pacientes", consultas: "Ficha clínica", citas: "Citas médicas", crm: "CRM", inventario: "Inventario", reportes: "Reportes", horario: "Mi horario", mensajes: "Mensajes", configuracion: "Configuración", usuarios: "Usuarios y permisos" }
+import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
