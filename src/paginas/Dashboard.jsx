@@ -20,6 +20,7 @@ import {
   CalendarClock,
   BarChart3,
   ShieldCheck,
+  ShieldAlert,
   Settings,
   MessageSquare,
   Loader2,
@@ -106,7 +107,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir }) {
+export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -495,6 +496,23 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             de arriba es lo que hace que "absolute inset-0" adentro cubra
             justo este panel y no el sidebar. */}
         <div id="vista-completa-root" />
+
+        {/* Franja de impersonación — visible mientras un superadmin está
+            "entrado como" el administrador de esta óptica (caso #8 de la
+            reunión con el ing). Salir vuelve al panel de superadmin sin
+            cerrar la sesión real de Supabase Auth. */}
+        {onSalirImpersonacion && (
+          <div className="relative z-30 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs font-semibold text-white sm:px-8" style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)" }}>
+            <span className="flex items-center gap-2">
+              <ShieldAlert size={15} />
+              Estás dentro de <strong>{usuario?.opticaNombre}</strong> como superadmin — cualquier acción queda registrada.
+            </span>
+            <button type="button" onClick={onSalirImpersonacion} className="flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-bold transition hover:bg-white/25 cursor-pointer">
+              <LogOut size={13} /> Salir y volver a Superadmin
+            </button>
+          </div>
+        )}
+
         {/* Barra superior */}
         <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">

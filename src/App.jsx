@@ -5,6 +5,7 @@ import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { lazyConReintento } from './utilidades/lazyConReintento';
+import { registrarLog } from './utilidades/logs';
 
 // Login se queda como import normal: es la pantalla de entrada más común
 // (cualquier visitante público, paciente o staff pasa por acá primero) — el
@@ -643,6 +644,47 @@ function App() {
     if (mensaje) setAvisoSesion({ texto: mensaje, id: Date.now() });
   };
 
+  // Impersonación de superadmin ("entrar como" el administrador de una
+  // óptica) — caso #8 de la reunión con el ing. No es un cambio de sesión de
+  // Supabase Auth: el superadmin sigue autenticado como él mismo (su propio
+  // auth.uid()); lo único que cambia es el `usuario` local que ven
+  // Dashboard/Pacientes/Inventario/etc. Es seguro porque cada tabla
+  // operativa ya tiene una política RLS "_superadmin_all" (ver migración
+  // 0007_operativos_core.sql y siguientes) que permite a es_superadmin()
+  // leer/escribir cualquier optica_id sin importar qué diga este estado
+  // local — así que aunque alguien manipulara este estado desde devtools,
+  // Postgres seguiría rechazando la consulta si su sesión real no es
+  // superadmin. `usuario.nombre` queda con el sufijo "(superadmin)" para que
+  // cualquier registrarLog() que dispare mientras tanto (ya instrumentado en
+  // cada módulo) quede visible como tal en "Actividad de esta óptica" —
+  // trazabilidad real, no una identidad falsa del admin de esa óptica.
+  const entrarComoOptica = (optica) => {
+    if (usuario?.rol !== 'superadmin' || !optica?.id) return;
+    const superadminReal = { id: usuario.id, nombre: usuario.nombre };
+    registrarLog({ id: superadminReal.id, nombre: `${superadminReal.nombre} (superadmin)`, opticaId: optica.id }, 'usuarios', 'Entró como administrador de la óptica');
+    setUsuario({
+      rol: 'admin',
+      nombre: `${superadminReal.nombre} (superadmin)`,
+      id: superadminReal.id,
+      opticaId: optica.id,
+      opticaNombre: optica.nombre,
+      opticaMarca: optica.marca || null,
+      impersonadoPor: superadminReal,
+    });
+    setPantallaActual('dashboard');
+  };
+
+  // Vuelve al panel de superadmin sin cerrar la sesión real (que nunca
+  // cambió). Un F5 durante la impersonación también vuelve aquí solo:
+  // onAuthStateChange rehidrata `usuario` desde el perfil real (superadmin),
+  // deliberadamente no se intenta persistir el estado de impersonación
+  // entre recargas — más simple y sin ambigüedad sobre qué "sesión" hay.
+  const salirDeImpersonacion = () => {
+    if (!usuario?.impersonadoPor) return;
+    setUsuario({ rol: 'superadmin', nombre: usuario.impersonadoPor.nombre, id: usuario.impersonadoPor.id });
+    setPantallaActual('panel_superadmin');
+  };
+
   // Ciberseguridad: cierra sola la sesión (admin/asistente/superadmin vía
   // Supabase Auth, o paciente vía la sesión local) tras un rato sin
   // actividad real del usuario — evita dejar datos clínicos abiertos en un
@@ -749,6 +791,7 @@ function App() {
           categoriasInventario={categoriasInventario}
           setCategoriasInventario={setCategoriasInventario}
           alSalir={cerrarSesion}
+          onSalirImpersonacion={usuario?.impersonadoPor ? salirDeImpersonacion : null}
         />
       )}
 
@@ -810,6 +853,7 @@ function App() {
           usuario={usuario}
           alSalir={cerrarSesion}
           alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
+          alEntrarComo={entrarComoOptica}
         />
       )}
     </Suspense>

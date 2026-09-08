@@ -55,6 +55,7 @@ import {
   Stethoscope,
   Image as ImageIcon,
   Save,
+  LogIn,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
@@ -263,7 +264,7 @@ function ItemAuditoria({ a }) {
 const CARD = "rounded-[22px] border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_36px_-28px_rgba(15,23,42,0.35)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_24px_44px_-24px_rgba(15,23,42,0.45)]"
 const CARD_PAD = CARD + " p-5 sm:p-6"
 
-export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario }) {
+export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario, alEntrarComo }) {
   const [seccion, setSeccion] = useState("resumen")
   const [colapsado, setColapsado] = useState(false)
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -2945,6 +2946,22 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario 
                   {procesandoId === detalle.id ? "Actualizando…" : detalle.activa ? "Suspender" : "Reactivar"}
                 </button>
               </div>
+
+              {/* ─── Entrar como administrador ("impersonación") — caso #8 de
+                  la reunión con el ing. Queda registrado en la actividad de
+                  la propia óptica: cualquier acción que se haga adentro se
+                  ve atribuida a "{nombre} (superadmin)", nunca disfrazada
+                  como el admin real. ─── */}
+              <button
+                type="button"
+                disabled={!detalle.activa}
+                title={detalle.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
+                onClick={() => alEntrarComo?.(detalle)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer"
+                style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)", boxShadow: "0 12px 24px -14px rgba(109,40,217,0.6)" }}
+              >
+                <LogIn size={16} /> Entrar como administrador
+              </button>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
