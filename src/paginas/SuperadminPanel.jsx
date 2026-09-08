@@ -54,9 +54,9 @@ import {
   Users,
   Stethoscope,
   Image as ImageIcon,
-  Save,
   LogIn,
 } from "lucide-react"
+import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import { esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
@@ -377,19 +377,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [actualizandoPago, setActualizandoPago] = useState(false)
   const [campoMonto, setCampoMonto] = useState("")
   const [campoVencimiento, setCampoVencimiento] = useState("")
-  const SERVICIOS_VACIOS = () => Array.from({ length: 3 }, () => ({ titulo: "", texto: "", features: ["", "", ""], imagenUrl: "" }))
-  const [campoMarca, setCampoMarca] = useState({ nombreMarca: "", eslogan: "", colorAcento: "#2563EB", colorSecundario: "", serviciosActivos: true, mensaje: "", servicios: SERVICIOS_VACIOS() })
-  const [subiendoImagenServicio, setSubiendoImagenServicio] = useState(null) // índice de la tarjeta subiendo, o null
-  const [errorImagenServicio, setErrorImagenServicio] = useState("")
-  const [campoLogoUrl, setCampoLogoUrl] = useState("")
-  const [guardandoMarca, setGuardandoMarca] = useState(false)
-  // Confirmación visible tras guardar la personalización — el autoguardado
-  // al salir de cada campo (onBlur) es cómodo pero invisible: sin esto no
-  // había ninguna señal de que sí se guardó, y parecía que faltaba un botón
-  // de guardar (feedback de Diego). Se apaga sola a los 2.5s.
-  const [marcaGuardadaOk, setMarcaGuardadaOk] = useState(false)
-  const [subiendoLogo, setSubiendoLogo] = useState(false)
-  const [errorLogo, setErrorLogo] = useState("")
   const [guardandoSuscripcion, setGuardandoSuscripcion] = useState(false)
   const [facturasOptica, setFacturasOptica] = useState([])
   const [cargandoFacturas, setCargandoFacturas] = useState(false)
@@ -797,179 +784,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setDetalle(o)
     setCampoMonto(o.monto_mensual != null ? String(o.monto_mensual) : "")
     setCampoVencimiento(o.proximo_vencimiento || "")
-    setCampoMarca({
-      nombreMarca: o.marca?.nombreMarca || "",
-      eslogan: o.marca?.eslogan || "",
-      colorAcento: o.marca?.colorAcento || "#2563EB",
-      colorSecundario: o.marca?.colorSecundario || "",
-      serviciosActivos: o.marca?.serviciosActivos !== false,
-      mensaje: o.marca?.mensaje || "",
-      servicios: o.marca?.servicios?.length === 3
-        ? o.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""], imagenUrl: s.imagenUrl || "" }))
-        : SERVICIOS_VACIOS(),
-    })
-    setCampoLogoUrl(o.logo_url || "")
     setFacturasOptica([])
     cargarFacturasOptica(o.id)
     setMostrarActividadOptica(false)
     setLogsOptica([])
     setFiltroUsuarioLogOptica("todos")
-  }
-
-  const guardarMarca = async () => {
-    if (!detalle) return
-    setGuardandoMarca(true)
-    // Los 3 servicios solo se guardan como bloque cuando las 3 tarjetas
-    // tienen al menos título — si el admin dejó alguna vacía (nunca las tocó,
-    // o las borró para volver al default), no se manda la clave "servicios"
-    // en absoluto, y Login.jsx cae de nuevo en el contenido genérico de
-    // siempre en vez de mostrar tarjetas a medio llenar.
-    const serviciosLimpios = campoMarca.servicios.map((s) => ({
-      titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()), imagenUrl: s.imagenUrl || "",
-    }))
-    const serviciosCompletos = serviciosLimpios.every((s) => s.titulo) ? serviciosLimpios : null
-    const marca = {
-      nombreMarca: campoMarca.nombreMarca.trim(),
-      eslogan: campoMarca.eslogan.trim(),
-      colorAcento: campoMarca.colorAcento,
-      colorSecundario: campoMarca.colorSecundario.trim(),
-      serviciosActivos: campoMarca.serviciosActivos,
-      mensaje: campoMarca.mensaje.trim(),
-      ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
-    }
-    const { error } = await supabase.from("opticas").update({ marca, logo_url: campoLogoUrl.trim() || null }).eq("id", detalle.id)
-    if (!error) {
-      setDetalle((prev) => (prev ? { ...prev, marca, logo_url: campoLogoUrl.trim() || null } : prev))
-      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca, logo_url: campoLogoUrl.trim() || null } : o)))
-      setMarcaGuardadaOk(true)
-      setTimeout(() => setMarcaGuardadaOk(false), 2500)
-    }
-    setGuardandoMarca(false)
-  }
-
-  // "Cancelar cambios" de la barra de guardar: descarta lo tecleado en el
-  // formulario y vuelve a los valores realmente guardados en `detalle`
-  // (mismo cálculo que abrirDetalleOptica al abrir el modal por primera vez).
-  const cancelarCambiosMarca = () => {
-    if (!detalle) return
-    setCampoMarca({
-      nombreMarca: detalle.marca?.nombreMarca || "",
-      eslogan: detalle.marca?.eslogan || "",
-      colorAcento: detalle.marca?.colorAcento || "#2563EB",
-      colorSecundario: detalle.marca?.colorSecundario || "",
-      serviciosActivos: detalle.marca?.serviciosActivos !== false,
-      mensaje: detalle.marca?.mensaje || "",
-      servicios: detalle.marca?.servicios?.length === 3
-        ? detalle.marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""], imagenUrl: s.imagenUrl || "" }))
-        : SERVICIOS_VACIOS(),
-    })
-    setCampoLogoUrl(detalle.logo_url || "")
-  }
-
-  // Muchas ópticas (sobre todo pequeñas) no tienen un logo ya alojado en
-  // algún lado para pegar como URL — se sube el archivo directo al bucket
-  // público "logos" (migración 0037) y se guarda la URL pública resultante,
-  // exactamente como si la hubieran pegado a mano.
-  const subirLogo = async (archivo) => {
-    if (!archivo || !detalle) return
-    if (archivo.size > 2 * 1024 * 1024) {
-      setErrorLogo("La imagen no puede pesar más de 2 MB.")
-      return
-    }
-    setErrorLogo("")
-    setSubiendoLogo(true)
-    const extension = archivo.name.split(".").pop()?.toLowerCase() || "png"
-    const ruta = `${detalle.id}/${Date.now()}.${extension}`
-    const { error: errorSubida } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true })
-    if (errorSubida) {
-      setSubiendoLogo(false)
-      setErrorLogo("No se pudo subir la imagen. Intenta de nuevo.")
-      return
-    }
-    const { data } = supabase.storage.from("logos").getPublicUrl(ruta)
-    setCampoLogoUrl(data.publicUrl)
-    setSubiendoLogo(false)
-    const { error } = await supabase.from("opticas").update({ logo_url: data.publicUrl }).eq("id", detalle.id)
-    if (!error) {
-      setDetalle((prev) => (prev ? { ...prev, logo_url: data.publicUrl } : prev))
-      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, logo_url: data.publicUrl } : o)))
-    }
-  }
-
-  // Imagen propia por tarjeta de servicio — Sexta Mirada, "Página pública"
-  // punto 1: cuando existe, reemplaza el ícono/ilustración automática por
-  // completo en Login.jsx. Mismo bucket público "logos" que el logo (ya
-  // habilitado para es_superadmin() sin condicionar el path), carpeta
-  // distinta por índice de tarjeta. No llama a guardarMarca() a propósito
-  // — leería el campoMarca de este cierre, que React todavía no actualizó
-  // con el setCampoMarca de acá abajo (mismo motivo por el que subirLogo
-  // tampoco reutiliza guardarMarca).
-  const subirImagenServicio = async (archivo, i) => {
-    if (!archivo || !detalle) return
-    if (archivo.size > 2 * 1024 * 1024) {
-      setErrorImagenServicio("La imagen no puede pesar más de 2 MB.")
-      return
-    }
-    setErrorImagenServicio("")
-    setSubiendoImagenServicio(i)
-    const extension = archivo.name.split(".").pop()?.toLowerCase() || "png"
-    const ruta = `${detalle.id}/servicio-${i}-${Date.now()}.${extension}`
-    const { error: errorSubida } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true })
-    if (errorSubida) {
-      setSubiendoImagenServicio(null)
-      setErrorImagenServicio("No se pudo subir la imagen. Intenta de nuevo.")
-      return
-    }
-    const { data } = supabase.storage.from("logos").getPublicUrl(ruta)
-    const serviciosConImagen = campoMarca.servicios.map((sv, j) => (j === i ? { ...sv, imagenUrl: data.publicUrl } : sv))
-    setCampoMarca((p) => ({ ...p, servicios: serviciosConImagen }))
-    setSubiendoImagenServicio(null)
-    const serviciosCompletos = serviciosConImagen.every((s) => s.titulo.trim())
-      ? serviciosConImagen.map((s) => ({ titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()), imagenUrl: s.imagenUrl || "" }))
-      : null
-    const marca = {
-      nombreMarca: campoMarca.nombreMarca.trim(),
-      eslogan: campoMarca.eslogan.trim(),
-      colorAcento: campoMarca.colorAcento,
-      colorSecundario: campoMarca.colorSecundario.trim(),
-      serviciosActivos: campoMarca.serviciosActivos,
-      mensaje: campoMarca.mensaje.trim(),
-      ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
-    }
-    const { error } = await supabase.from("opticas").update({ marca }).eq("id", detalle.id)
-    if (!error) {
-      setDetalle((prev) => (prev ? { ...prev, marca } : prev))
-      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca } : o)))
-    }
-  }
-
-  // Checkbox aparte de guardarMarca a propósito: un checkbox debe guardar
-  // apenas se toca, no esperar a un onBlur — y llamar a guardarMarca() justo
-  // después de setCampoMarca leería el campoMarca de este cierre, todavía
-  // sin el cambio (mismo motivo que subirImagenServicio de arriba).
-  const alternarServiciosActivos = async (activo) => {
-    if (!detalle) return
-    setCampoMarca((p) => ({ ...p, serviciosActivos: activo }))
-    const serviciosLimpios = campoMarca.servicios.map((s) => ({
-      titulo: s.titulo.trim(), texto: s.texto.trim(), features: s.features.map((f) => f.trim()), imagenUrl: s.imagenUrl || "",
-    }))
-    const serviciosCompletos = serviciosLimpios.every((s) => s.titulo) ? serviciosLimpios : null
-    const marca = {
-      nombreMarca: campoMarca.nombreMarca.trim(),
-      eslogan: campoMarca.eslogan.trim(),
-      colorAcento: campoMarca.colorAcento,
-      colorSecundario: campoMarca.colorSecundario.trim(),
-      serviciosActivos: activo,
-      mensaje: campoMarca.mensaje.trim(),
-      ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
-    }
-    const { error } = await supabase.from("opticas").update({ marca }).eq("id", detalle.id)
-    if (!error) {
-      setDetalle((prev) => (prev ? { ...prev, marca } : prev))
-      setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca } : o)))
-      setMarcaGuardadaOk(true)
-      setTimeout(() => setMarcaGuardadaOk(false), 2500)
-    }
   }
 
   // Mismo botón de subir logo, pero para "Crear óptica" — acá todavía no
@@ -3239,190 +3058,21 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 )}
               </div>
 
-              {/* ─── Personalización del login (lo único que ve el cliente) ─── */}
+              {/* ─── Personalización del login (lo único que ve el cliente) — desde
+                  la migración 0052 el propio admin de esta óptica también puede
+                  editar esto desde su Configuración; PersonalizacionLogin.jsx es
+                  el mismo componente que usa ese lado. ─── */}
               <div id="personalizacion-login">
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Personalización del login</p>
-                <div className="space-y-2.5 rounded-xl border border-slate-200 p-3.5">
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-500">Nombre de marca</label>
-                    <input
-                      type="text" value={campoMarca.nombreMarca} onChange={(e) => setCampoMarca((p) => ({ ...p, nombreMarca: e.target.value }))} onBlur={guardarMarca}
-                      placeholder="Ej. Óptica Vision Plus"
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-500">Eslogan</label>
-                    <input
-                      type="text" value={campoMarca.eslogan} onChange={(e) => setCampoMarca((p) => ({ ...p, eslogan: e.target.value }))} onBlur={guardarMarca}
-                      placeholder="Ej. Ve el mundo con claridad."
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">Color de acento</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color" value={campoMarca.colorAcento} onChange={(e) => setCampoMarca((p) => ({ ...p, colorAcento: e.target.value }))} onBlur={guardarMarca}
-                          className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
-                        />
-                        <input
-                          type="text" value={campoMarca.colorAcento} onChange={(e) => setCampoMarca((p) => ({ ...p, colorAcento: e.target.value }))} onBlur={guardarMarca}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">Logo</label>
-                      <div className="flex items-center gap-2">
-                        {campoLogoUrl && (
-                          <img src={campoLogoUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
-                        )}
-                        <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogo ? "pointer-events-none opacity-60" : "")}>
-                          <ImageIcon size={13} />
-                          {subiendoLogo ? "Subiendo…" : "Subir imagen"}
-                          <input
-                            type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
-                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogo(f); e.target.value = "" }}
-                          />
-                        </label>
-                      </div>
-                      {errorLogo && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogo}</p>}
-                      <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
-                      <input
-                        type="text" value={campoLogoUrl} onChange={(e) => setCampoLogoUrl(e.target.value)} onBlur={guardarMarca}
-                        placeholder="https://…"
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">Color secundario</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color" value={campoMarca.colorSecundario || "#0E2B33"} onChange={(e) => setCampoMarca((p) => ({ ...p, colorSecundario: e.target.value }))} onBlur={guardarMarca}
-                          className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
-                        />
-                        <input
-                          type="text" value={campoMarca.colorSecundario} onChange={(e) => setCampoMarca((p) => ({ ...p, colorSecundario: e.target.value }))} onBlur={guardarMarca}
-                          placeholder="Opcional"
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
-                        />
-                      </div>
-                      <p className="mt-1 text-[10px] text-slate-400">Se mezcla con el color de acento en la barra superior del login.</p>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">Tarjetas de servicios</label>
-                      <label className="flex h-8 items-center gap-2 text-sm text-slate-700">
-                        <input
-                          type="checkbox" checked={campoMarca.serviciosActivos}
-                          onChange={(e) => alternarServiciosActivos(e.target.checked)}
-                          className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        Mostrar bloque de servicios
-                      </label>
-                      <p className="mt-1 text-[10px] text-slate-400">Si se desactiva, se oculta en el login y va directo a agendar cita.</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-500">Mensaje de bienvenida (hero)</label>
-                    <textarea
-                      rows={3} value={campoMarca.mensaje} onChange={(e) => setCampoMarca((p) => ({ ...p, mensaje: e.target.value }))} onBlur={guardarMarca}
-                      placeholder="Ej. En Óptica Vision Plus cuidamos tu salud visual de principio a fin..."
-                      className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── Tarjetas de servicios del login (opcional, las 3 juntas) ─── */}
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Tarjetas de servicios del login <span className="font-normal normal-case text-slate-400">(completá las 3 para reemplazar las genéricas)</span>
-                </p>
-                <div className="space-y-3">
-                  {campoMarca.servicios.map((s, i) => (
-                    <div key={i} className="space-y-2 rounded-xl border border-slate-200 p-3.5">
-                      <p className="text-xs font-semibold text-slate-400">Tarjeta {i + 1}</p>
-                      <div className="flex items-center gap-2">
-                        {s.imagenUrl && (
-                          <img src={s.imagenUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-cover bg-white" />
-                        )}
-                        <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoImagenServicio === i ? "pointer-events-none opacity-60" : "")}>
-                          <ImageIcon size={13} />
-                          {subiendoImagenServicio === i ? "Subiendo…" : "Imagen de la tarjeta"}
-                          <input
-                            type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirImagenServicio(f, i); e.target.value = "" }}
-                          />
-                        </label>
-                      </div>
-                      {errorImagenServicio && <p className="text-[11px] font-medium text-red-600">{errorImagenServicio}</p>}
-                      <p className="text-[10px] text-slate-400">Si se sube, reemplaza el ícono automático en el login.</p>
-                      <input
-                        type="text" value={s.titulo}
-                        onChange={(e) => setCampoMarca((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, titulo: e.target.value } : sv) }))}
-                        onBlur={guardarMarca}
-                        placeholder="Título (ej. Exámenes optométricos)"
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
-                      />
-                      <textarea
-                        rows={2} value={s.texto}
-                        onChange={(e) => setCampoMarca((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, texto: e.target.value } : sv) }))}
-                        onBlur={guardarMarca}
-                        placeholder="Descripción breve"
-                        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
-                      />
-                      <div className="space-y-1.5">
-                        {s.features.map((f, k) => (
-                          <input
-                            key={k} type="text" value={f}
-                            onChange={(e) => setCampoMarca((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, features: sv.features.map((ft, l) => l === k ? e.target.value : ft) } : sv) }))}
-                            onBlur={guardarMarca}
-                            placeholder={`Punto destacado ${k + 1}`}
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ─── Guardar, en una barra pegajosa (aparte del autoguardado
-                  onBlur de cada campo: quedaba enterrado varias pantallas
-                  más abajo, después de las 3 tarjetas de servicios — Diego
-                  nunca llegaba a verlo con solo bajar un poco) — así queda a
-                  la vista mientras se editan estos campos, sin tener que
-                  seguir bajando hasta el final del modal. ─── */}
-              <div className="sticky bottom-0 z-10 -mx-5 -mb-5 border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={guardarMarca}
-                    disabled={guardandoMarca}
-                    className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-60"
-                    style={{ background: GRAD }}
-                  >
-                    {guardandoMarca ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                    {guardandoMarca ? "Guardando…" : "Guardar cambios"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelarCambiosMarca}
-                    disabled={guardandoMarca}
-                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
-                  >
-                    Cancelar cambios
-                  </button>
-                  {marcaGuardadaOk && (
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-                      <Check size={15} /> Guardado
-                    </span>
-                  )}
-                </div>
+                <PersonalizacionLogin
+                  opticaId={detalle.id}
+                  marca={detalle.marca}
+                  logoUrl={detalle.logo_url}
+                  onGuardado={({ marca, logoUrl }) => {
+                    setDetalle((prev) => (prev ? { ...prev, marca, logo_url: logoUrl } : prev))
+                    setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca, logo_url: logoUrl } : o)))
+                  }}
+                />
               </div>
 
               <div>

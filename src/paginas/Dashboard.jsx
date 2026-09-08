@@ -107,7 +107,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion }) {
+export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -352,6 +352,8 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       case "configuracion":
         return (
           <Configuracion
+            usuario={usuario}
+            alActualizarUsuario={alActualizarUsuario}
             parametrizacion={parametrizacion}
             setParametrizacion={setParametrizacion}
             motivosConsulta={motivosConsulta}

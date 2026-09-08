@@ -574,12 +574,12 @@ function App() {
           // solo se sigue la sesión en el sitio de su propia óptica (o en el
           // genérico sin slug, que es el caso normal en desarrollo).
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null });
+          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null });
           setPantallaActual('dashboard');
         } else if (perfil.rol === 'asistente') {
           const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, permisos: perfil.permisos || {} });
+          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, permisos: perfil.permisos || {} });
           setPantallaActual('dashboard');
         }
       } finally {
@@ -669,6 +669,7 @@ function App() {
       opticaId: optica.id,
       opticaNombre: optica.nombre,
       opticaMarca: optica.marca || null,
+      opticaLogoUrl: optica.logo_url || null,
       impersonadoPor: superadminReal,
     });
     setPantallaActual('dashboard');
@@ -792,6 +793,7 @@ function App() {
           setCategoriasInventario={setCategoriasInventario}
           alSalir={cerrarSesion}
           onSalirImpersonacion={usuario?.impersonadoPor ? salirDeImpersonacion : null}
+          alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
         />
       )}
 

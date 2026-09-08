@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { createPortal } from "react-dom"
-import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle } from "lucide-react"
+import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone } from "lucide-react"
+import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -128,7 +129,13 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   )
 }
 
-export default function Configuracion({ parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
+const PESTANAS = [
+  { id: "politicas", label: "Políticas y servicios", icon: SlidersHorizontal },
+  { id: "catalogos", label: "Catálogos", icon: ListChecks },
+  { id: "login", label: "Página de login", icon: MonitorSmartphone },
+]
+
+export default function Configuracion({ usuario, alActualizarUsuario, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
   // Alerta de confirmación antes de guardar — caso de la reunión con el ing:
   // un click accidental en un interruptor no debe activar/desactivar algo
   // sin que el usuario se dé cuenta. Los toggles ya no aplican el cambio de
@@ -142,6 +149,12 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
     pedirConfirmacion(titulo, activar ? mensajeOn : mensajeOff, () => setParametrizacion((prev) => ({ ...prev, [clave]: !prev[clave] })))
   }
 
+  // Antes era una sola lista larga (políticas, servicios, catálogos, y ahora
+  // también la página de login) — el ing pidió explícitamente organizarla en
+  // navegación una vez que el resto del sistema estuviera terminado, en vez
+  // de un solo scroll interminable.
+  const [tab, setTab] = useState("politicas")
+
   return (
     <div className="w-full space-y-6 text-left">
       {/* ─── HEADER ─── */}
@@ -151,7 +164,7 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
         </div>
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Configuración de la óptica</h1>
-          <p className="text-sm text-slate-500">Define qué ofrece tu óptica y qué políticas aplicas de cara al paciente.</p>
+          <p className="text-sm text-slate-500">Define qué ofrece tu óptica, qué políticas aplicas y cómo se ve tu página pública.</p>
         </div>
       </div>
 
@@ -163,6 +176,26 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
         </p>
       </div>
 
+      {/* ─── NAVEGACIÓN ─── */}
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
+        {PESTANAS.map((p) => {
+          const Icono = p.icon
+          const activo = tab === p.id
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setTab(p.id)}
+              className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (activo ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+            >
+              <Icono size={14} /> {p.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {tab === "politicas" && (
+      <>
       {/* ─── POLÍTICAS HACIA EL PACIENTE ─── */}
       <div>
         <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Políticas hacia el paciente</p>
@@ -259,7 +292,11 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
           />
         </div>
       </div>
+      </>
+      )}
 
+      {tab === "catalogos" && (
+      <>
       {/* ─── CATÁLOGOS EDITABLES ─── */}
       <div>
         <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Catálogos editables</p>
@@ -290,6 +327,23 @@ export default function Configuracion({ parametrizacion, setParametrizacion, mot
           />
         </div>
       </div>
+      </>
+      )}
+
+      {tab === "login" && (
+        <div>
+          <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Página de login</p>
+          <p className="mb-3 text-xs leading-relaxed text-slate-500">
+            Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Los cambios se guardan solos al salir de cada campo.
+          </p>
+          <PersonalizacionLogin
+            opticaId={usuario?.opticaId}
+            marca={usuario?.opticaMarca}
+            logoUrl={usuario?.opticaLogoUrl}
+            onGuardado={({ marca, logoUrl }) => alActualizarUsuario?.({ opticaMarca: marca, opticaLogoUrl: logoUrl })}
+          />
+        </div>
+      )}
 
       {/* ─── CONFIRMACIÓN ANTES DE GUARDAR ─── */}
       {pendiente && createPortal(
