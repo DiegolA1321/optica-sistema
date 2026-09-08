@@ -24,6 +24,7 @@ import {
   Settings,
   MessageSquare,
   Loader2,
+  Search,
 } from "lucide-react"
 
 // Módulos del sistema — Inicio se queda como import normal porque es lo
@@ -175,13 +176,36 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
     }
     setGuardandoRegistroProfesional(false)
   }
+  // Buscador global de pacientes en la barra superior — hallazgo de la
+  // auditoría de navegación 2026-09-08: antes solo se podía buscar un
+  // paciente desde adentro de Pacientes (o el widget de Inicio); estando en
+  // Inventario, Reportes, etc. había que ir primero ahí. Reusa el mismo
+  // mecanismo que ya usa Inicio.jsx (accionPacienteInicio → navegar a
+  // "pacientes" → Pacientes.jsx abre el perfil solo con su useEffect sobre
+  // accionInicial), no hizo falta ninguna plomería nueva del lado de
+  // Pacientes.jsx.
+  const [busquedaGlobal, setBusquedaGlobal] = useState("")
+  const [mostrarBusquedaGlobal, setMostrarBusquedaGlobal] = useState(false)
+  const resultadosBusquedaGlobal = useMemo(() => {
+    const q = busquedaGlobal.trim().toLowerCase()
+    if (!q) return []
+    return pacientes.filter((p) => p.nombre?.toLowerCase().includes(q) || p.cedula?.includes(q)).slice(0, 6)
+  }, [pacientes, busquedaGlobal])
+  const irAPacienteGlobal = (paciente) => {
+    setAccionPacienteInicio({ pacienteId: paciente.id, accion: "historial" })
+    navegar("pacientes")
+    setMostrarBusquedaGlobal(false)
+    setBusquedaGlobal("")
+  }
   const notifRef = useRef(null)
   const userRef = useRef(null)
+  const busquedaGlobalRef = useRef(null)
 
   useEffect(() => {
     const onDown = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifAbierta(false)
       if (userRef.current && !userRef.current.contains(e.target)) setUserMenuAbierto(false)
+      if (busquedaGlobalRef.current && !busquedaGlobalRef.current.contains(e.target)) setMostrarBusquedaGlobal(false)
     }
     document.addEventListener("mousedown", onDown)
     return () => document.removeEventListener("mousedown", onDown)
@@ -554,6 +578,57 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Buscador global de pacientes — accesible desde cualquier
+                sección, no solo desde adentro de Pacientes. */}
+            <div className="relative" ref={busquedaGlobalRef}>
+              <button
+                type="button"
+                onClick={() => setMostrarBusquedaGlobal((v) => !v)}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+                title="Buscar paciente"
+                aria-label="Buscar paciente"
+              >
+                <Search size={18} />
+              </button>
+
+              {mostrarBusquedaGlobal && (
+                <div className="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:left-auto sm:right-0">
+                  <div className="border-b border-slate-100 p-3">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input
+                        autoFocus
+                        type="text"
+                        value={busquedaGlobal}
+                        onChange={(e) => setBusquedaGlobal(e.target.value)}
+                        placeholder="Nombre o cédula del paciente..."
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                  {busquedaGlobal.trim() && (
+                    <div className="max-h-72 overflow-y-auto">
+                      {resultadosBusquedaGlobal.length === 0 ? (
+                        <p className="p-4 text-center text-xs text-slate-500">Ningún paciente coincide.</p>
+                      ) : (
+                        resultadosBusquedaGlobal.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => irAPacienteGlobal(p)}
+                            className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
+                          >
+                            <span className="truncate font-semibold text-slate-700">{p.nombre}</span>
+                            {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-400">{p.cedula}</span>}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Notificaciones */}
             <div className="relative" ref={notifRef}>
               <button
