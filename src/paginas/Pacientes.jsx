@@ -987,19 +987,32 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
             </div>
             <h4 className="text-center text-lg font-bold" style={{ color: INK }}>Paciente registrado</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">
-              <span className="font-semibold text-slate-700">{pacienteRecienCreado.nombre}</span> ya está en el sistema. ¿Deseas abrir su ficha clínica ahora?
+              <span className="font-semibold text-slate-700">{pacienteRecienCreado.nombre}</span> ya está en el sistema. ¿Qué quieres hacer ahora?
             </p>
-            <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setPacienteRecienCreado(null)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                Ahora no
+            {/* Antes solo ofrecía "Abrir ficha clínica" — asumía que siempre se
+                está registrando a alguien para atenderlo ya mismo. Pero
+                también se registra gente para agendarla más adelante (no
+                todo el que llega al mostrador es un walk-in) — sin esto,
+                había que cerrar el modal y buscarlo de nuevo en la lista
+                para agendarle una cita. */}
+            <div className="mt-6 space-y-2">
+              <button
+                type="button"
+                onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); onIrAFichaClinica?.(p) }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
+                style={{ background: GRAD }}
+              >
+                <Stethoscope size={15} /> Atenderlo ahora — abrir ficha clínica
               </button>
               <button
                 type="button"
-                onClick={() => { onIrAFichaClinica?.(pacienteRecienCreado); setPacienteRecienCreado(null) }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
-                style={{ background: GRAD }}
+                onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); abrirAgendar(p) }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
               >
-                <Stethoscope size={15} /> Abrir ficha clínica
+                <CalendarPlus size={15} /> Agendarle una cita para después
+              </button>
+              <button type="button" onClick={() => setPacienteRecienCreado(null)} className="w-full rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 cursor-pointer">
+                Ahora no
               </button>
             </div>
           </div>
