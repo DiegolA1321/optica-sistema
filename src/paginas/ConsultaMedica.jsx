@@ -235,8 +235,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   // Secciones opcionales colapsadas por defecto — lo obligatorio queda fijo y a
   // la vista, lo opcional se expande solo si se necesita (feedback del asesor).
-  const [seccionesAbiertas, setSeccionesAbiertas] = useState({})
+  // "antecedentesPaciente" es la excepción: empieza ABIERTA (primer paciente,
+  // sin historial todavía que resumir) y seleccionarPacienteCombo la cierra
+  // sola apenas detecta que ese paciente ya tiene antecedentes/alergias/etc.
+  // registrados de una visita anterior — pedido de Diego: no repetir el
+  // formulario completo en cada visita de un paciente que ya lo llenó.
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState({ antecedentesPaciente: true })
   const alternarSeccion = (id) => setSeccionesAbiertas((prev) => ({ ...prev, [id]: !prev[id] }))
+  // Si hay algo que resumir en el cuadro colapsado (antecedentes ya
+  // registrados de antes) — independiente de si el usuario los editó justo
+  // ahora, que ya no cuenta como "precargado" campo por campo.
+  const [tieneHistorialAntecedentes, setTieneHistorialAntecedentes] = useState(false)
 
   // Scroll automático al inicio del formulario al cambiar de paso
   const inicioFormRef = useRef(null)
@@ -324,8 +333,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (prev?.usaLentes) camposPrecargados.usaLentes = true
 
     setPrecargado(camposPrecargados)
-    setFechaPrecarga(Object.keys(camposPrecargados).length > 0 ? prev.fecha : null)
+    const hayHistorial = Object.keys(camposPrecargados).length > 0
+    setFechaPrecarga(hayHistorial ? prev.fecha : null)
     setAvisoPrimeraVisita(!prev)
+    // Con historial ya registrado, el cuadro arranca colapsado (no repetir el
+    // formulario completo); sin historial, arranca abierto para completarlo.
+    setTieneHistorialAntecedentes(hayHistorial)
+    setSeccionesAbiertas((s) => ({ ...s, antecedentesPaciente: !hayHistorial }))
   }
 
   // Llega desde "¿Deseas abrir su ficha clínica ahora?" al crear un paciente en
@@ -388,7 +402,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setBannerError("")
     setFichaGuardada(false)
     setSubTab("anamnesis")
-    setSeccionesAbiertas({})
+    setSeccionesAbiertas({ antecedentesPaciente: true })
+    setTieneHistorialAntecedentes(false)
     setMostrarHistorial(false)
   }
 
@@ -890,88 +905,114 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                    <Glasses size={16} className="text-slate-500" />
-                    ¿Utiliza o ha utilizado lentes?
-                    {precargado.usaLentes && <InsigniaHistorial fecha={fechaPrecarga} />}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setUsaLentes("si"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
-                      aria-pressed={usaLentes === "si"}
-                      className={
-                        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
-                        (usaLentes === "si"
-                          ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-100"
-                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
-                      }
-                    >
-                      <CheckCircle size={16} className={usaLentes === "si" ? "text-blue-600" : "text-slate-400"} />
-                      Sí
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setUsaLentes("no"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
-                      aria-pressed={usaLentes === "no"}
-                      className={
-                        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
-                        (usaLentes === "no"
-                          ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-red-100"
-                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
-                      }
-                    >
-                      <XCircle size={16} className={usaLentes === "no" ? "text-red-500" : "text-slate-400"} />
-                      No
-                    </button>
+                {/* ─── Antecedentes del paciente — colapsado cuando ya están
+                    registrados de una visita anterior (pedido de Diego: no
+                    repetir este formulario completo en cada visita; solo la
+                    primera vez, o si el optómetra quiere revisarlo/editarlo,
+                    se despliega). Mismo patrón alternarSeccion() que ya usa
+                    Refracción para retinoscopía/examen físico/biomicroscopía. ─── */}
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
+                      <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
+                        <span className="hidden items-center gap-1 text-[11px] font-normal normal-case text-slate-500 sm:flex">
+                          <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaPrecarga.split("-").reverse().join("/")}` : ""} · toca para ver o editar
+                        </span>
+                      )}
+                      <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
+                    </span>
+                  </button>
+
+                  {seccionesAbiertas.antecedentesPaciente && (
+                  <>
+                  <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                      <Glasses size={16} className="text-slate-500" />
+                      ¿Utiliza o ha utilizado lentes?
+                      {precargado.usaLentes && <InsigniaHistorial fecha={fechaPrecarga} />}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setUsaLentes("si"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
+                        aria-pressed={usaLentes === "si"}
+                        className={
+                          "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
+                          (usaLentes === "si"
+                            ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-100"
+                            : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
+                        }
+                      >
+                        <CheckCircle size={16} className={usaLentes === "si" ? "text-blue-600" : "text-slate-400"} />
+                        Sí
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setUsaLentes("no"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
+                        aria-pressed={usaLentes === "no"}
+                        className={
+                          "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
+                          (usaLentes === "no"
+                            ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-red-100"
+                            : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
+                        }
+                      >
+                        <XCircle size={16} className={usaLentes === "no" ? "text-red-500" : "text-slate-400"} />
+                        No
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label htmlFor="antecedentes" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                    Antecedentes médicos / oculares
-                    {precargado.antecedentes && <InsigniaHistorial fecha={fechaPrecarga} />}
-                  </label>
-                  <textarea
-                    id="antecedentes"
-                    rows={3}
-                    placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años."
-                    value={antecedentes}
-                    onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }}
-                    className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label htmlFor="alergias" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                      Alergias
-                      {precargado.alergias && <InsigniaHistorial fecha={fechaPrecarga} />}
+                    <label htmlFor="antecedentes" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
+                      Antecedentes médicos / oculares
+                      {precargado.antecedentes && <InsigniaHistorial fecha={fechaPrecarga} />}
                     </label>
-                    <input
-                      id="alergias"
-                      type="text"
-                      placeholder="Ej. Alergia a fluoresceína, ninguna conocida..."
-                      value={alergias}
-                      onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    <textarea
+                      id="antecedentes"
+                      rows={3}
+                      placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años."
+                      value={antecedentes}
+                      onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }}
+                      className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
                   </div>
-                  <div>
-                    <label htmlFor="antFamiliares" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                      Antecedentes familiares oculares
-                      {precargado.antecedentesFamiliares && <InsigniaHistorial fecha={fechaPrecarga} />}
-                    </label>
-                    <input
-                      id="antFamiliares"
-                      type="text"
-                      placeholder="Ej. Glaucoma en línea materna, sin antecedentes..."
-                      value={antecedentesFamiliares}
-                      onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <label htmlFor="alergias" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
+                        Alergias
+                        {precargado.alergias && <InsigniaHistorial fecha={fechaPrecarga} />}
+                      </label>
+                      <input
+                        id="alergias"
+                        type="text"
+                        placeholder="Ej. Alergia a fluoresceína, ninguna conocida..."
+                        value={alergias}
+                        onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="antFamiliares" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
+                        Antecedentes familiares oculares
+                        {precargado.antecedentesFamiliares && <InsigniaHistorial fecha={fechaPrecarga} />}
+                      </label>
+                      <input
+                        id="antFamiliares"
+                        type="text"
+                        placeholder="Ej. Glaucoma en línea materna, sin antecedentes..."
+                        value={antecedentesFamiliares}
+                        onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
                   </div>
+                  </>
+                  )}
                 </div>
               </div>
             )}
