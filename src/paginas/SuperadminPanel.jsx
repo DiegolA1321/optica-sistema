@@ -293,6 +293,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [leadEnCurso, setLeadEnCurso] = useState(null)
   const [procesandoLeadId, setProcesandoLeadId] = useState(null)
   const [visitas, setVisitas] = useState([])
+  // Búsqueda + filtro por estado — con pocos leads no hacía falta, pero
+  // crece rápido y sin esto se vuelve una lista larga para revisar a mano.
+  const [busquedaLeads, setBusquedaLeads] = useState("")
+  const [filtroEstadoLeads, setFiltroEstadoLeads] = useState("todos")
 
   // ─── Auditoría (paginada + filtrable por grupo) ───
   const [auditoria, setAuditoria] = useState([])
@@ -2324,6 +2328,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     descartado: { label: "Descartado", bg: "bg-slate-100", fg: "text-slate-500" },
   }
 
+  const leadsFiltrados = leads.filter((l) => {
+    const q = busquedaLeads.trim().toLowerCase()
+    const coincideTexto = !q || [l.nombre_optica, l.nombre_admin, l.email_admin, l.telefono, l.slug_deseado].some((v) => (v || "").toLowerCase().includes(q))
+    const coincideEstado = filtroEstadoLeads === "todos" || l.estado === filtroEstadoLeads
+    return coincideTexto && coincideEstado
+  })
+
   const renderLeads = () => (
     <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
       <div>
@@ -2336,8 +2347,38 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <p className="py-10 text-center text-sm text-slate-400">Todavía no llegó ninguna solicitud.</p>
         </div>
       ) : (
+        <>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text" value={busquedaLeads} onChange={(e) => setBusquedaLeads(e.target.value)}
+              placeholder="Buscar por óptica, nombre, correo o teléfono..."
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[{ id: "todos", label: "Todos" }, ...Object.entries(ESTADO_LEAD).map(([id, e]) => ({ id, label: e.label }))].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFiltroEstadoLeads(f.id)}
+                className="rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer"
+                style={filtroEstadoLeads === f.id ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {leadsFiltrados.length === 0 ? (
+          <div className={CARD_PAD}>
+            <p className="py-10 text-center text-sm text-slate-400">Ningún lead coincide con la búsqueda o el filtro.</p>
+          </div>
+        ) : (
         <div className="space-y-3">
-          {leads.map((l) => {
+          {leadsFiltrados.map((l) => {
             const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
             const procesando = procesandoLeadId === l.id
             return (
@@ -2392,6 +2433,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             )
           })}
         </div>
+        )}
+        </>
       )}
     </div>
   )

@@ -12,6 +12,7 @@ import {
   DollarSign,
   TrendingUp,
   Star,
+  CalendarRange,
 } from "lucide-react"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { useAnchoElemento } from "../utilidades/graficos"
@@ -40,20 +41,61 @@ function ultimosNMeses(n) {
   return arr
 }
 
+// Selector de período para los KPIs de flujo (consultas, pacientes nuevos,
+// ingresos, conversión) — antes fijos siempre a "este mes", sin forma de
+// comparar un trimestre o armar algo para el contador. Los KPIs de estado
+// actual (Bien corregidos, Controles vencidos, Citas → atendidos) no
+// cambian con el período: son una foto de ahora mismo, no un flujo.
+// Fechas como texto "AAAA-MM-DD" a propósito — mismo formato que ya usan
+// consultas.fecha/pacientes.fechaRegistro, comparar como texto alcanza
+// porque el ISO ordena igual que el calendario, sin líos de zona horaria.
+const fmtFecha = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+
+function calcularRango(periodo, inicioPersonalizado, finPersonalizado) {
+  const hoy = new Date()
+  const y = hoy.getFullYear(), m = hoy.getMonth()
+  if (periodo === "personalizado") {
+    return { inicio: inicioPersonalizado || fmtFecha(new Date(y, m, 1)), fin: finPersonalizado || fmtFecha(hoy), etiqueta: "el período elegido" }
+  }
+  if (periodo === "mesPasado") {
+    return { inicio: fmtFecha(new Date(y, m - 1, 1)), fin: fmtFecha(new Date(y, m, 0)), etiqueta: "el mes pasado" }
+  }
+  if (periodo === "trimestre") {
+    return { inicio: fmtFecha(new Date(y, m - 2, 1)), fin: fmtFecha(hoy), etiqueta: "los últimos 3 meses" }
+  }
+  if (periodo === "semestre") {
+    return { inicio: fmtFecha(new Date(y, m - 5, 1)), fin: fmtFecha(hoy), etiqueta: "los últimos 6 meses" }
+  }
+  return { inicio: fmtFecha(new Date(y, m, 1)), fin: fmtFecha(hoy), etiqueta: "este mes" }
+}
+
+const PERIODOS = [
+  { id: "mes", label: "Este mes" },
+  { id: "mesPasado", label: "Mes pasado" },
+  { id: "trimestre", label: "Últimos 3 meses" },
+  { id: "semestre", label: "Últimos 6 meses" },
+  { id: "personalizado", label: "Personalizado" },
+]
+
 export default function Reportes({ pacientes = [], consultas = [], citas = [], ventas = [], respuestasSatisfaccion = [] }) {
-  const mesActualClave = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-  }, [])
+  const [periodo, setPeriodo] = useState("mes")
+  const [inicioPersonalizado, setInicioPersonalizado] = useState("")
+  const [finPersonalizado, setFinPersonalizado] = useState("")
+  const rango = useMemo(() => calcularRango(periodo, inicioPersonalizado, finPersonalizado), [periodo, inicioPersonalizado, finPersonalizado])
+  const enRango = (fecha) => {
+    if (!fecha) return false
+    const f = fecha.slice(0, 10)
+    return f >= rango.inicio && f <= rango.fin
+  }
 
   const consultasEsteMes = useMemo(
-    () => consultas.filter((c) => (c.fecha || "").startsWith(mesActualClave)).length,
-    [consultas, mesActualClave],
+    () => consultas.filter((c) => enRango(c.fecha)).length,
+    [consultas, rango],
   )
 
   const pacientesNuevosEsteMes = useMemo(
-    () => pacientes.filter((p) => (p.fechaRegistro || "").startsWith(mesActualClave)).length,
-    [pacientes, mesActualClave],
+    () => pacientes.filter((p) => enRango(p.fechaRegistro)).length,
+    [pacientes, rango],
   )
 
   const tasaBienCorregido = useMemo(() => {
@@ -78,9 +120,9 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
   // fracción de sus ventas reales según por dónde las registró su equipo.
   // Ahora ambas vías crean una fila en `ventas` (ver ConsultaMedica.jsx),
   // así que sumar de ahí ya cubre las dos.
-  const consultasEsteMesArr = useMemo(() => consultas.filter((c) => (c.fecha || "").startsWith(mesActualClave)), [consultas, mesActualClave])
+  const consultasEsteMesArr = useMemo(() => consultas.filter((c) => enRango(c.fecha)), [consultas, rango])
   const ventasVinculadasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
-  const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => (v.creadoEn || "").startsWith(mesActualClave)), [ventas, mesActualClave])
+  const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
   const ingresosEsteMes = useMemo(() => ventasRealesEsteMes.reduce((sum, v) => sum + (Number(v.montoTotal) || 0), 0), [ventasRealesEsteMes])
   const conversionVenta = useMemo(() => {
     if (consultasEsteMesArr.length === 0) return null
@@ -183,14 +225,17 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
     return Math.round((citasAtendidas / citas.length) * 100)
   }, [citas, citasAtendidas])
 
+  // Los 4 primeros KPIs "de flujo" siguen al selector de período (arriba);
+  // los siguientes 4 son una foto del estado actual y no cambian con él
+  // (no tendría sentido "Controles vencidos en marzo", por ejemplo).
   const kpis = [
-    { key: "consultas", label: "Consultas este mes", valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
-    { key: "nuevos", label: "Pacientes nuevos", valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
-    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: "de los pacientes evaluados", icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600" },
-    { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, icon: AlertTriangle, iconClass: "bg-red-50 text-red-600" },
+    { key: "consultas", label: "Consultas", sub: rango.etiqueta, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
+    { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
+    { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length} venta${ventasRealesEsteMes.length === 1 ? "" : "s"} · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta}`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
+    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: "de los pacientes evaluados, hoy", icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600" },
+    { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600" },
     { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
-    { key: "ingresos", label: "Ingresos este mes", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length} venta${ventasRealesEsteMes.length === 1 ? "" : "s"} registrada${ventasRealesEsteMes.length === 1 ? "" : "s"}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
-    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: "de las consultas de este mes", icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
 
@@ -205,6 +250,39 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Reportes y estadísticas</h1>
           <p className="text-sm text-slate-500">Panorama clínico y operativo a partir de los datos ya registrados en el sistema.</p>
         </div>
+      </div>
+
+      {/* ─── SELECTOR DE PERÍODO — solo afecta Consultas, Pacientes nuevos,
+          Ingresos y Conversión a venta (los 4 KPIs "de flujo"); los demás
+          son una foto de ahora mismo. ─── */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+        <span className="flex items-center gap-1.5 pl-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+          <CalendarRange size={14} /> Período
+        </span>
+        {PERIODOS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => setPeriodo(p.id)}
+            className="rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer"
+            style={periodo === p.id ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
+          >
+            {p.label}
+          </button>
+        ))}
+        {periodo === "personalizado" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date" value={inicioPersonalizado} onChange={(e) => setInicioPersonalizado(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+            />
+            <span className="text-xs text-slate-400">a</span>
+            <input
+              type="date" value={finPersonalizado} onChange={(e) => setFinPersonalizado(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+            />
+          </div>
+        )}
       </div>
 
       {/* ─── KPIs ─── */}
