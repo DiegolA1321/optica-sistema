@@ -25,14 +25,6 @@ export function filtrarNumeroDecimalConSigno(valor) {
   return limpio
 }
 
-// Números positivos con un solo punto decimal (precios, montos).
-export function filtrarNumeroDecimal(valor) {
-  let limpio = (valor || "").replace(/[^0-9.]/g, "")
-  const partes = limpio.split(".")
-  if (partes.length > 2) limpio = partes[0] + "." + partes.slice(1).join("")
-  return limpio
-}
-
 export function esNombreValido(valor) {
   return Boolean(valor && valor.trim().length > 1 && /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/.test(valor.trim()))
 }

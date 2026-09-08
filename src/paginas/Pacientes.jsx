@@ -44,7 +44,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import VentaProductoModal from "./VentaProductoModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
-import { saldoVenta, METODOS_PAGO } from "../utilidades/ventas"
+import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
 
@@ -114,6 +114,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
   const [modalAbierto, setModalAbierto] = useState(false)
   const [idEditando, setIdEditando] = useState(null)
   const [pacienteAEliminar, setPacienteAEliminar] = useState(null)
+  const [eliminandoPaciente, setEliminandoPaciente] = useState(false)
 
   // Filtros
   const [busqueda, setBusqueda] = useState("")
@@ -405,6 +406,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
 
   const confirmarEliminar = async () => {
     if (!pacienteAEliminar) return
+    setEliminandoPaciente(true)
     const citasAEliminar = citas.filter((c) => perteneceAPaciente(c, pacienteAEliminar))
     const consultasAEliminar = consultas.filter((c) => perteneceAPaciente(c, pacienteAEliminar))
     if (supabase && opticaId) {
@@ -415,20 +417,21 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
       const idsConsultas = consultasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
       if (idsCitas.length) {
         const { error: errorCitas } = await supabase.from("citas").delete().in("id", idsCitas)
-        if (errorCitas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); return }
+        if (errorCitas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
       }
       if (idsConsultas.length) {
         const { error: errorConsultas } = await supabase.from("consultas").delete().in("id", idsConsultas)
-        if (errorConsultas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); return }
+        if (errorConsultas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
       }
       const { error: errorPaciente } = await supabase.from("pacientes").delete().eq("id", pacienteAEliminar.id)
-      if (errorPaciente) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); return }
+      if (errorPaciente) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
     }
     setPacientes(pacientes.filter((p) => p.id !== pacienteAEliminar.id))
     setCitas?.(citas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
     setConsultas?.(consultas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
     registrarLog(usuario, "pacientes", "Eliminó a un paciente", pacienteAEliminar.nombre)
     mostrarNotif("Paciente removido de la base de datos, junto con sus citas y consultas asociadas.")
+    setEliminandoPaciente(false)
     setPacienteAEliminar(null)
   }
 
@@ -1059,7 +1062,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
 
       {/* ─── MODAL ELIMINAR ─── */}
       {pacienteAEliminar && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPacienteAEliminar(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !eliminandoPaciente && setPacienteAEliminar(null)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
               <Trash2 size={22} />
@@ -1079,11 +1082,11 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
               )
             })()}
             <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setPacienteAEliminar(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" disabled={eliminandoPaciente} onClick={() => setPacienteAEliminar(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                 Cancelar
               </button>
-              <button type="button" onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer">
-                Eliminar
+              <button type="button" disabled={eliminandoPaciente} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
+                {eliminandoPaciente ? "Eliminando..." : "Eliminar"}
               </button>
             </div>
           </div>
@@ -1263,7 +1266,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                 .filter((v) => v.pacienteId === pacienteHistorial.id)
                 .slice()
                 .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
-              const deudaTotal = ventasPaciente.filter((v) => v.estado === "pendiente").reduce((a, v) => a + saldoVenta(v), 0)
+              const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0)
 
               return (
                 <>

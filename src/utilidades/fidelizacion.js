@@ -1,24 +1,10 @@
 // ─── Utilidades de fidelización: inactividad, frecuencia y referidos ───
 // Centraliza la lógica que usan CRM.jsx e Inicio.jsx para no duplicarla.
 
+import { parseFechaFlexible } from "./disponibilidad"
+
 const UMBRAL_INACTIVO_DIAS = 180 // ~6 meses sin consulta registrada
 const MINIMO_CLIENTE_FRECUENTE = 3 // consultas registradas
-
-function parseFechaFlexible(f) {
-  if (!f) return null
-  const s = String(f).trim()
-  // ISO "2026-08-15"
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const [y, m, d] = s.split("T")[0].split("-").map(Number)
-    if (y && m && d) return new Date(y, m - 1, d)
-  }
-  // "DD/MM/YYYY"
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-    const [d, m, y] = s.split("/").map(Number)
-    if (y && m && d) return new Date(y, m - 1, d)
-  }
-  return null
-}
 
 // Consultas de un paciente: empareja por pacienteId cuando existe (fuente de verdad
 // real) y cae a comparar por nombre sólo para fichas guardadas antes de que

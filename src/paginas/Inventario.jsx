@@ -62,6 +62,7 @@ export default function Inventario({
   const [soloBajo, setSoloBajo] = useState(false)
   const [porEliminar, setPorEliminar] = useState(null)
   const [errorEliminar, setErrorEliminar] = useState("")
+  const [eliminando, setEliminando] = useState(false)
   const [erroresForm, setErroresForm] = useState({})
   const [modalAbierto, setModalAbierto] = useState(false)
 
@@ -144,16 +145,19 @@ export default function Inventario({
 
   const confirmarEliminar = async () => {
     if (porEliminar == null) return
+    setEliminando(true)
     const eliminado = productos.find((p) => p.id === porEliminar)
     if (supabase && opticaId) {
       const { error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar)
       if (errorDelete) {
         setErrorEliminar("No se pudo eliminar el producto. Revisa tu conexión e intenta de nuevo.")
+        setEliminando(false)
         return
       }
     }
     setProductos(productos.filter((p) => p.id !== porEliminar))
     registrarLog(usuario, "inventario", "Eliminó un producto del inventario", eliminado?.nombre || "")
+    setEliminando(false)
     setPorEliminar(null)
     setErrorEliminar("")
   }
@@ -588,7 +592,7 @@ export default function Inventario({
 
       {/* ─── MODAL ELIMINAR ─── */}
       {porEliminar != null && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPorEliminar(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !eliminando && setPorEliminar(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
               <Trash2 size={22} />
@@ -601,8 +605,8 @@ export default function Inventario({
               </div>
             )}
             <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
-              <button type="button" onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">Eliminar</button>
+              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button type="button" disabled={eliminando} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer disabled:opacity-50">{eliminando ? "Eliminando..." : "Eliminar"}</button>
             </div>
           </div>
         </div>,

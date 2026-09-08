@@ -3,7 +3,6 @@ import {
   filtrarSoloLetras,
   filtrarSoloNumeros,
   filtrarNumeroDecimalConSigno,
-  filtrarNumeroDecimal,
   esNombreValido,
   esCedulaValida,
   esTelefonoValido,
@@ -45,15 +44,6 @@ describe("filtrarNumeroDecimalConSigno", () => {
   })
   it("colapsa varios puntos en uno solo", () => {
     expect(filtrarNumeroDecimalConSigno("1.2.3.4")).toBe("1.234")
-  })
-})
-
-describe("filtrarNumeroDecimal", () => {
-  it("permite solo dígitos y un punto", () => {
-    expect(filtrarNumeroDecimal("$145.50")).toBe("145.50")
-  })
-  it("colapsa varios puntos en uno solo", () => {
-    expect(filtrarNumeroDecimal("1.2.3")).toBe("1.23")
   })
 })
 
