@@ -156,6 +156,25 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   const [notifAbierta, setNotifAbierta] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
   const [modalMiCuentaAbierto, setModalMiCuentaAbierto] = useState(false)
+  // Número de registro profesional (hallazgo de auditoría 2026-09-08: la
+  // receta impresa siempre dejaba "Reg. Prof. ____" en blanco porque no
+  // había dónde cargarlo). Autoedición habilitada en la migración 0053.
+  const [campoRegistroProfesional, setCampoRegistroProfesional] = useState(usuario?.registroProfesional || "")
+  const [guardandoRegistroProfesional, setGuardandoRegistroProfesional] = useState(false)
+  const [registroProfesionalGuardadoOk, setRegistroProfesionalGuardadoOk] = useState(false)
+  useEffect(() => { setCampoRegistroProfesional(usuario?.registroProfesional || "") }, [usuario?.registroProfesional])
+  const guardarRegistroProfesional = async () => {
+    if (!usuario?.id || campoRegistroProfesional.trim() === (usuario?.registroProfesional || "")) return
+    setGuardandoRegistroProfesional(true)
+    const valor = campoRegistroProfesional.trim() || null
+    const { error } = await supabase.from("perfiles").update({ registro_profesional: valor }).eq("id", usuario.id)
+    if (!error) {
+      alActualizarUsuario?.({ registroProfesional: valor })
+      setRegistroProfesionalGuardadoOk(true)
+      setTimeout(() => setRegistroProfesionalGuardadoOk(false), 2500)
+    }
+    setGuardandoRegistroProfesional(false)
+  }
   const notifRef = useRef(null)
   const userRef = useRef(null)
 
@@ -293,6 +312,8 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             setConsultas={setConsultas}
             inventario={inventario}
             setInventario={setInventario}
+            ventas={ventas}
+            setVentas={setVentas}
             parametrizacion={parametrizacion}
             diagnosticosRapidos={diagnosticosRapidos}
             pacienteInicial={fichaClinicaPacienteInicial}
@@ -344,7 +365,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
       case "reportes":
-        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} respuestasSatisfaccion={respuestasSatisfaccion} />
+        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} respuestasSatisfaccion={respuestasSatisfaccion} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
@@ -665,6 +686,25 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <div className="mb-5 space-y-2 rounded-xl border border-slate-200 p-4">
+                <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
+                  Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
+                </label>
+                <p className="text-xs text-slate-500">Si atiendes pacientes vos mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="registroProfesional"
+                    type="text"
+                    value={campoRegistroProfesional}
+                    onChange={(e) => setCampoRegistroProfesional(e.target.value)}
+                    onBlur={guardarRegistroProfesional}
+                    placeholder="Ej. SENESCYT-1234567890"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                  />
+                  {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
+                  {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}
+                </div>
+              </div>
               <SeccionMfa />
             </div>
           </div>

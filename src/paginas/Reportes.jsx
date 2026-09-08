@@ -40,7 +40,7 @@ function ultimosNMeses(n) {
   return arr
 }
 
-export default function Reportes({ pacientes = [], consultas = [], citas = [], respuestasSatisfaccion = [] }) {
+export default function Reportes({ pacientes = [], consultas = [], citas = [], ventas = [], respuestasSatisfaccion = [] }) {
   const mesActualClave = useMemo(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
@@ -66,16 +66,26 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], r
   const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultas)).length, [pacientes, consultas])
 
   // Vínculo receta → venta (anteproyecto: "tasa de conversión de recetas a
-  // ventas" e "ingresos" como indicadores de impacto operativo). Se apoya en
-  // consultas.productoId/montoVenta, que ya cierran el ciclo clínico →
-  // inventario (ver ConsultaMedica.jsx) — acá solo se agregan los números.
+  // ventas" e "ingresos" como indicadores de impacto operativo).
+  // "Conversión" mide algo puntual: ¿la consulta terminó en una venta en el
+  // mismo acto? — eso sigue viviendo en consultas.productoId (lo pone
+  // ConsultaMedica.jsx al vincular un producto de bodega durante la ficha).
+  // "Ingresos", en cambio, tiene que ser la venta REAL total del mes — y
+  // antes solo sumaba las vinculadas desde la ficha clínica, ignorando toda
+  // venta hecha por Inventario/Pacientes → "Vender producto" (que sí crea
+  // una fila en `ventas`, con método de pago y estado). Un dueño que
+  // revisara "cuánto vendí este mes" acá podía estar viendo solo una
+  // fracción de sus ventas reales según por dónde las registró su equipo.
+  // Ahora ambas vías crean una fila en `ventas` (ver ConsultaMedica.jsx),
+  // así que sumar de ahí ya cubre las dos.
   const consultasEsteMesArr = useMemo(() => consultas.filter((c) => (c.fecha || "").startsWith(mesActualClave)), [consultas, mesActualClave])
-  const ventasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
-  const ingresosEsteMes = useMemo(() => ventasEsteMes.reduce((sum, c) => sum + (Number(c.montoVenta) || 0), 0), [ventasEsteMes])
+  const ventasVinculadasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
+  const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => (v.creadoEn || "").startsWith(mesActualClave)), [ventas, mesActualClave])
+  const ingresosEsteMes = useMemo(() => ventasRealesEsteMes.reduce((sum, v) => sum + (Number(v.montoTotal) || 0), 0), [ventasRealesEsteMes])
   const conversionVenta = useMemo(() => {
     if (consultasEsteMesArr.length === 0) return null
-    return Math.round((ventasEsteMes.length / consultasEsteMesArr.length) * 100)
-  }, [consultasEsteMesArr, ventasEsteMes])
+    return Math.round((ventasVinculadasEsteMes.length / consultasEsteMesArr.length) * 100)
+  }, [consultasEsteMesArr, ventasVinculadasEsteMes])
 
   // Satisfacción de pacientes (CSAT, 1 a 5) — respuestas de la encuesta
   // automática enviada al marcar una cita "Atendida" (migración 0041).
@@ -179,7 +189,7 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], r
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: "de los pacientes evaluados", icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600" },
     { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, icon: AlertTriangle, iconClass: "bg-red-50 text-red-600" },
     { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
-    { key: "ingresos", label: "Ingresos este mes", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasEsteMes.length} venta${ventasEsteMes.length === 1 ? "" : "s"} vinculada${ventasEsteMes.length === 1 ? "" : "s"} a receta`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "ingresos", label: "Ingresos este mes", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length} venta${ventasRealesEsteMes.length === 1 ? "" : "s"} registrada${ventasRealesEsteMes.length === 1 ? "" : "s"}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: "de las consultas de este mes", icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]

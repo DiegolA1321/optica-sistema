@@ -630,7 +630,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                         {ultimaReceta.usaLentes && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">¿Usa lentes?</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.usaLentes === "si" ? "Sí" : "No"}</p></div>)}
                       </div>
                     )}
-                    <p className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500"><Stethoscope size={13} /> Emitida por {ultimaReceta.profesionalNombre || "el equipo"} · {nombreOptica}</p>
+                    <p className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                      <Stethoscope size={13} /> Emitida por {ultimaReceta.profesionalNombre || "el equipo"}{ultimaReceta.profesionalRegistro ? ` · Reg. Prof. ${ultimaReceta.profesionalRegistro}` : ""} · {nombreOptica}
+                    </p>
                   </div>
                 )}
               </div>

@@ -159,7 +159,7 @@ function mapConsulta(c) {
     diagnostico: c.diagnostico, diagnosticoCategorias: c.diagnostico_categorias || [], lenteRecomendado: c.lente_recomendado, indicaciones: c.indicaciones,
     proximoControlDias: c.proximo_control_dias, evolucionCalculada: c.evolucion_calculada, estadoCorreccion: c.estado_correccion,
     productoId: c.producto_id, productoNombre: c.producto_nombre, montoVenta: c.monto_venta != null ? Number(c.monto_venta) : null,
-    profesionalNombre: c.profesional_nombre, imagenes: c.imagenes || [],
+    profesionalNombre: c.profesional_nombre, profesionalRegistro: c.profesional_registro, imagenes: c.imagenes || [],
   }
 }
 function mapVenta(v) {
@@ -574,12 +574,12 @@ function App() {
           // solo se sigue la sesión en el sitio de su propia óptica (o en el
           // genérico sin slug, que es el caso normal en desarrollo).
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null });
+          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null });
           setPantallaActual('dashboard');
         } else if (perfil.rol === 'asistente') {
           const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, permisos: perfil.permisos || {} });
+          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, permisos: perfil.permisos || {} });
           setPantallaActual('dashboard');
         }
       } finally {

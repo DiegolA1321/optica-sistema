@@ -71,7 +71,7 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, ventas = [], setVentas, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -200,6 +200,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // Cierra el vínculo receta→venta que pide el anteproyecto (conversión de
   // recetas a ventas + ingresos, ver Reportes.jsx).
   const [montoVenta, setMontoVenta] = useState("")
+  // Estado del pago de esa venta — vincular un producto acá crea una fila
+  // real en `ventas` (antes solo tocaba inventario y quedaba invisible para
+  // Reportes/CRM/el reporte por producto de Inventario, que leen todos de
+  // esa tabla). Sin selector de método de pago aparte a propósito: esto es
+  // un atajo rápido durante la consulta, no el flujo completo de venta de
+  // Inventario/Pacientes — "directo" es un default razonable, pero el
+  // estado sí importa para no ensuciar "Pagos pendientes" del paciente.
+  const [estadoVenta, setEstadoVenta] = useState("completado")
 
   // --- Imágenes adjuntas (opcional) — se suben a Storage recién al
   // confirmar guardado, no antes, para no dejar archivos huérfanos si el
@@ -222,6 +230,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const quitarProducto = () => {
     setProductoId(null)
     setBusquedaProducto("")
+    setEstadoVenta("completado")
     setMontoVenta("")
   }
 
@@ -465,6 +474,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     }
 
     nuevaFicha.profesionalNombre = usuario?.nombre || null
+    nuevaFicha.profesionalRegistro = usuario?.registroProfesional || null
 
     if (supabase && usuario?.opticaId) {
       // Sube las imágenes seleccionadas recién ahora (confirmado el
@@ -503,6 +513,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           producto_nombre: nuevaFicha.productoNombre,
           monto_venta: nuevaFicha.montoVenta,
           profesional_nombre: nuevaFicha.profesionalNombre,
+          profesional_registro: nuevaFicha.profesionalRegistro,
           imagenes: nuevaFicha.imagenes,
         })
         .select()
@@ -553,6 +564,39 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       setInventario(
         inventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: stockNuevo } : p)),
       )
+
+      // Registra la venta real en `ventas` — antes este vínculo solo tocaba
+      // inventario y el campo productoId/montoVenta de la propia consulta,
+      // invisible para Reportes ("Ingresos"), el reporte por producto de
+      // Inventario y "Pagos pendientes" del paciente en CRM, que leen todos
+      // de esta tabla, no de consultas. Unifica las dos vías de venta en
+      // una sola fuente de verdad.
+      if (supabase && usuario?.opticaId) {
+        const montoVentaNum = Number(montoVenta) || 0
+        supabase.from("ventas").insert({
+          optica_id: usuario.opticaId,
+          paciente_id: pacienteId,
+          producto_id: productoSeleccionado.id,
+          producto_nombre: productoSeleccionado.nombre,
+          cantidad: 1,
+          precio_unitario: montoVentaNum,
+          monto_total: montoVentaNum,
+          metodo_pago: "directo",
+          cuotas_totales: null,
+          cuotas_pagadas: 0,
+          estado: estadoVenta,
+          registrado_por: usuario?.id || null,
+        }).select().single().then(({ data: ventaData, error: errorVenta }) => {
+          if (errorVenta) { console.error("La ficha se guardó, pero no se pudo registrar la venta vinculada:", errorVenta.message); return }
+          if (ventaData && setVentas) {
+            setVentas((prev) => [{
+              id: ventaData.id, pacienteId, productoId: productoSeleccionado.id, productoNombre: productoSeleccionado.nombre,
+              cantidad: 1, precioUnitario: montoVentaNum, montoTotal: montoVentaNum, metodoPago: "directo",
+              cuotasTotales: null, cuotasPagadas: 0, estado: estadoVenta, creadoEn: ventaData.created_at,
+            }, ...prev])
+          }
+        })
+      }
     }
 
     setGuardandoFicha(false)
@@ -1374,7 +1418,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           <Glasses size={12} /> Vincular producto de bodega <span className="font-normal normal-case text-slate-500">(opcional — descuenta 1 unidad de stock al guardar)</span>
                         </label>
                         {productoSeleccionado ? (
-                          <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
                             <span className="font-semibold text-blue-800">{productoSeleccionado.nombre}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-blue-600">{productoSeleccionado.stock} u. en stock</span>
@@ -1386,6 +1430,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                   className="w-16 text-right font-mono text-xs text-blue-800 outline-none"
                                 />
                               </label>
+                              <button
+                                type="button"
+                                onClick={() => setEstadoVenta((e) => (e === "completado" ? "pendiente" : "completado"))}
+                                className={"rounded-full px-2 py-0.5 text-[10px] font-bold cursor-pointer " + (estadoVenta === "completado" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}
+                                title="Toca para cambiar el estado del pago"
+                              >
+                                {estadoVenta === "completado" ? "Pagado" : "Pendiente"}
+                              </button>
                               <button type="button" onClick={quitarProducto} aria-label="Quitar producto vinculado" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">
                                 ×
                               </button>
@@ -1525,7 +1577,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <div className="w-52 text-center">
                         <div className="mb-2.5 border-t border-slate-400" />
                         <p className="text-sm font-bold" style={{ color: INK }}>{usuario?.nombre || "Optómetra"}</p>
-                        <p className="text-[11px] text-slate-500">Reg. Prof. ____________</p>
+                        <p className="text-[11px] text-slate-500">{usuario?.registroProfesional ? `Reg. Prof. ${usuario.registroProfesional}` : "Reg. Prof. ____________"}</p>
                       </div>
                     </div>
                   </div>

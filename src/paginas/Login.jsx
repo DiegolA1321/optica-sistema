@@ -467,6 +467,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         opticaNombre: optica?.nombre,
         opticaMarca: optica?.marca || null,
         opticaLogoUrl: optica?.logo_url || null,
+        registroProfesional: perfil.registro_profesional || null,
       })
       return true
     }
@@ -485,6 +486,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         opticaNombre: optica?.nombre,
         opticaMarca: optica?.marca || null,
         opticaLogoUrl: optica?.logo_url || null,
+        registroProfesional: perfil.registro_profesional || null,
         permisos: perfil.permisos || {},
       })
       return true
