@@ -143,6 +143,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   // "Atender" en Citas médicas — permite que ConsultaMedica marque esa cita
   // como "Atendida" al guardar, sin que el optómetra tenga que hacerlo a mano.
   const [fichaClinicaCitaId, setFichaClinicaCitaId] = useState(null)
+  // De dónde se entró a la ficha clínica (Pacientes o Citas médicas) — para
+  // que "Volver"/"X" ahí adentro regrese al lugar correcto, ya que esta
+  // sección no tiene entrada propia en el sidebar.
+  const [fichaClinicaOrigen, setFichaClinicaOrigen] = useState("pacientes")
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [colapsado, setColapsado] = useState(false)
   const [notifAbierta, setNotifAbierta] = useState(false)
@@ -255,7 +259,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             setVentas={setVentas}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-            onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); navegar("consultas") }}
+            onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaOrigen("pacientes"); navegar("consultas") }}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           />
@@ -277,6 +281,8 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             citas={citas}
             setCitas={setCitas}
             onPacienteInicialConsumido={() => { setFichaClinicaPacienteInicial(null); setFichaClinicaCitaId(null) }}
+            onVolver={() => navegar(fichaClinicaOrigen)}
+            origenNombre={fichaClinicaOrigen === "citas" ? "Citas médicas" : "Pacientes"}
           />
         )
       case "inventario":
@@ -304,7 +310,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
             motivosConsulta={motivosConsulta}
-            onAtender={(paciente, citaId) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaCitaId(citaId); navegar("consultas") }}
+            onAtender={(paciente, citaId) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaCitaId(citaId); setFichaClinicaOrigen("citas"); navegar("consultas") }}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />
         )
@@ -367,7 +373,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               setVentas={setVentas}
               accionInicial={accionPacienteInicio}
               onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-              onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); navegar("consultas") }}
+              onIrAFichaClinica={(paciente) => { setFichaClinicaPacienteInicial(paciente); setFichaClinicaOrigen("pacientes"); navegar("consultas") }}
             />
           </>
         )
