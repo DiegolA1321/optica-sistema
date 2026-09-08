@@ -275,7 +275,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             setVentas={setVentas}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-            onIrAFichaClinica={(paciente) => irAFichaClinica(paciente, { origen: "pacientes" })}
+            onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           />
@@ -395,7 +395,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               setVentas={setVentas}
               accionInicial={accionPacienteInicio}
               onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-              onIrAFichaClinica={(paciente) => irAFichaClinica(paciente, { origen: "pacientes" })}
+              onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
             />
           </>
         )

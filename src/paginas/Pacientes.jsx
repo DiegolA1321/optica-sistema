@@ -43,7 +43,7 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import VentaProductoModal from "./VentaProductoModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
-import { isoAFechaLocal, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
 import { saldoVenta, METODOS_PAGO } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
@@ -1215,10 +1215,19 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     <CalendarPlus size={16} /> Agendar cita
                   </button>
                   {/* Único punto de entrada a la ficha clínica desde acá — ya no
-                      existe "Ficha clínica" como sección aparte del sidebar. */}
+                      existe "Ficha clínica" como sección aparte del sidebar.
+                      Si el paciente ya tiene una cita de hoy sin atender, se
+                      vincula automáticamente — igual que entrar por
+                      "Atender" en Citas médicas — para que guardar la ficha
+                      también la marque "Atendida" sin un paso aparte. */}
                   <button
                     type="button"
-                    onClick={() => { const p = pacienteHistorial; setPacienteHistorial(null); onIrAFichaClinica?.(p) }}
+                    onClick={() => {
+                      const p = pacienteHistorial
+                      setPacienteHistorial(null)
+                      const citaDeHoy = citas.find((c) => perteneceAPaciente(c, p) && esHoy(c.fecha) && c.estado !== "Atendida" && c.estado !== "No Asistió")
+                      onIrAFichaClinica?.(p, citaDeHoy?.id)
+                    }}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
                     style={{ background: GRAD }}
                   >
