@@ -103,6 +103,28 @@ export function diaAbierto(horario) {
   return !!(horario?.manana?.activo || horario?.tarde?.activo)
 }
 
+// Estado de atención "ahora mismo" para un badge corto en la página pública
+// (ej. login) — Séptima Mirada: el horario completo de la semana en una
+// sola oración se pasaba desapercibido en el hero, con el mismo peso visual
+// que un aviso legal. Esto da una frase corta y accionable en su lugar; el
+// horario completo se queda donde ya estaba, en el pie de página.
+export function estadoAtencionHoy(disponibilidad, ahora = new Date()) {
+  const horario = horarioEfectivo(fechaAISO(ahora), disponibilidad)
+  const sesiones = [horario?.manana, horario?.tarde]
+    .filter((s) => s?.activo && s.inicio && s.fin)
+    .sort((a, b) => a.inicio.localeCompare(b.inicio))
+  if (sesiones.length === 0) return { abierto: false, texto: "Cerrado hoy" }
+
+  const ahoraHHMM = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
+  const sesionActiva = sesiones.find((s) => ahoraHHMM >= s.inicio && ahoraHHMM < s.fin)
+  if (sesionActiva) return { abierto: true, texto: `Abierto hoy hasta las ${horaA12(sesionActiva.fin)}` }
+
+  const proximaSesion = sesiones.find((s) => ahoraHHMM < s.inicio)
+  if (proximaSesion) return { abierto: false, texto: `Cerrado ahora — abre a las ${horaA12(proximaSesion.inicio)}` }
+
+  return { abierto: false, texto: "Cerrado por hoy" }
+}
+
 // Genera los horarios (formato "09:00 AM") de las sesiones activas (mañana y/o tarde).
 export function generarSlots({ manana, tarde, duracion = 40 }) {
   const slots = []

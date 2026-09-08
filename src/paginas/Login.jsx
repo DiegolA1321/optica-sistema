@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
-import { resumenHorarioSemanal } from "../utilidades/disponibilidad"
+import { resumenHorarioSemanal, estadoAtencionHoy } from "../utilidades/disponibilidad"
 import { irALegal } from "../utilidades/resolverSitio"
 import {
   Eye,
@@ -358,6 +358,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
     : SERVICIOS
 
   const horarioResumen = resumenHorarioSemanal(disponibilidad?.horarioSemanal)
+  const estadoHoy = estadoAtencionHoy(disponibilidad)
 
   const [usuario, setUsuario] = useState("")
   const [password, setPassword] = useState("")
@@ -837,12 +838,24 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               {/* Horario de atención — Sexta Mirada, "Página pública" punto 6:
                   antes solo aparecía al final del footer y pasaba
                   desapercibido. Se duplica acá, cerca de "Solicita tu cita
-                  ahora", y se mantiene también en el footer. */}
+                  ahora" (y se mantiene también en el footer, con el horario
+                  completo de la semana).
+                  Séptima Mirada: la oración completa del horario semanal
+                  acá tenía el mismo peso visual que un aviso legal, así que
+                  también pasaba desapercibida — solo que un poco más
+                  arriba. Una píldora corta con el estado de "ahora mismo"
+                  (abierto/cerrado y hasta/desde qué hora) es lo que de
+                  verdad responde la pregunta de un visitante nuevo. */}
               {horarioResumen.length > 0 && (
-                <p className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                  <Clock size={16} style={{ color: colorAcento }} />
-                  {horarioResumen.map((h) => `${h.etiqueta} ${h.horario}`).join(" · ")}
-                </p>
+                <span
+                  className="inline-flex w-fit items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold"
+                  style={estadoHoy.abierto
+                    ? { borderColor: "#A7F3D0", backgroundColor: "#ECFDF5", color: "#047857" }
+                    : { borderColor: "#E2E8F0", backgroundColor: "#F8FAFC", color: "#64748B" }}
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: estadoHoy.abierto ? "#10B981" : "#94A3B8" }} />
+                  {estadoHoy.texto}
+                </span>
               )}
               <button
                 type="button"
