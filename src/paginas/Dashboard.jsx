@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect, useRef, Suspense, lazy } from "react"
+import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import {
   Users,
   Calendar,
@@ -31,16 +31,17 @@ import {
 // que solo use Citas necesita bajar el código de Reportes, Usuarios, etc.
 // de una sola vez al entrar al panel).
 import Inicio from "./Inicio"
-const Pacientes = lazy(() => import("./Pacientes"))
-const ConsultaMedica = lazy(() => import("./ConsultaMedica"))
-const Inventario = lazy(() => import("./Inventario"))
-const Citas = lazy(() => import("./Citas"))
-const Horario = lazy(() => import("./Horario"))
-const CRM = lazy(() => import("./CRM"))
-const Reportes = lazy(() => import("./Reportes"))
-const Usuarios = lazy(() => import("./Usuarios"))
-const Configuracion = lazy(() => import("./Configuracion"))
-const Mensajes = lazy(() => import("./Mensajes"))
+import { lazyConReintento } from "../utilidades/lazyConReintento"
+const Pacientes = lazyConReintento(() => import("./Pacientes"), "Pacientes")
+const ConsultaMedica = lazyConReintento(() => import("./ConsultaMedica"), "ConsultaMedica")
+const Inventario = lazyConReintento(() => import("./Inventario"), "Inventario")
+const Citas = lazyConReintento(() => import("./Citas"), "Citas")
+const Horario = lazyConReintento(() => import("./Horario"), "Horario")
+const CRM = lazyConReintento(() => import("./CRM"), "CRM")
+const Reportes = lazyConReintento(() => import("./Reportes"), "Reportes")
+const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
+const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
+const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 import { diasVencido } from "../utilidades/fidelizacion"
@@ -57,7 +58,14 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 const OPCIONES = [
   { id: "inicio", nombre: "Inicio", icono: LayoutDashboard },
   { id: "citas", nombre: "Citas médicas", icono: Calendar },
-  { id: "consultas", nombre: "Ficha clínica", icono: Eye },
+  // oculto: ya no es un ítem de navegación aparte (Sexta Mirada / feedback
+  // 2026-09-07 del ing y de Diego) — dos entradas separadas para "buscar
+  // paciente" y "ficha clínica" generaban confusión y datos duplicados. Se
+  // mantiene en OPCIONES (no se borra) porque sigue siendo una sección real
+  // a la que se navega — desde "Atender" en Citas médicas y desde "Ficha
+  // clínica" en el perfil del paciente (el ícono del ojo en Pacientes) — y
+  // porque el permiso "consultas" en Usuarios y permisos sigue existiendo.
+  { id: "consultas", nombre: "Ficha clínica", icono: Eye, oculto: true },
   { id: "pacientes", nombre: "Pacientes", icono: Users },
   { id: "inventario", nombre: "Inventario", icono: Package },
   { id: "crm", nombre: "CRM y fidelización", icono: HeartHandshake },
@@ -415,7 +423,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
 
           <nav className="space-y-1.5 px-4 py-6">
             <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
-            {opcionesVisibles.map((opcion) => {
+            {opcionesVisibles.filter((o) => !o.oculto).map((opcion) => {
               const Icono = opcion.icono
               const activo = seccionActiva === opcion.id
               return (

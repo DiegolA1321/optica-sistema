@@ -1148,11 +1148,11 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Eye size={20} />
+                  <IdCard size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>Historial clínico</h2>
-                  <p className="text-xs text-slate-500">{pacienteHistorial.nombre}</p>
+                  <h2 className="text-lg font-bold" style={{ color: INK }}>Perfil del paciente</h2>
+                  <p className="text-xs text-slate-500">{pacienteHistorial.nombre}{pacienteHistorial.cedula ? ` · ${pacienteHistorial.cedula}` : ""}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setPacienteHistorial(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -1490,16 +1490,25 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
             })()}
 
             <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-              <button type="button" onClick={() => setPacienteHistorial(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={() => setPacienteHistorial(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                 Cerrar
               </button>
               <button
                 type="button"
                 onClick={() => { const p = pacienteHistorial; setPacienteHistorial(null); abrirAgendar(p) }}
-                className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                style={{ background: GRAD }}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
               >
                 Agendar nueva cita
+              </button>
+              {/* Único punto de entrada a la ficha clínica desde acá — ya no
+                  existe "Ficha clínica" como sección aparte del sidebar. */}
+              <button
+                type="button"
+                onClick={() => { const p = pacienteHistorial; setPacienteHistorial(null); onIrAFichaClinica?.(p) }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                style={{ background: GRAD }}
+              >
+                <Stethoscope size={16} /> Ficha clínica
               </button>
             </div>
           </div>

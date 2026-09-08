@@ -222,7 +222,10 @@ export default function Inicio({
       {/* ─── OPCIONES RÁPIDAS (arriba, para que "rápida" signifique algo) ─── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AccionRapida icon={Calendar} titulo="Agendar cita" desc="Abre el formulario directo, sin pasos extra" onClick={() => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas"))} />
-        <AccionRapida icon={FileText} titulo="Abrir ficha clínica" desc="Registrar refracción y diagnóstico" onClick={() => setVista?.("consultas")} />
+        {/* La ficha clínica ya no es una sección aparte — se entra desde el
+            perfil del paciente (ícono del ojo en Pacientes), así que este
+            acceso rápido lleva ahí a buscar al paciente primero. */}
+        <AccionRapida icon={FileText} titulo="Atender paciente" desc="Busca al paciente y abre su ficha clínica" onClick={() => setVista?.("pacientes")} />
       </div>
 
       {/* ─── KPIs (prioridad: pacientes, citas de hoy, inventario) ─── */}

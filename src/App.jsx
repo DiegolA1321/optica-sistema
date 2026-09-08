@@ -1,9 +1,10 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
 import { hoyISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
+import { lazyConReintento } from './utilidades/lazyConReintento';
 
 // Login se queda como import normal: es la pantalla de entrada más común
 // (cualquier visitante público, paciente o staff pasa por acá primero) — el
@@ -11,14 +12,14 @@ import { resolverSitio } from './utilidades/resolverSitio';
 // pesadas (paneles completos), así que se cargan bajo demanda: un paciente
 // nunca necesita bajar el código de SuperadminPanel, un visitante público
 // nunca necesita el de PortalPaciente, etc.
-const PaginaVenta = lazy(() => import('./paginas/PaginaVenta'));
-const Dashboard = lazy(() => import('./paginas/Dashboard'));
-const AgendarCitaPublica = lazy(() => import('./paginas/AgendarCitaPublica'));
-const PortalPaciente = lazy(() => import('./paginas/PortalPaciente'));
-const SuperadminPanel = lazy(() => import('./paginas/SuperadminPanel'));
-const ConfirmarCita = lazy(() => import('./paginas/ConfirmarCita'));
-const EncuestaSatisfaccion = lazy(() => import('./paginas/EncuestaSatisfaccion'));
-const PaginaLegal = lazy(() => import('./paginas/PaginaLegal'));
+const PaginaVenta = lazyConReintento(() => import('./paginas/PaginaVenta'), 'PaginaVenta');
+const Dashboard = lazyConReintento(() => import('./paginas/Dashboard'), 'Dashboard');
+const AgendarCitaPublica = lazyConReintento(() => import('./paginas/AgendarCitaPublica'), 'AgendarCitaPublica');
+const PortalPaciente = lazyConReintento(() => import('./paginas/PortalPaciente'), 'PortalPaciente');
+const SuperadminPanel = lazyConReintento(() => import('./paginas/SuperadminPanel'), 'SuperadminPanel');
+const ConfirmarCita = lazyConReintento(() => import('./paginas/ConfirmarCita'), 'ConfirmarCita');
+const EncuestaSatisfaccion = lazyConReintento(() => import('./paginas/EncuestaSatisfaccion'), 'EncuestaSatisfaccion');
+const PaginaLegal = lazyConReintento(() => import('./paginas/PaginaLegal'), 'PaginaLegal');
 
 // ─── Datos de arranque (solo se usan si no hay nada guardado aún) ───
 // Cédulas con dígito verificador real (algoritmo módulo 10) — antes eran
