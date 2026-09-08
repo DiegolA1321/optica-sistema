@@ -338,6 +338,12 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   // Default true (no romper ópticas ya personalizadas antes de este campo).
   const serviciosActivos = opticaPublica?.marca?.serviciosActivos !== false
   const logoUrl = opticaPublica?.logo_url || null
+  // Logo pensado para fondo claro (pedido de Diego): la barra superior, el
+  // pie de página y el modal de login son siempre oscuros y usan logoUrl —
+  // pero la imagen grande del hero de abajo va sobre fondo porcelana, y un
+  // logo pensado para fondo oscuro puede no verse bien ahí. Si no se subió
+  // uno específico, cae al mismo logoUrl de siempre (comportamiento previo).
+  const logoUrlClaro = opticaPublica?.marca?.logoUrlClaro || logoUrl
 
   const MENSAJE_DEFAULT = "En Diego Óptica cuidamos tu salud visual de principio a fin: examen de precisión, lentes a tu medida y un acompañamiento cercano después de tu compra."
   // ^ este texto exacto es el valor por defecto real en la base de datos
@@ -890,9 +896,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               siempre con el mismo ojo azul de referencia sin importar qué
               tan personalizada estuviera la óptica. */}
           <div className="lg-rise lg-d2 order-first lg:order-last">
-            {logoUrl ? (
+            {logoUrlClaro ? (
               <img
-                src={logoUrl}
+                src={logoUrlClaro}
                 alt={nombreMarca}
                 className="mx-auto block aspect-square w-full max-w-md rounded-[2.5rem] object-cover"
                 style={{ boxShadow: "0 30px 80px -30px rgba(37,99,235,0.25)" }}

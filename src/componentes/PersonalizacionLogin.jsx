@@ -18,7 +18,15 @@ const marcaAFormulario = (marca, logoUrl) => ({
   servicios: marca?.servicios?.length === 3
     ? marca.servicios.map((s) => ({ titulo: s.titulo || "", texto: s.texto || "", features: [s.features?.[0] || "", s.features?.[1] || "", s.features?.[2] || ""], imagenUrl: s.imagenUrl || "" }))
     : SERVICIOS_VACIOS(),
+  // "Oscuro" es el logo histórico (columna logo_url): se usa en la barra
+  // superior, el pie de página y el encabezado del modal de login — los tres
+  // sitios donde el logo va sobre un fondo oscuro. "Claro" es nuevo (dentro
+  // de marca, sin migración): pedido de Diego — un logo pensado para fondo
+  // claro no se ve bien ahí, y viceversa. Se usa en la imagen grande del
+  // hero (fondo porcelana); si no está, cae al logo oscuro (comportamiento
+  // de antes de este cambio), y si tampoco hay ninguno, a la ilustración.
   logoUrl: logoUrl || "",
+  logoUrlClaro: marca?.logoUrlClaro || "",
 })
 
 // Edición de "Personalización del login" (marca, mensaje de bienvenida,
@@ -30,6 +38,7 @@ const marcaAFormulario = (marca, logoUrl) => ({
 export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuardado }) {
   const [campo, setCampo] = useState(() => marcaAFormulario(marca, logoUrl))
   const [subiendoLogo, setSubiendoLogo] = useState(false)
+  const [subiendoLogoClaro, setSubiendoLogoClaro] = useState(false)
   const [errorLogo, setErrorLogo] = useState("")
   const [subiendoImagenServicio, setSubiendoImagenServicio] = useState(null)
   const [errorImagenServicio, setErrorImagenServicio] = useState("")
@@ -55,6 +64,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
       colorSecundario: c.colorSecundario.trim(),
       serviciosActivos: c.serviciosActivos,
       mensaje: c.mensaje.trim(),
+      logoUrlClaro: c.logoUrlClaro.trim(),
       ...(serviciosCompletos ? { servicios: serviciosCompletos } : {}),
     }
   }
@@ -91,6 +101,26 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
     const siguiente = { ...campo, logoUrl: data.publicUrl }
     setCampo(siguiente)
     setSubiendoLogo(false)
+    guardar(siguiente)
+  }
+
+  const subirLogoClaro = async (archivo) => {
+    if (!archivo) return
+    if (archivo.size > 2 * 1024 * 1024) { setErrorLogo("La imagen no puede pesar más de 2 MB."); return }
+    setErrorLogo("")
+    setSubiendoLogoClaro(true)
+    const extension = archivo.name.split(".").pop()?.toLowerCase() || "png"
+    const ruta = `${opticaId}/claro-${Date.now()}.${extension}`
+    const { error: errorSubida } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true })
+    if (errorSubida) {
+      setSubiendoLogoClaro(false)
+      setErrorLogo("No se pudo subir la imagen. Intenta de nuevo.")
+      return
+    }
+    const { data } = supabase.storage.from("logos").getPublicUrl(ruta)
+    const siguiente = { ...campo, logoUrlClaro: data.publicUrl }
+    setCampo(siguiente)
+    setSubiendoLogoClaro(false)
     guardar(siguiente)
   }
 
@@ -154,7 +184,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">Logo</label>
+            <label className="mb-1 block text-xs text-slate-500">Logo (fondo oscuro)</label>
             <div className="flex items-center gap-2">
               {campo.logoUrl && (
                 <img src={campo.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
@@ -169,13 +199,35 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
               </label>
             </div>
             {errorLogo && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogo}</p>}
-            <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
+            <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. Va en la barra superior, el pie de página y el login — todos con fondo oscuro. También puedes pegar una URL:</p>
             <input
               type="text" value={campo.logoUrl} onChange={(e) => setCampo((p) => ({ ...p, logoUrl: e.target.value }))} onBlur={() => guardar()}
               placeholder="https://…"
               className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
           </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Logo (fondo claro) <span className="normal-case text-slate-400">— opcional</span></label>
+          <div className="flex items-center gap-2">
+            {campo.logoUrlClaro && (
+              <img src={campo.logoUrlClaro} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
+            )}
+            <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogoClaro ? "pointer-events-none opacity-60" : "")}>
+              <ImageIcon size={13} />
+              {subiendoLogoClaro ? "Subiendo…" : "Subir imagen"}
+              <input
+                type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogoClaro(f); e.target.value = "" }}
+              />
+            </label>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-400">Para la imagen grande del hero (fondo claro). Si no lo subís, se usa el logo de arriba ahí también. También podés pegar una URL:</p>
+          <input
+            type="text" value={campo.logoUrlClaro} onChange={(e) => setCampo((p) => ({ ...p, logoUrlClaro: e.target.value }))} onBlur={() => guardar()}
+            placeholder="https://…"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+          />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
