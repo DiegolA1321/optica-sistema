@@ -414,6 +414,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           <>
             <Inicio
               setVista={navegar}
+              usuario={usuario}
               nombreUsuario={nombreUsuario}
               opticaNombre={usuario?.opticaNombre}
               pacientes={pacientes}

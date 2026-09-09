@@ -17,10 +17,14 @@ import {
   Clock,
   CalendarPlus,
   MoreVertical,
+  History,
+  TrendingUp,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
-import { esHoy, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
+import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
+import { supabase } from "../lib/supabaseClient"
+import { NOMBRE_MODULO } from "../utilidades/logs"
 import { INK, GOLD, ACCION_VER, ACCION_CONFIRMAR, ACCION_EDITAR, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
@@ -28,6 +32,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function Inicio({
   setVista,
+  usuario,
   pacientes = [],
   citas = [],
   inventario = [],
@@ -38,6 +43,25 @@ export default function Inicio({
   opticaNombre,
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
+
+  // "Actividad reciente" (sección 6 del pedido de UI: qué cambió, no solo
+  // el número actual) — reusa logs_optica, la misma fuente que ya
+  // alimenta "Actividad" en Usuarios.jsx. RLS solo la deja leer al admin
+  // principal, así que además de pedirla solo para ese rol acá, el propio
+  // RLS es la red de seguridad real si algún día cambia el gate del lado
+  // del cliente.
+  const esAdmin = usuario?.rol === "admin"
+  const [actividadReciente, setActividadReciente] = useState([])
+  useEffect(() => {
+    if (!esAdmin || !supabase || !usuario?.opticaId) return
+    supabase
+      .from("logs_optica")
+      .select("*")
+      .eq("optica_id", usuario.opticaId)
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => setActividadReciente(data || []))
+  }, [esAdmin, usuario?.opticaId])
   const [busqueda, setBusqueda] = useState("")
 
   // Séptima Mirada, hallazgo #4: esta mini-tabla usaba un vocabulario de
@@ -151,6 +175,17 @@ export default function Inicio({
     [citas]
   )
 
+  // Señal de "qué cambió" en el KPI de pacientes (antes solo mostraba el
+  // número del momento, sin ningún punto de comparación) — cuántos se
+  // registraron este mes calendario, contra fechaRegistro real.
+  const pacientesEsteMes = useMemo(() => {
+    const hoy = new Date()
+    return pacientes.filter((p) => {
+      const f = parseFechaFlexible(p.fechaRegistro)
+      return f && f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth()
+    }).length
+  }, [pacientes])
+
   // Prioridad de lo primero que ve el optómetra: pacientes totales, citas de hoy y alertas de inventario
   const estadisticas = [
     {
@@ -159,6 +194,7 @@ export default function Inicio({
       titulo: "Pacientes totales",
       valor: pacientes.length.toString(),
       desc: "Registrados en la base de datos",
+      tendencia: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : null,
       icono: Users,
       color: "slate",
     },
@@ -270,6 +306,11 @@ export default function Inicio({
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{est.titulo}</p>
                 <h4 className="text-4xl font-serif font-semibold" style={{ color: c.valor }}>{est.valor}</h4>
                 <p className="text-xs text-slate-500">{est.desc}</p>
+                {est.tendencia && (
+                  <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                    <TrendingUp size={11} /> {est.tendencia}
+                  </p>
+                )}
               </div>
               <div className="grid h-14 w-14 place-items-center rounded-2xl transition-transform group-hover:scale-110" style={{ background: c.tile, color: c.tileText }}>
                 <Icono size={26} />
@@ -469,6 +510,42 @@ export default function Inicio({
           </div>
         </section>
       </div>
+
+      {/* ─── ACTIVIDAD RECIENTE (solo admin principal, misma fuente que
+          Usuarios.jsx — responde "qué cambió", que el resto del panel no
+          contestaba) ─── */}
+      {esAdmin && actividadReciente.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                <History size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Actividad reciente</h4>
+                <p className="text-[11px] text-slate-500">Últimas acciones del equipo</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setVista?.("usuarios")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+              Ver todo <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {actividadReciente.map((l) => (
+              <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
+                    {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo}</p>
+                </div>
+                <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{new Date(l.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ─── BÚSQUEDA RÁPIDA DE PACIENTES (franja completa) ─── */}
       <div className="grid grid-cols-1 gap-6">
