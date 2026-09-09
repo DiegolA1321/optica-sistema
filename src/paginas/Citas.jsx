@@ -304,7 +304,12 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     }
 
     if (supabase && opticaId) {
-      const { data } = await supabase
+      // Antes esta llamada descartaba el error (solo desestructuraba
+      // `data`) — si el insert fallaba (red, RLS, o el índice único que
+      // evita doble reserva, hallazgo E7), igual se mostraba "cita
+      // guardada correctamente" con un id inventado en el cliente, sin que
+      // nadie se enterara de que nunca llegó al servidor.
+      const { data, error: errorInsert } = await supabase
         .from("citas")
         .insert({
           optica_id: opticaId,
@@ -314,9 +319,15 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
         })
         .select()
         .single()
-      if (data) nuevaCita.id = data.id
+      if (errorInsert) {
+        setError(errorInsert.code === "23505" ? "Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro." : "No se pudo registrar la cita. Revisa tu conexión e intenta de nuevo.")
+        setConfirmando(false)
+        return
+      }
+      nuevaCita.id = data.id
+    } else {
+      nuevaCita.id = Date.now()
     }
-    if (nuevaCita.id == null) nuevaCita.id = Date.now()
 
     setCitas([...citas, nuevaCita])
     registrarLog(usuario, "citas", "Agendó una cita", `${nuevaCita.paciente} · ${nuevaCita.fecha}`)

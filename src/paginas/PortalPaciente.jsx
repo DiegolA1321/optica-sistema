@@ -80,6 +80,24 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [guardandoReagenda, setGuardandoReagenda] = useState(false)
   const [errorReagenda, setErrorReagenda] = useState("")
 
+  // Hallazgo E7: `citas` acá solo trae las citas DE ESTE paciente
+  // (mis_citas_paciente, ver App.jsx), no las de otros pacientes de la
+  // misma óptica — el calendario de agendar/reagendar necesita saber qué
+  // horarios ya están ocupados por CUALQUIERA, no solo por este paciente.
+  // horas_ocupadas_publicas() expone solo fecha/hora (sin datos de otros
+  // pacientes) para calcular disponibilidad real.
+  const [horasOcupadas, setHorasOcupadas] = useState([])
+  useEffect(() => {
+    if (!supabase || !opticaId) return
+    supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => {
+      if (data) setHorasOcupadas(data)
+    })
+  }, [opticaId])
+  const refrescarHorasOcupadas = () => {
+    if (!supabase || !opticaId) return
+    supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
+  }
+
   const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
   const puedeReagendar = (cita) => {
     if (!parametrizacion?.permitirReagendarPaciente) return false
@@ -119,6 +137,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       }
     }
     setCitas(citas.map((c) => (c.id === cancelando.id ? { ...c, estado: "Cancelada" } : c)))
+    refrescarHorasOcupadas()
     setGuardandoCancelar(false)
     setCancelando(null)
   }
@@ -160,11 +179,18 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       })
       if (errorRpc || data !== true) {
         setGuardandoReagenda(false)
-        setErrorReagenda("No pudimos reagendar tu cita. Intenta de nuevo en un momento.")
+        if (errorRpc?.message?.includes("horario")) {
+          setErrorReagenda("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
+          refrescarHorasOcupadas()
+          setHoraReagenda("")
+        } else {
+          setErrorReagenda("No pudimos reagendar tu cita. Intenta de nuevo en un momento.")
+        }
         return
       }
     }
     setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, fecha: fechaReagenda, hora: horaReagenda, estado: "Pendiente" } : c)))
+    refrescarHorasOcupadas()
     setGuardandoReagenda(false)
     setReagendando(null)
   }
@@ -236,6 +262,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setErrorCita("")
     setGuardandoCita(true)
     if (supabase && opticaId) {
+      // crear_cita_publica devuelve una tabla (id, codigo) desde la migración
+      // 0058 — antes devolvía un uuid solo; sin .single()/data[0] el cliente
+      // recibía el arreglo completo como "id" (bug real encontrado al
+      // auditar E7, nunca se corrigió acá cuando se cambió el tipo de
+      // retorno para AgendarCitaPublica.jsx).
       const { data, error: errorRpc } = await supabase.rpc("crear_cita_publica", {
         p_optica_id: opticaId,
         p_paciente: nuevaCita.paciente,
@@ -246,17 +277,25 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         p_telefono: nuevaCita.telefono || null,
         p_motivo: nuevaCita.motivo,
       })
-      if (errorRpc) {
+      if (errorRpc || !data?.[0]) {
         setGuardandoCita(false)
-        setErrorCita("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+        if (errorRpc?.message?.includes("horario")) {
+          setErrorCita("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
+          refrescarHorasOcupadas()
+          setHora("")
+        } else {
+          setErrorCita("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+        }
         return
       }
-      nuevaCita.id = data
+      nuevaCita.id = data[0].id
+      nuevaCita.codigo = data[0].codigo
     } else {
       nuevaCita.id = Date.now()
     }
 
     setCitas([nuevaCita, ...citas])
+    refrescarHorasOcupadas()
     setGuardandoCita(false)
     setConfirmandoCita(false)
     setModalAgendar(false); setFecha(""); setHora(""); setMotivo(motivosConsulta[0] || ""); setError("")
@@ -763,7 +802,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 </div>
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
-                  citas={citas}
+                  citas={horasOcupadas}
                   fecha={fecha}
                   hora={hora}
                   onCambiarFecha={setFecha}
@@ -798,7 +837,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
               <SelectorFechaHora
                 disponibilidad={disponibilidad}
-                citas={citas.filter((c) => c.id !== reagendando.id)}
+                citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))}
                 fecha={fechaReagenda}
                 hora={horaReagenda}
                 onCambiarFecha={setFechaReagenda}

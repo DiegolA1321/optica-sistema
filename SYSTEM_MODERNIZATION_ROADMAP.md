@@ -68,7 +68,7 @@
 | E4 | Estado de entrega de notificaciones | El cron no expone éxito/fallo de Resend | Loguear la respuesta en una tabla simple | Un fallo de Resend hoy es invisible | 🟠 ALTA | Bajo | Baja |
 | ~~E5~~ ⭐ | ~~El "código de cita" que se le pide guardar al paciente no sirve para nada~~ | **✅ Hecho** (migración 0058: el código se genera y guarda en el servidor dentro de `crear_cita_publica()`; el personal ya puede buscar una cita por código en `Citas.jsx`) | — | — | — | — |
 | ~~E6~~ ⭐ | ~~Promesa falsa de recordatorio por WhatsApp~~ | **✅ Hecho** (`AgendarCitaPublica.jsx` ahora dice "por correo", condicionado a que el paciente haya dejado uno) | — | — | — | — |
-| **E7** | Posible doble reserva del mismo horario | `SelectorFechaHora.jsx` calcula disponibilidad en el cliente a partir de citas ya cargadas — **sin confirmar** si `crear_cita_publica` re-valida el cupo de forma atómica en el servidor | Verificar la función SQL; si no hay un `unique`/lock, agregar validación atómica server-side | Dos pacientes reservando el mismo horario casi simultáneo podrían ambos "tener éxito" | 🟠 ALTA (pendiente de verificar) | Medio | Media |
+| ~~E7~~ | ~~Posible doble reserva del mismo horario~~ | **✅ Hecho, y era peor de lo que decía la sospecha** (migración 0062): 1) el calendario público/portal calculaba disponibilidad a partir de un `citas` que en la práctica llegaba VACÍO para un visitante o paciente en un dispositivo nuevo (dependía de que un admin se hubiera logueado antes en ese navegador) — se agregó `horas_ocupadas_publicas()`, expone solo fecha/hora sin datos de pacientes; 2) sin protección real en el servidor — se agregó un índice único parcial `(optica_id, fecha, hora) where estado <> 'Cancelada'` (parcial porque cancelar no borra la fila) y `crear_cita_publica`/`reagendar_cita_publica` ahora devuelven un mensaje claro en vez del error crudo de Postgres; 3) de paso se corrigió un bug real de la propia auditoría anterior (E5): `PortalPaciente.jsx` nunca se actualizó cuando `crear_cita_publica` pasó a devolver una tabla, guardaba un arreglo completo como `id` de la cita. Verificado extremo a extremo contra producción: reserva → aparece ocupada → segunda reserva al mismo horario rechazada → cancelar libera el horario → nueva reserva ahí sí pasa | — | — | — | — |
 
 ## F. Motor de CRM y automatización
 
@@ -140,7 +140,7 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 | Prioridad | Cantidad | Ítems |
 |---|---|---|
 | 🔴 CRÍTICA | 6 | I1, I2, I6 ⭐⭐, I7 ⭐⭐, J5, J6 ⭐⭐ |
-| 🟠 ALTA | 19 (6 ✅ hechos: E5, E6, G5, I10, J2, J11 — 13 restantes) | B6 ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, E7 ⭐, G4, ~~G5~~ ⭐, G6, I3, I4, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
+| 🟠 ALTA | 19 (7 ✅ hechos: E5, E6, E7, G5, I10, J2, J11 — 12 restantes) | B6 ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4, ~~G5~~ ⭐, G6, I3, I4, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
 | 🟡 MEDIA | 15 | B1, B3, C2, C6 ⭐, D2, D5 ⭐, E1, E3, F1, F3, F4 ⭐, H2, I8 ⭐, I9 ⭐, I14 ⭐, I15 ⭐, J7 ⭐ |
 | 🟢 OPCIONAL | 12 | B2, B4, B5, C5, C7, D6, D7, H3, H4, I12, I13, J4, J8 |
 | ✅ Ya implementado (corregido en esta pasada) | 2 | F2, G2 |
@@ -168,5 +168,6 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 - J2: índices agregados en `pacientes(optica_id, cedula)`, `pacientes(optica_id, usuario)` y `citas(optica_id, fecha)` (migración 0060).
 - G5: venta de producto ahora es atómica vía RPC `registrar_venta_producto()` (migración 0061), verificado con una prueba real de concurrencia (dos ventas simultáneas del mismo producto: solo una pasó).
 - J11: se encontró que ya hay 2 ópticas reales activas en producción (Solna y Karla V) — Diego decidió mantener el fallback a Solna por ahora; se externalizó el UUID a `VITE_OPTICA_ID_DEFAULT` para que cambiarlo no requiera deploy. **Pendiente: agregar esa variable en Vercel** (hoy solo está en `.env.local`) — si no se agrega ahí, producción sigue funcionando igual (usa el mismo valor como respaldo), simplemente no queda configurable sin deploy hasta que se agregue.
+- E7: la doble reserva de horarios resultó ser un problema más real de lo sospechado — el calendario público/portal casi siempre calculaba disponibilidad con cero citas cargadas. Se agregó una función pública que expone solo fecha/hora reales, más un índice único server-side que bloquea de verdad la doble reserva. De paso se corrigió un bug real que había quedado de la ronda de E5 (PortalPaciente.jsx guardaba mal el id de la cita nueva).
 
-**Próximo paso:** quedan 13 ítems 🟠 Alto (B6, C1, C4, D1, E4, E7, G4, G6, I3, I4, I11, J1, J12). Cada cambio se prueba contra la suite de 71 tests (`npm test`) y, cuando toca seguridad, también contra `npm run test:rls` antes de continuar al siguiente.
+**Próximo paso:** quedan 12 ítems 🟠 Alto (B6, C1, C4, D1, E4, G4, G6, I3, I4, I11, J1, J12). Cada cambio se prueba contra la suite de 71 tests (`npm test`) y, cuando toca seguridad, también contra `npm run test:rls` antes de continuar al siguiente.

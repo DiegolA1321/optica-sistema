@@ -250,7 +250,11 @@ export function slotsDisponibles(fechaISO, disponibilidad, citas = []) {
   const horario = horarioEfectivo(fechaISO, disponibilidad)
   if (!diaAbierto(horario)) return []
   const todos = generarSlots({ manana: horario.manana, tarde: horario.tarde, duracion: disponibilidad?.duracionCita || 40 })
-  const ocupados = new Set(citas.filter((c) => c.fecha === fechaISO).map((c) => c.hora))
+  // "Cancelada" no debe bloquear el horario — el hallazgo E7 encontró que
+  // una cita cancelada por el paciente (que se marca así, no se borra —
+  // ver cancelar_cita_publica) dejaba el horario inutilizable para
+  // siempre en este cálculo, aunque en la base ya estuviera libre.
+  const ocupados = new Set(citas.filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada").map((c) => c.hora))
   const esHoyFecha = fechaISO === hoyISO()
   const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
   return todos.map((h) => ({

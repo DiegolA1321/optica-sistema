@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import {
   ArrowLeft,
   User,
@@ -34,6 +34,21 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const [paso, setPaso] = useState(1)
   const [enviando, setEnviando] = useState(false)
   const [errorReserva, setErrorReserva] = useState("")
+
+  // Hallazgo E7: `citas` (prop compartido de App.jsx) solo se llena cuando
+  // un admin inició sesión en este mismo navegador — un visitante nuevo
+  // agendando desde su propio dispositivo lo ve siempre vacío, así que el
+  // calendario mostraba TODOS los horarios como libres sin importar las
+  // citas reales. horas_ocupadas_publicas() expone solo fecha/hora (sin
+  // datos del paciente) para que la disponibilidad que ve el público sea
+  // la real, sin necesitar acceso a `citas` (protegida por RLS).
+  const [horasOcupadas, setHorasOcupadas] = useState([])
+  useEffect(() => {
+    if (!supabase || !opticaId) return
+    supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => {
+      if (data) setHorasOcupadas(data)
+    })
+  }, [opticaId])
 
   const [formData, setFormData] = useState({
     nombres: "",
@@ -151,7 +166,13 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       })
       if (error || !data?.[0]) {
         setEnviando(false)
-        setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+        if (error?.message?.includes("horario")) {
+          setErrorReserva("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
+          supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
+          setFormData((prev) => ({ ...prev, hora: "" }))
+        } else {
+          setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+        }
         return
       }
       nuevaCita.id = data[0].id
@@ -443,7 +464,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
 
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
-                  citas={citas}
+                  citas={horasOcupadas}
                   fecha={formData.fecha}
                   hora={formData.hora}
                   onCambiarFecha={(iso) => setFormData((prev) => ({ ...prev, fecha: iso, hora: "" }))}
