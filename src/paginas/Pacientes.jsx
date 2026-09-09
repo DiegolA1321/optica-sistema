@@ -40,6 +40,9 @@ import {
   CreditCard,
   Gift,
   Award,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -512,13 +515,35 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
     })
   }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha])
 
+  // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
+  // usa CRM.jsx en su modal de detalle, para no inventar uno nuevo. Solo la
+  // columna "Paciente" (nombre) es ordenable: es el único dato de la fila
+  // con un tipo simple y sin ambigüedad de formato (a diferencia de "Último
+  // examen", que es texto ya formateado y a veces "Pendiente", no una fecha
+  // real comparable).
+  const [orden, setOrden] = useState({ campo: null, dir: "asc" })
+  const cambiarOrden = (campo) => {
+    setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: "asc" }))
+  }
+  const IconoOrden = ({ campo }) => {
+    if (orden.campo !== campo) return <ArrowUpDown size={11} className="text-slate-300" />
+    return orden.dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
+  }
+  const pacientesOrdenados = useMemo(() => {
+    if (orden.campo !== "nombre") return pacientesFiltrados
+    return [...pacientesFiltrados].sort((a, b) => {
+      const cmp = (a.nombre || "").localeCompare(b.nombre || "", "es")
+      return orden.dir === "asc" ? cmp : -cmp
+    })
+  }, [pacientesFiltrados, orden])
+
   // Corte de rango — evita que una lista de cientos de pacientes se renderice
   // entera de una (feedback del ing). Se reinicia a 25 cada vez que cambian
   // los filtros, para no dejar "Mostrar más" a medio abrir sobre resultados
   // que ya no aplican.
   const [cantidadVisible, setCantidadVisible] = useState(25)
   useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroEstado, filtroCorreccion, filtroFecha])
-  const pacientesVisibles = useMemo(() => pacientesFiltrados.slice(0, cantidadVisible), [pacientesFiltrados, cantidadVisible])
+  const pacientesVisibles = useMemo(() => pacientesOrdenados.slice(0, cantidadVisible), [pacientesOrdenados, cantidadVisible])
 
   // Conteo por estado de corrección (para el resumen superior)
   const conteoCorreccion = useMemo(() => {
@@ -713,7 +738,9 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-3.5">Paciente</th>
+                <th className="cursor-pointer select-none px-5 py-3.5" onClick={() => cambiarOrden("nombre")}>
+                  <span className="flex items-center gap-1">Paciente <IconoOrden campo="nombre" /></span>
+                </th>
                 <th className="px-5 py-3.5">Contacto</th>
                 <th className="px-5 py-3.5">Corrección</th>
                 <th className="px-5 py-3.5">Último examen</th>

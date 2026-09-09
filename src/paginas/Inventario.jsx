@@ -16,6 +16,9 @@ import {
   ShoppingCart,
   BarChart3,
   Users,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { resumenVentasProducto } from "../utilidades/ventas"
@@ -224,10 +227,27 @@ export default function Inventario({
     return coincideTexto && coincideCat && coincideBajo
   })
 
+  // Orden de la tabla — mismo patrón orden/cambiarOrden/IconoOrden que ya
+  // usa CRM.jsx y ahora Pacientes.jsx, para no inventar uno nuevo por página.
+  const [orden, setOrden] = useState({ campo: null, dir: "asc" })
+  const cambiarOrden = (campo) => {
+    setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: "asc" }))
+  }
+  const IconoOrden = ({ campo }) => {
+    if (orden.campo !== campo) return <ArrowUpDown size={11} className="text-slate-300" />
+    return orden.dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
+  }
+  const productosOrdenados = !orden.campo ? productosFiltrados : [...productosFiltrados].sort((a, b) => {
+    let cmp
+    if (orden.campo === "nombre" || orden.campo === "categoria") cmp = (a[orden.campo] || "").localeCompare(b[orden.campo] || "", "es")
+    else cmp = (Number(a[orden.campo]) || 0) - (Number(b[orden.campo]) || 0)
+    return orden.dir === "asc" ? cmp : -cmp
+  })
+
   // Corte de rango — mismo criterio que Pacientes.jsx (feedback del ing).
   const [cantidadVisible, setCantidadVisible] = useState(25)
   useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo])
-  const productosVisibles = productosFiltrados.slice(0, cantidadVisible)
+  const productosVisibles = productosOrdenados.slice(0, cantidadVisible)
   // Barra de stock relativa a lo que se está viendo — misma idea visual que
   // el widget de Inicio.jsx, para que "cuánto queda" se lea de un vistazo.
   const maxStockVisible = Math.max(1, ...productosVisibles.map((p) => Number(p.stock) || 0))
@@ -353,10 +373,18 @@ export default function Inventario({
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3">Ítem</th>
-                <th className="px-4 py-3">Categoría</th>
-                <th className="px-4 py-3">Existencia</th>
-                <th className="px-4 py-3">Precio U.</th>
+                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("nombre")}>
+                  <span className="flex items-center gap-1">Ítem <IconoOrden campo="nombre" /></span>
+                </th>
+                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("categoria")}>
+                  <span className="flex items-center gap-1">Categoría <IconoOrden campo="categoria" /></span>
+                </th>
+                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("stock")}>
+                  <span className="flex items-center gap-1">Existencia <IconoOrden campo="stock" /></span>
+                </th>
+                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("precio")}>
+                  <span className="flex items-center gap-1">Precio U. <IconoOrden campo="precio" /></span>
+                </th>
                 <th className="px-4 py-3 text-center">Acciones</th>
               </tr>
             </thead>
