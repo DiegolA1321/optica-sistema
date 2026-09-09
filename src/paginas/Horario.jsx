@@ -27,7 +27,7 @@ import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
 } from "../utilidades/disponibilidad"
-import { INK } from "@/lib/tema"
+import { INK, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -805,7 +805,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal }) {
                   <p className="text-sm font-semibold text-slate-700">{iso.split("-").reverse().join("/")}</p>
                   {motivo && <p className="truncate text-xs text-slate-500">{motivo}</p>}
                 </div>
-                <button type="button" onClick={() => quitarAusencia(iso)} title="Quitar" aria-label={`Quitar ausencia del ${iso}`} className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 cursor-pointer">
+                <button type="button" onClick={() => quitarAusencia(iso)} title="Quitar" aria-label={`Quitar ausencia del ${iso}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
                   <Trash2 size={14} />
                 </button>
               </div>

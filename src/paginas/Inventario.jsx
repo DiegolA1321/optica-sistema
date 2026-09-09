@@ -23,7 +23,7 @@ import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
 import VentaProductoModal from "./VentaProductoModal"
 import CampoCategoria from "../componentes/CampoCategoria"
-import { INK } from "@/lib/tema"
+import { INK, ACCION_VER, ACCION_CONFIRMAR, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -406,18 +406,18 @@ export default function Inventario({
                       <td className="px-4 py-3 font-mono font-bold text-slate-600">${Number(prod.precio).toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => abrirEditar(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar / añadir stock" aria-label="Editar o añadir stock">
+                          <button type="button" onClick={() => abrirEditar(prod)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar / añadir stock" aria-label="Editar o añadir stock">
                             <Pencil size={16} />
                           </button>
                           <button type="button" onClick={() => setVendiendo(prod)} disabled={(Number(prod.stock) || 0) <= 0}
-                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                            className={"rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer " + ACCION_CONFIRMAR}
                             title={(Number(prod.stock) || 0) <= 0 ? "Sin stock disponible" : "Vender a un paciente"} aria-label="Vender a un paciente">
                             <ShoppingCart size={16} />
                           </button>
                           <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
                             <BarChart3 size={16} />
                           </button>
-                          <button type="button" onClick={() => setPorEliminar(prod.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar producto" aria-label="Eliminar producto">
+                          <button type="button" onClick={() => setPorEliminar(prod.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR} title="Eliminar producto" aria-label="Eliminar producto">
                             <Trash2 size={16} />
                           </button>
                         </div>

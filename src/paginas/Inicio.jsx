@@ -21,7 +21,7 @@ import {
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { esHoy, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
-import { INK, GOLD } from "@/lib/tema"
+import { INK, GOLD, ACCION_VER, ACCION_CONFIRMAR, ACCION_EDITAR, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -307,7 +307,7 @@ export default function Inicio({
                     <button
                       type="button"
                       onClick={() => enviarFelicitacionWhatsApp(c.nombre, c.contacto || c.telefono || c.celular)}
-                      className="flex items-center justify-center rounded-lg p-1 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                      className={"flex items-center justify-center rounded-lg p-1 transition-colors cursor-pointer " + ACCION_CONFIRMAR}
                       title="Enviar felicitación por WhatsApp"
                       aria-label="Enviar felicitación por WhatsApp"
                     >
@@ -530,10 +530,10 @@ export default function Inicio({
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex justify-center gap-1">
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "historial")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Ver historial clínico" aria-label="Ver historial clínico">
+                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "historial")} className={"rounded-lg p-1.5 transition-colors cursor-pointer " + ACCION_VER} title="Ver historial clínico" aria-label="Ver historial clínico">
                             <Eye size={14} />
                           </button>
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "agendar")} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer" title="Agendar cita" aria-label="Agendar cita">
+                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "agendar")} className={"rounded-lg p-1.5 transition-colors cursor-pointer " + ACCION_CONFIRMAR} title="Agendar cita" aria-label="Agendar cita">
                             <CalendarPlus size={14} />
                           </button>
                           <button

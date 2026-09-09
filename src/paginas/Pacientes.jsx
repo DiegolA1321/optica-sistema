@@ -47,7 +47,7 @@ import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/dis
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
-import { INK } from "@/lib/tema"
+import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -808,10 +808,10 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
 
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }} title="Ver historial clínico" aria-label="Ver historial clínico" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer">
+                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }} title="Ver historial clínico" aria-label="Ver historial clínico" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
                             <Eye size={16} />
                           </button>
-                          <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer">
+                          <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
                             <CalendarPlus size={16} />
                           </button>
                           <div className="relative">

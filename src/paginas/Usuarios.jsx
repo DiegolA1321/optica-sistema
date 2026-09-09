@@ -24,7 +24,7 @@ import {
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
-import { INK } from "@/lib/tema"
+import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -370,10 +370,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <button type="button" onClick={() => abrirEditar(a)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Editar" aria-label={`Editar ${a.nombre}`}>
+                      <button type="button" onClick={() => abrirEditar(a)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar" aria-label={`Editar ${a.nombre}`}>
                         <Pencil size={15} />
                       </button>
-                      <button type="button" onClick={() => setPorEliminar(a.id)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer" title="Eliminar" aria-label={`Eliminar ${a.nombre}`}>
+                      <button type="button" onClick={() => setPorEliminar(a.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR} title="Eliminar" aria-label={`Eliminar ${a.nombre}`}>
                         <Trash2 size={15} />
                       </button>
                     </div>
