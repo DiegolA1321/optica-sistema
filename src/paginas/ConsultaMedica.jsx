@@ -883,7 +883,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="relative" ref={dropdownRef}>
-                    <label htmlFor="paciente" className="mb-1.5 block text-sm font-medium text-slate-600">
+                    <label htmlFor="paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Paciente <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -935,7 +935,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
 
                   <div>
-                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-medium text-slate-600">Motivo de la consulta</label>
+                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo de la consulta</label>
                     <input
                       id="motivo"
                       type="text"

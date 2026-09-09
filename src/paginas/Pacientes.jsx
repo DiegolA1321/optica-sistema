@@ -640,7 +640,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
         </div>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
           <div className="flex-1">
-            <label htmlFor="buscar-paciente" className="mb-1.5 block text-sm font-medium text-slate-600">Buscar</label>
+            <label htmlFor="buscar-paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">Buscar</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input
@@ -655,7 +655,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
           </div>
 
           <div>
-            <label htmlFor="filtro-estado" className="mb-1.5 block text-sm font-medium text-slate-600">Estado</label>
+            <label htmlFor="filtro-estado" className="mb-1.5 block text-sm font-semibold text-slate-700">Estado</label>
             <select
               id="filtro-estado"
               value={filtroEstado}
@@ -669,7 +669,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
           </div>
 
           <div>
-            <label htmlFor="filtro-evolucion" className="mb-1.5 block text-sm font-medium text-slate-600">Corrección</label>
+            <label htmlFor="filtro-evolucion" className="mb-1.5 block text-sm font-semibold text-slate-700">Corrección</label>
             <select
               id="filtro-evolucion"
               value={filtroCorreccion}
@@ -684,7 +684,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
           </div>
 
           <div>
-            <label htmlFor="filtro-fecha" className="mb-1.5 block text-sm font-medium text-slate-600">Fecha de registro</label>
+            <label htmlFor="filtro-fecha" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de registro</label>
             <input
               id="filtro-fecha"
               type="date"
@@ -879,7 +879,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
             <form onSubmit={manejarEnvio} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
               <div>
-                <label htmlFor="p-nombre" className="mb-1.5 block text-sm font-medium text-slate-600">
+                <label htmlFor="p-nombre" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   Apellidos y nombres <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -892,7 +892,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="p-cedula" className="mb-1.5 block text-sm font-medium text-slate-600">
+                  <label htmlFor="p-cedula" className="mb-1.5 block text-sm font-semibold text-slate-700">
                     Cédula <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -907,7 +907,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
                 </div>
 
                 <div>
-                  <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-medium text-slate-600">Fecha de nacimiento</label>
+                  <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento</label>
                   <div className="relative">
                     <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
@@ -921,7 +921,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="p-telefono" className="mb-1.5 block text-sm font-medium text-slate-600">Teléfono</label>
+                  <label htmlFor="p-telefono" className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
@@ -934,7 +934,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
                 </div>
 
                 <div>
-                  <label htmlFor="p-correo" className="mb-1.5 block text-sm font-medium text-slate-600">Correo</label>
+                  <label htmlFor="p-correo" className="mb-1.5 block text-sm font-semibold text-slate-700">Correo</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
@@ -948,7 +948,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
               </div>
 
               <div>
-                <label htmlFor="p-referido" className="mb-1.5 block text-sm font-medium text-slate-600">
+                <label htmlFor="p-referido" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   Referido por <span className="normal-case text-slate-500">(opcional)</span>
                 </label>
                 <div className="relative">
