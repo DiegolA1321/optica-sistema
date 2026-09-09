@@ -1476,7 +1476,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Resumen</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Resumen</h1>
           <p className="text-sm text-slate-400">Cargando panel…</p>
         </div>
       </div>
@@ -1496,7 +1496,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Resumen</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Resumen</h1>
           <p className="text-sm text-slate-500">
             {hoyFechaResumen} · {opticas.length} óptica{opticas.length === 1 ? "" : "s"} bajo gestión
           </p>
@@ -1850,7 +1850,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <MessageSquare size={22} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>CRM</h1>
+            <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>CRM</h1>
             <p className="text-sm text-slate-500">Relación con tus administradores de óptica: mensajes, pagos y avisos.</p>
           </div>
         </div>
@@ -2076,7 +2076,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Ópticas</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Ópticas</h1>
           <p className="text-sm text-slate-500">Creá y administrá las ópticas que usan el sistema.</p>
         </div>
         <button
@@ -2240,7 +2240,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const renderActividad = () => (
     <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Actividad</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Actividad</h1>
         <p className="text-sm text-slate-500">Registro de auditoría de acciones administrativas.</p>
       </div>
 
@@ -2340,7 +2340,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const renderLeads = () => (
     <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Leads</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Leads</h1>
         <p className="text-sm text-slate-500">Solicitudes recibidas desde la página de venta del sistema.</p>
       </div>
 
@@ -2444,7 +2444,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const renderSuperadminsSkeleton = () => (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Superadmins</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
         <p className="text-sm text-slate-400">Cargando…</p>
       </div>
       <Skeleton className="h-[104px]" />
@@ -2456,7 +2456,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>Superadmins</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
           <p className="text-sm text-slate-500">Cuentas con acceso total al sistema — creá una de respaldo, no dependas de una sola.</p>
         </div>
         <button

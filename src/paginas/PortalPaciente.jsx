@@ -945,7 +945,7 @@ function TarjetaResumen({ label, valor, sub, icon: Icon, tile, tileText }) {
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
         <div className="grid h-9 w-9 place-items-center rounded-xl" style={{ background: tile, color: tileText }}><Icon size={18} /></div>
       </div>
-      <p className="mt-2 truncate text-2xl font-bold" style={{ color: INK }}>{valor}</p>
+      <p className="mt-2 truncate font-serif text-2xl font-semibold" style={{ color: INK }}>{valor}</p>
       {sub && <p className="text-xs text-slate-500">{sub}</p>}
     </div>
   )

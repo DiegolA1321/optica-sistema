@@ -692,7 +692,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 <ShieldCheck size={22} />
               </div>
               <div>
-                <h3 className="font-heading text-xl font-extrabold tracking-tight" style={{ color: INK }}>Sistema Óptica</h3>
+                <h3 className="font-serif text-xl font-semibold tracking-tight" style={{ color: INK }}>Sistema Óptica</h3>
                 <p className="text-sm text-slate-500">Panel del sistema · acceso exclusivo del superadministrador</p>
               </div>
             </div>

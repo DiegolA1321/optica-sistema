@@ -34,7 +34,7 @@ export default function EncuestaSatisfaccion({ citaId }) {
       <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
         {estado === "form" || estado === "enviando" ? (
           <form onSubmit={enviar} className="flex flex-col items-center gap-1">
-            <h1 className="font-heading text-xl font-extrabold" style={{ color: INK }}>¿Cómo te fue en tu visita?</h1>
+            <h1 className="font-serif text-xl font-semibold" style={{ color: INK }}>¿Cómo te fue en tu visita?</h1>
             <p className="mt-1 text-sm text-slate-500">Tu opinión nos ayuda a mejorar. Te toma menos de un minuto.</p>
 
             <div className="mt-6 flex items-center gap-1.5" role="radiogroup" aria-label="Calificación de 1 a 5">
@@ -81,7 +81,7 @@ export default function EncuestaSatisfaccion({ citaId }) {
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full text-white" style={{ background: GRAD }}>
               <CheckCircle2 size={28} />
             </div>
-            <h1 className="mt-4 font-heading text-xl font-extrabold" style={{ color: INK }}>¡Gracias por tu opinión!</h1>
+            <h1 className="mt-4 font-serif text-xl font-semibold" style={{ color: INK }}>¡Gracias por tu opinión!</h1>
             <p className="mt-2 text-sm text-slate-500">Tu calificación ya quedó registrada.</p>
           </>
         ) : (
@@ -89,7 +89,7 @@ export default function EncuestaSatisfaccion({ citaId }) {
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-red-100 text-red-600">
               <XCircle size={28} />
             </div>
-            <h1 className="mt-4 font-heading text-xl font-extrabold" style={{ color: INK }}>No pudimos enviarla</h1>
+            <h1 className="mt-4 font-serif text-xl font-semibold" style={{ color: INK }}>No pudimos enviarla</h1>
             <p className="mt-2 text-sm text-slate-500">El enlace ya no es válido o ya respondiste esta encuesta antes.</p>
           </>
         )}

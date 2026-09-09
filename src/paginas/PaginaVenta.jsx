@@ -591,7 +591,7 @@ export default function PaginaVenta() {
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: m.grad, boxShadow: `0 12px 24px -10px ${m.glow}` }}>
                     <m.icon size={22} />
                   </div>
-                  <h3 className="font-heading text-2xl font-bold leading-tight sm:text-3xl" style={{ color: m.dark ? "#fff" : INK }}>
+                  <h3 className="font-serif text-2xl font-semibold leading-tight sm:text-3xl" style={{ color: m.dark ? "#fff" : INK }}>
                     {m.titulo}
                   </h3>
                 </div>
