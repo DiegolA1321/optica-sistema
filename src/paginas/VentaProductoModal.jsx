@@ -171,36 +171,31 @@ export default function VentaProductoModal({
     }
 
     if (supabase && opticaId) {
-      const { data, error: errorInsert } = await supabase
-        .from("ventas")
-        .insert({
-          optica_id: opticaId,
-          paciente_id: nuevaVenta.pacienteId,
-          producto_id: nuevaVenta.productoId,
-          producto_nombre: nuevaVenta.productoNombre,
-          cantidad: nuevaVenta.cantidad,
-          precio_unitario: nuevaVenta.precioUnitario,
-          monto_total: nuevaVenta.montoTotal,
-          metodo_pago: nuevaVenta.metodoPago,
-          cuotas_totales: nuevaVenta.cuotasTotales,
-          cuotas_pagadas: 0,
-          estado: nuevaVenta.estado,
-          registrado_por: usuario?.id || null,
+      const { data, error: errorRpc } = await supabase
+        .rpc("registrar_venta_producto", {
+          p_optica_id: opticaId,
+          p_paciente_id: nuevaVenta.pacienteId,
+          p_producto_id: nuevaVenta.productoId,
+          p_producto_nombre: nuevaVenta.productoNombre,
+          p_cantidad: nuevaVenta.cantidad,
+          p_precio_unitario: nuevaVenta.precioUnitario,
+          p_monto_total: nuevaVenta.montoTotal,
+          p_metodo_pago: nuevaVenta.metodoPago,
+          p_cuotas_totales: nuevaVenta.cuotasTotales,
+          p_estado: nuevaVenta.estado,
+          p_registrado_por: usuario?.id || null,
         })
-        .select()
         .single()
-      if (errorInsert) {
-        setError("No se pudo registrar la venta. Revisa tu conexión e intenta de nuevo.")
+      if (errorRpc) {
+        setError(errorRpc.message?.includes("stock") ? "No hay suficiente stock disponible para esta venta." : "No se pudo registrar la venta. Revisa tu conexión e intenta de nuevo.")
         setGuardando(false)
         return
       }
       nuevaVenta.id = data.id
       nuevaVenta.creadoEn = data.created_at
 
-      const stockNuevo = (Number(productoSeleccionado.stock) || 0) - cantidadNum
-      const { error: errorStock } = await supabase.from("inventario").update({ stock: stockNuevo }).eq("id", productoSeleccionado.id)
-      if (!errorStock && setInventario) {
-        setInventario((prev) => prev.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: stockNuevo } : p)))
+      if (setInventario) {
+        setInventario((prev) => prev.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: data.stock_restante } : p)))
       }
     } else {
       nuevaVenta.id = Date.now()

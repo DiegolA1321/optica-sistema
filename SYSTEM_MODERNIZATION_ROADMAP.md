@@ -87,7 +87,7 @@
 | ~~G2~~ | ~~Umbral de stock por producto~~ | **✅ Ya implementado** (corrección a la v1) | — | — | — | — | — |
 | G3 | Alta rápida de producto en venta | Ya implementada | — | — | — | — | — |
 | G4 | Paginación de inventario | Slicing manual en memoria | Paginación real vía `range()` pasado ~200 productos | No escala si el catálogo crece | 🟠 ALTA* | Medio | Alta |
-| **G5** ⭐ | **Condición de carrera real en el descuento de stock al vender** | `VentaProductoModal.jsx` hace *read-then-write* no atómico: lee el stock actual, resta en el cliente, y hace `UPDATE`. Además, si ese `UPDATE` falla **después** de insertar la venta, no hay manejo de error — la venta queda registrada pero el inventario no se ajusta, sin avisar a nadie | Decremento atómico en el servidor (`stock = stock - $1` en una sola sentencia, o un RPC dedicado) con manejo explícito de fallo | Dos asistentes vendiendo el mismo producto casi al mismo tiempo pueden dejar el stock mal sin que nadie lo note — esto es dinero y mercadería real, no solo un dato de reporte | 🟠 ALTA | Medio | Media |
+| ~~G5~~ ⭐ | ~~Condición de carrera real en el descuento de stock al vender~~ | **✅ Hecho** (migración 0061: RPC `registrar_venta_producto()` hace el descuento de stock y el insert de la venta en una sola sentencia atómica; `update ... where stock >= p_cantidad` además serializa ventas concurrentes del mismo producto — verificado con dos ventas simultáneas reales contra producción: solo una pasó, la otra fue rechazada por falta de stock, sin sobreventa) | — | — | — | — |
 | **G6** | Categorías se pueden borrar sin verificar uso | En `Configuracion.jsx`, eliminar una categoría de inventario/diagnóstico no verifica si algún producto o consulta ya la usa | Bloquear o advertir si la categoría está en uso antes de borrar | Puede dejar referencias huérfanas (un producto con una categoría que ya no existe) | 🟠 ALTA | Bajo | Media |
 
 *Condicional al crecimiento real de datos.
@@ -166,5 +166,6 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 - E6: corregida la promesa falsa de recordatorio por WhatsApp — ahora dice correo, condicionado a que el paciente haya dejado uno.
 - I10: `check` constraint en `citas.estado` (migración 0059), verificado que rechaza valores inválidos.
 - J2: índices agregados en `pacientes(optica_id, cedula)`, `pacientes(optica_id, usuario)` y `citas(optica_id, fecha)` (migración 0060).
+- G5: venta de producto ahora es atómica vía RPC `registrar_venta_producto()` (migración 0061), verificado con una prueba real de concurrencia (dos ventas simultáneas del mismo producto: solo una pasó).
 
-**Próximo paso:** quedan 15 ítems 🟠 Alto (B6, C1, C4, D1, E4, E7, G4, G5, G6, I3, I4, I11, J1, J11, J12). Cada cambio se prueba contra la suite de 71 tests (`npm test`) y, cuando toca seguridad, también contra `npm run test:rls` antes de continuar al siguiente.
+**Próximo paso:** quedan 14 ítems 🟠 Alto (B6, C1, C4, D1, E4, E7, G4, G6, I3, I4, I11, J1, J11, J12). Cada cambio se prueba contra la suite de 71 tests (`npm test`) y, cuando toca seguridad, también contra `npm run test:rls` antes de continuar al siguiente.
