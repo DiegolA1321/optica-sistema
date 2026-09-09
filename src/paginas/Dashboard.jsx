@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
+import { createPortal } from "react-dom"
 import {
   Users,
   Calendar,
@@ -156,6 +157,23 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
   const [colapsado, setColapsado] = useState(false)
   const [notifAbierta, setNotifAbierta] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
+
+  // Paleta de comandos (Ctrl/Cmd+K) — sección 7 del pedido de UI ("reduce
+  // clics en uso diario intensivo"), la única pieza de navegación del spec
+  // que faltaba por completo. Reusa opcionesVisibles/navegar tal cual, así
+  // que respeta el mismo filtro de permisos que ya aplica el sidebar — no
+  // se duplica esa lógica.
+  const [paletaAbierta, setPaletaAbierta] = useState(false)
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        setPaletaAbierta((v) => !v)
+      }
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [])
   const [modalMiCuentaAbierto, setModalMiCuentaAbierto] = useState(false)
   // Número de registro profesional (hallazgo de auditoría 2026-09-08: la
   // receta impresa siempre dejaba "Reg. Prof. ____" en blanco porque no
@@ -580,6 +598,18 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Paleta de comandos — Ctrl/Cmd+K abre desde cualquier lado, este
+                botón es solo para que se descubra con el mouse. */}
+            <button
+              type="button"
+              onClick={() => setPaletaAbierta(true)}
+              className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 cursor-pointer md:flex"
+              title="Ir a una sección (Ctrl+K)"
+              aria-label="Abrir paleta de comandos"
+            >
+              <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold">Ctrl K</kbd>
+            </button>
+
             {/* Buscador global de pacientes — accesible desde cualquier
                 sección, no solo desde adentro de Pacientes. */}
             <div className="relative" ref={busquedaGlobalRef}>
@@ -788,6 +818,97 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           </div>
         </div>
       )}
+
+      {paletaAbierta && (
+        <PaletaComandos
+          opciones={opcionesVisibles.filter((o) => !o.oculto)}
+          onNavegar={(id) => { navegar(id); setPaletaAbierta(false) }}
+          onCerrar={() => setPaletaAbierta(false)}
+        />
+      )}
     </div>
+  )
+}
+
+// Paleta de comandos: Ctrl/Cmd+K la abre desde cualquier pantalla del
+// dashboard (listener global en el componente de arriba). Filtra por texto,
+// se navega con flechas + Enter o con un clic — mismo patrón visual
+// hand-rolled (createPortal + overlay-in/modal-in) que el resto de los
+// modales del sistema.
+function PaletaComandos({ opciones, onNavegar, onCerrar }) {
+  const [texto, setTexto] = useState("")
+  const [indiceActivo, setIndiceActivo] = useState(0)
+  const inputRef = useRef(null)
+
+  const filtradas = useMemo(() => {
+    const q = texto.trim().toLowerCase()
+    if (!q) return opciones
+    return opciones.filter((o) => o.nombre.toLowerCase().includes(q))
+  }, [opciones, texto])
+
+  useEffect(() => { setIndiceActivo(0) }, [texto])
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") { onCerrar(); return }
+      if (e.key === "ArrowDown") { e.preventDefault(); setIndiceActivo((i) => Math.min(i + 1, filtradas.length - 1)) }
+      if (e.key === "ArrowUp") { e.preventDefault(); setIndiceActivo((i) => Math.max(i - 1, 0)) }
+      if (e.key === "Enter" && filtradas[indiceActivo]) { e.preventDefault(); onNavegar(filtradas[indiceActivo].id) }
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [filtradas, indiceActivo, onCerrar, onNavegar])
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[80] flex items-start justify-center p-4 pt-[12vh] backdrop-blur-sm"
+      style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
+      onClick={onCerrar}
+    >
+      <div
+        className="flex max-h-[60vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Paleta de comandos"
+      >
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-slate-100 px-4 py-3">
+          <Search size={16} className="shrink-0 text-slate-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Ir a..."
+            className="w-full text-sm text-slate-800 outline-none placeholder:text-slate-400"
+          />
+          <kbd className="hidden shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 sm:block">Esc</kbd>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+          {filtradas.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-slate-500">Sin resultados.</p>
+          ) : (
+            filtradas.map((o, i) => {
+              const Icono = o.icono
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => onNavegar(o.id)}
+                  onMouseEnter={() => setIndiceActivo(i)}
+                  className={"flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors cursor-pointer " + (i === indiceActivo ? "bg-blue-50 text-blue-700" : "text-slate-600")}
+                >
+                  <Icono size={16} className="shrink-0" />
+                  {o.nombre}
+                </button>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
