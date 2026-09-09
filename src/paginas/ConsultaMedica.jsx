@@ -1142,17 +1142,33 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     {seccionesAbiertas.comparacionAnterior && (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {[
-                          { sigla: "OD", datos: ultimaConsultaPaciente.od },
-                          { sigla: "OI", datos: ultimaConsultaPaciente.oi },
-                        ].map(({ sigla, datos }) => (
+                          { sigla: "OD", datos: ultimaConsultaPaciente.od, actual: { esfera: odEsfera, cilindro: odCilindro, eje: odEje }, copiar: () => { setOdEsfera(ultimaConsultaPaciente.od?.esfera || ""); setOdCilindro(ultimaConsultaPaciente.od?.cilindro || ""); setOdEje(ultimaConsultaPaciente.od?.eje || "") } },
+                          { sigla: "OI", datos: ultimaConsultaPaciente.oi, actual: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje }, copiar: () => { setOiEsfera(ultimaConsultaPaciente.oi?.esfera || ""); setOiCilindro(ultimaConsultaPaciente.oi?.cilindro || ""); setOiEje(ultimaConsultaPaciente.oi?.eje || "") } },
+                        ].map(({ sigla, datos, actual, copiar }) => {
+                          // D2: solo se puede copiar de un tirón si los 3 campos
+                          // actuales siguen en su valor por defecto ("0.00"/"0",
+                          // no strings vacíos — así arrancan estos campos) —
+                          // evita pisar en silencio algo que el optómetra ya
+                          // tecleó a mano.
+                          const enDefecto = (v, def) => !v || v === def
+                          const puedeCopiar = enDefecto(actual.esfera, "0.00") && enDefecto(actual.cilindro, "0.00") && enDefecto(actual.eje, "0")
+                          return (
                           <div key={sigla} className="rounded-lg border border-blue-100 bg-white p-3 font-mono text-xs">
-                            <p className="mb-1.5 font-sans text-[11px] font-bold uppercase tracking-wide text-blue-700">{sigla}</p>
+                            <div className="mb-1.5 flex items-center justify-between">
+                              <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-blue-700">{sigla}</p>
+                              {puedeCopiar && (
+                                <button type="button" onClick={copiar} className="font-sans text-[10px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                                  Usar estos valores
+                                </button>
+                              )}
+                            </div>
                             <p><span className="text-slate-500">Esfera:</span> <span className="font-semibold text-slate-800">{datos?.esfera || "—"}</span></p>
                             <p><span className="text-slate-500">Cilindro:</span> <span className="font-semibold text-slate-800">{datos?.cilindro || "—"}</span></p>
                             <p><span className="text-slate-500">Eje:</span> <span className="font-semibold text-slate-800">{datos?.eje || "—"}°</span></p>
                             <p><span className="text-slate-500">AV c/c:</span> <span className="font-semibold text-slate-800">{datos?.avCc || "—"}</span></p>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                     {ultimaConsultaPaciente.diagnostico && (
