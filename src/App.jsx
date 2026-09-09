@@ -39,10 +39,12 @@ const CITAS_SEED = [
   { id: 2, fecha: hoyISO(), hora: "11:45 AM", pacienteId: 3, paciente: "Jorge Zambrano Pico", iniciales: "JZ", motivo: "Consulta General", estado: "Pendiente", espera: "30m", colorAvatar: "bg-slate-100 text-slate-700" },
 ];
 
-const INVENTARIO_SEED = [
-  { id: 1, nombre: "Armazón Ray-Ban Aviator Metal", categoria: "Armazones", stock: 12, precio: 145.0 },
-  { id: 2, nombre: "Líquido Limpiador Anti-Fog Premium", categoria: "Accesorios", stock: 25, precio: 5.5 },
-];
+// Antes tenía 2 productos de muestra ("Armazón Ray-Ban Aviator Metal"...) —
+// a diferencia de PACIENTES_SEED/CITAS_SEED (que solo se ven en un
+// navegador sin caché previa), esto se veía en CADA login real, brevemente,
+// antes de que resolviera el fetch real a Supabase — un admin real podía
+// ver por un instante inventario de otro que no era el suyo.
+const INVENTARIO_SEED = [];
 
 // Horario habitual del optómetra + parámetros de agenda (ver src/utilidades/disponibilidad.js)
 // Parametrización de la óptica (feedback del asesor, 2026-08-20): lo que el
@@ -340,9 +342,17 @@ function App() {
   // OPTICA_ID_DEFAULT si no hay slug o no hay dominio real todavía.
   useEffect(() => {
     if (!supabase) return
-    const esAdmin = usuario?.rol === 'admin' && !!usuario?.opticaId
+    // Bug real encontrado el 2026-09-09: esto decía literalmente rol==='admin'
+    // — un asistente logueado nunca disparaba este fetch y quedaba con
+    // Pacientes/Citas/Inventario/Consultas/Ventas completamente vacíos, sin
+    // importar los permisos que el admin le hubiera delegado en Usuarios.jsx.
+    // Nunca se notó porque no había ninguna cuenta de asistente creada en
+    // producción todavía. RLS sigue protegiendo el aislamiento por óptica a
+    // nivel de base de datos — este `if` solo decide si el navegador pide
+    // los datos, no si tiene permiso para verlos.
+    const esStaff = (usuario?.rol === 'admin' || usuario?.rol === 'asistente') && !!usuario?.opticaId
 
-    if (esAdmin) {
+    if (esStaff) {
       supabase.from('opticas').select('settings, motivos_consulta, diagnosticos_rapidos, categorias_inventario').eq('id', usuario.opticaId).maybeSingle().then(({ data }) => {
         if (!data) return
         setParametrizacionState(data.settings || PARAMETRIZACION_SEED)
