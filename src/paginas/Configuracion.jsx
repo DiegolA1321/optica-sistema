@@ -334,7 +334,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         <div>
           <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Página de login</p>
           <p className="mb-3 text-xs leading-relaxed text-slate-500">
-            Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Los cambios se guardan solos al salir de cada campo.
+            Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Usa "Guardar cambios" al final para aplicarlos.
           </p>
           <PersonalizacionLogin
             opticaId={usuario?.opticaId}

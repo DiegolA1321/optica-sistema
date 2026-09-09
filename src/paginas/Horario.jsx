@@ -174,6 +174,29 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     mostrarGuardado()
   }
 
+  // Hallazgo B6: "Duración de cada cita" guardaba en Supabase en cada tecla
+  // sin ningún botón ni confirmación — mismo bug de UX que ya se corrigió
+  // una vez (autoguardado invisible se lee como botón faltante), reaparecido
+  // acá. Mismo patrón que el horario semanal arriba: borrador local + botón
+  // explícito "Guardar" + confirmación visible.
+  const [borradorDuracion, setBorradorDuracion] = useState(disponibilidad.duracionCita)
+  useEffect(() => {
+    setBorradorDuracion(disponibilidad.duracionCita)
+  }, [disponibilidad.duracionCita])
+  const [guardandoDuracion, setGuardandoDuracion] = useState(false)
+  const [errorDuracion, setErrorDuracion] = useState("")
+  const guardarDuracion = async () => {
+    setGuardandoDuracion(true)
+    const { error } = await setDisponibilidad((prev) => ({ ...prev, duracionCita: borradorDuracion }))
+    setGuardandoDuracion(false)
+    if (error) {
+      setErrorDuracion("No se pudo guardar. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    setErrorDuracion("")
+    mostrarGuardado()
+  }
+
   const dias = useMemo(() => {
     const primerDia = new Date(mesVista.getFullYear(), mesVista.getMonth(), 1)
     const ultimoDia = new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)
@@ -425,12 +448,28 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
             </h4>
             <div className="flex items-center gap-2">
               <input
-                type="number" min={10} step={5} value={disponibilidad.duracionCita}
-                onChange={(e) => setDisponibilidad((prev) => ({ ...prev, duracionCita: Math.max(10, Number(e.target.value) || 10) }))}
+                type="number" min={10} step={5} value={borradorDuracion}
+                onChange={(e) => setBorradorDuracion(Math.max(10, Number(e.target.value) || 10))}
                 className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
               />
               <span className="text-sm text-slate-500">minutos por paciente</span>
+              {borradorDuracion !== disponibilidad.duracionCita && (
+                <button
+                  type="button"
+                  disabled={guardandoDuracion}
+                  onClick={guardarDuracion}
+                  className="ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
+                  style={{ background: GRAD }}
+                >
+                  <CheckCircle2 size={13} /> {guardandoDuracion ? "Guardando..." : "Guardar"}
+                </button>
+              )}
             </div>
+            {errorDuracion && (
+              <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2 text-xs font-medium text-red-700">
+                <AlertTriangle size={13} /> {errorDuracion}
+              </div>
+            )}
           </div>
         </div>
 

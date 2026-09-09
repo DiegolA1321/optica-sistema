@@ -33,7 +33,7 @@
 | B3 | Estados de carga (skeletons) | Solo Superadmin los usa | Extender a Pacientes, Citas, Inventario | Consistencia — el patrón ya existe | 🟡 MEDIA | Bajo | Baja |
 | B4 | Edición inline | Ya existe en Superadmin | Extender a campos de un solo valor en ficha de paciente | Menos modales para cambios pequeños | 🟢 OPCIONAL | Bajo | Media |
 | B5 | Deshacer envíos | No existe confirmación posterior | Toast "Deshacer" 5s tras crear/marcar atendida | Reduce costo de un clic accidental | 🟢 OPCIONAL | Bajo | Media |
-| **B6** ⭐ | **Autoguardado sin confirmación — patrón reaparecido** | Ya se corrigió una vez en otra pantalla (lección: "autoguardado invisible se lee como botón faltante"), pero **reaparece en 2 lugares nuevos** encontrados esta pasada: el campo "Duración de cada cita" en `Horario.jsx` (guarda en cada tecla, sin confirmación) y la pestaña "Página de login" en `Configuracion.jsx` (dice textualmente en su propia UI "se guardan solos al salir de cada campo") | Aplicar el mismo patrón ya usado y validado en el resto del sistema: campo editable + botón de guardar explícito + confirmación visible | Es literalmente el mismo bug de UX que ya se identificó y arregló antes, reapareciendo en código nuevo — vale la pena una revisión puntual de **todos** los `onChange`/`onBlur` que llaman `setX` directo a Supabase sin pasar por un botón | 🟠 ALTA | Bajo | Media |
+| ~~B6~~ ⭐ | ~~Autoguardado sin confirmación — patrón reaparecido~~ | **✅ Hecho** en ambos lugares: "Duración de cada cita" en `Horario.jsx` ahora usa borrador local + botón "Guardar" explícito (mismo patrón que el horario semanal, ya validado); `PersonalizacionLogin.jsx` (compartido con SuperadminPanel) tenía algo peor de lo descrito — 12 campos con `onBlur={() => guardar()}` **además** de su propio botón "Guardar cambios"/"Cancelar cambios" ya existente, lo que hacía que "Cancelar cambios" fuera casi inútil (la mayoría de los campos ya se habían guardado solos al salir de cada uno, antes de que el usuario llegara a hacer clic en Cancelar). Se quitó el autoguardado de los campos de texto — quedan los botones explícitos como única vía; los uploads de imagen y el switch de servicios siguen guardando al instante a propósito, porque son una acción puntual del usuario, no una tecla más. Se corrigió también el texto de `Configuracion.jsx` que prometía el autoguardado que ya no existe | — | — | — | — |
 
 ## C. Sistema de diseño y consistencia de UI
 
@@ -140,7 +140,7 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 | Prioridad | Cantidad | Ítems |
 |---|---|---|
 | 🔴 CRÍTICA | 6 | I1, I2, I6 ⭐⭐, I7 ⭐⭐, J5, J6 ⭐⭐ |
-| 🟠 ALTA | 19 (9 ✅ hechos: E5, E6, E7, G5, I3, I4, I10, J2, J11 — 9 restantes, G4 en espera de datos) | B6 ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4 (en espera), ~~G5~~ ⭐, G6, ~~I3~~, ~~I4~~, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
+| 🟠 ALTA | 19 (10 ✅ hechos: B6, E5, E6, E7, G5, I3, I4, I10, J2, J11 — 8 restantes, G4 en espera de datos) | ~~B6~~ ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4 (en espera), ~~G5~~ ⭐, G6, ~~I3~~, ~~I4~~, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
 | 🟡 MEDIA | 15 | B1, B3, C2, C6 ⭐, D2, D5 ⭐, E1, E3, F1, F3, F4 ⭐, H2, I8 ⭐, I9 ⭐, I14 ⭐, I15 ⭐, J7 ⭐ |
 | 🟢 OPCIONAL | 12 | B2, B4, B5, C5, C7, D6, D7, H3, H4, I12, I13, J4, J8 |
 | ✅ Ya implementado (corregido en esta pasada) | 2 | F2, G2 |
@@ -172,5 +172,6 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 - I4: `registrarLog()` agregado a `ConsultaMedica.jsx`. Al revisar ese archivo para I4 se encontró que también tenía su propia copia del bug de G5 (venta+stock no atómicos al vincular un producto a la consulta) — corregida con el mismo RPC.
 - G4 revisado y dejado en espera a propósito: solo hay 1 producto en inventario en toda la base hoy — construir paginación ahora sería trabajo prematuro sin datos que lo justifiquen (la propia auditoría lo marca "condicional al crecimiento real de datos").
 - I3: el token de sesión del paciente no tenía ninguna expiración — ahora dura 30 días. **Bonus real encontrado al verificar esto**: `mis_citas_paciente` y `mis_consultas_paciente` estaban rotas en producción ("Mis citas"/"Mi receta" del portal fallaban siempre) — corregido de paso.
+- B6: quitado el autoguardado silencioso de "Duración de cada cita" (Horario.jsx) y, peor de lo descrito, de 12 campos de `PersonalizacionLogin.jsx` que además tenían su propio botón "Guardar cambios" — el autoguardado por `onBlur` volvía inútil al botón "Cancelar cambios".
 
-**Próximo paso:** quedan 9 ítems 🟠 Alto (B6, C1, C4, D1, E4, G6, I11, J1, J12 — G4 en espera de que el catálogo crezca).
+**Próximo paso:** quedan 8 ítems 🟠 Alto (C1, C4, D1, E4, G6, I11, J1, J12 — G4 en espera de que el catálogo crezca).
