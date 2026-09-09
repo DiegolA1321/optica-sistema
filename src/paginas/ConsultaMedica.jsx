@@ -1127,6 +1127,40 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   )}
                 </div>
 
+                {/* D1: el optómetra ya comparaba mentalmente con la visita
+                    anterior — analisisEvolucion ya calculaba la tendencia,
+                    pero nunca mostraba los valores reales lado a lado.
+                    Colapsable como retinoscopia/examen físico arriba, mismo
+                    patrón. */}
+                {ultimaConsultaPaciente && (
+                  <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} className="flex w-full items-center gap-1.5 border-b border-blue-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                      <History size={16} className="text-blue-600" /> Comparar con visita anterior
+                      <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">{ultimaConsultaPaciente.fecha}</span>
+                      <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.comparacionAnterior ? "" : "-rotate-90")} />
+                    </button>
+                    {seccionesAbiertas.comparacionAnterior && (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {[
+                          { sigla: "OD", datos: ultimaConsultaPaciente.od },
+                          { sigla: "OI", datos: ultimaConsultaPaciente.oi },
+                        ].map(({ sigla, datos }) => (
+                          <div key={sigla} className="rounded-lg border border-blue-100 bg-white p-3 font-mono text-xs">
+                            <p className="mb-1.5 font-sans text-[11px] font-bold uppercase tracking-wide text-blue-700">{sigla}</p>
+                            <p><span className="text-slate-500">Esfera:</span> <span className="font-semibold text-slate-800">{datos?.esfera || "—"}</span></p>
+                            <p><span className="text-slate-500">Cilindro:</span> <span className="font-semibold text-slate-800">{datos?.cilindro || "—"}</span></p>
+                            <p><span className="text-slate-500">Eje:</span> <span className="font-semibold text-slate-800">{datos?.eje || "—"}°</span></p>
+                            <p><span className="text-slate-500">AV c/c:</span> <span className="font-semibold text-slate-800">{datos?.avCc || "—"}</span></p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {ultimaConsultaPaciente.diagnostico && (
+                      <p className="text-xs text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico anterior:</span> {ultimaConsultaPaciente.diagnostico}</p>
+                    )}
+                  </div>
+                )}
+
                 <p className="text-sm font-semibold" style={{ color: INK }}>Refracción subjetiva final</p>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
