@@ -286,14 +286,51 @@ aplicarla — exactamente el bug que rompió `crear_cita_publica()` en
 producción dos veces. Probado con una función descartable (creada y
 borrada, nada residual).
 
-**No verificado visualmente en navegador todavía** (build+tests sí, en
-los 13 commits de esta ronda) — pendiente un vistazo en vivo cuando
-Diego tenga credenciales a mano: los 2 modales migrados de Radix, el
-tab Fidelización nuevo, la sección Actividad reciente del dashboard, y
-los 3 archivos de esta Fase 3.
+**Ronda 2 (Diego preguntó "¿ya hiciste absolutamente todo?") — otra
+auditoría real sobre las secciones del spec sin cubrir, con hallazgos
+reales, todos corregidos, build+71 tests verificados:**
+- `prefers-reduced-motion` sin ningún guard para las 3 animaciones
+  globales (overlay-in/modal-in/rise-in, usadas por ~17 modales vía
+  style inline) — agregado en `index.css` con `!important` (gana sobre
+  el inline sin necesidad de tocar cada componente).
+- Mismo bug de `grid-cols-2` sin paso `sm:` encontrado en 2 archivos
+  más (Citas.jsx, Inventario.jsx) — corregido. Auditoría completa de
+  las 23 páginas terminada: encontró un hallazgo más chico en el footer
+  público de Login.jsx (también corregido) — el resto (21/23 páginas)
+  ya era responsive de verdad.
+- 2 inputs con `outline-none` y cero reemplazo de foco visible
+  (Configuracion.jsx, ConsultaMedica.jsx) — corregido.
+- 2 objetivos táctiles bajo 24×24px (SuperadminPanel, Horario) —
+  corregido.
+- Ícono de eliminar con 4 tamaños distintos sin patrón — normalizado a
+  15 donde no rompía consistencia interna de una fila ya uniforme
+  (Inventario.jsx, dejado como está a propósito).
+- **Orden por columna** en las tablas de Pacientes.jsx (nombre) e
+  Inventario.jsx (las 4 columnas) — sección 9 del spec, reusa el patrón
+  orden/cambiarOrden/IconoOrden que ya existía en CRM.jsx.
+- **Header de identidad fijo (sticky)** en ConsultaMedica.jsx —
+  sección 12 del spec: antes el nombre del paciente se perdía de vista
+  al hacer scroll por un formulario largo (Refracción especialmente).
+- **Paleta de comandos (Ctrl/Cmd+K)** — sección 7 del spec, único punto
+  de navegación que faltaba por completo. Reusa el mismo filtro de
+  permisos que ya aplica el sidebar.
+- **J1 (bundle público/dashboard)** ✅ **resultó ya estar resuelto**:
+  las 10 páginas de administración ya estaban todas separadas en
+  chunks lazy, Dashboard.jsx completo es lazy desde App.jsx — un
+  visitante público nunca descarga ese código. El peso del bundle
+  principal (566KB) es libreria base (React/Supabase/Sentry) + el
+  contenido propio de Login.jsx, no código admin filtrado.
+- **J12**: Diego decidió dejar el texto de PaginaVenta.jsx como está
+  ("tu propio link" es técnicamente cierto hoy vía `?optica=slug`,
+  aunque no sea un dominio propio real) — sigue pendiente el trabajo de
+  infraestructura si algún día se compra un dominio real.
+
+**Todavía sin verificar visualmente en navegador** (build+tests sí, en
+los 20 commits de esta sesión) — sigue siendo lo único realmente
+pendiente antes de seguir construyendo encima de todo esto.
 
 **Próximo paso (roadmap original, separado de la pasada premium de
-arriba):** quedan 3 ítems 🟠 Alto — D1 (comparación con visita
-anterior en la ficha clínica), J1 (separar bundle público/dashboard),
-J12 (dominio propio real por óptica o corregir la promesa de
-marketing) — G4 en espera de que el catálogo crezca.
+arriba):** queda 1 ítem 🟠 Alto real — D1 (comparación con visita
+anterior en la ficha clínica; ya se calcula evolución/tendencia en
+vivo, falta la vista lado-a-lado completa) — G4 en espera de que el
+catálogo crezca, J12 en espera de que Diego decida sobre dominio real.
