@@ -155,6 +155,34 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
 
   const maxConsultasMes = Math.max(1, ...consultasPorMes.map((m) => m.valor))
 
+  // H2: antes solo se veía el total acumulado de "No Asistió" (sin ningún
+  // punto de comparación temporal) — con esto se puede ver si empeora o
+  // mejora mes a mes, no solo el número frío de siempre.
+  const noShowPorMes = useMemo(() => {
+    const meses = ultimosNMeses(6)
+    const mapa = new Map()
+    citas.forEach((c) => {
+      if (c.estado !== "No Asistió") return
+      const clave = (c.fecha || "").slice(0, 7)
+      mapa.set(clave, (mapa.get(clave) || 0) + 1)
+    })
+    return meses.map((m) => ({ ...m, valor: mapa.get(m.clave) || 0 }))
+  }, [citas])
+  const maxNoShowMes = Math.max(1, ...noShowPorMes.map((m) => m.valor))
+  const [refGraficoNoShow, anchoGraficoNoShow] = useAnchoElemento()
+  const [hoverMesNoShow, setHoverMesNoShow] = useState(null)
+  const barrasNoShow = useMemo(() => {
+    const w = anchoGraficoNoShow, base = 70, padTop = 8
+    const n = noShowPorMes.length || 1
+    const gap = 12
+    const barW = (w - gap * (n + 1)) / n
+    return noShowPorMes.map((m, i) => {
+      const alto = maxNoShowMes > 0 ? Math.max(m.valor > 0 ? 5 : 2, (m.valor / maxNoShowMes) * (base - padTop)) : 2
+      const x = gap + i * (barW + gap)
+      return { ...m, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
+    })
+  }, [noShowPorMes, maxNoShowMes, anchoGraficoNoShow])
+
   // Barras SVG con tooltip propio (no el `title` nativo del navegador, que
   // se ve genérico/lento) — mismo patrón que "Actividad por día" del Panel
   // Superadmin: el viewBox sigue el ancho real del contenedor vía
@@ -383,6 +411,49 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* ─── TENDENCIA DE INASISTENCIAS (H2) ─── */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "190ms" }}>
+          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Tendencia de inasistencias</h3>
+          <p className="mb-5 text-xs text-slate-500">Citas marcadas "No Asistió" · últimos 6 meses</p>
+          {citasNoAsistio === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">Ninguna cita marcada como no asistida todavía.</p>
+          ) : (
+            <div ref={refGraficoNoShow} className="relative mt-1">
+              <svg viewBox={`0 0 ${anchoGraficoNoShow} 90`} className="w-full" style={{ height: 90 }} preserveAspectRatio="none">
+                {barrasNoShow.map((b) => (
+                  <g
+                    key={b.clave}
+                    className="cursor-default"
+                    onMouseEnter={() => setHoverMesNoShow(b.clave)}
+                    onMouseLeave={() => setHoverMesNoShow(null)}
+                  >
+                    <rect x={b.x} y="2" width={b.w} height="66" fill="transparent" />
+                    <rect
+                      x={b.x} y={b.y} width={b.w} height={b.h} rx="4"
+                      fill={b.valor > 0 ? "#dc2626" : "#e2e8f0"}
+                      className="transition-transform duration-150"
+                      style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverMesNoShow === b.clave ? "scaleY(1.06)" : "scaleY(1)" }}
+                    />
+                    <text x={b.cx} y="82" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8">{b.etiqueta}</text>
+                  </g>
+                ))}
+              </svg>
+              {hoverMesNoShow && (() => {
+                const b = barrasNoShow.find((x) => x.clave === hoverMesNoShow)
+                if (!b || !anchoGraficoNoShow) return null
+                return (
+                  <div
+                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
+                    style={{ left: `${(b.cx / anchoGraficoNoShow) * 100}%`, top: b.y - 8, background: INK }}
+                  >
+                    {b.valor} inasistencia{b.valor === 1 ? "" : "s"}
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>
