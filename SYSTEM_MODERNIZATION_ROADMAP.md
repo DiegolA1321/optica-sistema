@@ -243,19 +243,57 @@ Fase 1 fundación (tokens + consistencia de componentes) → Fase 2
   (solo admin principal, misma fuente/RLS que ya usa `Usuarios.jsx` vía
   `logs_optica` — no se duplicó lógica) con link a la vista completa.
 
-**Fase 3 (pendiente)** (= C4 del roadmap original): auditoría responsive
-sistemática 375/768/1024/1440 — 5 archivos casi sin breakpoints
-(Mensajes, PaginaLegal, Configuracion entre ellos) según la auditoría.
-Además: loading states desparejos (SuperadminPanel concentra 21/37 de
-las apariciones; Pacientes, Citas, ConsultaMedica, Inventario, CRM,
-Reportes, Configuracion sin cobertura detectada), tablas/formularios
-sin sample directo todavía.
+**Fase 3 (= C4 del roadmap original) — hecha, verificada (build + 71 tests):**
+- **Auditoría responsive sistemática 375/768/1024/1440** ✅: un fork
+  dedicado auditó (sin tocar código) los 3 archivos originalmente
+  sospechosos por bajo conteo de breakpoints (Mensajes, PaginaLegal,
+  Configuracion) — **los 3 resultaron falsas alarmas**, ya son
+  responsive de verdad (bajo conteo de `sm:`/`md:` porque genuinamente
+  no necesitan más, no por descuido). El spot-check por las dudas sí
+  encontró un problema real en 2 archivos que NO estaban en la lista de
+  sospechosos: `Reportes.jsx` y `CRM.jsx` saltaban de 1 a 2 columnas de
+  KPI sin punto medio (`grid-cols-2 lg:grid-cols-4`), amontonando
+  etiquetas largas ("Conversión a venta", "Cumpleaños cercanos") contra
+  el ícono a 375px — corregido a `grid-cols-1 sm:grid-cols-2
+  lg:grid-cols-4`.
+- **Loading states** ✅: el hallazgo original ("7 páginas sin cobertura
+  detectada") también resultó una falsa alarma — esas páginas reciben
+  sus datos por props ya resueltos (`App.jsx` centraliza la carga
+  inicial con `PantallaCargando()`), no tienen ningún fetch propio que
+  necesite spinner. El gap real, más chico pero real, eran 2 acciones
+  puntuales con round-trip a Supabase y cero feedback visual mientras
+  estaban en vuelo: "Atender ahora" en `Citas.jsx` y "Publicar"/
+  "Eliminar" aviso en `CRM.jsx` — se agregó disabled+spinner a las tres.
+- **Formularios**: se encontraron y unificaron 12 labels con un estilo
+  minoritario (`font-medium text-slate-600` en Pacientes.jsx/
+  ConsultaMedica.jsx) contra el mayoritario (`font-semibold
+  text-slate-700`, 59 usos en el resto). La convención de campos
+  requeridos (asterisco visual vs. validación JS al enviar) quedó
+  intacta — son dos estrategias legítimas, no una inconsistencia
+  trivial de arreglar sin tocar lógica de validación.
+- **Tablas**: sample directo confirmó que Citas.jsx no usa `<table>`
+  (lista/tarjetas, apropiado para una agenda) y que Pacientes.jsx vs.
+  Inventario.jsx difieren en padding de celda (`px-5 py-3.5` vs. `px-4
+  py-3`) — diferencia de 4px, de bajo impacto visual real, se dejó sin
+  tocar por relación costo/beneficio (tocar cada `<td>` de ambas tablas
+  por una diferencia casi imperceptible).
+
+**I11 (roadmap original, 🟠 Alto)** ✅ **cerrado con una salvaguarda
+real, no solo documentación**: `scripts/_run-migration.mjs` ahora
+detecta los `create or replace function` de cada migración y avisa si
+el nombre quedó con más de un overload en `pg_proc` después de
+aplicarla — exactamente el bug que rompió `crear_cita_publica()` en
+producción dos veces. Probado con una función descartable (creada y
+borrada, nada residual).
 
 **No verificado visualmente en navegador todavía** (build+tests sí, en
-cada commit) — pendiente un vistazo en vivo cuando Diego tenga
-credenciales a mano: los 2 modales migrados de Radix, el tab
-Fidelización nuevo, y la sección Actividad reciente del dashboard.
+los 13 commits de esta ronda) — pendiente un vistazo en vivo cuando
+Diego tenga credenciales a mano: los 2 modales migrados de Radix, el
+tab Fidelización nuevo, la sección Actividad reciente del dashboard, y
+los 3 archivos de esta Fase 3.
 
-**Próximo paso (roadmap original, separado de lo de arriba):** quedan 6
-ítems 🟠 Alto (C4 ahora cubierto por la Fase 3 de arriba; D1, I11, J1,
-J12 — G4 en espera de que el catálogo crezca).
+**Próximo paso (roadmap original, separado de la pasada premium de
+arriba):** quedan 3 ítems 🟠 Alto — D1 (comparación con visita
+anterior en la ficha clínica), J1 (separar bundle público/dashboard),
+J12 (dominio propio real por óptica o corregir la promesa de
+marketing) — G4 en espera de que el catálogo crezca.
