@@ -903,7 +903,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const leadsConvertidos = useMemo(() => leads.filter((l) => l.estado === "convertido").length, [leads])
   const tasaConversion = leads.length ? Math.round((leadsConvertidos / leads.length) * 100) : 0
   const tarjetasFunnel = [
-    { key: "visitas", label: "Visitas (últimos 90 días)", valor: visitasVenta.length, icon: BarChart3, bg: "#F3E8FF", fg: "#7C3AED" },
+    { key: "visitas", label: "Visitas (últimos 90 días)", valor: visitasVenta.length, icon: BarChart3, bg: "#ECFEFF", fg: "#0E7490" },
     { key: "leads", label: "Leads recibidos", valor: leads.length, icon: Inbox, bg: "#E8F0FF", fg: "#2563EB" },
     { key: "conversion", label: "Convertidos a cliente", valor: `${leadsConvertidos} (${tasaConversion}%)`, icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
   ]
@@ -1542,7 +1542,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <Icono size={15} />
                 </div>
               </div>
-              <p className="mt-2 text-[28px] font-extrabold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
+              <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
               <p className="mt-2 text-[11.5px] font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
             </button>
           )
@@ -1565,7 +1565,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <t.icon size={15} />
                 </div>
               </div>
-              <p className="mt-2 text-[28px] font-extrabold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
+              <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
               <p className="mt-2 text-[11.5px] font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
             </div>
           ))}
@@ -1592,7 +1592,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <Icono size={15} />
                   </div>
                 </div>
-                <p className="mt-2 text-[28px] font-extrabold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
+                <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
               </button>
             )
           })}
@@ -1611,8 +1611,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <svg viewBox={`0 0 ${anchoGraficoVisitas} 98`} className="w-full" style={{ height: 98 }} preserveAspectRatio="none">
               <defs>
                 <linearGradient id="barraVisitas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#A78BFA" />
-                  <stop offset="100%" stopColor="#7C3AED" />
+                  <stop offset="0%" stopColor="#22D3EE" />
+                  <stop offset="100%" stopColor="#2563EB" />
                 </linearGradient>
               </defs>
               {barrasVisitas.map((b, i) => {
@@ -1626,7 +1626,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   >
                     <rect x={b.x} y="2" width={b.w} height="80" fill="transparent" />
                     <rect
-                      x={b.x} y={b.y} width={b.w} height={b.h} rx="4"
+                      x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
                       fill="url(#barraVisitas)"
                       className={"transition-transform duration-150 " + (clicable ? "group-hover/barravisita:brightness-110" : "opacity-30")}
                       style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverVisitaIdx === i ? "scaleY(1.06)" : "scaleY(1)" }}
@@ -1713,7 +1713,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 transform="rotate(-90 64 64)"
                 style={{ transition: "stroke-dasharray 500ms ease-out" }}
               />
-              <text x="64" y="60" textAnchor="middle" fontSize="22" fontWeight="800" fill={INK}>{pctActivas}%</text>
+              <text x="64" y="60" textAnchor="middle" fontSize="22" fontWeight="600" fontFamily="Newsreader, serif" fill={INK}>{pctActivas}%</text>
               <text x="64" y="76" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94A3B8">activas</text>
             </svg>
             <div className="flex flex-col gap-2 text-xs">
@@ -1723,11 +1723,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4">
             <div className="rounded-xl border border-slate-100 p-2.5 text-center">
-              <p className="text-lg font-extrabold" style={{ color: INK }}>{admins.length}</p>
+              <p className="font-serif text-lg font-semibold" style={{ color: INK }}>{admins.length}</p>
               <p className="text-[10.5px] font-medium text-slate-400">administradores</p>
             </div>
             <div className="rounded-xl border border-slate-100 p-2.5 text-center">
-              <p className="text-lg font-extrabold" style={{ color: INK }}>{superadmins.length}</p>
+              <p className="font-serif text-lg font-semibold" style={{ color: INK }}>{superadmins.length}</p>
               <p className="text-[10.5px] font-medium text-slate-400">superadmins</p>
             </div>
           </div>
@@ -1762,8 +1762,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <svg viewBox="0 0 880 130" className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
               <defs>
                 <linearGradient id="barraViol" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#A78BFA" />
-                  <stop offset="100%" stopColor="#7C3AED" />
+                  <stop offset="0%" stopColor="#22D3EE" />
+                  <stop offset="100%" stopColor="#2563EB" />
                 </linearGradient>
               </defs>
               {barrasActividad.map((b) => {
@@ -1784,12 +1784,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   >
                     <rect x={b.x} y="4" width={b.w} height="104" fill="transparent" />
                     <rect
-                      x={b.x} y={b.y} width={b.w} height={b.h} rx="5"
+                      x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
                       fill="url(#barraViol)"
                       className={"transition-transform duration-150 " + (clicable ? "group-hover/barra:brightness-110" : "opacity-40")}
                       style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverBarClave === b.clave ? "scaleY(1.08)" : "scaleY(1)" }}
                     />
-                    <text x={b.cx} y="122" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8" className={clicable ? "transition-colors group-hover/barra:fill-violet-600" : ""}>{b.etiqueta}</text>
+                    <text x={b.cx} y="122" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8" className={clicable ? "transition-colors group-hover/barra:fill-blue-600" : ""}>{b.etiqueta}</text>
                   </g>
                 )
               })}
@@ -2257,9 +2257,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           ))}
         </div>
         {filtroFechaActividad && (
-          <span className="flex items-center gap-1.5 rounded-full bg-violet-50 py-1.5 pl-3.5 pr-2 text-xs font-semibold text-violet-700">
+          <span className="flex items-center gap-1.5 rounded-full bg-blue-50 py-1.5 pl-3.5 pr-2 text-xs font-semibold text-blue-700">
             {etiquetaFecha(filtroFechaActividad)}
-            <button type="button" onClick={() => setFiltroFechaActividad(null)} className="rounded-full p-0.5 hover:bg-violet-100 cursor-pointer"><X size={12} /></button>
+            <button type="button" onClick={() => setFiltroFechaActividad(null)} className="rounded-full p-0.5 hover:bg-blue-100 cursor-pointer"><X size={12} /></button>
           </span>
         )}
         {filtroActorActividad && (

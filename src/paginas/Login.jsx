@@ -659,7 +659,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
                 {saludo}
               </span>
-              <h2 className="mt-3 font-heading text-3xl font-extrabold leading-tight tracking-tight" style={{ color: INK }}>
+              <h2 className="mt-3 font-serif text-3xl font-semibold italic leading-tight tracking-tight" style={{ color: INK }}>
                 Bienvenido de nuevo
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
@@ -806,7 +806,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               Óptica &amp; consultorio optométrico
             </span>
 
-            <h1 className="font-heading text-5xl font-extrabold leading-[1.04] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: INK }}>
+            <h1 className="font-serif text-5xl font-semibold italic leading-[1.04] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: INK }}>
               {esloganPersonalizado ? esloganPersonalizado : (
                 <>
                   Ve el mundo
@@ -919,7 +919,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
             Nuestros servicios
           </span>
-          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             Todo lo que tu visión necesita, en un solo lugar
           </h2>
           <p className="mt-3 text-base leading-relaxed text-slate-600">
@@ -986,7 +986,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
               Antes de reservar
             </span>
-            <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">
+            <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
               Preguntas frecuentes
             </h2>
           </div>
@@ -1015,7 +1015,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
               Reservar es simple
             </span>
-            <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+            <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
               Tu cita en tres pasos, sin crear cuenta
             </h2>
 
@@ -1141,7 +1141,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <LogIn size={22} />}
                 </div>
                 <div className="min-w-0">
-                  <h3 id="titulo-login" className="truncate text-xl font-bold text-white">{nombreMarca}</h3>
+                  <h3 id="titulo-login" className="truncate font-serif text-xl font-semibold text-white">{nombreMarca}</h3>
                   <p className="text-sm text-white/60">Iniciar sesión · un solo acceso para todo el equipo</p>
                 </div>
               </div>

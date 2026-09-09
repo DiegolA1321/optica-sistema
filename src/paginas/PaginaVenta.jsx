@@ -425,7 +425,7 @@ export default function PaginaVenta() {
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
               Gestión clínica y de citas para ópticas
             </span>
-            <h1 className="pv-rise pv-d2 mt-5 font-heading text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl" style={{ color: INK }}>
+            <h1 className="pv-rise pv-d2 mt-5 font-serif text-4xl font-semibold italic leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl" style={{ color: INK }}>
               El sistema web para gestionar tu óptica, de principio a fin
             </h1>
             <p className="pv-rise pv-d2 mt-5 max-w-xl text-base leading-relaxed text-slate-600">
@@ -498,7 +498,7 @@ export default function PaginaVenta() {
       <section className="mx-auto max-w-5xl px-6 py-20 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow>El cambio real</Eyebrow>
-          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             De administrar a los saltos, a tenerlo todo bajo control
           </h2>
         </div>
@@ -537,7 +537,7 @@ export default function PaginaVenta() {
       <section id="como-funciona" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow>Cómo funciona</Eyebrow>
-          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             De la solicitud a tu primer paciente
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-500">
@@ -550,7 +550,7 @@ export default function PaginaVenta() {
           {PASOS.map((p) => (
             <div key={p.numero} className="relative rounded-3xl border border-slate-200 bg-white p-7">
               <div className="flex items-center justify-between">
-                <span className="font-heading text-3xl font-bold text-slate-200">{p.numero}</span>
+                <span className="font-serif text-3xl font-semibold text-slate-200">{p.numero}</span>
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <p.icon size={19} />
                 </div>
@@ -570,7 +570,7 @@ export default function PaginaVenta() {
       <div id="funciones" className="scroll-mt-24">
         <div className="mx-auto max-w-2xl px-6 pt-20 text-center md:px-12">
           <Eyebrow>Todo lo que necesita tu óptica</Eyebrow>
-          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             Un solo sistema, sin cuadernos ni hojas de cálculo sueltas
           </h2>
         </div>
@@ -612,7 +612,7 @@ export default function PaginaVenta() {
       <section className="mx-auto max-w-6xl px-6 py-10 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow>No es un mockup</Eyebrow>
-          <h2 className="mt-4 font-heading text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
+          <h2 className="mt-4 font-serif text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" style={{ color: INK }}>
             Así se ve el panel por dentro
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-500">
@@ -653,7 +653,7 @@ export default function PaginaVenta() {
           />
           <div className="relative">
             <Eyebrow>Un plan a tu medida</Eyebrow>
-            <h2 className="mt-4 font-heading text-3xl font-extrabold tracking-tight" style={{ color: INK }}>Contáctanos y te armamos una propuesta</h2>
+            <h2 className="mt-4 font-serif text-3xl font-semibold tracking-tight" style={{ color: INK }}>Contáctanos y te armamos una propuesta</h2>
             <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-slate-500">
               El costo depende del tamaño de tu óptica y de los módulos que necesites. Dejanos tus datos y
               te contactamos para mostrarte el sistema completo y armar un plan.
