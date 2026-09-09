@@ -29,6 +29,7 @@ import {
   Mail,
   Cake,
   MoreVertical,
+  Loader2,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -105,6 +106,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
   const [mensajeExito, setMensajeExito] = useState(null)
   const [error, setError] = useState("")
   const [bannerError, setBannerError] = useState("")
+  const [marcandoEstadoId, setMarcandoEstadoId] = useState(null)
   const [confirmando, setConfirmando] = useState(false)
 
   // Acceso directo desde "Agendar cita" en Inicio: abre este modal sin pasar
@@ -410,15 +412,20 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
   // por si la fecha ya había pasado (una cita de hace un mes con paciente que
   // nunca llegó se contaba igual como "atendida" que una que sí se realizó).
   const marcarEstado = async (citaId, nuevoEstado) => {
-    if (supabase && opticaId) {
-      const { error: errorEstado } = await supabase.from("citas").update({ estado: nuevoEstado }).eq("id", citaId)
-      if (errorEstado) {
-        setBannerError("No se pudo actualizar el estado de la cita. Revisa tu conexión e intenta de nuevo.")
-        return
+    setMarcandoEstadoId(citaId)
+    try {
+      if (supabase && opticaId) {
+        const { error: errorEstado } = await supabase.from("citas").update({ estado: nuevoEstado }).eq("id", citaId)
+        if (errorEstado) {
+          setBannerError("No se pudo actualizar el estado de la cita. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
       }
+      setBannerError("")
+      setCitas(citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)))
+    } finally {
+      setMarcandoEstadoId(null)
     }
-    setBannerError("")
-    setCitas(citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)))
   }
 
   // ── Atender: pasa la cita a "En Atención" y abre la ficha clínica del
@@ -781,8 +788,15 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                                   (Séptima Mirada, hallazgo #1). */}
                               <div className="flex items-center gap-1">
                                 {!resuelta && puedeMarcarse && (
-                                  <button type="button" onClick={() => atenderCita(cita)} className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Atender ahora" aria-label="Atender ahora">
-                                    <Stethoscope size={16} />
+                                  <button
+                                    type="button"
+                                    onClick={() => atenderCita(cita)}
+                                    disabled={marcandoEstadoId === cita.id}
+                                    className={"rounded-md p-1.5 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 " + ACCION_VER}
+                                    title="Atender ahora"
+                                    aria-label="Atender ahora"
+                                  >
+                                    {marcandoEstadoId === cita.id ? <Loader2 size={16} className="animate-spin" /> : <Stethoscope size={16} />}
                                   </button>
                                 )}
                                 {cita.pacienteId && (

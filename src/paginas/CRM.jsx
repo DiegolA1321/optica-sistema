@@ -21,6 +21,7 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
+  Loader2,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
@@ -167,6 +168,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   const [nuevoAviso, setNuevoAviso] = useState("")
   const [avisoDestinoId, setAvisoDestinoId] = useState("")
   const [avisoError, setAvisoError] = useState("")
+  const [publicandoAviso, setPublicandoAviso] = useState(false)
+  const [eliminandoAvisoId, setEliminandoAvisoId] = useState(null)
   const [copiadoAviso, setCopiadoAviso] = useState(null)
 
   useEffect(() => {
@@ -196,31 +199,36 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
   const publicarAviso = async () => {
     if (!nuevoAviso.trim()) return
-    const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
-    const aviso = {
-      texto: nuevoAviso.trim(),
-      fecha: new Date().toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
-      destinatarioId: destinatario?.id || null,
-      destinatarioNombre: destinatario?.nombre || null,
-      destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",
-    }
-    if (supabase && usuario?.opticaId) {
-      const { data, error } = await supabase.from("avisos").insert({
-        optica_id: usuario.opticaId, texto: aviso.texto,
-        destinatario_id: typeof aviso.destinatarioId === "string" ? aviso.destinatarioId : null,
-        destinatario_nombre: aviso.destinatarioNombre, destinatario_telefono: aviso.destinatarioTelefono,
-      }).select().single()
-      if (error) {
-        setAvisoError("No se pudo publicar el aviso. Revisa tu conexión e intenta de nuevo.")
-        return
+    setPublicandoAviso(true)
+    try {
+      const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
+      const aviso = {
+        texto: nuevoAviso.trim(),
+        fecha: new Date().toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+        destinatarioId: destinatario?.id || null,
+        destinatarioNombre: destinatario?.nombre || null,
+        destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",
       }
-      if (data) aviso.id = data.id
+      if (supabase && usuario?.opticaId) {
+        const { data, error } = await supabase.from("avisos").insert({
+          optica_id: usuario.opticaId, texto: aviso.texto,
+          destinatario_id: typeof aviso.destinatarioId === "string" ? aviso.destinatarioId : null,
+          destinatario_nombre: aviso.destinatarioNombre, destinatario_telefono: aviso.destinatarioTelefono,
+        }).select().single()
+        if (error) {
+          setAvisoError("No se pudo publicar el aviso. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
+        if (data) aviso.id = data.id
+      }
+      if (aviso.id == null) aviso.id = Date.now()
+      setAvisoError("")
+      setAvisos([aviso, ...avisos])
+      setNuevoAviso("")
+      setAvisoDestinoId("")
+    } finally {
+      setPublicandoAviso(false)
     }
-    if (aviso.id == null) aviso.id = Date.now()
-    setAvisoError("")
-    setAvisos([aviso, ...avisos])
-    setNuevoAviso("")
-    setAvisoDestinoId("")
   }
 
   const copiarAviso = (aviso) => {
@@ -230,15 +238,20 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   }
 
   const eliminarAviso = async (id) => {
-    if (supabase && usuario?.opticaId) {
-      const { error } = await supabase.from("avisos").delete().eq("id", id)
-      if (error) {
-        setAvisoError("No se pudo eliminar el aviso. Revisa tu conexión e intenta de nuevo.")
-        return
+    setEliminandoAvisoId(id)
+    try {
+      if (supabase && usuario?.opticaId) {
+        const { error } = await supabase.from("avisos").delete().eq("id", id)
+        if (error) {
+          setAvisoError("No se pudo eliminar el aviso. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
       }
+      setAvisoError("")
+      setAvisos(avisos.filter((a) => a.id !== id))
+    } finally {
+      setEliminandoAvisoId(null)
     }
-    setAvisoError("")
-    setAvisos(avisos.filter((a) => a.id !== id))
   }
 
   // Envío por WhatsApp con prefijo internacional (Ecuador)
@@ -277,7 +290,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
       {/* ─── MÉTRICAS (también filtran) ─── */}
       <div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {METRICAS.map((m, i) => (
             <div
               key={m.label}
@@ -435,11 +448,12 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
             <button
               type="button"
               onClick={publicarAviso}
-              disabled={!nuevoAviso.trim()}
+              disabled={!nuevoAviso.trim() || publicandoAviso}
               className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               style={{ background: GRAD }}
             >
-              <Send size={14} /> {avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
+              {publicandoAviso ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {publicandoAviso ? "Publicando..." : avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
             </button>
             <p className="text-[11px] text-slate-500">
               El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o enviaselo directo al paciente si elegiste uno puntual.
@@ -481,8 +495,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
                       <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" aria-label="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                         {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                       </button>
-                      <button type="button" onClick={() => eliminarAviso(a.id)} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer">
-                        <Trash2 size={13} />
+                      <button type="button" onClick={() => eliminarAviso(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+                        {eliminandoAvisoId === a.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                       </button>
                     </div>
                   </div>
