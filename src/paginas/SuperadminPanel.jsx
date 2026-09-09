@@ -874,7 +874,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // ─── Funnel comercial (leads/visitas de la página de venta) ───
   const visitasVenta = useMemo(() => visitas.filter((v) => v.tipo === "venta"), [visitas])
   const visitasPorDia = useMemo(() => {
-    const dias = ultimosNDias(14)
+    // Antes 14 días — el único de los dos gráficos diarios de esta pantalla
+    // que no seguía la convención de "Actividad por día" (7 días, más abajo
+    // en este mismo archivo). Con 14, cada abreviatura de día de la semana
+    // se repetía dos veces en el eje (JUE, VIE... JUE, VIE...), que además
+    // de verse apretado con barras casi vacías, leía confuso.
+    const dias = ultimosNDias(7)
     const mapa = new Map()
     visitasVenta.forEach((v) => {
       if (!v.created_at) return
@@ -1608,7 +1613,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       <div className={CARD_PAD}>
         <div className="mb-1 flex items-center justify-between">
           <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Visitas a la página de venta</h3>
-          <span className="text-[11px] font-semibold text-slate-400">Últimos 14 días</span>
+          <span className="text-[11px] font-semibold text-slate-400">Últimos 7 días</span>
         </div>
         {visitasVenta.length === 0 ? (
           <p className="py-14 text-center text-sm text-slate-400">Aún no hay visitas registradas.</p>
