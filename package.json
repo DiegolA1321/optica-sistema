@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:rls": "node scripts/test-rls.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
