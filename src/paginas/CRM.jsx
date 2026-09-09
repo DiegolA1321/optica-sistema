@@ -160,6 +160,29 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
   const [detalleAbierto, setDetalleAbierto] = useState(null) // "fieles" | "cumpleanos" | "inactivos" | "referidos" | null
 
+  // F3: sin límite de frecuencia, nada impedía mandarle el mismo recordatorio
+  // de WhatsApp al mismo paciente varias veces el mismo día. Es un límite
+  // "de buena fe" en localStorage (por navegador, no por servidor) — coherente
+  // con que enviarRecordatorio() ya solo abre wa.me, sin backend real de
+  // mensajería que pudiera imponerlo del lado del servidor.
+  const CLAVE_CONTACTOS_HOY = "optica_crm_contactos_hoy"
+  const [contactadosHoy, setContactadosHoy] = useState(() => {
+    try {
+      const hoy = new Date().toISOString().slice(0, 10)
+      const raw = JSON.parse(localStorage.getItem(CLAVE_CONTACTOS_HOY) || "{}")
+      return raw[hoy] || {}
+    } catch { return {} }
+  })
+  const marcarContactadoHoy = (id) => {
+    if (id == null) return
+    const hoy = new Date().toISOString().slice(0, 10)
+    setContactadosHoy((prev) => {
+      const siguiente = { ...prev, [id]: true }
+      try { localStorage.setItem(CLAVE_CONTACTOS_HOY, JSON.stringify({ [hoy]: siguiente })) } catch { /* localStorage lleno o bloqueado — el límite solo se pierde, no rompe nada */ }
+      return siguiente
+    })
+  }
+
   // Avisos globales (anuncios para todos los pacientes: cierres, promociones,
   // etc.) — antes vivían solo en localStorage (CRM.jsx no llamaba nunca a
   // Supabase): un aviso publicado por un admin era invisible para un
@@ -260,7 +283,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   }
 
   // Envío por WhatsApp con prefijo internacional (Ecuador)
-  const enviarRecordatorio = (nombre, motivo, telefono) => {
+  const enviarRecordatorio = (nombre, motivo, telefono, id) => {
     let numeroLimpio = (telefono || "").replace(/\D/g, "")
     if (numeroLimpio.startsWith("0")) {
       numeroLimpio = "593" + numeroLimpio.substring(1)
@@ -271,6 +294,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
     const texto = `Hola ${nombre}, te saludamos de ${usuario?.opticaNombre || "tu óptica"}. Queremos recordarte: ${motivo} ¡Escríbenos para agendar tu cita!`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
+    marcarContactadoHoy(id)
   }
 
   const METRICAS = [
@@ -350,7 +374,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           bgIcono="linear-gradient(135deg,#818cf8,#4f46e5)"
           lista={listaReferidos}
           cumpleAuto={cumpleAuto}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          contactadosHoy={contactadosHoy}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("referidos")}
           vacioTexto="Todavía ningún paciente aparece como quien refirió a otro."
         />
@@ -360,7 +385,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           bgIcono="linear-gradient(135deg,#34d399,#059669)"
           lista={listaFieles}
           cumpleAuto={cumpleAuto}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          contactadosHoy={contactadosHoy}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("fieles")}
           vacioTexto="Todavía nadie cruza el mínimo de consultas para ser paciente frecuente."
         />
@@ -370,7 +396,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           bgIcono="linear-gradient(135deg,#e0b64e,#b45309)"
           lista={listaCumpleanos}
           cumpleAuto={cumpleAuto}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          contactadosHoy={contactadosHoy}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("cumpleanos")}
           vacioTexto="Ningún paciente cumple años en los próximos días."
         />
@@ -380,7 +407,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           bgIcono="linear-gradient(135deg,#f87171,#dc2626)"
           lista={listaInactivos}
           cumpleAuto={cumpleAuto}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          contactadosHoy={contactadosHoy}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("inactivos")}
           vacioTexto="No hay pacientes con el control vencido por ahora."
         />
@@ -398,7 +426,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               : { titulo: "Sin visitar hace tiempo", icono: Clock, bgIcono: "linear-gradient(135deg,#f87171,#dc2626)", lista: listaInactivos, columnaLabel: "Días sin visitar", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
           }
           cumpleAuto={cumpleAuto}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono)}
+          contactadosHoy={contactadosHoy}
+          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onCerrar={() => setDetalleAbierto(null)}
         />
       )}
@@ -517,7 +546,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 // ─── Bloque curado (top 5) — pacientes más atendidos / cumpleaños / inactivos ───
 // Mismo componente para los tres: la fila de contacto (nombre, estado,
 // WhatsApp) es idéntica, solo cambian los datos que recibe.
-function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, onEnviar, onVerDetalles, vacioTexto }) {
+function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, vacioTexto }) {
   const top5 = lista.slice(0, 5)
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -542,14 +571,14 @@ function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, onEn
             <p className="text-xs font-medium text-slate-500">{vacioTexto}</p>
           </div>
         ) : (
-          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} onEnviar={onEnviar} />)
+          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} yaContactadoHoy={!!contactadosHoy[p.id]} onEnviar={onEnviar} />)
         )}
       </div>
     </div>
   )
 }
 
-function FilaContacto({ prospecto: p, cumpleAuto, onEnviar }) {
+function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar }) {
   return (
     <div className="flex items-center justify-between gap-2 p-3">
       <div className="min-w-0">
@@ -560,6 +589,19 @@ function FilaContacto({ prospecto: p, cumpleAuto, onEnviar }) {
         <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
           <CheckCircle2 size={11} /> Enviado
         </span>
+      ) : yaContactadoHoy ? (
+        // F3: sin límite de frecuencia, nada impedía mandar el mismo
+        // recordatorio de WhatsApp al mismo paciente varias veces el mismo
+        // día — se puede reenviar igual (no es un bloqueo duro), solo avisa.
+        <button
+          type="button"
+          onClick={() => onEnviar(p)}
+          disabled={!p.telefono}
+          title="Ya le escribiste hoy — clic para enviar de nuevo igual"
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+        >
+          <CheckCircle2 size={11} /> Ya contactado hoy
+        </button>
       ) : (
         <button
           type="button"
