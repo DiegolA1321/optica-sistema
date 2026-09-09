@@ -104,7 +104,6 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const anteriorPaso = () => setPaso((prev) => Math.max(prev - 1, 1))
 
   const confirmarReserva = async () => {
-    const codigoGenerado = `CIT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`
     const nombreCompleto = [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
     const partesNombre = nombreCompleto.split(" ").filter(Boolean)
     const iniciales = partesNombre.length > 1
@@ -133,7 +132,12 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       return
     }
     setEnviando(true)
+    let codigoReal = ""
     if (supabase && opticaId) {
+      // crear_cita_publica ahora genera y guarda el código en el servidor
+      // (antes se inventaba en el navegador y nunca se enviaba a ningún
+      // lado — no servía para nada). Al ser una función que devuelve una
+      // tabla, el cliente la recibe como un arreglo de una fila.
       const { data, error } = await supabase.rpc("crear_cita_publica", {
         p_optica_id: opticaId,
         p_paciente: nuevaCita.paciente,
@@ -145,18 +149,20 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
         p_correo: formData.correo || null,
         p_triage: triageAEnviar,
       })
-      if (error) {
+      if (error || !data?.[0]) {
         setEnviando(false)
         setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
         return
       }
-      nuevaCita.id = data
+      nuevaCita.id = data[0].id
+      codigoReal = data[0].codigo
     } else {
       nuevaCita.id = Date.now()
+      codigoReal = `CIT-${new Date().getFullYear()}-DEMO`
     }
 
     setCitas?.([...citas, nuevaCita])
-    setFormData((prev) => ({ ...prev, codigoCita: codigoGenerado }))
+    setFormData((prev) => ({ ...prev, codigoCita: codigoReal }))
     setEnviando(false)
     setConfirmando(false)
     setPaso(3)
@@ -491,10 +497,12 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                   <ReciboFila label="Profesional" valor={`Equipo de ${nombreOptica}`} ultima />
                 </div>
 
-                <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
-                  <ShieldCheck size={14} className="text-emerald-600" />
-                  Te enviaremos un recordatorio por WhatsApp antes de tu cita.
-                </p>
+                {formData.correo && (
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
+                    <ShieldCheck size={14} className="text-emerald-600" />
+                    Te enviaremos un recordatorio por correo antes de tu cita.
+                  </p>
+                )}
 
                 {parametrizacion?.permitirReagendarPaciente && (
                   <p className="mx-auto max-w-sm text-xs leading-relaxed text-slate-500">

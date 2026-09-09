@@ -148,7 +148,7 @@ function mapPaciente(p) {
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
-  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, correo: c.correo, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado }
+  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, correo: c.correo, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado, codigo: c.codigo || null }
 }
 function mapConsulta(c) {
   return {

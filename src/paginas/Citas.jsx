@@ -565,7 +565,11 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     const texto = busqueda.trim().toLowerCase()
     const filtradas = citas
       .filter((c) => {
-        if (texto && !c.paciente.toLowerCase().includes(texto)) return false
+        // Además del nombre, busca por el código de cita (CIT-2026-ABC123)
+        // que el paciente recibe al reservar en línea — antes ese código no
+        // servía para nada; ahora el personal puede encontrar su cita si la
+        // dan por teléfono.
+        if (texto && !c.paciente.toLowerCase().includes(texto) && !(c.codigo || "").toLowerCase().includes(texto)) return false
         if (filtro === "hoy") return esHoy(c.fecha)
         if (filtro === "proximas") return esFutura(c.fecha)
         if (filtro === "atendidas") return c.estado === "Atendida"
@@ -681,7 +685,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
             type="text"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar paciente por nombre..."
+            placeholder="Buscar por nombre o código de cita..."
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </div>
@@ -795,6 +799,9 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                                 <span className="block truncate text-base font-semibold text-slate-800">{cita.paciente}</span>
                                 {cita.motivoPublico && (
                                   <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Agendada en línea: {cita.motivoPublico}</span>
+                                )}
+                                {cita.codigo && (
+                                  <span className="mt-0.5 block font-mono text-[10.5px] text-slate-400" title="Código que el paciente recibió al reservar en línea">{cita.codigo}</span>
                                 )}
                                 {cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle) && (
                                   <span
