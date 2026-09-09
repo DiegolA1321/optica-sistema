@@ -263,10 +263,46 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
     if (!opcionesVisibles.some((o) => o.id === seccionActiva)) setSeccionActiva("inicio")
   }, [opcionesVisibles, seccionActiva])
 
+  // ─── Historial del navegador ───
+  // Antes, cambiar de sección solo tocaba estado de React (+ localStorage
+  // para sobrevivir un reload) sin tocar window.history — la app entera
+  // vivía en una sola entrada del historial. Resultado real: Pacientes →
+  // Inventario → botón Atrás del navegador no volvía a Pacientes, sacaba al
+  // usuario del sistema (a lo que hubiera antes de cargar la app). Ahora
+  // cada sección visitada por navegar() empuja una entrada real
+  // (?seccion=xxx en la URL), y un listener de popstate sincroniza el
+  // estado cuando el usuario usa Atrás/Adelante — sin recargar la página ni
+  // volver a resolver la óptica (?optica=/?sitio= se preservan intactos).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("seccion") !== seccionActiva) {
+      params.set("seccion", seccionActiva)
+      window.history.replaceState({ seccion: seccionActiva }, "", `${window.location.pathname}?${params}`)
+    }
+    // Solo al montar: sincroniza la URL con la sección restaurada de
+    // localStorage sin crear una entrada de historial nueva.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const alPopState = (e) => {
+      const seccion = e.state?.seccion || new URLSearchParams(window.location.search).get("seccion") || "inicio"
+      if (opcionesVisibles.some((o) => o.id === seccion)) setSeccionActiva(seccion)
+    }
+    window.addEventListener("popstate", alPopState)
+    return () => window.removeEventListener("popstate", alPopState)
+  }, [opcionesVisibles])
+
   // Navegación unificada (mapea alias de otros módulos)
   const navegar = (vista) => {
     const mapa = { consulta: "consultas", consultas_opticas: "consultas" }
-    setSeccionActiva(mapa[vista] || vista)
+    const destino = mapa[vista] || vista
+    if (destino !== seccionActiva) {
+      const params = new URLSearchParams(window.location.search)
+      params.set("seccion", destino)
+      window.history.pushState({ seccion: destino }, "", `${window.location.pathname}?${params}`)
+    }
+    setSeccionActiva(destino)
     setMenuAbierto(false)
     setNotifAbierta(false)
   }
