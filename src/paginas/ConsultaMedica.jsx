@@ -850,7 +850,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           <form onSubmit={intentarGuardar} className="flex flex-1 flex-col justify-between gap-6 p-6">
             <div ref={inicioFormRef} />
             {bannerError && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-700">
+              <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
                 <div>
                   <p className="text-sm font-bold">No puedes continuar todavía</p>

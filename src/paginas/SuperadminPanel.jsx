@@ -885,6 +885,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }, [visitasVenta])
   const maxVisitasDia = Math.max(1, ...visitasPorDia.map((d) => d.valor))
   const [refGraficoVisitas, anchoGraficoVisitas] = useAnchoElemento()
+  // Auditoría 2026-09-09: este gráfico era el único de los tres que no usaba
+  // useAnchoElemento() — tenía un viewBox fijo (880) estirado con
+  // preserveAspectRatio="none" a lo que sea que midiera el contenedor real,
+  // que es exactamente el patrón que este hook existe para evitar (ver
+  // graficos.js). Esa era la causa real de que se viera "sin nitidez".
+  const [refGraficoActividad, anchoGraficoActividad] = useAnchoElemento()
   // Barras, no línea: la mayoría de los días suele estar en 0 visitas — una
   // línea plana que de golpe se dispara se ve como si algo estuviera roto;
   // una barra en 0 se lee como dato normal. Mismo patrón que "Actividad por
@@ -909,7 +915,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   ]
 
   const barrasActividad = useMemo(() => {
-    const w = 880, base = 108, padTop = 10
+    const w = anchoGraficoActividad, base = 108, padTop = 10
     const n = actividadPorDia.length || 1
     const gap = 16
     const barW = (w - gap * (n + 1)) / n
@@ -918,7 +924,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       const x = gap + i * (barW + gap)
       return { ...d, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
     })
-  }, [actividadPorDia, maxActividadDia])
+  }, [actividadPorDia, maxActividadDia, anchoGraficoActividad])
 
   // Auditoría agrupada por día (mismo patrón que Citas.jsx: rail por fecha,
   // colapsable por día — sobre todo para poder ocultar "hoy" y no tener que
@@ -1759,8 +1765,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         {auditoria.length === 0 ? (
           <p className="py-14 text-center text-sm text-slate-400">Sin actividad registrada.</p>
         ) : (
-          <div className="relative mt-3">
-            <svg viewBox="0 0 880 130" className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
+          <div ref={refGraficoActividad} className="relative mt-3">
+            <svg viewBox={`0 0 ${anchoGraficoActividad} 130`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
               <defs>
                 <linearGradient id="barraViol" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#22D3EE" />
@@ -1802,7 +1808,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               return (
                 <div
                   className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                  style={{ left: `${(b.cx / 880) * 100}%`, top: b.y - 8, background: INK }}
+                  style={{ left: `${(b.cx / anchoGraficoActividad) * 100}%`, top: b.y - 8, background: INK }}
                 >
                   {b.valor} acción{b.valor === 1 ? "" : "es"} · clic para ver el detalle
                 </div>
@@ -2902,7 +2908,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 {agregarAdminAbierto && (
                   <form onSubmit={guardarAdminExtra} className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
                     {errorAdminExtra && (
-                      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                      <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                         <AlertCircle size={14} /> {errorAdminExtra}
                       </div>
                     )}
@@ -3275,7 +3281,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <form onSubmit={publicarAviso} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorAviso && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} /> {errorAviso}
                   </div>
                 )}
@@ -3371,7 +3377,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
                 {error && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} />
                     {error}
                   </div>
@@ -3641,7 +3647,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <form onSubmit={guardarSuperadmin} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorSuperadmin && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} />
                     {errorSuperadmin}
                   </div>
@@ -3767,7 +3773,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               {/* ─── Información personal ─── */}
               <form onSubmit={guardarMiCuenta} className="space-y-3">
                 {errorMiCuenta && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} /> {errorMiCuenta}
                   </div>
                 )}
@@ -3808,12 +3814,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <p className="mb-3 text-sm font-bold text-slate-700">Cambiar contraseña</p>
                 <form onSubmit={actualizarMiClave} className="space-y-3">
                   {errorClaveNueva && (
-                    <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                       <AlertCircle size={14} /> {errorClaveNueva}
                     </div>
                   )}
                   {claveActualizada && (
-                    <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
+                    <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
                       <CheckCircle2 size={14} /> Contraseña actualizada.
                     </div>
                   )}

@@ -238,7 +238,13 @@ function App() {
     });
   });
   const [inventario, setInventario] = useState(INVENTARIO_SEED);
-  const [consultas, setConsultas] = useState(() => cargarDeStorage('optica_consultas', []));
+  // Sin cache en localStorage a propósito (auditoría de seguridad,
+  // 2026-09-09): `consultas` es la historia clínica completa ya descifrada
+  // (diagnóstico, antecedentes, alergias) — cachearla en el navegador
+  // anulaba en el cliente el cifrado AES que ya existe en la base de datos
+  // (migración 0043). Se hidrata siempre desde Supabase (ver los dos
+  // `setConsultas(...)` más abajo), igual que `ventas`.
+  const [consultas, setConsultas] = useState([]);
   // Ventas de productos a pacientes (caso "Inventario" de la reunión con el
   // ing — migración 0047_ventas_productos.sql). Solo vive en Supabase, sin
   // seed ni localStorage: es un módulo nuevo, no hay datos viejos que migrar.
@@ -304,17 +310,20 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auditoría de seguridad 2026-09-09: `pacientes.estadoClinico/evolucion/
+  // estadoCorreccion` y `citas.triage` son datos de salud — se guardan en
+  // memoria para la sesión actual pero se excluyen explícitamente de lo que
+  // se persiste en localStorage, para no dejar historia clínica legible en
+  // el navegador entre sesiones.
   useEffect(() => {
-    localStorage.setItem('optica_pacientes', JSON.stringify(pacientes));
+    const sinClinico = pacientes.map(({ estadoClinico, evolucion, estadoCorreccion, ...resto }) => resto);
+    localStorage.setItem('optica_pacientes', JSON.stringify(sinClinico));
   }, [pacientes]);
 
   useEffect(() => {
-    localStorage.setItem('optica_citas', JSON.stringify(citas));
+    const sinTriage = citas.map(({ triage, ...resto }) => resto);
+    localStorage.setItem('optica_citas', JSON.stringify(sinTriage));
   }, [citas]);
-
-  useEffect(() => {
-    localStorage.setItem('optica_consultas', JSON.stringify(consultas));
-  }, [consultas]);
 
   // parametrizacion/motivosConsulta/diagnosticosRapidos viven en columnas de
   // `opticas` (settings/motivos_consulta/diagnosticos_rapidos); disponibilidad

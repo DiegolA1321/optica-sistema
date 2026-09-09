@@ -940,7 +940,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
             <form onSubmit={validarYPedirConfirmacion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {error && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertTriangle size={16} />
                     {error}
                   </div>
@@ -1267,7 +1267,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
             <form onSubmit={confirmarReagendar} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorReagendar && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertTriangle size={16} />
                     {errorReagendar}
                   </div>

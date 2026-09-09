@@ -391,7 +391,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               })}
             </div>
             {errorGuardar && (
-              <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+              <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {errorGuardar}
               </div>
             )}
@@ -721,12 +721,12 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal }) {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+          <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
             <AlertTriangle size={14} /> {error}
           </div>
         )}
         {guardadoOk && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700">
+          <div role="status" className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700">
             <CheckCircle2 size={14} /> Guardado.
           </div>
         )}

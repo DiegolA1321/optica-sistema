@@ -115,12 +115,12 @@ export default function SeccionMfa() {
       </p>
 
       {error && (
-        <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+        <div role="alert" className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
           <AlertCircle size={14} className="shrink-0" /> {error}
         </div>
       )}
       {exito && !inscribiendo && (
-        <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
+        <div role="status" className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
           <CheckCircle2 size={14} className="shrink-0" /> {exito}
         </div>
       )}

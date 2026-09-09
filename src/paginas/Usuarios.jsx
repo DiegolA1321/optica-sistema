@@ -428,7 +428,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {error && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertTriangle size={16} />
                     {error}
                   </div>
@@ -567,7 +567,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar este perfil?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Ya no podrá iniciar sesión con estas credenciales. Esta acción no se puede deshacer.</p>
             {error && (
-              <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {error}
               </div>
             )}

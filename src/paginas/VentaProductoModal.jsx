@@ -317,7 +317,7 @@ export default function VentaProductoModal({
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   {erroresNp.general && (
-                    <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                       <AlertTriangle size={14} /> {erroresNp.general}
                     </div>
                   )}
@@ -427,7 +427,7 @@ export default function VentaProductoModal({
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertTriangle size={14} /> {error}
                   </div>
                 )}

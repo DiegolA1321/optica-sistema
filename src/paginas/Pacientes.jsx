@@ -548,14 +548,14 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
   return (
     <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
       {notificacion && (
-        <div className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-900"}>
+        <div role="status" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-900"}>
           <CheckCircle className="shrink-0 text-emerald-500" size={18} />
           <p className="text-sm font-semibold">{notificacion}</p>
         </div>
       )}
 
       {bannerError && (
-        <div className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-900"}>
+        <div role="alert" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-900"}>
           <AlertCircle className="shrink-0 text-red-500" size={18} />
           <p className="text-sm font-semibold">{bannerError}</p>
         </div>
@@ -1607,7 +1607,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
             <form onSubmit={validarYPedirConfirmacionCita} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorAgendar && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} /> {errorAgendar}
                   </div>
                 )}

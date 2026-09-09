@@ -287,7 +287,7 @@ function FormularioCodigoMfa({ codigo, setCodigo, errorLogin, enviando, onSubmit
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       {errorLogin && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+        <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
           <X size={16} className="mt-0.5 shrink-0" />
           {errorLogin}
         </div>
@@ -702,7 +702,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
             ) : (
             <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
               {errorLogin && (
-                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                   <X size={16} className="mt-0.5 shrink-0" />
                   {errorLogin}
                 </div>
@@ -1165,7 +1165,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               ) : (
               <form onSubmit={manejarEnvio} className="flex flex-col gap-4">
                 {errorLogin && (
-                  <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <X size={16} className="mt-0.5 shrink-0" />
                     {errorLogin}
                   </div>

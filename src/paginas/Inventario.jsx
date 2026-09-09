@@ -276,7 +276,7 @@ export default function Inventario({
 
       {/* ─── ÉXITO ─── */}
       {guardadoExitoso && (
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
           <CheckCircle className="shrink-0 text-emerald-500" size={20} />
           <p className="text-sm font-semibold">{guardadoExitoso}</p>
         </div>
@@ -496,7 +496,7 @@ export default function Inventario({
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 {erroresForm.general && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertTriangle size={14} /> {erroresForm.general}
                   </div>
                 )}
@@ -582,7 +582,7 @@ export default function Inventario({
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 {erroresEdicion.general && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertTriangle size={14} /> {erroresEdicion.general}
                   </div>
                 )}
@@ -612,7 +612,7 @@ export default function Inventario({
             <h2 className="text-lg font-bold" style={{ color: INK }}>Eliminar producto</h2>
             <p className="mt-1.5 text-sm text-slate-500">¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer.</p>
             {errorEliminar && (
-              <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {errorEliminar}
               </div>
             )}

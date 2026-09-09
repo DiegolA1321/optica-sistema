@@ -444,7 +444,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {/* Alertas */}
           {exito && (
-            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+            <div role="status" className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
               <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
               <div>
                 <p className="text-sm font-semibold">Tu cita ha sido agendada con éxito. ¡Te esperamos!</p>
@@ -675,7 +675,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <p className="mt-1 text-sm text-slate-500">Tus datos son tuyos — puedes pedirnos que los eliminemos cuando quieras.</p>
 
                 {errorPrivacidad && (
-                  <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
                   </div>
                 )}
@@ -712,7 +712,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <h3 className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar tu cuenta?</h3>
                 <p className="mt-2 text-center text-sm text-slate-500">Le avisamos a {nombreOptica} para que elimine tu cuenta y tus datos. Esto no borra nada al instante — la óptica te contactará.</p>
                 {errorPrivacidad && (
-                  <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
                   </div>
                 )}
@@ -750,7 +750,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             </div>
             <form onSubmit={validarYPedirConfirmacion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {error && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {error}</div>}
+                {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {error}</div>}
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-600">Paciente</label>
                   <input type="text" disabled value={usuario?.nombre || "Paciente autenticado"} className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-500" />
@@ -795,7 +795,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <button onClick={() => !guardandoReagenda && setReagendando(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              {errorReagenda && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
+              {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
               <SelectorFechaHora
                 disponibilidad={disponibilidad}
                 citas={citas.filter((c) => c.id !== reagendando.id)}
@@ -834,7 +834,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <p className="mt-1.5 text-sm text-slate-500">
                 {etiquetaFecha(cancelando.fecha)} · {cancelando.hora}. Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.
               </p>
-              {errorCancelar && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errorCancelar}</p>}
+              {errorCancelar && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errorCancelar}</p>}
             </div>
             <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
               <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
@@ -879,7 +879,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             </div>
             <form onSubmit={handleCambiarClave} className="space-y-4 p-5">
               <p className="text-sm text-slate-500">Elige una contraseña nueva para reemplazar la temporal.</p>
-              {errorClave && <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
+              {errorClave && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Contraseña actual</label>
                 <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>

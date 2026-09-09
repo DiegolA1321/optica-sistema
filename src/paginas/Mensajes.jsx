@@ -207,12 +207,12 @@ export default function Mensajes({ usuario }) {
         </div>
         <form onSubmit={enviarConsulta} className="space-y-3 p-4">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
               <AlertCircle size={14} /> {error}
             </div>
           )}
           {enviado && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
+            <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
               <CheckCircle2 size={14} /> Mensaje enviado — te avisamos acá mismo cuando te respondan.
             </div>
           )}
