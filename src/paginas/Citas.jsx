@@ -35,7 +35,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
-import { INK } from "@/lib/tema"
+import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -781,12 +781,12 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                                   (Séptima Mirada, hallazgo #1). */}
                               <div className="flex items-center gap-1">
                                 {!resuelta && puedeMarcarse && (
-                                  <button type="button" onClick={() => atenderCita(cita)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Atender ahora" aria-label="Atender ahora">
+                                  <button type="button" onClick={() => atenderCita(cita)} className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Atender ahora" aria-label="Atender ahora">
                                     <Stethoscope size={16} />
                                   </button>
                                 )}
                                 {cita.pacienteId && (
-                                  <button type="button" onClick={() => onVerPerfil?.(cita.pacienteId)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 cursor-pointer" title="Ver perfil del paciente" aria-label="Ver perfil del paciente">
+                                  <button type="button" onClick={() => onVerPerfil?.(cita.pacienteId)} className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Ver perfil del paciente" aria-label="Ver perfil del paciente">
                                     <Eye size={16} />
                                   </button>
                                 )}

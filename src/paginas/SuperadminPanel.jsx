@@ -64,7 +64,7 @@ import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
-import { INK } from "@/lib/tema"
+import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -2217,7 +2217,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       </td>
                       <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => abrirDetalleOptica(o)} title="Ver detalle" aria-label={`Ver detalle de ${o.nombre}`} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                          <button type="button" onClick={() => abrirDetalleOptica(o)} title="Ver detalle" aria-label={`Ver detalle de ${o.nombre}`} className={"rounded-lg p-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + ACCION_VER}>
                             <Eye size={16} />
                           </button>
                           <button
@@ -3034,7 +3034,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                             type="button"
                             onClick={() => { setFacturaImprimir(f); setTimeout(() => imprimirDocumento("factura-imprimible", "printing-factura"), 50) }}
                             title="Imprimir factura"
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                            className={"rounded-lg p-1.5 cursor-pointer " + ACCION_VER}
                           >
                             <Printer size={14} />
                           </button>
