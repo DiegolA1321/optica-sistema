@@ -1257,7 +1257,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           })()}
 
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
+            <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
               <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-4">
