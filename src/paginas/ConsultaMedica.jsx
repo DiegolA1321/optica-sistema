@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
+import { registrarLog } from "../utilidades/logs"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -528,6 +529,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         return
       }
       if (data) nuevaFicha.id = data.id
+      // Hallazgo I4: era el único módulo que crea/edita historia clínica sin
+      // dejar rastro de auditoría — la auditoría de superadmin/admin ya
+      // existía para el resto del sistema, esta era la excepción real.
+      registrarLog(usuario, "consultas", "Registró una ficha clínica", `${nuevaFicha.paciente} · ${nuevaFicha.fecha}`)
       const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
 
@@ -553,42 +558,33 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       setPacientes(pacientesActualizados)
     }
 
-    // Descuenta 1 unidad del producto vinculado — cierra el ciclo clínico → inventario
+    // Descuenta el producto vinculado y registra la venta — cierra el ciclo
+    // clínico → inventario. Hallazgo G5 (mismo bug que VentaProductoModal.jsx,
+    // encontrado acá también al auditar I4): antes eran dos llamadas
+    // separadas (update de stock leído en memoria + insert en ventas), con
+    // el mismo riesgo de descuento perdido en una carrera y de venta
+    // registrada sin descontar stock si la segunda llamada fallaba. Se
+    // reemplaza por el mismo RPC atómico (migración 0061) que ya usa
+    // VentaProductoModal.jsx.
     if (productoSeleccionado && setInventario) {
-      const stockNuevo = Math.max(0, (Number(productoSeleccionado.stock) || 0) - 1)
+      const montoVentaNum = Number(montoVenta) || 0
       if (supabase && usuario?.opticaId) {
-        supabase.from("inventario").update({ stock: stockNuevo }).eq("id", productoSeleccionado.id).then(({ error: errorStock }) => {
-          if (errorStock) console.error("La ficha se guardó, pero no se pudo descontar el stock del producto vinculado:", errorStock.message)
-        })
-      }
-      setInventario(
-        inventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: stockNuevo } : p)),
-      )
-
-      // Registra la venta real en `ventas` — antes este vínculo solo tocaba
-      // inventario y el campo productoId/montoVenta de la propia consulta,
-      // invisible para Reportes ("Ingresos"), el reporte por producto de
-      // Inventario y "Pagos pendientes" del paciente en CRM, que leen todos
-      // de esta tabla, no de consultas. Unifica las dos vías de venta en
-      // una sola fuente de verdad.
-      if (supabase && usuario?.opticaId) {
-        const montoVentaNum = Number(montoVenta) || 0
-        supabase.from("ventas").insert({
-          optica_id: usuario.opticaId,
-          paciente_id: pacienteId,
-          producto_id: productoSeleccionado.id,
-          producto_nombre: productoSeleccionado.nombre,
-          cantidad: 1,
-          precio_unitario: montoVentaNum,
-          monto_total: montoVentaNum,
-          metodo_pago: "directo",
-          cuotas_totales: null,
-          cuotas_pagadas: 0,
-          estado: estadoVenta,
-          registrado_por: usuario?.id || null,
-        }).select().single().then(({ data: ventaData, error: errorVenta }) => {
-          if (errorVenta) { console.error("La ficha se guardó, pero no se pudo registrar la venta vinculada:", errorVenta.message); return }
-          if (ventaData && setVentas) {
+        supabase.rpc("registrar_venta_producto", {
+          p_optica_id: usuario.opticaId,
+          p_paciente_id: pacienteId,
+          p_producto_id: productoSeleccionado.id,
+          p_producto_nombre: productoSeleccionado.nombre,
+          p_cantidad: 1,
+          p_precio_unitario: montoVentaNum,
+          p_monto_total: montoVentaNum,
+          p_metodo_pago: "directo",
+          p_cuotas_totales: null,
+          p_estado: estadoVenta,
+          p_registrado_por: usuario?.id || null,
+        }).single().then(({ data: ventaData, error: errorVenta }) => {
+          if (errorVenta) { console.error("La ficha se guardó, pero no se pudo registrar la venta ni descontar el stock del producto vinculado:", errorVenta.message); return }
+          setInventario((prevInventario) => prevInventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: ventaData.stock_restante } : p)))
+          if (setVentas) {
             setVentas((prev) => [{
               id: ventaData.id, pacienteId, productoId: productoSeleccionado.id, productoNombre: productoSeleccionado.nombre,
               cantidad: 1, precioUnitario: montoVentaNum, montoTotal: montoVentaNum, metodoPago: "directo",
@@ -596,6 +592,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
             }, ...prev])
           }
         })
+      } else {
+        const stockNuevo = Math.max(0, (Number(productoSeleccionado.stock) || 0) - 1)
+        setInventario(inventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: stockNuevo } : p)))
       }
     }
 
