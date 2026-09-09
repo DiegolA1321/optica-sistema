@@ -26,23 +26,28 @@ export default function Mensajes({ usuario }) {
   const [optica, setOptica] = useState(null)
   const [facturas, setFacturas] = useState([])
   const [facturaImprimir, setFacturaImprimir] = useState(null)
+  // J7: sin esto, un fallo de red o RLS al cargar dejaba la pantalla igual
+  // que "no hay mensajes/facturas todavía" — indistinguible de un fallo real.
+  const [errorCarga, setErrorCarga] = useState(false)
 
   const cargarMensajes = async () => {
     if (!supabase) { setCargando(false); return }
     setCargando(true)
-    const { data } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
     setMensajes(data || [])
+    if (error) setErrorCarga(true)
     setCargando(false)
   }
 
   const cargarSuscripcion = async () => {
     if (!supabase || !usuario?.opticaId) return
-    const [{ data: opticaData }, { data: facturasData }] = await Promise.all([
+    const [{ data: opticaData, error: errorOptica }, { data: facturasData, error: errorFacturas }] = await Promise.all([
       supabase.from("opticas").select("estado_pago, monto_mensual, proximo_vencimiento").eq("id", usuario.opticaId).single(),
       supabase.from("facturas").select("*").eq("optica_id", usuario.opticaId).order("emitida_at", { ascending: false }),
     ])
     setOptica(opticaData || null)
     setFacturas(facturasData || [])
+    if (errorOptica || errorFacturas) setErrorCarga(true)
   }
 
   useEffect(() => {
@@ -94,6 +99,13 @@ export default function Mensajes({ usuario }) {
           <p className="text-sm text-slate-500">Escribile al equipo de Diego Óptica y mirá los avisos generales.</p>
         </div>
       </div>
+
+      {errorCarga && (
+        <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
+          <AlertCircle size={16} className="shrink-0" />
+          No se pudo cargar todo correctamente — puede que falten mensajes o facturas. Revisa tu conexión e intenta recargar.
+        </div>
+      )}
 
       {/* ─── Panel de control: tarjetas filtran la lista de abajo, mismo lenguaje visual que CRM.jsx ─── */}
       <div>

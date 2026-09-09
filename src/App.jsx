@@ -238,6 +238,12 @@ function App() {
     });
   });
   const [inventario, setInventario] = useState(INVENTARIO_SEED);
+  // J7: las cargas iniciales de abajo (pacientes/citas/consultas/inventario/
+  // etc.) descartaban `error` — si Supabase fallaba (red caída, RLS negó el
+  // acceso) la app quedaba con los datos viejos/vacíos sin ningún aviso,
+  // indistinguible de "no hay datos" para quien está mirando la pantalla.
+  const [erroresCarga, setErroresCarga] = useState([]);
+  const registrarErrorCarga = (etiqueta) => setErroresCarga((prev) => (prev.includes(etiqueta) ? prev : [...prev, etiqueta]));
   // Sin cache en localStorage a propósito (auditoría de seguridad,
   // 2026-09-09): `consultas` es la historia clínica completa ya descifrada
   // (diagnóstico, antecedentes, alergias) — cachearla en el navegador
@@ -382,8 +388,9 @@ function App() {
     })
 
     if (esAdmin) {
-      supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
+      supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico })))
+        else if (error) registrarErrorCarga('inventario')
       })
 
       // pacientes/citas/consultas: hidratan el estado local con lo real de
@@ -392,32 +399,39 @@ function App() {
       // sigue espejándose en localStorage — así el portal de paciente y
       // agendar-cita-pública (que no tienen sesión real) siguen viendo algo
       // en ese mismo navegador, igual que antes de esta migración.
-      supabase.from('pacientes').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
+      supabase.from('pacientes').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setPacientes(data.map(mapPaciente))
+        else if (error) registrarErrorCarga('pacientes')
       })
 
-      supabase.from('citas').select('*').eq('optica_id', opticaId).then(({ data }) => {
+      supabase.from('citas').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
         if (data) setCitas(data.map(mapCita))
+        else if (error) registrarErrorCarga('citas')
       })
 
-      supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
+      supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setConsultas(data.map(mapConsulta))
+        else if (error) registrarErrorCarga('consultas')
       })
 
-      supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data }) => {
+      supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setVentas(data.map(mapVenta))
+        else if (error) registrarErrorCarga('ventas')
       })
 
-      supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data }) => {
+      supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
         if (data) setRespuestasSatisfaccion(data.map(mapRespuestaSatisfaccion))
+        else if (error) registrarErrorCarga('encuestas de satisfacción')
       })
 
-      supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data }) => {
+      supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data, error }) => {
         if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
+        else if (error) registrarErrorCarga('solicitudes de eliminación')
       })
 
-      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data }) => {
+      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
         if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '' })))
+        else if (error) registrarErrorCarga('usuarios y permisos')
       })
     }
   }
@@ -773,6 +787,8 @@ function App() {
       {pantallaActual === 'dashboard' && (
         <Dashboard
           usuario={usuario}
+          erroresCarga={erroresCarga}
+          onCerrarErroresCarga={() => setErroresCarga([])}
           pacientes={pacientes}
           setPacientes={setPacientes}
           citas={citas}

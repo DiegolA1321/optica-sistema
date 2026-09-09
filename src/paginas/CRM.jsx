@@ -174,8 +174,13 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
   useEffect(() => {
     if (!supabase || !usuario?.opticaId) return
-    supabase.from("avisos").select("*").eq("optica_id", usuario.opticaId).order("created_at", { ascending: false }).then(({ data }) => {
-      if (!data) return
+    supabase.from("avisos").select("*").eq("optica_id", usuario.opticaId).order("created_at", { ascending: false }).then(({ data, error }) => {
+      if (!data) {
+        // J7: antes se descartaba en silencio — la lista de avisos quedaba
+        // vacía igual que "nadie publicó nada todavía", sin ningún aviso.
+        if (error) setAvisoError("No se pudieron cargar los avisos. Revisa tu conexión e intenta recargar.")
+        return
+      }
       setAvisos(data.map((a) => ({
         id: a.id, texto: a.texto, fecha: new Date(a.created_at).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
         destinatarioId: a.destinatario_id, destinatarioNombre: a.destinatario_nombre, destinatarioTelefono: a.destinatario_telefono,
@@ -458,7 +463,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
             <p className="text-[11px] text-slate-500">
               El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o enviaselo directo al paciente si elegiste uno puntual.
             </p>
-            {avisoError && <p className="text-[11px] font-semibold text-red-600">{avisoError}</p>}
+            {avisoError && <p role="alert" className="text-[11px] font-semibold text-red-600">{avisoError}</p>}
 
             {avisos.length > 0 && (
               <div className="max-h-52 space-y-2 overflow-y-auto border-t border-slate-100 pt-3">

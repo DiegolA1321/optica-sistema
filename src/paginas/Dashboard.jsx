@@ -12,6 +12,8 @@ import {
   LogOut,
   Menu,
   X,
+  AlertTriangle,
+  RefreshCw,
   Bell,
   Cake,
   CheckCircle2,
@@ -109,7 +111,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -761,6 +763,25 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
 
         {/* Espacio de trabajo */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {/* J7: antes un fallo de red o un RLS que negaba el acceso al cargar
+              pacientes/citas/etc. quedaba en silencio — la pantalla se veía
+              igual que "no hay datos todavía", sin ninguna forma de saber que
+              en realidad falló la carga. */}
+          {erroresCarga.length > 0 && (
+            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-red-800">No se pudo cargar: {erroresCarga.join(", ")}.</p>
+                <p className="text-xs text-red-600">Puede que la información que ves esté vieja o incompleta. Revisa tu conexión e intenta recargar la página.</p>
+              </div>
+              <button type="button" onClick={() => window.location.reload()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer">
+                <RefreshCw size={13} /> Recargar
+              </button>
+              <button type="button" onClick={onCerrarErroresCarga} aria-label="Cerrar aviso" className="shrink-0 rounded-lg p-1.5 text-red-400 transition hover:bg-red-100 hover:text-red-600 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          )}
           <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
             {renderSeccion()}
           </Suspense>
