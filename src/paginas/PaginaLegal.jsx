@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { ArrowLeft, ShieldCheck, FileText, Lock, Database, Mail, Scale } from "lucide-react"
+import { INK, PORCELAIN } from "@/lib/tema"
 
-const INK = "#0E2B33"
-const PORCELAIN = "#F7F5F0"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 // Política de privacidad + términos de uso — antes eran links muertos en el

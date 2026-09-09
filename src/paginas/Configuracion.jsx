@@ -5,9 +5,9 @@ import { createPortal } from "react-dom"
 import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase } from "../lib/supabaseClient"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Interruptor tipo iOS reutilizable (mismo patrón que el de CRM.jsx)

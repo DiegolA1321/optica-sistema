@@ -21,11 +21,9 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido } from "../utilidades/validaciones"
 import { supabase } from "../lib/supabaseClient"
+import { INK, PORCELAIN, GOLD } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el login) ───
-const INK = "#0E2B33"
-const PORCELAIN = "#F7F5F0"
-const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica, parametrizacion }) {

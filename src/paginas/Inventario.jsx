@@ -23,9 +23,9 @@ import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
 import VentaProductoModal from "./VentaProductoModal"
 import CampoCategoria from "../componentes/CampoCategoria"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 const CATEGORIAS_FALLBACK = ["Armazones", "Accesorios"]

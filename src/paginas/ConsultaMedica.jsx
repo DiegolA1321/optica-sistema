@@ -37,10 +37,9 @@ import {
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import { registrarLog } from "../utilidades/logs"
+import { INK, GOLD } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
-const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 const escalasSnellen = ["20/20", "20/25", "20/30", "20/40", "20/50", "20/70", "20/100", "20/200"]

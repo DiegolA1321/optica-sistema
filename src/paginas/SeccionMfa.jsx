@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react"
 import { ShieldCheck, ShieldAlert, AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
+import { INK } from "@/lib/tema"
 
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 // Sección de "verificación en dos pasos" (MFA/TOTP) — se cuelga dentro de

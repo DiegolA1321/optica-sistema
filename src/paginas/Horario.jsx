@@ -27,9 +27,9 @@ import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
 } from "../utilidades/disponibilidad"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]

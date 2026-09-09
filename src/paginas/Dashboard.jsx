@@ -49,9 +49,9 @@ import { esStockBajo } from "../utilidades/inventario"
 import { diasVencido } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Orden por frecuencia de uso real (feedback del asesor, 2026-08-20): lo que

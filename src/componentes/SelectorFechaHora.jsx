@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
 import { fechaAISO, hoyISO, diaTieneCupo, slotsDisponibles } from "../utilidades/disponibilidad"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]

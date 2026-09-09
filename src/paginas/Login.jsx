@@ -20,11 +20,9 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react"
+import { INK, PORCELAIN, GOLD } from "@/lib/tema"
 
 // ─── Paleta de firma (inline para no depender de config de Tailwind) ───
-const INK = "#0E2B33"       // navy profundo — hero y cierre
-const PORCELAIN = "#F7F5F0" // fondo cálido — secciones claras
-const GOLD = "#C8A24E"      // dorado — acento óptico premium, con moderación
 const CYAN = "#22D3EE"      // cian — resplandor de "claridad" del iris
 
 // Datos de muestra SOLO para la vista previa (no interactiva)

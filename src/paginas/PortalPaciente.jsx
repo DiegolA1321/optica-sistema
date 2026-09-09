@@ -36,10 +36,9 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
 import { supabase } from "../lib/supabaseClient"
+import { INK, GOLD } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con todo el sistema) ───
-const INK = "#0E2B33"
-const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 const OD_COLOR = "#2563EB"
 const OI_COLOR = "#06b6d4"

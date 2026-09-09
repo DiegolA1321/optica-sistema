@@ -33,6 +33,7 @@ import {
   UserCog,
   Lock,
 } from "lucide-react"
+import { INK, PORCELAIN, GOLD } from "@/lib/tema"
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Cómo funciona", icon: Compass },
@@ -41,9 +42,6 @@ const NAV_LINKS = [
 ]
 
 // ─── Paleta de firma (misma que el resto del sistema) ───
-const INK = "#0E2B33"
-const PORCELAIN = "#F7F5F0"
-const GOLD = "#C8A24E"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 function MockHistorial() {

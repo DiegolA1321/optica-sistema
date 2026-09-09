@@ -2,9 +2,9 @@ import { useEffect, useState } from "react"
 import { MessageSquare, Megaphone, Send, Clock, AlertCircle, CheckCircle2, Wallet, Receipt, Printer } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })

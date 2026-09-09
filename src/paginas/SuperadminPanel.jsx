@@ -64,9 +64,9 @@ import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 const generarSlug = (texto) =>

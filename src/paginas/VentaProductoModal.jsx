@@ -7,9 +7,9 @@ import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import CampoCategoria from "../componentes/CampoCategoria"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción de venta/dinero
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul, alta rápida de producto
 

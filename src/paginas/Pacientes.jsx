@@ -47,9 +47,9 @@ import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/dis
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 const OD_COLOR = "#2563EB"
 const OI_COLOR = "#06b6d4"

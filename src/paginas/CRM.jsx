@@ -24,9 +24,9 @@ import {
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Ventana de cumpleaños: devuelve la diferencia en días si cae entre -5 y +7 (si no, null)

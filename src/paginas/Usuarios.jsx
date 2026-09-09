@@ -24,9 +24,9 @@ import {
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
-const INK = "#0E2B33"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Módulos que un usuario puede o no tener habilitados — mismos ids que las

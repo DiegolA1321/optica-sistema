@@ -1,8 +1,7 @@
 import React from "react"
 import { AlertTriangle, RotateCw } from "lucide-react"
+import { INK, PORCELAIN } from "@/lib/tema"
 
-const INK = "#0E2B33"
-const PORCELAIN = "#F7F5F0"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 // Fallback del Sentry.ErrorBoundary que envuelve <App /> (ver main.jsx) — sin

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react"
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
+import { INK, PORCELAIN } from "@/lib/tema"
 
-const INK = "#0E2B33"
-const PORCELAIN = "#F7F5F0"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 // Página que abre el link "Confirmar mi asistencia" del correo de
