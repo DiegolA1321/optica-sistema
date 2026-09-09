@@ -54,6 +54,12 @@ export default function Inventario({
   // revisión total: antes era una lista fija de 2 valores en el código).
   const CATEGORIAS = categorias.length > 0 ? categorias : CATEGORIAS_FALLBACK
   const [busqueda, setBusqueda] = useState("")
+  // C5: modo compacto opcional — ver más filas sin scroll cuando el
+  // catálogo crece. Persiste por navegador (preferencia visual, no un dato
+  // de negocio) — igual que otras preferencias puramente de interfaz.
+  const [compacto, setCompacto] = useState(() => { try { return localStorage.getItem("optica_inventario_compacto") === "1" } catch { return false } })
+  const alternarCompacto = () => setCompacto((v) => { try { localStorage.setItem("optica_inventario_compacto", !v ? "1" : "0") } catch {} return !v })
+  const celdaY = compacto ? "py-1.5" : "py-3"
   const [nombre, setNombre] = useState("")
   const [categoria, setCategoria] = useState(CATEGORIAS[0] || "Armazones")
   const [stock, setStock] = useState("")
@@ -338,10 +344,22 @@ export default function Inventario({
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Package size={16} /></span>
             Stock disponible
           </h4>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <input type="text" placeholder="Buscar producto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div className="relative flex-1 sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <input type="text" placeholder="Buscar producto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+            </div>
+            {/* C5: modo compacto — ver más filas sin scroll cuando el catálogo crece */}
+            <button
+              type="button"
+              onClick={alternarCompacto}
+              title={compacto ? "Vista normal" : "Vista compacta"}
+              aria-pressed={compacto}
+              className={"shrink-0 rounded-xl border p-2 text-xs font-semibold transition cursor-pointer " + (compacto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:bg-slate-50")}
+            >
+              <Boxes size={16} />
+            </button>
           </div>
         </div>
 
@@ -374,19 +392,19 @@ export default function Inventario({
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("nombre")}>
+                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("nombre")}>
                   <span className="flex items-center gap-1">Ítem <IconoOrden campo="nombre" /></span>
                 </th>
-                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("categoria")}>
+                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("categoria")}>
                   <span className="flex items-center gap-1">Categoría <IconoOrden campo="categoria" /></span>
                 </th>
-                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("stock")}>
+                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("stock")}>
                   <span className="flex items-center gap-1">Existencia <IconoOrden campo="stock" /></span>
                 </th>
-                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("precio")}>
+                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("precio")}>
                   <span className="flex items-center gap-1">Precio U. <IconoOrden campo="precio" /></span>
                 </th>
-                <th className="px-4 py-3 text-center">Acciones</th>
+                <th className={"px-4 text-center " + celdaY}>Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -424,30 +442,32 @@ export default function Inventario({
                   const bajo = esStockBajo(prod)
                   return (
                     <tr key={prod.id} className="transition hover:bg-slate-50/70">
-                      <td className="px-4 py-3">
+                      <td className={"px-4 " + celdaY}>
                         <p className="font-bold text-slate-800">{prod.nombre}</p>
-                        {prod.observacion && <p className="mt-0.5 text-xs text-slate-500">{prod.observacion}</p>}
+                        {!compacto && prod.observacion && <p className="mt-0.5 text-xs text-slate-500">{prod.observacion}</p>}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={"px-4 " + celdaY}>
                         <span className="rounded-md px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: col.bg, color: col.fg }}>{prod.categoria}</span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={"px-4 " + celdaY}>
                         <div className="flex items-center gap-2">
                           <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-800")}>{prod.stock} u.</span>
                           {bajo && <AlertTriangle size={14} className="text-amber-500" />}
                         </div>
-                        <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`,
-                              background: bajo ? "#D97706" : "linear-gradient(135deg,#22D3EE,#2563EB)",
-                            }}
-                          />
-                        </div>
+                        {!compacto && (
+                          <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`,
+                                background: bajo ? "#D97706" : "linear-gradient(135deg,#22D3EE,#2563EB)",
+                              }}
+                            />
+                          </div>
+                        )}
                       </td>
-                      <td className="px-4 py-3 font-mono font-bold text-slate-600">${Number(prod.precio).toFixed(2)}</td>
-                      <td className="px-4 py-3">
+                      <td className={"px-4 font-mono font-bold text-slate-600 " + celdaY}>${Number(prod.precio).toFixed(2)}</td>
+                      <td className={"px-4 " + celdaY}>
                         <div className="flex items-center justify-center gap-1">
                           <button type="button" onClick={() => abrirEditar(prod)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar / añadir stock" aria-label="Editar o añadir stock">
                             <Pencil size={16} />
