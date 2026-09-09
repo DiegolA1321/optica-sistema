@@ -130,19 +130,47 @@ try {
     }
   });
 
-  // ── 7. limite_solicitudes: hallazgo I9 — confirma si sigue sin RLS (para no regresionar el fix cuando se aplique) ──
+  // ── 7b. I7: si la cuenta tiene MFA verificado, una sesión SIN aal2 no puede leer datos clínicos ──
+  await client.query(
+    `insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, secret, created_at, updated_at)
+     values (gen_random_uuid(), $1, 'test', 'totp', 'verified', 'x', now(), now())`,
+    [adminA]
+  );
+  await comoUsuario(adminA, async () => {
+    // comoUsuario no setea aal — por defecto una sesión sin ese claim no es aal2.
+    const { rows } = await client.query(`select id from pacientes where id = $1`, [pacienteA]);
+    afirmar("Con MFA verificado pero SIN aal2 en la sesión, NO se puede leer datos clínicos (I7)", rows.length === 0,
+      rows.length > 0 ? "¡FUGA! el gate de MFA no bloqueó el acceso" : "0 filas, correcto");
+  });
+
+  // ── 7c. I7: la MISMA cuenta, con aal2 en la sesión, SÍ puede leer ──
+  await client.query("begin");
+  try {
+    await client.query("set local role authenticated");
+    await client.query("select set_config('request.jwt.claim.sub', $1, true)", [adminA]);
+    await client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: adminA, aal: "aal2" })]);
+    const { rows } = await client.query(`select id from pacientes where id = $1`, [pacienteA]);
+    afirmar("La misma cuenta CON aal2 en la sesión sí puede leer datos clínicos (I7 no bloquea de más)", rows.length === 1);
+  } finally {
+    await client.query("rollback");
+  }
+
+  // ── 8. limite_solicitudes: hallazgo I9 — confirma si sigue sin RLS (para no regresionar el fix cuando se aplique) ──
   const { rows: rlsCheck } = await client.query(
     `select relrowsecurity from pg_class where relname = 'limite_solicitudes'`
   );
   afirmar("limite_solicitudes tiene RLS habilitado (I9)", rlsCheck[0]?.relrowsecurity === true,
     rlsCheck[0]?.relrowsecurity ? "" : "todavía sin RLS — pendiente hasta que se aplique el fix de I9");
 
+} catch (e) {
+  console.error("\n💥 Error inesperado durante las pruebas (se limpian los fixtures de todas formas):", e.message);
+  fallos++;
 } finally {
   // ── Limpieza — siempre, pase lo que pase arriba ──
   await client.query("begin");
   try {
     if (pacienteA) await client.query(`delete from pacientes_base where id = $1`, [pacienteA]).catch(() => {});
-    if (adminA) { await client.query(`delete from perfiles where id = $1`, [adminA]).catch(() => {}); await client.query(`delete from auth.users where id = $1`, [adminA]).catch(() => {}); }
+    if (adminA) { await client.query(`delete from auth.mfa_factors where user_id = $1`, [adminA]).catch(() => {}); await client.query(`delete from perfiles where id = $1`, [adminA]).catch(() => {}); await client.query(`delete from auth.users where id = $1`, [adminA]).catch(() => {}); }
     if (adminB) { await client.query(`delete from perfiles where id = $1`, [adminB]).catch(() => {}); await client.query(`delete from auth.users where id = $1`, [adminB]).catch(() => {}); }
     if (opticaA) await client.query(`delete from opticas where id = $1`, [opticaA]).catch(() => {});
     if (opticaB) await client.query(`delete from opticas where id = $1`, [opticaB]).catch(() => {});
