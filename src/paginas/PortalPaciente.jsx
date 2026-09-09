@@ -30,9 +30,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Activity,
-  Download,
   ShieldAlert,
-  Loader2,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -128,31 +126,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   // eliminación (deja una solicitud para que la óptica la resuelva, ver
   // migración 0045: un historial clínico puede tener obligaciones de
   // retención que el propio paciente no puede saltarse borrando solo).
-  const [exportando, setExportando] = useState(false)
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
   const [motivoEliminar, setMotivoEliminar] = useState("")
   const [enviandoEliminar, setEnviandoEliminar] = useState(false)
   const [solicitudEliminarEnviada, setSolicitudEliminarEnviada] = useState(false)
   const [errorPrivacidad, setErrorPrivacidad] = useState("")
-
-  const exportarMisDatos = async () => {
-    if (!supabase || exportando) return
-    setExportando(true)
-    setErrorPrivacidad("")
-    const { data, error } = await supabase.rpc("exportar_mis_datos_paciente", {
-      p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
-      p_token: usuario?.token,
-    })
-    setExportando(false)
-    if (error || !data) { setErrorPrivacidad("No pudimos exportar tus datos. Intenta de nuevo."); return }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `mis-datos-${nombreOptica.toLowerCase().replace(/\s+/g, "-")}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   const confirmarSolicitudEliminar = async () => {
     if (!supabase || enviandoEliminar) return
@@ -349,7 +327,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
         </svg>
 
-        <div className="relative z-10 flex-1 overflow-y-auto">
+        <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
           <div className={"flex items-center justify-between border-b border-white/10 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
@@ -463,7 +441,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         </header>
 
         {/* Espacio de trabajo */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {/* Alertas */}
           {exito && (
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
@@ -694,23 +672,13 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               {/* ─── PRIVACIDAD Y DATOS ─── */}
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-bold" style={{ color: INK }}>Privacidad y tus datos</h2>
-                <p className="mt-1 text-sm text-slate-500">Tus datos son tuyos — puedes llevártelos o pedir que los eliminemos.</p>
+                <p className="mt-1 text-sm text-slate-500">Tus datos son tuyos — puedes pedirnos que los eliminemos cuando quieras.</p>
 
                 {errorPrivacidad && (
                   <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
                   </div>
                 )}
-
-                <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: INK }}>Exportar mis datos</p>
-                    <p className="text-xs text-slate-500">Descarga tu perfil, citas e historial clínico en un archivo.</p>
-                  </div>
-                  <button onClick={exportarMisDatos} disabled={exportando} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">
-                    {exportando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {exportando ? "Exportando…" : "Exportar"}
-                  </button>
-                </div>
 
                 <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
                   <div>
