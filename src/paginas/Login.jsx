@@ -938,16 +938,23 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
                 style={{ backgroundColor: GOLD }}
               />
-              <div className="-mx-7 -mt-7 mb-1 h-32 overflow-hidden bg-slate-50">
-                {s.imagenUrl ? <img src={s.imagenUrl} alt={s.titulo} className="h-full w-full object-cover" /> : <s.ilustracion />}
-              </div>
+              {/* Foto propia del admin (Configuración → Personalización del
+                  login) se respeta tal cual la subió; sin foto, el ícono
+                  plano de marca es el nuevo look por defecto — la ilustración
+                  genérica de antes se retiró (feedback de Diego: no coincidía
+                  con el resto del rediseño). */}
+              {s.imagenUrl && (
+                <div className="-mx-7 -mt-7 mb-5 h-32 overflow-hidden bg-slate-50">
+                  <img src={s.imagenUrl} alt={s.titulo} className="h-full w-full object-cover" />
+                </div>
+              )}
               <div
-                className="-mt-9 grid h-14 w-14 place-items-center rounded-2xl text-white"
+                className="grid h-14 w-14 place-items-center rounded-2xl text-white"
                 style={{ background: s.grad, boxShadow: `0 12px 24px -10px ${s.glow}` }}
               >
                 <s.icon size={24} />
               </div>
-              <h3 className="mt-5 text-lg font-bold" style={{ color: INK }}>{s.titulo}</h3>
+              <h3 className="mt-5 font-serif text-lg font-semibold" style={{ color: INK }}>{s.titulo}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-500">{s.texto}</p>
               <ul className="mt-5 flex flex-col gap-2.5 border-t border-slate-100 pt-5">
                 {s.features.map((f) => (

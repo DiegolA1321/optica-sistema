@@ -504,7 +504,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <TarjetaResumen label="Total de citas" valor={String(misCitas.length)} sub={misCitas.length === 1 ? "cita" : "citas"} icon={CalendarDays} tile="#eef2ff" tileText="#2563eb" />
               </div>
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-base font-bold" style={{ color: INK }}>Próximas citas</h2>

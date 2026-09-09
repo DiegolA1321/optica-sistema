@@ -1629,7 +1629,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
                       fill="url(#barraVisitas)"
                       className={"transition-transform duration-150 " + (clicable ? "group-hover/barravisita:brightness-110" : "opacity-30")}
-                      style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverVisitaIdx === i ? "scaleY(1.06)" : "scaleY(1)" }}
+                      style={hoverVisitaIdx === i ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.06)" } : undefined}
+                      shapeRendering="geometricPrecision"
                     />
                     <text x={b.cx} y="94" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
                   </g>
@@ -1787,7 +1788,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
                       fill="url(#barraViol)"
                       className={"transition-transform duration-150 " + (clicable ? "group-hover/barra:brightness-110" : "opacity-40")}
-                      style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverBarClave === b.clave ? "scaleY(1.08)" : "scaleY(1)" }}
+                      style={hoverBarClave === b.clave ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.08)" } : undefined}
+                      shapeRendering="geometricPrecision"
                     />
                     <text x={b.cx} y="122" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8" className={clicable ? "transition-colors group-hover/barra:fill-blue-600" : ""}>{b.etiqueta}</text>
                   </g>

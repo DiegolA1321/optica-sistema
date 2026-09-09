@@ -102,7 +102,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
   const [fecha, setFecha] = useState("")
   const [hora, setHora] = useState("")
   const [motivo, setMotivo] = useState("")
-  const [guardadoExitoso, setGuardadoExitoso] = useState(false)
+  const [mensajeExito, setMensajeExito] = useState(null)
   const [error, setError] = useState("")
   const [bannerError, setBannerError] = useState("")
   const [confirmando, setConfirmando] = useState(false)
@@ -145,6 +145,12 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
   const [cpFechaNacimiento, setCpFechaNacimiento] = useState("")
   const [cpErrores, setCpErrores] = useState({})
   const [cpGuardando, setCpGuardando] = useState(false)
+  // true cuando el registro se abrió desde "Crear paciente" (una cita futura
+  // sin paciente vinculado, agendada en línea) en vez de "Atender ahora" —
+  // en ese caso solo se crea y vincula al paciente, sin forzar la cita a
+  // "En Atención" ni saltar a la ficha clínica (Diego: no había ninguna forma
+  // de registrar a alguien con cita futura antes del día de su consulta).
+  const [cpSoloRegistro, setCpSoloRegistro] = useState(false)
 
   // Inserta un paciente nuevo con el mismo shape que usa Pacientes.jsx —
   // reutilizado tanto por "+ Añadir nuevo paciente" (Gestionar) como por
@@ -317,8 +323,8 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
 
     setConfirmando(false)
     cerrarModal()
-    setGuardadoExitoso(true)
-    setTimeout(() => setGuardadoExitoso(false), 3000)
+    setMensajeExito("Cita registrada y guardada correctamente.")
+    setTimeout(() => setMensajeExito(null), 3000)
   }
 
   const abrirModal = () => {
@@ -422,6 +428,22 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     setCpCorreo(cita.correo || "")
     setCpFechaNacimiento("")
     setCpErrores({})
+    setCpSoloRegistro(false)
+  }
+
+  // ── Crear paciente sin atender — para una cita sin paciente vinculado que
+  // todavía no ocurre (agendada en línea para más adelante). Mismo formulario
+  // y misma vinculación que "Atender ahora", solo que no fuerza el estado a
+  // "En Atención" ni salta a la ficha clínica. ──
+  const registrarPacienteParaCita = (cita) => {
+    setCompletarPara(cita)
+    setCpNombre(cita.paciente || "")
+    setCpCedula(cita.cedula || "")
+    setCpTelefono(cita.telefono || "")
+    setCpCorreo(cita.correo || "")
+    setCpFechaNacimiento("")
+    setCpErrores({})
+    setCpSoloRegistro(true)
   }
 
   const cerrarCompletarRegistro = () => {
@@ -432,6 +454,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     setCpCorreo("")
     setCpFechaNacimiento("")
     setCpErrores({})
+    setCpSoloRegistro(false)
   }
 
   const guardarCompletarRegistro = async (e) => {
@@ -451,18 +474,27 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
     }
 
     const citaId = completarPara.id
+    const soloRegistro = cpSoloRegistro
+    const cambiosCita = soloRegistro
+      ? { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula }
+      : { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }
     if (supabase && opticaId) {
-      const { error: errorCita } = await supabase.from("citas").update({ paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }).eq("id", citaId)
+      const { error: errorCita } = await supabase.from("citas").update(cambiosCita).eq("id", citaId)
       if (errorCita) {
         setCpGuardando(false)
         setBannerError("El paciente se registró, pero no se pudo vincular a la cita. Revisa tu conexión e intenta de nuevo.")
         return
       }
     }
-    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" } : c)))
+    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, ...(soloRegistro ? {} : { estado: "En Atención" }) } : c)))
     setCpGuardando(false)
     cerrarCompletarRegistro()
-    onAtender?.(nuevoPaciente, citaId)
+    if (soloRegistro) {
+      setMensajeExito("Paciente registrado y vinculado a su cita.")
+      setTimeout(() => setMensajeExito(null), 3000)
+    } else {
+      onAtender?.(nuevoPaciente, citaId)
+    }
   }
 
   // ── Reagendar cita (solo el optómetra, desde aquí — no hay autoservicio del paciente) ──
@@ -609,10 +641,10 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
       </div>
 
       {/* ─── ÉXITO ─── */}
-      {guardadoExitoso && (
+      {mensajeExito && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
           <CheckCircle2 className="text-emerald-500" size={20} />
-          <p className="text-sm font-semibold">Cita registrada y guardada correctamente.</p>
+          <p className="text-sm font-semibold">{mensajeExito}</p>
         </div>
       )}
 
@@ -827,6 +859,18 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
           >
+            {!cita.pacienteId && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setMenuAccionesId(null); registrarPacienteParaCita(cita) }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
+                >
+                  <UserPlus size={15} /> Crear paciente
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+              </>
+            )}
             {puedeMarcarseAqui && (
               <>
                 {cita.estado !== "En Atención" && (
@@ -1094,8 +1138,8 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Completar registro</h4>
-                  <p className="text-xs text-slate-500">Antes de abrir la ficha clínica, confirma sus datos.</p>
+                  <h4 className="text-lg font-bold" style={{ color: INK }}>{cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
+                  <p className="text-xs text-slate-500">{cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarCompletarRegistro} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -1169,7 +1213,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                   Cancelar
                 </button>
                 <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {cpGuardando ? "Guardando…" : "Registrar y atender"}
+                  {cpGuardando ? "Guardando…" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
                   <ChevronRight size={16} />
                 </button>
               </div>

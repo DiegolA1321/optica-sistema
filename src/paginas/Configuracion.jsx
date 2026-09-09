@@ -300,7 +300,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       {/* ─── CATÁLOGOS EDITABLES ─── */}
       <div>
         <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Catálogos editables</p>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <CatalogoEditable
             icon={CalendarClock}
             titulo="Motivos de consulta"

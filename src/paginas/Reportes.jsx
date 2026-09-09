@@ -305,7 +305,7 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* ─── CONSULTAS POR MES ─── */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "120ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Consultas por mes</h3>

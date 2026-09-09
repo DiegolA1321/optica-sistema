@@ -350,7 +350,7 @@ export default function Inicio({
       )}
 
       {/* ─── CITAS DE HOY | INVENTARIO (mitad y mitad, mismo patrón de botón) ─── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Citas de hoy */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
