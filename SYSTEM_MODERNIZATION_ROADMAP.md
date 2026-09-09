@@ -65,7 +65,7 @@
 | E1 | Prevención de no-shows | Recordatorio único por email | Segundo recordatorio cercano a la hora de la cita | Un solo aviso días antes es menos efectivo | 🟡 MEDIA | Bajo | Baja |
 | E2 | SMS/WhatsApp | Solo email | No implementar esta ronda (alcance ya decidido) | Requiere proveedor de pago externo | Fuera de alcance | Medio | Alta |
 | E3 | Lista de espera automática | No existe | RPC que ofrezca el cupo liberado a pacientes en espera | Hoy una cancelación es un cupo perdido | 🟡 MEDIA | Medio | Alta |
-| E4 | Estado de entrega de notificaciones | El cron no expone éxito/fallo de Resend | Loguear la respuesta en una tabla simple | Un fallo de Resend hoy es invisible | 🟠 ALTA | Bajo | Baja |
+| ~~E4~~ | ~~Estado de entrega de notificaciones~~ | **✅ Hecho** (migración 0064): los 3 envíos reales de correo (recordatorio de cita, cumpleaños, invitación a encuesta) descartaban el resultado de `net.http_post` con `perform` y marcaban todo como "enviado" sin importar si Resend lo aceptó. Ahora cada intento queda registrado en `notificaciones_enviadas` con su `request_id`, y una función (`mis_notificaciones_recientes()`) cruza eso con la respuesta real de pg_net, scoped a la óptica de quien pregunta. Verificado con una respuesta real ya existente en la base (403 → se ve como "fallido") y aislamiento multi-tenant confirmado | — | — | — | — |
 | ~~E5~~ ⭐ | ~~El "código de cita" que se le pide guardar al paciente no sirve para nada~~ | **✅ Hecho** (migración 0058: el código se genera y guarda en el servidor dentro de `crear_cita_publica()`; el personal ya puede buscar una cita por código en `Citas.jsx`) | — | — | — | — |
 | ~~E6~~ ⭐ | ~~Promesa falsa de recordatorio por WhatsApp~~ | **✅ Hecho** (`AgendarCitaPublica.jsx` ahora dice "por correo", condicionado a que el paciente haya dejado uno) | — | — | — | — |
 | ~~E7~~ | ~~Posible doble reserva del mismo horario~~ | **✅ Hecho, y era peor de lo que decía la sospecha** (migración 0062): 1) el calendario público/portal calculaba disponibilidad a partir de un `citas` que en la práctica llegaba VACÍO para un visitante o paciente en un dispositivo nuevo (dependía de que un admin se hubiera logueado antes en ese navegador) — se agregó `horas_ocupadas_publicas()`, expone solo fecha/hora sin datos de pacientes; 2) sin protección real en el servidor — se agregó un índice único parcial `(optica_id, fecha, hora) where estado <> 'Cancelada'` (parcial porque cancelar no borra la fila) y `crear_cita_publica`/`reagendar_cita_publica` ahora devuelven un mensaje claro en vez del error crudo de Postgres; 3) de paso se corrigió un bug real de la propia auditoría anterior (E5): `PortalPaciente.jsx` nunca se actualizó cuando `crear_cita_publica` pasó a devolver una tabla, guardaba un arreglo completo como `id` de la cita. Verificado extremo a extremo contra producción: reserva → aparece ocupada → segunda reserva al mismo horario rechazada → cancelar libera el horario → nueva reserva ahí sí pasa | — | — | — | — |
@@ -140,7 +140,7 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 | Prioridad | Cantidad | Ítems |
 |---|---|---|
 | 🔴 CRÍTICA | 6 | I1, I2, I6 ⭐⭐, I7 ⭐⭐, J5, J6 ⭐⭐ |
-| 🟠 ALTA | 19 (11 ✅ hechos: B6, E5, E6, E7, G5, G6, I3, I4, I10, J2, J11 — 7 restantes, G4 en espera de datos) | ~~B6~~ ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4 (en espera), ~~G5~~ ⭐, ~~G6~~, ~~I3~~, ~~I4~~, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
+| 🟠 ALTA | 19 (12 ✅ hechos: B6, E4, E5, E6, E7, G5, G6, I3, I4, I10, J2, J11 — 6 restantes, G4 en espera de datos) | ~~B6~~ ⭐, C1, C4, D1, ~~E4~~, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4 (en espera), ~~G5~~ ⭐, ~~G6~~, ~~I3~~, ~~I4~~, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
 | 🟡 MEDIA | 15 | B1, B3, C2, C6 ⭐, D2, D5 ⭐, E1, E3, F1, F3, F4 ⭐, H2, I8 ⭐, I9 ⭐, I14 ⭐, I15 ⭐, J7 ⭐ |
 | 🟢 OPCIONAL | 12 | B2, B4, B5, C5, C7, D6, D7, H3, H4, I12, I13, J4, J8 |
 | ✅ Ya implementado (corregido en esta pasada) | 2 | F2, G2 |
@@ -174,5 +174,6 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 - I3: el token de sesión del paciente no tenía ninguna expiración — ahora dura 30 días. **Bonus real encontrado al verificar esto**: `mis_citas_paciente` y `mis_consultas_paciente` estaban rotas en producción ("Mis citas"/"Mi receta" del portal fallaban siempre) — corregido de paso.
 - B6: quitado el autoguardado silencioso de "Duración de cada cita" (Horario.jsx) y, peor de lo descrito, de 12 campos de `PersonalizacionLogin.jsx` que además tenían su propio botón "Guardar cambios" — el autoguardado por `onBlur` volvía inútil al botón "Cancelar cambios".
 - G6: los 3 catálogos editables de Configuracion.jsx ahora verifican uso real en base de datos antes de dejar borrar una categoría/motivo.
+- E4: los 3 envíos de correo reales ahora quedan registrados con su request_id y se puede ver si Resend realmente los entregó, en vez de marcarse "enviado" a ciegas.
 
-**Próximo paso:** quedan 7 ítems 🟠 Alto (C1, C4, D1, E4, I11, J1, J12 — G4 en espera de que el catálogo crezca).
+**Próximo paso:** quedan 6 ítems 🟠 Alto (C1, C4, D1, I11, J1, J12 — G4 en espera de que el catálogo crezca).
