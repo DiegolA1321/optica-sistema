@@ -65,3 +65,12 @@ export function esEmailValido(valor, opcional = true) {
   if (!valor) return opcional
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor.trim())
 }
+
+// I8 del roadmap de modernización: 6 caracteres sin ningún otro requisito
+// era el mínimo para cuentas de asistente/optómetra, que en Usuarios.jsx
+// pueden recibir permisos delegados de administración en un sistema con
+// datos clínicos. 8 + letra + número, sin exigir símbolos (fricción real
+// contra beneficio marginal de seguridad para el personal de una óptica).
+export function esClaveSegura(valor) {
+  return typeof valor === "string" && valor.length >= 8 && /[a-zA-Z]/.test(valor) && /[0-9]/.test(valor)
+}

@@ -22,7 +22,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
-import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esClaveSegura } from "../utilidades/validaciones"
 import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
 import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
@@ -196,8 +196,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       setError("Completa la contraseña.")
       return
     }
-    if (clave.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.")
+    if (!esClaveSegura(clave)) {
+      setError("La contraseña debe tener al menos 8 caracteres, con al menos una letra y un número.")
       return
     }
     setGuardando(true)
@@ -482,13 +482,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <div className="relative">
                         <input
                           type={verClave ? "text" : "password"} value={clave} onChange={(e) => setClave(e.target.value)}
-                          placeholder="Mínimo 6 caracteres"
+                          placeholder="Mínimo 8 caracteres, con letra y número"
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                         <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                           {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+                      <p className="mt-1 text-xs text-slate-500">Mínimo 8 caracteres, con al menos una letra y un número.</p>
                     </div>
                   </div>
                 )}
