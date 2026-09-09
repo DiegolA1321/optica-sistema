@@ -819,6 +819,25 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       )}
 
       <div className="mx-auto w-full max-w-3xl">
+        {/* ─── IDENTIDAD DEL PACIENTE (fija al hacer scroll) ─── Antes el
+            nombre solo aparecía en el buscador del paso 1 y en el resumen
+            del paso 3 — al completar un formulario largo (Refracción tiene
+            bastante contenido) el optómetra podía perder de vista a quién
+            le está tomando las medidas. Sticky respecto del contenedor con
+            scroll real (Dashboard.jsx, no la ventana), no se necesita
+            ningún offset especial. */}
+        {pacienteId && pacienteSeleccionado && (
+          <div className="no-print sticky top-0 z-10 mb-4 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
+              <User size={15} />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold" style={{ color: INK }}>{pacienteSeleccionado}</p>
+              <p className="text-[11px] text-slate-500">Ficha clínica en curso</p>
+            </div>
+          </div>
+        )}
+
         {/* ─── FORMULARIO PRINCIPAL ─── */}
         <div className="no-print flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Stepper */}
