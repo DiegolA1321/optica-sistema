@@ -83,12 +83,22 @@ export function esClienteFrecuente(paciente, consultas = [], minimo = MINIMO_CLI
 }
 
 // Cuántos pacientes distintos señalaron a este paciente como quien los
-// refirió (campo "referidoPor", texto libre que se captura al registrar un
-// paciente nuevo — se normaliza para comparar, no es una relación por id).
+// refirió. Empareja por referidoPorId cuando existe (se resuelve al
+// guardar en Pacientes.jsx si el texto libre coincidía con un paciente
+// real) — el nombre normalizado es solo el respaldo para registros viejos
+// sin id resuelto, o para un referente que no es paciente del sistema.
+// Mismo patrón de bug ("identidad por nombre") que ya causó un incidente
+// real en este proyecto (Cuarta Mirada) — si el paciente que refirió
+// cambia de nombre, el conteo por nombre se rompe silenciosamente; por id
+// no.
 export function contarReferidos(paciente, pacientes = []) {
   const nombre = (paciente.nombre || "").trim().toLowerCase()
-  if (!nombre) return 0
-  return pacientes.filter((p) => (p.referidoPor || "").trim().toLowerCase() === nombre).length
+  if (!nombre && paciente.id == null) return 0
+  return pacientes.filter((p) => {
+    if (paciente.id != null && p.referidoPorId === paciente.id) return true
+    if (p.referidoPorId) return false // ya resuelto a OTRO paciente, no cae al respaldo por nombre
+    return nombre && (p.referidoPor || "").trim().toLowerCase() === nombre
+  }).length
 }
 
 export { UMBRAL_INACTIVO_DIAS, MINIMO_CLIENTE_FRECUENTE }

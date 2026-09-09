@@ -335,6 +335,17 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
     setErroresForm(errs)
     if (Object.keys(errs).length > 0) return
 
+    // F4: resuelve el texto libre de "Referido por" a un paciente real si
+    // coincide exacto (sin mayúsculas/tildes de más) con uno ya registrado
+    // — así contarReferidos() puede emparejar por id en vez de por nombre.
+    // No es él mismo (un paciente no puede referirse a sí mismo) y, si no
+    // hay coincidencia, queda en null (el texto se guarda igual — puede
+    // ser alguien que no es paciente del sistema).
+    const referidoTexto = (referidoPor || "").trim()
+    const referidoPorIdResuelto = referidoTexto
+      ? pacientes.find((p) => p.id !== idEditando && (p.nombre || "").trim().toLowerCase() === referidoTexto.toLowerCase())?.id || null
+      : null
+
     if (idEditando) {
       const cambios = {
         nombre,
@@ -343,9 +354,10 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
         correo: correo || "Sin Correo",
         fecha_nacimiento: fechaNacimiento || null,
         referidoPor: referidoPor || "",
+        referidoPorId: referidoPorIdResuelto,
       }
       if (supabase && opticaId) {
-        const { error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null }).eq("id", idEditando)
+        const { error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null, referido_por_id: cambios.referidoPorId }).eq("id", idEditando)
         if (errorUpdate) {
           mostrarError("No se pudo actualizar el expediente. Revisa tu conexión e intenta de nuevo.")
           return
@@ -362,6 +374,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
         correo: correo || "Sin Correo",
         fecha_nacimiento: fechaNacimiento || null,
         referidoPor: referidoPor || "",
+        referidoPorId: referidoPorIdResuelto,
         evolucion: "Sin evaluación", // Inicializa sin evaluación hasta su primera consulta médica
         ultimaConsulta: "Pendiente",
         fechaRegistro: new Date().toISOString().split("T")[0],
@@ -378,6 +391,7 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
             correo: nuevoPaciente.correo,
             fecha_nacimiento: nuevoPaciente.fecha_nacimiento,
             referido_por: nuevoPaciente.referidoPor || null,
+            referido_por_id: nuevoPaciente.referidoPorId,
             evolucion: nuevoPaciente.evolucion,
             ultima_consulta: nuevoPaciente.ultimaConsulta,
             fecha_registro: nuevoPaciente.fechaRegistro,
