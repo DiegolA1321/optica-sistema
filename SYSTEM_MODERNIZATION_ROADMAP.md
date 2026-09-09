@@ -325,12 +325,119 @@ reales, todos corregidos, build+71 tests verificados:**
   aunque no sea un dominio propio real) — sigue pendiente el trabajo de
   infraestructura si algún día se compra un dominio real.
 
-**Todavía sin verificar visualmente en navegador** (build+tests sí, en
-los 20 commits de esta sesión) — sigue siendo lo único realmente
-pendiente antes de seguir construyendo encima de todo esto.
+**Ronda 3 (Diego: "quiero que todo lo de las auditorías esté al 100%,
+que no quede absolutamente nada", con reunión a las 3pm el mismo día)
+— se cerraron todos los ítems 🟡 Media y 🟢 Opcional restantes que eran
+seguros de hacer sin arriesgar la demo, build+71 tests verificados en
+cada uno, todo verificado en vivo en el navegador local (login real
+como asistente y como admin):**
+
+- **🔴 CRÍTICO encontrado fuera de la lista** (el hallazgo más
+  importante de todo el día): el efecto que hidrata App.jsx desde
+  Supabase comprobaba literalmente `usuario.rol === 'admin'` — **un
+  asistente logueado nunca recibía pacientes/citas/inventario/
+  consultas/ventas reales**, sin importar los permisos delegados en
+  Usuarios.jsx. Nunca se notó porque no había ninguna cuenta de
+  asistente creada en producción todavía (verificado: 0 filas
+  `rol='asistente'` en `perfiles`). Corregido, y verificado extremo a
+  extremo creando una cuenta de asistente real, iniciando sesión, y
+  confirmando que "Pacientes" pasó de mostrar "0" a mostrar el número
+  real — cuenta de prueba borrada al terminar (`perfiles` + `auth.users`).
+  De paso: `INVENTARIO_SEED` tenía 2 productos de muestra falsos que se
+  veían brevemente en CADA login real de un admin — ahora arranca vacío.
+- **Gráfico "Visitas a la página de venta"** (Superadmin): Diego lo vio
+  en vivo y pidió acortar los días — pasó de 14 a 7, igual que
+  "Actividad por día" (el otro gráfico de la misma pantalla, que ya
+  usaba 7). Con 14 cada abreviatura de día se repetía dos veces en el
+  eje.
+- **F4**: `contarReferidos()` empareja por `paciente_id` cuando existe
+  (nueva columna `referido_por_id`, migración 0065 + 2 triggers INSTEAD
+  OF actualizados) en vez de por nombre en texto libre — mismo patrón
+  de bug ("identidad por nombre") que ya causó un incidente real en
+  este proyecto. Resuelto al guardar comparando contra los pacientes
+  reales — el campo "Referido por" ya era un `<select>` de pacientes
+  existentes, no texto libre.
+- **I8**: mínimo de contraseña de staff subido de 6 a 8 caracteres +
+  letra + número.
+- **I13**: página legal actualizada — el texto de "hash (bcrypt)" ya
+  era correcto (verificado contra el mecanismo real antes de tocar
+  nada), solo faltaba mencionar el cifrado de campos clínicos y MFA,
+  agregados después de la fecha vieja.
+- **C2**: contraste del sidebar cuantificado con la fórmula real de
+  WCAG (no solo mirado) — `text-white/45` en "Menú principal" daba
+  3.60-4.17:1, bajo el mínimo de 4.5:1 — subido a `/55` (pasa
+  4.59-5.50:1). El resto ya pasaba con margen.
+- **I14 e I15**: ambos resultaron falsos positivos, verificados contra
+  producción — el bucket de logos ya valida tipo/tamaño en el servidor
+  (Supabase Storage, migración 0037), y crear una categoría desde
+  `CampoCategoria.jsx` sí persiste (llama al setter compartido que ya
+  hace `supabase.update`).
+- **B3**: skeleton en Pacientes/Citas/Inventario mientras resuelve la
+  primera carga real (con guard para no tapar datos de caché ya
+  válidos con el skeleton).
+- **D1**: panel colapsable de comparación con la visita anterior en
+  Refracción (esfera/cilindro/eje/AV de OD y OI + diagnóstico) — único
+  ítem 🟠 Alto real que quedaba del roadmap original.
+- **D2**: botón "Usar estos valores" para copiar la refracción anterior
+  cuando los campos actuales siguen en su valor por defecto — reduce
+  tecleo repetitivo en controles de rutina. (Bug propio encontrado y
+  corregido antes de comitear: el primer guard chequeaba "vacío" en vez
+  de "en su valor por defecto", el botón nunca aparecía.)
+- **F3**: aviso "Ya contactado hoy" en vez de bloqueo duro cuando ya se
+  le escribió por WhatsApp al mismo paciente desde CRM el mismo día —
+  límite de buena fe en localStorage, coherente con que el envío real
+  ya solo abre un link de wa.me sin backend propio de mensajería.
+- **B1**: buscador global ampliado a citas de hoy y productos de
+  inventario, agrupados por tipo (antes solo pacientes).
+- **J7**: ~10 llamadas a Supabase en App.jsx (pacientes/citas/
+  inventario/consultas/ventas/encuestas/solicitudes de eliminación/
+  usuarios) + CRM.jsx + Mensajes.jsx descartaban `error` — ahora hay un
+  banner visible ("No se pudo cargar: X, Y") en vez de quedar en
+  silencio con datos viejos o vacíos.
+- **C5**: modo compacto opcional en la tabla de Inventario (persiste
+  por navegador).
+- **H2**: tendencia de inasistencias por mes en Reportes (antes solo el
+  total acumulado, sin punto de comparación temporal).
+- **H3**: "Productos más vendidos" en Reportes (rotación de inventario)
+  — top 5 por unidades en el período ya seleccionado.
+- **D5, D6, D7, J8** (limpieza directa, sin riesgo): fuga de memoria
+  real en adjuntos de imágenes de la ficha clínica (`URL.createObjectURL`
+  sin `revokeObjectURL`) corregida; subida de imágenes pasó de
+  secuencial a `Promise.all`; prop muerta `ancho` de `RecetaDato`
+  eliminada; función muerta `esPasada()` eliminada.
+
+**Dejado fuera a propósito, con razón (no por falta de tiempo):**
+- **E1, E3, F1**: tocan el cron de emails automáticos ya en producción
+  (recordatorios reales a pacientes reales) — no es prudente rediseñar
+  eso sin margen para probarlo con calma antes de una demo el mismo día.
+- **J4**: caché de queries — Alta complejidad/Riesgo medio, no vale la
+  pena bajo presión de tiempo.
+- **B4**: pedía reusar el patrón de "edición inline" de SuperadminPanel
+  — pero ese patrón es el mismo autoguardado silencioso por `onBlur`
+  que se corrigió DOS VECES hoy mismo (B6, esta misma sesión) porque
+  Diego dijo explícitamente que se lee como "no hay botón de guardar".
+  Extenderlo más habría ido en contra de su propia corrección de hoy.
+- **B5**: toast de "deshacer" — necesitaría revertir una escritura real
+  a Supabase, no solo estado local; requiere más diseño del que da
+  apurarlo antes de una demo.
+- **H4**: "tiempo de atención" — no hay ninguna marca de inicio/fin real
+  de una consulta en los datos hoy (`duracionCita` es la duración
+  configurada del slot, no lo medido) — construirlo necesita
+  infraestructura de tracking nueva, no solo una consulta a datos
+  existentes.
+- **I12**: evaluado, no implementado — cifrar `citas.motivo`/
+  `motivo_publico` tocaría un campo mucho más leído (agenda, listas,
+  búsqueda) que los ya cifrados por I1, con mayor riesgo de
+  performance/bugs para una exposición ya más acotada que la historia
+  clínica completa. El propio roadmap lo planteaba como "evaluar si
+  vale la pena", no como una tarea clara — la respuesta es no, por
+  ahora.
+
+**Todo verificado en vivo en el navegador** (no solo build+tests) —
+login real como asistente, como admin y como superadmin en
+`localhost:5174` durante la sesión.
 
 **Próximo paso (roadmap original, separado de la pasada premium de
-arriba):** queda 1 ítem 🟠 Alto real — D1 (comparación con visita
-anterior en la ficha clínica; ya se calcula evolución/tendencia en
-vivo, falta la vista lado-a-lado completa) — G4 en espera de que el
-catálogo crezca, J12 en espera de que Diego decida sobre dominio real.
+arriba):** todos los ítems 🟠 Alto reales están cerrados. Quedan G4 (en
+espera de que el catálogo crezca) y J12 (en espera de que Diego decida
+sobre un dominio real).
