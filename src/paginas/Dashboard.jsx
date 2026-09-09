@@ -217,6 +217,28 @@ export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresC
     setMostrarBusquedaGlobal(false)
     setBusquedaGlobal("")
   }
+
+  // B1: el buscador global solo cubría pacientes — lo que más se busca en
+  // el día a día también incluye la cita de hoy de alguien y si queda un
+  // producto en bodega. Sin deep-link a la fila exacta (Citas.jsx no tiene
+  // un mecanismo externo para abrir una cita puntual, a diferencia de
+  // Pacientes.jsx con accionInicial) — igual resuelve el caso real: saltar
+  // directo a la sección correcta en vez de navegar ahí a ciegas primero.
+  const resultadosCitasGlobal = useMemo(() => {
+    const q = busquedaGlobal.trim().toLowerCase()
+    if (!q) return []
+    return citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada" && ((c.paciente || "").toLowerCase().includes(q) || (c.motivo || "").toLowerCase().includes(q))).slice(0, 4)
+  }, [citas, busquedaGlobal])
+  const resultadosProductosGlobal = useMemo(() => {
+    const q = busquedaGlobal.trim().toLowerCase()
+    if (!q) return []
+    return inventario.filter((p) => (p.nombre || "").toLowerCase().includes(q)).slice(0, 4)
+  }, [inventario, busquedaGlobal])
+  const irASeccionGlobal = (seccion) => {
+    navegar(seccion)
+    setMostrarBusquedaGlobal(false)
+    setBusquedaGlobal("")
+  }
   const notifRef = useRef(null)
   const userRef = useRef(null)
   const busquedaGlobalRef = useRef(null)
@@ -636,27 +658,66 @@ export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresC
                         type="text"
                         value={busquedaGlobal}
                         onChange={(e) => setBusquedaGlobal(e.target.value)}
-                        placeholder="Nombre o cédula del paciente..."
+                        placeholder="Paciente, cita de hoy o producto..."
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
                       />
                     </div>
                   </div>
                   {busquedaGlobal.trim() && (
-                    <div className="max-h-72 overflow-y-auto">
-                      {resultadosBusquedaGlobal.length === 0 ? (
-                        <p className="p-4 text-center text-xs text-slate-500">Ningún paciente coincide.</p>
+                    <div className="max-h-80 overflow-y-auto">
+                      {resultadosBusquedaGlobal.length === 0 && resultadosCitasGlobal.length === 0 && resultadosProductosGlobal.length === 0 ? (
+                        <p className="p-4 text-center text-xs text-slate-500">Nada coincide.</p>
                       ) : (
-                        resultadosBusquedaGlobal.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => irAPacienteGlobal(p)}
-                            className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
-                          >
-                            <span className="truncate font-semibold text-slate-700">{p.nombre}</span>
-                            {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-400">{p.cedula}</span>}
-                          </button>
-                        ))
+                        <>
+                          {resultadosBusquedaGlobal.length > 0 && (
+                            <div>
+                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Pacientes</p>
+                              {resultadosBusquedaGlobal.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => irAPacienteGlobal(p)}
+                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
+                                >
+                                  <span className="truncate font-semibold text-slate-700">{p.nombre}</span>
+                                  {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-400">{p.cedula}</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {resultadosCitasGlobal.length > 0 && (
+                            <div>
+                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Citas de hoy</p>
+                              {resultadosCitasGlobal.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => irASeccionGlobal("citas")}
+                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
+                                >
+                                  <span className="truncate font-semibold text-slate-700">{c.paciente || "Sin nombre"}</span>
+                                  <span className="shrink-0 text-xs text-slate-400">{c.hora || ""}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {resultadosProductosGlobal.length > 0 && (
+                            <div>
+                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Inventario</p>
+                              {resultadosProductosGlobal.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => irASeccionGlobal("inventario")}
+                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
+                                >
+                                  <span className="truncate font-semibold text-slate-700">{p.nombre}</span>
+                                  <span className="shrink-0 font-mono text-xs text-slate-400">{p.stock} u.</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
