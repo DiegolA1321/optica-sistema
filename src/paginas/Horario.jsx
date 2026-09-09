@@ -487,8 +487,8 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
             <div className="mb-3 flex items-center justify-between px-1">
               <span className="text-sm font-bold capitalize" style={{ color: INK }}>{MESES[mesVista.getMonth()]} {mesVista.getFullYear()}</span>
               <div className="flex gap-1 text-slate-500">
-                <button type="button" onClick={irMesAnterior} aria-label="Mes anterior" className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
-                <button type="button" onClick={irMesSiguiente} aria-label="Mes siguiente" className="rounded-md p-1 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
+                <button type="button" onClick={irMesAnterior} aria-label="Mes anterior" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
+                <button type="button" onClick={irMesSiguiente} aria-label="Mes siguiente" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
               </div>
             </div>
 
@@ -806,7 +806,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal }) {
                   {motivo && <p className="truncate text-xs text-slate-500">{motivo}</p>}
                 </div>
                 <button type="button" onClick={() => quitarAusencia(iso)} title="Quitar" aria-label={`Quitar ausencia del ${iso}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}

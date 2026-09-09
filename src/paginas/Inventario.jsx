@@ -283,7 +283,7 @@ export default function Inventario({
       )}
 
       {/* ─── RESUMEN ─── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ResumenCard icon={Package} valor={resumen.total} label="Productos" tile={GRAD} tileText="#fff" />
         <ResumenCard icon={Boxes} valor={resumen.unidades} label="Unidades en stock" tile="#f1f5f9" tileText="#475569" />
         <ResumenCard icon={DollarSign} valor={`$${resumen.valor.toFixed(2)}`} label="Valor de bodega" tile="#ecfdf5" tileText="#059669" />

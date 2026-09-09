@@ -496,7 +496,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
                         {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                       </button>
                       <button type="button" onClick={() => eliminarAviso(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
-                        {eliminandoAvisoId === a.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        {eliminandoAvisoId === a.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                       </button>
                     </div>
                   </div>

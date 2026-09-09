@@ -655,7 +655,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
       </div>
 
       {/* ─── KPIs / FILTROS ─── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiBoton icono={CalendarDays} valor={citas.length} etiqueta="Total agendadas" tono="slate" activo={filtro === "todas"} onClick={() => setFiltro("todas")} />
         <KpiBoton icono={Sun} valor={totalHoy} etiqueta="Citas de hoy" tono="blue" activo={filtro === "hoy"} onClick={() => setFiltro("hoy")} />
         <KpiBoton icono={CalendarClock} valor={totalProximas} etiqueta="Próximas (futuras)" tono="amber" activo={filtro === "proximas"} onClick={() => setFiltro("proximas")} />

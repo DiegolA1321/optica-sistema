@@ -110,16 +110,16 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
                     onChange={(e) => setTextoEdit(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && guardarEdicion(idx)}
                     onBlur={() => guardarEdicion(idx)}
-                    className="flex-1 rounded-md border border-blue-300 bg-white px-2 py-1 text-sm text-slate-800 outline-none"
+                    className="flex-1 rounded-md border border-blue-300 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                   />
                 ) : (
                   <span className="flex-1 truncate text-sm font-medium text-slate-700">{item}</span>
                 )}
-                <button type="button" onClick={() => iniciarEdicion(idx)} title="Renombrar" aria-label={`Renombrar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
-                  <Pencil size={13} />
+                <button type="button" onClick={() => iniciarEdicion(idx)} title="Renombrar" aria-label={`Renombrar ${item}`} className="rounded p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
+                  <Pencil size={15} />
                 </button>
-                <button type="button" disabled={eliminandoIdx === idx} onClick={() => eliminar(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer disabled:opacity-50">
-                  <Trash2 size={13} />
+                <button type="button" disabled={eliminandoIdx === idx} onClick={() => eliminar(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer disabled:opacity-50">
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}

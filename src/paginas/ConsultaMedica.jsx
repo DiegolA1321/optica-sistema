@@ -1420,7 +1420,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             <span className="font-semibold text-blue-800">{productoSeleccionado.nombre}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-blue-600">{productoSeleccionado.stock} u. en stock</span>
-                              <label className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-1.5 py-0.5">
+                              <label className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-1.5 py-0.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-50">
                                 <span className="text-xs font-bold text-blue-500">$</span>
                                 <input
                                   type="number" min="0" step="0.01" value={montoVenta} onChange={(e) => setMontoVenta(e.target.value)}

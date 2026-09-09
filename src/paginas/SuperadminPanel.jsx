@@ -2787,7 +2787,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   ) : (
                     <h4 className="flex min-w-0 items-center gap-1.5 text-lg font-bold" style={{ color: INK }} title={detalle.nombre}>
                       <span className="truncate">{detalle.nombre}</span>
-                      <button type="button" onClick={iniciarRenombrar} title="Renombrar" className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
+                      <button type="button" onClick={iniciarRenombrar} title="Renombrar" className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
                     </h4>
                   )}
                   <p className="font-mono text-xs text-slate-500">{detalle.slug}</p>
