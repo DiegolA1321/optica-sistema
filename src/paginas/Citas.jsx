@@ -89,7 +89,7 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
   )
 }
 
-export default function Citas({ usuario, citas = [], setCitas, pacientes = [], setPacientes, disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], onAtender, onVerPerfil }) {
+export default function Citas({ usuario, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -710,7 +710,19 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
       </div>
 
       {/* ─── LISTADO ─── */}
-      {grupos.length === 0 ? (
+      {cargaInicial && citas.length === 0 ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-1/4 animate-pulse rounded bg-slate-200/70" />
+                <div className="h-2.5 w-1/6 animate-pulse rounded bg-slate-200/60" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : grupos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />

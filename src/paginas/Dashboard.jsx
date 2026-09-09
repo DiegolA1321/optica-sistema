@@ -111,7 +111,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -347,6 +347,7 @@ export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresC
           <Pacientes
             usuario={usuario}
             setVista={navegar}
+            cargaInicial={cargaInicialStaff}
             pacientes={pacientes}
             setPacientes={setPacientes}
             consultas={consultas}
@@ -401,6 +402,7 @@ export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresC
         return (
           <Inventario
             usuario={usuario}
+            cargaInicial={cargaInicialStaff}
             inventario={inventario}
             setInventario={setInventario}
             categorias={categoriasInventario}
@@ -414,6 +416,7 @@ export default function Dashboard({ usuario, erroresCarga = [], onCerrarErroresC
         return (
           <Citas
             usuario={usuario}
+            cargaInicial={cargaInicialStaff}
             citas={citas}
             setCitas={setCitas}
             pacientes={pacientes}

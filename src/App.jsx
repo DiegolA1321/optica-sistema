@@ -246,6 +246,12 @@ function App() {
   // indistinguible de "no hay datos" para quien está mirando la pantalla.
   const [erroresCarga, setErroresCarga] = useState([]);
   const registrarErrorCarga = (etiqueta) => setErroresCarga((prev) => (prev.includes(etiqueta) ? prev : [...prev, etiqueta]));
+  // B3: skeleton en Pacientes/Citas/Inventario mientras resuelve la primera
+  // carga real (solo importa en un navegador sin caché previa — con caché,
+  // el estado ya arranca con datos reales y esto pasa a false casi de
+  // inmediato). Empieza en true solo si hay sesión de staff, para no
+  // bloquear nada en las pantallas públicas.
+  const [cargaInicialStaff, setCargaInicialStaff] = useState(true);
   // Sin cache en localStorage a propósito (auditoría de seguridad,
   // 2026-09-09): `consultas` es la historia clínica completa ya descifrada
   // (diagnóstico, antecedentes, alergias) — cachearla en el navegador
@@ -398,26 +404,31 @@ function App() {
     })
 
     if (esAdmin) {
-      supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico })))
-        else if (error) registrarErrorCarga('inventario')
-      })
-
-      // pacientes/citas/consultas: hidratan el estado local con lo real de
-      // Supabase al loguearse el admin. El estado sigue viviendo en App.jsx
-      // (mismas props de siempre para Pacientes/Citas/ConsultaMedica/etc.) y
-      // sigue espejándose en localStorage — así el portal de paciente y
-      // agendar-cita-pública (que no tienen sesión real) siguen viendo algo
-      // en ese mismo navegador, igual que antes de esta migración.
-      supabase.from('pacientes').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (data) setPacientes(data.map(mapPaciente))
-        else if (error) registrarErrorCarga('pacientes')
-      })
-
-      supabase.from('citas').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setCitas(data.map(mapCita))
-        else if (error) registrarErrorCarga('citas')
-      })
+      // B3: estas 3 son las que Pacientes/Citas/Inventario muestran como
+      // tabla principal — cargaInicialStaff se apaga cuando las 3
+      // resuelven (con o sin error, para no dejar el skeleton pegado si
+      // Supabase falla) y esas páginas usan ese flag para mostrar el
+      // skeleton en vez de "no hay datos todavía" mientras tanto.
+      Promise.allSettled([
+        supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico })))
+          else if (error) registrarErrorCarga('inventario')
+        }),
+        // pacientes/citas/consultas: hidratan el estado local con lo real de
+        // Supabase al loguearse el admin. El estado sigue viviendo en App.jsx
+        // (mismas props de siempre para Pacientes/Citas/ConsultaMedica/etc.) y
+        // sigue espejándose en localStorage — así el portal de paciente y
+        // agendar-cita-pública (que no tienen sesión real) siguen viendo algo
+        // en ese mismo navegador, igual que antes de esta migración.
+        supabase.from('pacientes').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (data) setPacientes(data.map(mapPaciente))
+          else if (error) registrarErrorCarga('pacientes')
+        }),
+        supabase.from('citas').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setCitas(data.map(mapCita))
+          else if (error) registrarErrorCarga('citas')
+        }),
+      ]).then(() => setCargaInicialStaff(false))
 
       supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setConsultas(data.map(mapConsulta))
@@ -797,6 +808,7 @@ function App() {
       {pantallaActual === 'dashboard' && (
         <Dashboard
           usuario={usuario}
+          cargaInicialStaff={cargaInicialStaff}
           erroresCarga={erroresCarga}
           onCerrarErroresCarga={() => setErroresCarga([])}
           pacientes={pacientes}

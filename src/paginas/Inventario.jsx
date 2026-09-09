@@ -40,6 +40,7 @@ const catColor = (c) => COLOR_CAT[c] || { fg: "#475569", bg: "#f1f5f9" }
 
 export default function Inventario({
   usuario,
+  cargaInicial = false,
   inventario: productos = [],
   setInventario: setProductos,
   categorias = [],
@@ -389,7 +390,21 @@ export default function Inventario({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {productosFiltrados.length === 0 ? (
+              {cargaInicial && productos.length === 0 ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={"skeleton-" + i}>
+                    <td colSpan={5} className="px-4 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-slate-200/70" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-1/3 animate-pulse rounded bg-slate-200/70" />
+                          <div className="h-2.5 w-1/6 animate-pulse rounded bg-slate-200/60" />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : productosFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center">
                     <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Package size={22} /></div>

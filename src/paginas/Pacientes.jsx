@@ -105,7 +105,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
+export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -762,7 +762,21 @@ export default function Pacientes({ usuario, setVista, pacientes = [], setPacien
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pacientesFiltrados.length === 0 ? (
+              {cargaInicial && pacientes.length === 0 ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={"skeleton-" + i}>
+                    <td colSpan={5} className="px-5 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-1/3 animate-pulse rounded bg-slate-200/70" />
+                          <div className="h-2.5 w-1/5 animate-pulse rounded bg-slate-200/60" />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : pacientesFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-16 text-center">
                     <div className="mx-auto max-w-xs space-y-3">
