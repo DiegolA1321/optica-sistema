@@ -224,6 +224,23 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
 
   const maxDiagnostico = Math.max(1, ...diagnosticosTop.map((d) => d.valor))
 
+  // H3: rotación de inventario — qué se está vendiendo de verdad en el
+  // período elegido arriba (mismo selector que ya usan ingresos/conversión),
+  // no solo el stock estático que ya se ve en Inventario.jsx.
+  const productosMasVendidos = useMemo(() => {
+    const mapa = new Map()
+    ventasRealesEsteMes.forEach((v) => {
+      const nombre = v.productoNombre || "Producto sin nombre"
+      mapa.set(nombre, (mapa.get(nombre) || 0) + (Number(v.cantidad) || 0))
+    })
+    return Array.from(mapa.entries())
+      .map(([label, valor]) => ({ label, valor }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 5)
+  }, [ventasRealesEsteMes])
+  const maxProductoVendido = Math.max(1, ...productosMasVendidos.map((p) => p.valor))
+  const [hoverProducto, setHoverProducto] = useState(null)
+
   const distCorreccion = useMemo(() => {
     const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluación": 0 }
     pacientes.forEach((p) => {
@@ -454,6 +471,38 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
                   </div>
                 )
               })()}
+            </div>
+          )}
+        </div>
+
+        {/* ─── PRODUCTOS MÁS VENDIDOS (H3, rotación de inventario) ─── */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "205ms" }}>
+          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Productos más vendidos</h3>
+          <p className="mb-5 text-xs text-slate-500">Top 5 por unidades · período seleccionado arriba</p>
+          {productosMasVendidos.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">Aún no hay ventas registradas en este período.</p>
+          ) : (
+            <div className="space-y-3.5">
+              {productosMasVendidos.map((p) => (
+                <div
+                  key={p.label}
+                  className="-mx-1.5 rounded-lg px-1.5 py-0.5 transition-colors"
+                  style={{ backgroundColor: hoverProducto === p.label ? "#F0F9FF" : "transparent" }}
+                  onMouseEnter={() => setHoverProducto(p.label)}
+                  onMouseLeave={() => setHoverProducto(null)}
+                >
+                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate font-semibold text-slate-700" title={p.label}>{p.label}</span>
+                    <span className="shrink-0 font-mono font-bold text-slate-500">{p.valor} u.</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full transition-all duration-200"
+                      style={{ width: `${Math.max(4, (p.valor / maxProductoVendido) * 100)}%`, background: GRAD, filter: hoverProducto === p.label ? "brightness(1.1)" : "none" }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
