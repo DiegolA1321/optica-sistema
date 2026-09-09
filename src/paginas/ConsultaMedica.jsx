@@ -219,6 +219,16 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }
   const quitarArchivoImagen = (idx) => setArchivosImagenes((prev) => prev.filter((_, i) => i !== idx))
 
+  // Antes cada re-render llamaba URL.createObjectURL(f) directo en el .map()
+  // de miniaturas — una URL de blob nueva sin liberar la anterior en cada
+  // render, en el módulo que más tiempo abierto pasa durante una consulta.
+  // Memoizada por lista de archivos + revocada en el cleanup del efecto
+  // (se dispara antes del siguiente cómputo y al desmontar).
+  const previsualizacionesImagenes = useMemo(() => archivosImagenes.map((f) => URL.createObjectURL(f)), [archivosImagenes])
+  useEffect(() => {
+    return () => previsualizacionesImagenes.forEach((url) => URL.revokeObjectURL(url))
+  }, [previsualizacionesImagenes])
+
   const seleccionarProducto = (p) => {
     setProductoId(p.id)
     setBusquedaProducto(p.nombre)
@@ -481,13 +491,16 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // guardado) — un archivo que no llega a subir no bloquea la ficha,
       // solo se omite y se avisa aparte (nunca se pierde la consulta por
       // un adjunto fallido).
-      const imagenesSubidas = []
-      for (const archivo of archivosImagenes) {
-        const ruta = `${usuario.opticaId}/${pacienteId || "sin-paciente"}-${Date.now()}-${archivo.name}`
-        const { error: errorSubida } = await supabase.storage.from("consultas-adjuntos").upload(ruta, archivo)
-        if (!errorSubida) imagenesSubidas.push({ path: ruta, nombre: archivo.name })
-      }
-      nuevaFicha.imagenes = imagenesSubidas
+      // En paralelo en vez de una por una — el índice en la ruta (además del
+      // timestamp) evita colisión si dos suben en el mismo milisegundo.
+      const resultadosSubida = await Promise.all(
+        archivosImagenes.map(async (archivo, i) => {
+          const ruta = `${usuario.opticaId}/${pacienteId || "sin-paciente"}-${Date.now()}-${i}-${archivo.name}`
+          const { error: errorSubida } = await supabase.storage.from("consultas-adjuntos").upload(ruta, archivo)
+          return errorSubida ? null : { path: ruta, nombre: archivo.name }
+        })
+      )
+      nuevaFicha.imagenes = resultadosSubida.filter(Boolean)
 
       const { data, error } = await supabase
         .from("consultas")
@@ -1509,7 +1522,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           {archivosImagenes.map((f, i) => (
                             <div key={i} className="relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200">
-                              <img src={URL.createObjectURL(f)} alt={f.name} className="h-full w-full object-cover" />
+                              <img src={previsualizacionesImagenes[i]} alt={f.name} className="h-full w-full object-cover" />
                               <button type="button" onClick={() => quitarArchivoImagen(i)} aria-label="Quitar imagen" className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-black/60 text-white cursor-pointer">
                                 <X size={10} />
                               </button>
@@ -1930,9 +1943,9 @@ function InsigniaHistorial({ fecha }) {
   )
 }
 
-function RecetaDato({ label, valor, ancho }) {
+function RecetaDato({ label, valor }) {
   return (
-    <div className={ancho ? "sm:col-span-2" : ""}>
+    <div>
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
       <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{valor}</p>
     </div>

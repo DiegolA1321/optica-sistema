@@ -206,16 +206,6 @@ export function esHoy(f) {
   )
 }
 
-export function esPasada(f) {
-  const fecha = parseFechaFlexible(f)
-  if (!fecha) return false
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  const fechaLimpia = new Date(fecha)
-  fechaLimpia.setHours(0, 0, 0, 0)
-  return fechaLimpia < hoy
-}
-
 // Futuras estricta (excluye Hoy y Pasadas)
 export function esFutura(f) {
   const fecha = parseFechaFlexible(f)

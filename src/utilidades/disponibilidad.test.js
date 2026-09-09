@@ -11,7 +11,6 @@ import {
   resumenHorarioSemanal,
   parseFechaFlexible,
   esHoy,
-  esPasada,
   esFutura,
   etiquetaFecha,
   slotsDisponibles,
@@ -140,7 +139,7 @@ describe("parseFechaFlexible", () => {
   })
 })
 
-describe("esHoy / esPasada / esFutura / etiquetaFecha (con fecha fija)", () => {
+describe("esHoy / esFutura / etiquetaFecha (con fecha fija)", () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 2, 10, 12, 0, 0)) // 10 de marzo de 2026, mediodía
@@ -151,9 +150,7 @@ describe("esHoy / esPasada / esFutura / etiquetaFecha (con fecha fija)", () => {
     expect(esHoy("2026-03-10")).toBe(true)
     expect(esHoy("2026-03-11")).toBe(false)
   })
-  it("esPasada / esFutura son estrictas (excluyen hoy)", () => {
-    expect(esPasada("2026-03-09")).toBe(true)
-    expect(esPasada("2026-03-10")).toBe(false)
+  it("esFutura es estricta (excluye hoy)", () => {
     expect(esFutura("2026-03-11")).toBe(true)
     expect(esFutura("2026-03-10")).toBe(false)
   })
