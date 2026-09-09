@@ -522,7 +522,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
+            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/55 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
             {opcionesVisibles.filter((o) => !o.oculto).map((opcion) => {
               const Icono = opcion.icono
               const activo = seccionActiva === opcion.id
