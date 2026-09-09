@@ -1243,7 +1243,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
             </div>
 
             {/* Enlaces + Horario */}
-            <div className="grid grid-cols-2 gap-10 sm:gap-16">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-16">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Enlaces</p>
                 <ul className="mt-4 space-y-2.5 text-sm text-white/60">
