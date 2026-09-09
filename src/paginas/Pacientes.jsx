@@ -38,6 +38,8 @@ import {
   Wallet,
   ShoppingCart,
   CreditCard,
+  Gift,
+  Award,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -46,6 +48,7 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
+import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 
@@ -99,7 +102,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
+export default function Pacientes({ usuario, setVista, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1274,6 +1277,12 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                 .slice()
                 .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
               const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0)
+              const diasControl = diasVencido(pacienteHistorial, consultas)
+              const proximoControl = fechaProximoControl(pacienteHistorial, consultas)
+              const inactivo = esInactivo(pacienteHistorial, consultas)
+              const frecuente = esClienteFrecuente(pacienteHistorial, consultas)
+              const totalConsultasFidelizacion = contarConsultas(pacienteHistorial, consultas)
+              const referidosPorEste = contarReferidos(pacienteHistorial, pacientes)
 
               return (
                 <>
@@ -1319,6 +1328,14 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     >
                       <Wallet size={14} /> Pagos
                       {deudaTotal > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">${deudaTotal.toFixed(0)}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTabHistorial("fidelizacion")}
+                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                    >
+                      <Heart size={14} /> Fidelización
+                      {inactivo && <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">Vencido</span>}
                     </button>
                   </div>
 
@@ -1452,6 +1469,57 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                           })}
                         </div>
                       )
+                    ) : tabHistorial === "fidelizacion" ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className={"rounded-xl border p-4 " + (inactivo ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white")}>
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
+                            {proximoControl ? (
+                              <>
+                                <p className={"mt-1.5 text-lg font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
+                                  {proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                                </p>
+                                <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
+                                  {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="mt-1.5 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
+                            )}
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Activity size={13} /> Última visita</p>
+                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>
+                              {diasDesdeUltimaVisita(pacienteHistorial, consultas) === null ? "—" : `Hace ${diasDesdeUltimaVisita(pacienteHistorial, consultas)} día${diasDesdeUltimaVisita(pacienteHistorial, consultas) === 1 ? "" : "s"}`}
+                            </p>
+                            <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} registrada{totalConsultasFidelizacion === 1 ? "" : "s"} en total</p>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Award size={13} /> Cliente frecuente</p>
+                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{frecuente ? "Sí" : "Todavía no"}</p>
+                            <p className="text-xs text-slate-500">{frecuente ? "3 o más consultas registradas" : `Le faltan ${Math.max(0, 3 - totalConsultasFidelizacion)} para calificar`}</p>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Gift size={13} /> Referidos</p>
+                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{referidosPorEste} paciente{referidosPorEste === 1 ? "" : "s"}</p>
+                            <p className="text-xs text-slate-500">
+                              {referidosPorEste > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}
+                              {pacienteHistorial.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{pacienteHistorial.referidoPor}</span></>}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setVista?.("crm")}
+                          className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer"
+                        >
+                          Gestionar recordatorios en CRM <ChevronRight size={13} />
+                        </button>
+                      </div>
                     ) : consultasPaciente.length === 0 ? (
                       <div className="flex flex-col items-center gap-2 py-12 text-center">
                         <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><AlertCircle size={24} /></div>

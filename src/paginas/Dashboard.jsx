@@ -430,6 +430,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
             />
             <Pacientes
               usuario={usuario}
+              setVista={navegar}
               overlaySolo
               pacientes={pacientes}
               setPacientes={setPacientes}
