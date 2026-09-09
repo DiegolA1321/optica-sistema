@@ -81,7 +81,7 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
         <Icono size={20} />
       </div>
       <div className="min-w-0">
-        <p className="text-2xl font-black leading-none" style={{ color: INK }}>{valor}</p>
+        <p className="text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{valor}</p>
         <p className="mt-1 truncate text-xs font-semibold text-slate-500">{etiqueta}</p>
       </div>
     </button>
@@ -679,7 +679,7 @@ export default function Citas({ usuario, citas = [], setCitas, pacientes = [], s
                     className="flex w-full flex-col items-center rounded-xl border py-2"
                     style={hoyDia ? { backgroundColor: INK, borderColor: INK, color: "#fff" } : { backgroundColor: "#fff", borderColor: "rgba(14,43,51,0.1)", color: "#334155" }}
                   >
-                    <span className="text-lg font-bold leading-none">{t.diaNum}</span>
+                    <span className="font-serif text-lg font-semibold leading-none">{t.diaNum}</span>
                     <span className={"mt-0.5 text-[10px] font-semibold uppercase " + (hoyDia ? "text-white/60" : "text-slate-500")}>{t.mes}</span>
                   </div>
                   <div className="mt-2 w-px flex-1" style={{ backgroundColor: "rgba(14,43,51,0.1)" }} />

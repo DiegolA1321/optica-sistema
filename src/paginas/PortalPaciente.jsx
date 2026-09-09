@@ -342,8 +342,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
       {/* ─── SIDEBAR ─── */}
       <aside
-        className={"fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden transition-all duration-300 lg:static lg:translate-x-0 " + (colapsado ? "lg:w-20 " : "lg:w-72 ") + (menuAbierto ? "translate-x-0" : "-translate-x-full")}
-        style={{ backgroundColor: INK }}
+        className={"fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-white/[0.07] transition-all duration-300 lg:static lg:translate-x-0 " + (colapsado ? "lg:w-20 " : "lg:w-72 ") + (menuAbierto ? "translate-x-0" : "-translate-x-full")}
+        style={{ background: `linear-gradient(180deg, #16404D 0%, ${INK} 55%)` }}
       >
         <svg aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
           {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
@@ -357,14 +357,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </div>
               <div className={"leading-tight " + (colapsado ? "lg:hidden" : "")}>
                 <p className="text-lg font-bold tracking-tight text-white">Diego <span style={{ color: "#22D3EE" }}>Óptica</span></p>
-                <p className="text-[11px] font-medium tracking-wide text-white/40">PORTAL DEL PACIENTE</p>
+                <p className="text-[11px] font-medium tracking-wide text-white/55">PORTAL DEL PACIENTE</p>
               </div>
             </div>
             <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer"><X size={20} /></button>
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30 " + (colapsado ? "lg:hidden" : "")}>Mi cuenta</p>
+            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Mi cuenta</p>
             {OPCIONES.map((o) => {
               const Icono = o.icono
               const activo = seccion === o.id
@@ -372,9 +372,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <button key={o.id} type="button" onClick={() => navegar(o.id)}
                   title={colapsado ? o.nombre : undefined}
                   aria-label={o.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
+                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/75 hover:bg-white/5 hover:text-white")}
                   style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}>
-                  <Icono size={20} className={activo ? "text-white" : "text-white/55 group-hover:text-white"} />
+                  <Icono size={20} className={activo ? "text-white" : "text-white/75 group-hover:text-white"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{o.nombre}</span>
                   {activo && <span className={"ml-auto h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
@@ -396,7 +396,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               {colapsado && <Calendar size={18} className="hidden text-white/60 lg:block" />}
             </div>
           ) : (
-            <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-white/40 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+            <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-white/55 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className={colapsado ? "lg:hidden" : ""}>Portal seguro</span>
             </div>
@@ -487,7 +487,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} /> Portal del paciente
                 </span>
-                <h1 className="mt-2 font-serif text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: INK }}>¡Hola, {primerNombre}!</h1>
+                <h1 className="mt-2 font-serif text-2xl font-semibold italic tracking-tight sm:text-3xl" style={{ color: INK }}>¡Hola, {primerNombre}!</h1>
                 <p className="mt-1 max-w-xl text-sm text-slate-500">
                   {proximaCita
                     ? (() => {

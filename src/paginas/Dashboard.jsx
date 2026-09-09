@@ -471,11 +471,11 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
       {/* ─── SIDEBAR ─── */}
       <aside
         className={
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden transition-all duration-300 lg:static lg:translate-x-0 " +
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-white/[0.07] transition-all duration-300 lg:static lg:translate-x-0 " +
           (colapsado ? "lg:w-20 " : "lg:w-72 ") +
           (menuAbierto ? "translate-x-0" : "-translate-x-full")
         }
-        style={{ backgroundColor: INK }}
+        style={{ background: `linear-gradient(180deg, #16404D 0%, ${INK} 55%)` }}
       >
         {/* Profundidad de marca */}
         <svg aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
@@ -493,7 +493,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
                 <p className="truncate text-lg font-bold tracking-tight text-white">
                   {usuario?.opticaNombre || "Mi Óptica"}
                 </p>
-                <p className="text-[11px] font-medium tracking-wide text-white/40">PANEL DE CONTROL</p>
+                <p className="text-[11px] font-medium tracking-wide text-white/55">PANEL DE CONTROL</p>
               </div>
             </div>
             <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
@@ -502,7 +502,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
+            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
             {opcionesVisibles.filter((o) => !o.oculto).map((opcion) => {
               const Icono = opcion.icono
               const activo = seccionActiva === opcion.id
@@ -513,10 +513,10 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
                   onClick={() => navegar(opcion.id)}
                   title={colapsado ? opcion.nombre : undefined}
                   aria-label={opcion.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
+                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/75 hover:bg-white/5 hover:text-white")}
                   style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}
                 >
-                  <Icono size={20} className={activo ? "text-white" : "text-white/55 group-hover:text-white"} />
+                  <Icono size={20} className={activo ? "text-white" : "text-white/75 group-hover:text-white"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
                   {activo && <span className={"ml-auto h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
@@ -526,7 +526,7 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
         </div>
 
         <div className="relative z-10 border-t border-white/10 p-4">
-          <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-white/40 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+          <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-white/55 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span className={colapsado ? "lg:hidden" : ""}>Sistema en línea · v1.0</span>
           </div>
@@ -584,11 +584,12 @@ export default function Dashboard({ usuario, pacientes = [], setPacientes, citas
               <button
                 type="button"
                 onClick={() => setMostrarBusquedaGlobal((v) => !v)}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer sm:w-64"
                 title="Buscar paciente"
                 aria-label="Buscar paciente"
               >
-                <Search size={18} />
+                <Search size={16} className="shrink-0" />
+                <span className="hidden truncate text-sm sm:inline">Buscar paciente...</span>
               </button>
 
               {mostrarBusquedaGlobal && (

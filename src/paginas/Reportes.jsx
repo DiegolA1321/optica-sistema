@@ -299,7 +299,7 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
                 <k.icon size={16} />
               </div>
             </div>
-            <p className="mt-2 text-2xl font-black" style={{ color: INK }}>{k.valor}</p>
+            <p className="mt-2 text-2xl font-serif font-semibold" style={{ color: INK }}>{k.valor}</p>
             {k.sub && <p className="mt-0.5 text-[11px] text-slate-500">{k.sub}</p>}
           </div>
         ))}

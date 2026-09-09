@@ -1876,7 +1876,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         >
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Consultas abiertas</p>
-            <p className="mt-1 text-3xl font-black leading-none" style={{ color: INK }}>{consultasAbiertas}</p>
+            <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{consultasAbiertas}</p>
             <p className="mt-1.5 text-[11px] font-semibold" style={{ color: consultasAbiertas > 0 ? "#B45309" : "#94A3B8" }}>{consultasAbiertas > 0 ? "esperando tu respuesta" : "todo al día"}</p>
           </div>
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#E8F0FF", color: "#2563EB" }}>
@@ -1895,7 +1895,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         >
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pago pendiente/vencido</p>
-            <p className="mt-1 text-3xl font-black leading-none" style={{ color: INK }}>{opticasConPagoProblema.length}</p>
+            <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{opticasConPagoProblema.length}</p>
             <p className="mt-1.5 text-[11px] font-semibold" style={{ color: opticasConPagoProblema.length > 0 ? "#B45309" : "#94A3B8" }}>{opticasConPagoProblema.length > 0 ? "revisar suscripciones" : "ninguna"}</p>
           </div>
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#FFF7E6", color: "#B45309" }}>
@@ -1914,7 +1914,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         >
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cumpleaños próximos</p>
-            <p className="mt-1 text-3xl font-black leading-none" style={{ color: INK }}>{cumpleanosProximos.length}</p>
+            <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{cumpleanosProximos.length}</p>
             <p className="mt-1.5 text-[11px] font-semibold" style={{ color: cumpleanosProximos.length > 0 ? "#7C3AED" : "#94A3B8" }}>{cumpleanosProximos.length > 0 ? "en los próximos días" : "ninguno"}</p>
           </div>
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#F1EAFE", color: "#7C3AED" }}>
@@ -2555,11 +2555,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {/* ─── SIDEBAR ─── */}
       <aside
         className={
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden transition-all duration-300 lg:static lg:translate-x-0 " +
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-white/[0.07] transition-all duration-300 lg:static lg:translate-x-0 " +
           (colapsado ? "lg:w-20 " : "lg:w-72 ") +
           (menuAbierto ? "translate-x-0" : "-translate-x-full")
         }
-        style={{ backgroundColor: INK }}
+        style={{ background: `linear-gradient(180deg, #16404D 0%, ${INK} 55%)` }}
       >
         <svg aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
           {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
@@ -2576,7 +2576,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <p className="text-lg font-bold tracking-tight text-white">
                   Diego <span style={{ color: "#22D3EE" }}>Óptica</span>
                 </p>
-                <p className="text-[11px] font-medium tracking-wide text-white/40">SUPERADMIN</p>
+                <p className="text-[11px] font-medium tracking-wide text-white/55">SUPERADMIN</p>
               </div>
             </div>
             <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
@@ -2585,7 +2585,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
+            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
             {NAV.map((opcion) => {
               const Icono = opcion.icono
               const activo = seccion === opcion.id
@@ -2596,10 +2596,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   onClick={() => { setSeccion(opcion.id); setMenuAbierto(false) }}
                   title={colapsado ? opcion.nombre : undefined}
                   aria-label={opcion.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
+                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/75 hover:bg-white/5 hover:text-white")}
                   style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}
                 >
-                  <Icono size={20} className={activo ? "text-white" : "text-white/55 group-hover:text-white"} />
+                  <Icono size={20} className={activo ? "text-white" : "text-white/75 group-hover:text-white"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
                   {opcion.id === "mensajes" && consultasAbiertas > 0 ? (
                     <span className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10.5px] font-bold " + (activo ? "bg-white/25 text-white" : "bg-amber-400 text-amber-950") + (colapsado ? " lg:hidden" : "")}>
@@ -2617,7 +2617,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <div className={"relative z-10 border-t border-white/10 p-4 " + (colapsado ? "lg:px-2" : "")}>
           {!colapsado && (
             <div className="mb-3 hidden rounded-xl bg-white/5 px-3.5 py-3 lg:block">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-white/50">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-white/65">
                 <TrendingUp size={12} /> {opticas.length} óptica{opticas.length === 1 ? "" : "s"} · {superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
               </p>
             </div>
@@ -2625,7 +2625,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <button
             type="button"
             onClick={() => alSalir()}
-            className={"flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/55 transition-colors hover:bg-white/5 hover:text-white cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
+            className={"flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/75 transition-colors hover:bg-white/5 hover:text-white cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
           >
             <LogOut size={18} />
             <span className={colapsado ? "lg:hidden" : ""}>Salir</span>

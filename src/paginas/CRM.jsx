@@ -286,7 +286,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
             >
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{m.label}</p>
-                <p className="mt-1 text-3xl font-black" style={{ color: INK }}>{m.valor}</p>
+                <p className="mt-1 text-3xl font-serif font-semibold" style={{ color: INK }}>{m.valor}</p>
               </div>
               <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: m.tile, color: m.tileText }}>
                 <m.icon size={22} />

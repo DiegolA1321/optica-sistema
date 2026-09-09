@@ -615,7 +615,7 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     <Icono size={20} />
                   </div>
                   <div>
-                    <p className="text-2xl font-black leading-none" style={{ color: INK }}>{t.valor}</p>
+                    <p className="text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{t.valor}</p>
                     <p className="mt-1 text-xs font-medium text-slate-500">{t.label}</p>
                   </div>
                 </div>
@@ -1230,6 +1230,13 @@ export default function Pacientes({ usuario, pacientes = [], setPacientes, consu
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer sm:flex-none"
                   >
                     <CalendarPlus size={16} /> Agendar cita
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => abrirCuenta(pacienteHistorial)}
+                    className={"flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:flex-none " + (pacienteHistorial.tieneCuenta ? "border-slate-200 text-slate-700 hover:bg-slate-50" : "border-blue-200 text-blue-600 hover:bg-blue-50")}
+                  >
+                    <KeyRound size={16} /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
                   </button>
                   {/* Único punto de entrada a la ficha clínica desde acá — ya no
                       existe "Ficha clínica" como sección aparte del sidebar.

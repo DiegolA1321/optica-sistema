@@ -110,7 +110,7 @@ export default function Mensajes({ usuario }) {
           >
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Consultas abiertas</p>
-              <p className="mt-1 text-3xl font-black leading-none" style={{ color: INK }}>{consultasAbiertas}</p>
+              <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{consultasAbiertas}</p>
               <p className="mt-1.5 text-[11px] font-semibold" style={{ color: consultasAbiertas > 0 ? "#B45309" : "#94A3B8" }}>{consultasAbiertas > 0 ? "esperando respuesta" : "todo al día"}</p>
             </div>
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#E8F0FF", color: "#2563EB" }}>
@@ -129,7 +129,7 @@ export default function Mensajes({ usuario }) {
           >
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avisos</p>
-              <p className="mt-1 text-3xl font-black leading-none" style={{ color: INK }}>{totalAvisos}</p>
+              <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{totalAvisos}</p>
               <p className="mt-1.5 text-[11px] font-semibold text-slate-400">de Diego Óptica</p>
             </div>
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#FFF7E6", color: "#B45309" }}>
@@ -144,7 +144,7 @@ export default function Mensajes({ usuario }) {
         <div className="flex items-center justify-between gap-4 rounded-2xl border bg-white p-5" style={{ borderColor: estadoPago === "vencido" ? "#FECACA" : "#FDE68A", boxShadow: `0 0 0 3px ${estadoPago === "vencido" ? "rgba(225,29,72,0.08)" : "rgba(217,119,6,0.08)"}` }}>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Suscripción</p>
-            <p className="mt-1 text-lg font-black leading-tight" style={{ color: estadoPago === "vencido" ? "#BE123C" : "#B45309" }}>
+            <p className="mt-1 text-lg font-serif font-semibold leading-tight" style={{ color: estadoPago === "vencido" ? "#BE123C" : "#B45309" }}>
               {estadoPago === "vencido" ? "Pago vencido" : "Pago pendiente"}
             </p>
             <p className="mt-1 text-[13px] font-semibold text-slate-500">

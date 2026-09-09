@@ -226,7 +226,7 @@ export default function Inicio({
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
               Panel principal
             </span>
-            <h1 className="mt-2 font-serif text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: INK }}>
+            <h1 className="mt-2 font-serif text-2xl font-semibold italic tracking-tight sm:text-3xl" style={{ color: INK }}>
               ¡Bienvenido, {nombreUsuario}!
             </h1>
             <p className="mt-1 max-w-xl text-sm text-slate-500">
@@ -269,7 +269,7 @@ export default function Inicio({
             >
               <div className="space-y-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{est.titulo}</p>
-                <h4 className="text-4xl font-black" style={{ color: c.valor }}>{est.valor}</h4>
+                <h4 className="text-4xl font-serif font-semibold" style={{ color: c.valor }}>{est.valor}</h4>
                 <p className="text-xs text-slate-500">{est.desc}</p>
               </div>
               <div className="grid h-14 w-14 place-items-center rounded-2xl transition-transform group-hover:scale-110" style={{ background: c.tile, color: c.tileText }}>

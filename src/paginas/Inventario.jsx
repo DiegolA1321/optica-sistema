@@ -228,6 +228,9 @@ export default function Inventario({
   const [cantidadVisible, setCantidadVisible] = useState(25)
   useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo])
   const productosVisibles = productosFiltrados.slice(0, cantidadVisible)
+  // Barra de stock relativa a lo que se está viendo — misma idea visual que
+  // el widget de Inicio.jsx, para que "cuánto queda" se lea de un vistazo.
+  const maxStockVisible = Math.max(1, ...productosVisibles.map((p) => Number(p.stock) || 0))
 
   // Resumen (derivado de los datos reales)
   const resumen = useMemo(() => {
@@ -389,6 +392,15 @@ export default function Inventario({
                         <div className="flex items-center gap-2">
                           <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-800")}>{prod.stock} u.</span>
                           {bajo && <AlertTriangle size={14} className="text-amber-500" />}
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`,
+                              background: bajo ? "#D97706" : "linear-gradient(135deg,#22D3EE,#2563EB)",
+                            }}
+                          />
                         </div>
                       </td>
                       <td className="px-4 py-3 font-mono font-bold text-slate-600">${Number(prod.precio).toFixed(2)}</td>
@@ -649,15 +661,15 @@ export default function Inventario({
             <div className="min-h-0 flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-                  <p className="text-xl font-black" style={{ color: INK }}>{reporteProducto.unidades}</p>
+                  <p className="text-xl font-serif font-semibold" style={{ color: INK }}>{reporteProducto.unidades}</p>
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">Unidades vendidas</p>
                 </div>
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
-                  <p className="text-xl font-black text-emerald-700">${reporteProducto.ingreso.toFixed(2)}</p>
+                  <p className="text-xl font-serif font-semibold text-emerald-700">${reporteProducto.ingreso.toFixed(2)}</p>
                   <p className="mt-0.5 text-[11px] font-medium text-emerald-600">Ingreso generado</p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
-                  <p className="text-xl font-black text-amber-700">{reporteProducto.pendientes}</p>
+                  <p className="text-xl font-serif font-semibold text-amber-700">{reporteProducto.pendientes}</p>
                   <p className="mt-0.5 text-[11px] font-medium text-amber-600">Con pago pendiente</p>
                 </div>
               </div>
@@ -709,7 +721,7 @@ function ResumenCard({ icon: Icon, valor, label, tile, tileText }) {
         <Icon size={20} />
       </div>
       <div className="min-w-0">
-        <p className="truncate text-2xl font-black leading-none" style={{ color: INK }}>{valor}</p>
+        <p className="truncate text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{valor}</p>
         <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
       </div>
     </div>
