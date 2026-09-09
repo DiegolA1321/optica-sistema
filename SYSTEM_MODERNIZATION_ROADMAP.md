@@ -176,4 +176,78 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 - G6: los 3 catálogos editables de Configuracion.jsx ahora verifican uso real en base de datos antes de dejar borrar una categoría/motivo.
 - E4: los 3 envíos de correo reales ahora quedan registrados con su request_id y se puede ver si Resend realmente los entregó, en vez de marcarse "enviado" a ciegas.
 
-**Próximo paso:** quedan 6 ítems 🟠 Alto (C1, C4, D1, I11, J1, J12 — G4 en espera de que el catálogo crezca).
+**Fase "premium UI/UX" (2026-09-09, pedido aparte de Diego) — en curso:**
+
+Diego pidió una pasada dedicada de modernización visual (spec completo:
+auditoría primero, preservar lo que ya está bien, sistema de tokens
+cohesivo, sin efectos gratuitos). Auditoría real ejecutada (grep+lectura,
+no supuestos) antes de tocar código — ver hallazgos abajo. Orden acordado:
+Fase 1 fundación (tokens + consistencia de componentes) → Fase 2
+(dashboard + perfil de paciente unificado, piezas nuevas) → Fase 3
+(tablas/formularios/loading/responsive sistemático = C4).
+
+**Fase 1 (fundación) — hecha, verificada (build + 71 tests en cada commit):**
+- ~~C1 (color)~~ ✅: `src/lib/tema.js` centraliza INK/PORCELAIN/GOLD (antes
+  copy-pasteados en 32 lugares de 26 archivos) + tokens `ACCION_*`
+  (ver/editar/confirmar/eliminar) extraídos del patrón de color **real**
+  ya mayoritario en el código (no inventados — se verificó contra el uso
+  existente antes de fijar cada tono). Aplicados en Inicio, Usuarios,
+  Inventario, Pacientes, Horario, Citas, SuperadminPanel. Theme de
+  Tailwind (`--primary`/`--primary-foreground`) corregido a la marca real
+  en vez del gris stock de shadcn.
+- ~~C1 (tipografía)~~ ✅ **hallazgo corregido, no era un problema real**: la
+  auditoría inicial reportó "Sora declarada pero casi sin usar" como
+  inconsistencia. Al revisar en detalle: Sora (`font-heading`) es
+  correctamente el logotipo de marca ("Sistema Óptica" en nav/footer de
+  PaginaVenta) — nunca fue pensada como fuente de headings de sección.
+  El serif itálico (Newsreader) es un acento deliberado solo para los 4-5
+  momentos "bienvenido" (Login, PaginaVenta, Inicio, PortalPaciente). El
+  resto de headers de sección usa sans bold plano, apropiado para una UI
+  densa. Es una jerarquía de 3 niveles intencional, no un descuido — no
+  se tocó.
+- **Adopción del `<Button>` compartido de shadcn** ✅ **hallazgo corregido,
+  no era un problema real**: el roadmap original leyó "0% de adopción"
+  como una brecha. Al revisar: el botón primario real del sistema (fondo
+  degradado cian→azul + sombra, `rounded-xl`, hover `-translate-y-0.5`)
+  se usa **128 veces en 22/23 páginas** con la misma clase — ya es un
+  sistema de diseño de facto extremadamente consistente, solo que
+  hand-rolled en vez de extraído a componente. El botón "Cancelar"
+  (outline slate) tiene el mismo nivel de consistencia (13+ usos en 6
+  archivos). Adoptar el `<Button>` de shadcn ahí habría *reemplazado* un
+  patrón ya bueno por uno peor — no se hizo (sección 19 del pedido de
+  Diego: si ya está bien, no tocar).
+- ~~C6~~ ✅: `ConfirmarCitaModal.jsx` y `ConfirmarFichaModal.jsx` (los
+  únicos 2 de ~15 modales construidos sobre Radix/shadcn Dialog en vez
+  del patrón hand-rolled mayoritario) migrados al patrón hand-rolled,
+  con el cierre por tecla Escape agregado a mano para no perder lo que
+  Radix daba gratis (regresión real de accesibilidad que se evitó, no
+  solo un tema de consistencia). `components/ui/dialog.jsx` y
+  `button.jsx` quedaron sin ningún consumidor — no se borraron
+  (bloqueados por el clasificador de permisos sobre `rm`), pero el build
+  ya no incluye su chunk (-67KB).
+- ~~C7~~ ✅: `FilaDato` (duplicado verbatim entre los 2 modales de arriba)
+  extraído a `src/componentes/FilaDato.jsx`.
+
+**Pendiente de esta fase premium:**
+- **Fase 2**: dashboard (Inicio.jsx) con señal de tendencia/cambio
+  temporal y actividad reciente explícita (hoy solo muestra números del
+  momento); **perfil de paciente unificado** — no existe hoy, identidad/
+  historial/citas/recetas/CRM del paciente están repartidos en 4 páginas
+  separadas (Pacientes.jsx lista, ConsultaMedica.jsx clínico, Citas.jsx,
+  CRM.jsx) sin una vista central. Esperando definir alcance/estructura
+  con Diego antes de construir (es una pieza nueva grande, no un
+  refactor).
+- **Fase 3** (= C4 del roadmap original): auditoría responsive
+  sistemática 375/768/1024/1440 — 5 archivos casi sin breakpoints
+  (Mensajes, PaginaLegal, Configuracion entre ellos) según la auditoría.
+  Además: loading states desparejos (SuperadminPanel concentra 21/37 de
+  las apariciones; Pacientes, Citas, ConsultaMedica, Inventario, CRM,
+  Reportes, Configuracion sin cobertura detectada), tablas/formularios
+  sin sample directo todavía.
+- No verificado visualmente en navegador todavía (build+tests sí, en
+  cada commit) — pendiente un vistazo en vivo cuando Diego tenga
+  credenciales a mano, especialmente los 2 modales migrados de Radix.
+
+**Próximo paso (roadmap original, separado de lo de arriba):** quedan 6
+ítems 🟠 Alto (C4 ahora cubierto por la Fase 3 de arriba; D1, I11, J1,
+J12 — G4 en espera de que el catálogo crezca).
