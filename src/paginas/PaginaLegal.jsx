@@ -82,14 +82,14 @@ function Seccion({ icon: Icon, titulo, children }) {
 function ContenidoPrivacidad() {
   return (
     <>
-      <p className="mb-6 text-xs text-slate-400">Última actualización: agosto de 2026.</p>
+      <p className="mb-6 text-xs text-slate-400">Última actualización: septiembre de 2026.</p>
 
       <Seccion icon={Database} titulo="Qué datos recolectamos">
         <p>Del paciente: nombre, cédula, teléfono, correo (opcional), fecha de nacimiento, y datos clínicos (diagnóstico, evolución visual, medidas de la receta, historial de citas y consultas). Del personal (administradores y asistentes): nombre, correo y credenciales de acceso.</p>
       </Seccion>
 
       <Seccion icon={Lock} titulo="Cómo protegemos tus datos">
-        <p>Las contraseñas nunca se guardan en texto plano — se almacenan con hash (bcrypt) o mediante la autenticación gestionada de Supabase, según el tipo de cuenta. El acceso a los datos está restringido por rol: cada óptica solo puede ver la información de sus propios pacientes, un asistente solo ve los módulos que su administrador le habilita. Todas las conexiones viajan cifradas (HTTPS/TLS) y los datos se almacenan cifrados en reposo en la base de datos gestionada.</p>
+        <p>Las contraseñas nunca se guardan en texto plano — se almacenan con hash (bcrypt) o mediante la autenticación gestionada de Supabase, según el tipo de cuenta. El acceso a los datos está restringido por rol: cada óptica solo puede ver la información de sus propios pacientes, un asistente solo ve los módulos que su administrador le habilita. Todas las conexiones viajan cifradas (HTTPS/TLS) y los datos se almacenan cifrados en reposo en la base de datos gestionada. Además, los campos más sensibles de tu historia clínica (diagnóstico, evolución visual, estado de corrección) están cifrados también a nivel de aplicación, y las cuentas de administrador pueden activar verificación en dos pasos (MFA) como capa extra de protección.</p>
       </Seccion>
 
       <Seccion icon={Mail} titulo="Con quién compartimos información">
@@ -114,7 +114,7 @@ function ContenidoPrivacidad() {
 function ContenidoTerminos() {
   return (
     <>
-      <p className="mb-6 text-xs text-slate-400">Última actualización: agosto de 2026.</p>
+      <p className="mb-6 text-xs text-slate-400">Última actualización: septiembre de 2026.</p>
 
       <Seccion titulo="Aceptación">
         <p>Al usar este sistema — como paciente, administrador o asistente de una óptica — aceptás estos términos. Si no estás de acuerdo, no debés usar la plataforma.</p>
