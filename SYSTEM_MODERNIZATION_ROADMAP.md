@@ -228,25 +228,33 @@ Fase 1 fundación (tokens + consistencia de componentes) → Fase 2
 - ~~C7~~ ✅: `FilaDato` (duplicado verbatim entre los 2 modales de arriba)
   extraído a `src/componentes/FilaDato.jsx`.
 
-**Pendiente de esta fase premium:**
-- **Fase 2**: dashboard (Inicio.jsx) con señal de tendencia/cambio
-  temporal y actividad reciente explícita (hoy solo muestra números del
-  momento); **perfil de paciente unificado** — no existe hoy, identidad/
-  historial/citas/recetas/CRM del paciente están repartidos en 4 páginas
-  separadas (Pacientes.jsx lista, ConsultaMedica.jsx clínico, Citas.jsx,
-  CRM.jsx) sin una vista central. Esperando definir alcance/estructura
-  con Diego antes de construir (es una pieza nueva grande, no un
-  refactor).
-- **Fase 3** (= C4 del roadmap original): auditoría responsive
-  sistemática 375/768/1024/1440 — 5 archivos casi sin breakpoints
-  (Mensajes, PaginaLegal, Configuracion entre ellos) según la auditoría.
-  Además: loading states desparejos (SuperadminPanel concentra 21/37 de
-  las apariciones; Pacientes, Citas, ConsultaMedica, Inventario, CRM,
-  Reportes, Configuracion sin cobertura detectada), tablas/formularios
-  sin sample directo todavía.
-- No verificado visualmente en navegador todavía (build+tests sí, en
-  cada commit) — pendiente un vistazo en vivo cuando Diego tenga
-  credenciales a mano, especialmente los 2 modales migrados de Radix.
+**Fase 2 — hecha, verificada (build + 71 tests):**
+- **Perfil de paciente unificado** ✅ **hallazgo corregido a mitad de
+  camino**: la auditoría (y mi primer diagnóstico) dijeron que no
+  existía. Al revisar de cerca sí existe — vive como overlay dentro de
+  `Pacientes.jsx` (identidad, badges, deuda, 4 tabs: Valoraciones/Citas/
+  Evolución/Pagos), solo que el grep de la auditoría buscaba una página
+  separada y no lo encontró. Se cerró el único hueco real: 5to tab
+  "Fidelización" (próximo control con badge de vencido, última visita,
+  cliente frecuente, referidos) reusando `utilidades/fidelizacion.js`
+  sin llamadas nuevas a Supabase.
+- **Dashboard "qué cambió"** ✅: KPI de pacientes agrega "+N este mes"
+  (real, sobre `fechaRegistro`); nueva sección "Actividad reciente"
+  (solo admin principal, misma fuente/RLS que ya usa `Usuarios.jsx` vía
+  `logs_optica` — no se duplicó lógica) con link a la vista completa.
+
+**Fase 3 (pendiente)** (= C4 del roadmap original): auditoría responsive
+sistemática 375/768/1024/1440 — 5 archivos casi sin breakpoints
+(Mensajes, PaginaLegal, Configuracion entre ellos) según la auditoría.
+Además: loading states desparejos (SuperadminPanel concentra 21/37 de
+las apariciones; Pacientes, Citas, ConsultaMedica, Inventario, CRM,
+Reportes, Configuracion sin cobertura detectada), tablas/formularios
+sin sample directo todavía.
+
+**No verificado visualmente en navegador todavía** (build+tests sí, en
+cada commit) — pendiente un vistazo en vivo cuando Diego tenga
+credenciales a mano: los 2 modales migrados de Radix, el tab
+Fidelización nuevo, y la sección Actividad reciente del dashboard.
 
 **Próximo paso (roadmap original, separado de lo de arriba):** quedan 6
 ítems 🟠 Alto (C4 ahora cubierto por la Fase 3 de arriba; D1, I11, J1,
