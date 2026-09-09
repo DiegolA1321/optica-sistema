@@ -88,7 +88,7 @@
 | G3 | Alta rápida de producto en venta | Ya implementada | — | — | — | — | — |
 | G4 | Paginación de inventario | Slicing manual en memoria | Paginación real vía `range()` pasado ~200 productos | No escala si el catálogo crece | 🟠 ALTA* | Medio | Alta |
 | ~~G5~~ ⭐ | ~~Condición de carrera real en el descuento de stock al vender~~ | **✅ Hecho** (migración 0061: RPC `registrar_venta_producto()` hace el descuento de stock y el insert de la venta en una sola sentencia atómica; `update ... where stock >= p_cantidad` además serializa ventas concurrentes del mismo producto — verificado con dos ventas simultáneas reales contra producción: solo una pasó, la otra fue rechazada por falta de stock, sin sobreventa) | — | — | — | — |
-| **G6** | Categorías se pueden borrar sin verificar uso | En `Configuracion.jsx`, eliminar una categoría de inventario/diagnóstico no verifica si algún producto o consulta ya la usa | Bloquear o advertir si la categoría está en uso antes de borrar | Puede dejar referencias huérfanas (un producto con una categoría que ya no existe) | 🟠 ALTA | Bajo | Media |
+| ~~G6~~ | ~~Categorías se pueden borrar sin verificar uso~~ | **✅ Hecho**: los 3 catálogos editables de `Configuracion.jsx` (motivos de consulta, categorías de diagnóstico, categorías de inventario) ahora verifican contra la base de datos si algún registro real la usa antes de permitir borrarla — si está en uso, se bloquea con un mensaje claro sugiriendo renombrar en vez de borrar. Verificado contra producción con datos reales de las 3 tablas involucradas (citas, consultas, inventario) | — | — | — | — |
 
 *Condicional al crecimiento real de datos.
 
@@ -140,7 +140,7 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 | Prioridad | Cantidad | Ítems |
 |---|---|---|
 | 🔴 CRÍTICA | 6 | I1, I2, I6 ⭐⭐, I7 ⭐⭐, J5, J6 ⭐⭐ |
-| 🟠 ALTA | 19 (10 ✅ hechos: B6, E5, E6, E7, G5, I3, I4, I10, J2, J11 — 8 restantes, G4 en espera de datos) | ~~B6~~ ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4 (en espera), ~~G5~~ ⭐, G6, ~~I3~~, ~~I4~~, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
+| 🟠 ALTA | 19 (11 ✅ hechos: B6, E5, E6, E7, G5, G6, I3, I4, I10, J2, J11 — 7 restantes, G4 en espera de datos) | ~~B6~~ ⭐, C1, C4, D1, E4, ~~E5~~ ⭐, ~~E6~~ ⭐, ~~E7~~ ⭐, G4 (en espera), ~~G5~~ ⭐, ~~G6~~, ~~I3~~, ~~I4~~, ~~I10~~ ⭐, I11 ⭐, J1, ~~J2~~, ~~J11~~ ⭐, J12 ⭐ |
 | 🟡 MEDIA | 15 | B1, B3, C2, C6 ⭐, D2, D5 ⭐, E1, E3, F1, F3, F4 ⭐, H2, I8 ⭐, I9 ⭐, I14 ⭐, I15 ⭐, J7 ⭐ |
 | 🟢 OPCIONAL | 12 | B2, B4, B5, C5, C7, D6, D7, H3, H4, I12, I13, J4, J8 |
 | ✅ Ya implementado (corregido en esta pasada) | 2 | F2, G2 |
@@ -173,5 +173,6 @@ Sin cambios respecto a la v1 — H1 (hecho), H2 (tendencia de no-show, Media), H
 - G4 revisado y dejado en espera a propósito: solo hay 1 producto en inventario en toda la base hoy — construir paginación ahora sería trabajo prematuro sin datos que lo justifiquen (la propia auditoría lo marca "condicional al crecimiento real de datos").
 - I3: el token de sesión del paciente no tenía ninguna expiración — ahora dura 30 días. **Bonus real encontrado al verificar esto**: `mis_citas_paciente` y `mis_consultas_paciente` estaban rotas en producción ("Mis citas"/"Mi receta" del portal fallaban siempre) — corregido de paso.
 - B6: quitado el autoguardado silencioso de "Duración de cada cita" (Horario.jsx) y, peor de lo descrito, de 12 campos de `PersonalizacionLogin.jsx` que además tenían su propio botón "Guardar cambios" — el autoguardado por `onBlur` volvía inútil al botón "Cancelar cambios".
+- G6: los 3 catálogos editables de Configuracion.jsx ahora verifican uso real en base de datos antes de dejar borrar una categoría/motivo.
 
-**Próximo paso:** quedan 8 ítems 🟠 Alto (C1, C4, D1, E4, G6, I11, J1, J12 — G4 en espera de que el catálogo crezca).
+**Próximo paso:** quedan 7 ítems 🟠 Alto (C1, C4, D1, E4, I11, J1, J12 — G4 en espera de que el catálogo crezca).

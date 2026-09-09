@@ -4,6 +4,7 @@ import { useState } from "react"
 import { createPortal } from "react-dom"
 import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
+import { supabase } from "../lib/supabaseClient"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const INK = "#0E2B33"
@@ -49,10 +50,17 @@ function FilaParametro({ icon: Icon, titulo, descripcion, activo, onClick, etiqu
 // Lista editable de etiquetas (motivos, diagnósticos rápidos...): agregar,
 // renombrar y eliminar — el sistema trae opciones por defecto, pero cada
 // óptica ajusta el catálogo a su propio lenguaje clínico.
-function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, placeholder }) {
+function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, placeholder, verificarUso }) {
   const [nuevo, setNuevo] = useState("")
   const [editandoIdx, setEditandoIdx] = useState(null)
   const [textoEdit, setTextoEdit] = useState("")
+  // Hallazgo G6: borrar una categoría no revisaba si algún producto o
+  // consulta ya la usaba — dejaba referencias huérfanas (un producto con una
+  // categoría que ya no existe en ningún lado del sistema). `verificarUso`
+  // es opcional y específico de cada catálogo (consulta real a Supabase,
+  // scoped a esta óptica) porque cada uno vive en una tabla distinta.
+  const [eliminandoIdx, setEliminandoIdx] = useState(null)
+  const [errorEliminar, setErrorEliminar] = useState("")
 
   const agregar = () => {
     const v = nuevo.trim()
@@ -60,7 +68,19 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
     setItems([...items, v])
     setNuevo("")
   }
-  const eliminar = (idx) => setItems(items.filter((_, i) => i !== idx))
+  const eliminar = async (idx) => {
+    setErrorEliminar("")
+    if (verificarUso) {
+      setEliminandoIdx(idx)
+      const enUso = await verificarUso(items[idx])
+      setEliminandoIdx(null)
+      if (enUso) {
+        setErrorEliminar(`"${items[idx]}" ya está en uso — no se puede eliminar. Puedes renombrarlo en su lugar.`)
+        return
+      }
+    }
+    setItems(items.filter((_, i) => i !== idx))
+  }
   const iniciarEdicion = (idx) => { setEditandoIdx(idx); setTextoEdit(items[idx]) }
   const guardarEdicion = (idx) => {
     const v = textoEdit.trim()
@@ -98,12 +118,17 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
                 <button type="button" onClick={() => iniciarEdicion(idx)} title="Renombrar" aria-label={`Renombrar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                   <Pencil size={13} />
                 </button>
-                <button type="button" onClick={() => eliminar(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer">
+                <button type="button" disabled={eliminandoIdx === idx} onClick={() => eliminar(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer disabled:opacity-50">
                   <Trash2 size={13} />
                 </button>
               </div>
             ))}
           </div>
+          {errorEliminar && (
+            <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs font-medium text-amber-800">
+              <AlertTriangle size={13} className="shrink-0" /> {errorEliminar}
+            </div>
+          )}
 
           <div className="mt-2.5 flex gap-2">
             <input
@@ -308,6 +333,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             items={motivosConsulta}
             setItems={setMotivosConsulta}
             placeholder="Ej. Revisión de lentes de contacto"
+            verificarUso={async (item) => {
+              if (!supabase || !usuario?.opticaId) return false
+              const { count } = await supabase.from("citas").select("id", { count: "exact", head: true }).eq("optica_id", usuario.opticaId).eq("motivo", item)
+              return (count || 0) > 0
+            }}
           />
           <CatalogoEditable
             icon={Stethoscope}
@@ -316,6 +346,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             items={diagnosticosRapidos}
             setItems={setDiagnosticosRapidos}
             placeholder="Ej. Ambliopía"
+            verificarUso={async (item) => {
+              if (!supabase || !usuario?.opticaId) return false
+              const { count } = await supabase.from("consultas").select("id", { count: "exact", head: true }).eq("optica_id", usuario.opticaId).contains("diagnostico_categorias", [item])
+              return (count || 0) > 0
+            }}
           />
           <CatalogoEditable
             icon={Package}
@@ -324,6 +359,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             items={categoriasInventario}
             setItems={setCategoriasInventario}
             placeholder="Ej. Lentes de contacto"
+            verificarUso={async (item) => {
+              if (!supabase || !usuario?.opticaId) return false
+              const { count } = await supabase.from("inventario").select("id", { count: "exact", head: true }).eq("optica_id", usuario.opticaId).eq("categoria", item)
+              return (count || 0) > 0
+            }}
           />
         </div>
       </div>
