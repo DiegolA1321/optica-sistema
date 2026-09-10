@@ -59,7 +59,7 @@ import {
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
-import { esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
+import { esHoy, etiquetaFecha, fechaAISO } from "../utilidades/disponibilidad"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
@@ -1314,7 +1314,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!detalle) return
     setActualizandoPago(true)
     const hoy = new Date()
-    const siguienteVencimiento = new Date(hoy.getFullYear(), hoy.getMonth() + 1, hoy.getDate()).toISOString().slice(0, 10)
+    // fechaAISO() arma la fecha con los componentes locales, no vía
+    // toISOString() (convierte a UTC primero) — hoy no cambia el resultado
+    // porque Ecuador está detrás de UTC, pero es el mismo patrón de bug de
+    // zona horaria que sí se manifestó en Pacientes.jsx/Citas.jsx/
+    // ConsultaMedica.jsx, y este panel es multi-óptica (podría no ser
+    // siempre Ecuador).
+    const siguienteVencimiento = fechaAISO(new Date(hoy.getFullYear(), hoy.getMonth() + 1, hoy.getDate()))
     const cambios = { estado_pago: "al_dia", proximo_vencimiento: siguienteVencimiento }
     const { error } = await supabase.from("opticas").update(cambios).eq("id", detalle.id)
     if (!error) {
@@ -1388,7 +1394,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const temp = crearClienteTemporal()
     const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: email.trim(), password: clave })
     if (errorAlta || !alta?.user) {
-      setErrorAdminExtra(errorAlta?.message || "No se pudo crear la cuenta.")
+      // Mismo caso que Usuarios.jsx: eliminar un administrador solo borra su
+      // fila de "perfiles", no la cuenta real de Supabase Auth (necesitaría
+      // una clave de servicio que el cliente no debe tener) — ese correo
+      // queda inservible para siempre desde acá. El mensaje genérico de
+      // Supabase no lo explica.
+      const yaRegistrado = /already registered|already exists|already in use/i.test(errorAlta?.message || "")
+      setErrorAdminExtra(yaRegistrado
+        ? "Ese correo ya tiene una cuenta en el sistema (puede ser de un administrador eliminado antes) — usa un correo distinto."
+        : errorAlta?.message || "No se pudo crear la cuenta.")
       setGuardandoAdminExtra(false)
       return
     }
@@ -1441,7 +1455,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: email.trim(), password: clave })
     await temp.auth.signOut()
     if (errorAlta || !alta?.user) {
-      setErrorSuperadmin(errorAlta?.message || "No se pudo crear la cuenta.")
+      const yaRegistrado = /already registered|already exists|already in use/i.test(errorAlta?.message || "")
+      setErrorSuperadmin(yaRegistrado
+        ? "Ese correo ya tiene una cuenta en el sistema — usa un correo distinto."
+        : errorAlta?.message || "No se pudo crear la cuenta.")
       setGuardandoSuperadmin(false)
       return
     }
@@ -2865,14 +2882,20 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <div className="space-y-2">
                     {(adminsPorOptica.get(detalle.id) || []).map((a) => (
                       adminAEliminar?.id === a.id ? (
-                        <div key={a.id} className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm">
-                          <span className="font-medium text-rose-700">¿Quitar a {a.nombre}?</span>
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => setAdminAEliminar(null)} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">Cancelar</button>
-                            <button type="button" onClick={confirmarEliminarAdmin} disabled={eliminandoAdmin} className="rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
-                              {eliminandoAdmin ? "Quitando…" : "Confirmar"}
-                            </button>
+                        <div key={a.id} className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-rose-700">¿Quitar a {a.nombre}?</span>
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setAdminAEliminar(null)} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">Cancelar</button>
+                              <button type="button" onClick={confirmarEliminarAdmin} disabled={eliminandoAdmin} className="rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
+                                {eliminandoAdmin ? "Quitando…" : "Confirmar"}
+                              </button>
+                            </div>
                           </div>
+                          {/* Mismo caso que Usuarios.jsx: solo se borra el
+                              perfil, no la cuenta real de Supabase Auth — su
+                              correo queda inservible para un admin nuevo. */}
+                          <p className="mt-1.5 text-xs text-rose-600">Su correo ({a.email || "sin correo"}) no podrá reutilizarse para otro administrador después de esto.</p>
                         </div>
                       ) : (
                         <div key={a.id} className="rounded-xl border border-slate-200 p-3">

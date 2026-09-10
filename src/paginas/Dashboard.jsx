@@ -143,7 +143,9 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
   })
   const [accionPacienteInicio, setAccionPacienteInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
+  const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
+  const [fichaClinicaMotivoInicial, setFichaClinicaMotivoInicial] = useState(null)
   // Viaja junto a fichaClinicaPacienteInicial cuando la ficha se abre desde
   // "Atender" en Citas médicas — permite que ConsultaMedica marque esa cita
   // como "Atendida" al guardar, sin que el optómetra tenga que hacerlo a mano.
@@ -317,6 +319,12 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
     setFichaClinicaCitaId(citaId)
     setFichaClinicaOrigen(origen)
     setFichaClinicaPacienteOrigenId(origen === "pacientes" ? paciente?.id ?? null : null)
+    // El ing probó "Atender" esperando ver ya puesto el motivo con el que se
+    // agendó la cita, en vez de tener que volver a escribirlo en la ficha
+    // clínica (ING7) — se resuelve acá porque Dashboard ya tiene `citas`
+    // completo, sin tener que hacer viajar el objeto cita entero por Citas.jsx.
+    const citaOrigen = citaId ? citas.find((c) => c.id === citaId) : null
+    setFichaClinicaMotivoInicial(citaOrigen?.motivo || null)
     navegar("consultas")
   }
 
@@ -421,9 +429,10 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
             diagnosticosRapidos={diagnosticosRapidos}
             pacienteInicial={fichaClinicaPacienteInicial}
             citaIdInicial={fichaClinicaCitaId}
+            motivoInicial={fichaClinicaMotivoInicial}
             citas={citas}
             setCitas={setCitas}
-            onPacienteInicialConsumido={() => { setFichaClinicaPacienteInicial(null); setFichaClinicaCitaId(null) }}
+            onPacienteInicialConsumido={() => { setFichaClinicaPacienteInicial(null); setFichaClinicaCitaId(null); setFichaClinicaMotivoInicial(null) }}
             onCerrar={() => navegar(fichaClinicaOrigen)}
             onVolver={() => {
               if (fichaClinicaOrigen === "pacientes" && fichaClinicaPacienteOrigenId) {
@@ -446,6 +455,8 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
             pacientes={pacientes}
             ventas={ventas}
             setVentas={setVentas}
+            abrirModalAlEntrar={abrirCrearProductoAlEntrar}
+            onModalAlEntrarConsumido={() => setAbrirCrearProductoAlEntrar(false)}
           />
         )
       case "citas":
@@ -492,47 +503,28 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
         )
       case "inicio":
         return (
-          <>
-            <Inicio
-              setVista={navegar}
-              usuario={usuario}
-              nombreUsuario={nombreUsuario}
-              opticaNombre={usuario?.opticaNombre}
-              pacientes={pacientes}
-              citas={citas}
-              inventario={inventario}
-              consultas={consultas}
-              onAbrirPaciente={(paciente, accion) => {
-                setAccionPacienteInicio({ pacienteId: paciente.id, accion })
-              }}
-              onAgendarRapido={() => {
-                setAbrirAgendarAlEntrar(true)
-                navegar("citas")
-              }}
-            />
-            <Pacientes
-              usuario={usuario}
-              setVista={navegar}
-              overlaySolo
-              pacientes={pacientes}
-              setPacientes={setPacientes}
-              consultas={consultas}
-              setConsultas={setConsultas}
-              citas={citas}
-              setCitas={setCitas}
-              disponibilidad={disponibilidad}
-              motivosConsulta={motivosConsulta}
-              inventario={inventario}
-              setInventario={setInventario}
-              categoriasInventario={categoriasInventario}
-              setCategoriasInventario={setCategoriasInventario}
-              ventas={ventas}
-              setVentas={setVentas}
-              accionInicial={accionPacienteInicio}
-              onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-              onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
-            />
-          </>
+          <Inicio
+            setVista={navegar}
+            usuario={usuario}
+            nombreUsuario={nombreUsuario}
+            opticaNombre={usuario?.opticaNombre}
+            pacientes={pacientes}
+            citas={citas}
+            inventario={inventario}
+            consultas={consultas}
+            onAgendarRapido={() => {
+              setAbrirAgendarAlEntrar(true)
+              navegar("citas")
+            }}
+            onCrearPacienteRapido={() => {
+              setAccionPacienteInicio({ accion: "crear" })
+              navegar("pacientes")
+            }}
+            onCrearProductoRapido={() => {
+              setAbrirCrearProductoAlEntrar(true)
+              navegar("inventario")
+            }}
+          />
         )
       default:
         return (

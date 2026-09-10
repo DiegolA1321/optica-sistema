@@ -35,6 +35,7 @@ import {
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
+import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -213,7 +214,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     () =>
       consultas
         .filter((c) => (usuario?.id != null && c.pacienteId === usuario.id) || c.paciente === usuario?.nombre)
-        .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)),
+        .sort(ordenarPorFechaYCreacion),
     [consultas, usuario],
   )
   const ultimaReceta = misConsultas[0] || null
@@ -266,13 +267,21 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       // recibía el arreglo completo como "id" (bug real encontrado al
       // auditar E7, nunca se corrigió acá cuando se cambió el tipo de
       // retorno para AgendarCitaPublica.jsx).
+      //
+      // La migración 0067 (esta misma sesión) cambió la firma de esta
+      // función: ya no recibe p_paciente_id (ahora resuelve/crea el
+      // paciente por cédula) y exige p_fecha_nacimiento. Este llamador
+      // se quedó con la firma vieja y se rompía para cualquier paciente ya
+      // autenticado intentando agendar una cita nueva — encontrado al
+      // revisar el sistema conectado tras ese cambio, no algo que se haya
+      // probado en vivo desde el portal en ese momento.
       const { data, error: errorRpc } = await supabase.rpc("crear_cita_publica", {
         p_optica_id: opticaId,
         p_paciente: nuevaCita.paciente,
         p_fecha: nuevaCita.fecha,
         p_hora: nuevaCita.hora,
-        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
         p_cedula: nuevaCita.cedula || null,
+        p_fecha_nacimiento: usuario?.fecha_nacimiento || usuario?.fechaNacimiento || null,
         p_telefono: nuevaCita.telefono || null,
         p_motivo: nuevaCita.motivo,
       })
@@ -282,6 +291,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           setErrorCita("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
           refrescarHorasOcupadas()
           setHora("")
+        } else if (errorRpc?.message?.includes("cédula") || errorRpc?.message?.includes("nacimiento")) {
+          setErrorCita("Tu perfil no tiene cédula o fecha de nacimiento registrada — pide en recepción que actualicen tu ficha antes de agendar online.")
         } else {
           setErrorCita("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
         }

@@ -43,6 +43,7 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
+  Globe,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -51,7 +52,8 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
-import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos } from "../utilidades/fidelizacion"
+import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 
@@ -318,12 +320,18 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // modal que se usaría si el optómetra hiciera clic aquí mismo, en vez de tener una copia aparte.
   useEffect(() => {
     if (!accionInicial) return
-    const paciente = pacientes.find((p) => p.id === accionInicial.pacienteId)
-    if (paciente) {
-      if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }
-      else if (accionInicial.accion === "editar") abrirEdicion(paciente)
-      else if (accionInicial.accion === "eliminar") setPacienteAEliminar(paciente)
-      else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
+    if (accionInicial.accion === "crear") {
+      // Atajo "Gestionar pacientes" del Dashboard — no referencia a ningún
+      // paciente existente, así que no pasa por la búsqueda por id de abajo.
+      abrirCrear()
+    } else {
+      const paciente = pacientes.find((p) => p.id === accionInicial.pacienteId)
+      if (paciente) {
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }
+        else if (accionInicial.accion === "editar") abrirEdicion(paciente)
+        else if (accionInicial.accion === "eliminar") setPacienteAEliminar(paciente)
+        else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
+      }
     }
     onAccionInicialConsumida?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -367,45 +375,17 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       registrarLog(usuario, "pacientes", "Editó el expediente de un paciente", cambios.nombre)
       mostrarNotif("Expediente del paciente actualizado correctamente.")
     } else {
-      const nuevoPaciente = {
-        nombre,
-        cedula,
-        telefono: telefono || "Sin Teléfono",
-        correo: correo || "Sin Correo",
-        fecha_nacimiento: fechaNacimiento || null,
-        referidoPor: referidoPor || "",
-        referidoPorId: referidoPorIdResuelto,
-        evolucion: "Sin evaluación", // Inicializa sin evaluación hasta su primera consulta médica
-        ultimaConsulta: "Pendiente",
-        fechaRegistro: new Date().toISOString().split("T")[0],
-        estadoClinico: "Activo",
+      // La alta en sí (insert + shape) vive en utilidades/pacientes.js,
+      // compartida con Citas.jsx, para no tener dos copias que puedan
+      // desincronizarse (p. ej. el bug de zona horaria de fechaRegistro que
+      // hubo que corregir en ambas por separado antes de unificar).
+      const { paciente: nuevoPaciente, error: errorInsert } = await crearRegistroPaciente(supabase, opticaId, {
+        nombre, cedula, telefono, correo, fechaNacimiento, referidoPor, referidoPorId: referidoPorIdResuelto,
+      })
+      if (errorInsert) {
+        mostrarError("No se pudo registrar el paciente. Revisa tu conexión e intenta de nuevo.")
+        return
       }
-      if (supabase && opticaId) {
-        const { data, error: errorInsert } = await supabase
-          .from("pacientes")
-          .insert({
-            optica_id: opticaId,
-            nombre: nuevoPaciente.nombre,
-            cedula: nuevoPaciente.cedula,
-            telefono: nuevoPaciente.telefono,
-            correo: nuevoPaciente.correo,
-            fecha_nacimiento: nuevoPaciente.fecha_nacimiento,
-            referido_por: nuevoPaciente.referidoPor || null,
-            referido_por_id: nuevoPaciente.referidoPorId,
-            evolucion: nuevoPaciente.evolucion,
-            ultima_consulta: nuevoPaciente.ultimaConsulta,
-            fecha_registro: nuevoPaciente.fechaRegistro,
-            estado_clinico: nuevoPaciente.estadoClinico,
-          })
-          .select()
-          .single()
-        if (errorInsert) {
-          mostrarError("No se pudo registrar el paciente. Revisa tu conexión e intenta de nuevo.")
-          return
-        }
-        if (data) nuevoPaciente.id = data.id
-      }
-      if (nuevoPaciente.id == null) nuevoPaciente.id = Date.now()
 
       setPacientes([nuevoPaciente, ...pacientes])
       registrarLog(usuario, "pacientes", "Registró un paciente nuevo", nuevoPaciente.nombre)
@@ -809,7 +789,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             {paciente.nombre.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-800 transition-colors group-hover:text-blue-600">{paciente.nombre}</p>
+                            <p className="inline-flex items-center gap-1.5 font-semibold text-slate-800 transition-colors group-hover:text-blue-600">
+                              {paciente.nombre}
+                              {paciente.origen === "paciente" && (
+                                <Globe size={13} className="shrink-0 text-cyan-600" title="Registrado por el paciente, en línea" aria-label="Registrado por el paciente, en línea" />
+                              )}
+                            </p>
                             <p className="mt-0.5 font-mono text-xs text-slate-500">{paciente.cedula}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.estadoClinico === "Activo" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
@@ -1265,7 +1250,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>{pacienteHistorial.nombre}</h1>
+                    <h1 className="flex items-center gap-2 font-serif text-2xl font-bold" style={{ color: INK }}>
+                      {pacienteHistorial.nombre}
+                      {pacienteHistorial.origen === "paciente" && (
+                        <Globe size={16} className="shrink-0 text-cyan-600" title="Registrado por el paciente, en línea" aria-label="Registrado por el paciente, en línea" />
+                      )}
+                    </h1>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
                       {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
                       {pacienteHistorial.telefono && <span className="flex items-center gap-1.5"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
@@ -1322,7 +1312,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               const consultasPaciente = consultas
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
-                .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+                .sort(ordenarPorFechaYCreacion)
               const citasPaciente = citas
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
@@ -1381,7 +1371,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       onClick={() => setTabHistorial("pagos")}
                       className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
-                      <Wallet size={14} /> Pagos
+                      {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
+                          pestaña — "aquí están los productos que yo le he
+                          vendido al paciente", así que la etiqueta pasa a ser
+                          literal: es un listado de productos, el estado de
+                          pago es solo un dato de cada fila. */}
+                      <Wallet size={14} /> Productos
                       {deudaTotal > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">${deudaTotal.toFixed(0)}</span>}
                     </button>
                     <button
@@ -1516,7 +1511,14 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                     <p className="text-xs text-slate-500">{c.fecha || "Sin fecha"} · {c.hora || "—"}</p>
                                   </div>
                                 </div>
-                                <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "bg-slate-100 text-slate-600" : noAsistio ? "border border-red-200 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200 bg-blue-50 text-blue-700" : enEspera ? "border border-amber-200 bg-amber-50 text-amber-700" : "border border-emerald-200 bg-emerald-50 text-emerald-700")}>
+                                {/* Mismo criterio de color que ya corrió en Citas.jsx
+                                    esta sesión (el ing lo especificó explícito):
+                                    Atendida=verde, No asistió=rojo, En atención=azul,
+                                    Pendiente=ámbar. Acá también es personal viendo
+                                    una cola de estados, no el calendario propio de
+                                    un paciente (que sí queda distinto, a propósito,
+                                    en PortalPaciente.jsx). */}
+                                <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : noAsistio ? "border border-red-200 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200 bg-blue-50 text-blue-700" : enEspera ? "border border-amber-200 bg-amber-50 text-amber-700" : "border border-amber-200 bg-amber-50 text-amber-700")}>
                                   {c.estado || "Pendiente"}
                                 </span>
                               </div>

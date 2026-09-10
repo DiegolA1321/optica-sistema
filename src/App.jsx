@@ -145,12 +145,24 @@ function mapPaciente(p) {
     referidoPor: p.referido_por, referidoPorId: p.referido_por_id, evolucion: p.evolucion, estadoCorreccion: p.estado_correccion,
     fechaRegistro: p.fecha_registro, tieneCuenta: p.tiene_cuenta, usuario: p.usuario, claveTemporal: p.clave_temporal,
     ultimoSaludoCumpleAnio: p.ultimo_saludo_cumple_anio,
+    // origen (migración 0067, "creado por staff" vs. "por el paciente/sistema")
+    // faltaba en esta lista blanca — se guardaba bien pero nunca volvía a
+    // llegar al frontend después de recargar. Encontrado auditando el
+    // sistema conectado, no en una prueba en vivo de esta sesión.
+    origen: p.origen,
   }
 }
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
-  return { id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, correo: c.correo, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado, codigo: c.codigo || null }
+  return {
+    id: c.id, fecha: c.fecha, hora: c.hora, pacienteId: c.paciente_id, paciente: c.paciente, cedula: c.cedula, telefono: c.telefono, correo: c.correo, motivo: c.motivo, motivoPublico: c.motivo_publico, triage: c.triage || null, iniciales, estado: c.estado, codigo: c.codigo || null,
+    // origen (0067) y duracionMinutos (0068) — mismo hallazgo que en
+    // mapPaciente: el ícono de origen en Citas.jsx y la detección de
+    // solapamiento por duración personalizada solo funcionaban con el dato
+    // recién creado en memoria, nunca con uno recargado desde la base.
+    origen: c.origen, duracionMinutos: c.duracion_minutos,
+  }
 }
 function mapConsulta(c) {
   return {
@@ -162,6 +174,15 @@ function mapConsulta(c) {
     proximoControlDias: c.proximo_control_dias, evolucionCalculada: c.evolucion_calculada, estadoCorreccion: c.estado_correccion,
     productoId: c.producto_id, productoNombre: c.producto_nombre, montoVenta: c.monto_venta != null ? Number(c.monto_venta) : null,
     profesionalNombre: c.profesional_nombre, profesionalRegistro: c.profesional_registro, imagenes: c.imagenes || [],
+    // detalle_consulta (migración 0069, esta misma sesión) — se guardaba
+    // bien pero al faltar acá era un campo de solo-escritura: no había
+    // forma de volver a verlo una vez guardada la ficha.
+    detalleConsulta: c.detalle_consulta,
+    // created_at: desempate para historialPaciente en ConsultaMedica.jsx
+    // cuando dos consultas del mismo paciente comparten la misma `fecha`
+    // (un dato editable, no una marca de tiempo) — sin esto, "cuál se
+    // registró más reciente" no tenía ninguna fuente fiable.
+    creadoEn: c.created_at,
   }
 }
 function mapVenta(v) {

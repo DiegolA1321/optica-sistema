@@ -24,6 +24,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
+import { hoyISO } from "../utilidades/disponibilidad"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 
@@ -168,14 +169,17 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   const CLAVE_CONTACTOS_HOY = "optica_crm_contactos_hoy"
   const [contactadosHoy, setContactadosHoy] = useState(() => {
     try {
-      const hoy = new Date().toISOString().slice(0, 10)
+      // hoyISO() usa los componentes LOCALES del Date — toISOString()
+      // convierte a UTC primero, así que en Ecuador (UTC-5) el límite
+      // "de hoy" se reseteaba 5 horas antes de la medianoche real.
+      const hoy = hoyISO()
       const raw = JSON.parse(localStorage.getItem(CLAVE_CONTACTOS_HOY) || "{}")
       return raw[hoy] || {}
     } catch { return {} }
   })
   const marcarContactadoHoy = (id) => {
     if (id == null) return
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = hoyISO()
     setContactadosHoy((prev) => {
       const siguiente = { ...prev, [id]: true }
       try { localStorage.setItem(CLAVE_CONTACTOS_HOY, JSON.stringify({ [hoy]: siguiente })) } catch { /* localStorage lleno o bloqueado — el límite solo se pierde, no rompe nada */ }

@@ -1,22 +1,15 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
-import { createPortal } from "react-dom"
+import { useState, useEffect, useMemo } from "react"
 import {
   Users,
   AlertTriangle,
   Calendar,
-  Search,
-  FileText,
+  Package,
   ArrowRight,
-  Pencil,
-  Trash2,
-  Eye,
   Cake,
   MessageCircle,
   Clock,
-  CalendarPlus,
-  MoreVertical,
   History,
   TrendingUp,
 } from "lucide-react"
@@ -25,7 +18,7 @@ import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades
 import { esStockBajo } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
 import { NOMBRE_MODULO } from "../utilidades/logs"
-import { INK, GOLD, ACCION_VER, ACCION_CONFIRMAR, ACCION_EDITAR, ACCION_ELIMINAR } from "@/lib/tema"
+import { INK, GOLD, ACCION_CONFIRMAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -37,8 +30,9 @@ export default function Inicio({
   citas = [],
   inventario = [],
   consultas = [],
-  onAbrirPaciente,
   onAgendarRapido,
+  onCrearPacienteRapido,
+  onCrearProductoRapido,
   nombreUsuario = "Diego",
   opticaNombre,
 }) {
@@ -62,31 +56,6 @@ export default function Inicio({
       .limit(5)
       .then(({ data }) => setActividadReciente(data || []))
   }, [esAdmin, usuario?.opticaId])
-  const [busqueda, setBusqueda] = useState("")
-
-  // Séptima Mirada, hallazgo #4: esta mini-tabla usaba un vocabulario de
-  // íconos distinto al de la tabla completa en Pacientes.jsx (ver/editar/
-  // eliminar acá, ver historial/agendar/más acciones allá) para la misma
-  // fila de datos — mismo paciente, dos significados distintos para el
-  // ícono del lápiz según la pantalla. Ahora reusa el mismo par de acciones
-  // primarias (historial, agendar) + un menú "Más acciones" para lo menos
-  // frecuente (editar, eliminar), igual que Pacientes y Citas médicas.
-  const [menuAccionesId, setMenuAccionesId] = useState(null)
-  const [menuAccionesPos, setMenuAccionesPos] = useState(null)
-  const menuAccionesRef = useRef(null)
-  useEffect(() => {
-    if (menuAccionesId == null) return
-    const onDown = (e) => { if (menuAccionesRef.current && !menuAccionesRef.current.contains(e.target)) setMenuAccionesId(null) }
-    const cerrarYa = () => setMenuAccionesId(null)
-    document.addEventListener("mousedown", onDown)
-    window.addEventListener("scroll", cerrarYa, true)
-    window.addEventListener("resize", cerrarYa)
-    return () => {
-      document.removeEventListener("mousedown", onDown)
-      window.removeEventListener("scroll", cerrarYa, true)
-      window.removeEventListener("resize", cerrarYa)
-    }
-  }, [menuAccionesId])
 
   // Ventana de cumpleaños: -5 a +7 días, igual que CRM.jsx y el centro de
   // notificaciones de Dashboard.jsx (antes esta lista solo miraba 5 días
@@ -155,8 +124,11 @@ export default function Inicio({
   const productosBajoStock = useMemo(() => inventario.filter(esStockBajo), [inventario])
 
   // Top 5 de mayor/menor stock, con toggle (feedback del asesor: vista rápida
-  // de existencias sin tener que entrar al módulo de inventario)
-  const [vistaStock, setVistaStock] = useState("mayor") // "mayor" | "menor"
+  // de existencias sin tener que entrar al módulo de inventario). Default en
+  // "menor": el ing probó el panel con inventario real y pidió explícitamente
+  // que lo primero que se vea sean los productos con menos existencias, no
+  // los que sobran — es la vista que de verdad importa para reabastecer.
+  const [vistaStock, setVistaStock] = useState("menor") // "mayor" | "menor"
   const top5Mayor = useMemo(
     () => [...inventario].sort((a, b) => (Number(b.stock) || 0) - (Number(a.stock) || 0)).slice(0, 5),
     [inventario]
@@ -174,6 +146,24 @@ export default function Inicio({
     () => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)),
     [citas]
   )
+
+  // El ing probó este panel con la agenda vacía para el día y vio un hueco
+  // en blanco ("Últimas citas... para evitar que se vea así vacío"). Si no
+  // hay citas hoy, cae a las más recientes ya pasadas (más reciente primero)
+  // como recordatorio de contexto, en vez de un estado vacío.
+  const citasParaMostrar = useMemo(() => {
+    if (citasHoy.length > 0) return citasHoy
+    return [...citas]
+      .filter((c) => c.estado !== "Cancelada")
+      .sort((a, b) => {
+        const fa = parseFechaFlexible(a.fecha)?.getTime() ?? 0
+        const fb = parseFechaFlexible(b.fecha)?.getTime() ?? 0
+        if (fb !== fa) return fb - fa
+        return minutosDesdeMedianoche(b.hora) - minutosDesdeMedianoche(a.hora)
+      })
+      .slice(0, 5)
+  }, [citas, citasHoy])
+  const mostrandoHistorial = citasHoy.length === 0 && citasParaMostrar.length > 0
 
   // Señal de "qué cambió" en el KPI de pacientes (antes solo mostraba el
   // número del momento, sin ningún punto de comparación) — cuántos se
@@ -225,14 +215,6 @@ export default function Inicio({
     amber: { tile: "#FEF3C7", tileText: "#D97706", hoverBorder: "hover:border-amber-200", valor: INK },
   }
 
-  const pacientesFiltrados = pacientes.filter((p) => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) return true
-    const nombre = (p.nombre || "").toLowerCase()
-    const id = (p.identificacion || p.cedula || "").toString().toLowerCase()
-    return nombre.includes(q) || id.includes(q)
-  })
-
   const hoyFecha = new Date().toLocaleDateString("es-ES", {
     weekday: "long",
     year: "numeric",
@@ -281,13 +263,15 @@ export default function Inicio({
         </div>
       </div>
 
-      {/* ─── OPCIONES RÁPIDAS (arriba, para que "rápida" signifique algo) ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <AccionRapida icon={Calendar} titulo="Agendar cita" desc="Abre el formulario directo, sin pasos extra" onClick={() => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas"))} />
-        {/* La ficha clínica ya no es una sección aparte — se entra desde el
-            perfil del paciente (ícono del ojo en Pacientes), así que este
-            acceso rápido lleva ahí a buscar al paciente primero. */}
-        <AccionRapida icon={FileText} titulo="Atender paciente" desc="Busca al paciente y abre su ficha clínica" onClick={() => setVista?.("pacientes")} />
+      {/* ─── OPCIONES RÁPIDAS — un atajo por cada tarjeta de abajo (Pacientes,
+          Citas, Inventario), en el mismo orden, y las tres entran directo al
+          formulario de "nuevo", sin pasar primero por la lista completa (el
+          ing probó esto en vivo: "vamos a registrar un nuevo paciente...
+          ingresa aquí directamente"). ─── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <AccionRapida icon={Users} titulo="Gestionar pacientes" desc="Registra un paciente nuevo al instante" onClick={() => (onCrearPacienteRapido ? onCrearPacienteRapido() : setVista?.("pacientes"))} />
+        <AccionRapida icon={Calendar} titulo="Gestionar citas" desc="Agenda una cita sin pasos extra" onClick={() => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas"))} />
+        <AccionRapida icon={Package} titulo="Gestionar inventario" desc="Añade un producto nuevo a bodega" onClick={() => (onCrearProductoRapido ? onCrearProductoRapido() : setVista?.("inventario"))} />
       </div>
 
       {/* ─── KPIs (prioridad: pacientes, citas de hoy, inventario) ─── */}
@@ -399,8 +383,8 @@ export default function Inicio({
                 <Calendar size={18} />
               </div>
               <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Pacientes citados para hoy</h4>
-                <p className="text-[11px] text-slate-500">Orden cronológico</p>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Últimas citas</h4>
+                <p className="text-[11px] text-slate-500">{mostrandoHistorial ? "Sin citas hoy — últimas registradas" : "Orden cronológico"}</p>
               </div>
             </div>
             <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
@@ -409,15 +393,21 @@ export default function Inicio({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {citasHoy.length === 0 ? (
-              <EstadoVacio icon={Calendar} texto="No hay citas registradas para el día de hoy." />
+            {citasParaMostrar.length === 0 ? (
+              <EstadoVacio icon={Calendar} texto="Todavía no hay citas registradas." />
             ) : (
-              citasHoy.map((cita, idx) => (
+              citasParaMostrar.map((cita, idx) => (
                 <div key={cita.id || idx} className="group flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3.5">
                     <div className="flex w-20 flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-2 py-1.5 font-mono text-xs font-bold text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600">
                       <span>{cita.hora || "09:00 AM"}</span>
-                      {cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>}
+                      {mostrandoHistorial ? (
+                        <span className="font-sans text-[10px] font-medium text-slate-500">
+                          {(() => { const f = parseFechaFlexible(cita.fecha); return f ? f.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "" })()}
+                        </span>
+                      ) : (
+                        cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>
+                      )}
                     </div>
                     <div className={"flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 font-mono text-xs font-bold " + (cita.colorAvatar || "bg-blue-50 text-blue-600")}>
                       {cita.iniciales || (cita.paciente || cita.nombre || "P").substring(0, 2).toUpperCase()}
@@ -427,12 +417,16 @@ export default function Inicio({
                       <p className="text-[11px] text-slate-500">{cita.motivo || "Consulta general"}</p>
                     </div>
                   </div>
+                  {/* Mismo criterio de color usado en Citas.jsx/Pacientes.jsx esta
+                      sesión: Pendiente=ámbar (acá caía en gris por defecto,
+                      cuarta repetición del mismo patrón encontrada en el sistema). */}
                   <span className={"rounded-full px-3 py-1 text-[11px] font-bold " + (
                     cita.estado === "En Espera" ? "border border-amber-200 bg-amber-50 text-amber-700"
                       : cita.estado === "En Atención" ? "border border-blue-200 bg-blue-50 text-blue-700"
                       : cita.estado === "Atendida" ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
                       : cita.estado === "No Asistió" ? "border border-red-200 bg-red-50 text-red-700"
-                      : "border border-slate-200 bg-slate-50 text-slate-600")}>
+                      : cita.estado === "Cancelada" ? "border border-slate-200 bg-slate-50 text-slate-600"
+                      : "border border-amber-200 bg-amber-50 text-amber-700")}>
                     {cita.estado || "Pendiente"}
                   </span>
                 </div>
@@ -547,133 +541,6 @@ export default function Inicio({
         </section>
       )}
 
-      {/* ─── BÚSQUEDA RÁPIDA DE PACIENTES (franja completa) ─── */}
-      <div className="grid grid-cols-1 gap-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                <Search size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Búsqueda rápida de pacientes</h4>
-                <p className="text-[11px] text-slate-500">
-                  {pacientes.length} {pacientes.length === 1 ? "paciente registrado" : "pacientes registrados"} en total
-                </p>
-              </div>
-            </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-              <input
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre o cédula..."
-                className="w-full rounded-xl border border-slate-200 py-2 pl-8 pr-3 text-xs outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  <th className="px-3 py-2.5">Paciente</th>
-                  <th className="px-3 py-2.5">Identificación</th>
-                  <th className="px-3 py-2.5">Contacto</th>
-                  <th className="px-3 py-2.5">Última consulta</th>
-                  <th className="px-3 py-2.5">Cuenta</th>
-                  <th className="px-3 py-2.5 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {pacientesFiltrados.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-slate-500">
-                      {busqueda ? "No se encontraron coincidencias." : "No hay pacientes registrados."}
-                    </td>
-                  </tr>
-                ) : (
-                  pacientesFiltrados.slice(0, 5).map((paciente) => (
-                    <tr key={paciente.id} className="group transition-colors hover:bg-slate-50/80">
-                      <td className="px-3 py-3 font-bold text-slate-800 transition-colors group-hover:text-blue-600">{paciente.nombre}</td>
-                      <td className="px-3 py-3 font-mono text-[11px] text-slate-500">{paciente.identificacion || paciente.cedula || "N/A"}</td>
-                      <td className="px-3 py-3 text-slate-600">{paciente.contacto || paciente.telefono || paciente.celular || "Sin número"}</td>
-                      <td className="px-3 py-3 text-slate-500">{paciente.ultimaConsulta || "Primera vez"}</td>
-                      <td className="px-3 py-3">
-                        <span className={"rounded-full px-2 py-0.5 text-[11px] font-semibold " + (paciente.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
-                          {paciente.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex justify-center gap-1">
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "historial")} className={"rounded-lg p-1.5 transition-colors cursor-pointer " + ACCION_VER} title="Ver historial clínico" aria-label="Ver historial clínico">
-                            <Eye size={14} />
-                          </button>
-                          <button type="button" onClick={() => onAbrirPaciente?.(paciente, "agendar")} className={"rounded-lg p-1.5 transition-colors cursor-pointer " + ACCION_CONFIRMAR} title="Agendar cita" aria-label="Agendar cita">
-                            <CalendarPlus size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              if (menuAccionesId === paciente.id) { setMenuAccionesId(null); return }
-                              const rect = e.currentTarget.getBoundingClientRect()
-                              setMenuAccionesPos({ top: rect.bottom + 6, left: rect.right - 176 })
-                              setMenuAccionesId(paciente.id)
-                            }}
-                            className={"rounded-lg p-1.5 transition-colors cursor-pointer " + (menuAccionesId === paciente.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
-                            title="Más acciones"
-                            aria-label="Más acciones"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {pacientesFiltrados.length > 5 && (
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-              <p className="text-[11px] text-slate-500">Mostrando 5 de {pacientesFiltrados.length}</p>
-              <button type="button" onClick={() => setVista?.("pacientes")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-                Ver todos <ArrowRight size={14} />
-              </button>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* ─── MENÚ "MÁS ACCIONES" de la búsqueda rápida (portal, ver comentario
-          junto a menuAccionesId) — no basta position:absolute dentro de la
-          fila: la tabla está en un contenedor overflow-x-auto que corta
-          cualquier menú que se salga de sus límites. ─── */}
-      {menuAccionesId != null && menuAccionesPos && createPortal(
-        <div
-          ref={menuAccionesRef}
-          className="fixed z-50 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
-          style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
-        >
-          <button
-            type="button"
-            onClick={() => { const id = menuAccionesId; setMenuAccionesId(null); onAbrirPaciente?.(pacientes.find((p) => p.id === id), "editar") }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
-          >
-            <Pencil size={15} /> Editar datos
-          </button>
-          <button
-            type="button"
-            onClick={() => { const id = menuAccionesId; setMenuAccionesId(null); onAbrirPaciente?.(pacientes.find((p) => p.id === id), "eliminar") }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-          >
-            <Trash2 size={15} /> Eliminar
-          </button>
-        </div>,
-        document.body,
-      )}
     </div>
   )
 }

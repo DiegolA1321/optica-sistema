@@ -27,6 +27,7 @@ import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
 } from "../utilidades/disponibilidad"
+import { registrarLog } from "../utilidades/logs"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -172,6 +173,12 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     }
     setErrorGuardar("")
     mostrarGuardado()
+    // Este cambio afecta directamente qué horarios ve el público y el
+    // personal para agendar — antes no dejaba ningún rastro en "Actividad
+    // reciente" (Inicio.jsx), a pesar de que ese módulo ya existía
+    // justamente para responder "qué cambió" (Séptima Mirada). "horario" ya
+    // estaba registrado en NOMBRE_MODULO sin que nada lo llamara nunca.
+    registrarLog(usuario, "horario", "Actualizó el horario semanal de la óptica")
   }
 
   // Hallazgo B6: "Duración de cada cita" guardaba en Supabase en cada tecla
@@ -195,6 +202,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     }
     setErrorDuracion("")
     mostrarGuardado()
+    registrarLog(usuario, "horario", "Cambió la duración de cada cita", `${borradorDuracion} min`)
   }
 
   const dias = useMemo(() => {
@@ -226,6 +234,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [fecha]: cambios } }))
     setFechaEditando(null)
     mostrarGuardado()
+    registrarLog(usuario, "horario", diaAbierto(cambios) ? "Agregó un horario extra puntual" : "Cerró un día puntual", fecha)
   }
 
   const guardarExcepcion = (cambios) => {
@@ -242,13 +251,15 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
   }
 
   const quitarExcepcion = () => {
+    const fecha = fechaEditando
     setDisponibilidad((prev) => {
       const n = { ...prev.excepciones }
-      delete n[fechaEditando]
+      delete n[fecha]
       return { ...prev, excepciones: n }
     })
     setFechaEditando(null)
     mostrarGuardado()
+    registrarLog(usuario, "horario", "Quitó una excepción de horario", fecha)
   }
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -300,7 +311,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       )}
 
       {tab === "personal" ? (
-        <MiHorarioPersonal horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} />
+        <MiHorarioPersonal usuario={usuario} horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} />
       ) : !esAdmin ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
@@ -630,7 +641,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
 // Caso de la reunión con el ing: horario propio de cada usuario, separado
 // del horario general de la óptica, más la posibilidad de marcar un día que
 // no podrá asistir (hoy eso solo se avisa por WhatsApp, informal).
-function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal }) {
+function MiHorarioPersonal({ usuario, horarioPersonal, setHorarioPersonal }) {
   const cargando = horarioPersonal === null
   const semanaGuardada = horarioPersonal?.horarioSemanal || {}
   const ausencias = horarioPersonal?.ausencias || {}
@@ -686,6 +697,15 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal }) {
     setModalAusenciaAbierto(false)
     setFechaAusencia(hoyISO())
     setMotivoAusencia("")
+    // Antes esto quedaba en una tabla que SOLO el propio usuario puede leer
+    // (horarios_usuario, filtrada por usuario_id) — nadie más se enteraba de
+    // que alguien no iba a poder asistir, ni el admin. El texto de esta
+    // misma sección ya decía "en vez de avisar solo por WhatsApp", pero sin
+    // esto la única forma de que alguien se enterara seguía siendo WhatsApp.
+    // Esto no bloquea la agenda general todavía (el sistema no vincula
+    // citas a un profesional específico) — eso es una decisión de negocio
+    // aparte, no algo que deba asumir en silencio.
+    registrarLog(usuario, "horario", "Registró que no podrá asistir", `${fechaAusencia}${motivoAusencia.trim() ? " · " + motivoAusencia.trim() : ""}`)
   }
 
   const quitarAusencia = (iso) => {
@@ -694,6 +714,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal }) {
       delete n[iso]
       return { ...(prev || { horarioSemanal: SEMANA_PERSONAL_VACIA() }), ausencias: n }
     })
+    registrarLog(usuario, "horario", "Canceló una ausencia registrada", iso)
   }
 
   if (cargando) {

@@ -15,6 +15,7 @@ import {
   CalendarRange,
 } from "lucide-react"
 import { esInactivo } from "../utilidades/fidelizacion"
+import { fechaAISO } from "../utilidades/disponibilidad"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { INK } from "@/lib/tema"
 
@@ -82,9 +83,16 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")
   const [finPersonalizado, setFinPersonalizado] = useState("")
   const rango = useMemo(() => calcularRango(periodo, inicioPersonalizado, finPersonalizado), [periodo, inicioPersonalizado, finPersonalizado])
+  // `consultas.fecha` y `pacientes.fechaRegistro` son columnas DATE puras
+  // ("2026-09-09", sin hora ni zona) — comparar el string tal cual es
+  // correcto. Pero `ventas.creadoEn` es un timestamp real (timestamptz,
+  // siempre en UTC) — recortarlo tal cual desplazaba una venta hecha de
+  // noche en Ecuador (UTC-5) al día calendario SIGUIENTE en "Ingresos" y
+  // "Productos más vendidos". Si el valor trae hora ("T" en el string), se
+  // convierte primero a la fecha calendario LOCAL real antes de comparar.
   const enRango = (fecha) => {
     if (!fecha) return false
-    const f = fecha.slice(0, 10)
+    const f = fecha.includes("T") ? fechaAISO(new Date(fecha)) : fecha.slice(0, 10)
     return f >= rango.inicio && f <= rango.fin
   }
 

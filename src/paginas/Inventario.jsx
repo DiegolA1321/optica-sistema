@@ -48,6 +48,8 @@ export default function Inventario({
   pacientes = [],
   ventas = [],
   setVentas,
+  abrirModalAlEntrar = false,
+  onModalAlEntrarConsumido,
 }) {
   const opticaId = usuario?.opticaId
   // Catálogo de categorías editable desde Configuración (feedback de la
@@ -109,6 +111,19 @@ export default function Inventario({
 
   const abrirModal = () => { limpiarFormulario(); setModalAbierto(true) }
   const cerrarModal = () => { setModalAbierto(false); limpiarFormulario() }
+
+  // Acceso directo desde "Gestionar inventario" en Inicio: abre este modal
+  // sin pasar primero por la tabla completa — mismo patrón que "Agendar
+  // cita" ya usa en Citas.jsx (el ing probó los tres atajos del dashboard y
+  // esperaba entrar directo al formulario de "nuevo producto", no solo a la
+  // lista).
+  useEffect(() => {
+    if (abrirModalAlEntrar) {
+      abrirModal()
+      onModalAlEntrarConsumido?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirModalAlEntrar])
 
   const registrarProducto = async (e) => {
     e.preventDefault()

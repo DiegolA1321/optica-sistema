@@ -15,6 +15,9 @@ import {
   etiquetaFecha,
   slotsDisponibles,
   diaTieneCupo,
+  finCitaMinutos,
+  haySolapamiento,
+  conflictoHorarioPersonalizado,
 } from "./disponibilidad"
 
 const SESION = (activo, inicio, fin) => ({ activo, inicio, fin })
@@ -201,5 +204,65 @@ describe("slotsDisponibles / diaTieneCupo", () => {
       { hora: "10:00 AM", libre: true },
     ])
     vi.useRealTimers()
+  })
+
+  it("una cita con duración personalizada más larga que un slot bloquea también el siguiente", () => {
+    // Cita de 09:00 a 09:00+90min=10:30 con duracionMinutos propio — se cruza
+    // con el slot de 09:00 (obvio) y también con el de 10:00 (10:00-11:00
+    // solapa con 09:00-10:30), aunque ninguna cita tenga esa hora exacta.
+    const citas = [{ fecha: "2026-03-09", hora: "09:00 AM", duracionMinutos: 90, estado: "Pendiente" }]
+    const slots = slotsDisponibles("2026-03-09", disponibilidad, citas)
+    expect(slots).toEqual([
+      { hora: "09:00 AM", libre: false },
+      { hora: "10:00 AM", libre: false },
+    ])
+  })
+})
+
+describe("finCitaMinutos / haySolapamiento", () => {
+  it("usa la duración propia de la cita si la tiene, si no la duración por defecto", () => {
+    expect(finCitaMinutos({ hora: "09:00 AM", estado: "Pendiente" }, 40)).toBe(9 * 60 + 40)
+    expect(finCitaMinutos({ hora: "09:00 AM", duracionMinutos: 90, estado: "Pendiente" }, 40)).toBe(9 * 60 + 90)
+  })
+
+  it("una cita finalizada (Atendida/No Asistió/Cancelada) nunca se estira más allá de su fin estimado", () => {
+    const finAtendida = finCitaMinutos({ hora: "09:00 AM", estado: "Atendida" }, 40, 12 * 60)
+    expect(finAtendida).toBe(9 * 60 + 40)
+  })
+
+  it("una cita SIN finalizar que ya debería haber terminado se estira hasta 'ahora' (pedido explícito del ing)", () => {
+    // Cita de 09:00-09:40, sigue "Pendiente"/"En Atención" y ya son las 10:15 —
+    // hasta que no se marque su desenlace, sigue ocupando la agenda.
+    const finEstirado = finCitaMinutos({ hora: "09:00 AM", estado: "En Atención" }, 40, 10 * 60 + 15)
+    expect(finEstirado).toBe(10 * 60 + 15)
+  })
+
+  it("haySolapamiento detecta cruce de intervalos [inicio, fin)", () => {
+    expect(haySolapamiento(540, 580, 560, 600)).toBe(true) // se cruzan
+    expect(haySolapamiento(540, 580, 580, 620)).toBe(false) // contiguos, no se cruzan
+    expect(haySolapamiento(540, 580, 600, 640)).toBe(false) // sin relación
+  })
+})
+
+describe("conflictoHorarioPersonalizado", () => {
+  const disponibilidad = { duracionCita: 40 }
+
+  it("detecta el cruce con una cita existente aunque la hora no coincida exactamente", () => {
+    const citas = [{ id: "c1", fecha: "2026-03-09", hora: "09:00 AM", duracionMinutos: 60, estado: "Pendiente" }]
+    // Alguien llega a las 09:40 (dentro del rango 09:00-10:00 de la cita existente)
+    expect(conflictoHorarioPersonalizado("2026-03-09", "09:40 AM", 30, disponibilidad, citas)).toBe(true)
+    // A las 10:00 ya no se cruza (la anterior termina justo ahí)
+    expect(conflictoHorarioPersonalizado("2026-03-09", "10:00 AM", 30, disponibilidad, citas)).toBe(false)
+  })
+
+  it("ignora las citas canceladas y la propia cita al editar (citaIdExcluir)", () => {
+    const citas = [
+      { id: "c1", fecha: "2026-03-09", hora: "09:00 AM", estado: "Cancelada" },
+      { id: "c2", fecha: "2026-03-09", hora: "09:30 AM", estado: "Pendiente" },
+    ]
+    // 09:00-09:20 no se cruza con c2 (09:30-10:10) — y c1 (misma hora, cancelada) se ignora.
+    expect(conflictoHorarioPersonalizado("2026-03-09", "09:00 AM", 20, disponibilidad, citas)).toBe(false)
+    // Reagendar la propia c2 al mismo horario no debe marcarse como conflicto consigo misma.
+    expect(conflictoHorarioPersonalizado("2026-03-09", "09:30 AM", 40, disponibilidad, citas, "c2")).toBe(false)
   })
 })

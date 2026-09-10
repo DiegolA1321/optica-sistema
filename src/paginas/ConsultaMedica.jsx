@@ -35,8 +35,10 @@ import {
   Image as ImageIcon,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
+import { hoyISO } from "../utilidades/disponibilidad"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import { registrarLog } from "../utilidades/logs"
+import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { INK, GOLD } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -71,7 +73,7 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, ventas = [], setVentas, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, ventas = [], setVentas, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -119,8 +121,21 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }, [])
 
   // --- Datos de Anamnesis ---
-  const [fechaConsulta, setFechaConsulta] = useState(() => new Date().toISOString().split("T")[0])
+  // toISOString() convierte a UTC antes de recortar la fecha — en Ecuador
+  // (UTC-5), guardar una ficha después de las 19:00 hora local quedaba
+  // fechada al día calendario SIGUIENTE (afecta receta impresa, historial,
+  // próximo control y los reportes por mes). hoyISO() (ya usado en
+  // Citas.jsx/Horario.jsx/AgendarCitaPublica.jsx) usa los componentes
+  // locales del Date, sin ese salto de zona horaria.
+  const [fechaConsulta, setFechaConsulta] = useState(() => hoyISO())
   const [motivo, setMotivo] = useState("")
+  // El ing probó este flujo en vivo y separó dos cosas que antes eran un solo
+  // campo: "motivo" es la categoría con la que el paciente agendó la cita
+  // (se precarga sola cuando se entra desde "Atender" en Citas médicas — ver
+  // motivoInicial), "detalleConsulta" es lo que cuenta con sus propias
+  // palabras al llegar ("me duelen los ojos..."). Uno es relacional a la
+  // cita, el otro es libre y específico de esta visita.
+  const [detalleConsulta, setDetalleConsulta] = useState("")
   const [usaLentes, setUsaLentes] = useState("")
   const [antecedentes, setAntecedentes] = useState("")
   const [alergias, setAlergias] = useState("")
@@ -177,7 +192,20 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // impresa) se compone de categorías + detalle al guardar la ficha.
   const [diagnosticoCategorias, setDiagnosticoCategorias] = useState([])
   const [diagnostico, setDiagnostico] = useState("")
+  // "¿Recomendar lente?" — el ing insistió en que no todo tratamiento
+  // recomienda un lente ("no sé si todos los tratamientos recomiendan un
+  // lente") y que vender el lente es un paso APARTE del diagnóstico, no
+  // parte del mismo formulario ("no lo incluyo directamente aquí"). Este
+  // checkbox es lo que separa ambas cosas: si está apagado, ni el campo de
+  // texto ni la búsqueda de inventario se muestran.
+  const [recomendarLente, setRecomendarLente] = useState(false)
   const [lenteRecomendado, setLenteRecomendado] = useState("")
+  // La búsqueda de inventario se mantiene oculta hasta que el optómetra elige
+  // explícitamente vender ahora — antes aparecía siempre que hubiera texto en
+  // "lente a recomendar", mezclando diagnóstico y venta en una sola idea
+  // continua (queja puntual del ing: "que no sea confuso de que aquí mismo
+  // estén estas dos cosas").
+  const [mostrarBusquedaVenta, setMostrarBusquedaVenta] = useState(false)
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
 
@@ -242,6 +270,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setBusquedaProducto("")
     setEstadoVenta("completado")
     setMontoVenta("")
+    setMostrarBusquedaVenta(false)
   }
 
   const [notificacion, setNotificacion] = useState(false)
@@ -280,7 +309,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [avisoPrimeraVisita, setAvisoPrimeraVisita] = useState(false)
   const historialPaciente = useMemo(() => {
     if (!pacienteId) return []
-    return historialConsultas.filter((c) => c.pacienteId === pacienteId).sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+    return historialConsultas.filter((c) => c.pacienteId === pacienteId).sort(ordenarPorFechaYCreacion)
   }, [historialConsultas, pacienteId])
 
   const ultimaConsultaPaciente = useMemo(() => {
@@ -312,9 +341,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     () => evaluarCorreccion(odAgudezaCc, oiAgudezaCc),
     [odAgudezaCc, oiAgudezaCc],
   )
-  const estadoRecetaColor = CORRECCION[estadoCorreccionActual] || CORRECCION["Requiere ajuste"]
-  const IconoEstadoReceta = estadoRecetaColor.icon
-
   // --- Detalle del análisis (solo para mostrar; no altera la lógica) ---
   const analisisEvolucion = useMemo(() => {
     const ee = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
@@ -369,15 +395,26 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (!pacienteInicial) return
     seleccionarPacienteCombo(pacienteInicial)
     if (citaIdInicial) setCitaEnAtencionId(citaIdInicial)
+    // El motivo ya se eligió al agendar la cita (categoría fija) — el ing
+    // probó "Atender" y esperaba verlo ya puesto acá, no volver a escribirlo:
+    // "el motivo de la consulta debería estar registrado ahí porque está en
+    // la cita".
+    if (motivoInicial) setMotivo(motivoInicial)
     onPacienteInicialConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pacienteInicial])
 
   const resetForm = () => {
+    // No reseteaba la fecha — tras guardar y pasar a "Nueva consulta" para
+    // el siguiente paciente, la fecha se quedaba en lo que fuera que tuviera
+    // el campo (la de la consulta anterior, o una que el optómetra haya
+    // tocado a mano), en vez de volver a hoy por defecto.
+    setFechaConsulta(hoyISO())
     setPacienteId(null)
     setPacienteSeleccionado("")
     setBusquedaPaciente("")
     setMotivo("")
+    setDetalleConsulta("")
     setUsaLentes("")
     setAntecedentes("")
     setAlergias("")
@@ -412,7 +449,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setBiomicroCamara("")
     setDiagnosticoCategorias([])
     setDiagnostico("")
+    setRecomendarLente(false)
     setLenteRecomendado("")
+    setMostrarBusquedaVenta(false)
     setIndicaciones("")
     setProximoControlDias(180)
     setProductoId(null)
@@ -456,6 +495,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       pacienteId,
       paciente: pacienteSeleccionado,
       motivo,
+      detalleConsulta,
       usaLentes,
       antecedentes,
       alergias,
@@ -510,6 +550,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           paciente: nuevaFicha.paciente,
           fecha: nuevaFicha.fecha,
           motivo: nuevaFicha.motivo,
+          detalle_consulta: nuevaFicha.detalleConsulta,
           usa_lentes: nuevaFicha.usaLentes === "si",
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
@@ -540,7 +581,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         setErrorConfirmarFicha("No se pudo guardar la ficha clínica. Revisa tu conexión e intenta de nuevo — nada se imprimió ni se guardó todavía.")
         return
       }
-      if (data) nuevaFicha.id = data.id
+      if (data) {
+        nuevaFicha.id = data.id
+        // Desempate de historialPaciente cuando hay más de una consulta el
+        // mismo día — sin esto, la ficha recién guardada quedaría sin la
+        // marca que necesita para ordenarse como la más reciente hasta el
+        // siguiente reload.
+        nuevaFicha.creadoEn = data.created_at
+      }
       // Hallazgo I4: era el único módulo que crea/edita historia clínica sin
       // dejar rastro de auditoría — la auditoría de superadmin/admin ya
       // existía para el resto del sistema, esta era la excepción real.
@@ -689,6 +737,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }
 
   const pasoActual = PASOS.find((p) => p.id === subTab)
+
+  // "Registrado"/"No registrado" en las secciones opcionales de Refracción —
+  // el ing pidió justo esto: no todas las consultas requieren retinoscopía,
+  // examen físico o biomicroscopía, pero al colapsarlas hay que poder ver de
+  // un vistazo cuáles sí se llenaron sin tener que volver a abrirlas.
+  const registradoRetinoscopia = Boolean(retinoscopiaOd.trim() || retinoscopiaOi.trim())
+  const registradoExamenFisico = Boolean(testMotor.trim() || oftalmoscopia.trim() || pioOd.trim() || pioOi.trim())
+  const registradoBiomicroscopia = Boolean(biomicroParpados.trim() || biomicroCornea.trim() || biomicroCamara.trim())
 
   // Impresión robusta: clona la receta a una capa pegada al <body>
   const imprimirReceta = () => {
@@ -913,71 +969,67 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="relative" ref={dropdownRef}>
-                    <label htmlFor="paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Paciente <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <User size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        id="paciente"
-                        type="text"
-                        placeholder="Escriba para filtrar paciente..."
-                        value={busquedaPaciente}
-                        onFocus={() => setMostrarDropdown(true)}
-                        onChange={(e) => {
-                          setBusquedaPaciente(e.target.value)
-                          // Escribir sólo filtra el desplegable — no cuenta como selección hasta
-                          // hacer clic en un paciente real de la lista (ver seleccionarPacienteCombo).
-                          setPacienteId(null)
-                          setPacienteSeleccionado("")
-                          setMostrarDropdown(true)
-                        }}
-                        className={"w-full rounded-lg border bg-white py-2.5 pl-9 pr-8 text-sm text-slate-800 outline-none transition focus:border-blue-500 " + (errores.paciente ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                      />
-                      <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    </div>
-
-                    {mostrarDropdown && pacientesFiltrados.length > 0 && (
-                      <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                        {pacientesFiltrados.map((p) => (
-                          <li
-                            key={p.id || p.nombre}
-                            onClick={() => seleccionarPacienteCombo(p)}
-                            className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                          >
-                            <span className="font-semibold">{p.nombre}</span>
-                            {p.cedula && <span className="font-mono text-xs text-slate-500">ID: {p.cedula}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {mostrarDropdown && busquedaPaciente.trim() && pacientesFiltrados.length === 0 && (
-                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-500 shadow-lg">
-                        Ningún paciente registrado coincide. Créalo primero en el módulo Pacientes — aquí no se puede escribir un nombre nuevo.
-                      </div>
-                    )}
-
-                    {errores.paciente && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                        <AlertCircle size={13} /> {errores.paciente}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo de la consulta</label>
+                <div className="relative" ref={dropdownRef}>
+                  <label htmlFor="paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Paciente <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
-                      id="motivo"
+                      id="paciente"
                       type="text"
-                      placeholder="Ej. Visión borrosa de lejos, dolor ocular..."
-                      value={motivo}
-                      onChange={(e) => setMotivo(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      placeholder="Escriba para filtrar paciente..."
+                      value={busquedaPaciente}
+                      onFocus={() => setMostrarDropdown(true)}
+                      onChange={(e) => {
+                        setBusquedaPaciente(e.target.value)
+                        // Escribir sólo filtra el desplegable — no cuenta como selección hasta
+                        // hacer clic en un paciente real de la lista (ver seleccionarPacienteCombo).
+                        setPacienteId(null)
+                        setPacienteSeleccionado("")
+                        setMostrarDropdown(true)
+                      }}
+                      className={"w-full rounded-lg border bg-white py-2.5 pl-9 pr-8 text-sm text-slate-800 outline-none transition focus:border-blue-500 " + (errores.paciente ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
                     />
+                    <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   </div>
+
+                  {mostrarDropdown && pacientesFiltrados.length > 0 && (
+                    <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                      {pacientesFiltrados.map((p) => (
+                        <li
+                          key={p.id || p.nombre}
+                          onClick={() => seleccionarPacienteCombo(p)}
+                          className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <span className="font-semibold">{p.nombre}</span>
+                          {p.cedula && <span className="font-mono text-xs text-slate-500">ID: {p.cedula}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {mostrarDropdown && busquedaPaciente.trim() && pacientesFiltrados.length === 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-500 shadow-lg">
+                      Ningún paciente registrado coincide. Créalo primero en el módulo Pacientes — aquí no se puede escribir un nombre nuevo.
+                    </div>
+                  )}
+
+                  {errores.paciente && (
+                    <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                      <AlertCircle size={13} /> {errores.paciente}
+                    </p>
+                  )}
                 </div>
+
+                {/* ─── Última cita: la visita más reciente de historialPaciente (misma
+                    fuente y orden que el modal "Ver historial"), a la vista sin abrir
+                    el historial completo. Solo se muestra si ya hay al menos una consulta. ─── */}
+                {pacienteId && historialPaciente.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Última cita</span>
+                    <TarjetaVisita consulta={historialPaciente[0]} />
+                  </div>
+                )}
 
                 {/* ─── Antecedentes del paciente — colapsado cuando ya están
                     registrados de una visita anterior (pedido de Diego: no
@@ -1088,6 +1140,38 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </>
                   )}
                 </div>
+
+                {/* ─── Motivo (categoría fija, ya se precarga sola desde la
+                    cita al entrar por "Atender") + Detalle de la consulta
+                    (texto libre, lo que el paciente cuenta con sus propias
+                    palabras) — dos cosas relacionadas pero distintas: pattern
+                    confirmado con el ing en ING7. ─── */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo de la consulta</label>
+                    <input
+                      id="motivo"
+                      type="text"
+                      placeholder="Ej. Consulta general, examen de control..."
+                      value={motivo}
+                      onChange={(e) => setMotivo(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      Detalle de la consulta <span className="font-normal text-slate-400">(opcional)</span>
+                    </label>
+                    <input
+                      id="detalleConsulta"
+                      type="text"
+                      placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
+                      value={detalleConsulta}
+                      onChange={(e) => setDetalleConsulta(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1099,7 +1183,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("retinoscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
-                    <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">Opcional · punto de partida antes de refinar</span>
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Opcional · punto de partida antes de refinar
+                      <EtiquetaRegistro registrado={registradoRetinoscopia} />
+                    </span>
                     <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.retinoscopia ? "" : "-rotate-90")} />
                   </button>
                   {seccionesAbiertas.retinoscopia && (
@@ -1198,7 +1285,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("examenFisico")} className="flex w-full items-center gap-1.5 border-b border-slate-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Examen físico complementario
-                    <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">Opcional</span>
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Opcional
+                      <EtiquetaRegistro registrado={registradoExamenFisico} />
+                    </span>
                     <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.examenFisico ? "" : "-rotate-90")} />
                   </button>
                   {seccionesAbiertas.examenFisico && (
@@ -1294,7 +1384,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("biomicroscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <Eye size={16} className="text-blue-600" /> Biomicroscopía (segmento anterior)
-                    <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">Opcional · lámpara de hendidura</span>
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Opcional · lámpara de hendidura
+                      <EtiquetaRegistro registrado={registradoBiomicroscopia} />
+                    </span>
                     <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.biomicroscopia ? "" : "-rotate-90")} />
                   </button>
                   {seccionesAbiertas.biomicroscopia && (
@@ -1402,24 +1495,15 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     <RecetaDato label="¿Usa lentes?" valor={usaLentes === "si" ? "Sí" : usaLentes === "no" ? "No" : "—"} />
                   </div>
 
-                  {/* Estado de corrección — sin cifras exactas, solo el resultado clínico */}
-                  <div className="px-8 pt-6">
-                    <div className="print-force-color flex flex-col gap-3 rounded-xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: estadoRecetaColor.border, backgroundColor: estadoRecetaColor.bg }}>
-                      <div className="flex items-center gap-3">
-                        <span className="print-force-color grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                          <IconoEstadoReceta size={19} />
-                        </span>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: estadoRecetaColor.fg }}>Estado de corrección visual</p>
-                          <p className="text-base font-bold" style={{ color: INK }}>{estadoCorreccionActual}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-4 text-xs text-slate-600 sm:text-right">
-                        <p>Agudeza OD <span className="font-mono font-bold" style={{ color: INK }}>{odAgudezaCc}</span></p>
-                        <p>Agudeza OI <span className="font-mono font-bold" style={{ color: INK }}>{oiAgudezaCc}</span></p>
-                      </div>
-                    </div>
-                  </div>
+                  {/* El ing probó esta receta impresa y pidió quitar el
+                      cartel de "Estado de corrección visual" de aquí — "esto
+                      es subjetivo" y su sistema no está pensado para dar un
+                      diagnóstico previo antes del propio diagnóstico del
+                      optómetra (ver ING7). El cálculo sigue vivo como
+                      contexto interno para el optómetra (PanelEvolucion,
+                      arriba, marcado "no se imprime") y sigue alimentando el
+                      indicador de Reportes — solo se retira de este documento
+                      impreso. */}
 
                   {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
                   <div className="space-y-3.5 px-8 pt-5">
@@ -1434,7 +1518,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       ) : (
                         <>
                           <div className="flex flex-wrap gap-1.5">
-                            {diagnosticosRapidos.map((cat) => {
+                            {/* "Otro" siempre disponible como salida de emergencia,
+                                sin depender de qué catálogo haya configurado el
+                                admin — pedido del ing: "puede ser tal vez pongo
+                                'Otro' y aquí detallo". */}
+                            {[...diagnosticosRapidos, ...(diagnosticosRapidos.includes("Otro") ? [] : ["Otro"])].map((cat) => {
                               const activo = diagnosticoCategorias.includes(cat)
                               return (
                                 <button
@@ -1473,7 +1561,26 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       )}
                     </div>
 
-                    {(lenteRecomendado || !fichaGuardada) && (
+                    {/* No todo diagnóstico recomienda un lente — el ing fue
+                        explícito con esto ("no sé si todos los tratamientos
+                        recomiendan un lente"). Sin el checkbox, ni el campo
+                        de texto ni la búsqueda de inventario aparecen. */}
+                    {!fichaGuardada && (
+                      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-sm font-semibold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={recomendarLente}
+                          onChange={(e) => {
+                            setRecomendarLente(e.target.checked)
+                            if (!e.target.checked) { setLenteRecomendado(""); quitarProducto() }
+                          }}
+                          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Glasses size={16} style={{ color: GOLD }} /> Añadir recomendación de lente
+                      </label>
+                    )}
+
+                    {recomendarLente && (lenteRecomendado || !fichaGuardada) && (
                       <div className="print-force-color flex items-start gap-3 rounded-xl border p-4" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
                         <Glasses size={18} style={{ color: GOLD }} className="mt-0.5 shrink-0" />
                         <div className="flex-1">
@@ -1492,10 +1599,30 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </div>
                     )}
 
-                    {!fichaGuardada && (
+                    {/* Vender el lente es un paso APARTE del diagnóstico, no
+                        parte del mismo formulario — queja puntual del ing:
+                        "que no sea confuso de que aquí mismo estén estas dos
+                        cosas". Por eso queda detrás de una elección explícita
+                        en vez de aparecer ya abierto en cuanto hay texto en
+                        "lente a recomendar". */}
+                    {!fichaGuardada && recomendarLente && !productoSeleccionado && !mostrarBusquedaVenta && (
+                      <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
+                        <span className="text-xs font-medium text-slate-600">¿Vas a vender este lente ahora?</span>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setMostrarBusquedaVenta(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 cursor-pointer">
+                            No, más tarde
+                          </button>
+                          <button type="button" onClick={() => setMostrarBusquedaVenta(true)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer">
+                            Sí, buscar producto
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!fichaGuardada && recomendarLente && (mostrarBusquedaVenta || productoSeleccionado) && (
                       <div className="no-print relative rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3" ref={dropdownProductoRef}>
                         <label htmlFor="productoBodega" className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                          <Glasses size={12} /> Vincular producto de bodega <span className="font-normal normal-case text-slate-500">(opcional — descuenta 1 unidad de stock al guardar)</span>
+                          <Glasses size={12} /> Vender este lente ahora <span className="font-normal normal-case text-slate-500">(descuenta 1 unidad de stock al guardar)</span>
                         </label>
                         {productoSeleccionado ? (
                           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
@@ -1749,20 +1876,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
                 </div>
               ) : (
-                historialPaciente.map((c) => (
-                  <div key={c.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-bold" style={{ color: INK }}>{c.fecha}</span>
-                      <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">{c.motivo || "Consulta general"}</span>
-                    </div>
-                    <p className="mt-1.5 text-sm text-slate-700">{c.diagnostico || "Sin diagnóstico registrado"}</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-500">
-                      <span>OD: {c.od?.esfera ?? "—"} {c.od?.cilindro ?? ""} x{c.od?.eje ?? "—"} · AV {c.od?.avCc ?? "—"}</span>
-                      <span>OI: {c.oi?.esfera ?? "—"} {c.oi?.cilindro ?? ""} x{c.oi?.eje ?? "—"} · AV {c.oi?.avCc ?? "—"}</span>
-                    </div>
-                    {c.lenteRecomendado && <p className="mt-1.5 text-[11px] text-slate-500">Lente recomendado: <span className="font-semibold text-slate-600">{c.lenteRecomendado}</span></p>}
-                  </div>
-                ))
+                historialPaciente.map((c) => <TarjetaVisita key={c.id} consulta={c} />)
               )}
             </div>
           </div>
@@ -1979,6 +2093,36 @@ function MedidaCampo({ id, label, value, onChange }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500"
       />
+    </div>
+  )
+}
+
+// Registrado/no registrado a simple vista en una sección colapsable opcional
+function EtiquetaRegistro({ registrado }) {
+  return (
+    <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold normal-case " + (registrado ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+      {registrado ? "Registrado" : "No registrado"}
+    </span>
+  )
+}
+
+// Tarjeta de una visita del historial — reutilizada tanto por el modal de
+// historial completo como por el bloque "Última cita", para que ambos
+// muestren exactamente los mismos datos de la misma fuente (historialPaciente).
+function TarjetaVisita({ consulta: c }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-bold" style={{ color: INK }}>{c.fecha}</span>
+        <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">{c.motivo || "Consulta general"}</span>
+      </div>
+      {c.detalleConsulta && <p className="mt-1 text-xs italic text-slate-500">"{c.detalleConsulta}"</p>}
+      <p className="mt-1.5 text-sm text-slate-700">{c.diagnostico || "Sin diagnóstico registrado"}</p>
+      <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-500">
+        <span>OD: {c.od?.esfera ?? "—"} {c.od?.cilindro ?? ""} x{c.od?.eje ?? "—"} · AV {c.od?.avCc ?? "—"}</span>
+        <span>OI: {c.oi?.esfera ?? "—"} {c.oi?.cilindro ?? ""} x{c.oi?.eje ?? "—"} · AV {c.oi?.avCc ?? "—"}</span>
+      </div>
+      {c.lenteRecomendado && <p className="mt-1.5 text-[11px] text-slate-500">Lente recomendado: <span className="font-semibold text-slate-600">{c.lenteRecomendado}</span></p>}
     </div>
   )
 }

@@ -232,6 +232,35 @@ export function etiquetaFecha(f) {
   return fecha.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
 }
 
+// El ing probó en vivo el caso de un paciente que llega en un horario
+// distinto al de la grilla ("¿qué pasa si te atiendo a las 3:40?") y señaló
+// dos reglas concretas que antes no existían en ningún lado del sistema:
+//   1. El "fin" real de una cita es su hora + duración estimada, no solo su
+//      slot nominal — dos citas se cruzan si sus rangos [inicio, fin) se
+//      solapan, sin importar si empiezan en horas distintas de la grilla.
+//   2. Una cita que todavía NO se finalizó (no está Atendida/No Asistió/
+//      Cancelada) sigue "ocupando" su horario más allá de su fin estimado
+//      mientras no se marque su desenlace — textual suyo: "hasta que no
+//      finalice, los horarios siguientes no van a estar disponibles...
+//      si le doy finalizar, ahí sí aparece disponible".
+const ESTADOS_TERMINALES_CITA = ["Atendida", "No Asistió", "Cancelada"]
+
+// Minuto en que una cita deja de "ocupar" agenda. `ahoraMin` (minutos desde
+// medianoche de HOY) solo aplica si la cita es de hoy — una cita futura o
+// pasada nunca se estira por el reloj actual.
+export function finCitaMinutos(cita, duracionDefault = 40, ahoraMin = null) {
+  const inicio = minutosDesdeMedianoche(cita.hora)
+  const duracion = Number(cita.duracionMinutos ?? cita.duracion_minutos) || duracionDefault
+  let fin = inicio + duracion
+  const terminal = ESTADOS_TERMINALES_CITA.includes(cita.estado)
+  if (!terminal && ahoraMin != null && ahoraMin > fin) fin = ahoraMin
+  return fin
+}
+
+export function haySolapamiento(inicioA, finA, inicioB, finB) {
+  return inicioA < finB && inicioB < finA
+}
+
 // Slots de una fecha, marcando cuáles ya están ocupados por citas existentes.
 // Si la fecha es hoy, también descarta los horarios que ya pasaron — antes se
 // podía agendar (desde cualquiera de los 4 flujos que comparten esta función)
@@ -239,18 +268,45 @@ export function etiquetaFecha(f) {
 export function slotsDisponibles(fechaISO, disponibilidad, citas = []) {
   const horario = horarioEfectivo(fechaISO, disponibilidad)
   if (!diaAbierto(horario)) return []
-  const todos = generarSlots({ manana: horario.manana, tarde: horario.tarde, duracion: disponibilidad?.duracionCita || 40 })
+  const duracionDefault = disponibilidad?.duracionCita || 40
+  const todos = generarSlots({ manana: horario.manana, tarde: horario.tarde, duracion: duracionDefault })
+  const esHoyFecha = fechaISO === hoyISO()
+  const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
   // "Cancelada" no debe bloquear el horario — el hallazgo E7 encontró que
   // una cita cancelada por el paciente (que se marca así, no se borra —
   // ver cancelar_cita_publica) dejaba el horario inutilizable para
-  // siempre en este cálculo, aunque en la base ya estuviera libre.
-  const ocupados = new Set(citas.filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada").map((c) => c.hora))
+  // siempre en este cálculo, aunque en la base ya estuviera libre. El
+  // solapamiento por duración (en vez de comparar el string de hora tal
+  // cual) es lo que permite que una cita con horario personalizado más
+  // larga que un slot bloquee también el/los siguientes.
+  const ocupados = citas
+    .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada")
+    .map((c) => ({ inicio: minutosDesdeMedianoche(c.hora), fin: finCitaMinutos(c, duracionDefault, ahoraMin) }))
+  return todos.map((h) => {
+    const inicioSlot = minutosDesdeMedianoche(h)
+    const finSlot = inicioSlot + duracionDefault
+    const ocupado = ocupados.some((o) => haySolapamiento(inicioSlot, finSlot, o.inicio, o.fin))
+    return {
+      hora: h,
+      libre: !ocupado && (!esHoyFecha || inicioSlot > ahoraMin),
+    }
+  })
+}
+
+// Valida un horario personalizado (no alineado a la grilla de slots fijos) —
+// usado cuando el personal atiende a alguien que llegó fuera de los horarios
+// generados por defecto. `citaIdExcluir` deja pasar el propio registro al
+// reagendar/editar una cita existente.
+export function conflictoHorarioPersonalizado(fechaISO, horaAMPM, duracionMinutos, disponibilidad, citas = [], citaIdExcluir = null) {
+  const duracionDefault = disponibilidad?.duracionCita || 40
+  const duracion = Number(duracionMinutos) || duracionDefault
+  const inicio = minutosDesdeMedianoche(horaAMPM)
+  const fin = inicio + duracion
   const esHoyFecha = fechaISO === hoyISO()
   const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
-  return todos.map((h) => ({
-    hora: h,
-    libre: !ocupados.has(h) && (!esHoyFecha || minutosDesdeMedianoche(h) > ahoraMin),
-  }))
+  return citas
+    .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada" && c.id !== citaIdExcluir)
+    .some((c) => haySolapamiento(inicio, fin, minutosDesdeMedianoche(c.hora), finCitaMinutos(c, duracionDefault, ahoraMin)))
 }
 
 // ¿Hay al menos un cupo libre ese día? (para pintar el calendario de agendamiento)

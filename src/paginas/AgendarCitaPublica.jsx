@@ -15,11 +15,13 @@ import {
   Copy,
   ShieldCheck,
   CalendarDays,
+  CreditCard,
+  Cake,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal } from "../utilidades/disponibilidad"
-import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido } from "../utilidades/validaciones"
+import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
 import { supabase } from "../lib/supabaseClient"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
 
@@ -51,6 +53,8 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const [formData, setFormData] = useState({
     nombres: "",
     apellidos: "",
+    cedula: "",
+    fechaNacimiento: "",
     telefono: "",
     correo: "",
     motivo: "Medición y examen visual",
@@ -129,6 +133,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       : null
     const nuevaCita = {
       paciente: nombreCompleto,
+      cedula: formData.cedula,
       telefono: formData.telefono,
       fecha: formData.fecha || "",
       hora: formData.hora,
@@ -140,6 +145,14 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     }
 
     setErrorReserva("")
+    if (!esCedulaValida(formData.cedula)) {
+      setErrorReserva("La cédula ingresada no es válida — revisa los dígitos.")
+      return
+    }
+    if (!formData.fechaNacimiento) {
+      setErrorReserva("Ingresa tu fecha de nacimiento.")
+      return
+    }
     if (formData.correo && !esEmailValido(formData.correo, false)) {
       setErrorReserva("Ese correo no es válido — corrígelo o déjalo vacío.")
       return
@@ -147,15 +160,20 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     setEnviando(true)
     let codigoReal = ""
     if (supabase && opticaId) {
-      // crear_cita_publica ahora genera y guarda el código en el servidor
-      // (antes se inventaba en el navegador y nunca se enviaba a ningún
-      // lado — no servía para nada). Al ser una función que devuelve una
-      // tabla, el cliente la recibe como un arreglo de una fila.
+      // crear_cita_publica ahora también resuelve o crea el registro del
+      // paciente (dedupe por cédula) — antes la cita quedaba sin paciente
+      // vinculado hasta que el personal la completaba a mano (el ing probó
+      // esto en vivo y señaló que "todo paciente que tiene su cita, es un
+      // paciente que ya existe en el registro"). Genera y guarda el código
+      // en el servidor. Al ser una función que devuelve una tabla, el
+      // cliente la recibe como un arreglo de una fila.
       const { data, error } = await supabase.rpc("crear_cita_publica", {
         p_optica_id: opticaId,
         p_paciente: nuevaCita.paciente,
         p_fecha: nuevaCita.fecha,
         p_hora: nuevaCita.hora,
+        p_cedula: nuevaCita.cedula,
+        p_fecha_nacimiento: formData.fechaNacimiento,
         p_telefono: nuevaCita.telefono || null,
         p_motivo: motivoInterno,
         p_motivo_publico: formData.motivo,
@@ -168,6 +186,8 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
           setErrorReserva("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
           supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
           setFormData((prev) => ({ ...prev, hora: "" }))
+        } else if (error?.message?.includes("cédula")) {
+          setErrorReserva("La cédula ingresada no es válida — revisa los dígitos.")
         } else {
           setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
         }
@@ -342,12 +362,27 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <Campo label="Cédula" icon={CreditCard} type="tel" placeholder="Ej. 1234567890" maxLength={10}
+                        value={formData.cedula} onChange={(v) => setFormData({ ...formData, cedula: filtrarSoloNumeros(v, 10) })} />
+                      {formData.cedula.length === 10 && !esCedulaValida(formData.cedula) && (
+                        <p className="mt-1 text-[11px] font-medium text-red-600">Esa cédula no parece válida — revisa los dígitos.</p>
+                      )}
+                    </div>
+                    <Campo label="Fecha de nacimiento" icon={Cake} type="date"
+                      value={formData.fechaNacimiento} onChange={(v) => setFormData({ ...formData, fechaNacimiento: v })} />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Pedimos tu cédula y nacimiento para no duplicar tu historial si ya nos visitaste antes — nunca para crearte una cuenta.
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Campo label="Teléfono / WhatsApp" icon={Phone} type="tel" placeholder="Ej. 0991234567" maxLength={10}
                       value={formData.telefono} onChange={(v) => setFormData({ ...formData, telefono: filtrarSoloNumeros(v, 10) })} />
                     <Campo label="Correo (opcional)" icon={Mail} type="email" placeholder="tucorreo@ejemplo.com"
                       value={formData.correo} onChange={(v) => setFormData({ ...formData, correo: v })} />
                   </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">Si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
+                  <p className="mt-1.5 text-[11px] text-slate-400">Teléfono y correo son opcionales — si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
                 </div>
 
                 <div>
@@ -445,7 +480,10 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                 </div>
 
                 <div className="flex justify-end pt-1">
-                  <BotonPrimario onClick={siguientePaso} disabled={!formData.nombres || !formData.apellidos}>
+                  <BotonPrimario
+                    onClick={siguientePaso}
+                    disabled={!formData.nombres || !formData.apellidos || !esCedulaValida(formData.cedula) || !formData.fechaNacimiento}
+                  >
                     Continuar <ChevronRight size={16} />
                   </BotonPrimario>
                 </div>

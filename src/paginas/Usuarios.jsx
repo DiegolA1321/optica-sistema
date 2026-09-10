@@ -205,7 +205,16 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: correo.trim(), password: clave })
     if (errorAlta || !alta?.user) {
       setGuardando(false)
-      setError(errorAlta?.message || "No se pudo crear la cuenta.")
+      // Caso real y ya confirmado probando el flujo: eliminar un usuario
+      // desde este mismo módulo borra su perfil pero no su cuenta de
+      // Supabase Auth (necesitaría una clave de servicio que el cliente no
+      // debe tener) — ese correo queda inservible para siempre desde acá.
+      // El mensaje genérico de Supabase no explica esto, así que se
+      // reconoce el caso específico en vez de dejar un error críptico.
+      const yaRegistrado = /already registered|already exists|already in use/i.test(errorAlta?.message || "")
+      setError(yaRegistrado
+        ? "Ese correo ya tiene una cuenta en el sistema (puede ser de un usuario eliminado antes) — usa un correo distinto o contacta soporte."
+        : errorAlta?.message || "No se pudo crear la cuenta.")
       return
     }
     // Ciberseguridad: el insert de perfiles va con la sesión del admin
@@ -567,6 +576,18 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             </div>
             <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar este perfil?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Ya no podrá iniciar sesión con estas credenciales. Esta acción no se puede deshacer.</p>
+            {/* Esto solo borra la fila de "perfiles" — la cuenta de Supabase
+                Auth (el correo/contraseña reales) no se puede eliminar desde
+                el cliente sin exponer una clave de servicio, así que sigue
+                existiendo. Consecuencia real, ya confirmada probando este
+                flujo: ese correo queda inutilizable para un usuario nuevo
+                hasta que se borre server-side. Mejor avisarlo ahora que
+                dejar que alguien lo descubra como un error confuso más
+                tarde al intentar reusar el correo. */}
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-left text-xs leading-relaxed text-amber-800">
+              <Info size={14} className="mt-0.5 shrink-0" />
+              El correo <span className="font-mono font-semibold">{asistentes.find((a) => a.id === porEliminar)?.correo}</span> no podrá volver a usarse para crear otro usuario después de esto — contacta soporte si necesitas reutilizarlo.
+            </p>
             {error && (
               <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {error}

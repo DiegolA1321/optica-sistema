@@ -15,6 +15,22 @@ function consultasDe(paciente, consultas = []) {
   return consultas.filter((c) => (paciente.id != null && c.pacienteId === paciente.id) || c.paciente === paciente.nombre)
 }
 
+// Comparador para listar consultas de más reciente a más antigua. `fecha` es
+// un dato editable (día calendario), no una marca de tiempo — dos consultas
+// del mismo paciente pueden compartir la misma fecha, así que se desempata
+// por `creadoEn` (created_at), el momento real en que se registró cada una.
+// Compartido por ConsultaMedica.jsx (bloque "Última cita" + historial
+// completo), Pacientes.jsx (pestaña Valoraciones) y PortalPaciente.jsx
+// (última receta del paciente) para no repetir el mismo criterio cuatro
+// veces — encontrado divergiendo entre esos lugares antes de unificarlo.
+export function ordenarPorFechaYCreacion(a, b) {
+  if (a.fecha !== b.fecha) return a.fecha < b.fecha ? 1 : -1
+  const creadoA = a.creadoEn || ""
+  const creadoB = b.creadoEn || ""
+  if (creadoA === creadoB) return 0
+  return creadoA < creadoB ? 1 : -1
+}
+
 // Última visita real de un paciente: la consulta más reciente registrada,
 // o su fecha de registro en el sistema si nunca ha tenido consulta.
 export function ultimaVisita(paciente, consultas = []) {
@@ -45,7 +61,11 @@ export function fechaProximoControl(paciente, consultas = []) {
     .filter((x) => x.fecha)
 
   if (conFecha.length > 0) {
-    const masReciente = conFecha.reduce((a, b) => (b.fecha > a.fecha ? b : a))
+    // Mismo criterio que ordenarPorFechaYCreacion (fecha, desempatada por
+    // creadoEn) — antes, un empate de fecha entre dos consultas del mismo
+    // paciente se resolvía por orden de aparición en el array, no por cuál
+    // se registró realmente último.
+    const [masReciente] = conFecha.slice().sort((x, y) => ordenarPorFechaYCreacion(x.c, y.c))
     const dias = masReciente.c.proximoControlDias || UMBRAL_INACTIVO_DIAS
     const objetivo = new Date(masReciente.fecha)
     objetivo.setDate(objetivo.getDate() + dias)

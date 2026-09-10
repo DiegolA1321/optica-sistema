@@ -30,12 +30,14 @@ import {
   Cake,
   MoreVertical,
   Loader2,
+  Globe,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
+import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -103,6 +105,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [fecha, setFecha] = useState("")
   const [hora, setHora] = useState("")
   const [motivo, setMotivo] = useState("")
+  // Horario personalizado — el ing probó en vivo el caso de un paciente que
+  // llega fuera de la grilla de horarios fijos ("¿qué pasa si te atiendo a
+  // las 3:40?") y pidió una manera de registrar la hora real + cuánto va a
+  // durar, en vez de forzar todo a los slots de 30/40 minutos por defecto.
+  const [horaPersonalizada, setHoraPersonalizada] = useState(false)
+  const [horaCustom, setHoraCustom] = useState("") // "HH:MM" 24h, del <input type="time">
+  const [duracionCustom, setDuracionCustom] = useState(disponibilidad?.duracionCita || 40)
+  const [errorHorarioCustom, setErrorHorarioCustom] = useState("")
   const [mensajeExito, setMensajeExito] = useState(null)
   const [error, setError] = useState("")
   const [bannerError, setBannerError] = useState("")
@@ -157,40 +167,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // Inserta un paciente nuevo con el mismo shape que usa Pacientes.jsx —
   // reutilizado tanto por "+ Añadir nuevo paciente" (Gestionar) como por
   // "Completar registro" (Atender sobre una cita sin paciente vinculado).
+  // La alta en sí (insert + shape) vive en utilidades/pacientes.js, compartida
+  // con Pacientes.jsx, para no tener dos copias que puedan desincronizarse.
   const crearPacienteInline = async ({ nombre, cedula, telefono, correo, fechaNacimiento }) => {
-    const nuevoPaciente = {
-      nombre,
-      cedula,
-      telefono: telefono || "Sin Teléfono",
-      correo: correo || "Sin Correo",
-      fecha_nacimiento: fechaNacimiento || null,
-      referidoPor: "",
-      evolucion: "Sin evaluación",
-      ultimaConsulta: "Pendiente",
-      fechaRegistro: new Date().toISOString().split("T")[0],
-      estadoClinico: "Activo",
-    }
-    if (supabase && opticaId) {
-      const { data, error } = await supabase
-        .from("pacientes")
-        .insert({
-          optica_id: opticaId,
-          nombre: nuevoPaciente.nombre,
-          cedula: nuevoPaciente.cedula,
-          telefono: nuevoPaciente.telefono,
-          correo: nuevoPaciente.correo,
-          fecha_nacimiento: nuevoPaciente.fecha_nacimiento,
-          evolucion: nuevoPaciente.evolucion,
-          ultima_consulta: nuevoPaciente.ultimaConsulta,
-          fecha_registro: nuevoPaciente.fechaRegistro,
-          estado_clinico: nuevoPaciente.estadoClinico,
-        })
-        .select()
-        .single()
-      if (error) return { error }
-      if (data) nuevoPaciente.id = data.id
-    }
-    if (nuevoPaciente.id == null) nuevoPaciente.id = Date.now()
+    const { paciente: nuevoPaciente, error } = await crearRegistroPaciente(supabase, opticaId, { nombre, cedula, telefono, correo, fechaNacimiento })
+    if (error) return { error }
     setPacientes?.([nuevoPaciente, ...pacientes])
     return { paciente: nuevoPaciente }
   }
@@ -277,10 +258,18 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       setError("Selecciona el motivo del examen.")
       return
     }
-    if (!fecha || !hora) {
-      setError("Selecciona fecha y hora en el calendario.")
+    if (!fecha || (horaPersonalizada ? !horaCustom : !hora)) {
+      setError(horaPersonalizada ? "Selecciona fecha y escribe la hora personalizada." : "Selecciona fecha y hora en el calendario.")
       return
     }
+    if (horaPersonalizada) {
+      const horaAMPM = horaA12(horaCustom)
+      if (conflictoHorarioPersonalizado(fecha, horaAMPM, duracionCustom, disponibilidad, citas)) {
+        setErrorHorarioCustom("Ese horario se cruza con otra cita que sigue en agenda — elige otra hora o duración.")
+        return
+      }
+    }
+    setErrorHorarioCustom("")
     setError("")
     setConfirmando(true)
   }
@@ -293,13 +282,15 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         ? (partesNombre[0][0] + partesNombre[1][0]).toUpperCase()
         : partesNombre[0][0].toUpperCase()
 
+    const horaFinal = horaPersonalizada ? horaA12(horaCustom) : hora
     const nuevaCita = {
       pacienteId: paciente.id,
       paciente: paciente.nombre,
       cedula: paciente.cedula,
       telefono: paciente.telefono,
       fecha,
-      hora,
+      hora: horaFinal,
+      duracionMinutos: horaPersonalizada ? (Number(duracionCustom) || disponibilidad?.duracionCita || 40) : null,
       motivo,
       iniciales: iniciales || "P",
       estado: "Pendiente",
@@ -317,7 +308,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           optica_id: opticaId,
           paciente_id: typeof paciente.id === "string" ? paciente.id : null,
           paciente: nuevaCita.paciente, cedula: nuevaCita.cedula, telefono: nuevaCita.telefono,
-          fecha: nuevaCita.fecha, hora: nuevaCita.hora, motivo: nuevaCita.motivo, estado: nuevaCita.estado,
+          fecha: nuevaCita.fecha, hora: nuevaCita.hora, duracion_minutos: nuevaCita.duracionMinutos, motivo: nuevaCita.motivo, estado: nuevaCita.estado,
         })
         .select()
         .single()
@@ -355,6 +346,10 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setHora("")
     setMotivo("")
     setError("")
+    setHoraPersonalizada(false)
+    setHoraCustom("")
+    setDuracionCustom(disponibilidad?.duracionCita || 40)
+    setErrorHorarioCustom("")
     setMostrarNuevoPaciente(false)
     setNpNombre("")
     setNpCedula("")
@@ -833,9 +828,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                 {cita.iniciales || <User size={16} />}
                               </div>
                               <div className="min-w-0">
-                                <span className="block truncate text-base font-semibold text-slate-800">{cita.paciente}</span>
+                                <span className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-slate-800">
+                                  <span className="min-w-0 truncate">{cita.paciente}</span>
+                                  {cita.origen === "paciente" && (
+                                    <Globe size={13} className="shrink-0 text-cyan-600" title="Agendada por el paciente, en línea" aria-label="Agendada por el paciente, en línea" />
+                                  )}
+                                </span>
                                 {cita.motivoPublico && (
-                                  <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Agendada en línea: {cita.motivoPublico}</span>
+                                  <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Motivo indicado en línea: {cita.motivoPublico}</span>
                                 )}
                                 {cita.codigo && (
                                   <span className="mt-0.5 block font-mono text-[10.5px] text-slate-400" title="Código que el paciente recibió al reservar en línea">{cita.codigo}</span>
@@ -859,7 +859,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <span>{cita.hora}</span>
                             </div>
                             {cita.estado === "Atendida" ? (
-                              <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                              <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
                                 <CheckCircle2 size={12} /> Atendida
                               </span>
                             ) : cita.estado === "No Asistió" ? (
@@ -875,8 +875,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                 <Activity size={12} /> En atención
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Pendiente
+                              <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pendiente
                               </span>
                             )}
                           </div>
@@ -1139,10 +1139,53 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   disponibilidad={disponibilidad}
                   citas={citas}
                   fecha={fecha}
-                  hora={hora}
+                  hora={horaPersonalizada ? "" : hora}
                   onCambiarFecha={setFecha}
                   onCambiarHora={setHora}
                 />
+
+                {/* Horario personalizado — para un paciente que llega fuera de
+                    la grilla de horarios fijos (walk-in, o alguien a quien se
+                    decide atender antes/después de su turno). El ing lo probó
+                    en vivo preguntando "¿qué pasa si te atiendo a las 3:40?". */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                  <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={horaPersonalizada}
+                      onChange={(e) => { setHoraPersonalizada(e.target.checked); setErrorHorarioCustom("") }}
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Llegó en un horario diferente al de la grilla
+                  </label>
+                  {horaPersonalizada && (
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Hora real</label>
+                        <input
+                          type="time"
+                          value={horaCustom}
+                          onChange={(e) => { setHoraCustom(e.target.value); setErrorHorarioCustom("") }}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Duración estimada (min)</label>
+                        <input
+                          type="number"
+                          min={5}
+                          step={5}
+                          value={duracionCustom}
+                          onChange={(e) => { setDuracionCustom(e.target.value); setErrorHorarioCustom("") }}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                        />
+                      </div>
+                      {errorHorarioCustom && (
+                        <p className="col-span-2 text-xs font-medium text-red-600">{errorHorarioCustom}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
@@ -1166,7 +1209,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           paciente={pacienteSeleccionado?.nombre}
           motivo={motivo}
           fecha={fecha ? isoAFechaLocal(fecha).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" }) : ""}
-          hora={hora}
+          hora={horaPersonalizada ? `${horaA12(horaCustom)} (personalizada, ~${duracionCustom} min)` : hora}
           onCancelar={() => setConfirmando(false)}
           onConfirmar={agendarCita}
         />
