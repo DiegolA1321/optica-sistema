@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 
 // ─── Paleta de firma (inline para no depender de config de Tailwind) ───
 const CYAN = "#22D3EE"      // cian — resplandor de "claridad" del iris
@@ -431,6 +432,13 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   const completarLoginConPerfil = async (userId) => {
     const { data: perfil } = await supabase.from("perfiles").select("*").eq("id", userId).single()
     if (perfil?.rol === "superadmin") {
+      // Modo anteproyecto: con MODO_SAAS_VISIBLE apagado, este acceso queda
+      // completamente bloqueado, incluso con contraseña correcta.
+      if (!MODO_SAAS_VISIBLE) {
+        await supabase.auth.signOut()
+        setErrorLogin("Este acceso no está disponible en este momento.")
+        return true
+      }
       AlTenerExito({ rol: "superadmin", nombre: perfil.nombre, id: perfil.id })
       return true
     }
@@ -661,16 +669,22 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 Bienvenido de nuevo
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Desde acá gestionás cada óptica cliente, las solicitudes que llegan de la página de venta
-                y las métricas del sistema completo.
+                {MODO_SAAS_VISIBLE
+                  ? "Desde acá gestionás cada óptica cliente, las solicitudes que llegan de la página de venta y las métricas del sistema completo."
+                  : "Acceso de sistema — administración interna del panel."}
               </p>
             </div>
             <div className="mt-8 flex w-full flex-col gap-3">
-              {[
-                { icon: ShieldCheck, txt: "Control total de cada óptica cliente" },
-                { icon: Activity, txt: "Métricas de visitas, leads y conversión" },
-                { icon: User, txt: "Alta de nuevas cuentas y administradores" },
-              ].map((c) => (
+              {(MODO_SAAS_VISIBLE
+                ? [
+                    { icon: ShieldCheck, txt: "Control total de cada óptica cliente" },
+                    { icon: Activity, txt: "Métricas de visitas, leads y conversión" },
+                    { icon: User, txt: "Alta de nuevas cuentas y administradores" },
+                  ]
+                : [
+                    { icon: ShieldCheck, txt: "Acceso restringido al equipo del sistema" },
+                  ]
+              ).map((c) => (
                 <div key={c.txt} className="flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3" style={{ backgroundColor: PORCELAIN }}>
                   <c.icon size={17} className="shrink-0" style={{ color: "#2563EB" }} />
                   <span className="text-sm text-slate-700">{c.txt}</span>

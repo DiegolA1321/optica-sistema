@@ -38,6 +38,7 @@ import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, min
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -313,7 +314,13 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         .select()
         .single()
       if (errorInsert) {
-        setError(errorInsert.code === "23505" ? "Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro." : "No se pudo registrar la cita. Revisa tu conexión e intenta de nuevo.")
+        setError(
+          errorInsert.code === "23505"
+            ? "Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro."
+            : esErrorSinPermiso(errorInsert)
+              ? MENSAJE_SIN_PERMISO
+              : "No se pudo registrar la cita. Revisa tu conexión e intenta de nuevo."
+        )
         setConfirmando(false)
         return
       }
@@ -371,7 +378,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     })
     setNpGuardando(false)
     if (error) {
-      setNpErrores({ cedula: "No se pudo registrar al paciente. Revisa tu conexión e intenta de nuevo." })
+      setNpErrores({ cedula: esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo registrar al paciente. Revisa tu conexión e intenta de nuevo." })
       return
     }
     setPacienteId(nuevoPaciente.id)
@@ -389,7 +396,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     if (porCancelar == null) return
     const cancelada = citas.find((c) => c.id === porCancelar)
     if (supabase && opticaId) {
-      const { error: errorCancelar } = await supabase.from("citas").delete().eq("id", porCancelar)
+      const { data: eliminadas, error: errorCancelar } = await supabase.from("citas").delete().eq("id", porCancelar).select()
+      if (fueBloqueadoPorPermiso({ error: errorCancelar, data: eliminadas })) {
+        setBannerError(MENSAJE_SIN_PERMISO)
+        setPorCancelar(null)
+        return
+      }
       if (errorCancelar) {
         setBannerError("No se pudo cancelar la cita. Revisa tu conexión e intenta de nuevo.")
         setPorCancelar(null)
@@ -410,7 +422,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setMarcandoEstadoId(citaId)
     try {
       if (supabase && opticaId) {
-        const { error: errorEstado } = await supabase.from("citas").update({ estado: nuevoEstado }).eq("id", citaId)
+        const { data: actualizadas, error: errorEstado } = await supabase.from("citas").update({ estado: nuevoEstado }).eq("id", citaId).select()
+        if (fueBloqueadoPorPermiso({ error: errorEstado, data: actualizadas })) {
+          setBannerError(MENSAJE_SIN_PERMISO)
+          return
+        }
         if (errorEstado) {
           setBannerError("No se pudo actualizar el estado de la cita. Revisa tu conexión e intenta de nuevo.")
           return
@@ -482,7 +498,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     })
     if (error) {
       setCpGuardando(false)
-      setBannerError("No se pudo registrar al paciente. Revisa tu conexión e intenta de nuevo.")
+      setBannerError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo registrar al paciente. Revisa tu conexión e intenta de nuevo.")
       return
     }
 
@@ -492,7 +508,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       ? { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula }
       : { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }
     if (supabase && opticaId) {
-      const { error: errorCita } = await supabase.from("citas").update(cambiosCita).eq("id", citaId)
+      const { data: citaVinculada, error: errorCita } = await supabase.from("citas").update(cambiosCita).eq("id", citaId).select()
+      if (fueBloqueadoPorPermiso({ error: errorCita, data: citaVinculada })) {
+        setCpGuardando(false)
+        setBannerError(MENSAJE_SIN_PERMISO)
+        return
+      }
       if (errorCita) {
         setCpGuardando(false)
         setBannerError("El paciente se registró, pero no se pudo vincular a la cita. Revisa tu conexión e intenta de nuevo.")
@@ -552,7 +573,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     const nuevoEstado = resueltaAlEditar ? reagendando.estado : "Pendiente"
     const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }
     if (supabase && opticaId) {
-      const { error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }).eq("id", reagendando.id)
+      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }).eq("id", reagendando.id).select()
+      if (fueBloqueadoPorPermiso({ error: errorUpdate, data: reagendadas })) {
+        setErrorReagendar(MENSAJE_SIN_PERMISO)
+        return
+      }
       if (errorUpdate) {
         setErrorReagendar("No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
         return

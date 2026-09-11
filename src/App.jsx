@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
 import { hoyISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
+import { MODO_SAAS_VISIBLE } from './lib/config';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { lazyConReintento } from './utilidades/lazyConReintento';
@@ -193,6 +194,13 @@ function mapVenta(v) {
     estado: v.estado, creadoEn: v.created_at,
   }
 }
+function mapFacturaVenta(f) {
+  return {
+    id: f.id, pacienteId: f.paciente_id, citaId: f.cita_id, consultaId: f.consulta_id,
+    metodoPago: f.metodo_pago, cuotasTotales: f.cuotas_totales, cuotasPagadas: f.cuotas_pagadas,
+    montoTotal: Number(f.monto_total), estado: f.estado, creadoEn: f.created_at,
+  }
+}
 function mapRespuestaSatisfaccion(r) {
   return { id: r.id, citaId: r.cita_id, puntaje: r.puntaje, comentario: r.comentario, creadoEn: r.created_at }
 }
@@ -284,6 +292,21 @@ function App() {
   // ing — migración 0047_ventas_productos.sql). Solo vive en Supabase, sin
   // seed ni localStorage: es un módulo nuevo, no hay datos viejos que migrar.
   const [ventas, setVentas] = useState([]);
+  // Facturas de venta con líneas múltiples (Punto 06 del Diagnóstico
+  // Maestro, migración 0072_facturas.sql) — camino nuevo, en paralelo a
+  // `ventas` (camino viejo, una venta = un producto) mientras no se migre
+  // ese historial (fase separada, no bloqueante, ver la propia migración).
+  // Igual que `ventas`: solo vive en Supabase, sin seed ni localStorage.
+  const [facturasVenta, setFacturasVenta] = useState([]);
+  // Hallazgo real 2026-09-10: suspender una óptica (opticas.activa) solo
+  // bloqueaba logins nuevos — una sesión ya abierta seguía con acceso
+  // normal indefinidamente porque nada volvía a mirar este campo. Ahora la
+  // RLS de las tablas que el staff usa a diario también exige
+  // optica_activa_actual() (migración 0073), así que una sesión abierta sí
+  // pierde acceso real cuando el superadmin suspende — este estado es solo
+  // para AVISAR de forma clara por qué (ver el banner en Dashboard.jsx y el
+  // badge en Inicio.jsx), no para controlar el acceso en sí.
+  const [opticaActiva, setOpticaActiva] = useState(true);
   // Solo lectura desde Reportes — no hay wrapper de escritura porque nunca
   // se edita desde la app, solo se llena vía la página pública de la
   // encuesta (enviar_encuesta_satisfaccion, migración 0041).
@@ -380,12 +403,13 @@ function App() {
     const esStaff = (usuario?.rol === 'admin' || usuario?.rol === 'asistente') && !!usuario?.opticaId
 
     if (esStaff) {
-      supabase.from('opticas').select('settings, motivos_consulta, diagnosticos_rapidos, categorias_inventario').eq('id', usuario.opticaId).maybeSingle().then(({ data }) => {
+      supabase.from('opticas').select('settings, motivos_consulta, diagnosticos_rapidos, categorias_inventario, activa').eq('id', usuario.opticaId).maybeSingle().then(({ data }) => {
         if (!data) return
         setParametrizacionState(data.settings || PARAMETRIZACION_SEED)
         setMotivosConsultaState(data.motivos_consulta || MOTIVOS_SEED)
         setDiagnosticosRapidosState(data.diagnosticos_rapidos || DIAGNOSTICOS_SEED)
         setCategoriasInventarioState(data.categorias_inventario || CATEGORIAS_INVENTARIO_SEED)
+        setOpticaActiva(data.activa !== false)
       })
       hidratarOpticaId(usuario.opticaId, true)
       return
@@ -401,6 +425,41 @@ function App() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuario?.opticaId, usuario?.rol])
+
+  // Revisa cada 2.5 min si la óptica sigue activa — separado del efecto de
+  // arriba porque ese solo corre cuando cambia la sesión, no con el tiempo.
+  // opticas_select_own_admin (RLS) no exige activa a propósito (migración
+  // 0073), así que esta lectura sigue funcionando aunque ya estén
+  // suspendidos — es justo el canal que permite detectarlo y avisar.
+  useEffect(() => {
+    const esStaff = (usuario?.rol === 'admin' || usuario?.rol === 'asistente') && !!usuario?.opticaId
+    if (!supabase || !esStaff) return
+    const INTERVALO_MS = 150000
+    const revisar = () => {
+      supabase.from('opticas').select('activa').eq('id', usuario.opticaId).maybeSingle().then(({ data }) => {
+        if (data) setOpticaActiva(data.activa !== false)
+      })
+    }
+    const id = setInterval(revisar, INTERVALO_MS)
+    return () => clearInterval(id)
+  }, [usuario?.opticaId, usuario?.rol])
+
+  // Revisa cada 2.5 min si los permisos de módulo del asistente cambiaron —
+  // si el admin le revoca un módulo mientras tiene sesión abierta, el menú
+  // (Dashboard.jsx: opcionesVisibles depende de usuario.permisos) se
+  // actualiza solo, sin esperar a que cierre sesión. El admin no necesita
+  // esto: su acceso no depende de `permisos`, siempre ve todo.
+  useEffect(() => {
+    if (!supabase || usuario?.rol !== 'asistente' || !usuario?.id) return
+    const INTERVALO_MS = 150000
+    const revisar = () => {
+      supabase.from('perfiles').select('permisos').eq('id', usuario.id).maybeSingle().then(({ data }) => {
+        if (data) setUsuario((prev) => (prev ? { ...prev, permisos: data.permisos || {} } : prev))
+      })
+    }
+    const id = setInterval(revisar, INTERVALO_MS)
+    return () => clearInterval(id)
+  }, [usuario?.id, usuario?.rol])
 
   // Horario personal — aparte de la hidratación de arriba a propósito: es
   // personal de quien esté logueado (admin o asistente por igual), no un
@@ -459,6 +518,11 @@ function App() {
       supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setVentas(data.map(mapVenta))
         else if (error) registrarErrorCarga('ventas')
+      })
+
+      supabase.from('facturas_venta').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+        if (data) setFacturasVenta(data.map(mapFacturaVenta))
+        else if (error) registrarErrorCarga('facturas')
       })
 
       supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
@@ -622,6 +686,12 @@ function App() {
         const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
         if (!perfil) return;
         if (perfil.rol === 'superadmin') {
+          // Modo anteproyecto: con MODO_SAAS_VISIBLE apagado, el panel de
+          // superadmin queda completamente inaccesible — incluida una sesión
+          // real de Supabase que haya quedado activa en este navegador de
+          // antes. Se cierra esa sesión en vez de solo no mostrar el panel,
+          // para no dejar una sesión de superadmin colgada sin acceso a nada.
+          if (!MODO_SAAS_VISIBLE) { await supabase.auth.signOut(); return; }
           // El superadmin no pertenece a ninguna óptica en particular — si su
           // sesión de Supabase sigue activa en este navegador (ej. login previo
           // en otra pestaña) y el visitante entra al sitio público de UNA
@@ -662,9 +732,14 @@ function App() {
       setPantallaActual('panel_superadmin');
     } else if (datosOUsuario.rol === 'admin') {
       // Sesión real de Supabase Auth: la persiste supabase-js mismo, no optica_sesion.
+      // Cada login entra a Inicio, no a la última sección que Dashboard.jsx
+      // recuerda en localStorage para sobrevivir un F5 dentro de la misma
+      // sesión — ese recuerdo es para recargar la página, no para un login nuevo.
+      localStorage.setItem('optica_seccion_activa', 'inicio');
       setPantallaActual('dashboard');
     } else if (datosOUsuario.rol === 'asistente') {
       // Sesión real de Supabase Auth: la persiste supabase-js mismo, no optica_sesion.
+      localStorage.setItem('optica_seccion_activa', 'inicio');
       setPantallaActual('dashboard');
     } else {
       setPantallaActual('panel_paciente');
@@ -737,6 +812,11 @@ function App() {
       opticaLogoUrl: optica.logo_url || null,
       impersonadoPor: superadminReal,
     });
+    // Mismo criterio que manejarExitoLogin: Dashboard.jsx recuerda en
+    // localStorage la última sección visitada (para que un F5 no mande a
+    // Inicio) — sin este reset, entrar como el admin de una óptica podía
+    // heredar la sección que dejó otra sesión/usuario en este navegador.
+    localStorage.setItem('optica_seccion_activa', 'inicio');
     setPantallaActual('dashboard');
   };
 
@@ -829,6 +909,7 @@ function App() {
       {pantallaActual === 'dashboard' && (
         <Dashboard
           usuario={usuario}
+          opticaActiva={opticaActiva}
           cargaInicialStaff={cargaInicialStaff}
           erroresCarga={erroresCarga}
           onCerrarErroresCarga={() => setErroresCarga([])}
@@ -842,6 +923,8 @@ function App() {
           setConsultas={setConsultas}
           ventas={ventas}
           setVentas={setVentas}
+          facturasVenta={facturasVenta}
+          setFacturasVenta={setFacturasVenta}
           respuestasSatisfaccion={respuestasSatisfaccion}
           solicitudesEliminacion={solicitudesEliminacion}
           marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}

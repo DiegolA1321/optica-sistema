@@ -23,6 +23,7 @@ import {
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { resumenVentasProducto } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
 import VentaProductoModal from "./VentaProductoModal"
 import CampoCategoria from "../componentes/CampoCategoria"
@@ -152,7 +153,7 @@ export default function Inventario({
     if (supabase && opticaId) {
       const { data, error: errorInsert } = await supabase.from("inventario").insert({ ...nuevo, optica_id: opticaId }).select().single()
       if (errorInsert) {
-        setErroresForm({ general: "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo." })
+        setErroresForm({ general: esErrorSinPermiso(errorInsert) ? MENSAJE_SIN_PERMISO : "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo." })
         return
       }
       if (data) nuevo.id = data.id
@@ -173,7 +174,12 @@ export default function Inventario({
     setEliminando(true)
     const eliminado = productos.find((p) => p.id === porEliminar)
     if (supabase && opticaId) {
-      const { error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar)
+      const { data: eliminados, error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar).select()
+      if (fueBloqueadoPorPermiso({ error: errorDelete, data: eliminados })) {
+        setErrorEliminar(MENSAJE_SIN_PERMISO)
+        setEliminando(false)
+        return
+      }
       if (errorDelete) {
         setErrorEliminar("No se pudo eliminar el producto. Revisa tu conexión e intenta de nuevo.")
         setEliminando(false)
@@ -228,7 +234,11 @@ export default function Inventario({
 
     const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", critico: edCritico === "" ? null : Math.max(0, parseInt(edCritico, 10) || 0) }
     if (supabase && opticaId) {
-      const { error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id)
+      const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id).select()
+      if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
+        setErroresEdicion({ general: MENSAJE_SIN_PERMISO })
+        return
+      }
       if (errorUpdate) {
         setErroresEdicion({ general: "No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo." })
         return

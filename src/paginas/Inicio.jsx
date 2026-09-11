@@ -26,6 +26,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 export default function Inicio({
   setVista,
   usuario,
+  opticaActiva = true,
   pacientes = [],
   citas = [],
   inventario = [],
@@ -255,10 +256,21 @@ export default function Inicio({
             <span className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold capitalize text-slate-600">
               {hoyFecha}
             </span>
-            <span className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Módulo clínico activo</span>
-            </span>
+            {/* Antes era texto fijo, sin relación con opticas.activa — decía
+                "activo" aunque la óptica estuviera suspendida. Ahora refleja
+                el estado real (ver App.jsx: hidratación + polling cada
+                2.5 min contra opticas.activa). */}
+            {opticaActiva ? (
+              <span className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Módulo clínico activo</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-red-700">Óptica suspendida</span>
+              </span>
+            )}
           </div>
         </div>
       </div>

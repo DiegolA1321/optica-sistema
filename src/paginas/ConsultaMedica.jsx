@@ -33,12 +33,15 @@ import {
   ChevronDown,
   X,
   Image as ImageIcon,
+  Receipt,
+  Wrench,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import { hoyISO } from "../utilidades/disponibilidad"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -65,15 +68,22 @@ const TENDENCIA = {
 const CORRECCION = {
   "Bien corregido": { fg: "#059669", bg: "#ecfdf5", border: "#a7f3d0", icon: CheckCircle, txt: "Con su corrección actual alcanza una buena agudeza visual (20/20–20/25). El manejo con lentes está funcionando." },
   "Requiere ajuste": { fg: "#dc2626", bg: "#fef2f2", border: "#fecaca", icon: AlertCircle, txt: "Incluso con su corrección actual no alcanza una buena agudeza visual. Conviene actualizar la receta o evaluar otras opciones (lentes de contacto, cirugía refractiva)." },
+  "Sin evaluar": { fg: "#475569", bg: "#f1f5f9", border: "#e2e8f0", icon: Minus, txt: "No se registró la agudeza visual con corrección de ambos ojos en esta consulta — no se puede saber si el manejo actual (anteojos/lentes) está funcionando." },
 }
 
+// Diagnóstico con Diego (2026-09-10): "AV con lentes" arrancaba en "20/20"
+// por defecto y nada obligaba a tocarlo, así que "Bien corregido" no
+// distinguía "se evaluó y de verdad da 20/20" de "nadie lo evaluó". Ahora
+// el campo arranca vacío (ver odAgudezaCc/oiAgudezaCc más abajo) y esta
+// función devuelve "Sin evaluar" en vez de asumir 20/20 cuando falta.
 const evaluarCorreccion = (avCcOd, avCcOi) => {
+  if (!avCcOd || !avCcOi) return "Sin evaluar"
   const odIdx = ORDEN_SNELLEN[avCcOd] ?? 99
   const oiIdx = ORDEN_SNELLEN[avCcOi] ?? 99
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, ventas = [], setVentas, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -113,7 +123,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         setMostrarDropdown(false)
       }
       if (dropdownProductoRef.current && !dropdownProductoRef.current.contains(event.target)) {
-        setMostrarDropdownProducto(false)
+        setFacturaMostrarDropdown(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -154,14 +164,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [odCilindro, setOdCilindro] = useState("0.00")
   const [odEje, setOdEje] = useState("0")
   const [odAgudezaSc, setOdAgudezaSc] = useState("20/20")
-  const [odAgudezaCc, setOdAgudezaCc] = useState("20/20")
+  const [odAgudezaCc, setOdAgudezaCc] = useState("")
 
   // --- Ojo Izquierdo (OI) ---
   const [oiEsfera, setOiEsfera] = useState("0.00")
   const [oiCilindro, setOiCilindro] = useState("0.00")
   const [oiEje, setOiEje] = useState("0")
   const [oiAgudezaSc, setOiAgudezaSc] = useState("20/20")
-  const [oiAgudezaCc, setOiAgudezaCc] = useState("20/20")
+  const [oiAgudezaCc, setOiAgudezaCc] = useState("")
 
   // --- Adición y Medidas ---
   const [adicion, setAdicion] = useState("+0.00")
@@ -200,42 +210,46 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // texto ni la búsqueda de inventario se muestran.
   const [recomendarLente, setRecomendarLente] = useState(false)
   const [lenteRecomendado, setLenteRecomendado] = useState("")
-  // La búsqueda de inventario se mantiene oculta hasta que el optómetra elige
-  // explícitamente vender ahora — antes aparecía siempre que hubiera texto en
-  // "lente a recomendar", mezclando diagnóstico y venta en una sola idea
-  // continua (queja puntual del ing: "que no sea confuso de que aquí mismo
-  // estén estas dos cosas").
-  const [mostrarBusquedaVenta, setMostrarBusquedaVenta] = useState(false)
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
 
-  // --- Producto de bodega vinculado (cierra el ciclo clínico → inventario) ---
-  const [productoId, setProductoId] = useState(null)
-  const [busquedaProducto, setBusquedaProducto] = useState("")
-  const [mostrarDropdownProducto, setMostrarDropdownProducto] = useState(false)
+  // --- Factura de esta consulta (Punto 06) — reemplaza el vínculo de un
+  // solo producto que había antes. Arma un borrador de líneas mientras se
+  // llena la ficha; la factura real (crear_factura_venta) recién se crea
+  // DESPUÉS de guardar la consulta, porque necesita su id — borrador local
+  // + envío encadenado al guardar, en vez de forzar un cambio de flujo acá. ---
+  const [mostrarEditorFactura, setMostrarEditorFactura] = useState(false)
+  const [facturaLineas, setFacturaLineas] = useState([])
+  const [facturaTipoLinea, setFacturaTipoLinea] = useState("producto")
+  const [facturaProductoId, setFacturaProductoId] = useState(null)
+  const [facturaBusquedaProducto, setFacturaBusquedaProducto] = useState("")
+  const [facturaMostrarDropdown, setFacturaMostrarDropdown] = useState(false)
+  const [facturaCantidadProducto, setFacturaCantidadProducto] = useState("1")
+  const [facturaDescServicio, setFacturaDescServicio] = useState("")
+  const [facturaCantidadServicio, setFacturaCantidadServicio] = useState("1")
+  const [facturaPrecioServicio, setFacturaPrecioServicio] = useState("")
+  const [facturaMetodoPago, setFacturaMetodoPago] = useState("directo")
+  const [facturaCuotasTotales, setFacturaCuotasTotales] = useState("3")
   const dropdownProductoRef = useRef(null)
 
-  const productosFiltrados = useMemo(() => {
-    const q = busquedaProducto.trim().toLowerCase()
+  // Resultado de intentar crear la factura al guardar la ficha — Diego
+  // pidió que una falla (ej. stock insuficiente) no sea un error silencioso
+  // de consola: se avisa visible y se puede reintentar sin perder las
+  // líneas, porque la ficha clínica ya quedó guardada de todas formas.
+  const [consultaGuardadaId, setConsultaGuardadaId] = useState(null)
+  const [facturaEstadoGuardado, setFacturaEstadoGuardado] = useState(null) // null | 'guardada' | 'error'
+  const [facturaErrorMsg, setFacturaErrorMsg] = useState("")
+  const [guardandoFacturaAhora, setGuardandoFacturaAhora] = useState(false)
+
+  const facturaProductosFiltrados = useMemo(() => {
+    const q = facturaBusquedaProducto.trim().toLowerCase()
     const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
     if (!q) return disponibles
     return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
-  }, [inventario, busquedaProducto])
+  }, [inventario, facturaBusquedaProducto])
 
-  const productoSeleccionado = useMemo(() => inventario.find((p) => p.id === productoId) || null, [inventario, productoId])
-  // Monto real cobrado por la venta — precarga con el precio de lista pero
-  // queda editable (descuentos, promociones) porque no siempre coincide.
-  // Cierra el vínculo receta→venta que pide el anteproyecto (conversión de
-  // recetas a ventas + ingresos, ver Reportes.jsx).
-  const [montoVenta, setMontoVenta] = useState("")
-  // Estado del pago de esa venta — vincular un producto acá crea una fila
-  // real en `ventas` (antes solo tocaba inventario y quedaba invisible para
-  // Reportes/CRM/el reporte por producto de Inventario, que leen todos de
-  // esa tabla). Sin selector de método de pago aparte a propósito: esto es
-  // un atajo rápido durante la consulta, no el flujo completo de venta de
-  // Inventario/Pacientes — "directo" es un default razonable, pero el
-  // estado sí importa para no ensuciar "Pagos pendientes" del paciente.
-  const [estadoVenta, setEstadoVenta] = useState("completado")
+  const facturaProductoSeleccionado = useMemo(() => inventario.find((p) => p.id === facturaProductoId) || null, [inventario, facturaProductoId])
+  const facturaTotal = useMemo(() => facturaLineas.reduce((sum, l) => sum + l.cantidad * l.precioUnitario, 0), [facturaLineas])
 
   // --- Imágenes adjuntas (opcional) — se suben a Storage recién al
   // confirmar guardado, no antes, para no dejar archivos huérfanos si el
@@ -257,20 +271,90 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     return () => previsualizacionesImagenes.forEach((url) => URL.revokeObjectURL(url))
   }, [previsualizacionesImagenes])
 
-  const seleccionarProducto = (p) => {
-    setProductoId(p.id)
-    setBusquedaProducto(p.nombre)
-    setMostrarDropdownProducto(false)
-    setMontoVenta(String(p.precio ?? ""))
-    if (!lenteRecomendado.trim()) setLenteRecomendado(p.nombre)
+  const agregarLineaFacturaProducto = () => {
+    if (!facturaProductoSeleccionado) return
+    const cant = parseInt(facturaCantidadProducto, 10) || 1
+    setFacturaLineas((prev) => [...prev, {
+      tipo: "producto",
+      productoId: facturaProductoSeleccionado.id,
+      descripcion: facturaProductoSeleccionado.nombre,
+      cantidad: cant,
+      precioUnitario: Number(facturaProductoSeleccionado.precio) || 0,
+    }])
+    setFacturaProductoId(null)
+    setFacturaBusquedaProducto("")
+    setFacturaCantidadProducto("1")
   }
 
-  const quitarProducto = () => {
-    setProductoId(null)
-    setBusquedaProducto("")
-    setEstadoVenta("completado")
-    setMontoVenta("")
-    setMostrarBusquedaVenta(false)
+  const agregarLineaFacturaServicio = () => {
+    const desc = facturaDescServicio.trim()
+    const precio = parseFloat(facturaPrecioServicio)
+    if (!desc || isNaN(precio) || precio < 0) return
+    setFacturaLineas((prev) => [...prev, {
+      tipo: "servicio",
+      productoId: null,
+      descripcion: desc,
+      cantidad: parseInt(facturaCantidadServicio, 10) || 1,
+      precioUnitario: precio,
+    }])
+    setFacturaDescServicio("")
+    setFacturaCantidadServicio("1")
+    setFacturaPrecioServicio("")
+  }
+
+  const quitarLineaFactura = (idx) => setFacturaLineas((prev) => prev.filter((_, i) => i !== idx))
+
+  // Llama a la RPC atómica con el borrador ya armado — usada tanto justo
+  // después de guardar la ficha como desde "Reintentar generar factura".
+  // Nunca limpia facturaLineas si falla: son las líneas que el optómetra
+  // reintentará, no algo para descartar.
+  const intentarCrearFactura = async (consultaId) => {
+    if (facturaLineas.length === 0 || !supabase || !usuario?.opticaId) return
+    setGuardandoFacturaAhora(true)
+    const cuotasNum = facturaMetodoPago === "cuotas" ? (parseInt(facturaCuotasTotales, 10) || null) : null
+    const { data, error } = await supabase
+      .rpc("crear_factura_venta", {
+        p_optica_id: usuario.opticaId,
+        p_paciente_id: pacienteId,
+        p_metodo_pago: facturaMetodoPago,
+        p_lineas: facturaLineas.map((l) => ({
+          producto_id: l.productoId,
+          tipo: l.tipo,
+          descripcion: l.descripcion,
+          cantidad: l.cantidad,
+          precio_unitario: l.precioUnitario,
+        })),
+        p_cita_id: citaEnAtencionId || null,
+        p_consulta_id: consultaId,
+        p_cuotas_totales: cuotasNum,
+        p_registrado_por: usuario?.id || null,
+      })
+      .single()
+    setGuardandoFacturaAhora(false)
+    if (error) {
+      setFacturaEstadoGuardado("error")
+      setFacturaErrorMsg(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message || "No se pudo generar la factura. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    // Las líneas de producto ya descontaron su stock dentro de la propia
+    // transacción — se refleja acá para que el resto de la sesión no
+    // necesite recargar para verlo.
+    setInventario?.((prev) => prev.map((p) => {
+      const linea = facturaLineas.find((l) => l.tipo === "producto" && l.productoId === p.id)
+      return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
+    }))
+    setFacturaEstadoGuardado("guardada")
+    setFacturaErrorMsg("")
+    setFacturasVenta?.((prev) => [{
+      id: data.id, pacienteId, citaId: citaEnAtencionId || null, consultaId,
+      metodoPago: facturaMetodoPago, cuotasTotales: cuotasNum,
+      cuotasPagadas: 0, montoTotal: data.monto_total, estado: data.estado, creadoEn: data.created_at,
+    }, ...prev])
+    registrarLog(usuario, "consultas", "Generó una factura desde la ficha clínica", `${facturaLineas.length} línea(s) · $${facturaTotal.toFixed(2)}`)
+  }
+
+  const reintentarFactura = () => {
+    if (consultaGuardadaId) intentarCrearFactura(consultaGuardadaId)
   }
 
   const [notificacion, setNotificacion] = useState(false)
@@ -427,12 +511,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setOdCilindro("0.00")
     setOdEje("0")
     setOdAgudezaSc("20/70")
-    setOdAgudezaCc("20/20")
+    setOdAgudezaCc("")
     setOiEsfera("0.00")
     setOiCilindro("0.00")
     setOiEje("0")
     setOiAgudezaSc("20/50")
-    setOiAgudezaCc("20/20")
+    setOiAgudezaCc("")
     setAdicion("+0.00")
     setDp("64 mm")
     setAlt("18 mm")
@@ -451,11 +535,22 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setDiagnostico("")
     setRecomendarLente(false)
     setLenteRecomendado("")
-    setMostrarBusquedaVenta(false)
     setIndicaciones("")
     setProximoControlDias(180)
-    setProductoId(null)
-    setBusquedaProducto("")
+    setMostrarEditorFactura(false)
+    setFacturaLineas([])
+    setFacturaTipoLinea("producto")
+    setFacturaProductoId(null)
+    setFacturaBusquedaProducto("")
+    setFacturaCantidadProducto("1")
+    setFacturaDescServicio("")
+    setFacturaCantidadServicio("1")
+    setFacturaPrecioServicio("")
+    setFacturaMetodoPago("directo")
+    setFacturaCuotasTotales("3")
+    setConsultaGuardadaId(null)
+    setFacturaEstadoGuardado(null)
+    setFacturaErrorMsg("")
     setErrores({})
     setBannerError("")
     setFichaGuardada(false)
@@ -489,6 +584,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
     const tendenciaGraduacion = calcularEvolucionIA
     const estadoCorreccion = estadoCorreccionActual
+    // Compatibilidad con Reportes.jsx ("Conversión a venta" mide si
+    // consultas.producto_id quedó lleno) — Punto 06 reemplazó el selector
+    // de un solo producto por el borrador de factura, así que se toma la
+    // primera línea de tipo "producto" de esa factura para no dejar esa
+    // métrica en 0% para siempre. No afecta a crear_factura_venta — es solo
+    // este campo legado de `consultas`, que ya no descuenta stock por sí
+    // mismo (eso lo hace la factura).
+    const primeraLineaProducto = facturaLineas.find((l) => l.tipo === "producto")
 
     const nuevaFicha = {
       fecha: fechaConsulta,
@@ -518,13 +621,19 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       proximoControlDias,
       evolucionCalculada: tendenciaGraduacion,
       estadoCorreccion,
-      productoId: productoSeleccionado?.id || null,
-      productoNombre: productoSeleccionado?.nombre || null,
-      montoVenta: productoSeleccionado ? (Number(montoVenta) || 0) : null,
+      productoId: primeraLineaProducto?.productoId || null,
+      productoNombre: primeraLineaProducto?.descripcion || null,
+      montoVenta: primeraLineaProducto ? primeraLineaProducto.cantidad * primeraLineaProducto.precioUnitario : null,
     }
 
     nuevaFicha.profesionalNombre = usuario?.nombre || null
     nuevaFicha.profesionalRegistro = usuario?.registroProfesional || null
+
+    // Declarada acá (no dentro del bloque de abajo) para poder usarla más
+    // abajo al intentar crear la factura — nuevaFicha.id se sobreescribe a
+    // un id local (Date.now()) si Supabase no está configurado, así que no
+    // sirve para distinguir "sí se guardó de verdad" en ese caso límite.
+    let idConsultaGuardada = null
 
     if (supabase && usuario?.opticaId) {
       // Sube las imágenes seleccionadas recién ahora (confirmado el
@@ -578,7 +687,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // datos. Ahora se detiene y avisa, igual que cualquier otro paso.
       if (error) {
         setGuardandoFicha(false)
-        setErrorConfirmarFicha("No se pudo guardar la ficha clínica. Revisa tu conexión e intenta de nuevo — nada se imprimió ni se guardó todavía.")
+        setErrorConfirmarFicha(
+          esErrorSinPermiso(error)
+            ? MENSAJE_SIN_PERMISO
+            : "No se pudo guardar la ficha clínica. Revisa tu conexión e intenta de nuevo — nada se imprimió ni se guardó todavía."
+        )
         return
       }
       if (data) {
@@ -588,6 +701,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         // marca que necesita para ordenarse como la más reciente hasta el
         // siguiente reload.
         nuevaFicha.creadoEn = data.created_at
+        idConsultaGuardada = data.id
+        setConsultaGuardadaId(data.id)
       }
       // Hallazgo I4: era el único módulo que crea/edita historia clínica sin
       // dejar rastro de auditoría — la auditoría de superadmin/admin ya
@@ -604,6 +719,22 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         else setCitas?.(citas.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
       }
     }
+
+    // Genera la factura de esta consulta (Punto 06) si el optómetra armó
+    // alguna línea en el Paso 3 — reemplaza el vínculo de un solo producto
+    // (hallazgo G5/I4: antes eran dos llamadas separadas, mismo riesgo de
+    // descuento perdido en una carrera; ahora resuelto de raíz porque
+    // crear_factura_venta es una sola transacción atómica). Si falla (ej.
+    // stock insuficiente en una línea), la ficha clínica YA quedó guardada
+    // — nada de la consulta se pierde — pero hace falta avisarlo de forma
+    // visible (no en consola) y dejar reintentar sin perder las líneas
+    // armadas: eso lo maneja intentarCrearFactura + el banner de abajo en
+    // el JSX, no acá. Usa idConsultaGuardada (no nuevaFicha.id, que abajo
+    // se rellena con un id falso si Supabase no está configurado).
+    if (facturaLineas.length > 0 && idConsultaGuardada) {
+      await intentarCrearFactura(idConsultaGuardada)
+    }
+
     if (nuevaFicha.id == null) nuevaFicha.id = Date.now()
 
     setHistorialConsultas([nuevaFicha, ...historialConsultas])
@@ -616,46 +747,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         return p
       })
       setPacientes(pacientesActualizados)
-    }
-
-    // Descuenta el producto vinculado y registra la venta — cierra el ciclo
-    // clínico → inventario. Hallazgo G5 (mismo bug que VentaProductoModal.jsx,
-    // encontrado acá también al auditar I4): antes eran dos llamadas
-    // separadas (update de stock leído en memoria + insert en ventas), con
-    // el mismo riesgo de descuento perdido en una carrera y de venta
-    // registrada sin descontar stock si la segunda llamada fallaba. Se
-    // reemplaza por el mismo RPC atómico (migración 0061) que ya usa
-    // VentaProductoModal.jsx.
-    if (productoSeleccionado && setInventario) {
-      const montoVentaNum = Number(montoVenta) || 0
-      if (supabase && usuario?.opticaId) {
-        supabase.rpc("registrar_venta_producto", {
-          p_optica_id: usuario.opticaId,
-          p_paciente_id: pacienteId,
-          p_producto_id: productoSeleccionado.id,
-          p_producto_nombre: productoSeleccionado.nombre,
-          p_cantidad: 1,
-          p_precio_unitario: montoVentaNum,
-          p_monto_total: montoVentaNum,
-          p_metodo_pago: "directo",
-          p_cuotas_totales: null,
-          p_estado: estadoVenta,
-          p_registrado_por: usuario?.id || null,
-        }).single().then(({ data: ventaData, error: errorVenta }) => {
-          if (errorVenta) { console.error("La ficha se guardó, pero no se pudo registrar la venta ni descontar el stock del producto vinculado:", errorVenta.message); return }
-          setInventario((prevInventario) => prevInventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: ventaData.stock_restante } : p)))
-          if (setVentas) {
-            setVentas((prev) => [{
-              id: ventaData.id, pacienteId, productoId: productoSeleccionado.id, productoNombre: productoSeleccionado.nombre,
-              cantidad: 1, precioUnitario: montoVentaNum, montoTotal: montoVentaNum, metodoPago: "directo",
-              cuotasTotales: null, cuotasPagadas: 0, estado: estadoVenta, creadoEn: ventaData.created_at,
-            }, ...prev])
-          }
-        })
-      } else {
-        const stockNuevo = Math.max(0, (Number(productoSeleccionado.stock) || 0) - 1)
-        setInventario(inventario.map((p) => (p.id === productoSeleccionado.id ? { ...p, stock: stockNuevo } : p)))
-      }
     }
 
     setGuardandoFicha(false)
@@ -1572,7 +1663,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           checked={recomendarLente}
                           onChange={(e) => {
                             setRecomendarLente(e.target.checked)
-                            if (!e.target.checked) { setLenteRecomendado(""); quitarProducto() }
+                            if (!e.target.checked) setLenteRecomendado("")
                           }}
                           className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -1599,96 +1690,166 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </div>
                     )}
 
-                    {/* Vender el lente es un paso APARTE del diagnóstico, no
-                        parte del mismo formulario — queja puntual del ing:
-                        "que no sea confuso de que aquí mismo estén estas dos
-                        cosas". Por eso queda detrás de una elección explícita
-                        en vez de aparecer ya abierto en cuanto hay texto en
-                        "lente a recomendar". */}
-                    {!fichaGuardada && recomendarLente && !productoSeleccionado && !mostrarBusquedaVenta && (
+                    {/* Punto 06: factura de esta consulta. Sin modal — la
+                        consulta todavía no existe hasta guardar la ficha, así
+                        que el editor vive embebido acá mismo (mismo criterio
+                        que el mecanismo que reemplaza). No depende de
+                        "recomendarLente": un servicio solo (ej. un examen) es
+                        una factura válida sin ningún producto de por medio. */}
+                    {!fichaGuardada && !mostrarEditorFactura && facturaLineas.length === 0 && (
                       <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
-                        <span className="text-xs font-medium text-slate-600">¿Vas a vender este lente ahora?</span>
+                        <span className="text-xs font-medium text-slate-600">¿Vas a facturar algo en esta consulta?</span>
                         <div className="flex gap-2">
-                          <button type="button" onClick={() => setMostrarBusquedaVenta(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 cursor-pointer">
+                          <button type="button" onClick={() => setMostrarEditorFactura(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 cursor-pointer">
                             No, más tarde
                           </button>
-                          <button type="button" onClick={() => setMostrarBusquedaVenta(true)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer">
-                            Sí, buscar producto
+                          <button type="button" onClick={() => setMostrarEditorFactura(true)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer">
+                            Sí, agregar líneas
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {!fichaGuardada && recomendarLente && (mostrarBusquedaVenta || productoSeleccionado) && (
-                      <div className="no-print relative rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3" ref={dropdownProductoRef}>
-                        <label htmlFor="productoBodega" className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                          <Glasses size={12} /> Vender este lente ahora <span className="font-normal normal-case text-slate-500">(descuenta 1 unidad de stock al guardar)</span>
+                    {!fichaGuardada && (mostrarEditorFactura || facturaLineas.length > 0) && (
+                      <div className="no-print space-y-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3" ref={dropdownProductoRef}>
+                        <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                          <Receipt size={12} /> Factura de esta consulta
                         </label>
-                        {productoSeleccionado ? (
-                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
-                            <span className="font-semibold text-blue-800">{productoSeleccionado.nombre}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-blue-600">{productoSeleccionado.stock} u. en stock</span>
-                              <label className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-1.5 py-0.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-50">
-                                <span className="text-xs font-bold text-blue-500">$</span>
+
+                        {facturaLineas.length > 0 && (
+                          <div className="space-y-1.5">
+                            {facturaLineas.map((l, i) => (
+                              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <span className={"grid h-6 w-6 shrink-0 place-items-center rounded-md " + (l.tipo === "producto" ? "bg-blue-50 text-blue-600" : "bg-violet-50 text-violet-600")}>
+                                    {l.tipo === "producto" ? <Glasses size={13} /> : <Wrench size={13} />}
+                                  </span>
+                                  <span className="truncate font-semibold text-slate-700">{l.descripcion}</span>
+                                </span>
+                                <span className="flex shrink-0 items-center gap-2">
+                                  <span className="font-mono text-xs text-slate-500">{l.cantidad} × ${l.precioUnitario.toFixed(2)} = ${(l.cantidad * l.precioUnitario).toFixed(2)}</span>
+                                  <button type="button" onClick={() => quitarLineaFactura(i)} aria-label="Quitar línea" className="text-sm font-bold text-slate-400 hover:text-red-600 cursor-pointer">×</button>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setFacturaTipoLinea("producto")} className="flex-1 rounded-lg border py-1.5 text-xs font-bold transition cursor-pointer"
+                            style={facturaTipoLinea === "producto" ? { background: GRAD, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
+                            Producto
+                          </button>
+                          <button type="button" onClick={() => setFacturaTipoLinea("servicio")} className="flex-1 rounded-lg border py-1.5 text-xs font-bold transition cursor-pointer"
+                            style={facturaTipoLinea === "servicio" ? { backgroundColor: "#7c3aed", borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
+                            Servicio
+                          </button>
+                        </div>
+
+                        {facturaTipoLinea === "producto" ? (
+                          <div className="space-y-2">
+                            {facturaProductoSeleccionado ? (
+                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+                                <span className="font-semibold text-blue-800">{facturaProductoSeleccionado.nombre}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs text-blue-600">{facturaProductoSeleccionado.stock} u. · ${Number(facturaProductoSeleccionado.precio).toFixed(2)}</span>
+                                  <button type="button" onClick={() => { setFacturaProductoId(null); setFacturaBusquedaProducto("") }} aria-label="Quitar selección" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">×</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
                                 <input
-                                  type="number" min="0" step="0.01" value={montoVenta} onChange={(e) => setMontoVenta(e.target.value)}
-                                  aria-label="Monto de la venta"
-                                  className="w-16 text-right font-mono text-xs text-blue-800 outline-none"
+                                  type="text"
+                                  placeholder="Buscar producto con stock..."
+                                  value={facturaBusquedaProducto}
+                                  onFocus={() => setFacturaMostrarDropdown(true)}
+                                  onChange={(e) => { setFacturaBusquedaProducto(e.target.value); setFacturaMostrarDropdown(true) }}
+                                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-800 outline-none focus:border-blue-500"
                                 />
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => setEstadoVenta((e) => (e === "completado" ? "pendiente" : "completado"))}
-                                className={"rounded-full px-2 py-0.5 text-[10px] font-bold cursor-pointer " + (estadoVenta === "completado" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}
-                                title="Toca para cambiar el estado del pago"
-                              >
-                                {estadoVenta === "completado" ? "Pagado" : "Pendiente"}
-                              </button>
-                              <button type="button" onClick={quitarProducto} aria-label="Quitar producto vinculado" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">
-                                ×
-                              </button>
-                            </div>
+                                {facturaMostrarDropdown && facturaProductosFiltrados.length > 0 && (
+                                  <ul className="absolute z-50 mt-1 max-h-40 w-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                                    {facturaProductosFiltrados.map((p) => (
+                                      <li
+                                        key={p.id}
+                                        onClick={() => { setFacturaProductoId(p.id); setFacturaBusquedaProducto(p.nombre); setFacturaMostrarDropdown(false) }}
+                                        className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                                      >
+                                        <span className="font-semibold">{p.nombre}</span>
+                                        <span className="font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {facturaMostrarDropdown && facturaBusquedaProducto && facturaProductosFiltrados.length === 0 && (
+                                  <p className="mt-1.5 text-xs text-slate-500">Ningún producto con stock coincide con la búsqueda.</p>
+                                )}
+                              </div>
+                            )}
+                            {facturaProductoSeleccionado && (
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold text-slate-600">Cantidad</label>
+                                <input type="number" min="1" max={facturaProductoSeleccionado.stock} value={facturaCantidadProducto} onChange={(e) => setFacturaCantidadProducto(e.target.value)} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
+                                <button type="button" onClick={agregarLineaFacturaProducto} className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-white cursor-pointer" style={{ backgroundColor: INK }}>+ Agregar línea</button>
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <>
-                            <div className="relative">
-                              <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                              <input
-                                type="text"
-                                placeholder="Buscar armazón o producto en inventario..."
-                                value={busquedaProducto}
-                                onFocus={() => setMostrarDropdownProducto(true)}
-                                onChange={(e) => { setBusquedaProducto(e.target.value); setMostrarDropdownProducto(true) }}
-                                className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-800 outline-none focus:border-blue-500"
-                              />
+                          <div className="space-y-2">
+                            <input type="text" placeholder="Descripción del servicio (ej. Examen visual, ajuste, garantía...)" value={facturaDescServicio} onChange={(e) => setFacturaDescServicio(e.target.value)}
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" />
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs font-semibold text-slate-600">Cantidad</label>
+                              <input type="number" min="1" value={facturaCantidadServicio} onChange={(e) => setFacturaCantidadServicio(e.target.value)} className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
+                              <label className="text-xs font-semibold text-slate-600">Precio</label>
+                              <input type="number" min="0" step="0.01" value={facturaPrecioServicio} onChange={(e) => setFacturaPrecioServicio(e.target.value)} placeholder="0.00" className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
+                              <button type="button" onClick={agregarLineaFacturaServicio} className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-white cursor-pointer" style={{ backgroundColor: INK }}>+ Agregar línea</button>
                             </div>
-                            {mostrarDropdownProducto && productosFiltrados.length > 0 && (
-                              <ul className="absolute z-50 mt-1 max-h-40 w-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                                {productosFiltrados.map((p) => (
-                                  <li
-                                    key={p.id}
-                                    onClick={() => seleccionarProducto(p)}
-                                    className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                                  >
-                                    <span className="font-semibold">{p.nombre}</span>
-                                    <span className="font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                            {mostrarDropdownProducto && busquedaProducto && productosFiltrados.length === 0 && (
-                              <p className="mt-1.5 text-xs text-slate-500">Ningún producto con stock coincide con la búsqueda.</p>
+                          </div>
+                        )}
+
+                        {facturaLineas.length > 0 && (
+                          <>
+                            <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                              <span className="text-xs font-semibold text-slate-600">Total factura</span>
+                              <span className="font-mono text-base font-bold text-slate-800">${facturaTotal.toFixed(2)}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              {[{ v: "directo", t: "Directo" }, { v: "tarjeta", t: "Tarjeta" }, { v: "cuotas", t: "Cuotas" }].map((m) => (
+                                <button key={m.v} type="button" onClick={() => setFacturaMetodoPago(m.v)} className="flex-1 rounded-lg border py-1.5 text-xs font-bold transition cursor-pointer"
+                                  style={facturaMetodoPago === m.v ? { background: "linear-gradient(135deg,#34d399,#059669)", borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
+                                  {m.t}
+                                </button>
+                              ))}
+                            </div>
+                            {facturaMetodoPago === "cuotas" && (
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold text-slate-600">Número de cuotas</label>
+                                <input type="number" min="1" value={facturaCuotasTotales} onChange={(e) => setFacturaCuotasTotales(e.target.value)} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
+                              </div>
                             )}
                           </>
                         )}
                       </div>
                     )}
 
-                    {fichaGuardada && productoSeleccionado && (
+                    {fichaGuardada && facturaLineas.length > 0 && facturaEstadoGuardado === "guardada" && (
                       <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
-                        <Glasses size={13} className="text-blue-500" /> Vinculado a <span className="font-semibold text-slate-700">{productoSeleccionado.nombre}</span> — se descontó 1 unidad del inventario.
+                        <Receipt size={13} className="text-emerald-500" /> Factura generada — {facturaLineas.length} línea{facturaLineas.length === 1 ? "" : "s"}, ${facturaTotal.toFixed(2)}.
                       </p>
+                    )}
+
+                    {fichaGuardada && facturaEstadoGuardado === "error" && (
+                      <div role="alert" className="no-print space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                        <p className="flex items-start gap-1.5 text-xs font-semibold text-red-700">
+                          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                          La ficha clínica se guardó correctamente, pero la factura no se pudo generar: {facturaErrorMsg}
+                        </p>
+                        <p className="text-xs text-red-600">Tus líneas siguen aquí — no se perdieron. Podés resolver el problema (por ejemplo, agregar stock desde Inventario) y reintentar.</p>
+                        <button type="button" onClick={reintentarFactura} disabled={guardandoFacturaAhora} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer">
+                          {guardandoFacturaAhora ? "Reintentando..." : "Reintentar generar factura"}
+                        </button>
+                      </div>
                     )}
 
                     {!fichaGuardada && (
@@ -2053,6 +2214,7 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
         <div>
           <label htmlFor={`${sigla}-avcc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV con lentes</label>
           <select id={`${sigla}-avcc`} value={avCc} onChange={(e) => setAvCc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500">
+            <option value="">Sin evaluar</option>
             {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
           </select>
         </div>

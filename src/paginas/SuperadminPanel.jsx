@@ -64,6 +64,7 @@ import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
+import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -405,6 +406,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [guardandoAdminExtra, setGuardandoAdminExtra] = useState(false)
   const [adminAEliminar, setAdminAEliminar] = useState(null)
   const [eliminandoAdmin, setEliminandoAdmin] = useState(false)
+  const [errorEliminarAdmin, setErrorEliminarAdmin] = useState("")
 
   // ─── Superadmins ───
   const [modalSuperadminAbierto, setModalSuperadminAbierto] = useState(false)
@@ -414,6 +416,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [guardandoSuperadmin, setGuardandoSuperadmin] = useState(false)
   const [superadminAEliminar, setSuperadminAEliminar] = useState(null)
   const [eliminandoSuperadmin, setEliminandoSuperadmin] = useState(false)
+  const [errorEliminarSuperadmin, setErrorEliminarSuperadmin] = useState("")
 
   // ─── Mi cuenta (el propio superadmin logueado: nombre, correo, contraseña) ───
   const [modalMiCuentaAbierto, setModalMiCuentaAbierto] = useState(false)
@@ -1421,15 +1424,26 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setAgregarAdminAbierto(false)
     cargarDatos()
   }
+  // Punto 02 del Diagnóstico Maestro: antes esto solo borraba la fila de
+  // "perfiles" — la cuenta de Supabase Auth quedaba huérfana para siempre
+  // (su correo nunca podía volver a usarse). La Edge Function borra ambas
+  // cosas, verificando del lado del servidor que quien llama es superadmin
+  // antes de usar la service role. mensajeErrorEdgeFunction ahora vive en
+  // utilidades/edgeFunctions.js, compartida con Usuarios.jsx desde que ese
+  // módulo también empezó a usar esta misma Edge Function.
   const confirmarEliminarAdmin = async () => {
     if (!adminAEliminar) return
     setEliminandoAdmin(true)
-    const { error: errorDelete } = await supabase.from("perfiles").delete().eq("id", adminAEliminar.id)
-    if (!errorDelete) {
+    setErrorEliminarAdmin("")
+    const { data, error: errorInvoke } = await supabase.functions.invoke("eliminar-cuenta-auth", { body: { perfilId: adminAEliminar.id } })
+    const errorMensaje = await mensajeErrorEdgeFunction(errorInvoke, data)
+    if (!errorMensaje) {
       await registrarAuditoria("eliminar_administrador", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: adminAEliminar.nombre })
       setAdmins((prev) => prev.filter((a) => a.id !== adminAEliminar.id))
       cargarAuditoria(true)
       setAdminAEliminar(null)
+    } else {
+      setErrorEliminarAdmin(errorMensaje)
     }
     setEliminandoAdmin(false)
   }
@@ -1480,12 +1494,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const confirmarEliminarSuperadmin = async () => {
     if (!superadminAEliminar) return
     setEliminandoSuperadmin(true)
-    const { error: errorDelete } = await supabase.from("perfiles").delete().eq("id", superadminAEliminar.id)
-    if (!errorDelete) {
+    setErrorEliminarSuperadmin("")
+    const { data, error: errorInvoke } = await supabase.functions.invoke("eliminar-cuenta-auth", { body: { perfilId: superadminAEliminar.id } })
+    const errorMensaje = await mensajeErrorEdgeFunction(errorInvoke, data)
+    if (!errorMensaje) {
       await registrarAuditoria("eliminar_superadmin", { opticaNombre: superadminAEliminar.nombre })
       setSuperadmins((prev) => prev.filter((s) => s.id !== superadminAEliminar.id))
       cargarAuditoria(true)
       setSuperadminAEliminar(null)
+    } else {
+      setErrorEliminarSuperadmin(errorMensaje)
     }
     setEliminandoSuperadmin(false)
   }
@@ -2547,7 +2565,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSuperadminAEliminar(s)}
+                  onClick={() => { setSuperadminAEliminar(s); setErrorEliminarSuperadmin("") }}
                   disabled={s.id === usuario?.id || superadmins.length <= 1}
                   title={s.id === usuario?.id ? "No podés quitarte a vos mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
                   aria-label={s.id === usuario?.id ? "No podés quitarte a vos mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
@@ -2886,16 +2904,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-rose-700">¿Quitar a {a.nombre}?</span>
                             <div className="flex gap-2">
-                              <button type="button" onClick={() => setAdminAEliminar(null)} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">Cancelar</button>
+                              <button type="button" onClick={() => { setAdminAEliminar(null); setErrorEliminarAdmin("") }} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">Cancelar</button>
                               <button type="button" onClick={confirmarEliminarAdmin} disabled={eliminandoAdmin} className="rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
                                 {eliminandoAdmin ? "Quitando…" : "Confirmar"}
                               </button>
                             </div>
                           </div>
-                          {/* Mismo caso que Usuarios.jsx: solo se borra el
-                              perfil, no la cuenta real de Supabase Auth — su
-                              correo queda inservible para un admin nuevo. */}
-                          <p className="mt-1.5 text-xs text-rose-600">Su correo ({a.email || "sin correo"}) no podrá reutilizarse para otro administrador después de esto.</p>
+                          <p className="mt-1.5 text-xs text-rose-600">Esto elimina también su cuenta de acceso — su correo ({a.email || "sin correo"}) queda libre para usarse de nuevo.</p>
+                          {errorEliminarAdmin && (
+                            <p role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarAdmin}</p>
+                          )}
                         </div>
                       ) : (
                         <div key={a.id} className="rounded-xl border border-slate-200 p-3">
@@ -2904,7 +2922,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                               <p className="truncate font-semibold text-slate-800">{a.nombre}</p>
                               <div className="flex items-center gap-1.5 text-xs text-slate-500"><Mail size={12} /><span className="truncate">{a.email || "—"}</span></div>
                             </div>
-                            <button type="button" onClick={() => setAdminAEliminar(a)} title="Quitar administrador" className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"><Trash2 size={15} /></button>
+                            <button type="button" onClick={() => { setAdminAEliminar(a); setErrorEliminarAdmin("") }} title="Quitar administrador" className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"><Trash2 size={15} /></button>
                           </div>
                           <div className="mt-2.5 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
                             <Cake size={13} className="shrink-0 text-slate-400" />
@@ -3756,10 +3774,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <div className="p-5">
               <div className="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-rose-50 text-rose-600"><AlertTriangle size={20} /></div>
               <h4 className="text-base font-bold" style={{ color: INK }}>¿Quitar a {superadminAEliminar.nombre} como superadmin?</h4>
-              <p className="mt-1.5 text-sm text-slate-500">Perderá acceso al panel. Su cuenta de correo no se elimina, solo el permiso.</p>
+              <p className="mt-1.5 text-sm text-slate-500">Perderá acceso al panel y su cuenta de acceso se elimina — su correo queda libre para usarse de nuevo.</p>
+              {errorEliminarSuperadmin && (
+                <p role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarSuperadmin}</p>
+              )}
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
-              <button type="button" onClick={() => setSuperadminAEliminar(null)} disabled={eliminandoSuperadmin} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+              <button type="button" onClick={() => { setSuperadminAEliminar(null); setErrorEliminarSuperadmin("") }} disabled={eliminandoSuperadmin} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                 Cancelar
               </button>
               <button type="button" onClick={confirmarEliminarSuperadmin} disabled={eliminandoSuperadmin} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">

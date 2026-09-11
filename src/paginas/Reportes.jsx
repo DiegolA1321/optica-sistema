@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Star,
   CalendarRange,
+  Info,
 } from "lucide-react"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { fechaAISO } from "../utilidades/disponibilidad"
@@ -29,6 +30,7 @@ const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "s
 const COLOR_CORRECCION = {
   "Bien corregido": "#059669",
   "Requiere ajuste": "#dc2626",
+  "Sin evaluar": "#475569",
   "Sin evaluación": "#d97706",
 }
 
@@ -78,7 +80,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ pacientes = [], consultas = [], citas = [], ventas = [], respuestasSatisfaccion = [] }) {
+export default function Reportes({ pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [] }) {
   const [periodo, setPeriodo] = useState("mes")
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")
   const [finPersonalizado, setFinPersonalizado] = useState("")
@@ -106,32 +108,65 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
     [pacientes, rango],
   )
 
+  // Diagnóstico con Diego (2026-09-10): "AV con lentes" arrancaba en 20/20
+  // por defecto en la ficha clínica, así que "Bien corregido" no distinguía
+  // "evaluado y confirmado" de "nunca evaluado" — el campo ya no tiene ese
+  // default (ver evaluarCorreccion en ConsultaMedica.jsx), y ahora puede
+  // devolver "Sin evaluar" además de "Sin evaluación" (nunca tuvo consulta).
+  // El % solo debe salir de pacientes con una evaluación real: ni los que
+  // nunca tuvieron consulta ni los que la tuvieron pero dejaron el campo
+  // vacío cuentan en el denominador — mismo criterio que antes, pero ahora
+  // filtrando por los dos valores reales en vez de excluir solo uno.
   const tasaBienCorregido = useMemo(() => {
-    const evaluados = pacientes.filter((p) => p.estadoCorreccion && p.estadoCorreccion !== "Sin evaluación")
+    const evaluados = pacientes.filter((p) => p.estadoCorreccion === "Bien corregido" || p.estadoCorreccion === "Requiere ajuste")
     if (evaluados.length === 0) return null
     const bien = evaluados.filter((p) => p.estadoCorreccion === "Bien corregido").length
     return Math.round((bien / evaluados.length) * 100)
   }, [pacientes])
+
+  // Dato aparte que pidió Diego: cuántos pacientes tuvieron consulta pero
+  // quedaron "Sin evaluar" — no se esconde ni se cuenta como mal corregido,
+  // se muestra tal cual junto al KPI de arriba.
+  const pacientesSinEvaluarCorreccion = useMemo(
+    () => pacientes.filter((p) => p.estadoCorreccion === "Sin evaluar").length,
+    [pacientes],
+  )
 
   const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultas)).length, [pacientes, consultas])
 
   // Vínculo receta → venta (anteproyecto: "tasa de conversión de recetas a
   // ventas" e "ingresos" como indicadores de impacto operativo).
   // "Conversión" mide algo puntual: ¿la consulta terminó en una venta en el
-  // mismo acto? — eso sigue viviendo en consultas.productoId (lo pone
-  // ConsultaMedica.jsx al vincular un producto de bodega durante la ficha).
-  // "Ingresos", en cambio, tiene que ser la venta REAL total del mes — y
-  // antes solo sumaba las vinculadas desde la ficha clínica, ignorando toda
-  // venta hecha por Inventario/Pacientes → "Vender producto" (que sí crea
-  // una fila en `ventas`, con método de pago y estado). Un dueño que
-  // revisara "cuánto vendí este mes" acá podía estar viendo solo una
-  // fracción de sus ventas reales según por dónde las registró su equipo.
-  // Ahora ambas vías crean una fila en `ventas` (ver ConsultaMedica.jsx),
-  // así que sumar de ahí ya cubre las dos.
+  // mismo acto? — sigue viviendo en consultas.productoId; desde el Punto 06,
+  // ConsultaMedica.jsx lo llena con la primera línea "producto" de la
+  // factura de esa consulta (ya no con un selector de un solo producto),
+  // para no dejar esta métrica en 0% al reemplazar ese mecanismo.
+  // "Ingresos" tiene que ser la venta REAL total del mes, y ahora hay DOS
+  // caminos que generan dinero real: `ventas` (Inventario/Pacientes →
+  // "Vender producto", camino viejo, una venta = un producto) y
+  // `facturas_venta` (Punto 06 — líneas múltiples, reemplaza el vínculo de
+  // ConsultaMedica.jsx). Si solo se sumara uno de los dos, "Ingresos"
+  // volvería a mostrar una fracción de las ventas reales — el mismo
+  // hallazgo real #1 de la auditoría del 2026-09-08, repetido en el camino
+  // nuevo si no se suman ambos. Una factura 'pendiente_pago' (cuotas) solo
+  // aporta lo efectivamente cobrado hasta ahora (monto_total × cuotas_pagadas
+  // / cuotas_totales), no el total — mismo bug que se encontró y se decidió
+  // no repetir (ver Punto 09): 1 de 6 cuotas pagadas no es el ingreso
+  // completo. Una factura 'anulada' no aporta nada.
   const consultasEsteMesArr = useMemo(() => consultas.filter((c) => enRango(c.fecha)), [consultas, rango])
   const ventasVinculadasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
   const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
-  const ingresosEsteMes = useMemo(() => ventasRealesEsteMes.reduce((sum, v) => sum + (Number(v.montoTotal) || 0), 0), [ventasRealesEsteMes])
+  const facturasVentaEsteMes = useMemo(() => facturasVenta.filter((f) => enRango(f.creadoEn)), [facturasVenta, rango])
+  const ingresoFacturaVenta = (f) => {
+    if (f.estado === "pagada") return f.montoTotal
+    if (f.estado === "pendiente_pago") return f.cuotasTotales ? f.montoTotal * (f.cuotasPagadas / f.cuotasTotales) : 0
+    return 0
+  }
+  const ingresosEsteMes = useMemo(
+    () => ventasRealesEsteMes.reduce((sum, v) => sum + (Number(v.montoTotal) || 0), 0)
+      + facturasVentaEsteMes.reduce((sum, f) => sum + ingresoFacturaVenta(f), 0),
+    [ventasRealesEsteMes, facturasVentaEsteMes],
+  )
   const conversionVenta = useMemo(() => {
     if (consultasEsteMesArr.length === 0) return null
     return Math.round((ventasVinculadasEsteMes.length / consultasEsteMesArr.length) * 100)
@@ -250,7 +285,7 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
   const [hoverProducto, setHoverProducto] = useState(null)
 
   const distCorreccion = useMemo(() => {
-    const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluación": 0 }
+    const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluar": 0, "Sin evaluación": 0 }
     pacientes.forEach((p) => {
       const k = p.estadoCorreccion || "Sin evaluación"
       base[k] = (base[k] ?? 0) + 1
@@ -284,10 +319,10 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
   const kpis = [
     { key: "consultas", label: "Consultas", sub: rango.etiqueta, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
-    { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length} venta${ventasRealesEsteMes.length === 1 ? "" : "s"} · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length + facturasVentaEsteMes.length} venta${(ventasRealesEsteMes.length + facturasVentaEsteMes.length) === 1 ? "" : "s"} · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta}`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
-    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: "de los pacientes evaluados, hoy", icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600" },
-    { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600" },
+    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin evaluar`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
+    { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — no cambia con el período seleccionado arriba." },
     { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
@@ -347,7 +382,12 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
             style={{ animation: "rise-in 320ms ease-out both", animationDelay: `${i * 50}ms` }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{k.label}</span>
+              <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+                {k.label}
+                {k.tooltip && (
+                  <Info size={12} className="shrink-0 cursor-help text-slate-400" title={k.tooltip} aria-label={k.tooltip} />
+                )}
+              </span>
               <div className={"grid h-9 w-9 place-items-center rounded-xl " + (k.iconClass || "")} style={k.iconBg ? { background: k.iconBg, color: k.iconFg } : undefined}>
                 <k.icon size={16} />
               </div>

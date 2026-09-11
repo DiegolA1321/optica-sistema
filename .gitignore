@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Estado local del CLI de Supabase (link de proyecto, versión) — no es código
+supabase/.temp
+
 # Material de referencia / trabajo personal (no forma parte del proyecto)
 /Captura de pantalla*.png
 /REFERENCIA*

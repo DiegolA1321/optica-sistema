@@ -261,6 +261,17 @@ export function haySolapamiento(inicioA, finA, inicioB, finB) {
   return inicioA < finB && inicioB < finA
 }
 
+// Punto 07 del Diagnóstico Maestro: los rangos de ausencia que el óptometra
+// registra en "Mi horario" viven dentro de la misma excepción por fecha que
+// ya usa el horario general (disponibilidad.excepciones[fecha].ausencias) —
+// no en una tabla ni un mecanismo aparte. Así el calendario público y el
+// interno (los 4 flujos que ya comparten slotsDisponibles/
+// conflictoHorarioPersonalizado) respetan las ausencias automáticamente, sin
+// una segunda fuente de verdad ni migración: excepciones ya es jsonb.
+export function ausenciasDeFecha(fechaISO, disponibilidad) {
+  return disponibilidad?.excepciones?.[fechaISO]?.ausencias || []
+}
+
 // Slots de una fecha, marcando cuáles ya están ocupados por citas existentes.
 // Si la fecha es hoy, también descarta los horarios que ya pasaron — antes se
 // podía agendar (desde cualquiera de los 4 flujos que comparten esta función)
@@ -282,6 +293,7 @@ export function slotsDisponibles(fechaISO, disponibilidad, citas = []) {
   const ocupados = citas
     .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada")
     .map((c) => ({ inicio: minutosDesdeMedianoche(c.hora), fin: finCitaMinutos(c, duracionDefault, ahoraMin) }))
+    .concat(ausenciasDeFecha(fechaISO, disponibilidad).map((a) => ({ inicio: minutosDesde24h(a.inicio), fin: minutosDesde24h(a.fin) })))
   return todos.map((h) => {
     const inicioSlot = minutosDesdeMedianoche(h)
     const finSlot = inicioSlot + duracionDefault
@@ -304,9 +316,12 @@ export function conflictoHorarioPersonalizado(fechaISO, horaAMPM, duracionMinuto
   const fin = inicio + duracion
   const esHoyFecha = fechaISO === hoyISO()
   const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
-  return citas
+  const chocaConCita = citas
     .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada" && c.id !== citaIdExcluir)
     .some((c) => haySolapamiento(inicio, fin, minutosDesdeMedianoche(c.hora), finCitaMinutos(c, duracionDefault, ahoraMin)))
+  if (chocaConCita) return true
+  return ausenciasDeFecha(fechaISO, disponibilidad)
+    .some((a) => haySolapamiento(inicio, fin, minutosDesde24h(a.inicio), minutosDesde24h(a.fin)))
 }
 
 // ¿Hay al menos un cupo libre ese día? (para pintar el calendario de agendamiento)

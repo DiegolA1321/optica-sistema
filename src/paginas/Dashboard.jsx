@@ -53,6 +53,12 @@ import { diasVencido } from "../utilidades/fidelizacion"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import { INK } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
+
+// Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
+// atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se muestra un
+// texto neutral que no lo insinúa.
+const NOMBRE_EQUIPO = MODO_SAAS_VISIBLE ? "Diego Óptica" : "la óptica"
 
 // ─── Paleta de firma ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -111,7 +117,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -355,8 +361,8 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
     })
     const citasDeHoy = citas.filter((c) => esHoy(c.fecha))
     if (citasDeHoy.length) arr.push({ icon: Calendar, color: "#2563eb", bg: "#eff6ff", texto: `${citasDeHoy.length} cita${citasDeHoy.length > 1 ? "s" : ""} para hoy`, sub: "Revisa la agenda del día", destino: "citas" })
-    if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: "Le escribiste al equipo de Diego Óptica", destino: "mensajes" })
-    if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: "Publicado por el equipo de Diego Óptica", destino: "mensajes" })
+    if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: `Le escribiste al equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
+    if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: `Publicado por el equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
     pacientes.forEach((p) => {
       const d = diasACumple(p.fechaNacimiento || p.fecha_nacimiento)
       if (d !== null) {
@@ -406,6 +412,7 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
             setCategoriasInventario={setCategoriasInventario}
             ventas={ventas}
             setVentas={setVentas}
+            setFacturasVenta={setFacturasVenta}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
             onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
@@ -423,8 +430,7 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
             setConsultas={setConsultas}
             inventario={inventario}
             setInventario={setInventario}
-            ventas={ventas}
-            setVentas={setVentas}
+            setFacturasVenta={setFacturasVenta}
             parametrizacion={parametrizacion}
             diagnosticosRapidos={diagnosticosRapidos}
             pacienteInicial={fichaClinicaPacienteInicial}
@@ -481,7 +487,7 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
       case "reportes":
-        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} respuestasSatisfaccion={respuestasSatisfaccion} />
+        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
@@ -506,6 +512,7 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
           <Inicio
             setVista={navegar}
             usuario={usuario}
+            opticaActiva={opticaActiva}
             nombreUsuario={nombreUsuario}
             opticaNombre={usuario?.opticaNombre}
             pacientes={pacientes}
@@ -855,6 +862,27 @@ export default function Dashboard({ usuario, cargaInicialStaff = false, erroresC
 
         {/* Espacio de trabajo */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {/* Hallazgo real 2026-09-10: suspender una óptica no cortaba el
+              acceso de una sesión ya abierta, y tampoco avisaba nada — la
+              persona solo veía que las cosas empezaban a fallar sin
+              explicación. Este banner no se puede cerrar (no tiene botón de
+              cerrar a propósito) y se queda mientras opticaActiva sea
+              false — no bloquea la pantalla porque las acciones reales ya
+              fallan limpio por RLS (migración 0073), esto es solo para
+              explicar por qué. */}
+          {!opticaActiva && (
+            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-100 p-4">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-red-900">Esta óptica fue suspendida por el administrador del sistema.</p>
+                <p className="text-xs text-red-700">Ya no podés ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contactá a soporte si esto es un error.</p>
+              </div>
+              <button type="button" onClick={() => alSalir()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-800 transition hover:bg-red-50 cursor-pointer">
+                <LogOut size={13} /> Cerrar sesión
+              </button>
+            </div>
+          )}
+
           {/* J7: antes un fallo de red o un RLS que negaba el acceso al cargar
               pacientes/citas/etc. quedaba en silencio — la pantalla se veía
               igual que "no hay datos todavía", sin ninguna forma de saber que

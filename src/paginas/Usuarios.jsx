@@ -24,6 +24,7 @@ import {
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esClaveSegura } from "../utilidades/validaciones"
 import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
+import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -243,9 +244,18 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     if (porEliminar == null) return
     const eliminado = asistentes.find((a) => a.id === porEliminar)
     setEliminando(true)
-    const { error: errorDelete } = await supabase.from("perfiles").delete().eq("id", porEliminar)
+    // Punto 02 del Diagnóstico Maestro, extensión 2026-09-10: antes esto
+    // solo borraba la fila de "perfiles" y dejaba la cuenta de Supabase
+    // Auth huérfana para siempre (su correo nunca podía reusarse) — mismo
+    // cabo suelto que ya se había arreglado en SuperadminPanel.jsx. La
+    // Edge Function borra ambas cosas, y del lado del servidor valida que
+    // un admin de óptica solo pueda borrar asistentes de SU MISMA óptica
+    // (nunca a otro admin, a sí mismo, o a alguien de otra óptica) — esa
+    // regla no vive acá, vive server-side para no poder saltársela.
+    const { data, error: errorInvoke } = await supabase.functions.invoke("eliminar-cuenta-auth", { body: { perfilId: porEliminar } })
+    const errorMensaje = await mensajeErrorEdgeFunction(errorInvoke, data)
     setEliminando(false)
-    if (errorDelete) { setError(errorDelete.message); return }
+    if (errorMensaje) { setError(errorMensaje); return }
     setAsistentes(asistentes.filter((a) => a.id !== porEliminar))
     registrarLog(usuario, "usuarios", "Eliminó un usuario", eliminado?.nombre || "")
     setPorEliminar(null)
@@ -576,17 +586,13 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             </div>
             <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar este perfil?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Ya no podrá iniciar sesión con estas credenciales. Esta acción no se puede deshacer.</p>
-            {/* Esto solo borra la fila de "perfiles" — la cuenta de Supabase
-                Auth (el correo/contraseña reales) no se puede eliminar desde
-                el cliente sin exponer una clave de servicio, así que sigue
-                existiendo. Consecuencia real, ya confirmada probando este
-                flujo: ese correo queda inutilizable para un usuario nuevo
-                hasta que se borre server-side. Mejor avisarlo ahora que
-                dejar que alguien lo descubra como un error confuso más
-                tarde al intentar reusar el correo. */}
-            <p className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-left text-xs leading-relaxed text-amber-800">
+            {/* Punto 02 del Diagnóstico Maestro, extensión 2026-09-10: esto
+                ahora borra también la cuenta de Supabase Auth (vía la Edge
+                Function eliminar-cuenta-auth), no solo la fila de
+                "perfiles" — el correo SÍ queda libre para reusarse. */}
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2.5 text-left text-xs leading-relaxed text-blue-800">
               <Info size={14} className="mt-0.5 shrink-0" />
-              El correo <span className="font-mono font-semibold">{asistentes.find((a) => a.id === porEliminar)?.correo}</span> no podrá volver a usarse para crear otro usuario después de esto — contacta soporte si necesitas reutilizarlo.
+              Esto elimina también su cuenta de acceso — el correo <span className="font-mono font-semibold">{asistentes.find((a) => a.id === porEliminar)?.correo}</span> queda libre para usarse de nuevo.
             </p>
             {error && (
               <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">

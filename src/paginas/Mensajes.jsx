@@ -3,9 +3,15 @@ import { MessageSquare, Megaphone, Send, Clock, AlertCircle, CheckCircle2, Walle
 import { supabase } from "../lib/supabaseClient"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { INK } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 
 // ─── Paleta de firma ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
+
+// Modo anteproyecto: "el equipo de Diego Óptica" revela que hay un
+// proveedor atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se
+// muestra un texto neutral que no lo insinúa.
+const NOMBRE_EQUIPO = MODO_SAAS_VISIBLE ? "Diego Óptica" : "la óptica"
 
 const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })
 const formatearFechaHora = (fecha) =>
@@ -96,7 +102,7 @@ export default function Mensajes({ usuario }) {
         </div>
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mensajes</h1>
-          <p className="text-sm text-slate-500">Escribile al equipo de Diego Óptica y mirá los avisos generales.</p>
+          <p className="text-sm text-slate-500">Escribile al equipo de {NOMBRE_EQUIPO} y mirá los avisos generales.</p>
         </div>
       </div>
 
@@ -142,7 +148,7 @@ export default function Mensajes({ usuario }) {
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avisos</p>
               <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{totalAvisos}</p>
-              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">de Diego Óptica</p>
+              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">de {NOMBRE_EQUIPO}</p>
             </div>
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#FFF7E6", color: "#B45309" }}>
               <Megaphone size={22} />
@@ -151,8 +157,9 @@ export default function Mensajes({ usuario }) {
         </div>
       </div>
 
-      {/* ─── Suscripción — solo ocupa espacio si hay algo que atender ─── */}
-      {estadoPago !== "al_dia" && (
+      {/* ─── Suscripción — solo ocupa espacio si hay algo que atender.
+          Oculta mientras MODO_SAAS_VISIBLE esté apagado (ver src/lib/config.js). ─── */}
+      {MODO_SAAS_VISIBLE && estadoPago !== "al_dia" && (
         <div className="flex items-center justify-between gap-4 rounded-2xl border bg-white p-5" style={{ borderColor: estadoPago === "vencido" ? "#FECACA" : "#FDE68A", boxShadow: `0 0 0 3px ${estadoPago === "vencido" ? "rgba(225,29,72,0.08)" : "rgba(217,119,6,0.08)"}` }}>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Suscripción</p>
@@ -169,7 +176,7 @@ export default function Mensajes({ usuario }) {
         </div>
       )}
 
-      {facturas.length > 0 && (
+      {MODO_SAAS_VISIBLE && facturas.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Receipt size={18} /></span>
@@ -214,7 +221,7 @@ export default function Mensajes({ usuario }) {
           <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><MessageSquare size={18} /></span>
           <div>
             <h4 className="text-sm font-bold" style={{ color: INK }}>Escribir una consulta</h4>
-            <p className="text-[11px] text-slate-500">Le llega directo al equipo de Diego Óptica</p>
+            <p className="text-[11px] text-slate-500">Le llega directo al equipo de {NOMBRE_EQUIPO}</p>
           </div>
         </div>
         <form onSubmit={enviarConsulta} className="space-y-3 p-4">

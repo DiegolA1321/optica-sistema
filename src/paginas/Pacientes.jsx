@@ -37,6 +37,7 @@ import {
   Image as ImageIcon,
   Wallet,
   ShoppingCart,
+  Receipt,
   CreditCard,
   Gift,
   Award,
@@ -48,12 +49,14 @@ import {
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import VentaProductoModal from "./VentaProductoModal"
+import FacturaVentaModal from "./FacturaVentaModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 
@@ -68,9 +71,14 @@ const ee = (o) => parseFloat(o?.esfera || 0) + parseFloat(o?.cilindro || 0) / 2
 // Estado de corrección: ¿la corrección actual (anteojos/lentes) logra buena agudeza visual?
 // Es el dato clínicamente accionable — un error refractivo no se autocorrige, se maneja con
 // anteojos, lentes de contacto o cirugía refractiva; esto mide si ese manejo está funcionando.
+// "Sin evaluación" = el paciente nunca tuvo una consulta registrada.
+// "Sin evaluar" = tuvo consulta, pero el optómetra no seleccionó "AV con
+// lentes" en ningún ojo (ver evaluarCorreccion en ConsultaMedica.jsx) — son
+// dos cosas distintas a propósito, no se funden en una sola categoría.
 const CORRECCION = {
   "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200" },
+  "Sin evaluar": { label: "Sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200" },
   "Sin evaluación": { label: "Sin evaluación", icon: Minus, clase: "bg-amber-50 text-amber-700 border-amber-200" },
 }
 
@@ -78,6 +86,7 @@ const CORRECCION = {
 const CORRECCION_COLOR = {
   "Bien corregido": { fg: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
   "Requiere ajuste": { fg: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  "Sin evaluar": { fg: "#475569", bg: "#f1f5f9", border: "#e2e8f0" },
   "Sin evaluación": { fg: "#d97706", bg: "#fffbeb", border: "#fde68a" },
 }
 
@@ -107,7 +116,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
+export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -176,6 +185,16 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // puntos 5 y 6). Reusa el mismo VentaProductoModal que Inventario.jsx.
   const [mostrarVenta, setMostrarVenta] = useState(false)
   useEffect(() => { if (!pacienteHistorial) setMostrarVenta(false) }, [pacienteHistorial])
+  // "Nueva factura" (Punto 06) — mismo lugar, mismo criterio, pero para una
+  // venta con varias líneas producto/servicio y cuotas. Vive aparte de
+  // "Vender producto" porque son dos tablas distintas (facturas_venta vs.
+  // ventas) mientras no se migre el camino viejo.
+  const [mostrarFactura, setMostrarFactura] = useState(false)
+  useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
+
+  const registrarFactura = (factura) => {
+    setFacturasVenta?.((prev) => [factura, ...prev])
+  }
 
   const registrarVenta = (venta) => {
     setVentas?.((prev) => [venta, ...prev])
@@ -184,8 +203,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const marcarVentaPagada = async (venta) => {
     const cuotasFinales = venta.cuotasTotales || venta.cuotasPagadas
     if (supabase) {
-      const { error } = await supabase.from("ventas").update({ estado: "completado", cuotas_pagadas: cuotasFinales }).eq("id", venta.id)
-      if (error) return
+      const { data: actualizadas, error } = await supabase.from("ventas").update({ estado: "completado", cuotas_pagadas: cuotasFinales }).eq("id", venta.id).select()
+      if (fueBloqueadoPorPermiso({ error, data: actualizadas })) { mostrarError(MENSAJE_SIN_PERMISO); return }
+      if (error) { mostrarError("No se pudo registrar el pago. Revisa tu conexión e intenta de nuevo."); return }
     }
     setVentas?.((prev) => prev.map((v) => (v.id === venta.id ? { ...v, estado: "completado", cuotasPagadas: cuotasFinales } : v)))
   }
@@ -195,8 +215,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     const completado = venta.cuotasTotales != null && nuevasCuotas >= venta.cuotasTotales
     const estadoNuevo = completado ? "completado" : "pendiente"
     if (supabase) {
-      const { error } = await supabase.from("ventas").update({ cuotas_pagadas: nuevasCuotas, estado: estadoNuevo }).eq("id", venta.id)
-      if (error) return
+      const { data: actualizadas, error } = await supabase.from("ventas").update({ cuotas_pagadas: nuevasCuotas, estado: estadoNuevo }).eq("id", venta.id).select()
+      if (fueBloqueadoPorPermiso({ error, data: actualizadas })) { mostrarError(MENSAJE_SIN_PERMISO); return }
+      if (error) { mostrarError("No se pudo registrar el pago. Revisa tu conexión e intenta de nuevo."); return }
     }
     setVentas?.((prev) => prev.map((v) => (v.id === venta.id ? { ...v, cuotasPagadas: nuevasCuotas, estado: estadoNuevo } : v)))
   }
@@ -365,7 +386,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         referidoPorId: referidoPorIdResuelto,
       }
       if (supabase && opticaId) {
-        const { error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null, referido_por_id: cambios.referidoPorId }).eq("id", idEditando)
+        const { data: actualizados, error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null, referido_por_id: cambios.referidoPorId }).eq("id", idEditando).select()
+        if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
+          mostrarError(MENSAJE_SIN_PERMISO)
+          return
+        }
         if (errorUpdate) {
           mostrarError("No se pudo actualizar el expediente. Revisa tu conexión e intenta de nuevo.")
           return
@@ -416,14 +441,17 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       const idsCitas = citasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
       const idsConsultas = consultasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
       if (idsCitas.length) {
-        const { error: errorCitas } = await supabase.from("citas").delete().in("id", idsCitas)
+        const { data: citasBorradas, error: errorCitas } = await supabase.from("citas").delete().in("id", idsCitas).select()
+        if (fueBloqueadoPorPermiso({ error: errorCitas, data: citasBorradas })) { mostrarError(MENSAJE_SIN_PERMISO); setEliminandoPaciente(false); return }
         if (errorCitas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
       }
       if (idsConsultas.length) {
-        const { error: errorConsultas } = await supabase.from("consultas").delete().in("id", idsConsultas)
+        const { data: consultasBorradas, error: errorConsultas } = await supabase.from("consultas").delete().in("id", idsConsultas).select()
+        if (fueBloqueadoPorPermiso({ error: errorConsultas, data: consultasBorradas })) { mostrarError(MENSAJE_SIN_PERMISO); setEliminandoPaciente(false); return }
         if (errorConsultas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
       }
-      const { error: errorPaciente } = await supabase.from("pacientes").delete().eq("id", pacienteAEliminar.id)
+      const { data: pacienteBorrado, error: errorPaciente } = await supabase.from("pacientes").delete().eq("id", pacienteAEliminar.id).select()
+      if (fueBloqueadoPorPermiso({ error: errorPaciente, data: pacienteBorrado })) { mostrarError(MENSAJE_SIN_PERMISO); setEliminandoPaciente(false); return }
       if (errorPaciente) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
     }
     setPacientes(pacientes.filter((p) => p.id !== pacienteAEliminar.id))
@@ -474,7 +502,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       estado: "Pendiente",
     }
     if (supabase && opticaId) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("citas")
         .insert({
           optica_id: opticaId,
@@ -489,6 +517,10 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         })
         .select()
         .single()
+      if (error) {
+        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo agendar la cita. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
       if (data) nuevaCita.id = data.id
     }
     if (nuevaCita.id == null) nuevaCita.id = Date.now()
@@ -541,7 +573,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
   // Conteo por estado de corrección (para el resumen superior)
   const conteoCorreccion = useMemo(() => {
-    const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluación": 0 }
+    const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluar": 0, "Sin evaluación": 0 }
     pacientes.forEach((p) => {
       const k = p.estadoCorreccion || "Sin evaluación"
       if (base[k] !== undefined) base[k]++
@@ -554,6 +586,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     { key: "Todos", icon: Users, valor: pacientes.length, label: "Total pacientes", filled: true, fg: "#fff", bg: GRAD, ring: "#2563EB" },
     { key: "Bien corregido", icon: CORRECCION["Bien corregido"].icon, valor: conteoCorreccion["Bien corregido"], label: "Bien corregidos", fg: CORRECCION_COLOR["Bien corregido"].fg, bg: CORRECCION_COLOR["Bien corregido"].bg, ring: CORRECCION_COLOR["Bien corregido"].fg },
     { key: "Requiere ajuste", icon: CORRECCION["Requiere ajuste"].icon, valor: conteoCorreccion["Requiere ajuste"], label: "Requieren ajuste", fg: CORRECCION_COLOR["Requiere ajuste"].fg, bg: CORRECCION_COLOR["Requiere ajuste"].bg, ring: CORRECCION_COLOR["Requiere ajuste"].fg },
+    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "Sin evaluar", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
     { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin evaluación", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
   ]
 
@@ -613,7 +646,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar la lista</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {tarjetasCorreccion.map((t) => {
             const Icono = t.icon
             const activo = filtroCorreccion === t.key
@@ -698,6 +731,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               <option value="Todos">Todas</option>
               <option value="Bien corregido">Bien corregido</option>
               <option value="Requiere ajuste">Requiere ajuste</option>
+              <option value="Sin evaluar">Sin evaluar</option>
               <option value="Sin evaluación">Sin evaluación</option>
             </select>
           </div>
@@ -1392,14 +1426,26 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <div className="py-6">
                     {tabHistorial === "pagos" ? (
                       <div className="space-y-4">
-                        <button
-                          type="button"
-                          onClick={() => setMostrarVenta(true)}
-                          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                          style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
-                        >
-                          <ShoppingCart size={16} /> Vender producto
-                        </button>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => setMostrarVenta(true)}
+                            className="flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                            style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+                          >
+                            <span className="flex items-center gap-2"><ShoppingCart size={16} /> Vender producto</span>
+                            <span className="text-[11px] font-medium opacity-90">Un solo producto, pago directo</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMostrarFactura(true)}
+                            className="flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                            style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}
+                          >
+                            <span className="flex items-center gap-2"><Receipt size={16} /> Nueva factura</span>
+                            <span className="text-[11px] font-medium opacity-90">Varios productos/servicios, incluye cuotas</span>
+                          </button>
+                        </div>
                         {ventasPaciente.length === 0 ? (
                           <div className="flex flex-col items-center gap-2 py-10 text-center">
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
@@ -1707,6 +1753,20 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           pacienteFijo={pacienteHistorial}
           onGuardado={registrarVenta}
           onCerrar={() => setMostrarVenta(false)}
+        />
+      )}
+
+      {/* ─── MODAL NUEVA FACTURA (desde el perfil del paciente) ─── */}
+      {mostrarFactura && pacienteHistorial && (
+        <FacturaVentaModal
+          usuario={usuario}
+          inventario={inventario}
+          setInventario={setInventario}
+          categorias={categoriasInventario}
+          setCategorias={setCategoriasInventario}
+          pacienteFijo={pacienteHistorial}
+          onGuardado={registrarFactura}
+          onCerrar={() => setMostrarFactura(false)}
         />
       )}
 

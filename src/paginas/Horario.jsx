@@ -26,6 +26,7 @@ import {
 import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
+  haySolapamiento, finCitaMinutos,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
@@ -80,6 +81,18 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     timeoutGuardadoRef.current = setTimeout(() => setGuardadoVisible(false), 2600)
   }
   useEffect(() => () => clearTimeout(timeoutGuardadoRef.current), [])
+
+  // Toast de error compartido para las acciones que no tienen su propio
+  // banner (excepciones puntuales, ausencias) — mismo mecanismo que
+  // mostrarGuardado, visible desde cualquiera de las dos pestañas.
+  const [errorAccion, setErrorAccion] = useState("")
+  const timeoutErrorRef = useRef(null)
+  const mostrarError = (mensaje) => {
+    setErrorAccion(mensaje)
+    clearTimeout(timeoutErrorRef.current)
+    timeoutErrorRef.current = setTimeout(() => setErrorAccion(""), 4000)
+  }
+  useEffect(() => () => clearTimeout(timeoutErrorRef.current), [])
 
   // El horario semanal habitual ya NO se guarda solo al tocar un switch u
   // hora — se edita en un borrador local y solo se aplica (persiste en
@@ -230,8 +243,12 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     ? disponibilidad.horarioSemanal[DIAS_SEMANA[new Date(fechaEditando + "T00:00:00").getDay()]]
     : null
 
-  const aplicarExcepcion = (fecha, cambios) => {
-    setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [fecha]: cambios } }))
+  const aplicarExcepcion = async (fecha, cambios) => {
+    const { error } = await setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [fecha]: cambios } }))
+    if (error) {
+      mostrarError("No se pudo guardar la excepción. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
     setFechaEditando(null)
     mostrarGuardado()
     registrarLog(usuario, "horario", diaAbierto(cambios) ? "Agregó un horario extra puntual" : "Cerró un día puntual", fecha)
@@ -250,16 +267,133 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     aplicarExcepcion(fechaEditando, cambios)
   }
 
-  const quitarExcepcion = () => {
+  const quitarExcepcion = async () => {
     const fecha = fechaEditando
-    setDisponibilidad((prev) => {
+    const { error } = await setDisponibilidad((prev) => {
       const n = { ...prev.excepciones }
       delete n[fecha]
       return { ...prev, excepciones: n }
     })
+    if (error) {
+      mostrarError("No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
     setFechaEditando(null)
     mostrarGuardado()
     registrarLog(usuario, "horario", "Quitó una excepción de horario", fecha)
+  }
+
+  // ─── Ausencias (Punto 07 del Diagnóstico Maestro) ───
+  // Viven dentro de disponibilidad.excepciones[fecha].ausencias — el mismo
+  // objeto por fecha que ya usa "Horario general" (arriba), no un mecanismo
+  // aparte, así el calendario público y el interno (que ya leen excepciones
+  // para saber qué horas ofrecer) respetan una ausencia automáticamente. No
+  // bloquean el día completo por defecto: solo el rango de horas indicado
+  // ("Todo el día" es una casilla explícita, no lo que pasa si se deja en
+  // blanco).
+  const [modalAusenciaAbierto, setModalAusenciaAbierto] = useState(false)
+  const [fechaAusencia, setFechaAusencia] = useState(hoy)
+  const [horaInicioAusencia, setHoraInicioAusencia] = useState("")
+  const [horaFinAusencia, setHoraFinAusencia] = useState("")
+  const [todoElDiaAusencia, setTodoElDiaAusencia] = useState(false)
+  const [motivoAusencia, setMotivoAusencia] = useState("")
+  const [errorAusencia, setErrorAusencia] = useState("")
+
+  const abrirModalAusencia = () => {
+    setFechaAusencia(hoy)
+    setHoraInicioAusencia("")
+    setHoraFinAusencia("")
+    setTodoElDiaAusencia(false)
+    setMotivoAusencia("")
+    setErrorAusencia("")
+    setModalAusenciaAbierto(true)
+  }
+
+  // Todas las ausencias futuras/de hoy de cualquier fecha, aplanadas desde
+  // excepciones para la lista "No podré asistir" (antes vivían en su propio
+  // mapa en horarios_usuario, sin ningún efecto real sobre la agenda).
+  const ausenciasOrdenadas = useMemo(() => {
+    const lista = []
+    Object.entries(disponibilidad.excepciones || {}).forEach(([iso, exc]) => {
+      if (iso < hoy) return
+      ;(exc?.ausencias || []).forEach((a, idx) => lista.push({ fecha: iso, idx, ...a }))
+    })
+    return lista.sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesde24h(a.inicio) - minutosDesde24h(b.inicio)))
+  }, [disponibilidad.excepciones, hoy])
+
+  const aplicarAusencia = async (fecha, inicio, fin, motivo) => {
+    const { error } = await setDisponibilidad((prev) => {
+      const base = prev.excepciones?.[fecha] || horarioEfectivo(fecha, prev)
+      const nuevaExcepcion = { ...base, ausencias: [...(base.ausencias || []), { inicio, fin, motivo }] }
+      return { ...prev, excepciones: { ...prev.excepciones, [fecha]: nuevaExcepcion } }
+    })
+    if (error) {
+      setErrorAusencia("No se pudo guardar. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    setModalAusenciaAbierto(false)
+    mostrarGuardado()
+    registrarLog(usuario, "horario", "Registró que no podrá asistir", `${fecha} · ${inicio}-${fin}${motivo ? " · " + motivo : ""}`)
+  }
+
+  const registrarAusencia = (e) => {
+    e.preventDefault()
+    if (!fechaAusencia) return
+    const horario = horarioEfectivo(fechaAusencia, disponibilidad)
+    let inicio = horaInicioAusencia
+    let fin = horaFinAusencia
+    if (todoElDiaAusencia) {
+      const sesiones = [horario.manana, horario.tarde].filter((s) => s?.activo && s.inicio && s.fin)
+      if (sesiones.length === 0) { setErrorAusencia("Ese día ya está cerrado — no hace falta registrar una ausencia."); return }
+      inicio = sesiones[0].inicio
+      fin = sesiones[sesiones.length - 1].fin
+    }
+    if (!inicio || !fin || minutosDesde24h(fin) <= minutosDesde24h(inicio)) {
+      setErrorAusencia("Indica una hora de inicio y una de fin válidas.")
+      return
+    }
+    const inicioMin = minutosDesde24h(inicio)
+    const finMin = minutosDesde24h(fin)
+    const esHoyFecha = fechaAusencia === hoy
+    const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
+    const afectadas = citas.filter((c) => {
+      if (c.fecha !== fechaAusencia) return false
+      if (["Atendida", "No Asistió", "Cancelada"].includes(c.estado)) return false
+      return haySolapamiento(inicioMin, finMin, minutosDesdeMedianoche(c.hora), finCitaMinutos(c, disponibilidad?.duracionCita || 40, ahoraMin))
+    })
+    const motivo = motivoAusencia.trim()
+    if (afectadas.length > 0) {
+      setAvisoConflicto({ citas: afectadas, aplicar: () => aplicarAusencia(fechaAusencia, inicio, fin, motivo) })
+      return
+    }
+    aplicarAusencia(fechaAusencia, inicio, fin, motivo)
+  }
+
+  const quitarAusencia = async (fecha, idx) => {
+    const { error } = await setDisponibilidad((prev) => {
+      const base = prev.excepciones?.[fecha]
+      if (!base) return prev
+      const restantes = (base.ausencias || []).filter((_, i) => i !== idx)
+      const excepciones = { ...prev.excepciones }
+      const diaSemana = DIAS_SEMANA[new Date(fecha + "T00:00:00").getDay()]
+      const horarioNormal = prev.horarioSemanal?.[diaSemana]
+      // Si la excepción solo existía para cargar esta ausencia (las horas
+      // mañana/tarde son iguales al horario normal de ese día de la
+      // semana), se borra entera en vez de dejar un registro vacío que de
+      // todas formas se comporta igual que no tener excepción.
+      const sinCustomizacion = restantes.length === 0
+        && JSON.stringify(base.manana) === JSON.stringify(horarioNormal?.manana)
+        && JSON.stringify(base.tarde) === JSON.stringify(horarioNormal?.tarde)
+      if (sinCustomizacion) delete excepciones[fecha]
+      else excepciones[fecha] = { ...base, ausencias: restantes }
+      return { ...prev, excepciones }
+    })
+    if (error) {
+      mostrarError("No se pudo quitar la ausencia. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    mostrarGuardado()
+    registrarLog(usuario, "horario", "Canceló una ausencia registrada", fecha)
   }
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -309,9 +443,21 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           <p className="text-sm font-semibold">Cambios guardados.</p>
         </div>
       )}
+      {errorAccion && (
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-800">
+          <AlertTriangle className="shrink-0 text-red-600" size={18} />
+          <p className="text-sm font-semibold">{errorAccion}</p>
+        </div>
+      )}
 
       {tab === "personal" ? (
-        <MiHorarioPersonal usuario={usuario} horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} />
+        <MiHorarioPersonal
+          horarioPersonal={horarioPersonal}
+          setHorarioPersonal={setHorarioPersonal}
+          ausenciasOrdenadas={ausenciasOrdenadas}
+          quitarAusencia={quitarAusencia}
+          abrirModalAusencia={abrirModalAusencia}
+        />
       ) : !esAdmin ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
@@ -633,6 +779,54 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
         </div>,
         document.body
       )}
+
+      {/* ─── MODAL REGISTRAR AUSENCIA (Punto 07) ─── */}
+      {modalAusenciaAbierto && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAusenciaAbierto(false)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-slate-100 px-6 py-4">
+              <h2 className="text-lg font-bold" style={{ color: INK }}>No podré asistir</h2>
+              <p className="mt-1 text-xs text-slate-500">Bloquea ese rango de horas en la agenda pública y en la interna.</p>
+            </div>
+            <form onSubmit={registrarAusencia} className="space-y-3.5 px-6 py-5">
+              {errorAusencia && (
+                <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <AlertTriangle size={14} /> {errorAusencia}
+                </div>
+              )}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
+                <input type="date" required min={hoy} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+              </div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                Todo el día
+              </label>
+              {!todoElDiaAusencia && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Desde</label>
+                    <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Hasta</label>
+                    <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
+                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+              </div>
+              <div className="flex gap-3 border-t border-slate-100 pt-4">
+                <button type="button" onClick={() => setModalAusenciaAbierto(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
+                <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}>Registrar</button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
@@ -641,10 +835,9 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
 // Caso de la reunión con el ing: horario propio de cada usuario, separado
 // del horario general de la óptica, más la posibilidad de marcar un día que
 // no podrá asistir (hoy eso solo se avisa por WhatsApp, informal).
-function MiHorarioPersonal({ usuario, horarioPersonal, setHorarioPersonal }) {
+function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrdenadas, quitarAusencia, abrirModalAusencia }) {
   const cargando = horarioPersonal === null
   const semanaGuardada = horarioPersonal?.horarioSemanal || {}
-  const ausencias = horarioPersonal?.ausencias || {}
 
   const [borrador, setBorrador] = useState(SEMANA_PERSONAL_VACIA())
   useEffect(() => {
@@ -678,44 +871,6 @@ function MiHorarioPersonal({ usuario, horarioPersonal, setHorarioPersonal }) {
     setTimeout(() => setGuardadoOk(false), 2600)
   }
   const descartar = () => setBorrador({ ...SEMANA_PERSONAL_VACIA(), ...semanaGuardada })
-
-  // Ausencias — se aplican al instante (mismo criterio que las excepciones
-  // puntuales del horario general).
-  const [modalAusenciaAbierto, setModalAusenciaAbierto] = useState(false)
-  const [fechaAusencia, setFechaAusencia] = useState(hoyISO())
-  const [motivoAusencia, setMotivoAusencia] = useState("")
-
-  const ausenciasOrdenadas = useMemo(
-    () => Object.entries(ausencias).filter(([iso]) => iso >= hoyISO()).sort(([a], [b]) => (a < b ? -1 : 1)),
-    [ausencias],
-  )
-
-  const registrarAusencia = async (e) => {
-    e.preventDefault()
-    if (!fechaAusencia) return
-    await setHorarioPersonal((prev) => ({ ...(prev || { horarioSemanal: SEMANA_PERSONAL_VACIA() }), ausencias: { ...(prev?.ausencias || {}), [fechaAusencia]: motivoAusencia.trim() } }))
-    setModalAusenciaAbierto(false)
-    setFechaAusencia(hoyISO())
-    setMotivoAusencia("")
-    // Antes esto quedaba en una tabla que SOLO el propio usuario puede leer
-    // (horarios_usuario, filtrada por usuario_id) — nadie más se enteraba de
-    // que alguien no iba a poder asistir, ni el admin. El texto de esta
-    // misma sección ya decía "en vez de avisar solo por WhatsApp", pero sin
-    // esto la única forma de que alguien se enterara seguía siendo WhatsApp.
-    // Esto no bloquea la agenda general todavía (el sistema no vincula
-    // citas a un profesional específico) — eso es una decisión de negocio
-    // aparte, no algo que deba asumir en silencio.
-    registrarLog(usuario, "horario", "Registró que no podrá asistir", `${fechaAusencia}${motivoAusencia.trim() ? " · " + motivoAusencia.trim() : ""}`)
-  }
-
-  const quitarAusencia = (iso) => {
-    setHorarioPersonal((prev) => {
-      const n = { ...(prev?.ausencias || {}) }
-      delete n[iso]
-      return { ...(prev || { horarioSemanal: SEMANA_PERSONAL_VACIA() }), ausencias: n }
-    })
-    registrarLog(usuario, "horario", "Canceló una ausencia registrada", iso)
-  }
 
   if (cargando) {
     return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">Cargando tu horario...</div>
@@ -807,11 +962,14 @@ function MiHorarioPersonal({ usuario, horarioPersonal, setHorarioPersonal }) {
             <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}><CalendarX size={16} /></span>
             No podré asistir
           </h4>
-          <button type="button" onClick={() => setModalAusenciaAbierto(true)} className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 cursor-pointer">
+          <button type="button" onClick={abrirModalAusencia} className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 cursor-pointer">
             <Plus size={13} /> Registrar
           </button>
         </div>
-        <p className="-mt-1 mb-3 text-xs text-slate-500">Deja constancia en el sistema en vez de avisar solo por WhatsApp.</p>
+        {/* Punto 07: ahora bloquea de verdad el rango de horas indicado en el
+            calendario público y el interno (antes solo quedaba como
+            constancia, ver disponibilidad.excepciones[fecha].ausencias). */}
+        <p className="-mt-1 mb-3 text-xs text-slate-500">Bloquea ese rango de horas en la agenda — no todo el día, salvo que lo indiques.</p>
 
         {ausenciasOrdenadas.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
@@ -820,13 +978,15 @@ function MiHorarioPersonal({ usuario, horarioPersonal, setHorarioPersonal }) {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {ausenciasOrdenadas.map(([iso, motivo]) => (
-              <div key={iso} className="flex items-center justify-between gap-2 py-2.5">
+            {ausenciasOrdenadas.map((a) => (
+              <div key={`${a.fecha}-${a.idx}`} className="flex items-center justify-between gap-2 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-700">{iso.split("-").reverse().join("/")}</p>
-                  {motivo && <p className="truncate text-xs text-slate-500">{motivo}</p>}
+                  <p className="text-sm font-semibold text-slate-700">
+                    {a.fecha.split("-").reverse().join("/")} <span className="font-mono text-xs font-normal text-slate-500">{horaA12(a.inicio)}–{horaA12(a.fin)}</span>
+                  </p>
+                  {a.motivo && <p className="truncate text-xs text-slate-500">{a.motivo}</p>}
                 </div>
-                <button type="button" onClick={() => quitarAusencia(iso)} title="Quitar" aria-label={`Quitar ausencia del ${iso}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
+                <button type="button" onClick={() => quitarAusencia(a.fecha, a.idx)} title="Quitar" aria-label={`Quitar ausencia del ${a.fecha}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -834,33 +994,6 @@ function MiHorarioPersonal({ usuario, horarioPersonal, setHorarioPersonal }) {
           </div>
         )}
       </div>
-
-      {/* ─── MODAL REGISTRAR AUSENCIA ─── */}
-      {modalAusenciaAbierto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAusenciaAbierto(false)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="border-b border-slate-100 px-6 py-4">
-              <h2 className="text-lg font-bold" style={{ color: INK }}>No podré asistir</h2>
-              <p className="mt-1 text-xs text-slate-500">Queda registrado en el sistema como constancia.</p>
-            </div>
-            <form onSubmit={registrarAusencia} className="space-y-3.5 px-6 py-5">
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-                <input type="date" required min={hoyISO()} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
-                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
-              </div>
-              <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setModalAusenciaAbierto(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
-                <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}>Registrar</button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   )
 }
