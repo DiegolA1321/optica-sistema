@@ -27,6 +27,7 @@ export default function Inicio({
   setVista,
   usuario,
   opticaActiva = true,
+  cargaInicial = false,
   pacientes = [],
   citas = [],
   inventario = [],
@@ -35,6 +36,7 @@ export default function Inicio({
   onCrearPacienteRapido,
   onCrearProductoRapido,
   onReabastecerProducto,
+  onVerPerfilPaciente,
   nombreUsuario = "Diego",
   opticaNombre,
 }) {
@@ -232,6 +234,16 @@ export default function Inicio({
     day: "numeric",
   })
 
+  // Mismo criterio que Citas/Pacientes/Inventario (cargaInicial && sin datos
+  // todavía): antes Inicio no recibía este prop y era el único módulo que
+  // podía mostrar "0 pacientes / 0 citas hoy" durante un parpadeo mientras
+  // App.jsx aún hidrataba — justo la primera pantalla que ve el usuario al
+  // entrar. Estrictamente prohibido por CLAUDE.md ("pantallas vacías o
+  // parpadeos durante la petición de datos").
+  if (cargaInicial && pacientes.length === 0 && citas.length === 0 && inventario.length === 0) {
+    return <InicioSkeleton />
+  }
+
   return (
     <div className="w-full space-y-6 text-left">
       <style>{`
@@ -418,7 +430,13 @@ export default function Inicio({
               <EstadoVacio icon={Calendar} texto="Todavía no hay citas registradas." />
             ) : (
               citasParaMostrar.map((cita, idx) => (
-                <div key={cita.id || idx} className="group flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
+                <button
+                  type="button"
+                  key={cita.id || idx}
+                  onClick={() => (cita.pacienteId && onVerPerfilPaciente ? onVerPerfilPaciente(cita.pacienteId) : setVista?.("citas"))}
+                  title={cita.pacienteId ? `Ver ficha de ${cita.paciente || cita.nombre}` : "Ver en la agenda completa"}
+                  className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between rounded-lg px-2 py-3.5 text-left transition-colors first:pt-0 last:pb-0 hover:bg-slate-50/80 cursor-pointer"
+                >
                   <div className="flex items-center gap-3.5">
                     <div className="flex w-20 flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-2 py-1.5 font-mono text-xs font-bold text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600">
                       <span>{cita.hora || "09:00 AM"}</span>
@@ -450,7 +468,7 @@ export default function Inicio({
                       : "border border-amber-200 bg-amber-50 text-amber-700")}>
                     {cita.estado || "Pendiente"}
                   </span>
-                </div>
+                </button>
               ))
             )}
           </div>
@@ -556,6 +574,39 @@ export default function Inicio({
 }
 
 // ─── Subcomponentes ───
+
+// Refleja la forma real del panel (hero + 3 tarjetas + 2 secciones) en vez
+// de un skeleton genérico, para que no haya salto de layout cuando llegan
+// los datos reales — mismo lenguaje visual (animate-pulse + slate-200/70)
+// que TablaSkeleton.jsx.
+function InicioSkeleton() {
+  return (
+    <div className="w-full space-y-6 text-left">
+      <div className="h-36 animate-pulse rounded-3xl border border-slate-200 bg-slate-100/70 sm:h-32" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-slate-100/70" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200/70" />
+            {Array.from({ length: 3 }).map((_, j) => (
+              <div key={j} className="flex items-center gap-3.5 py-1.5">
+                <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-slate-200/70" />
+                  <div className="h-2.5 w-1/5 animate-pulse rounded bg-slate-200/60" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function EstadoVacio({ icon: Icon, texto }) {
   return (

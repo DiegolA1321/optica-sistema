@@ -20,7 +20,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // dejar el header/botones fuera de pantalla en una ventana chica (ver
 // C6/lección de modales). Dos arquitecturas de modal competían por lo
 // mismo sin ninguna razón real para que este fuera distinto.
-export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "" }) {
+export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "", etiquetaConfirmar = "Confirmar" }) {
   // El Dialog de Radix cerraba con Escape "gratis" — el patrón hand-rolled
   // al que se pasó este modal no lo hace en ningún otro lugar del sistema,
   // así que se agrega acá para no perder ese cierre por teclado.
@@ -79,7 +79,7 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
             className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
             style={{ background: GRAD }}
           >
-            {guardando ? "Guardando..." : "Confirmar"}
+            {guardando ? "Guardando..." : etiquetaConfirmar}
           </button>
         </div>
       </div>

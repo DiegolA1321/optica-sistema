@@ -31,6 +31,8 @@ import {
   MoreVertical,
   Loader2,
   Globe,
+  Building2,
+  Zap,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -114,6 +116,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [horaCustom, setHoraCustom] = useState("") // "HH:MM" 24h, del <input type="time">
   const [duracionCustom, setDuracionCustom] = useState(disponibilidad?.duracionCita || 40)
   const [errorHorarioCustom, setErrorHorarioCustom] = useState("")
+  // "Atender ahora" — el paciente ya está físicamente en el local (walk-in o
+  // llegó antes/después de su cita) y no tiene sentido hacerlo elegir un
+  // bloque de la grilla de horarios: precarga la hora real y, al confirmar,
+  // pasa la cita directo a "En Atención" y abre la ficha clínica, en vez de
+  // quedar "Pendiente" esperando que alguien la atienda después.
+  const [atenderInmediato, setAtenderInmediato] = useState(false)
   const [mensajeExito, setMensajeExito] = useState(null)
   const [error, setError] = useState("")
   const [bannerError, setBannerError] = useState("")
@@ -294,7 +302,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       duracionMinutos: horaPersonalizada ? (Number(duracionCustom) || disponibilidad?.duracionCita || 40) : null,
       motivo,
       iniciales: iniciales || "P",
-      estado: "Pendiente",
+      estado: atenderInmediato ? "En Atención" : "Pendiente",
     }
 
     if (supabase && opticaId) {
@@ -330,12 +338,17 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     }
 
     setCitas([...citas, nuevaCita])
-    registrarLog(usuario, "citas", "Agendó una cita", `${nuevaCita.paciente} · ${nuevaCita.fecha}`)
+    registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${nuevaCita.fecha}`)
 
+    const irADeUnaALaFicha = atenderInmediato
     setConfirmando(false)
     cerrarModal()
-    setMensajeExito("Cita registrada y guardada correctamente.")
-    setTimeout(() => setMensajeExito(null), 3000)
+    if (irADeUnaALaFicha) {
+      onAtender?.(paciente, nuevaCita.id)
+    } else {
+      setMensajeExito("Cita registrada y guardada correctamente.")
+      setTimeout(() => setMensajeExito(null), 3000)
+    }
   }
 
   const abrirModal = () => {
@@ -357,6 +370,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setHoraCustom("")
     setDuracionCustom(disponibilidad?.duracionCita || 40)
     setErrorHorarioCustom("")
+    setAtenderInmediato(false)
     setMostrarNuevoPaciente(false)
     setNpNombre("")
     setNpCedula("")
@@ -812,6 +826,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                 {!cita.pacienteId && (
                                   <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
                                 )}
+                                {/* Antes solo un ícono junto al nombre para el origen "web"
+                                    (fácil de pasar por alto, y nada se mostraba para
+                                    "recepción") — badge explícito para ambos orígenes,
+                                    mismo patrón ya usado en el perfil del paciente. */}
+                                <span className={"flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold " + (cita.origen === "paciente" ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-slate-200 bg-slate-100 text-slate-500")}>
+                                  {cita.origen === "paciente" ? <Globe size={11} /> : <Building2 size={11} />}
+                                  Origen: {cita.origen === "paciente" ? "Web" : "Recepción"}
+                                </span>
                               </div>
                               {/* Dos acciones primarias a la vista + el resto (cambiar
                                   estado, editar, eliminar) bajo "Más acciones" — antes
@@ -855,9 +877,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <div className="min-w-0">
                                 <span className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-slate-800">
                                   <span className="min-w-0 truncate">{cita.paciente}</span>
-                                  {cita.origen === "paciente" && (
-                                    <Globe size={13} className="shrink-0 text-cyan-600" title="Agendada por el paciente, en línea" aria-label="Agendada por el paciente, en línea" />
-                                  )}
                                 </span>
                                 {cita.motivoPublico && (
                                   <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Motivo indicado en línea: {cita.motivoPublico}</span>
@@ -1160,13 +1179,41 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   </select>
                 </div>
 
+                {/* Atajo para un paciente que ya está en el local ahora mismo
+                    (walk-in o llegó antes/después de su turno) — precarga la
+                    hora real y marca la cita para pasar directo a "En
+                    Atención" al confirmar, sin forzarlo a elegir un bloque de
+                    la grilla de 30/40 min. Pedido explícito: "Atender Ahora /
+                    Hora Actual", cero fricción cuando el paciente ya llegó. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ahora = new Date()
+                    const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
+                    setFecha(hoyISO())
+                    setHoraPersonalizada(true)
+                    setHoraCustom(hhmm)
+                    setAtenderInmediato(true)
+                    setErrorHorarioCustom("")
+                  }}
+                  className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/30")}
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
+                    <Zap size={16} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold" style={{ color: INK }}>Atender ahora (hora actual)</span>
+                    <span className="block text-xs text-slate-500">El paciente ya está aquí — usa la hora de este momento y pasa directo a la ficha clínica al confirmar.</span>
+                  </span>
+                </button>
+
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
                   citas={citas}
                   fecha={fecha}
                   hora={horaPersonalizada ? "" : hora}
                   onCambiarFecha={setFecha}
-                  onCambiarHora={setHora}
+                  onCambiarHora={(h) => { setHora(h); setAtenderInmediato(false) }}
                 />
 
                 {/* Horario personalizado — para un paciente que llega fuera de
@@ -1178,7 +1225,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     <input
                       type="checkbox"
                       checked={horaPersonalizada}
-                      onChange={(e) => { setHoraPersonalizada(e.target.checked); setErrorHorarioCustom("") }}
+                      onChange={(e) => { setHoraPersonalizada(e.target.checked); setErrorHorarioCustom(""); if (!e.target.checked) setAtenderInmediato(false) }}
                       className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
                     Llegó en un horario diferente al de la grilla
@@ -1218,7 +1265,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   Cancelar
                 </button>
                 <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  Confirmar cita
+                  {atenderInmediato ? "Atender ahora" : "Confirmar cita"}
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -1234,9 +1281,10 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           paciente={pacienteSeleccionado?.nombre}
           motivo={motivo}
           fecha={fecha ? isoAFechaLocal(fecha).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" }) : ""}
-          hora={horaPersonalizada ? `${horaA12(horaCustom)} (personalizada, ~${duracionCustom} min)` : hora}
+          hora={horaPersonalizada ? `${horaA12(horaCustom)}${atenderInmediato ? " (ahora)" : ` (personalizada, ~${duracionCustom} min)`}` : hora}
           onCancelar={() => setConfirmando(false)}
           onConfirmar={agendarCita}
+          etiquetaConfirmar={atenderInmediato ? "Atender ahora" : "Confirmar"}
         />
       )}
 

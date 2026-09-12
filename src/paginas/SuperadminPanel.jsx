@@ -165,6 +165,25 @@ function ultimosNDias(n) {
   return arr
 }
 
+// "Actividad por día" del Resumen: 7d/30d usan el mismo formato que el resto
+// del sistema (abreviatura del día), pero "mes" (largo variable, 1-31 días)
+// se etiqueta por número de día — 30 abreviaturas de día de la semana
+// repetidas serían ilegibles en el eje X.
+function diasParaRangoActividad(rango) {
+  if (rango === "mes") {
+    const hoy = new Date()
+    const n = hoy.getDate()
+    const arr = []
+    for (let i = 0; i < n; i++) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth(), 1 + i)
+      const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+      arr.push({ clave, etiqueta: String(d.getDate()) })
+    }
+    return arr
+  }
+  return ultimosNDias(rango === "30d" ? 30 : 7)
+}
+
 // Curva suave (Bézier cúbica con punto de control en el punto medio de cada
 // tramo) sobre coordenadas absolutas de un viewBox — a diferencia de un
 // div con height:X%, esto no depende de que el ancestro tenga una altura
@@ -259,6 +278,33 @@ function ItemAuditoria({ a }) {
   )
 }
 
+// Sparkline mini (stat cards): SVG estático de bajo costo, sin hover ni
+// tooltip propio — solo da una lectura visual rápida de "sube o baja",
+// mismo criterio de curva suave que construirCurva pero sin sus puntos ni
+// interacción (una tarjeta de 100px de alto no tiene espacio para eso).
+function MiniSparkline({ valores, color = "#2563EB" }) {
+  if (!valores || valores.length < 2) return null
+  const w = 72, h = 28, pad = 3
+  const max = Math.max(1, ...valores)
+  const min = Math.min(...valores)
+  const rango = Math.max(1, max - min)
+  const stepX = (w - pad * 2) / (valores.length - 1)
+  const puntos = valores.map((v, i) => [pad + i * stepX, h - pad - ((v - min) / rango) * (h - pad * 2)])
+  let linea = `M ${puntos[0][0].toFixed(1)} ${puntos[0][1].toFixed(1)}`
+  for (let i = 1; i < puntos.length; i++) {
+    const [x0, y0] = puntos[i - 1]
+    const [x1, y1] = puntos[i]
+    const mx = (x0 + x1) / 2
+    linea += ` C ${mx.toFixed(1)} ${y0.toFixed(1)}, ${mx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`
+  }
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0" aria-hidden="true">
+      <path d={linea} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={puntos[puntos.length - 1][0]} cy={puntos[puntos.length - 1][1]} r="2.25" fill={color} />
+    </svg>
+  )
+}
+
 // ─── Estilos de tarjeta reutilizables (mismo look en toda la superficie) ───
 // El hover-lift es a propósito parte de la base, no algo que cada pantalla
 // agregue por separado — Diego pidió que todos los módulos del panel se
@@ -324,6 +370,20 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // pantalla de Superadmins, para poder ver justo lo que esa cuenta hizo.
   const [filtroActorActividad, setFiltroActorActividad] = useState(null) // { id, nombre } | null
 
+  // ─── "Actividad por día" del Resumen — dataset propio, acotado por fecha
+  // (mismo patrón que cargarVisitas), en vez de reusar `auditoria` (paginada
+  // de a 20 para la pestaña Actividad). Reusar esa lista paginada para un
+  // rango de 30 días o "este mes" podía subcontar: si hay más de 20 acciones
+  // en el rango, la página cargada no las cubre todas. ─── */
+  const [rangoActividadResumen, setRangoActividadResumen] = useState("7d") // "7d" | "30d" | "mes"
+  const [auditoriaResumen, setAuditoriaResumen] = useState([])
+
+  // ─── Métricas SaaS de red (Resumen): volumen real de consultas generadas
+  // en toda la red de ópticas, y un estado de conexión honesto (basado en la
+  // latencia real de la carga inicial, no un badge decorativo fijo). ───
+  const [totalConsultasRed, setTotalConsultasRed] = useState(null)
+  const [estadoServidor, setEstadoServidor] = useState({ estado: "verificando", latenciaMs: null })
+
   // ─── Mensajes (consultas de administradores + avisos generales) ───
   const [mensajes, setMensajes] = useState([])
   const [mensajesFiltro, setMensajesFiltro] = useState("todas") // todas | consulta | anuncio
@@ -349,6 +409,17 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // (después de crear/editar algo) vuelva a tapar el panel con el estado de
   // carga; los datos ya visibles se quedan mientras se refrescan en segundo plano.
   const [cargaInicial, setCargaInicial] = useState(true)
+
+  // Toast flotante compartido — antes "Agregar superadmin", "Nuevo aviso" y
+  // "Mi cuenta" (guardar nombre/correo) cerraban su modal en silencio, sin
+  // ninguna confirmación de que el guardado real ocurrió. Uno solo, flotante
+  // (no el banner inline que usa el resto del sistema), para el estándar
+  // SaaS que pidió Diego para este panel específicamente.
+  const [toastGlobal, setToastGlobal] = useState(null) // { tipo: "exito" | "error", texto }
+  const mostrarToast = (tipo, texto) => {
+    setToastGlobal({ tipo, texto })
+    setTimeout(() => setToastGlobal(null), 3000)
+  }
 
   // ─── Crear óptica ───
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -478,7 +549,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setSuperadmins((prev) => prev.map((s) => (s.id === usuario.id ? { ...s, nombre: nombre.trim(), email: email.trim() } : s)))
     setAvisoEmailPendiente(emailCambio)
     setGuardandoMiCuenta(false)
-    if (!emailCambio) setModalMiCuentaAbierto(false)
+    if (!emailCambio) {
+      setModalMiCuentaAbierto(false)
+      mostrarToast("exito", "Tus datos se guardaron correctamente.")
+    }
   }
 
   const actualizarMiClave = async (e) => {
@@ -545,13 +619,34 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   const cargarDatos = async () => {
     setCargando(true)
-    const [{ data: opticasData }, { data: adminsData }, { data: superadminsData }, { data: asistentesData }, { data: pacientesData }] = await Promise.all([
-      supabase.from("opticas").select("*").order("created_at", { ascending: false }),
-      supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra").eq("rol", "admin"),
-      supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
-      supabase.from("perfiles").select("optica_id").eq("rol", "asistente"),
-      supabase.from("pacientes").select("optica_id"),
-    ])
+    const t0 = performance.now()
+    let opticasData = null, adminsData = null, superadminsData = null, asistentesData = null, pacientesData = null
+    try {
+      const resultados = await Promise.all([
+        supabase.from("opticas").select("*").order("created_at", { ascending: false }),
+        supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra, created_at").eq("rol", "admin"),
+        supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
+        supabase.from("perfiles").select("optica_id, created_at").eq("rol", "asistente"),
+        supabase.from("pacientes").select("optica_id, created_at"),
+        // count-only (head: true) — no trae filas, solo el número. Métrica
+        // SaaS de red pedida por Diego: volumen real de consultas generadas
+        // en TODAS las ópticas, no solo la que se esté mirando.
+        supabase.from("consultas").select("id", { count: "exact", head: true }),
+      ])
+      opticasData = resultados[0].data
+      adminsData = resultados[1].data
+      superadminsData = resultados[2].data
+      asistentesData = resultados[3].data
+      pacientesData = resultados[4].data
+      // Estado de servidor honesto: basado en la latencia real de esta misma
+      // carga, no un badge decorativo fijo en "operativo". Los umbrales son
+      // orientativos (no un SLA), solo para distinguir "normal" de "lento".
+      const latenciaMs = Math.round(performance.now() - t0)
+      setEstadoServidor({ estado: latenciaMs < 1200 ? "operativo" : latenciaMs < 3500 ? "lento" : "critico", latenciaMs })
+      setTotalConsultasRed(resultados[5].count ?? 0)
+    } catch {
+      setEstadoServidor({ estado: "sin_conexion", latenciaMs: null })
+    }
     setOpticas(opticasData || [])
     setAdmins(adminsData || [])
     setSuperadmins(superadminsData || [])
@@ -579,7 +674,27 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     cargarMensajes()
     cargarLeads()
     cargarVisitas()
+    cargarActividadResumen(rangoActividadResumen)
   }
+
+  // Igual que cargarVisitas: acota por fecha en el servidor en vez de traer
+  // toda la tabla `auditoria` (que puede ser larga) o de reusar la lista
+  // paginada de la pestaña Actividad, que no garantiza cubrir el rango
+  // elegido acá. "mes" usa el día 1 del mes calendario actual, igual que
+  // Reportes.jsx (fmtFecha/calcularRango).
+  const cargarActividadResumen = async (rango) => {
+    const hoy = new Date()
+    const dias = rango === "30d" ? 30 : rango === "mes" ? null : 7
+    const desde = dias
+      ? new Date(Date.now() - dias * 24 * 60 * 60 * 1000)
+      : new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+    const { data } = await supabase.from("auditoria").select("created_at").gte("created_at", desde.toISOString())
+    setAuditoriaResumen(data || [])
+  }
+
+  useEffect(() => {
+    cargarActividadResumen(rangoActividadResumen)
+  }, [rangoActividadResumen])
 
   const cargarMensajes = async () => {
     const { data } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
@@ -683,6 +798,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setAvisoAsunto("")
     setAvisoCuerpo("")
     setAvisoDestino("todos")
+    mostrarToast("exito", "Aviso publicado correctamente.")
   }
 
   // Best-effort: si la tabla auditoria aún no existe (falta correr las
@@ -849,17 +965,44 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }, [opticas])
   const maxOpticasMes = Math.max(1, ...opticasPorMes.map((m) => m.valor))
 
+  // Sparklines de las stat cards: acumulado real mes a mes (no solo "nuevos
+  // este mes"), para que la línea siempre termine en el total real de hoy.
+  // Reusa el mismo criterio de mes-local que opticasPorMes/claveMesLocal —
+  // nada decorativo, cada punto es un conteo real derivado de created_at.
+  const contarPorMesAcumulado = (items, meses) => {
+    const porMes = new Map()
+    items.forEach((it) => {
+      if (!it.created_at) return
+      const clave = claveMesLocal(it.created_at)
+      porMes.set(clave, (porMes.get(clave) || 0) + 1)
+    })
+    const clavesVentana = new Set(meses.map((m) => m.clave))
+    let base = 0
+    porMes.forEach((n, clave) => { if (!clavesVentana.has(clave)) base += n })
+    let acumulado = base
+    return meses.map((m) => {
+      acumulado += porMes.get(m.clave) || 0
+      return acumulado
+    })
+  }
+  const seisMeses = useMemo(() => ultimosNMeses(6), [])
+  const sparklineOpticas = useMemo(() => contarPorMesAcumulado(opticas, seisMeses), [opticas, seisMeses])
+  const sparklineAdmins = useMemo(() => contarPorMesAcumulado(admins, seisMeses), [admins, seisMeses])
+  const sparklineAsistentes = useMemo(() => contarPorMesAcumulado(asistentesOpticaId, seisMeses), [asistentesOpticaId, seisMeses])
+  const sparklinePacientes = useMemo(() => contarPorMesAcumulado(pacientesOpticaId, seisMeses), [pacientesOpticaId, seisMeses])
+
   const actividadPorDia = useMemo(() => {
-    const dias = ultimosNDias(7)
+    const dias = diasParaRangoActividad(rangoActividadResumen)
     const mapa = new Map()
-    auditoria.forEach((a) => {
+    auditoriaResumen.forEach((a) => {
       if (!a.created_at) return
       const clave = claveDiaLocal(a.created_at)
       mapa.set(clave, (mapa.get(clave) || 0) + 1)
     })
     return dias.map((d) => ({ ...d, valor: mapa.get(d.clave) || 0 }))
-  }, [auditoria])
+  }, [auditoriaResumen, rangoActividadResumen])
   const maxActividadDia = Math.max(1, ...actividadPorDia.map((d) => d.valor))
+  const totalActividadResumen = actividadPorDia.reduce((s, d) => s + d.valor, 0)
 
   // ─── Datos derivados para el resumen visual (todo real, nada decorativo) ───
   const opticasSinAdmin = useMemo(
@@ -902,8 +1045,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [refGraficoActividad, anchoGraficoActividad] = useAnchoElemento()
   // Barras, no línea: la mayoría de los días suele estar en 0 visitas — una
   // línea plana que de golpe se dispara se ve como si algo estuviera roto;
-  // una barra en 0 se lee como dato normal. Mismo patrón que "Actividad por
-  // día" un poco más abajo en esta pantalla (barrasActividad).
+  // una barra en 0 se lee como dato normal. "Actividad por día" (más abajo)
+  // sí pasó a área/gradiente (pedido explícito de Diego) porque el relleno
+  // hasta la base sostiene la lectura visual incluso en días en cero.
   const barrasVisitas = useMemo(() => {
     const w = anchoGraficoVisitas, base = 82, padTop = 8
     const n = visitasPorDia.length || 1
@@ -923,17 +1067,17 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     { key: "conversion", label: "Convertidos a cliente", valor: `${leadsConvertidos} (${tasaConversion}%)`, icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
   ]
 
-  const barrasActividad = useMemo(() => {
-    const w = anchoGraficoActividad, base = 108, padTop = 10
-    const n = actividadPorDia.length || 1
-    const gap = 16
-    const barW = (w - gap * (n + 1)) / n
-    return actividadPorDia.map((d, i) => {
-      const alto = maxActividadDia > 0 ? Math.max(d.valor > 0 ? 6 : 2, (d.valor / maxActividadDia) * (base - padTop)) : 2
-      const x = gap + i * (barW + gap)
-      return { ...d, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
-    })
-  }, [actividadPorDia, maxActividadDia, anchoGraficoActividad])
+  // Área suave con gradiente (antes barras) — mismo helper que ya usa
+  // "Ópticas creadas por mes" (construirCurva), reutilizado en vez de
+  // inventar una segunda forma de dibujar curvas en el mismo archivo.
+  const curvaActividad = useMemo(
+    () => construirCurva(actividadPorDia.map((d) => d.valor), anchoGraficoActividad, 130, maxActividadDia, 16, 22),
+    [actividadPorDia, maxActividadDia, anchoGraficoActividad],
+  )
+  // Con 30 días o "este mes" mostrar las 30 etiquetas se vuelve ilegible —
+  // se ralea a ~6 etiquetas visibles (primer día, último día, y pasos
+  // parejos entre medio), igual que un dashboard real (Stripe/Vercel).
+  const pasoEtiquetaActividad = Math.max(1, Math.ceil(actividadPorDia.length / 6))
 
   // Auditoría agrupada por día (mismo patrón que Citas.jsx: rail por fecha,
   // colapsable por día — sobre todo para poder ocultar "hoy" y no tener que
@@ -957,6 +1101,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const anilloR = 54
   const anilloCircunferencia = 2 * Math.PI * anilloR
   const anilloProgreso = (pctActivas / 100) * anilloCircunferencia
+  // El strokeDasharray ya animaba con CSS transition, pero solo si el VALOR
+  // cambiaba después del primer render — en la carga inicial React pinta
+  // directo el valor final, sin ningún "de 0 a X" que animar. Arranca en 0 y
+  // pasa al valor real un tick después del montaje, para que la transición
+  // sí tenga algo que animar la primera vez que se ve el donut.
+  const [donutMontado, setDonutMontado] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setDonutMontado(true), 50)
+    return () => clearTimeout(t)
+  }, [])
 
   // Última acción real de cada superadmin (de lo que ya está cargado en
   // `auditoria`, que viene ordenada desc) — para que la lista de Superadmins
@@ -1138,6 +1292,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
     setGuardando(false)
     setModalAbierto(false)
+    mostrarToast("exito", `Óptica ${nuevaOptica.nombre} creada correctamente.`)
     await cargarDatos()
     // Feedback de Diego: al crear una óptica, de una vez ofrecer editar cómo
     // se ve su login (logo, marca, servicios) en vez de dejarlo para que lo
@@ -1490,6 +1645,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     await registrarAuditoria("crear_superadmin", { opticaNombre: nombre.trim() })
     setGuardandoSuperadmin(false)
     setModalSuperadminAbierto(false)
+    mostrarToast("exito", `Superadmin ${nombre.trim()} creado correctamente.`)
     cargarDatos()
   }
   const confirmarEliminarSuperadmin = async () => {
@@ -1575,6 +1731,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           if (t.key === "Todas") delta = { texto: creadasEsteMes > 0 ? `+${creadasEsteMes} este mes` : "sin nuevas este mes", tono: creadasEsteMes > 0 ? "#059669" : "#94A3B8" }
           else if (t.key === "Activas") delta = { texto: `${pctActivas}% del total`, tono: "#059669" }
           else delta = { texto: totalSuspendidas > 0 ? "revisar" : "ninguna", tono: totalSuspendidas > 0 ? "#E11D48" : "#94A3B8" }
+          // Solo "Ópticas totales" tiene una serie histórica real y honesta
+          // (creación acumulada mes a mes) — "Activas"/"Suspendidas" son un
+          // estado actual, no un conteo con historia propia, así que no se
+          // les fabrica una tendencia que no existe.
+          const sparkline = t.key === "Todas" ? sparklineOpticas : null
           return (
             <button
               key={t.key}
@@ -1590,7 +1751,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
               </div>
               <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              <p className="mt-2 text-[11.5px] font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <p className="text-[11.5px] font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
+                {sparkline && <MiniSparkline valores={sparkline} color={t.fg} />}
+              </div>
             </button>
           )
         })}
@@ -1601,9 +1765,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <p className="mb-2 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Usuarios del sistema</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            { label: "Administradores", valor: totalesUsuarios.admins, icon: ShieldCheck, bg: "#E8F0FF", fg: "#2563EB" },
-            { label: "Asistentes", valor: totalesUsuarios.asistentes, icon: Users, bg: "#F3E8FF", fg: "#7C3AED" },
-            { label: "Pacientes", valor: totalesUsuarios.pacientes, icon: Stethoscope, bg: "#E7F7EF", fg: "#059669" },
+            { label: "Administradores", valor: totalesUsuarios.admins, icon: ShieldCheck, bg: "#E8F0FF", fg: "#2563EB", sparkline: sparklineAdmins },
+            { label: "Asistentes", valor: totalesUsuarios.asistentes, icon: Users, bg: "#F3E8FF", fg: "#7C3AED", sparkline: sparklineAsistentes },
+            { label: "Pacientes", valor: totalesUsuarios.pacientes, icon: Stethoscope, bg: "#E7F7EF", fg: "#059669", sparkline: sparklinePacientes },
           ].map((t, i) => (
             <div key={t.label} className={CARD + " p-4"} style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${(i + 3) * 40}ms` }}>
               <div className="flex items-start justify-between gap-2">
@@ -1613,9 +1777,70 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
               </div>
               <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              <p className="mt-2 text-[11.5px] font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <p className="text-[11.5px] font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
+                <MiniSparkline valores={t.sparkline} color={t.fg} />
+              </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* ─── Métricas clave de la red (SaaS): impacto real acumulado (no por
+          óptica) + salud de la conexión a Supabase — esta última basada en
+          la latencia real de la carga de datos de esta misma pantalla, no
+          un badge fijo en verde. ─── */}
+      <div>
+        <p className="mb-2 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Métricas clave de la red</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className={CARD + " p-4"}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">Pacientes atendidos en la red</p>
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E7F7EF", color: "#059669" }}>
+                <Stethoscope size={15} />
+              </div>
+            </div>
+            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{totalesUsuarios.pacientes}</p>
+            <p className="mt-2 text-[11.5px] font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
+          </div>
+          <div className={CARD + " p-4"}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">Volumen de consultas generadas</p>
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E8F0FF", color: "#2563EB" }}>
+                <Stethoscope size={15} />
+              </div>
+            </div>
+            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{totalConsultasRed ?? "—"}</p>
+            <p className="mt-2 text-[11.5px] font-semibold text-slate-400">fichas clínicas registradas, toda la red</p>
+          </div>
+          <div className={CARD + " p-4"}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">Estado de Supabase</p>
+              <div
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+                style={
+                  estadoServidor.estado === "operativo" ? { background: "#E7F7EF", color: "#059669" }
+                    : estadoServidor.estado === "lento" ? { background: "#FFF7E6", color: "#B45309" }
+                    : estadoServidor.estado === "verificando" ? { background: "#F1F5F9", color: "#64748B" }
+                    : { background: "#FEEBEE", color: "#E11D48" }
+                }
+              >
+                {estadoServidor.estado === "operativo" ? <CheckCircle2 size={15} /> : estadoServidor.estado === "lento" ? <AlertTriangle size={15} /> : <Ban size={15} />}
+              </div>
+            </div>
+            <p className="mt-2 flex items-center gap-1.5 font-serif text-[22px] font-semibold leading-none tracking-tight" style={{ color: INK }}>
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{
+                  backgroundColor: estadoServidor.estado === "operativo" ? "#10B981" : estadoServidor.estado === "lento" ? "#F59E0B" : estadoServidor.estado === "verificando" ? "#94A3B8" : "#E11D48",
+                }}
+              />
+              {estadoServidor.estado === "operativo" ? "Operativo" : estadoServidor.estado === "lento" ? "Lento" : estadoServidor.estado === "verificando" ? "Verificando…" : "Sin conexión"}
+            </p>
+            <p className="mt-2 text-[11.5px] font-semibold text-slate-400">
+              {estadoServidor.latenciaMs != null ? `${estadoServidor.latenciaMs} ms · última carga de datos` : "esperando la próxima carga de datos"}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1769,16 +1994,31 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               <circle cx="64" cy="64" r={anilloR} fill="none" stroke="#FEE2E2" strokeWidth="14" />
               <circle
                 cx="64" cy="64" r={anilloR} fill="none" stroke="#10B981" strokeWidth="14" strokeLinecap="round"
-                strokeDasharray={`${anilloProgreso} ${anilloCircunferencia}`}
+                strokeDasharray={`${donutMontado ? anilloProgreso : 0} ${anilloCircunferencia}`}
                 transform="rotate(-90 64 64)"
-                style={{ transition: "stroke-dasharray 500ms ease-out" }}
+                style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.16,1,0.3,1)" }}
               />
               <text x="64" y="60" textAnchor="middle" fontSize="22" fontWeight="600" fontFamily="Newsreader, serif" fill={INK}>{pctActivas}%</text>
               <text x="64" y="76" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94A3B8">activas</text>
             </svg>
             <div className="flex flex-col gap-2 text-xs">
-              <span className="flex items-center gap-1.5 font-semibold text-slate-600"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {totalActivas} activas</span>
-              <span className="flex items-center gap-1.5 font-semibold text-slate-600"><span className="h-2 w-2 rounded-full bg-rose-200" /> {totalSuspendidas} suspendidas</span>
+              {/* Mini-badges interactivos — mismo destino que las stat cards de
+                  arriba (irAOpticasConFiltro), para no duplicar una segunda
+                  forma de "ir a ver cuáles". */}
+              <button
+                type="button"
+                onClick={() => irAOpticasConFiltro("Activas")}
+                className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" /> {totalActivas} activas
+              </button>
+              <button
+                type="button"
+                onClick={() => irAOpticasConFiltro("Suspendidas")}
+                className="flex items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1.5 font-semibold text-rose-700 transition-colors hover:bg-rose-100 cursor-pointer"
+              >
+                <span className="h-2 w-2 rounded-full bg-rose-300" /> {totalSuspendidas} suspendidas
+              </button>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4">
@@ -1808,62 +2048,93 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         </div>
       </div>
 
-      {/* ─── Actividad por día — barras interactivas: hover para resaltar,
-          clic para saltar a Actividad filtrada a ese día ─── */}
+      {/* ─── Actividad por día — área suave con gradiente (antes barras),
+          filtro de rango 7d/30d/este mes, punto activo + tooltip flotante.
+          Clic en un punto salta a Actividad filtrada a ese día. ─── */}
       <div className={CARD_PAD}>
-        <div className="mb-1 flex items-center justify-between">
-          <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad por día</h3>
-          <span className="text-[11px] font-semibold text-slate-400">Últimos 7 días · clic en una barra para ver el detalle</span>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad por día</h3>
+            <p className="text-[11px] font-semibold text-slate-400">
+              {totalActividadResumen} acción{totalActividadResumen === 1 ? "" : "es"} · clic en un punto para ver el detalle
+            </p>
+          </div>
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+            {[{ key: "7d", label: "7 días" }, { key: "30d", label: "30 días" }, { key: "mes", label: "Este mes" }].map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => setRangoActividadResumen(r.key)}
+                className={"rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (rangoActividadResumen === r.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                style={rangoActividadResumen === r.key ? { color: INK } : undefined}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
-        {auditoria.length === 0 ? (
-          <p className="py-14 text-center text-sm text-slate-400">Sin actividad registrada.</p>
+        {auditoriaResumen.length === 0 ? (
+          <p className="py-14 text-center text-sm text-slate-400">Sin actividad registrada en este rango.</p>
         ) : (
-          <div ref={refGraficoActividad} className="relative mt-3">
+          <div ref={refGraficoActividad} className="relative mt-4">
             <svg viewBox={`0 0 ${anchoGraficoActividad} 130`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
               <defs>
-                <linearGradient id="barraViol" x1="0" y1="0" x2="0" y2="1">
+                <radialGradient id="areaActividadRadiante" cx="50%" cy="0%" r="100%">
+                  <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
+                </radialGradient>
+                <linearGradient id="lineaActividad" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor="#22D3EE" />
                   <stop offset="100%" stopColor="#2563EB" />
                 </linearGradient>
               </defs>
-              {barrasActividad.map((b) => {
-                const clicable = b.valor > 0
+              <path d={curvaActividad.area} fill="url(#areaActividadRadiante)" />
+              <path d={curvaActividad.linea} fill="none" stroke="url(#lineaActividad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              {curvaActividad.puntos.map((p, i) => {
+                const d = actividadPorDia[i]
+                const clicable = d.valor > 0
+                const mostrarEtiqueta = i === 0 || i === curvaActividad.puntos.length - 1 || i % pasoEtiquetaActividad === 0
                 return (
                   <g
-                    key={b.clave}
-                    className={clicable ? "cursor-pointer group/barra" : "group/barra"}
-                    onMouseEnter={() => clicable && setHoverBarClave(b.clave)}
+                    key={d.clave}
+                    className={clicable ? "cursor-pointer" : ""}
+                    onMouseEnter={() => setHoverBarClave(d.clave)}
                     onMouseLeave={() => setHoverBarClave(null)}
                     onClick={() => {
                       if (!clicable) return
-                      setFiltroFechaActividad(b.clave)
+                      setFiltroFechaActividad(d.clave)
                       setFiltroActorActividad(null)
-                      setDiasActividadColapsados((prev) => { const s = new Set(prev); s.delete(b.clave); return s })
+                      setDiasActividadColapsados((prev) => { const s = new Set(prev); s.delete(d.clave); return s })
                       setSeccion("actividad")
                     }}
                   >
-                    <rect x={b.x} y="4" width={b.w} height="104" fill="transparent" />
-                    <rect
-                      x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
-                      fill="url(#barraViol)"
-                      className={"transition-transform duration-150 " + (clicable ? "group-hover/barra:brightness-110" : "opacity-40")}
-                      style={hoverBarClave === b.clave ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.08)" } : undefined}
-                      shapeRendering="geometricPrecision"
+                    <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
+                    <circle
+                      cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
+                      className="transition-transform duration-150"
+                      style={{ transformBox: "fill-box", transformOrigin: "center", transform: hoverBarClave === d.clave ? "scale(1.8)" : "scale(1)" }}
                     />
-                    <text x={b.cx} y="122" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8" className={clicable ? "transition-colors group-hover/barra:fill-blue-600" : ""}>{b.etiqueta}</text>
+                    {mostrarEtiqueta && (
+                      <text x={p[0]} y="126" textAnchor="middle" fontSize="10" fontWeight="700" fill="#94A3B8">{d.etiqueta}</text>
+                    )}
                   </g>
                 )
               })}
             </svg>
             {hoverBarClave && (() => {
-              const b = barrasActividad.find((x) => x.clave === hoverBarClave)
-              if (!b) return null
+              const idx = actividadPorDia.findIndex((x) => x.clave === hoverBarClave)
+              if (idx === -1) return null
+              const d = actividadPorDia[idx]
+              const p = curvaActividad.puntos[idx]
+              const [y, m, dia] = d.clave.split("-").map(Number)
+              const fechaLinda = `${dia} ${MESES_CORTOS[m - 1]}`
               return (
                 <div
-                  className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                  style={{ left: `${(b.cx / anchoGraficoActividad) * 100}%`, top: b.y - 8, background: INK }}
+                  className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(15,23,42,0.35)]"
+                  style={{ left: `${(p[0] / anchoGraficoActividad) * 100}%`, top: p[1] - 12, background: INK }}
                 >
-                  {b.valor} acción{b.valor === 1 ? "" : "es"} · clic para ver el detalle
+                  <span className="block text-[10px] font-bold uppercase tracking-wide text-white/60">{fechaLinda}</span>
+                  {d.valor} acción{d.valor === 1 ? "" : "es"}{d.valor > 0 && <span className="text-white/60"> · clic para ver el detalle</span>}
                 </div>
               )
             })()}
@@ -2613,6 +2884,25 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="flex h-screen font-sans" style={{ backgroundColor: "#F5F7FA" }}>
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 
+      {/* ─── TOAST FLOTANTE ─── */}
+      {toastGlobal && (
+        <div
+          role={toastGlobal.tipo === "error" ? "alert" : "status"}
+          className="fixed right-5 top-5 z-[100] flex items-center gap-2.5 rounded-2xl border bg-white px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.16)]"
+          style={{
+            borderColor: toastGlobal.tipo === "error" ? "#FECDD3" : "#A7F3D0",
+            animation: "rise-in 220ms cubic-bezier(0.16,1,0.3,1) both",
+          }}
+        >
+          {toastGlobal.tipo === "error" ? (
+            <AlertCircle size={18} className="shrink-0 text-rose-500" />
+          ) : (
+            <CheckCircle2 size={18} className="shrink-0 text-emerald-500" />
+          )}
+          <p className="text-sm font-semibold" style={{ color: INK }}>{toastGlobal.texto}</p>
+        </div>
+      )}
+
       {/* ─── SIDEBAR ─── */}
       <aside
         className={
@@ -2786,6 +3076,18 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuPos.top, left: menuPos.left, animation: "modal-in 120ms ease-out" }}
           >
+            {/* Acceso rápido a impersonación desde la lista — antes solo
+                vivía dentro del modal de detalle, un paso extra para la
+                acción que Diego pidió tener como "acceso rápido" acá mismo. */}
+            <button
+              type="button"
+              disabled={!o.activa}
+              title={o.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
+              onClick={() => { setMenuAccionesId(null); alEntrarComo?.(o) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
+            >
+              <LogIn size={15} /> Entrar como administrador
+            </button>
             <button
               type="button"
               onClick={() => { setMenuAccionesId(null); setOpticaAConfirmar(o) }}
@@ -3195,7 +3497,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
               <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500">
                 <Info size={14} className="mt-0.5 shrink-0" />
-                Los datos operativos de esta óptica (pacientes, citas, inventario) todavía viven en el navegador de su administrador — la centralización de esos módulos es la siguiente fase del proyecto.
+                Los datos operativos de esta óptica (pacientes, citas, inventario) ya viven centralizados en Supabase, con acceso multi-tenant por RLS — no dependen del navegador de su administrador.
               </div>
             </div>
           </div>

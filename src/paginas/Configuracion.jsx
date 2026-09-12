@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { createPortal } from "react-dom"
-import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone } from "lucide-react"
+import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
@@ -50,7 +50,7 @@ function FilaParametro({ icon: Icon, titulo, descripcion, activo, onClick, etiqu
 // Lista editable de etiquetas (motivos, diagnósticos rápidos...): agregar,
 // renombrar y eliminar — el sistema trae opciones por defecto, pero cada
 // óptica ajusta el catálogo a su propio lenguaje clínico.
-function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, placeholder, verificarUso }) {
+function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, placeholder, verificarUso, onExito, onError }) {
   const [nuevo, setNuevo] = useState("")
   const [editandoIdx, setEditandoIdx] = useState(null)
   const [textoEdit, setTextoEdit] = useState("")
@@ -62,10 +62,16 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   const [eliminandoIdx, setEliminandoIdx] = useState(null)
   const [errorEliminar, setErrorEliminar] = useState("")
 
-  const agregar = () => {
+  // setItems (setMotivosConsulta/setDiagnosticosRapidos/setCategoriasInventario
+  // en App.jsx) ahora devuelve la promesa real del guardado en Supabase — antes
+  // esto era "optimista y listo", sin ningún toast ni forma de saber si el
+  // guardado falló silenciosamente (solo un console.error).
+  const agregar = async () => {
     const v = nuevo.trim()
     if (!v || items.includes(v)) return
-    setItems([...items, v])
+    const { error } = await setItems([...items, v])
+    if (error) onError?.(`No se pudo agregar "${v}". Revisa tu conexión e intenta de nuevo.`)
+    else onExito?.(`"${v}" agregado a ${titulo.toLowerCase()}.`)
     setNuevo("")
   }
   const eliminar = async (idx) => {
@@ -79,14 +85,19 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
         return
       }
     }
-    setItems(items.filter((_, i) => i !== idx))
+    const eliminado = items[idx]
+    const { error } = await setItems(items.filter((_, i) => i !== idx))
+    if (error) onError?.(`No se pudo eliminar "${eliminado}". Revisa tu conexión e intenta de nuevo.`)
+    else onExito?.(`"${eliminado}" eliminado de ${titulo.toLowerCase()}.`)
   }
   const iniciarEdicion = (idx) => { setEditandoIdx(idx); setTextoEdit(items[idx]) }
-  const guardarEdicion = (idx) => {
+  const guardarEdicion = async (idx) => {
     const v = textoEdit.trim()
     setEditandoIdx(null)
     if (!v || v === items[idx]) return
-    setItems(items.map((it, i) => (i === idx ? v : it)))
+    const { error } = await setItems(items.map((it, i) => (i === idx ? v : it)))
+    if (error) onError?.(`No se pudo renombrar a "${v}". Revisa tu conexión e intenta de nuevo.`)
+    else onExito?.(`Renombrado a "${v}" correctamente.`)
   }
 
   return (
@@ -167,7 +178,23 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
   // inmediato: piden confirmación primero.
   const [pendiente, setPendiente] = useState(null) // { titulo, mensaje, aplicar }
   const pedirConfirmacion = (titulo, mensaje, aplicar) => setPendiente({ titulo, mensaje, aplicar })
-  const confirmarPendiente = () => { pendiente?.aplicar(); setPendiente(null) }
+
+  // Toast compartido por toda la pantalla (toggles + catálogos) — antes
+  // guardar cualquiera de estos cambios cerraba el diálogo o volvía a la
+  // lista en silencio, sin ninguna confirmación de que el guardado real en
+  // Supabase sí ocurrió (o falló). Mismo patrón que Citas.jsx/Usuarios.jsx.
+  const [mensajeExito, setMensajeExito] = useState(null)
+  const [mensajeError, setMensajeError] = useState(null)
+  const mostrarExito = (msg) => { setMensajeError(null); setMensajeExito(msg); setTimeout(() => setMensajeExito(null), 3000) }
+  const mostrarError = (msg) => { setMensajeExito(null); setMensajeError(msg); setTimeout(() => setMensajeError(null), 4000) }
+
+  const confirmarPendiente = async () => {
+    const titulo = pendiente?.titulo
+    const { error } = (await pendiente?.aplicar()) || {}
+    setPendiente(null)
+    if (error) mostrarError(`No se pudo guardar "${titulo}". Revisa tu conexión e intenta de nuevo.`)
+    else mostrarExito(`"${titulo}" guardado correctamente.`)
+  }
 
   const alternar = (clave, titulo, mensajeOn, mensajeOff) => {
     const activar = !parametrizacion[clave]
@@ -192,6 +219,20 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           <p className="text-sm text-slate-500">Define qué ofrece tu óptica, qué políticas aplicas y cómo se ve tu página pública.</p>
         </div>
       </div>
+
+      {/* ─── ÉXITO / ERROR ─── */}
+      {mensajeExito && (
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+          <CheckCircle2 className="text-emerald-500" size={20} />
+          <p className="text-sm font-semibold">{mensajeExito}</p>
+        </div>
+      )}
+      {mensajeError && (
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">
+          <AlertTriangle className="text-red-500" size={20} />
+          <p className="text-sm font-semibold">{mensajeError}</p>
+        </div>
+      )}
 
       {/* ─── NOTA DE ALCANCE ─── */}
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
@@ -332,6 +373,8 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             descripcion="Aparecen al agendar una cita, tanto en tu agenda interna como en el portal del paciente."
             items={motivosConsulta}
             setItems={setMotivosConsulta}
+            onExito={mostrarExito}
+            onError={mostrarError}
             placeholder="Ej. Revisión de lentes de contacto"
             verificarUso={async (item) => {
               if (!supabase || !usuario?.opticaId) return false
@@ -345,6 +388,8 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             descripcion="Categorías fijas que se seleccionan en la ficha clínica (pueden marcarse varias a la vez), más un detalle libre aparte. Permite luego reportar cuántos pacientes tienes con cada una."
             items={diagnosticosRapidos}
             setItems={setDiagnosticosRapidos}
+            onExito={mostrarExito}
+            onError={mostrarError}
             placeholder="Ej. Ambliopía"
             verificarUso={async (item) => {
               if (!supabase || !usuario?.opticaId) return false
@@ -358,6 +403,8 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             descripcion="Organizan los productos en Inventario — se usan al registrar un producto nuevo y para filtrar la lista."
             items={categoriasInventario}
             setItems={setCategoriasInventario}
+            onExito={mostrarExito}
+            onError={mostrarError}
             placeholder="Ej. Lentes de contacto"
             verificarUso={async (item) => {
               if (!supabase || !usuario?.opticaId) return false

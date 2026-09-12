@@ -552,52 +552,71 @@ function App() {
     setSolicitudesEliminacion((prev) => prev.filter((s) => s.id !== solicitudId))
   }
 
+  // Los 4 wrappers de abajo antes eran "optimista + fire-and-forget": si el
+  // update a Supabase fallaba (red, RLS), el único rastro era un
+  // console.error — la UI nunca se enteraba, así que Configuracion.jsx no
+  // podía mostrar ni un toast de éxito real ni un error si la escritura no
+  // llegaba a la base. Ahora cada uno devuelve la promesa del update (con su
+  // `{ error }`) para que el llamador pueda confirmar el guardado de verdad,
+  // sin tocar el resto de callers que ya ignoraban el valor de retorno.
   const setParametrizacion = (updater) => {
+    let siguiente
     setParametrizacionState((prev) => {
-      const siguiente = typeof updater === 'function' ? updater(prev) : updater
-      if (supabase && usuario?.opticaId) {
-        supabase.from('opticas').update({ settings: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
-          if (error) console.error('No se pudo guardar la configuración de la óptica:', error.message)
-        })
-      }
+      siguiente = typeof updater === 'function' ? updater(prev) : updater
       return siguiente
     })
+    if (supabase && usuario?.opticaId) {
+      return supabase.from('opticas').update({ settings: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
+        if (error) console.error('No se pudo guardar la configuración de la óptica:', error.message)
+        return { error }
+      })
+    }
+    return Promise.resolve({ error: null })
   }
 
   const setMotivosConsulta = (updater) => {
+    let siguiente
     setMotivosConsultaState((prev) => {
-      const siguiente = typeof updater === 'function' ? updater(prev) : updater
-      if (supabase && usuario?.opticaId) {
-        supabase.from('opticas').update({ motivos_consulta: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
-          if (error) console.error('No se pudieron guardar los motivos de consulta:', error.message)
-        })
-      }
+      siguiente = typeof updater === 'function' ? updater(prev) : updater
       return siguiente
     })
+    if (supabase && usuario?.opticaId) {
+      return supabase.from('opticas').update({ motivos_consulta: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
+        if (error) console.error('No se pudieron guardar los motivos de consulta:', error.message)
+        return { error }
+      })
+    }
+    return Promise.resolve({ error: null })
   }
 
   const setDiagnosticosRapidos = (updater) => {
+    let siguiente
     setDiagnosticosRapidosState((prev) => {
-      const siguiente = typeof updater === 'function' ? updater(prev) : updater
-      if (supabase && usuario?.opticaId) {
-        supabase.from('opticas').update({ diagnosticos_rapidos: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
-          if (error) console.error('No se pudieron guardar los diagnósticos rápidos:', error.message)
-        })
-      }
+      siguiente = typeof updater === 'function' ? updater(prev) : updater
       return siguiente
     })
+    if (supabase && usuario?.opticaId) {
+      return supabase.from('opticas').update({ diagnosticos_rapidos: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
+        if (error) console.error('No se pudieron guardar los diagnósticos rápidos:', error.message)
+        return { error }
+      })
+    }
+    return Promise.resolve({ error: null })
   }
 
   const setCategoriasInventario = (updater) => {
+    let siguiente
     setCategoriasInventarioState((prev) => {
-      const siguiente = typeof updater === 'function' ? updater(prev) : updater
-      if (supabase && usuario?.opticaId) {
-        supabase.from('opticas').update({ categorias_inventario: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
-          if (error) console.error('No se pudieron guardar las categorías de inventario:', error.message)
-        })
-      }
+      siguiente = typeof updater === 'function' ? updater(prev) : updater
       return siguiente
     })
+    if (supabase && usuario?.opticaId) {
+      return supabase.from('opticas').update({ categorias_inventario: siguiente }).eq('id', usuario.opticaId).then(({ error }) => {
+        if (error) console.error('No se pudieron guardar las categorías de inventario:', error.message)
+        return { error }
+      })
+    }
+    return Promise.resolve({ error: null })
   }
 
   // A diferencia de los otros wrappers de arriba, este devuelve la promesa

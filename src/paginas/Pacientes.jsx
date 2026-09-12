@@ -844,11 +844,8 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             {paciente.nombre.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="inline-flex items-center gap-1.5 font-semibold text-slate-800 transition-colors group-hover:text-blue-600">
+                            <p className="font-semibold text-slate-800 transition-colors group-hover:text-blue-600">
                               {paciente.nombre}
-                              {paciente.origen === "paciente" && (
-                                <Globe size={13} className="shrink-0 text-cyan-600" title="Registrado por el paciente, en línea" aria-label="Registrado por el paciente, en línea" />
-                              )}
                             </p>
                             <p className="mt-0.5 font-mono text-xs text-slate-500">{paciente.cedula}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -857,6 +854,13 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                               </span>
                               <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
                                 {paciente.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
+                              </span>
+                              {/* Antes solo un ícono con title junto al nombre en la lista
+                                  (fácil de pasar por alto) — badge explícito igual que en el
+                                  perfil del paciente, para ambos orígenes, no solo web. */}
+                              <span className={"flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.origen === "paciente" ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500")}>
+                                {paciente.origen === "paciente" ? <Globe size={11} /> : <Building2 size={11} />}
+                                Origen: {paciente.origen === "paciente" ? "Web" : "Recepción"}
                               </span>
                               {(paciente.fecha_nacimiento || paciente.fechaNacimiento) && (
                                 <span className="flex items-center gap-1 text-xs text-slate-500">

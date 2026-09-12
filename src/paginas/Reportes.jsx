@@ -80,7 +80,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [] }) {
+export default function Reportes({ cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [] }) {
   const [periodo, setPeriodo] = useState("mes")
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")
   const [finPersonalizado, setFinPersonalizado] = useState("")
@@ -326,6 +326,16 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
     { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
+
+  // Cada KPI y cada gráfico se calcula directo de props (pacientes/consultas/
+  // citas/ventas) que App.jsx hidrata de forma asíncrona — sin esto, la
+  // primera vez que se entra a Reportes se veían todos los KPIs en 0 y cada
+  // gráfico en su estado vacío ("Aún no hay X registrados") durante el
+  // parpadeo antes de que llegaran los datos reales. Mismo criterio
+  // `cargaInicial` que ya usan Citas/Pacientes/Inventario.
+  if (cargaInicial && pacientes.length === 0 && consultas.length === 0 && citas.length === 0) {
+    return <ReportesSkeleton />
+  }
 
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -697,6 +707,28 @@ export default function Reportes({ pacientes = [], consultas = [], citas = [], v
         <CalendarClock size={14} className="shrink-0" />
         Estos reportes se calculan en vivo a partir de pacientes, consultas y citas ya registrados — no requieren configuración adicional.
       </p>
+    </div>
+  )
+}
+
+// Misma forma real de la pantalla (header + selector + 8 KPIs + 6 tarjetas de
+// gráfico) para que no haya salto de layout cuando llegan los datos reales —
+// mismo lenguaje visual (animate-pulse + slate-200/70) que TablaSkeleton.jsx
+// e InicioSkeleton (Inicio.jsx).
+function ReportesSkeleton() {
+  return (
+    <div className="w-full space-y-6 text-left">
+      <div className="h-11 w-72 animate-pulse rounded-2xl bg-slate-200/70" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-[104px] animate-pulse rounded-2xl border border-slate-200 bg-slate-100/70" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-52 animate-pulse rounded-2xl border border-slate-200 bg-slate-100/70" />
+        ))}
+      </div>
     </div>
   )
 }

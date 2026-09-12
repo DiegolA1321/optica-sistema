@@ -491,7 +491,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
       case "reportes":
-        return <Reportes pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} />
+        return <Reportes cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
@@ -517,12 +517,14 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setVista={navegar}
             usuario={usuario}
             opticaActiva={opticaActiva}
+            cargaInicial={cargaInicialStaff}
             nombreUsuario={nombreUsuario}
             opticaNombre={usuario?.opticaNombre}
             pacientes={pacientes}
             citas={citas}
             inventario={inventario}
             consultas={consultas}
+            onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => {
               setAbrirAgendarAlEntrar(true)
               navegar("citas")

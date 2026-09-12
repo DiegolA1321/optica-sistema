@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   AlertTriangle,
+  CheckCircle2,
   Eye,
   EyeOff,
   Mail,
@@ -100,6 +101,15 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const [guardando, setGuardando] = useState(false)
   const [porEliminar, setPorEliminar] = useState(null)
   const [eliminando, setEliminando] = useState(false)
+  // Antes crear/editar/eliminar un usuario cerraba el modal en silencio, sin
+  // ninguna confirmación posterior — la combinación de permisos quedaba
+  // guardada, pero nada lo confirmaba visualmente (mismo patrón de banner
+  // ya usado en Citas.jsx/Pacientes.jsx).
+  const [mensajeExito, setMensajeExito] = useState(null)
+  const mostrarExito = (msg) => {
+    setMensajeExito(msg)
+    setTimeout(() => setMensajeExito(null), 3000)
+  }
 
   // Log de actividad por usuario — caso de la reunión con el ing ("tengo
   // tres asistentes, se eliminó algo de inventario, ¿cómo sé quién lo
@@ -188,6 +198,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim() } : a)))
       registrarLog(usuario, "usuarios", "Editó los permisos de un usuario", nombre.trim())
       setModalAbierto(false)
+      mostrarExito(`Permisos de ${nombre.trim()} actualizados correctamente.`)
       return
     }
 
@@ -238,6 +249,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim() }])
     registrarLog(usuario, "usuarios", "Creó un usuario nuevo", nombre.trim())
     setModalAbierto(false)
+    mostrarExito(`Usuario ${nombre.trim()} creado correctamente.`)
   }
 
   const confirmarEliminar = async () => {
@@ -259,6 +271,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     setAsistentes(asistentes.filter((a) => a.id !== porEliminar))
     registrarLog(usuario, "usuarios", "Eliminó un usuario", eliminado?.nombre || "")
     setPorEliminar(null)
+    mostrarExito(`Usuario ${eliminado?.nombre || ""} eliminado correctamente.`)
   }
 
   return (
@@ -344,6 +357,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ─── ÉXITO ─── */}
+      {mensajeExito && (
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+          <CheckCircle2 className="text-emerald-500" size={20} />
+          <p className="text-sm font-semibold">{mensajeExito}</p>
         </div>
       )}
 
