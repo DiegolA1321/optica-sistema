@@ -8,6 +8,7 @@ import {
   Search,
   Trash2,
   Pencil,
+  ChevronLeft,
   Eye,
   Phone,
   Mail,
@@ -552,9 +553,16 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   }
 
   const pacientesFiltrados = useMemo(() => {
+    const busquedaNorm = busqueda.trim().toLowerCase()
     return pacientes.filter((p) => {
+      // Búsqueda rápida por nombre, cédula o teléfono — antes el teléfono no
+      // se buscaba, así que recepción no podía ubicar a alguien de quien
+      // solo tenía el número a mano.
       const coincideTexto =
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.cedula.includes(busqueda)
+        !busquedaNorm ||
+        p.nombre.toLowerCase().includes(busquedaNorm) ||
+        (p.cedula || "").includes(busqueda) ||
+        (p.telefono || "").toLowerCase().includes(busquedaNorm)
       const coincideEstado = filtroEstado === "Todos" || p.estadoClinico === filtroEstado
       const coincideCorreccion = filtroCorreccion === "Todos" || (p.estadoCorreccion || "Sin evaluación") === filtroCorreccion
       const coincideFecha = !filtroFecha || (p.fechaRegistro || "") === filtroFecha
@@ -584,13 +592,25 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     })
   }, [pacientesFiltrados, orden])
 
-  // Corte de rango — evita que una lista de cientos de pacientes se renderice
-  // entera de una (feedback del ing). Se reinicia a 25 cada vez que cambian
-  // los filtros, para no dejar "Mostrar más" a medio abrir sobre resultados
-  // que ya no aplican.
-  const [cantidadVisible, setCantidadVisible] = useState(25)
-  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroEstado, filtroCorreccion, filtroFecha])
-  const pacientesVisibles = useMemo(() => pacientesOrdenados.slice(0, cantidadVisible), [pacientesOrdenados, cantidadVisible])
+  // Paginación numerada — reemplaza el "Mostrar 25 más" acumulativo por
+  // páginas reales (Anterior / 1 2 3... / Siguiente), pedido explícito de
+  // Diego. Se reinicia a la página 1 cada vez que cambia cualquier filtro
+  // (incluida la búsqueda), para no quedar parado en una página que ya no
+  // tiene sentido para el nuevo resultado.
+  const PACIENTES_POR_PAGINA = 10
+  const [pagina, setPagina] = useState(1)
+  useEffect(() => { setPagina(1) }, [busqueda, filtroEstado, filtroCorreccion, filtroFecha])
+  const totalPaginas = Math.max(1, Math.ceil(pacientesOrdenados.length / PACIENTES_POR_PAGINA))
+  // Si la página guardada quedó fuera de rango (p. ej. se estaba en la
+  // página 3 y un filtro nuevo dejó solo 1 página), se recorta a la última
+  // válida en vez de mostrar una tabla vacía con controles que no cuadran.
+  const paginaActual = Math.min(pagina, totalPaginas)
+  const inicioPagina = (paginaActual - 1) * PACIENTES_POR_PAGINA
+  const pacientesVisibles = useMemo(
+    () => pacientesOrdenados.slice(inicioPagina, inicioPagina + PACIENTES_POR_PAGINA),
+    [pacientesOrdenados, inicioPagina],
+  )
+  const numerosPagina = useMemo(() => Array.from({ length: totalPaginas }, (_, i) => i + 1), [totalPaginas])
 
   // Conteo por estado de corrección (para el resumen superior)
   const conteoCorreccion = useMemo(() => {
@@ -719,7 +739,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               <input
                 id="buscar-paciente"
                 type="text"
-                placeholder="Nombre o cédula del paciente..."
+                placeholder="Nombre, cédula o teléfono del paciente..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
@@ -938,12 +958,46 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         </div>
 
         {pacientesFiltrados.length > 0 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-            <span>Mostrando {pacientesVisibles.length} de {pacientesFiltrados.length}{pacientesFiltrados.length !== pacientes.length ? ` (de ${pacientes.length} en total)` : ""}</span>
-            {cantidadVisible < pacientesFiltrados.length && (
-              <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                Mostrar 25 más
-              </button>
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Mostrando <span className="font-semibold text-slate-700">{inicioPagina + 1}–{Math.min(inicioPagina + PACIENTES_POR_PAGINA, pacientesFiltrados.length)}</span> de <span className="font-semibold text-slate-700">{pacientesFiltrados.length}</span>
+              {pacientesFiltrados.length !== pacientes.length ? ` (de ${pacientes.length} en total)` : ""}
+            </span>
+            {totalPaginas > 1 && (
+              <nav className="flex items-center gap-1" aria-label="Paginación de pacientes">
+                <button
+                  type="button"
+                  onClick={() => setPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                  aria-label="Página anterior"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft size={14} /> Anterior
+                </button>
+                <div className="flex items-center gap-1 px-1">
+                  {numerosPagina.map((numero) => (
+                    <button
+                      key={numero}
+                      type="button"
+                      onClick={() => setPagina(numero)}
+                      aria-label={`Página ${numero}`}
+                      aria-current={numero === paginaActual ? "page" : undefined}
+                      className={"min-w-[28px] rounded-lg px-2 py-1.5 font-semibold transition cursor-pointer " + (numero === paginaActual ? "bg-blue-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100")}
+                    >
+                      {numero}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                  aria-label="Página siguiente"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  Siguiente <ChevronRight size={14} />
+                </button>
+              </nav>
             )}
           </div>
         )}
