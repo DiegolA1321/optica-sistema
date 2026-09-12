@@ -31,3 +31,6 @@ supabase/.temp
 /REFERENCIA*
 /*.pdf
 /transcripcion_*.txt
+
+.vercel
+.env*

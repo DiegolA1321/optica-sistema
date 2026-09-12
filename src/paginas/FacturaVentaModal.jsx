@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Glasses } from "lucide-react"
+import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import CampoCategoria from "../componentes/CampoCategoria"
+import CampoImagenProducto from "../componentes/CampoImagenProducto"
+import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con VentaProductoModal.jsx) ───
@@ -28,12 +30,29 @@ export default function FacturaVentaModal({
   categorias = [],
   setCategorias,
   pacienteFijo,
+  // Precarga una línea al abrir (ej. el lente que el optómetra ya vinculó
+  // en la ficha clínica) — "listo para cobrar en un solo paso" en vez de
+  // obligar a volver a buscar el mismo producto que ya se eligió antes.
+  // Si el producto ya no existe o se quedó sin stock, se ignora en
+  // silencio y el modal abre vacío, como siempre.
+  lineaInicial,
+  // Encadena la factura a la consulta/cita de origen — mismos parámetros
+  // que ya usa ConsultaMedica.jsx al crear la factura desde su propio
+  // editor embebido (ver crear_factura_venta, migración 0072).
+  consultaId = null,
+  citaId = null,
   onGuardado,
   onCerrar,
 }) {
   const opticaId = usuario?.opticaId
 
-  const [lineas, setLineas] = useState([])
+  const [lineas, setLineas] = useState(() => {
+    if (!lineaInicial?.productoId) return []
+    const p = inventario.find((x) => x.id === lineaInicial.productoId)
+    if (!p || (Number(p.stock) || 0) <= 0) return []
+    const cant = Math.min(Math.max(1, lineaInicial.cantidad || 1), Number(p.stock) || 1)
+    return [{ tipo: "producto", productoId: p.id, descripcion: p.nombre, cantidad: cant, precioUnitario: Number(p.precio) || 0 }]
+  })
   const [tipoLinea, setTipoLinea] = useState("producto")
 
   const [productoId, setProductoId] = useState(null)
@@ -55,6 +74,7 @@ export default function FacturaVentaModal({
   const [npPrecio, setNpPrecio] = useState("")
   const [npObservacion, setNpObservacion] = useState("")
   const [npCritico, setNpCritico] = useState("")
+  const [npImagenUrl, setNpImagenUrl] = useState(null)
   const [erroresNp, setErroresNp] = useState({})
   const [guardandoNp, setGuardandoNp] = useState(false)
 
@@ -119,6 +139,7 @@ export default function FacturaVentaModal({
     setNpPrecio("")
     setNpObservacion("")
     setNpCritico("")
+    setNpImagenUrl(null)
     setErroresNp({})
     setAgregandoProducto(true)
   }
@@ -147,6 +168,7 @@ export default function FacturaVentaModal({
       precio: precioNum,
       observacion: npObservacion || "",
       critico: npCritico === "" ? null : Math.max(0, parseInt(npCritico, 10) || 0),
+      imagen_url: npImagenUrl || null,
     }
 
     setGuardandoNp(true)
@@ -194,8 +216,8 @@ export default function FacturaVentaModal({
             cantidad: l.cantidad,
             precio_unitario: l.precioUnitario,
           })),
-          p_cita_id: null,
-          p_consulta_id: null,
+          p_cita_id: citaId,
+          p_consulta_id: consultaId,
           p_cuotas_totales: cuotasNum,
           p_registrado_por: usuario?.id || null,
         })
@@ -216,9 +238,10 @@ export default function FacturaVentaModal({
       }
       registrarLog(usuario, "pacientes", "Generó una factura", `${pacienteFijo.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
       onGuardado?.({
-        id: data.id, pacienteId: pacienteFijo.id, citaId: null, consultaId: null,
+        id: data.id, pacienteId: pacienteFijo.id, citaId, consultaId,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
         estado: data.estado, creadoEn: data.created_at,
+        lineas,
       })
     }
 
@@ -263,9 +286,13 @@ export default function FacturaVentaModal({
                   {lineas.map((l, i) => (
                     <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className={"grid h-6 w-6 shrink-0 place-items-center rounded-md " + (l.tipo === "producto" ? "bg-blue-50 text-blue-600" : "bg-violet-50 text-violet-600")}>
-                          {l.tipo === "producto" ? <Glasses size={13} /> : <Wrench size={13} />}
-                        </span>
+                        {l.tipo === "producto" ? (
+                          <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
+                        ) : (
+                          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-violet-600">
+                            <Wrench size={13} />
+                          </span>
+                        )}
                         <span className="truncate text-sm font-semibold text-slate-700">{l.descripcion}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
@@ -287,6 +314,7 @@ export default function FacturaVentaModal({
                   <span className="text-xs font-bold uppercase tracking-wide text-blue-700">Producto nuevo</span>
                 </div>
                 <div className="space-y-3">
+                  <CampoImagenProducto opticaId={opticaId} valor={npImagenUrl} onCambio={setNpImagenUrl} />
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Categoría</label>
                     <CampoCategoria valor={npCategoria} onChange={setNpCategoria} categorias={CATEGORIAS_NP} setCategorias={setCategorias} />
@@ -312,13 +340,13 @@ export default function FacturaVentaModal({
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                    <input type="text" value={npObservacion} onChange={(e) => setNpObservacion(e.target.value)} placeholder="Ej. Color negro mate, incluye estuche."
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                    <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
-                    <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                    <input type="text" value={npObservacion} onChange={(e) => setNpObservacion(e.target.value)} placeholder="Ej. Color negro mate, incluye estuche."
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   {erroresNp.general && (
@@ -351,7 +379,10 @@ export default function FacturaVentaModal({
                   <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
                     {productoSeleccionado ? (
                       <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                        <span className="text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <MiniaturaProducto url={productoSeleccionado.imagen_url} alt={productoSeleccionado.nombre} size={22} />
+                          <span className="truncate text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
+                        </span>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-xs text-emerald-700">{productoSeleccionado.stock} u. · ${Number(productoSeleccionado.precio).toFixed(2)}</span>
                           <button type="button" onClick={limpiarCamposProducto} className="text-sm font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">×</button>
@@ -370,9 +401,12 @@ export default function FacturaVentaModal({
                         {mostrarDropdownProducto && productosFiltrados.length > 0 && (
                           <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                             {productosFiltrados.map((p) => (
-                              <li key={p.id} onClick={() => { setProductoId(p.id); setMostrarDropdownProducto(false) }} className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700">
-                                <span>{p.nombre}</span>
-                                <span className="font-mono text-xs text-slate-400">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
+                              <li key={p.id} onClick={() => { setProductoId(p.id); setMostrarDropdownProducto(false) }} className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700">
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
+                                  <span className="truncate">{p.nombre}</span>
+                                </span>
+                                <span className="shrink-0 font-mono text-xs text-slate-400">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
                               </li>
                             ))}
                           </ul>

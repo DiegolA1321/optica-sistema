@@ -8,6 +8,8 @@ import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import CampoCategoria from "../componentes/CampoCategoria"
+import CampoImagenProducto from "../componentes/CampoImagenProducto"
+import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -53,6 +55,7 @@ export default function VentaProductoModal({
   const [npPrecio, setNpPrecio] = useState("")
   const [npObservacion, setNpObservacion] = useState("")
   const [npCritico, setNpCritico] = useState("")
+  const [npImagenUrl, setNpImagenUrl] = useState(null)
   const [erroresNp, setErroresNp] = useState({})
   const [guardandoNp, setGuardandoNp] = useState(false)
 
@@ -89,6 +92,7 @@ export default function VentaProductoModal({
     setNpPrecio("")
     setNpObservacion("")
     setNpCritico("")
+    setNpImagenUrl(null)
     setErroresNp({})
     setAgregandoProducto(true)
   }
@@ -117,6 +121,7 @@ export default function VentaProductoModal({
       precio: precioNum,
       observacion: npObservacion || "",
       critico: npCritico === "" ? null : Math.max(0, parseInt(npCritico, 10) || 0),
+      imagen_url: npImagenUrl || null,
     }
 
     setGuardandoNp(true)
@@ -284,6 +289,7 @@ export default function VentaProductoModal({
                   <span className="text-xs font-bold uppercase tracking-wide text-blue-700">Producto nuevo</span>
                 </div>
                 <div className="space-y-3">
+                  <CampoImagenProducto opticaId={opticaId} valor={npImagenUrl} onCambio={setNpImagenUrl} />
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Categoría</label>
                     <CampoCategoria valor={npCategoria} onChange={setNpCategoria} categorias={CATEGORIAS_NP} setCategorias={setCategorias} />
@@ -309,13 +315,13 @@ export default function VentaProductoModal({
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                    <input type="text" value={npObservacion} onChange={(e) => setNpObservacion(e.target.value)} placeholder="Ej. Color negro mate, incluye estuche."
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                    <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
-                    <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                    <input type="text" value={npObservacion} onChange={(e) => setNpObservacion(e.target.value)} placeholder="Ej. Color negro mate, incluye estuche."
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   {erroresNp.general && (
@@ -334,12 +340,18 @@ export default function VentaProductoModal({
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Producto</label>
                 {productoFijo ? (
                   <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                    <span className="text-sm font-semibold text-slate-700">{productoFijo.nombre}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <MiniaturaProducto url={productoFijo.imagen_url} alt={productoFijo.nombre} size={22} />
+                      <span className="truncate text-sm font-semibold text-slate-700">{productoFijo.nombre}</span>
+                    </span>
                     <span className="font-mono text-xs text-slate-500">{productoFijo.stock} u. · ${Number(productoFijo.precio).toFixed(2)}</span>
                   </div>
                 ) : productoSeleccionado ? (
                   <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                    <span className="text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <MiniaturaProducto url={productoSeleccionado.imagen_url} alt={productoSeleccionado.nombre} size={22} />
+                      <span className="truncate text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
+                    </span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-emerald-700">{productoSeleccionado.stock} u. · ${Number(productoSeleccionado.precio).toFixed(2)}</span>
                       <button type="button" onClick={() => { setProductoId(null); setBusquedaProducto("") }} className="text-sm font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">×</button>
@@ -358,9 +370,12 @@ export default function VentaProductoModal({
                     {mostrarDropdownProducto && productosFiltrados.length > 0 && (
                       <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                         {productosFiltrados.map((p) => (
-                          <li key={p.id} onClick={() => { setProductoId(p.id); setMostrarDropdownProducto(false) }} className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700">
-                            <span>{p.nombre}</span>
-                            <span className="font-mono text-xs text-slate-400">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
+                          <li key={p.id} onClick={() => { setProductoId(p.id); setMostrarDropdownProducto(false) }} className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
+                              <span className="truncate">{p.nombre}</span>
+                            </span>
+                            <span className="shrink-0 font-mono text-xs text-slate-400">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>

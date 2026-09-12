@@ -65,6 +65,7 @@ import { useAnchoElemento } from "../utilidades/graficos"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -1618,82 +1619,90 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         </div>
       </div>
 
-      {/* ─── Funnel comercial: página de venta → leads → clientes ─── */}
-      <div>
-        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Página de venta</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {tarjetasFunnel.map((t, i) => {
-            const Icono = t.icon
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => t.key === "leads" && setSeccion("leads")}
-                style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${i * 40}ms` }}
-                className={CARD + " group relative overflow-hidden p-4 text-left transition-all " + (t.key === "leads" ? "hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50" : "cursor-default")}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
-                    <Icono size={15} />
-                  </div>
-                </div>
-                <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className={CARD_PAD}>
-        <div className="mb-1 flex items-center justify-between">
-          <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Visitas a la página de venta</h3>
-          <span className="text-[11px] font-semibold text-slate-400">Últimos 7 días</span>
-        </div>
-        {visitasVenta.length === 0 ? (
-          <p className="py-14 text-center text-sm text-slate-400">Aún no hay visitas registradas.</p>
-        ) : (
-          <div ref={refGraficoVisitas} className="relative mt-3">
-            <svg viewBox={`0 0 ${anchoGraficoVisitas} 98`} className="w-full" style={{ height: 98 }} preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="barraVisitas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22D3EE" />
-                  <stop offset="100%" stopColor="#2563EB" />
-                </linearGradient>
-              </defs>
-              {barrasVisitas.map((b, i) => {
-                const clicable = b.valor > 0
+      {/* ─── Funnel comercial: página de venta → leads → clientes ───
+          Oculto en modo anteproyecto (MODO_SAAS_VISIBLE apagado): estos
+          paneles muestran el lado comercial multi-óptica (visitas, leads,
+          conversión), pero el acceso al panel de superadmin en sí NO se
+          restringe — solo se ocultan estos widgets. Ver [[project_ocultar_saas_anteproyecto]]. */}
+      {MODO_SAAS_VISIBLE && (
+        <>
+          <div>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Página de venta</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {tarjetasFunnel.map((t, i) => {
+                const Icono = t.icon
                 return (
-                  <g
-                    key={i}
-                    className={clicable ? "cursor-pointer group/barravisita" : "group/barravisita"}
-                    onMouseEnter={() => clicable && setHoverVisitaIdx(i)}
-                    onMouseLeave={() => setHoverVisitaIdx(null)}
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => t.key === "leads" && setSeccion("leads")}
+                    style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${i * 40}ms` }}
+                    className={CARD + " group relative overflow-hidden p-4 text-left transition-all " + (t.key === "leads" ? "hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50" : "cursor-default")}
                   >
-                    <rect x={b.x} y="2" width={b.w} height="80" fill="transparent" />
-                    <rect
-                      x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
-                      fill="url(#barraVisitas)"
-                      className={"transition-transform duration-150 " + (clicable ? "group-hover/barravisita:brightness-110" : "opacity-30")}
-                      style={hoverVisitaIdx === i ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.06)" } : undefined}
-                      shapeRendering="geometricPrecision"
-                    />
-                    <text x={b.cx} y="94" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
-                  </g>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
+                        <Icono size={15} />
+                      </div>
+                    </div>
+                    <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
+                  </button>
                 )
               })}
-            </svg>
-            {hoverVisitaIdx !== null && (
-              <div
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                style={{ left: `${(barrasVisitas[hoverVisitaIdx].cx / anchoGraficoVisitas) * 100}%`, top: barrasVisitas[hoverVisitaIdx].y - 8, background: INK }}
-              >
-                {visitasPorDia[hoverVisitaIdx].valor} visita{visitasPorDia[hoverVisitaIdx].valor === 1 ? "" : "s"}
+            </div>
+          </div>
+
+          <div className={CARD_PAD}>
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Visitas a la página de venta</h3>
+              <span className="text-[11px] font-semibold text-slate-400">Últimos 7 días</span>
+            </div>
+            {visitasVenta.length === 0 ? (
+              <p className="py-14 text-center text-sm text-slate-400">Aún no hay visitas registradas.</p>
+            ) : (
+              <div ref={refGraficoVisitas} className="relative mt-3">
+                <svg viewBox={`0 0 ${anchoGraficoVisitas} 98`} className="w-full" style={{ height: 98 }} preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="barraVisitas" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22D3EE" />
+                      <stop offset="100%" stopColor="#2563EB" />
+                    </linearGradient>
+                  </defs>
+                  {barrasVisitas.map((b, i) => {
+                    const clicable = b.valor > 0
+                    return (
+                      <g
+                        key={i}
+                        className={clicable ? "cursor-pointer group/barravisita" : "group/barravisita"}
+                        onMouseEnter={() => clicable && setHoverVisitaIdx(i)}
+                        onMouseLeave={() => setHoverVisitaIdx(null)}
+                      >
+                        <rect x={b.x} y="2" width={b.w} height="80" fill="transparent" />
+                        <rect
+                          x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
+                          fill="url(#barraVisitas)"
+                          className={"transition-transform duration-150 " + (clicable ? "group-hover/barravisita:brightness-110" : "opacity-30")}
+                          style={hoverVisitaIdx === i ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.06)" } : undefined}
+                          shapeRendering="geometricPrecision"
+                        />
+                        <text x={b.cx} y="94" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
+                      </g>
+                    )
+                  })}
+                </svg>
+                {hoverVisitaIdx !== null && (
+                  <div
+                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
+                    style={{ left: `${(barrasVisitas[hoverVisitaIdx].cx / anchoGraficoVisitas) * 100}%`, top: barrasVisitas[hoverVisitaIdx].y - 8, background: INK }}
+                  >
+                    {visitasPorDia[hoverVisitaIdx].valor} visita{visitasPorDia[hoverVisitaIdx].valor === 1 ? "" : "s"}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* ─── Bento: ópticas creadas por mes + estado del sistema ─── */}
       {/* items-start: cada tarjeta se ajusta a su propio contenido en vez de
@@ -1701,51 +1710,55 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           bastante más contenido (donut + tiles + aviso) que un gráfico
           simple, y estirar el gráfico para igualar esa altura dejaba un
           hueco vacío abajo en vez de una tarjeta más compacta. */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
-        <div className={CARD_PAD + " lg:col-span-3"}>
-          <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Ópticas creadas por mes</h3>
-            <span className="text-[11px] font-semibold text-slate-400">Últimos 6 meses</span>
-          </div>
-          {opticas.length === 0 ? (
-            <p className="py-14 text-center text-sm text-slate-400">Aún no hay ópticas registradas.</p>
-          ) : (
-            <div ref={refGraficoOpticas} className="relative mt-3">
-              <svg viewBox={`0 0 ${anchoGraficoOpticas} 110`} className="w-full" style={{ height: 110 }} preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="areaOpticas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563EB" stopOpacity="0.18" />
-                    <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d={curvaOpticas.area} fill="url(#areaOpticas)" />
-                <path d={curvaOpticas.linea} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                {curvaOpticas.puntos.map((p, i) => (
-                  <g key={i} className="cursor-pointer" onMouseEnter={() => setHoverMesIdx(i)} onMouseLeave={() => setHoverMesIdx(null)}>
-                    <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
-                    <circle
-                      cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
-                      className={"transition-transform duration-150 " + (hoverMesIdx === i ? "scale-[1.6]" : "scale-100")}
-                      style={{ transformBox: "fill-box", transformOrigin: "center" }}
-                    />
-                    <text x={p[0]} y={p[1] - 8} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#334155">{opticasPorMes[i].valor}</text>
-                    <text x={p[0]} y="104" textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{opticasPorMes[i].etiqueta}</text>
-                  </g>
-                ))}
-              </svg>
-              {hoverMesIdx !== null && (
-                <div
-                  className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                  style={{ left: `${(curvaOpticas.puntos[hoverMesIdx][0] / anchoGraficoOpticas) * 100}%`, top: curvaOpticas.puntos[hoverMesIdx][1] - 14, background: INK }}
-                >
-                  {opticasPorMes[hoverMesIdx].valor} óptica{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"} creada{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"}
-                </div>
-              )}
+      <div className={MODO_SAAS_VISIBLE ? "grid grid-cols-1 items-start gap-4 lg:grid-cols-5" : ""}>
+        {/* "Ópticas creadas por mes" revela el ritmo de altas comerciales —
+            oculto en modo anteproyecto, ver [[project_ocultar_saas_anteproyecto]]. */}
+        {MODO_SAAS_VISIBLE && (
+          <div className={CARD_PAD + " lg:col-span-3"}>
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Ópticas creadas por mes</h3>
+              <span className="text-[11px] font-semibold text-slate-400">Últimos 6 meses</span>
             </div>
-          )}
-        </div>
+            {opticas.length === 0 ? (
+              <p className="py-14 text-center text-sm text-slate-400">Aún no hay ópticas registradas.</p>
+            ) : (
+              <div ref={refGraficoOpticas} className="relative mt-3">
+                <svg viewBox={`0 0 ${anchoGraficoOpticas} 110`} className="w-full" style={{ height: 110 }} preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="areaOpticas" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2563EB" stopOpacity="0.18" />
+                      <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={curvaOpticas.area} fill="url(#areaOpticas)" />
+                  <path d={curvaOpticas.linea} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  {curvaOpticas.puntos.map((p, i) => (
+                    <g key={i} className="cursor-pointer" onMouseEnter={() => setHoverMesIdx(i)} onMouseLeave={() => setHoverMesIdx(null)}>
+                      <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
+                      <circle
+                        cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
+                        className={"transition-transform duration-150 " + (hoverMesIdx === i ? "scale-[1.6]" : "scale-100")}
+                        style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                      />
+                      <text x={p[0]} y={p[1] - 8} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#334155">{opticasPorMes[i].valor}</text>
+                      <text x={p[0]} y="104" textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{opticasPorMes[i].etiqueta}</text>
+                    </g>
+                  ))}
+                </svg>
+                {hoverMesIdx !== null && (
+                  <div
+                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
+                    style={{ left: `${(curvaOpticas.puntos[hoverMesIdx][0] / anchoGraficoOpticas) * 100}%`, top: curvaOpticas.puntos[hoverMesIdx][1] - 14, background: INK }}
+                  >
+                    {opticasPorMes[hoverMesIdx].valor} óptica{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"} creada{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-        <div className={CARD_PAD + " lg:col-span-2 flex flex-col"}>
+        <div className={CARD_PAD + (MODO_SAAS_VISIBLE ? " lg:col-span-2 flex flex-col" : " flex flex-col lg:max-w-md")}>
           <h3 className="mb-3 text-[13.5px] font-bold" style={{ color: INK }}>Estado del sistema</h3>
           <div className="flex items-center justify-center gap-5">
             <svg

@@ -34,6 +34,7 @@ export default function Inicio({
   onAgendarRapido,
   onCrearPacienteRapido,
   onCrearProductoRapido,
+  onReabastecerProducto,
   nombreUsuario = "Diego",
   opticaNombre,
 }) {
@@ -124,21 +125,19 @@ export default function Inicio({
   // Solo las alertas de inventario REALES (stock por debajo del mínimo), no el total de productos
   const productosBajoStock = useMemo(() => inventario.filter(esStockBajo), [inventario])
 
-  // Top 5 de mayor/menor stock, con toggle (feedback del asesor: vista rápida
-  // de existencias sin tener que entrar al módulo de inventario). Default en
-  // "menor": el ing probó el panel con inventario real y pidió explícitamente
-  // que lo primero que se vea sean los productos con menos existencias, no
-  // los que sobran — es la vista que de verdad importa para reabastecer.
-  const [vistaStock, setVistaStock] = useState("menor") // "mayor" | "menor"
-  const top5Mayor = useMemo(
-    () => [...inventario].sort((a, b) => (Number(b.stock) || 0) - (Number(a.stock) || 0)).slice(0, 5),
-    [inventario]
-  )
-  const top5Menor = useMemo(
-    () => [...inventario].sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)).slice(0, 5),
-    [inventario]
-  )
-  const productosVistaStock = vistaStock === "mayor" ? top5Mayor : top5Menor
+  // Prioridad automática de reabastecimiento (pedido explícito de Diego:
+  // "que ordene automáticamente... muestra primero los ítems en estado
+  // crítico"): primero los que ya están por debajo de su mínimo (esStockBajo,
+  // que compara contra el umbral propio de cada producto, no solo el número
+  // crudo), ordenados de menor a mayor entre ellos; después el resto,
+  // también ascendente. Reemplaza el toggle "mayor/menor stock" — este
+  // widget es una alerta de reabastecimiento, no un explorador del
+  // inventario completo (eso ya lo cubre el módulo Inventario).
+  const productosPrioridadReabastecimiento = useMemo(() => {
+    const bajos = inventario.filter(esStockBajo).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0))
+    const resto = inventario.filter((p) => !esStockBajo(p)).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0))
+    return [...bajos, ...resto].slice(0, 5)
+  }, [inventario])
 
   // Citas agendadas para la fecha de hoy (antes esto mostraba TODAS las citas
   // jamás agendadas — el primer número que ve el optómetra al entrar era falso
@@ -177,39 +176,49 @@ export default function Inicio({
     }).length
   }, [pacientes])
 
-  // Prioridad de lo primero que ve el optómetra: pacientes totales, citas de hoy y alertas de inventario
-  const estadisticas = [
+  // Top bar de acción: un solo bloque uniforme por módulo (Pacientes, Citas,
+  // Inventario) que combina el atajo directo (crear/agendar/añadir, sin
+  // pasar por la lista completa) con el número que antes vivía aparte en una
+  // fila de KPIs — dos filas casi idénticas que hacían lo mismo con distinto
+  // verbo (una para "crear", otra para "ver la lista", y "ver la lista" ya
+  // lo cubre el menú lateral). Limpieza pedida por Diego: una sola fila,
+  // misma estructura visual para las tres tarjetas.
+  const accionesRapidas = [
     {
-      id: 1,
-      vistaDestino: "pacientes",
-      titulo: "Pacientes totales",
-      valor: pacientes.length.toString(),
+      id: "pacientes",
+      icono: Users,
+      titulo: "Gestionar pacientes",
+      valor: pacientes.length,
       desc: "Registrados en la base de datos",
       tendencia: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : null,
-      icono: Users,
+      ctaLabel: "Registrar paciente",
       color: "slate",
+      onClick: () => (onCrearPacienteRapido ? onCrearPacienteRapido() : setVista?.("pacientes")),
     },
     {
-      id: 2,
-      vistaDestino: "citas",
-      titulo: "Citas de hoy",
-      valor: citasHoy.length.toString(),
-      desc: "Agendadas para atención",
+      id: "citas",
       icono: Calendar,
+      titulo: "Gestionar citas",
+      valor: citasHoy.length,
+      desc: citasHoy.length === 1 ? "cita para hoy" : "citas para hoy",
+      ctaLabel: "Agendar cita",
       color: "blue",
+      onClick: () => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas")),
     },
     {
-      id: 3,
-      vistaDestino: "inventario",
-      titulo: "Alertas de inventario",
-      valor: productosBajoStock.length.toString(),
-      desc: "Productos con stock bajo",
-      icono: AlertTriangle,
-      color: "amber",
+      id: "inventario",
+      icono: productosBajoStock.length > 0 ? AlertTriangle : Package,
+      titulo: "Gestionar inventario",
+      valor: productosBajoStock.length,
+      desc: productosBajoStock.length === 1 ? "alerta de stock bajo" : "alertas de stock bajo",
+      ctaLabel: "Añadir producto",
+      color: productosBajoStock.length > 0 ? "amber" : "slate",
+      onClick: () => (onCrearProductoRapido ? onCrearProductoRapido() : setVista?.("inventario")),
     },
   ]
 
-  // Estilo por KPI (tile del icono + acento)
+  // Estilo por tarjeta (tile del icono + acento) — mismo mapeo que antes
+  // usaban los KPIs, ahora compartido por la única fila que queda.
   const kpi = {
     slate: { tile: "#F1F5F9", tileText: "#475569", hoverBorder: "hover:border-slate-300", valor: INK },
     blue: { tile: GRAD, tileText: "#fff", hoverBorder: "hover:border-blue-200", valor: INK },
@@ -275,42 +284,42 @@ export default function Inicio({
         </div>
       </div>
 
-      {/* ─── OPCIONES RÁPIDAS — un atajo por cada tarjeta de abajo (Pacientes,
-          Citas, Inventario), en el mismo orden, y las tres entran directo al
-          formulario de "nuevo", sin pasar primero por la lista completa (el
-          ing probó esto en vivo: "vamos a registrar un nuevo paciente...
-          ingresa aquí directamente"). ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <AccionRapida icon={Users} titulo="Gestionar pacientes" desc="Registra un paciente nuevo al instante" onClick={() => (onCrearPacienteRapido ? onCrearPacienteRapido() : setVista?.("pacientes"))} />
-        <AccionRapida icon={Calendar} titulo="Gestionar citas" desc="Agenda una cita sin pasos extra" onClick={() => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas"))} />
-        <AccionRapida icon={Package} titulo="Gestionar inventario" desc="Añade un producto nuevo a bodega" onClick={() => (onCrearProductoRapido ? onCrearProductoRapido() : setVista?.("inventario"))} />
-      </div>
-
-      {/* ─── KPIs (prioridad: pacientes, citas de hoy, inventario) ─── */}
+      {/* ─── TOP BAR DE ACCIÓN — un solo bloque uniforme por módulo (antes
+          eran dos filas: atajos de "crear" arriba y KPIs de "ver el total"
+          abajo, casi duplicadas — "ver el total y entrar al módulo" ya lo
+          hace el menú lateral). Cada tarjeta combina el número (a simple
+          vista) con el atajo directo al formulario de "nuevo", sin pasar
+          por la lista completa (el ing probó esto en vivo: "vamos a
+          registrar un nuevo paciente... ingresa aquí directamente"). ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {estadisticas.map((est) => {
-          const Icono = est.icono
-          const c = kpi[est.color]
+        {accionesRapidas.map((acc) => {
+          const Icono = acc.icono
+          const c = kpi[acc.color]
           return (
             <button
-              key={est.id}
+              key={acc.id}
               type="button"
-              onClick={() => setVista?.(est.vistaDestino)}
-              className={"group flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
+              onClick={acc.onClick}
+              className={"group flex w-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
             >
-              <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{est.titulo}</p>
-                <h4 className="text-4xl font-serif font-semibold" style={{ color: c.valor }}>{est.valor}</h4>
-                <p className="text-xs text-slate-500">{est.desc}</p>
-                {est.tendencia && (
-                  <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-                    <TrendingUp size={11} /> {est.tendencia}
-                  </p>
-                )}
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{acc.titulo}</p>
+                  <h4 className="text-4xl font-serif font-semibold" style={{ color: c.valor }}>{acc.valor}</h4>
+                  <p className="text-xs text-slate-500">{acc.desc}</p>
+                  {acc.tendencia && (
+                    <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                      <TrendingUp size={11} /> {acc.tendencia}
+                    </p>
+                  )}
+                </div>
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl transition-transform group-hover:scale-110" style={{ background: c.tile, color: c.tileText }}>
+                  <Icono size={26} />
+                </div>
               </div>
-              <div className="grid h-14 w-14 place-items-center rounded-2xl transition-transform group-hover:scale-110" style={{ background: c.tile, color: c.tileText }}>
-                <Icono size={26} />
-              </div>
+              <p className="mt-4 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
+                {acc.ctaLabel} <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+              </p>
             </button>
           )
         })}
@@ -395,12 +404,12 @@ export default function Inicio({
                 <Calendar size={18} />
               </div>
               <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Últimas citas</h4>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Últimas citas / Agenda cercana</h4>
                 <p className="text-[11px] text-slate-500">{mostrandoHistorial ? "Sin citas hoy — últimas registradas" : "Orden cronológico"}</p>
               </div>
             </div>
             <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-              Ver agenda <ArrowRight size={14} />
+              Ver agenda completa <ArrowRight size={14} />
             </button>
           </div>
 
@@ -447,7 +456,10 @@ export default function Inicio({
           </div>
         </section>
 
-        {/* Inventario: top 5 mayor/menor stock */}
+        {/* Inventario: prioridad automática de reabastecimiento — sin
+            toggle, siempre primero lo crítico (pedido explícito de Diego).
+            Cada fila es un botón: un clic manda directo al modal de
+            editar/sumar stock de ESE producto en Inventario.jsx. */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
@@ -455,7 +467,7 @@ export default function Inicio({
                 <AlertTriangle size={18} />
               </div>
               <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Inventario</h4>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Reabastecimiento</h4>
                 <p className="text-[11px] text-slate-500">
                   {productosBajoStock.length} {productosBajoStock.length === 1 ? "alerta" : "alertas"} de stock bajo
                 </p>
@@ -466,49 +478,35 @@ export default function Inicio({
             </button>
           </div>
 
-          {/* Séptima Mirada, hallazgo #5: este selector no tiene nada que
-              ordenar todavía cuando el inventario está vacío — para una
-              óptica que recién se está dando de alta, es su primer vistazo
-              al sistema, y un control que no hace nada solo suma ruido. */}
-          {inventario.length > 0 && (
-            <div className="mb-4 flex gap-1.5 rounded-xl bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setVistaStock("mayor")}
-                className={"flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaStock === "mayor" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-              >
-                Mayor stock
-              </button>
-              <button
-                type="button"
-                onClick={() => setVistaStock("menor")}
-                className={"flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaStock === "menor" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-              >
-                Menor stock
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            {productosVistaStock.length === 0 ? (
+          <div className="space-y-1">
+            {productosPrioridadReabastecimiento.length === 0 ? (
               <p className="py-2 text-xs text-slate-500">No hay productos registrados en el inventario.</p>
             ) : (
               (() => {
-                const maxVista = Math.max(1, ...productosVistaStock.map((p) => Number(p.stock) || 0))
-                return productosVistaStock.map((prod, idx) => {
+                const maxVista = Math.max(1, ...productosPrioridadReabastecimiento.map((p) => Number(p.stock) || 0))
+                return productosPrioridadReabastecimiento.map((prod, idx) => {
                   const stock = Number(prod.stock) || 0
                   const pct = Math.max(4, Math.round((stock / maxVista) * 100))
                   const bajo = esStockBajo(prod)
                   return (
-                    <div key={prod.id || idx} className="group">
+                    <button
+                      type="button"
+                      key={prod.id || idx}
+                      onClick={() => (onReabastecerProducto ? onReabastecerProducto(prod.id) : setVista?.("inventario"))}
+                      title={`Reabastecer ${prod.nombre}`}
+                      className="group -mx-2 flex w-[calc(100%+1rem)] flex-col rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-amber-50/70 cursor-pointer"
+                    >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-700 transition-colors group-hover:text-blue-600">{prod.nombre}</span>
-                        <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-700")}>{prod.stock}</span>
+                        <span className="font-semibold text-slate-700 transition-colors group-hover:text-amber-700">{prod.nombre}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-700")}>{prod.stock}</span>
+                          <ArrowRight size={12} className="text-slate-400 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+                        </span>
                       </div>
                       <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                         <div className="h-full rounded-full transition-all" style={{ width: pct + "%", backgroundColor: bajo ? "#F59E0B" : "#2563EB" }} />
                       </div>
-                    </div>
+                    </button>
                   )
                 })
               })()
@@ -558,26 +556,6 @@ export default function Inicio({
 }
 
 // ─── Subcomponentes ───
-function AccionRapida({ icon: Icon, titulo, desc, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-left transition-all hover:border-blue-400 hover:bg-blue-50/40 cursor-pointer"
-    >
-      <div className="flex items-center gap-3">
-        <div className="grid h-9 w-9 place-items-center rounded-lg bg-blue-100/80 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white">
-          <Icon size={16} />
-        </div>
-        <div>
-          <h5 className="text-xs font-bold text-slate-800 transition-colors group-hover:text-blue-700">{titulo}</h5>
-          <p className="text-[11px] text-slate-500">{desc}</p>
-        </div>
-      </div>
-      <ArrowRight size={15} className="text-slate-500 transition-transform group-hover:translate-x-1" />
-    </button>
-  )
-}
 
 function EstadoVacio({ icon: Icon, texto }) {
   return (

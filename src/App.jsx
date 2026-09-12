@@ -2,7 +2,6 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
 import { hoyISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
-import { MODO_SAAS_VISIBLE } from './lib/config';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { lazyConReintento } from './utilidades/lazyConReintento';
@@ -491,7 +490,7 @@ function App() {
       // skeleton en vez de "no hay datos todavía" mientras tanto.
       Promise.allSettled([
         supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico })))
+          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null })))
           else if (error) registrarErrorCarga('inventario')
         }),
         // pacientes/citas/consultas: hidratan el estado local con lo real de
@@ -686,12 +685,6 @@ function App() {
         const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
         if (!perfil) return;
         if (perfil.rol === 'superadmin') {
-          // Modo anteproyecto: con MODO_SAAS_VISIBLE apagado, el panel de
-          // superadmin queda completamente inaccesible — incluida una sesión
-          // real de Supabase que haya quedado activa en este navegador de
-          // antes. Se cierra esa sesión en vez de solo no mostrar el panel,
-          // para no dejar una sesión de superadmin colgada sin acceso a nada.
-          if (!MODO_SAAS_VISIBLE) { await supabase.auth.signOut(); return; }
           // El superadmin no pertenece a ninguna óptica en particular — si su
           // sesión de Supabase sigue activa en este navegador (ej. login previo
           // en otra pestaña) y el visitante entra al sitio público de UNA

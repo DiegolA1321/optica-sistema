@@ -39,6 +39,8 @@ import {
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import { hoyISO } from "../utilidades/disponibilidad"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
+import FacturaVentaModal from "./FacturaVentaModal"
+import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
@@ -125,6 +127,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (dropdownProductoRef.current && !dropdownProductoRef.current.contains(event.target)) {
         setFacturaMostrarDropdown(false)
       }
+      if (lenteDropdownRef.current && !lenteDropdownRef.current.contains(event.target)) {
+        setLenteMostrarDropdown(false)
+      }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
@@ -210,8 +215,25 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // texto ni la búsqueda de inventario se muestran.
   const [recomendarLente, setRecomendarLente] = useState(false)
   const [lenteRecomendado, setLenteRecomendado] = useState("")
+  // Vincula el texto libre de arriba a un producto real de inventario —
+  // sin esto no hay forma de precargar una línea de cobro real al cerrar
+  // la consulta (el texto por sí solo no tiene precio ni stock). Queda
+  // aparte de facturaLineas (el editor de factura completo más abajo):
+  // esto es específicamente "¿qué lente recomendó el optómetra?", no una
+  // factura ya armada — la venta recién se decide después de guardar.
+  const [lenteRecomendadoProductoId, setLenteRecomendadoProductoId] = useState(null)
+  const [lenteBusquedaProducto, setLenteBusquedaProducto] = useState("")
+  const [lenteMostrarDropdown, setLenteMostrarDropdown] = useState(false)
+  const lenteDropdownRef = useRef(null)
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
+  // Checkbox de la receta (Paso 3) — decide caso por caso si esta receta en
+  // particular incluye las medidas exactas, solo disponible cuando la
+  // política general de la óptica (Configuración > Políticas hacia el
+  // paciente) ya permite mostrarlas; si la óptica las protege por defecto,
+  // el optómetra no puede saltarse esa protección desde acá. Vive solo en
+  // esta pantalla — no se guarda en la consulta, solo afecta qué se imprime.
+  const [incluirMedidasReceta, setIncluirMedidasReceta] = useState(true)
 
   // --- Factura de esta consulta (Punto 06) — reemplaza el vínculo de un
   // solo producto que había antes. Arma un borrador de líneas mientras se
@@ -241,6 +263,30 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [facturaErrorMsg, setFacturaErrorMsg] = useState("")
   const [guardandoFacturaAhora, setGuardandoFacturaAhora] = useState(false)
 
+  // Cierre de consulta con integración de venta "cero fricción": si el
+  // optómetra vinculó un lente real de inventario (lenteRecomendadoProductoId)
+  // y NO armó ya una factura a mano en el editor de arriba (facturaLineas
+  // sigue vacío — si ya la armó, esa factura atómica de Punto 06 es la que
+  // manda, no hace falta preguntar de nuevo), al guardar la ficha se ofrece
+  // procesar la venta ahí mismo en vez de dejarlo para después.
+  const [mostrarConfirmarVenta, setMostrarConfirmarVenta] = useState(false)
+  const [mostrarModalFacturaVenta, setMostrarModalFacturaVenta] = useState(false)
+
+  // Mantiene en sincronía el campo legado consultas.producto_id (lo lee
+  // Reportes.jsx para "Conversión a venta", ver Punto 06) cuando la venta se
+  // registra DESPUÉS de guardar la ficha a través de este flujo — a
+  // diferencia del editor embebido de factura, que ya lo deja resuelto
+  // desde el insert inicial de la consulta.
+  const sincronizarProductoConsulta = async (factura) => {
+    const linea = factura.lineas?.find((l) => l.tipo === "producto")
+    if (!linea || !consultaGuardadaId) return
+    const montoVenta = linea.cantidad * linea.precioUnitario
+    if (supabase) {
+      await supabase.from("consultas").update({ producto_id: linea.productoId, producto_nombre: linea.descripcion, monto_venta: montoVenta }).eq("id", consultaGuardadaId)
+    }
+    setHistorialConsultas((prev) => prev.map((c) => (c.id === consultaGuardadaId ? { ...c, productoId: linea.productoId, productoNombre: linea.descripcion, montoVenta } : c)))
+  }
+
   const facturaProductosFiltrados = useMemo(() => {
     const q = facturaBusquedaProducto.trim().toLowerCase()
     const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
@@ -250,6 +296,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   const facturaProductoSeleccionado = useMemo(() => inventario.find((p) => p.id === facturaProductoId) || null, [inventario, facturaProductoId])
   const facturaTotal = useMemo(() => facturaLineas.reduce((sum, l) => sum + l.cantidad * l.precioUnitario, 0), [facturaLineas])
+
+  const lenteProductosFiltrados = useMemo(() => {
+    const q = lenteBusquedaProducto.trim().toLowerCase()
+    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
+    if (!q) return disponibles
+    return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
+  }, [inventario, lenteBusquedaProducto])
+  const lenteProductoVinculado = useMemo(() => inventario.find((p) => p.id === lenteRecomendadoProductoId) || null, [inventario, lenteRecomendadoProductoId])
 
   // --- Imágenes adjuntas (opcional) — se suben a Storage recién al
   // confirmar guardado, no antes, para no dejar archivos huérfanos si el
@@ -478,7 +532,20 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   useEffect(() => {
     if (!pacienteInicial) return
     seleccionarPacienteCombo(pacienteInicial)
-    if (citaIdInicial) setCitaEnAtencionId(citaIdInicial)
+    if (citaIdInicial) {
+      setCitaEnAtencionId(citaIdInicial)
+      // "En Atención" (azul) apenas se abre la consulta — antes solo pasaba
+      // si se entraba por el botón "Atender" de Citas médicas (marcarEstado
+      // ahí mismo); entrando por "Ficha clínica" desde el perfil del
+      // paciente la cita se quedaba en "Pendiente" hasta guardar la ficha,
+      // saltándose el estado intermedio sin que nadie lo pidiera así.
+      const citaActual = citas.find((c) => c.id === citaIdInicial)
+      if (citaActual && !["Atendida", "Cancelada", "No Asistió", "En Atención"].includes(citaActual.estado)) {
+        supabase?.from("citas").update({ estado: "En Atención" }).eq("id", citaIdInicial).then(({ error }) => {
+          if (!error) setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, estado: "En Atención" } : c)))
+        })
+      }
+    }
     // El motivo ya se eligió al agendar la cita (categoría fija) — el ing
     // probó "Atender" y esperaba verlo ya puesto acá, no volver a escribirlo:
     // "el motivo de la consulta debería estar registrado ahí porque está en
@@ -535,8 +602,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setDiagnostico("")
     setRecomendarLente(false)
     setLenteRecomendado("")
+    setLenteRecomendadoProductoId(null)
+    setLenteBusquedaProducto("")
+    setLenteMostrarDropdown(false)
     setIndicaciones("")
     setProximoControlDias(180)
+    setIncluirMedidasReceta(true)
+    setMostrarConfirmarVenta(false)
+    setMostrarModalFacturaVenta(false)
     setMostrarEditorFactura(false)
     setFacturaLineas([])
     setFacturaTipoLinea("producto")
@@ -735,6 +808,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       await intentarCrearFactura(idConsultaGuardada)
     }
 
+    // Cero fricción: un lente recomendado y vinculado a inventario, sin que
+    // el optómetra ya haya armado su propia factura arriba, es la señal de
+    // que probablemente se va a vender ahora mismo — se lo ofrece en vez de
+    // dejar que la venta se pierda para "después" (que en la práctica nunca
+    // llega, porque no hay ningún otro recordatorio de esto en el sistema).
+    const debeOfrecerVenta = recomendarLente && lenteRecomendadoProductoId && facturaLineas.length === 0 && idConsultaGuardada
+
     if (nuevaFicha.id == null) nuevaFicha.id = Date.now()
 
     setHistorialConsultas([nuevaFicha, ...historialConsultas])
@@ -755,6 +835,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
     setSubTab("diagnostico")
+    if (debeOfrecerVenta) setMostrarConfirmarVenta(true)
   }
 
   // ── Validación por paso ──
@@ -1663,7 +1744,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           checked={recomendarLente}
                           onChange={(e) => {
                             setRecomendarLente(e.target.checked)
-                            if (!e.target.checked) setLenteRecomendado("")
+                            if (!e.target.checked) {
+                              setLenteRecomendado("")
+                              setLenteRecomendadoProductoId(null)
+                              setLenteBusquedaProducto("")
+                            }
                           }}
                           className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -1674,7 +1759,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     {recomendarLente && (lenteRecomendado || !fichaGuardada) && (
                       <div className="print-force-color flex items-start gap-3 rounded-xl border p-4" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
                         <Glasses size={18} style={{ color: GOLD }} className="mt-0.5 shrink-0" />
-                        <div className="flex-1">
+                        <div className="flex-1 space-y-2">
                           <label htmlFor="lenteRecomendado" className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "#7c5e14" }}>Lente a recomendar</label>
                           <input
                             id="lenteRecomendado"
@@ -1686,6 +1771,67 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             className="w-full bg-transparent text-sm font-semibold outline-none focus:underline"
                             style={{ color: INK }}
                           />
+
+                          {/* Vincular a un producto real de inventario — lo que
+                              permite después ofrecer "procesar la venta ahora"
+                              con el precio y el stock reales, en vez de un
+                              texto suelto sin nada detrás. Opcional: si el
+                              lente no está en bodega (ej. se manda a hacer),
+                              el texto de arriba alcanza para la receta. */}
+                          {!fichaGuardada && (
+                            <div className="no-print relative" ref={lenteDropdownRef}>
+                              {lenteProductoVinculado ? (
+                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+                                    <MiniaturaProducto url={lenteProductoVinculado.imagen_url} alt={lenteProductoVinculado.nombre} size={20} />
+                                    <CheckCircle size={12} /> Vinculado a inventario · {lenteProductoVinculado.stock} u. · ${Number(lenteProductoVinculado.precio).toFixed(2)}
+                                  </span>
+                                  <button type="button" onClick={() => { setLenteRecomendadoProductoId(null); setLenteBusquedaProducto("") }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">
+                                    Desvincular
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="relative">
+                                    <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <input
+                                      type="text"
+                                      placeholder="Vincular a un producto de inventario (opcional, para venta rápida)…"
+                                      value={lenteBusquedaProducto}
+                                      onFocus={() => setLenteMostrarDropdown(true)}
+                                      onChange={(e) => { setLenteBusquedaProducto(e.target.value); setLenteMostrarDropdown(true) }}
+                                      className="w-full rounded-lg border border-amber-200 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-blue-500"
+                                    />
+                                  </div>
+                                  {lenteMostrarDropdown && lenteProductosFiltrados.length > 0 && (
+                                    <ul className="absolute z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                                      {lenteProductosFiltrados.map((p) => (
+                                        <li
+                                          key={p.id}
+                                          onClick={() => {
+                                            setLenteRecomendadoProductoId(p.id)
+                                            setLenteBusquedaProducto(p.nombre)
+                                            if (!lenteRecomendado.trim()) setLenteRecomendado(p.nombre)
+                                            setLenteMostrarDropdown(false)
+                                          }}
+                                          className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                                        >
+                                          <span className="flex min-w-0 items-center gap-2">
+                                            <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
+                                            <span className="truncate font-semibold">{p.nombre}</span>
+                                          </span>
+                                          <span className="shrink-0 font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  {lenteMostrarDropdown && lenteBusquedaProducto && lenteProductosFiltrados.length === 0 && (
+                                    <p className="mt-1 text-[11px] text-slate-500">Ningún producto con stock coincide — puede seguir como descripción libre para la receta.</p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1721,9 +1867,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             {facturaLineas.map((l, i) => (
                               <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                                 <span className="flex min-w-0 items-center gap-2">
-                                  <span className={"grid h-6 w-6 shrink-0 place-items-center rounded-md " + (l.tipo === "producto" ? "bg-blue-50 text-blue-600" : "bg-violet-50 text-violet-600")}>
-                                    {l.tipo === "producto" ? <Glasses size={13} /> : <Wrench size={13} />}
-                                  </span>
+                                  {l.tipo === "producto" ? (
+                                    <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
+                                  ) : (
+                                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-violet-600">
+                                      <Wrench size={13} />
+                                    </span>
+                                  )}
                                   <span className="truncate font-semibold text-slate-700">{l.descripcion}</span>
                                 </span>
                                 <span className="flex shrink-0 items-center gap-2">
@@ -1750,7 +1900,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           <div className="space-y-2">
                             {facturaProductoSeleccionado ? (
                               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
-                                <span className="font-semibold text-blue-800">{facturaProductoSeleccionado.nombre}</span>
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <MiniaturaProducto url={facturaProductoSeleccionado.imagen_url} alt={facturaProductoSeleccionado.nombre} size={22} />
+                                  <span className="truncate font-semibold text-blue-800">{facturaProductoSeleccionado.nombre}</span>
+                                </span>
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono text-xs text-blue-600">{facturaProductoSeleccionado.stock} u. · ${Number(facturaProductoSeleccionado.precio).toFixed(2)}</span>
                                   <button type="button" onClick={() => { setFacturaProductoId(null); setFacturaBusquedaProducto("") }} aria-label="Quitar selección" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">×</button>
@@ -1773,10 +1926,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                       <li
                                         key={p.id}
                                         onClick={() => { setFacturaProductoId(p.id); setFacturaBusquedaProducto(p.nombre); setFacturaMostrarDropdown(false) }}
-                                        className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                                        className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                                       >
-                                        <span className="font-semibold">{p.nombre}</span>
-                                        <span className="font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
+                                        <span className="flex min-w-0 items-center gap-2">
+                                          <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
+                                          <span className="truncate font-semibold">{p.nombre}</span>
+                                        </span>
+                                        <span className="shrink-0 font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
                                       </li>
                                     ))}
                                   </ul>
@@ -1896,17 +2052,42 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
                     {mostrarMedidasPaciente ? (
                       <div className="print-force-color rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
-                            <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
-                            <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
-                          </div>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
+                          {/* Impresión cautiva: la política general de
+                              Configuración ya permite mostrar medidas, pero el
+                              optómetra decide caso por caso si ESTA receta en
+                              particular las incluye — ej. un tercero que solo
+                              debe ver diagnóstico e indicaciones, sin las
+                              medidas exactas. No se guarda en la consulta, solo
+                              afecta este documento. */}
+                          <label className="no-print flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                            <input
+                              type="checkbox"
+                              checked={incluirMedidasReceta}
+                              onChange={(e) => setIncluirMedidasReceta(e.target.checked)}
+                              className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Incluir medidas de refracción en la receta impresa
+                          </label>
                         </div>
+                        {incluirMedidasReceta ? (
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
+                              <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
+                              <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] leading-relaxed text-slate-500">
+                            <span className="font-semibold text-slate-600">Medidas excluidas de esta receta: </span>
+                            a criterio del optómetra, este documento solo muestra diagnóstico e indicaciones. El paciente puede solicitarlas aparte si las necesita.
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <p className="print-force-color rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3.5 text-[11px] leading-relaxed text-slate-500">
@@ -2069,6 +2250,34 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           </div>
         </div>,
         document.body
+      )}
+
+      {/* ─── Cero fricción: ficha guardada con un lente recomendado y
+          vinculado a inventario → se ofrece procesar la venta ahí mismo, en
+          vez de dejarlo para "después" (donde en la práctica se pierde). ─── */}
+      {mostrarConfirmarVenta && (
+        <ConfirmarVentaModal
+          producto={lenteProductoVinculado}
+          onCancelar={() => setMostrarConfirmarVenta(false)}
+          onConfirmar={() => { setMostrarConfirmarVenta(false); setMostrarModalFacturaVenta(true) }}
+        />
+      )}
+
+      {mostrarModalFacturaVenta && pacienteInfo && lenteRecomendadoProductoId && (
+        <FacturaVentaModal
+          usuario={usuario}
+          inventario={inventario}
+          setInventario={setInventario}
+          pacienteFijo={pacienteInfo}
+          lineaInicial={{ productoId: lenteRecomendadoProductoId, cantidad: 1 }}
+          consultaId={consultaGuardadaId}
+          citaId={citaEnAtencionId}
+          onGuardado={(factura) => {
+            setFacturasVenta?.((prev) => [factura, ...prev])
+            sincronizarProductoConsulta(factura)
+          }}
+          onCerrar={() => setMostrarModalFacturaVenta(false)}
+        />
       )}
     </div>
   )
@@ -2256,6 +2465,59 @@ function MedidaCampo({ id, label, value, onChange }) {
         className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500"
       />
     </div>
+  )
+}
+
+// Se muestra justo después de guardar la ficha si había un lente
+// recomendado y vinculado a inventario — mismo patrón hand-rolled que
+// ConfirmarFichaModal.jsx (el proyecto dejó de usar el Dialog de Radix acá).
+function ConfirmarVentaModal({ producto, onCancelar, onConfirmar }) {
+  useEffect(() => {
+    const onKeyDown = (e) => { if (e.key === "Escape") onCancelar() }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [onCancelar])
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
+      onClick={onCancelar}
+    >
+      <div
+        className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
+        style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmar-venta-titulo"
+      >
+        <div className="px-6 py-6">
+          <div className="mb-3 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
+            <Receipt size={22} />
+          </div>
+          <h2 id="confirmar-venta-titulo" className="text-lg font-bold" style={{ color: INK }}>Se detectó una recomendación de lente</h2>
+          <p className="mt-1.5 text-sm text-slate-500">¿Deseas procesar la venta ahora?</p>
+          {producto && (
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+              <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                <Glasses size={14} className="shrink-0" /> <span className="truncate">{producto.nombre}</span>
+              </span>
+              <span className="shrink-0 font-mono text-xs text-emerald-700">${Number(producto.precio).toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={onCancelar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+            Ahora no
+          </button>
+          <button type="button" onClick={onConfirmar} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
+            Sí, registrar venta
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 

@@ -432,13 +432,10 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   const completarLoginConPerfil = async (userId) => {
     const { data: perfil } = await supabase.from("perfiles").select("*").eq("id", userId).single()
     if (perfil?.rol === "superadmin") {
-      // Modo anteproyecto: con MODO_SAAS_VISIBLE apagado, este acceso queda
-      // completamente bloqueado, incluso con contraseña correcta.
-      if (!MODO_SAAS_VISIBLE) {
-        await supabase.auth.signOut()
-        setErrorLogin("Este acceso no está disponible en este momento.")
-        return true
-      }
+      // Modo anteproyecto: MODO_SAAS_VISIBLE solo oculta, dentro del panel,
+      // los widgets que revelan el lado comercial multi-óptica — el acceso
+      // (login) del superadmin nunca se bloquea. Ver
+      // [[project_ocultar_saas_anteproyecto]].
       AlTenerExito({ rol: "superadmin", nombre: perfil.nombre, id: perfil.id })
       return true
     }

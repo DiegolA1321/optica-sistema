@@ -150,6 +150,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [accionPacienteInicio, setAccionPacienteInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
+  const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
   const [fichaClinicaMotivoInicial, setFichaClinicaMotivoInicial] = useState(null)
   // Viaja junto a fichaClinicaPacienteInicial cuando la ficha se abre desde
@@ -412,6 +413,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setCategoriasInventario={setCategoriasInventario}
             ventas={ventas}
             setVentas={setVentas}
+            facturasVenta={facturasVenta}
             setFacturasVenta={setFacturasVenta}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
@@ -463,6 +465,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setVentas={setVentas}
             abrirModalAlEntrar={abrirCrearProductoAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirCrearProductoAlEntrar(false)}
+            productoIdParaReabastecer={productoIdParaReabastecer}
+            onProductoParaReabastecerConsumido={() => setProductoIdParaReabastecer(null)}
           />
         )
       case "citas":
@@ -529,6 +533,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             }}
             onCrearProductoRapido={() => {
               setAbrirCrearProductoAlEntrar(true)
+              navegar("inventario")
+            }}
+            onReabastecerProducto={(productoId) => {
+              setProductoIdParaReabastecer(productoId)
               navegar("inventario")
             }}
           />

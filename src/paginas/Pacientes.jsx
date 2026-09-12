@@ -45,6 +45,10 @@ import {
   ChevronDown,
   ArrowUpDown,
   Globe,
+  History,
+  Clock,
+  Star,
+  Building2,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -116,7 +120,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
+export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -179,7 +183,24 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
   // Historial clínico (consultas y citas del paciente)
   const [pacienteHistorial, setPacienteHistorial] = useState(null)
-  const [tabHistorial, setTabHistorial] = useState("valoraciones")
+  // Edad calculada desde fecha_nacimiento — mismo cálculo que ya usa
+  // ConsultaMedica.jsx para la receta impresa, ahora también visible en el
+  // encabezado del expediente (pedido explícito de Diego).
+  const edadPaciente = useMemo(() => {
+    const fn = pacienteHistorial?.fecha_nacimiento
+    if (!fn) return null
+    const nac = new Date(fn)
+    if (isNaN(nac.getTime())) return null
+    const hoy = new Date()
+    let e = hoy.getFullYear() - nac.getFullYear()
+    const m = hoy.getMonth() - nac.getMonth()
+    if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
+    return e
+  }, [pacienteHistorial])
+  const [tabHistorial, setTabHistorial] = useState("timeline")
+  // Qué eventos del Timeline están expandidos (mostrando el detalle de
+  // refracción OD/OI de esa consulta) — por id de consulta, cerrado por defecto.
+  const [timelineAbiertos, setTimelineAbiertos] = useState({})
   // "Pagos pendientes" en el perfil del paciente + "Vender producto" desde
   // ahí mismo — caso de la reunión con el ing (ver Sexta Mirada, Inventario
   // puntos 5 y 6). Reusa el mismo VentaProductoModal que Inventario.jsx.
@@ -348,7 +369,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     } else {
       const paciente = pacientes.find((p) => p.id === accionInicial.pacienteId)
       if (paciente) {
-        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("timeline") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
         else if (accionInicial.accion === "eliminar") setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
@@ -885,7 +906,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("valoraciones") }} title="Ver historial clínico" aria-label="Ver historial clínico" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
+                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("timeline") }} title="Ver historial clínico" aria-label="Ver historial clínico" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
                             <Eye size={16} />
                           </button>
                           <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
@@ -1284,23 +1305,33 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <h1 className="flex items-center gap-2 font-serif text-2xl font-bold" style={{ color: INK }}>
+                    <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>
                       {pacienteHistorial.nombre}
-                      {pacienteHistorial.origen === "paciente" && (
-                        <Globe size={16} className="shrink-0 text-cyan-600" title="Registrado por el paciente, en línea" aria-label="Registrado por el paciente, en línea" />
-                      )}
                     </h1>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
                       {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
                       {pacienteHistorial.telefono && <span className="flex items-center gap-1.5"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
                       {pacienteHistorial.correo && <span className="flex items-center gap-1.5"><Mail size={14} /> {pacienteHistorial.correo}</span>}
+                      {edadPaciente != null && <span className="flex items-center gap-1.5"><Cake size={14} /> {edadPaciente} años</span>}
                     </div>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
                       <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.estadoClinico === "Activo" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
                         {pacienteHistorial.estadoClinico}
                       </span>
+                      {/* Cuenta Portal — pedido explícito de Diego: etiqueta
+                          "Cuenta Portal: Activa/Sin cuenta" en vez del
+                          "Con cuenta"/"Sin cuenta" genérico de antes. */}
                       <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
-                        {pacienteHistorial.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
+                        Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
+                      </span>
+                      {/* Origen: quién generó el registro — el paciente desde
+                          la web pública (migración 0067) o el personal desde
+                          Recepción/Citas. Antes solo un ícono con title en el
+                          nombre (fácil de pasar por alto); ahora un badge
+                          explícito igual de visible que el resto. */}
+                      <span className={"flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.origen === "paciente" ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500")}>
+                        {pacienteHistorial.origen === "paciente" ? <Globe size={12} /> : <Building2 size={12} />}
+                        Origen: {pacienteHistorial.origen === "paciente" ? "Web" : "Recepción"}
                       </span>
                     </div>
                   </div>
@@ -1355,6 +1386,15 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 .filter((v) => v.pacienteId === pacienteHistorial.id)
                 .slice()
                 .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
+              // Punto 06: facturas_venta (multi-línea, "Nueva factura") nunca se
+              // mostraba acá — el botón solo escribía (setFacturasVenta), esta
+              // pestaña solo leía de `ventas` (el camino viejo de un producto).
+              // Una factura recién generada quedaba invisible en el historial de
+              // pagos del propio paciente hasta ir a buscarla a otro lado.
+              const facturasPaciente = facturasVenta
+                .filter((f) => f.pacienteId === pacienteHistorial.id)
+                .slice()
+                .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
               const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0)
               const diasControl = diasVencido(pacienteHistorial, consultas)
               const proximoControl = fechaProximoControl(pacienteHistorial, consultas)
@@ -1362,69 +1402,108 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               const frecuente = esClienteFrecuente(pacienteHistorial, consultas)
               const totalConsultasFidelizacion = contarConsultas(pacienteHistorial, consultas)
               const referidosPorEste = contarReferidos(pacienteHistorial, pacientes)
+              // Compras totales (Lentes/Productos): cuenta + monto de ambos
+              // caminos de venta (facturas_venta multi-línea y el mecanismo
+              // viejo de un producto), excluyendo facturas anuladas.
+              const totalComprasCount = facturasPaciente.filter((f) => f.estado !== "anulada").length + ventasPaciente.length
+              const totalComprasMonto = facturasPaciente.filter((f) => f.estado !== "anulada").reduce((a, f) => a + Number(f.montoTotal), 0)
+                + ventasPaciente.reduce((a, v) => a + Number(v.montoTotal), 0)
+              // Puntaje de fidelidad: fórmula simple y transparente (no una
+              // caja negra) — 10 pts por consulta registrada + 15 pts por
+              // cada paciente que refirió, mostrado siempre con su desglose
+              // al lado para que se entienda de un vistazo cómo se compone.
+              const puntajeFidelidad = totalConsultasFidelizacion * 10 + referidosPorEste * 15
 
               return (
                 <>
+                  {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
+                      tener que entrar a ninguna pestaña ─── */}
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
+                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{consultasPaciente[0]?.fecha || "—"}</p>
+                    </div>
+                    <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white")}>
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Próximo control</p>
+                      <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
+                        {proximoControl ? proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                      </p>
+                      {inactivo && <p className="text-[11px] font-semibold text-red-600">Vencido hace {diasControl} día{diasControl === 1 ? "" : "s"}</p>}
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
+                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{totalComprasCount}</p>
+                      <p className="text-[11px] text-slate-500">${totalComprasMonto.toFixed(2)} en total</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Star size={12} /> Puntaje de fidelidad</p>
+                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
+                      <p className="text-[11px] text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
+                    </div>
+                  </div>
+
                   {deudaTotal > 0 && (
                     <button
                       type="button"
                       onClick={() => setTabHistorial("pagos")}
-                      className="mt-5 flex w-full items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
+                      className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
                     >
                       <Wallet size={16} className="shrink-0 text-amber-600" />
                       <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
                       <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
                     </button>
                   )}
-                  <div className="mt-6 flex gap-1 border-b border-slate-200">
+                  <div className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
                     <button
                       type="button"
-                      onClick={() => setTabHistorial("valoraciones")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "valoraciones" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      onClick={() => setTabHistorial("timeline")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "timeline" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
-                      <Eye size={14} /> Valoraciones
+                      <History size={14} /> Historial
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTabHistorial("clinica")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "clinica" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                    >
+                      <Eye size={14} /> Ficha clínica
                       {consultasPaciente.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{consultasPaciente.length}</span>}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setTabHistorial("citas")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "citas" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
-                    >
-                      <Calendar size={14} /> Citas
-                      {citasPaciente.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{citasPaciente.length}</span>}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTabHistorial("evolucion")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "evolucion" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
-                    >
-                      <Activity size={14} /> Evolución
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setTabHistorial("pagos")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
                       {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
                           pestaña — "aquí están los productos que yo le he
                           vendido al paciente", así que la etiqueta pasa a ser
                           literal: es un listado de productos, el estado de
                           pago es solo un dato de cada fila. */}
-                      <Wallet size={14} /> Productos
+                      <Wallet size={14} /> Lentes/Productos
+                      {totalComprasCount > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{totalComprasCount}</span>}
                       {deudaTotal > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">${deudaTotal.toFixed(0)}</span>}
                     </button>
                     <button
                       type="button"
                       onClick={() => setTabHistorial("fidelizacion")}
-                      className={"flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
                     >
-                      <Heart size={14} /> Fidelización
+                      <Heart size={14} /> Controles/Fidelización
                       {inactivo && <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">Vencido</span>}
                     </button>
                   </div>
 
                   <div className="py-6">
-                    {tabHistorial === "pagos" ? (
+                    {tabHistorial === "timeline" ? (
+                      <TimelinePaciente
+                        citas={citasPaciente}
+                        consultas={consultasPaciente}
+                        facturas={facturasPaciente}
+                        ventas={ventasPaciente}
+                        abiertos={timelineAbiertos}
+                        alternarAbierto={(id) => setTimelineAbiertos((prev) => ({ ...prev, [id]: !prev[id] }))}
+                      />
+                    ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <button
@@ -1446,13 +1525,46 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             <span className="text-[11px] font-medium opacity-90">Varios productos/servicios, incluye cuotas</span>
                           </button>
                         </div>
-                        {ventasPaciente.length === 0 ? (
+                        {ventasPaciente.length === 0 && facturasPaciente.length === 0 ? (
                           <div className="flex flex-col items-center gap-2 py-10 text-center">
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                            {facturasPaciente.map((f) => {
+                              const anulada = f.estado === "anulada"
+                              const saldoFactura = f.estado === "pendiente_pago" && f.cuotasTotales
+                                ? f.montoTotal * Math.max(0, f.cuotasTotales - (f.cuotasPagadas || 0)) / f.cuotasTotales
+                                : 0
+                              return (
+                                <div key={"factura-" + f.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className={"text-sm font-semibold " + (anulada ? "text-slate-400 line-through" : "text-slate-800")}>
+                                      {f.lineas?.length ? f.lineas.map((l) => l.descripcion).join(", ") : "Factura"}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500">
+                                      ${Number(f.montoTotal).toFixed(2)} · {METODOS_PAGO[f.metodoPago] || f.metodoPago}
+                                      {f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales})` : ""}
+                                      {" · "}{new Date(f.creadoEn).toLocaleDateString("es-ES")}
+                                    </p>
+                                  </div>
+                                  {anulada ? (
+                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
+                                      Anulada
+                                    </span>
+                                  ) : f.estado === "pagada" ? (
+                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                      <CheckCircle size={12} /> Pagada
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                      <CreditCard size={12} /> Debe ${saldoFactura.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
                             {ventasPaciente.map((v) => {
                               const saldo = saldoVenta(v)
                               return (
@@ -1490,90 +1602,50 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           </div>
                         )}
                       </div>
-                    ) : tabHistorial === "evolucion" ? (
-                      consultasPaciente.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 py-12 text-center">
-                          <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Activity size={24} /></div>
-                          <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
-                        </div>
-                      ) : (() => {
-                        const ultima = consultasPaciente[0]
-                        const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
-                        const IconoCorreccion = correccion.icon
-                        const tendencia = TENDENCIA[ultima.evolucionCalculada]
-                        const colorEstado = CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"]
-                        return (
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
-                              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
-                              <div>
-                                <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{ultima.estadoCorreccion || "Sin evaluación"}</p>
-                                <p className="text-xs text-slate-500">Estado de corrección más reciente · {ultima.fecha}</p>
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <div className="mb-3 flex flex-wrap items-center gap-3">
-                                <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-                                {tendencia && (
-                                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
-                                    <tendencia.icon size={12} /> {tendencia.label}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mb-3 flex items-center gap-4">
-                                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OD_COLOR }} /> Ojo derecho</span>
-                                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OI_COLOR }} /> Ojo izquierdo</span>
-                                <span className="ml-auto text-[11px] text-slate-500">Equivalente esférico (dioptrías)</span>
-                              </div>
-                              <GraficoEvolucion consultas={[...consultasPaciente].reverse()} />
-                            </div>
-
-                            <p className="flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
-                          </div>
-                        )
-                      })()
-                    ) : tabHistorial === "citas" ? (
-                      citasPaciente.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 py-12 text-center">
-                          <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Calendar size={24} /></div>
-                          <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene citas registradas.</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-slate-100">
-                          {citasPaciente.map((c) => {
-                            const atendida = c.estado === "Atendida"
-                            const enEspera = c.estado === "En Espera"
-                            const noAsistio = c.estado === "No Asistió"
-                            const enAtencion = c.estado === "En Atención"
-                            return (
-                              <div key={c.id} className="flex items-center justify-between py-3.5">
-                                <div className="flex items-center gap-3">
-                                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: atendida || noAsistio ? "#f1f5f9" : "#eef2ff", color: atendida || noAsistio ? "#64748b" : "#2563eb" }}>
-                                    <Calendar size={16} />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-800">{c.motivo || "Consulta general"}</p>
-                                    <p className="text-xs text-slate-500">{c.fecha || "Sin fecha"} · {c.hora || "—"}</p>
-                                  </div>
-                                </div>
-                                {/* Mismo criterio de color que ya corrió en Citas.jsx
-                                    esta sesión (el ing lo especificó explícito):
-                                    Atendida=verde, No asistió=rojo, En atención=azul,
-                                    Pendiente=ámbar. Acá también es personal viendo
-                                    una cola de estados, no el calendario propio de
-                                    un paciente (que sí queda distinto, a propósito,
-                                    en PortalPaciente.jsx). */}
-                                <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : noAsistio ? "border border-red-200 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200 bg-blue-50 text-blue-700" : enEspera ? "border border-amber-200 bg-amber-50 text-amber-700" : "border border-amber-200 bg-amber-50 text-amber-700")}>
-                                  {c.estado || "Pendiente"}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
                     ) : tabHistorial === "fidelizacion" ? (
                       <div className="space-y-4">
+                        {/* Estado de corrección + tendencia de graduación
+                            (antes vivían en una pestaña "Evolución" aparte —
+                            ahora forman parte de "Controles/Fidelización",
+                            un único lugar para todo lo relacionado a
+                            seguimiento clínico del paciente). */}
+                        {consultasPaciente.length > 0 && (() => {
+                          const ultima = consultasPaciente[0]
+                          const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
+                          const IconoCorreccion = correccion.icon
+                          const tendencia = TENDENCIA[ultima.evolucionCalculada]
+                          const colorEstado = CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"]
+                          return (
+                            <>
+                              <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
+                                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
+                                <div>
+                                  <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{ultima.estadoCorreccion || "Sin evaluación"}</p>
+                                  <p className="text-xs text-slate-500">Estado de corrección más reciente · {ultima.fecha}</p>
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="mb-3 flex flex-wrap items-center gap-3">
+                                  <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
+                                  {tendencia && (
+                                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
+                                      <tendencia.icon size={12} /> {tendencia.label}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mb-3 flex items-center gap-4">
+                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OD_COLOR }} /> Ojo derecho</span>
+                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OI_COLOR }} /> Ojo izquierdo</span>
+                                  <span className="ml-auto text-[11px] text-slate-500">Equivalente esférico (dioptrías)</span>
+                                </div>
+                                <GraficoEvolucion consultas={[...consultasPaciente].reverse()} />
+                              </div>
+
+                              <p className="flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
+                            </>
+                          )
+                        })()}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div className={"rounded-xl border p-4 " + (inactivo ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white")}>
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
@@ -1629,6 +1701,8 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                         <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
                       </div>
                     ) : (
+                      // tabHistorial === "clinica" — Ficha clínica completa,
+                      // única salida posible de esta cadena de ternarios.
                       <div className="space-y-4">
                         {consultasPaciente.map((c) => {
                           const correccion = CORRECCION[c.estadoCorreccion] || CORRECCION["Sin evaluación"]
@@ -1846,6 +1920,161 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         />
       )}
     </div>
+  )
+}
+
+// ─── Timeline clínico-comercial: en vez de citas/consultas/compras aisladas
+// en pestañas separadas, un solo feed cronológico de todo lo que pasó con
+// el paciente. Cada tipo de evento tiene su propio color/ícono; la consulta
+// es el único expandible (ver refracción OD/OI sin saltar a Ficha clínica).
+function TimelinePaciente({ citas = [], consultas = [], facturas = [], ventas = [], abiertos = {}, alternarAbierto }) {
+  const eventos = useMemo(() => {
+    const horaISO = (horaTxt) => {
+      const min = minutosDesdeMedianoche(horaTxt || "")
+      if (isNaN(min)) return "12:00:00"
+      const h = String(Math.floor(min / 60)).padStart(2, "0")
+      const m = String(min % 60).padStart(2, "0")
+      return `${h}:${m}:00`
+    }
+    const lista = []
+    citas.forEach((c) => lista.push({ tipo: "cita", clave: `${c.fecha}T${horaISO(c.hora)}`, data: c }))
+    consultas.forEach((c) => lista.push({ tipo: "consulta", clave: c.creadoEn || `${c.fecha}T12:00:00`, data: c }))
+    facturas.forEach((f) => lista.push({ tipo: "factura", clave: f.creadoEn || "1970-01-01T00:00:00", data: f }))
+    ventas.forEach((v) => lista.push({ tipo: "venta", clave: v.creadoEn || "1970-01-01T00:00:00", data: v }))
+    return lista.sort((a, b) => (a.clave < b.clave ? 1 : a.clave > b.clave ? -1 : 0))
+  }, [citas, consultas, facturas, ventas])
+
+  if (eventos.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-12 text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={24} /></div>
+        <p className="text-sm font-medium text-slate-500">Todavía no hay actividad registrada para este paciente.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {eventos.map((ev, i) => {
+        const esUltimo = i === eventos.length - 1
+        if (ev.tipo === "cita") return <EventoCitaTimeline key={"cita-" + ev.data.id} cita={ev.data} esUltimo={esUltimo} />
+        if (ev.tipo === "consulta") return <EventoConsultaTimeline key={"consulta-" + ev.data.id} consulta={ev.data} esUltimo={esUltimo} abierto={!!abiertos[ev.data.id]} onToggle={() => alternarAbierto(ev.data.id)} />
+        if (ev.tipo === "factura") return <EventoCompraTimeline key={"factura-" + ev.data.id} compra={ev.data} esUltimo={esUltimo} tipoCompra="factura" />
+        return <EventoCompraTimeline key={"venta-" + ev.data.id} compra={ev.data} esUltimo={esUltimo} tipoCompra="venta" />
+      })}
+    </div>
+  )
+}
+
+// Fila común del timeline: rail izquierdo (ícono + línea conectora) + contenido
+function FilaTimeline({ icono: Icono, color, bg, titulo, subtitulo, badge, esUltimo, children }) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ backgroundColor: bg, color }}>
+          <Icono size={16} />
+        </div>
+        {!esUltimo && <div className="mt-1 w-px flex-1 bg-slate-200" />}
+      </div>
+      <div className={"flex-1 " + (esUltimo ? "pb-1" : "pb-5")}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-slate-800">{titulo}</p>
+          {badge}
+        </div>
+        {subtitulo && <p className="text-xs text-slate-500">{subtitulo}</p>}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function EventoCitaTimeline({ cita: c, esUltimo }) {
+  const atendida = c.estado === "Atendida"
+  const enEspera = c.estado === "En Espera"
+  const noAsistio = c.estado === "No Asistió"
+  const enAtencion = c.estado === "En Atención"
+  const cancelada = c.estado === "Cancelada"
+  const badge = (
+    <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : noAsistio ? "border border-red-200 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200 bg-blue-50 text-blue-700" : cancelada ? "border border-slate-200 bg-slate-100 text-slate-500" : "border border-amber-200 bg-amber-50 text-amber-700")}>
+      {c.estado || "Pendiente"}
+    </span>
+  )
+  return (
+    <FilaTimeline
+      icono={Calendar}
+      color={enAtencion ? "#2563eb" : atendida ? "#059669" : noAsistio ? "#dc2626" : "#d97706"}
+      bg={enAtencion ? "#eff6ff" : atendida ? "#ecfdf5" : noAsistio ? "#fef2f2" : "#fffbeb"}
+      titulo={`Cita agendada — ${c.motivo || "Consulta general"}`}
+      subtitulo={`${c.fecha || "Sin fecha"} · ${c.hora || "—"}`}
+      badge={badge}
+      esUltimo={esUltimo}
+    />
+  )
+}
+
+function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
+  const correccion = CORRECCION[c.estadoCorreccion] || CORRECCION["Sin evaluación"]
+  const IconoCorreccion = correccion.icon
+  return (
+    <FilaTimeline
+      icono={Stethoscope}
+      color="#2563eb"
+      bg="#eff6ff"
+      titulo={`Consulta atendida${c.profesionalNombre ? " · " + c.profesionalNombre : ""}`}
+      subtitulo={c.fecha}
+      badge={
+        <span className={"inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold " + correccion.clase}>
+          <IconoCorreccion size={11} /> {correccion.label}
+        </span>
+      }
+      esUltimo={esUltimo}
+    >
+      {c.diagnostico && <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico:</span> {c.diagnostico}</p>}
+      {c.lenteRecomendado && (
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+          <Glasses size={13} style={{ color: "#C8A24E" }} /> <span className="font-semibold text-slate-700">Receta generada:</span> {c.lenteRecomendado}
+        </p>
+      )}
+      <button type="button" onClick={onToggle} className="mt-2 flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+        {abierto ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {abierto ? "Ocultar refracción OD/OI" : "Ver refracción OD/OI"}
+      </button>
+      {abierto && (
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 font-mono text-xs">
+          <div>
+            <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
+            <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
+          </div>
+          <div>
+            <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera} | {c.oi?.cilindro} | {c.oi?.eje}°
+            <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
+          </div>
+        </div>
+      )}
+    </FilaTimeline>
+  )
+}
+
+function EventoCompraTimeline({ compra: c, esUltimo, tipoCompra }) {
+  const anulada = c.estado === "anulada"
+  const pagada = c.estado === "pagada" || c.estado === "completado"
+  const titulo = c.lineas?.length ? c.lineas.map((l) => l.descripcion).join(", ") : c.productoNombre || (tipoCompra === "factura" ? "Factura" : "Venta")
+  const badge = anulada ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">Anulada</span>
+  ) : pagada ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><CheckCircle size={12} /> Pagada</span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} /> Pendiente</span>
+  )
+  return (
+    <FilaTimeline
+      icono={tipoCompra === "factura" ? Receipt : ShoppingCart}
+      color={anulada ? "#64748b" : "#059669"}
+      bg={anulada ? "#f1f5f9" : "#ecfdf5"}
+      titulo={titulo}
+      subtitulo={`$${Number(c.montoTotal).toFixed(2)} · ${METODOS_PAGO[c.metodoPago] || c.metodoPago}${c.creadoEn ? " · " + new Date(c.creadoEn).toLocaleDateString("es-ES") : ""}`}
+      badge={badge}
+      esUltimo={esUltimo}
+    />
   )
 }
 

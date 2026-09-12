@@ -27,6 +27,8 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "
 import { supabase } from "../lib/supabaseClient"
 import VentaProductoModal from "./VentaProductoModal"
 import CampoCategoria from "../componentes/CampoCategoria"
+import CampoImagenProducto from "../componentes/CampoImagenProducto"
+import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK, ACCION_VER, ACCION_CONFIRMAR, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -51,6 +53,8 @@ export default function Inventario({
   setVentas,
   abrirModalAlEntrar = false,
   onModalAlEntrarConsumido,
+  productoIdParaReabastecer = null,
+  onProductoParaReabastecerConsumido,
 }) {
   const opticaId = usuario?.opticaId
   // Catálogo de categorías editable desde Configuración (feedback de la
@@ -69,6 +73,7 @@ export default function Inventario({
   const [precio, setPrecio] = useState("")
   const [observacion, setObservacion] = useState("")
   const [critico, setCritico] = useState("")
+  const [imagenUrl, setImagenUrl] = useState(null)
   const [guardadoExitoso, setGuardadoExitoso] = useState("")
 
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
@@ -90,6 +95,7 @@ export default function Inventario({
   const [edPrecio, setEdPrecio] = useState("")
   const [edObservacion, setEdObservacion] = useState("")
   const [edCritico, setEdCritico] = useState("")
+  const [edImagenUrl, setEdImagenUrl] = useState(null)
   const [sumarStock, setSumarStock] = useState("")
   const [erroresEdicion, setErroresEdicion] = useState({})
 
@@ -107,6 +113,7 @@ export default function Inventario({
     setPrecio("")
     setObservacion("")
     setCritico("")
+    setImagenUrl(null)
     setErroresForm({})
   }
 
@@ -148,6 +155,7 @@ export default function Inventario({
       precio: precioNum,
       observacion: observacion || "",
       critico: critico === "" ? null : Math.max(0, parseInt(critico, 10) || 0),
+      imagen_url: imagenUrl || null,
     }
 
     if (supabase && opticaId) {
@@ -201,11 +209,25 @@ export default function Inventario({
     setEdPrecio(String(prod.precio))
     setEdObservacion(prod.observacion || "")
     setEdCritico(prod.critico != null ? String(prod.critico) : "")
+    setEdImagenUrl(prod.imagen_url || null)
     setSumarStock("")
     setErroresEdicion({})
   }
 
   const cerrarEditar = () => { setEditando(null); setErroresEdicion({}) }
+
+  // Acceso directo desde la alerta de stock bajo en Inicio: salta
+  // directamente al modal de editar/sumar stock de ESE producto, en vez de
+  // aterrizar en la tabla completa y obligar a buscarlo de nuevo — mismo
+  // criterio que "el ing" ya pidió para los otros atajos del dashboard
+  // (nunca hacer buscar dos veces algo que el usuario ya señaló).
+  useEffect(() => {
+    if (!productoIdParaReabastecer) return
+    const prod = productos.find((p) => p.id === productoIdParaReabastecer)
+    if (prod) abrirEditar(prod)
+    onProductoParaReabastecerConsumido?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productoIdParaReabastecer])
 
   // Atajo: suma unidades al campo de existencia sin salir del modal — no
   // hace un guardado aparte, solo actualiza el número que se persiste junto
@@ -232,7 +254,7 @@ export default function Inventario({
     setErroresEdicion(errs)
     if (Object.keys(errs).length > 0) return
 
-    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", critico: edCritico === "" ? null : Math.max(0, parseInt(edCritico, 10) || 0) }
+    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", critico: edCritico === "" ? null : Math.max(0, parseInt(edCritico, 10) || 0), imagen_url: edImagenUrl || null }
     if (supabase && opticaId) {
       const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id).select()
       if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
@@ -468,8 +490,13 @@ export default function Inventario({
                   return (
                     <tr key={prod.id} className="transition hover:bg-slate-50/70">
                       <td className={"px-4 " + celdaY}>
-                        <p className="font-bold text-slate-800">{prod.nombre}</p>
-                        {!compacto && prod.observacion && <p className="mt-0.5 text-xs text-slate-500">{prod.observacion}</p>}
+                        <div className="flex items-center gap-2.5">
+                          <MiniaturaProducto url={prod.imagen_url} alt={prod.nombre} size={compacto ? 24 : 32} />
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-800">{prod.nombre}</p>
+                            {!compacto && prod.observacion && <p className="mt-0.5 truncate text-xs text-slate-500">{prod.observacion}</p>}
+                          </div>
+                        </div>
                       </td>
                       <td className={"px-4 " + celdaY}>
                         <span className="rounded-md px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: col.bg, color: col.fg }}>{prod.categoria}</span>
@@ -549,6 +576,7 @@ export default function Inventario({
             </div>
             <form onSubmit={registrarProducto} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+                <CampoImagenProducto opticaId={opticaId} valor={imagenUrl} onCambio={setImagenUrl} />
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
                   <CampoCategoria valor={categoria} onChange={setCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
@@ -574,14 +602,14 @@ export default function Inventario({
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                  <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
-                </div>
-                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                   <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                  <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 {erroresForm.general && (
                   <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
@@ -624,6 +652,7 @@ export default function Inventario({
             </div>
             <form onSubmit={guardarEdicion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+                <CampoImagenProducto opticaId={opticaId} valor={edImagenUrl} onCambio={setEdImagenUrl} />
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
                   <CampoCategoria valor={edCategoria} onChange={setEdCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
@@ -660,14 +689,14 @@ export default function Inventario({
                   {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                  <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
-                </div>
-                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                   <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+                  <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                 </div>
                 {erroresEdicion.general && (
                   <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
