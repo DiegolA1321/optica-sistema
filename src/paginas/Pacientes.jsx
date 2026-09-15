@@ -73,6 +73,29 @@ const OI_COLOR = "#06b6d4"
 // Equivalente esférico (dioptrías) — solo para uso interno del optómetra, nunca expuesto al paciente
 const ee = (o) => parseFloat(o?.esfera || 0) + parseFloat(o?.cilindro || 0) / 2
 
+// Búsqueda insensible a tildes/mayúsculas — "jose" debe encontrar "José" sin
+// que recepción tenga que escribir el acento exacto.
+const normalizarTexto = (t) => (t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+
+// Paleta de acentos para el avatar de iniciales — antes todos los pacientes
+// compartían el mismo degradado azul, lo que hacía la tabla más difícil de
+// escanear de un vistazo. Determinístico por nombre (mismo paciente = mismo
+// color siempre), no aleatorio en cada render.
+const PALETA_AVATAR = [
+  "linear-gradient(135deg,#22D3EE,#2563EB)",
+  "linear-gradient(135deg,#34d399,#059669)",
+  "linear-gradient(135deg,#f472b6,#db2777)",
+  "linear-gradient(135deg,#fbbf24,#d97706)",
+  "linear-gradient(135deg,#a78bfa,#7c3aed)",
+  "linear-gradient(135deg,#fb923c,#ea580c)",
+  "linear-gradient(135deg,#38bdf8,#0369a1)",
+]
+const colorAvatar = (nombre) => {
+  let h = 0
+  for (let i = 0; i < (nombre || "").length; i++) h = (h * 31 + nombre.charCodeAt(i)) >>> 0
+  return PALETA_AVATAR[h % PALETA_AVATAR.length]
+}
+
 // Estado de corrección: ¿la corrección actual (anteojos/lentes) logra buena agudeza visual?
 // Es el dato clínicamente accionable — un error refractivo no se autocorrige, se maneja con
 // anteojos, lentes de contacto o cirugía refractiva; esto mide si ese manejo está funcionando.
@@ -139,10 +162,47 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const [eliminandoPaciente, setEliminandoPaciente] = useState(false)
 
   // Filtros
+  // Búsqueda: el campo de texto se actualiza al instante (para que teclear se
+  // sienta fluido), pero el filtro real (`busqueda`) espera un debounce corto
+  // — evita recalcular/repintar la tabla en cada tecla cuando alguien escribe
+  // rápido. `buscando` queda en true durante esa ventana y reutiliza las filas
+  // esqueleto de la carga inicial en vez de parpadear la tabla ya cargada.
+  const [busquedaInput, setBusquedaInput] = useState("")
   const [busqueda, setBusqueda] = useState("")
+  const [buscando, setBuscando] = useState(false)
+  useEffect(() => {
+    if (busquedaInput === busqueda) return
+    setBuscando(true)
+    const t = setTimeout(() => { setBusqueda(busquedaInput); setBuscando(false) }, 220)
+    return () => clearTimeout(t)
+  }, [busquedaInput]) // eslint-disable-line react-hooks/exhaustive-deps
+  const inputBusquedaRef = useRef(null)
   const [filtroEstado, setFiltroEstado] = useState("Todos")
   const [filtroCorreccion, setFiltroCorreccion] = useState("Todos")
   const [filtroFecha, setFiltroFecha] = useState("")
+  // Filtros rápidos (badges) que no se derivan de estadoCorreccion: excluyentes
+  // entre sí y con la tarjeta de corrección activa, para no combinar dos
+  // filtros a la vez sin que quede claro cuál está aplicado.
+  const [filtroRapido, setFiltroRapido] = useState("Todos")
+
+  // Atajos de teclado: "/" o Ctrl+K enfocan la búsqueda al instante — pedido
+  // explícito, mismo patrón que la paleta de comandos del resto del sistema.
+  // Se ignora si ya se está escribiendo en algún campo (para no robarle la
+  // "/" a un input de texto) o si hay un modal abierto encima de la tabla.
+  useEffect(() => {
+    if (overlaySolo) return
+    const onKeyDown = (e) => {
+      const enCampo = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
+      const esCtrlK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"
+      const esBarra = e.key === "/" && !enCampo
+      if (!esCtrlK && !esBarra) return
+      if (modalAbierto || pacienteHistorial || pacienteAEliminar || cuentaPaciente || agendarPara) return
+      e.preventDefault()
+      inputBusquedaRef.current?.focus()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }) // sin deps: siempre lee el estado más reciente de los modales
 
   // Menú "más acciones" por fila de la tabla — se renderiza en un portal a
   // document.body con posición fija calculada desde el botón, en vez de
@@ -198,7 +258,24 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
     return e
   }, [pacienteHistorial])
+  // Última consulta del paciente abierto — memo liviano y aparte del cálculo
+  // más completo que ya hace consultasPaciente más abajo (ese vive dentro de
+  // un IIFE junto con ventas/facturas y no está disponible en el encabezado,
+  // donde vive el botón "Facturar receta").
+  const ultimaConsultaPerfil = useMemo(() => {
+    if (!pacienteHistorial) return null
+    const delPaciente = consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
+    if (delPaciente.length === 0) return null
+    return delPaciente.slice().sort(ordenarPorFechaYCreacion)[0]
+  }, [pacienteHistorial, consultas])
   const [tabHistorial, setTabHistorial] = useState("timeline")
+  // Escape cierra la vista de perfil del paciente (atajo de teclado).
+  useEffect(() => {
+    if (!pacienteHistorial) return
+    const onKeyDown = (e) => { if (e.key === "Escape") setPacienteHistorial(null) }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [pacienteHistorial])
   // Qué eventos del Timeline están expandidos (mostrando el detalle de
   // refracción OD/OI de esa consulta) — por id de consulta, cerrado por defecto.
   const [timelineAbiertos, setTimelineAbiertos] = useState({})
@@ -213,6 +290,10 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // ventas) mientras no se migre el camino viejo.
   const [mostrarFactura, setMostrarFactura] = useState(false)
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
+  // Línea a precargar en FacturaVentaModal cuando se factura la receta
+  // directo desde el encabezado del perfil (undefined = abre vacía, como el
+  // botón manual "Nueva factura" de la pestaña Lentes/Productos).
+  const [facturaLineaInicial, setFacturaLineaInicial] = useState(undefined)
 
   const registrarFactura = (factura) => {
     setFacturasVenta?.((prev) => [factura, ...prev])
@@ -341,6 +422,22 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const abrirCrear = () => {
     limpiarFormulario()
     setModalAbierto(true)
+  }
+
+  // Vacío inteligente de la búsqueda: precarga el formulario con lo que ya
+  // se escribió — cédula si el texto es todo dígitos, nombre si no — en vez
+  // de que la persona tenga que copiarlo de nuevo a mano.
+  const abrirCrearConPrellenado = (query) => {
+    limpiarFormulario()
+    const texto = (query || "").trim()
+    if (/^[0-9]+$/.test(texto)) {
+      setCedula(filtrarSoloNumeros(texto, 10))
+    } else {
+      const letras = filtrarSoloLetras(texto)
+      if (letras.trim()) setNombre(letras)
+    }
+    setModalAbierto(true)
+    mostrarNotif(`Formulario prellenado con "${texto}".`)
   }
 
   const abrirEdicion = (paciente) => {
@@ -485,6 +582,46 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     setPacienteAEliminar(null)
   }
 
+  // Ir a la ficha clínica de un paciente — vincula automáticamente su cita de
+  // hoy sin atender (si tiene una), igual que entrar por "Atender" en Citas
+  // médicas, para que guardar la ficha también la marque "Atendida" sin un
+  // paso aparte. Un solo lugar para esta lógica: la usan el botón grande del
+  // perfil y el atajo "Nueva ficha clínica" del menú de la tabla.
+  const abrirFichaClinica = (paciente) => {
+    setPacienteHistorial(null)
+    const citaDeHoy = citas.find((c) => perteneceAPaciente(c, paciente) && esHoy(c.fecha) && c.estado !== "Atendida" && c.estado !== "No Asistió")
+    onIrAFichaClinica?.(paciente, citaDeHoy?.id)
+  }
+
+  // Venta rápida desde la tabla — abre el perfil 360° directo en la pestaña
+  // "Lentes/Productos" con el modal de cobro ya abierto, sin el paso
+  // intermedio de entrar al perfil y navegar hasta ahí (regla de "cero
+  // fricción" de la guía: precargar y saltar directo al cobro).
+  const abrirVentaRapida = (paciente) => {
+    setPacienteHistorial(paciente)
+    setTabHistorial("pagos")
+    setMostrarVenta(true)
+    mostrarNotif(`Venta rápida lista para ${paciente.nombre}.`)
+  }
+
+  // Facturar directo desde el encabezado del perfil, con la receta de la
+  // última consulta ya cargada — si esa consulta vinculó un lente real de
+  // inventario (consulta.productoId), FacturaVentaModal abre con esa línea
+  // puesta; si solo hay un nombre de lente en texto libre (sin vincular a
+  // bodega), abre igual pero sin línea precargada porque no hay producto
+  // real que agregar. Mismo patrón que ya usa ConsultaMedica.jsx al ofrecer
+  // la venta justo después de guardar una ficha.
+  const abrirFacturaConReceta = (consulta) => {
+    setTabHistorial("pagos")
+    setFacturaLineaInicial(consulta?.productoId ? { productoId: consulta.productoId, cantidad: 1 } : undefined)
+    setMostrarFactura(true)
+    mostrarNotif(
+      consulta?.productoId
+        ? `Factura precargada con "${consulta.productoNombre || consulta.lenteRecomendado}".`
+        : `Abriendo factura para ${pacienteHistorial?.nombre}.`,
+    )
+  }
+
   // ── Agendar cita desde el perfil del paciente ──
   const abrirAgendar = (paciente) => {
     setAgendarPara(paciente)
@@ -552,23 +689,43 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     setAgendarPara(null)
   }
 
+  // Pacientes con algún saldo pendiente (venta puntual sin completar, o
+  // factura multi-línea en "pendiente_pago") — para el badge "Pagos
+  // pendientes" y el filtro rápido del mismo nombre.
+  const idsConDeuda = useMemo(() => {
+    const set = new Set()
+    ventas.forEach((v) => { if (v.estado === "pendiente") set.add(v.pacienteId) })
+    facturasVenta.forEach((f) => { if (f.estado === "pendiente_pago") set.add(f.pacienteId) })
+    return set
+  }, [ventas, facturasVenta])
+
+  const UMBRAL_VISITA_RECIENTE_DIAS = 30
+
   const pacientesFiltrados = useMemo(() => {
-    const busquedaNorm = busqueda.trim().toLowerCase()
+    const busquedaNorm = normalizarTexto(busqueda.trim())
+    const busquedaDigitos = busqueda.replace(/\D/g, "")
     return pacientes.filter((p) => {
-      // Búsqueda rápida por nombre, cédula o teléfono — antes el teléfono no
-      // se buscaba, así que recepción no podía ubicar a alguien de quien
-      // solo tenía el número a mano.
+      // Búsqueda por nombre, cédula, teléfono o correo — insensible a
+      // tildes/mayúsculas. Antes el teléfono no se buscaba (recepción no
+      // podía ubicar a alguien de quien solo tenía el número a mano) y el
+      // correo no se buscaba en absoluto.
       const coincideTexto =
         !busquedaNorm ||
-        p.nombre.toLowerCase().includes(busquedaNorm) ||
-        (p.cedula || "").includes(busqueda) ||
-        (p.telefono || "").toLowerCase().includes(busquedaNorm)
+        normalizarTexto(p.nombre).includes(busquedaNorm) ||
+        (p.cedula || "").includes(busquedaDigitos || busqueda) ||
+        (busquedaDigitos && (p.telefono || "").includes(busquedaDigitos)) ||
+        normalizarTexto(p.telefono).includes(busquedaNorm) ||
+        normalizarTexto(p.correo).includes(busquedaNorm)
       const coincideEstado = filtroEstado === "Todos" || p.estadoClinico === filtroEstado
       const coincideCorreccion = filtroCorreccion === "Todos" || (p.estadoCorreccion || "Sin evaluación") === filtroCorreccion
       const coincideFecha = !filtroFecha || (p.fechaRegistro || "") === filtroFecha
-      return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha
+      const coincideRapido =
+        filtroRapido === "Todos" ||
+        (filtroRapido === "Recientes" && (() => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS })()) ||
+        (filtroRapido === "PagosPendientes" && idsConDeuda.has(p.id))
+      return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha && coincideRapido
     })
-  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha])
+  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido, consultas, idsConDeuda])
 
   // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
   // usa CRM.jsx en su modal de detalle, para no inventar uno nuevo. Solo la
@@ -599,7 +756,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // tiene sentido para el nuevo resultado.
   const PACIENTES_POR_PAGINA = 10
   const [pagina, setPagina] = useState(1)
-  useEffect(() => { setPagina(1) }, [busqueda, filtroEstado, filtroCorreccion, filtroFecha])
+  // `busquedaInput` (no el debounced `busqueda`) para que la página se
+  // reinicie de inmediato al teclear, sin esperar los ~220ms del debounce.
+  useEffect(() => { setPagina(1) }, [busquedaInput, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido])
   const totalPaginas = Math.max(1, Math.ceil(pacientesOrdenados.length / PACIENTES_POR_PAGINA))
   // Si la página guardada quedó fuera de rango (p. ej. se estaba en la
   // página 3 y un filtro nuevo dejó solo 1 página), se recorta a la última
@@ -611,6 +770,39 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     [pacientesOrdenados, inicioPagina],
   )
   const numerosPagina = useMemo(() => Array.from({ length: totalPaginas }, (_, i) => i + 1), [totalPaginas])
+
+  // Navegación por teclado en la tabla: ↑/↓ mueven una fila resaltada,
+  // Enter abre su historial clínico (mismo destino que el ícono de "ojo"),
+  // Escape la quita. Solo activa cuando la lista es lo que se ve en
+  // pantalla — se apaga sola si se abre cualquier modal encima.
+  const [filaActiva, setFilaActiva] = useState(-1)
+  useEffect(() => { setFilaActiva(-1) }, [pacientesVisibles])
+  useEffect(() => {
+    if (overlaySolo) return
+    const hayModalEncima = modalAbierto || pacienteHistorial || pacienteAEliminar || cuentaPaciente || agendarPara
+    if (hayModalEncima) return
+    const onKeyDown = (e) => {
+      const enCampo = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
+      if (e.key === "ArrowDown") {
+        if (enCampo && document.activeElement !== inputBusquedaRef.current) return
+        e.preventDefault()
+        setFilaActiva((prev) => Math.min(prev + 1, pacientesVisibles.length - 1))
+      } else if (e.key === "ArrowUp") {
+        if (enCampo && document.activeElement !== inputBusquedaRef.current) return
+        e.preventDefault()
+        setFilaActiva((prev) => Math.max(prev - 1, 0))
+      } else if (e.key === "Enter" && filaActiva >= 0 && pacientesVisibles[filaActiva]) {
+        if (enCampo && document.activeElement !== inputBusquedaRef.current) return
+        const p = pacientesVisibles[filaActiva]
+        setPacienteHistorial(p)
+        setTabHistorial("timeline")
+      } else if (e.key === "Escape") {
+        setFilaActiva(-1)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }) // sin deps: siempre lee el estado (pacientesVisibles/filaActiva) más reciente
 
   // Conteo por estado de corrección (para el resumen superior)
   const conteoCorreccion = useMemo(() => {
@@ -632,13 +824,38 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   ]
 
   const hayFiltrosActivos =
-    busqueda || filtroEstado !== "Todos" || filtroCorreccion !== "Todos" || filtroFecha
+    busquedaInput || filtroEstado !== "Todos" || filtroCorreccion !== "Todos" || filtroFecha || filtroRapido !== "Todos"
 
   const limpiarFiltros = () => {
+    setBusquedaInput("")
     setBusqueda("")
     setFiltroEstado("Todos")
     setFiltroCorreccion("Todos")
     setFiltroFecha("")
+    setFiltroRapido("Todos")
+  }
+
+  // Badges de filtro rápido sobre la tabla — "Recetas activas" reusa el
+  // mismo filtroCorreccion que ya usan las tarjetas de arriba (no se duplica
+  // el estado); "Visitas recientes" y "Pagos pendientes" son criterios que
+  // no vive en estadoCorreccion, así que usan filtroRapido aparte. Los tres
+  // se muestran como un solo grupo excluyente para que quede claro cuál
+  // está activo — activar uno limpia el otro tipo de filtro.
+  const badgesRapidos = [
+    { key: "Todos", label: "Todos" },
+    { key: "Recientes", label: "Visitas recientes" },
+    { key: "RecetasActivas", label: "Recetas activas" },
+    { key: "PagosPendientes", label: "Pagos pendientes" },
+  ]
+  const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
+  const activarBadgeRapido = (key) => {
+    if (key === "RecetasActivas") {
+      setFiltroRapido("Todos")
+      setFiltroCorreccion((prev) => (prev === "Bien corregido" ? "Todos" : "Bien corregido"))
+    } else {
+      setFiltroCorreccion("Todos")
+      setFiltroRapido((prev) => (prev === key ? "Todos" : key))
+    }
   }
 
   return (
@@ -738,12 +955,24 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input
                 id="buscar-paciente"
+                ref={inputBusquedaRef}
                 type="text"
-                placeholder="Nombre, cédula o teléfono del paciente..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                placeholder="Nombre, cédula, teléfono o correo del paciente..."
+                value={busquedaInput}
+                onChange={(e) => setBusquedaInput(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
               />
+              {/* Pista del atajo de teclado — se oculta mientras se escribe para no estorbar. */}
+              {!busquedaInput && (
+                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 sm:flex">
+                  Ctrl K
+                </kbd>
+              )}
+              {busquedaInput && !buscando && (
+                <button type="button" onClick={() => setBusquedaInput("")} aria-label="Limpiar búsqueda" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -801,6 +1030,23 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         </div>
       </div>
 
+      {/* ─── FILTROS RÁPIDOS (badges) ─── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {badgesRapidos.map((b) => {
+          const activo = badgeRapidoActivo === b.key
+          return (
+            <button
+              key={b.key}
+              type="button"
+              onClick={() => activarBadgeRapido(b.key)}
+              className={"rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 bg-blue-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
+            >
+              {b.label}
+            </button>
+          )
+        })}
+      </div>
+
       {/* ─── TABLA ─── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -817,8 +1063,8 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {cargaInicial && pacientes.length === 0 ? (
-                Array.from({ length: 5 }).map((_, i) => (
+              {(cargaInicial && pacientes.length === 0) || buscando ? (
+                Array.from({ length: buscando ? Math.min(5, pacientesVisibles.length || 5) : 5 }).map((_, i) => (
                   <tr key={"skeleton-" + i}>
                     <td colSpan={5} className="px-5 py-4">
                       <div className="flex items-center gap-4">
@@ -841,26 +1087,53 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       <p className="text-sm font-semibold text-slate-500">
                         {pacientes.length === 0
                           ? "Aún no hay pacientes registrados."
+                          : busqueda
+                          ? <>Ningún paciente coincide con &ldquo;{busqueda}&rdquo;.</>
                           : "Ningún paciente coincide con los filtros."}
                       </p>
-                      {pacientes.length === 0 && (
+                      {pacientes.length === 0 ? (
                         <button type="button" onClick={abrirCrear} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
                           Crear el primero
                         </button>
-                      )}
+                      ) : busqueda ? (
+                        // Vacío interactivo: en vez de un callejón sin salida,
+                        // ofrece registrar directamente a quien se buscó — el
+                        // formulario abre con lo ya escrito precargado (cédula
+                        // o nombre, según el patrón del texto).
+                        <button
+                          type="button"
+                          onClick={() => abrirCrearConPrellenado(busqueda)}
+                          className="mx-auto flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                          style={{ background: GRAD }}
+                        >
+                          <UserPlus size={15} /> Registrar &ldquo;{busqueda}&rdquo;
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
               ) : (
-                pacientesVisibles.map((paciente) => {
+                pacientesVisibles.map((paciente, indiceFila) => {
                   const correccion = CORRECCION[paciente.estadoCorreccion] || CORRECCION["Sin evaluación"]
                   const IconoCorreccion = correccion.icon
                   const tendencia = TENDENCIA[paciente.evolucion]
+                  const activa = indiceFila === filaActiva
+                  // Badges contextuales de alto valor — lo que recepción
+                  // necesita saber de un vistazo sin abrir el perfil: si
+                  // tiene cita hoy, si debe dinero, o si su control ya venció.
+                  const tieneCitaHoy = citas.some((c) => perteneceAPaciente(c, paciente) && esHoy(c.fecha) && c.estado !== "Cancelada" && c.estado !== "No Asistió")
+                  const tienePagoPendiente = idsConDeuda.has(paciente.id)
+                  const controlVencido = esInactivo(paciente, consultas)
                   return (
-                    <tr key={paciente.id} className="group transition-colors hover:bg-slate-50/70">
+                    <tr
+                      key={paciente.id}
+                      onMouseEnter={() => setFilaActiva(indiceFila)}
+                      className={"group cursor-pointer transition-colors " + (activa ? "bg-blue-50/70 ring-1 ring-inset ring-blue-200" : "hover:bg-slate-50/70")}
+                      onClick={() => { setPacienteHistorial(paciente); setTabHistorial("timeline") }}
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white transition-transform group-hover:scale-105" style={{ background: colorAvatar(paciente.nombre) }}>
                             {paciente.nombre.charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -886,6 +1159,21 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                 <span className="flex items-center gap-1 text-xs text-slate-500">
                                   <Cake size={11} />
                                   {(paciente.fecha_nacimiento || paciente.fechaNacimiento).split("-").reverse().slice(0, 2).join("/")}
+                                </span>
+                              )}
+                              {tieneCitaHoy && (
+                                <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                                  <Calendar size={11} /> Cita hoy
+                                </span>
+                              )}
+                              {tienePagoPendiente && (
+                                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                  <CreditCard size={11} /> Pago pendiente
+                                </span>
+                              )}
+                              {controlVencido && (
+                                <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                  <Clock size={11} /> Control vencido
                                 </span>
                               )}
                             </div>
@@ -928,14 +1216,26 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                         </div>
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("timeline") }} title="Ver historial clínico" aria-label="Ver historial clínico" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
-                            <Eye size={16} />
-                          </button>
-                          <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
-                            <CalendarPlus size={16} />
-                          </button>
+                          {/* Acciones rápidas: invisibles hasta que se pasa el
+                              mouse sobre la fila (o se llega por teclado), para
+                              no saturar la tabla — se mantienen visibles en la
+                              fila resaltada por navegación con flechas para no
+                              depender solo del hover. "Más acciones" (⋮) queda
+                              siempre visible aparte, como respaldo en
+                              pantallas táctiles donde no existe hover. */}
+                          <div className={"flex items-center gap-1 transition-opacity " + (activa ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100")}>
+                            <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("timeline") }} title="Ver perfil 360°" aria-label="Ver perfil 360°" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
+                              <Eye size={16} />
+                            </button>
+                            <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
+                              <CalendarPlus size={16} />
+                            </button>
+                            <button type="button" onClick={() => abrirVentaRapida(paciente)} title="Venta rápida" aria-label="Venta rápida" className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer">
+                              <ShoppingCart size={16} />
+                            </button>
+                          </div>
                           <div className="relative">
                             <button
                               type="button"
@@ -1192,6 +1492,21 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           >
             <button
               type="button"
+              onClick={() => { setMenuAccionesId(null); abrirFichaClinica(paciente) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
+            >
+              <Stethoscope size={15} /> Nueva ficha clínica
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); abrirVentaRapida(paciente) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
+            >
+              <ShoppingCart size={15} /> Venta rápida
+            </button>
+            <div className="my-1 border-t border-slate-100" />
+            <button
+              type="button"
               onClick={() => { setMenuAccionesId(null); abrirCuenta(paciente) }}
               className={"flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer " + (paciente.tieneCuenta ? "text-slate-600 hover:bg-slate-50" : "text-blue-600 hover:bg-blue-50")}
             >
@@ -1394,7 +1709,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     </div>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-2.5 sm:flex-col sm:w-48">
+                <div className="flex flex-wrap shrink-0 gap-2.5 sm:flex-col sm:w-48">
                   <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
@@ -1409,6 +1724,22 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   >
                     <KeyRound size={16} /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
                   </button>
+                  {/* Flujo consulta→venta sin fricción: solo aparece cuando la
+                      última consulta dejó un lente recomendado, para no
+                      ofrecer facturar algo que todavía no existe. Un clic
+                      abre FacturaVentaModal con esa receta ya cargada (ver
+                      abrirFacturaConReceta) en vez de mandar a buscar el
+                      mismo producto de nuevo en la pestaña Lentes/Productos. */}
+                  {ultimaConsultaPerfil?.lenteRecomendado && (
+                    <button
+                      type="button"
+                      onClick={() => abrirFacturaConReceta(ultimaConsultaPerfil)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
+                      style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+                    >
+                      <Receipt size={16} /> Facturar receta
+                    </button>
+                  )}
                   {/* Único punto de entrada a la ficha clínica desde acá — ya no
                       existe "Ficha clínica" como sección aparte del sidebar.
                       Si el paciente ya tiene una cita de hoy sin atender, se
@@ -1417,12 +1748,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       también la marque "Atendida" sin un paso aparte. */}
                   <button
                     type="button"
-                    onClick={() => {
-                      const p = pacienteHistorial
-                      setPacienteHistorial(null)
-                      const citaDeHoy = citas.find((c) => perteneceAPaciente(c, p) && esHoy(c.fecha) && c.estado !== "Atendida" && c.estado !== "No Asistió")
-                      onIrAFichaClinica?.(p, citaDeHoy?.id)
-                    }}
+                    onClick={() => abrirFichaClinica(pacienteHistorial)}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
                     style={{ background: GRAD }}
                   >
@@ -1575,7 +1901,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           </button>
                           <button
                             type="button"
-                            onClick={() => setMostrarFactura(true)}
+                            onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
                             className="flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
                             style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}
                           >
@@ -1897,6 +2223,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           categorias={categoriasInventario}
           setCategorias={setCategoriasInventario}
           pacienteFijo={pacienteHistorial}
+          lineaInicial={facturaLineaInicial}
           onGuardado={registrarFactura}
           onCerrar={() => setMostrarFactura(false)}
         />
