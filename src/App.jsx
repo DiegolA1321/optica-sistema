@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
+import ResolutionGuard from './componentes/ResolutionGuard';
 import { hoyISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
@@ -870,30 +871,35 @@ function App() {
   // 0031) — independiente de sitio/sesión, se muestra sobre cualquier otra
   // pantalla si la URL trae el parámetro.
   const citaAConfirmar = new URLSearchParams(window.location.search).get('confirmar_cita');
+  // Link "Calificar mi visita" del correo de encuesta (migración 0041) —
+  // mismo criterio que confirmar_cita: independiente de sitio/sesión.
+  const citaAEncuestar = new URLSearchParams(window.location.search).get('encuesta_cita');
+  // Política de privacidad / términos — enlaces del footer del login y de la
+  // página de venta (?legal=privacidad o ?legal=terminos).
+  const vistaLegal = new URLSearchParams(window.location.search).get('legal');
+
+  // ResolutionGuard envuelve TODO el árbol de App — landing, login, agendar
+  // cita pública, portal del paciente, dashboard administrativo y panel
+  // superadmin — sin ninguna excepción por pantalla ni por sesión. Decisión
+  // explícita: el sistema entero debe verse bien o bloquear, sin importar
+  // quién entra ni desde qué dispositivo. Por eso el árbol de "qué pantalla
+  // mostrar" se arma en `contenido` en vez de con returns tempranos — así
+  // hay un solo punto de salida y el guard queda garantizado en todos.
+  let contenido;
   if (citaAConfirmar) {
-    return (
+    contenido = (
       <Suspense fallback={<PantallaCargando />}>
         <ConfirmarCita citaId={citaAConfirmar} />
       </Suspense>
     );
-  }
-
-  // Link "Calificar mi visita" del correo de encuesta (migración 0041) —
-  // mismo criterio que confirmar_cita: independiente de sitio/sesión.
-  const citaAEncuestar = new URLSearchParams(window.location.search).get('encuesta_cita');
-  if (citaAEncuestar) {
-    return (
+  } else if (citaAEncuestar) {
+    contenido = (
       <Suspense fallback={<PantallaCargando />}>
         <EncuestaSatisfaccion citaId={citaAEncuestar} />
       </Suspense>
     );
-  }
-
-  // Política de privacidad / términos — enlaces del footer del login y de la
-  // página de venta (?legal=privacidad o ?legal=terminos).
-  const vistaLegal = new URLSearchParams(window.location.search).get('legal');
-  if (vistaLegal) {
-    return (
+  } else if (vistaLegal) {
+    contenido = (
       <Suspense fallback={<PantallaCargando />}>
         <PaginaLegal
           vistaInicial={vistaLegal === 'terminos' ? 'terminos' : 'privacidad'}
@@ -905,17 +911,13 @@ function App() {
         />
       </Suspense>
     );
-  }
-
-  // Mientras se espera saber si hay una sesión de Supabase Auth para
-  // restaurar (ver restaurandoSesion más arriba), no se muestra nada
-  // definitivo todavía — ni Login ni el panel — para no parpadear de uno a
-  // otro en cuanto llegue la respuesta real.
-  if (restaurandoSesion) {
-    return <PantallaCargando />;
-  }
-
-  return (
+  } else if (restaurandoSesion) {
+    // Mientras se espera saber si hay una sesión de Supabase Auth para
+    // restaurar, no se muestra nada definitivo todavía — ni Login ni el
+    // panel — para no parpadear de uno a otro en cuanto llegue la respuesta real.
+    contenido = <PantallaCargando />;
+  } else {
+    contenido = (
     <Suspense fallback={<PantallaCargando />}>
       {/* 1. DASHBOARD ADMINISTRATIVO */}
       {pantallaActual === 'dashboard' && (
@@ -1022,7 +1024,10 @@ function App() {
         />
       )}
     </Suspense>
-  );
+    );
+  }
+
+  return <ResolutionGuard>{contenido}</ResolutionGuard>;
 }
 
 export default App;
