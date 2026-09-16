@@ -44,7 +44,7 @@ export default function CampoImagenProducto({ opticaId, valor, onCambio, label =
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={subiendo}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               <Upload size={13} /> {subiendo ? "Subiendo..." : valor ? "Cambiar foto" : "Subir foto"}
             </button>
@@ -53,7 +53,7 @@ export default function CampoImagenProducto({ opticaId, valor, onCambio, label =
                 type="button"
                 onClick={() => onCambio(null)}
                 aria-label="Quitar foto"
-                className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 cursor-pointer"
+                className="flex items-center gap-1 rounded-lg border border-red-200/60 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 cursor-pointer"
               >
                 <X size={13} />
               </button>

@@ -11,7 +11,7 @@ export default function TablaSkeleton({ filas = 5 }) {
           <div key={i} className="h-[104px] animate-pulse rounded-2xl bg-slate-200/70" />
         ))}
       </div>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white">
         {Array.from({ length: filas }).map((_, i) => (
           <div key={i} className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-0">
             <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-200/70" />

@@ -353,7 +353,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
       {/* ─── SELECTOR DE PERÍODO — solo afecta Consultas, Pacientes nuevos,
           Ingresos y Conversión a venta (los 4 KPIs "de flujo"); los demás
           son una foto de ahora mismo. ─── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/60 bg-white p-3">
         <span className="flex items-center gap-1.5 pl-1 text-xs font-bold uppercase tracking-wide text-slate-500">
           <CalendarRange size={14} /> Período
         </span>
@@ -372,12 +372,12 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="date" value={inicioPersonalizado} onChange={(e) => setInicioPersonalizado(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
             />
             <span className="text-xs text-slate-400">a</span>
             <input
               type="date" value={finPersonalizado} onChange={(e) => setFinPersonalizado(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
             />
           </div>
         )}
@@ -388,7 +388,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         {kpis.map((k, i) => (
           <div
             key={k.key}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
             style={{ animation: "rise-in 320ms ease-out both", animationDelay: `${i * 50}ms` }}
           >
             <div className="flex items-center justify-between">
@@ -410,7 +410,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* ─── CONSULTAS POR MES ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "120ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "120ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Consultas por mes</h3>
           <p className="mb-5 text-xs text-slate-500">Últimos 6 meses</p>
           {consultas.length === 0 ? (
@@ -459,7 +459,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         </div>
 
         {/* ─── DIAGNÓSTICOS MÁS FRECUENTES ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "170ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "170ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Diagnósticos más frecuentes</h3>
           <p className="mb-5 text-xs text-slate-500">Top 5 registrados en fichas clínicas</p>
           {diagnosticosTop.length === 0 ? (
@@ -491,7 +491,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         </div>
 
         {/* ─── TENDENCIA DE INASISTENCIAS (H2) ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "190ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "190ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Tendencia de inasistencias</h3>
           <p className="mb-5 text-xs text-slate-500">Citas marcadas "No Asistió" · últimos 6 meses</p>
           {citasNoAsistio === 0 ? (
@@ -534,7 +534,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         </div>
 
         {/* ─── PRODUCTOS MÁS VENDIDOS (H3, rotación de inventario) ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "205ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "205ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Productos más vendidos</h3>
           <p className="mb-5 text-xs text-slate-500">Top 5 por unidades · período seleccionado arriba</p>
           {productosMasVendidos.length === 0 ? (
@@ -566,7 +566,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         </div>
 
         {/* ─── ESTADO DE CORRECCIÓN ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "220ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "220ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Estado de corrección de pacientes</h3>
           <p className="mb-5 text-xs text-slate-500">{pacientes.length} paciente{pacientes.length === 1 ? "" : "s"} en total</p>
           {pacientes.length === 0 ? (
@@ -606,7 +606,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         </div>
 
         {/* ─── CITAS: PENDIENTES / ATENDIDAS / NO ASISTIÓ ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "270ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "270ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, atendidas y no-shows</h3>
           <p className="mb-5 text-xs text-slate-500">{citas.length} cita{citas.length === 1 ? "" : "s"} en la agenda · desenlace marcado desde Citas médicas</p>
           {citas.length === 0 ? (
@@ -677,7 +677,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
         </div>
 
         {/* ─── SATISFACCIÓN DE PACIENTES (CSAT) ─── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "320ms" }}>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "320ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Satisfacción de pacientes</h3>
           <p className="mb-5 text-xs text-slate-500">Encuesta enviada por correo al marcar una cita como atendida — {respuestasSatisfaccion.length} respuesta{respuestasSatisfaccion.length === 1 ? "" : "s"} hasta ahora</p>
           {respuestasSatisfaccion.length === 0 ? (
@@ -721,12 +721,12 @@ function ReportesSkeleton() {
       <div className="h-11 w-72 animate-pulse rounded-2xl bg-slate-200/70" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-[104px] animate-pulse rounded-2xl border border-slate-200 bg-slate-100/70" />
+          <div key={i} className="h-[104px] animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-52 animate-pulse rounded-2xl border border-slate-200 bg-slate-100/70" />
+          <div key={i} className="h-52 animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />
         ))}
       </div>
     </div>

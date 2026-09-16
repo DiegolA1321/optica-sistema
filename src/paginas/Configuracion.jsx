@@ -29,7 +29,7 @@ function Interruptor({ activo, onClick, etiqueta }) {
 
 function FilaParametro({ icon: Icon, titulo, descripcion, activo, onClick, etiquetaOn, etiquetaOff }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
           <Icon size={18} />
@@ -101,7 +101,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-slate-200/60 bg-white p-4">
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
           <Icon size={18} />
@@ -113,7 +113,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
           <div className="mt-3 space-y-1.5">
             {items.length === 0 && <p className="text-xs italic text-slate-500">Sin opciones — agrega al menos una abajo.</p>}
             {items.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div key={idx} className="flex items-center gap-2 rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2">
                 {editandoIdx === idx ? (
                   <input
                     autoFocus
@@ -136,7 +136,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
             ))}
           </div>
           {errorEliminar && (
-            <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs font-medium text-amber-800">
+            <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200/60 bg-amber-50 p-2 text-xs font-medium text-amber-800">
               <AlertTriangle size={13} className="shrink-0" /> {errorEliminar}
             </div>
           )}
@@ -147,7 +147,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
               onChange={(e) => setNuevo(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); agregar() } }}
               placeholder={placeholder}
-              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-500"
+              className="flex-1 rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-500"
             />
             <button
               type="button"
@@ -222,13 +222,13 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
 
       {/* ─── ÉXITO / ERROR ─── */}
       {mensajeExito && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
           <CheckCircle2 className="text-emerald-500" size={20} />
           <p className="text-sm font-semibold">{mensajeExito}</p>
         </div>
       )}
       {mensajeError && (
-        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-4 text-red-900">
           <AlertTriangle className="text-red-500" size={20} />
           <p className="text-sm font-semibold">{mensajeError}</p>
         </div>
@@ -243,7 +243,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       </div>
 
       {/* ─── NAVEGACIÓN ─── */}
-      <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200/60">
         {PESTANAS.map((p) => {
           const Icono = p.icon
           const activo = tab === p.id
@@ -281,7 +281,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             etiquetaOff="Protegidas · el paciente debe solicitarlas"
           />
 
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
                 {parametrizacion.permitirReagendarPaciente ? <CalendarCheck size={18} /> : <CalendarX size={18} />}
@@ -301,7 +301,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
                       max={168}
                       value={parametrizacion.horasAntesReagendar ?? 2}
                       onChange={(e) => setParametrizacion((prev) => ({ ...prev, horasAntesReagendar: Math.max(1, Number(e.target.value) || 1) }))}
-                      className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-center font-semibold text-slate-800 outline-none focus:border-blue-500"
+                      className="w-16 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-center font-semibold text-slate-800 outline-none focus:border-blue-500"
                     />
                     horas de anticipación
                   </label>
@@ -435,14 +435,14 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       {/* ─── CONFIRMACIÓN ANTES DE GUARDAR ─── */}
       {pendiente && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPendiente(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-blue-50 text-blue-600">
               <AlertTriangle size={22} />
             </div>
             <h2 className="text-lg font-bold" style={{ color: INK }}>{pendiente.titulo}</h2>
             <p className="mt-1.5 text-sm text-slate-500">{pendiente.mensaje}</p>
             <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setPendiente(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={() => setPendiente(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
               <button type="button" onClick={confirmarPendiente} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Confirmar</button>
             </div>
           </div>

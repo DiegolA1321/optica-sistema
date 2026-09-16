@@ -251,7 +251,7 @@ export default function FacturaVentaModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD_VENTA }}>
@@ -272,7 +272,7 @@ export default function FacturaVentaModal({
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">{pacienteFijo?.nombre}</div>
+              <div className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">{pacienteFijo?.nombre}</div>
             </div>
 
             <div>
@@ -284,7 +284,7 @@ export default function FacturaVentaModal({
               ) : (
                 <div className="space-y-1.5">
                   {lineas.map((l, i) => (
-                    <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/60 bg-white px-3 py-2">
                       <span className="flex min-w-0 items-center gap-2">
                         {l.tipo === "producto" ? (
                           <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
@@ -306,7 +306,7 @@ export default function FacturaVentaModal({
             </div>
 
             {agregandoProducto ? (
-              <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-3" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); guardarProductoRapido(e) } }}>
+              <div className="rounded-xl border border-blue-200/60 bg-blue-50/40 p-3" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); guardarProductoRapido(e) } }}>
                 <div className="mb-2 flex items-center justify-between">
                   <button type="button" onClick={cancelarAltaProducto} className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer">
                     <ArrowLeft size={13} /> Volver a buscar
@@ -322,35 +322,35 @@ export default function FacturaVentaModal({
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Descripción del producto</label>
                     <input type="text" required value={npNombre} onChange={(e) => setNpNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                      className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresNp.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                      className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresNp.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
                     {erroresNp.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.nombre}</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-xs font-semibold text-slate-700">Stock inicial</label>
                       <input type="number" min="0" step="1" required value={npStock} onChange={(e) => setNpStock(e.target.value)}
-                        className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresNp.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                        className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresNp.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
                       {erroresNp.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.stock}</p>}
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-semibold text-slate-700">Precio ($)</label>
                       <input type="number" min="0" step="0.01" required value={npPrecio} onChange={(e) => setNpPrecio(e.target.value)} placeholder="45.00"
-                        className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresNp.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")} />
+                        className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresNp.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
                       {erroresNp.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.precio}</p>}
                     </div>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                     <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
+                      className="w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                     <input type="text" value={npObservacion} onChange={(e) => setNpObservacion(e.target.value)} placeholder="Ej. Color negro mate, incluye estuche."
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
+                      className="w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                   </div>
                   {erroresNp.general && (
-                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                       <AlertTriangle size={14} /> {erroresNp.general}
                     </div>
                   )}
@@ -378,7 +378,7 @@ export default function FacturaVentaModal({
                 {tipoLinea === "producto" ? (
                   <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
                     {productoSeleccionado ? (
-                      <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                      <div className="flex items-center justify-between rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2.5">
                         <span className="flex min-w-0 items-center gap-2">
                           <MiniaturaProducto url={productoSeleccionado.imagen_url} alt={productoSeleccionado.nombre} size={22} />
                           <span className="truncate text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
@@ -396,10 +396,10 @@ export default function FacturaVentaModal({
                           value={busquedaProducto}
                           onFocus={() => setMostrarDropdownProducto(true)}
                           onChange={(e) => { setBusquedaProducto(e.target.value); setMostrarDropdownProducto(true) }}
-                          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                         />
                         {mostrarDropdownProducto && productosFiltrados.length > 0 && (
-                          <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                          <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
                             {productosFiltrados.map((p) => (
                               <li key={p.id} onClick={() => { setProductoId(p.id); setMostrarDropdownProducto(false) }} className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700">
                                 <span className="flex min-w-0 items-center gap-2">
@@ -430,7 +430,7 @@ export default function FacturaVentaModal({
                 ) : (
                   <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
                     <input type="text" placeholder="Descripción del servicio (ej. Examen visual, ajuste, garantía...)" value={descServicio} onChange={(e) => setDescServicio(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
+                      className="w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50" />
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-semibold text-slate-600">Cantidad</label>
                       <input type="number" min="1" value={cantidadServicio} onChange={(e) => setCantidadServicio(e.target.value)} className="w-16 rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
@@ -463,12 +463,12 @@ export default function FacturaVentaModal({
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Número de cuotas</label>
                     <input type="number" min="1" step="1" value={cuotasTotales} onChange={(e) => setCuotasTotales(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
                   </div>
                 )}
 
                 {error && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertTriangle size={14} /> {error}
                   </div>
                 )}
@@ -478,7 +478,7 @@ export default function FacturaVentaModal({
 
           {!agregandoProducto && (
             <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
-              <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                 Cancelar
               </button>
               <button type="submit" disabled={guardando} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer"

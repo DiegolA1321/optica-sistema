@@ -632,80 +632,102 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
     const hora = new Date().getHours()
     const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
 
-    return (
-      <div
-        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4 sm:p-8"
-        style={{ background: `linear-gradient(155deg, ${INK} 0%, #123b46 42%, #0c2e5c 100%)` }}
-      >
-        <EstilosFirma />
-        {/* Resplandores ambientales — la pantalla del superadmin no es la
-            "vitrina" pública de ninguna óptica (es un acceso de sistema
-            aparte, en su propia URL), así que sí puede llevar el tono
-            oscuro/premium que el hero público no puede. */}
-        <div className="lg-glow pointer-events-none absolute -left-32 -top-32 h-[32rem] w-[32rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
-        <div className="lg-glow lg-d2 pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(200,162,78,0.22), transparent 70%)" }} />
-        <svg aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
-          {[80, 140, 200].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
-        </svg>
+    // Recordarme: presentacional a propósito — Supabase ya persiste la
+    // sesión (localStorage) igual en ambos casos; implementar un
+    // "no recordar" real implicaría cambiar el storage adapter del cliente
+    // compartido (supabaseClient.js), afectando TODOS los logins del
+    // sistema (paciente, staff), no solo este. Fuera del alcance de un
+    // rediseño visual — se deja el checkbox visible (pedido explícito) pero
+    // sin fingir un comportamiento que no existe todavía.
+    const featuresHero = MODO_SAAS_VISIBLE
+      ? [
+          { icon: ShieldCheck, txt: "Control total de cada óptica cliente" },
+          { icon: Activity, txt: "Métricas de visitas, leads y conversión" },
+          { icon: User, txt: "Alta de nuevas cuentas y administradores" },
+        ]
+      : [{ icon: ShieldCheck, txt: "Acceso restringido al equipo del sistema" }]
 
+    return (
+      <div className="grid min-h-screen w-full grid-cols-1 lg:grid-cols-2">
+        <EstilosFirma />
+
+        {/* ─── PANEL IZQUIERDO: HERO (oscuro) — esta pantalla es un acceso de
+            sistema aparte, no la vitrina pública de ninguna óptica, así que
+            sí puede llevar el tono oscuro/premium que el hero público no
+            puede (ver no-dark-public-hero: la excepción es justo esta
+            pantalla). Oculto en mobile — el canvas completo se lo lleva el
+            formulario ahí. ─── */}
         <div
-          className="lg-rise lg-d1 relative z-10 grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-[2rem] bg-white lg:grid-cols-[1fr_1px_1fr]"
-          style={{ boxShadow: "0 50px 100px -30px rgba(3,15,20,0.55), 0 0 0 1px rgba(255,255,255,0.06)" }}
+          className="relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex"
+          style={{ background: "linear-gradient(135deg, #0f172a 0%, #172554 55%, #312e81 100%)" }}
         >
-          {/* ─── Saludo y marca ─── */}
-          <div className="hidden flex-col items-center justify-center p-10 lg:flex xl:p-14">
-            <div className="w-40 xl:w-48">
-              <IrisOptico />
+          <div className="lg-glow pointer-events-none absolute -left-32 -top-32 h-[32rem] w-[32rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
+          <div className="lg-glow lg-d2 pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(124,58,237,0.35), transparent 70%)" }} />
+          <svg aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
+            {[80, 140, 200].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
+          </svg>
+
+          {/* Header: badge de marca */}
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
+              <Eye size={24} strokeWidth={2.2} />
             </div>
-            <div className="mt-6 text-center">
-              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
-                {saludo}
-              </span>
-              <h2 className="mt-3 font-serif text-3xl font-semibold italic leading-tight tracking-tight" style={{ color: INK }}>
-                Bienvenido de nuevo
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                {MODO_SAAS_VISIBLE
-                  ? "Desde acá gestionás cada óptica cliente, las solicitudes que llegan de la página de venta y las métricas del sistema completo."
-                  : "Acceso de sistema — administración interna del panel."}
-              </p>
+            <div>
+              <p className="font-serif text-lg font-semibold tracking-tight text-white">Sistema Óptica</p>
+              <p className="text-xs font-medium tracking-wide text-white/55">PANEL DE GESTIÓN</p>
             </div>
-            <div className="mt-8 flex w-full flex-col gap-3">
-              {(MODO_SAAS_VISIBLE
-                ? [
-                    { icon: ShieldCheck, txt: "Control total de cada óptica cliente" },
-                    { icon: Activity, txt: "Métricas de visitas, leads y conversión" },
-                    { icon: User, txt: "Alta de nuevas cuentas y administradores" },
-                  ]
-                : [
-                    { icon: ShieldCheck, txt: "Acceso restringido al equipo del sistema" },
-                  ]
-              ).map((c) => (
-                <div key={c.txt} className="flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3" style={{ backgroundColor: PORCELAIN }}>
-                  <c.icon size={17} className="shrink-0" style={{ color: "#2563EB" }} />
-                  <span className="text-sm text-slate-700">{c.txt}</span>
+          </div>
+
+          {/* Centro: vitrina de funciones — glassmorphism */}
+          <div className="lg-rise lg-d1 relative z-10 rounded-3xl border border-white/15 bg-white/10 p-8 shadow-2xl backdrop-blur-md">
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-white/60">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
+              {saludo}
+            </span>
+            <h2 className="mt-3 font-serif text-3xl font-semibold italic leading-tight tracking-tight text-white">
+              Bienvenido de nuevo
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/70">
+              {MODO_SAAS_VISIBLE
+                ? "Gestión integral de cada óptica cliente: historias clínicas, recetas, inventario y ventas con control en tiempo real."
+                : "Acceso de sistema — administración interna del panel."}
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              {featuresHero.map((c) => (
+                <div key={c.txt} className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3">
+                  <c.icon size={17} className="shrink-0 text-cyan-300" />
+                  <span className="text-sm text-white/85">{c.txt}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* ─── Divisor sutil ─── */}
-          <div className="hidden bg-slate-100 lg:block" />
+          {/* Footer: confianza/seguridad */}
+          <p className="lg-rise lg-d3 relative z-10 flex items-center gap-2 text-xs font-medium text-white/50">
+            <Lock size={13} /> Conexión cifrada de grado médico · Servidor seguro
+          </p>
+        </div>
 
-          {/* ─── Formulario ─── */}
-          <div className="flex items-center justify-center p-6 sm:p-10">
-            <div className="w-full max-w-sm">
-              <div className="mb-8 flex items-center gap-3">
+        {/* ─── PANEL DERECHO: FORMULARIO (claro) ─── */}
+        <div className="flex items-center justify-center bg-slate-50/60 p-6 md:p-12">
+          <div
+            className="lg-rise lg-d1 w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 md:p-10"
+            style={{ boxShadow: "0 25px 50px -12px rgba(100,116,139,0.25)" }}
+          >
+            <div className="mb-6 flex items-center gap-3">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                 <ShieldCheck size={22} />
               </div>
               <div>
-                <h3 className="font-serif text-xl font-semibold tracking-tight" style={{ color: INK }}>Sistema Óptica</h3>
-                <p className="text-sm text-slate-500">Panel del sistema · acceso exclusivo del superadministrador</p>
+                <h3 className="font-serif text-lg font-semibold tracking-tight" style={{ color: INK }}>Sistema Óptica</h3>
+                <p className="text-xs text-slate-500">Acceso exclusivo del superadministrador</p>
               </div>
             </div>
 
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: INK }}>¡Bienvenido de nuevo!</h1>
+            <p className="mt-1.5 text-sm text-slate-500">Ingresa tus credenciales para acceder al panel de gestión.</p>
+
+            <div className="mt-6">
             {mfaPendiente ? (
               <FormularioCodigoMfa codigo={codigoMfa} setCodigo={setCodigoMfa} errorLogin={errorLogin} enviando={enviando} onSubmit={verificarCodigoMfa} onCancelar={cancelarMfa} />
             ) : (
@@ -719,39 +741,47 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="usuario-solo" className="text-sm font-medium text-slate-700">Correo</label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input id="usuario-solo" type="text" autoComplete="username" required value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Tu correo"
-                    className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-base text-slate-900 outline-none transition-all focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="password-solo" className="text-sm font-medium text-slate-700">Contraseña</label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input id="password-solo" type={verPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña"
-                    className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-11 text-base text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-11 text-base text-slate-900 outline-none transition-all focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
                   <button type="button" onClick={() => setVerPassword((v) => !v)} aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 cursor-pointer">
                     {verPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
 
+              <div className="flex items-center justify-between">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30" />
+                  Recordarme en este equipo
+                </label>
+                <span className="text-xs font-medium text-slate-400">¿Problemas? Soporte técnico</span>
+              </div>
+
               <button type="submit" disabled={enviando}
-                className="mt-2 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-                style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
+                className="mt-1 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:brightness-105 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #22D3EE 0%, #2563EB 100%)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
                 {enviando ? "Entrando…" : "Entrar"}
               </button>
             </form>
             )}
             </div>
+
+            <p className="mt-6 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400">
+              <ShieldCheck size={13} /> Conexión segura · acceso registrado
+            </p>
           </div>
         </div>
-
-        <p className="lg-rise lg-d3 relative z-10 mt-6 flex items-center justify-center gap-1.5 text-xs font-medium text-white/50">
-          <ShieldCheck size={13} /> Conexión segura · acceso registrado
-        </p>
       </div>
     )
   }

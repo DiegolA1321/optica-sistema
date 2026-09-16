@@ -30,6 +30,27 @@
    Un !important en la hoja de estilos sí gana sobre un inline style sin
    !important, así que esto corta la duración a casi cero sin tocar cada
    componente. */
+/* Scroll del sidebar (Dashboard.jsx / SuperadminPanel.jsx) — la barra de
+   scroll nativa del navegador (gruesa, gris sólido) cortaba visualmente el
+   encabezado de marca y la tarjeta de perfil al pie apenas el menú
+   principal tenía más ítems de los que caben en pantalla. Delgada y
+   translúcida en vez de oculta del todo: sigue siendo descubrible/usable
+   con mouse, solo deja de competir visualmente con el resto del sidebar. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.25) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.25);
+  border-radius: 9999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

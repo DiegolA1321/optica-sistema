@@ -1050,7 +1050,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
       {/* ─── ÉXITO ─── */}
       {notificacion && (
-        <div role="status" className="no-print flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 shadow-sm">
+        <div role="status" className="no-print flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900 shadow-sm">
           <CheckCircle className="shrink-0 text-emerald-600" size={20} />
           <div>
             <p className="text-sm font-semibold">Ficha clínica guardada con éxito.</p>
@@ -1068,7 +1068,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
             scroll real (Dashboard.jsx, no la ventana), no se necesita
             ningún offset especial. */}
         {pacienteId && pacienteSeleccionado && (
-          <div className="no-print sticky top-0 z-10 mb-4 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
+          <div className="no-print sticky top-0 z-10 mb-4 flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
               <User size={15} />
             </span>
@@ -1080,9 +1080,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         )}
 
         {/* ─── FORMULARIO PRINCIPAL ─── */}
-        <div className="no-print flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="no-print flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
           {/* Stepper */}
-          <div className="flex gap-1 border-b border-slate-200 bg-slate-50/70 p-2">
+          <div className="flex gap-1 border-b border-slate-200/60 bg-slate-50/70 p-2">
             {PASOS.map((paso) => {
               const Icono = paso.icon
               const activo = subTab === paso.id
@@ -1108,7 +1108,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           <form onSubmit={intentarGuardar} className="flex flex-1 flex-col justify-between gap-6 p-6">
             <div ref={inicioFormRef} />
             {bannerError && (
-              <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-700">
+              <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
                 <div>
                   <p className="text-sm font-bold">No puedes continuar todavía</p>
@@ -1126,7 +1126,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <button
                         type="button"
                         onClick={() => setMostrarHistorial(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 cursor-pointer"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 cursor-pointer"
                       >
                         <History size={13} /> Ver historial ({historialPaciente.length})
                       </button>
@@ -1136,7 +1136,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       type="date"
                       value={fechaConsulta}
                       onChange={(e) => setFechaConsulta(e.target.value)}
-                      className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+                      className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -1167,7 +1167,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
 
                   {mostrarDropdown && pacientesFiltrados.length > 0 && (
-                    <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                    <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
                       {pacientesFiltrados.map((p) => (
                         <li
                           key={p.id || p.nombre}
@@ -1181,7 +1181,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     </ul>
                   )}
                   {mostrarDropdown && busquedaPaciente.trim() && pacientesFiltrados.length === 0 && (
-                    <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-500 shadow-lg">
+                    <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200/60 bg-white p-3 text-xs text-slate-500 shadow-lg">
                       Ningún paciente registrado coincide. Créalo primero en el módulo Pacientes — aquí no se puede escribir un nombre nuevo.
                     </div>
                   )}
@@ -1209,7 +1209,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     primera vez, o si el optómetra quiere revisarlo/editarlo,
                     se despliega). Mismo patrón alternarSeccion() que ya usa
                     Refracción para retinoscopía/examen físico/biomicroscopía. ─── */}
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
                     <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
                       <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
@@ -1224,9 +1224,24 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     </span>
                   </button>
 
+                  {/* Línea base siempre visible al colapsar — antes, colapsado
+                      solo decía "ya registrados, toca para ver": el optómetra
+                      tenía que abrir el acordeón para enterarse de una alergia
+                      antes de recetar. Ahora el dato real queda a la vista sin
+                      clic, que es justo lo que se necesita revisar antes de
+                      empezar la consulta; el acordeón sigue existiendo para
+                      editar sin repetir el formulario completo cada visita. */}
+                  {!seccionesAbiertas.antecedentesPaciente && (
+                    <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/60 bg-white p-3 text-xs leading-relaxed text-slate-700 sm:grid-cols-3">
+                      <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Alergias</span>{alergias || "Ninguna registrada"}</p>
+                      <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
+                      <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
+                    </div>
+                  )}
+
                   {seccionesAbiertas.antecedentesPaciente && (
                   <>
-                  <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-3 rounded-lg border border-slate-200/60 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="flex items-center gap-2 text-sm font-medium text-slate-600">
                       <Glasses size={16} className="text-slate-500" />
                       ¿Utiliza o ha utilizado lentes?
@@ -1352,8 +1367,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
               <div className="space-y-5">
                 <h2 className="text-sm font-bold" style={{ color: INK }}>Valores dióptricos y parámetros de taller</h2>
 
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
                     <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
                       Opcional · punto de partida antes de refinar
@@ -1392,8 +1407,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     Colapsable como retinoscopia/examen físico arriba, mismo
                     patrón. */}
                 {ultimaConsultaPaciente && (
-                  <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} className="flex w-full items-center gap-1.5 border-b border-blue-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                  <div className="space-y-3 rounded-xl border border-blue-200/60 bg-blue-50/50 p-4">
+                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} className="flex w-full items-center gap-1.5 border-b border-blue-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                       <History size={16} className="text-blue-600" /> Comparar con visita anterior
                       <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">{ultimaConsultaPaciente.fecha}</span>
                       <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.comparacionAnterior ? "" : "-rotate-90")} />
@@ -1442,8 +1457,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="flex items-center gap-1.5 border-b border-slate-200 pb-2 text-sm font-semibold" style={{ color: INK }}>
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <p className="flex items-center gap-1.5 border-b border-slate-200/60 pb-2 text-sm font-semibold" style={{ color: INK }}>
                     <Ruler size={16} className="text-blue-600" /> Parámetros de visión cercana y centrado
                   </p>
                   <div className={"grid grid-cols-1 gap-3 sm:grid-cols-" + (manejaProgresion ? "4" : "3")}>
@@ -1454,8 +1469,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("examenFisico")} className="flex w-full items-center gap-1.5 border-b border-slate-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("examenFisico")} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Examen físico complementario
                     <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
                       Opcional
@@ -1496,7 +1511,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-3">
+                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-3">
                     <div>
                       <label htmlFor="coverLejos" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">Cover test — lejos</label>
                       <select
@@ -1527,7 +1542,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-3">
+                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-3">
                     <div>
                       <label htmlFor="pioOd" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
                         <Droplet size={12} /> PIO — Ojo derecho (mmHg)
@@ -1553,8 +1568,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   )}
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("biomicroscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("biomicroscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <Eye size={16} className="text-blue-600" /> Biomicroscopía (segmento anterior)
                     <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
                       Opcional · lámpara de hendidura
@@ -1630,7 +1645,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 </div>
 
                 {/* RECETA IMPRIMIBLE */}
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" id="receta-imprimible">
+                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" id="receta-imprimible">
                   {/* Membrete */}
                   <div className="print-force-color px-8 pt-8" style={{ color: INK }}>
                     <div className="flex items-start justify-between gap-6">
@@ -1679,7 +1694,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
                   {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
                   <div className="space-y-3.5 px-8 pt-5">
-                    <div className="print-force-color rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
                       <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
                         <Stethoscope size={12} /> Diagnóstico
                       </label>
@@ -1717,18 +1732,42 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                               <AlertCircle size={13} /> {errores.diagnostico}
                             </p>
                           )}
-                          <label htmlFor="diagnostico" className="mb-1 mt-3 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                            Detalle <span className="font-normal normal-case text-slate-400">(opcional)</span>
-                          </label>
-                          <input
-                            id="diagnostico"
-                            type="text"
-                            placeholder="Ej. Se determina progresión leve, control en 6 meses"
-                            value={diagnostico}
-                            onChange={(e) => setDiagnostico(e.target.value)}
-                            className="w-full bg-transparent text-sm font-medium outline-none focus:underline"
-                            style={{ color: INK }}
-                          />
+                          {/* Con "Otro" seleccionado, el detalle deja de ser una
+                              nota opcional de una línea — es la única fuente
+                              del diagnóstico en sí, así que pasa a ser un
+                              textarea más amplio pensado para escribir el
+                              hallazgo completo, no solo una aclaración. */}
+                          {diagnosticoCategorias.includes("Otro") ? (
+                            <>
+                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                Detalle del diagnóstico personalizado
+                              </label>
+                              <textarea
+                                id="diagnostico"
+                                rows={3}
+                                placeholder="Detalle del diagnóstico personalizado..."
+                                value={diagnostico}
+                                onChange={(e) => setDiagnostico(e.target.value)}
+                                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                style={{ color: INK }}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                Detalle <span className="font-normal normal-case text-slate-400">(opcional)</span>
+                              </label>
+                              <input
+                                id="diagnostico"
+                                type="text"
+                                placeholder="Ej. Se determina progresión leve, control en 6 meses"
+                                value={diagnostico}
+                                onChange={(e) => setDiagnostico(e.target.value)}
+                                className="w-full bg-transparent text-sm font-medium outline-none focus:underline"
+                                style={{ color: INK }}
+                              />
+                            </>
+                          )}
                         </>
                       )}
                     </div>
@@ -1738,7 +1777,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         recomiendan un lente"). Sin el checkbox, ni el campo
                         de texto ni la búsqueda de inventario aparecen. */}
                     {!fichaGuardada && (
-                      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-sm font-semibold text-slate-700">
+                      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/70 p-3.5 text-sm font-semibold text-slate-700">
                         <input
                           type="checkbox"
                           checked={recomendarLente}
@@ -1781,7 +1820,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           {!fichaGuardada && (
                             <div className="no-print relative" ref={lenteDropdownRef}>
                               {lenteProductoVinculado ? (
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 px-3 py-1.5">
                                   <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
                                     <MiniaturaProducto url={lenteProductoVinculado.imagen_url} alt={lenteProductoVinculado.nombre} size={20} />
                                     <CheckCircle size={12} /> Vinculado a inventario · {lenteProductoVinculado.stock} u. · ${Number(lenteProductoVinculado.precio).toFixed(2)}
@@ -1800,11 +1839,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                       value={lenteBusquedaProducto}
                                       onFocus={() => setLenteMostrarDropdown(true)}
                                       onChange={(e) => { setLenteBusquedaProducto(e.target.value); setLenteMostrarDropdown(true) }}
-                                      className="w-full rounded-lg border border-amber-200 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-blue-500"
+                                      className="w-full rounded-lg border border-amber-200/60 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-blue-500"
                                     />
                                   </div>
                                   {lenteMostrarDropdown && lenteProductosFiltrados.length > 0 && (
-                                    <ul className="absolute z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                                    <ul className="absolute z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
                                       {lenteProductosFiltrados.map((p) => (
                                         <li
                                           key={p.id}
@@ -1849,7 +1888,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           <button type="button" onClick={() => setMostrarEditorFactura(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 cursor-pointer">
                             No, más tarde
                           </button>
-                          <button type="button" onClick={() => setMostrarEditorFactura(true)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer">
+                          <button type="button" onClick={() => setMostrarEditorFactura(true)} className="rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer">
                             Sí, agregar líneas
                           </button>
                         </div>
@@ -1865,7 +1904,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         {facturaLineas.length > 0 && (
                           <div className="space-y-1.5">
                             {facturaLineas.map((l, i) => (
-                              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm">
                                 <span className="flex min-w-0 items-center gap-2">
                                   {l.tipo === "producto" ? (
                                     <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
@@ -1899,7 +1938,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         {facturaTipoLinea === "producto" ? (
                           <div className="space-y-2">
                             {facturaProductoSeleccionado ? (
-                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-2 text-sm">
                                 <span className="flex min-w-0 items-center gap-2">
                                   <MiniaturaProducto url={facturaProductoSeleccionado.imagen_url} alt={facturaProductoSeleccionado.nombre} size={22} />
                                   <span className="truncate font-semibold text-blue-800">{facturaProductoSeleccionado.nombre}</span>
@@ -1921,7 +1960,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                   className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-800 outline-none focus:border-blue-500"
                                 />
                                 {facturaMostrarDropdown && facturaProductosFiltrados.length > 0 && (
-                                  <ul className="absolute z-50 mt-1 max-h-40 w-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                                  <ul className="absolute z-50 mt-1 max-h-40 w-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
                                     {facturaProductosFiltrados.map((p) => (
                                       <li
                                         key={p.id}
@@ -1966,7 +2005,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
                         {facturaLineas.length > 0 && (
                           <>
-                            <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                            <div className="flex items-center justify-between border-t border-slate-200/60 pt-2">
                               <span className="text-xs font-semibold text-slate-600">Total factura</span>
                               <span className="font-mono text-base font-bold text-slate-800">${facturaTotal.toFixed(2)}</span>
                             </div>
@@ -1996,7 +2035,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     )}
 
                     {fichaGuardada && facturaEstadoGuardado === "error" && (
-                      <div role="alert" className="no-print space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                      <div role="alert" className="no-print space-y-2 rounded-lg border border-red-200/60 bg-red-50 p-3">
                         <p className="flex items-start gap-1.5 text-xs font-semibold text-red-700">
                           <AlertCircle size={14} className="mt-0.5 shrink-0" />
                           La ficha clínica se guardó correctamente, pero la factura no se pudo generar: {facturaErrorMsg}
@@ -2015,7 +2054,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         </label>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           {archivosImagenes.map((f, i) => (
-                            <div key={i} className="relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200">
+                            <div key={i} className="relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200/60">
                               <img src={previsualizacionesImagenes[i]} alt={f.name} className="h-full w-full object-cover" />
                               <button type="button" onClick={() => quitarArchivoImagen(i)} aria-label="Quitar imagen" className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-black/60 text-white cursor-pointer">
                                 <X size={10} />
@@ -2033,7 +2072,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     )}
 
                     {(indicaciones || !fichaGuardada) && (
-                      <div className="print-force-color rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
                         <label htmlFor="indicaciones" className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
                           <ClipboardList size={12} /> Indicaciones y cuidados
                         </label>
@@ -2051,7 +2090,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     )}
 
                     {mostrarMedidasPaciente ? (
-                      <div className="print-force-color rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
                         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
                           {/* Impresión cautiva: la política general de
@@ -2096,7 +2135,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </p>
                     )}
 
-                    <div className="print-force-color flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="print-force-color flex items-center gap-3 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
                       <CalendarClock size={18} className="no-print shrink-0 text-blue-600" />
                       <div className="flex-1">
                         <label htmlFor="proximoControl" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Próximo control recomendado</label>
@@ -2195,7 +2234,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
       {mostrarHistorial && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMostrarHistorial(false)}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -2258,6 +2297,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       {mostrarConfirmarVenta && (
         <ConfirmarVentaModal
           producto={lenteProductoVinculado}
+          tipoLente={lenteRecomendado}
           onCancelar={() => setMostrarConfirmarVenta(false)}
           onConfirmar={() => { setMostrarConfirmarVenta(false); setMostrarModalFacturaVenta(true) }}
         />
@@ -2337,7 +2377,7 @@ function PanelEvolucion({ analisis, correccion, compacto }) {
 
       {/* Tendencia de graduación: dato de contexto, no un veredicto de mejoría/empeoramiento */}
       {analisis.primera ? (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+        <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-5">
           <div className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-200 text-slate-500"><Sparkles size={14} /></span>
             <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Tendencia de graduación</h4>
@@ -2352,7 +2392,7 @@ function PanelEvolucion({ analisis, correccion, compacto }) {
         const signo = analisis.variacion > 0 ? "+" : ""
         const varTxt = `${signo}${analisis.variacion.toFixed(2)} D`
         return (
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="rounded-2xl border border-slate-200/60 bg-white p-5">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <Sparkles size={13} className="text-slate-500" /> Tendencia de graduación (dato de contexto)
@@ -2383,7 +2423,7 @@ function PanelEvolucion({ analisis, correccion, compacto }) {
 function ComparaOjo({ sigla, prev, actual }) {
   const fmt = (n) => `${n > 0 ? "+" : ""}${Number(n).toFixed(2)}`
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+    <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3">
       <span className="grid h-5 w-5 place-items-center rounded font-mono text-[10px] font-bold text-white" style={{ backgroundColor: sigla === "OD" ? "#2563EB" : "#06b6d4" }}>
         {sigla}
       </span>
@@ -2401,8 +2441,8 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
   const color = sigla === "OD" ? "#2563EB" : "#06b6d4"
   const pre = sigla.toLowerCase()
   return (
-    <div className="space-y-3.5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+    <div className="space-y-3.5 rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
+      <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2">
         <span className="grid h-6 w-6 place-items-center rounded-md font-mono text-xs font-bold text-white" style={{ backgroundColor: color }}>
           {sigla}
         </span>
@@ -2413,7 +2453,7 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
         <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} />
         <NumCampo label="Eje (°)" value={eje} onChange={(v) => { setEje(v); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-eje`} error={errores[`${pre}_eje`]} tipo="entero" maxLength={3} />
       </div>
-      <div className="grid grid-cols-2 gap-2 border-t border-slate-200 pt-2">
+      <div className="grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-2">
         <div>
           <label htmlFor={`${sigla}-avsc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV sin lentes</label>
           <select id={`${sigla}-avsc`} value={avSc} onChange={(e) => setAvSc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500">
@@ -2471,7 +2511,7 @@ function MedidaCampo({ id, label, value, onChange }) {
 // Se muestra justo después de guardar la ficha si había un lente
 // recomendado y vinculado a inventario — mismo patrón hand-rolled que
 // ConfirmarFichaModal.jsx (el proyecto dejó de usar el Dialog de Radix acá).
-function ConfirmarVentaModal({ producto, onCancelar, onConfirmar }) {
+function ConfirmarVentaModal({ producto, tipoLente, onCancelar, onConfirmar }) {
   useEffect(() => {
     const onKeyDown = (e) => { if (e.key === "Escape") onCancelar() }
     document.addEventListener("keydown", onKeyDown)
@@ -2496,10 +2536,12 @@ function ConfirmarVentaModal({ producto, onCancelar, onConfirmar }) {
           <div className="mb-3 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
             <Receipt size={22} />
           </div>
-          <h2 id="confirmar-venta-titulo" className="text-lg font-bold" style={{ color: INK }}>Se detectó una recomendación de lente</h2>
-          <p className="mt-1.5 text-sm text-slate-500">¿Deseas procesar la venta ahora?</p>
+          <h2 id="confirmar-venta-titulo" className="text-lg font-bold" style={{ color: INK }}>Recomendación de Lente Detectada</h2>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Se detectó el registro de un lente sugerido ({tipoLente || producto?.nombre}). ¿Desea efectuar o gestionar la compra en este momento?
+          </p>
           {producto && (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3.5 py-2.5">
               <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-emerald-800">
                 <Glasses size={14} className="shrink-0" /> <span className="truncate">{producto.nombre}</span>
               </span>
@@ -2508,11 +2550,11 @@ function ConfirmarVentaModal({ producto, onCancelar, onConfirmar }) {
           )}
         </div>
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-          <button type="button" onClick={onCancelar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-            Ahora no
+          <button type="button" onClick={onCancelar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+            No, Solo Guardar Ficha
           </button>
           <button type="button" onClick={onConfirmar} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-            Sí, registrar venta
+            Sí, Gestionar Venta
           </button>
         </div>
       </div>
@@ -2535,7 +2577,7 @@ function EtiquetaRegistro({ registrado }) {
 // muestren exactamente los mismos datos de la misma fuente (historialPaciente).
 function TarjetaVisita({ consulta: c }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+    <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-bold" style={{ color: INK }}>{c.fecha}</span>
         <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">{c.motivo || "Consulta general"}</span>

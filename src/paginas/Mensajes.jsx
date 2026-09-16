@@ -107,7 +107,7 @@ export default function Mensajes({ usuario }) {
       </div>
 
       {errorCarga && (
-        <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
+        <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-sm text-red-700">
           <AlertCircle size={16} className="shrink-0" />
           No se pudo cargar todo correctamente — puede que falten mensajes o facturas. Revisa tu conexión e intenta recargar.
         </div>
@@ -177,8 +177,8 @@ export default function Mensajes({ usuario }) {
       )}
 
       {MODO_SAAS_VISIBLE && facturas.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+          <div className="flex items-center gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Receipt size={18} /></span>
             <div>
               <h4 className="text-sm font-bold" style={{ color: INK }}>Tus facturas</h4>
@@ -216,8 +216,8 @@ export default function Mensajes({ usuario }) {
       )}
 
       {/* ─── Nueva consulta ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <div className="flex items-center gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
           <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><MessageSquare size={18} /></span>
           <div>
             <h4 className="text-sm font-bold" style={{ color: INK }}>Escribir una consulta</h4>
@@ -226,24 +226,24 @@ export default function Mensajes({ usuario }) {
         </div>
         <form onSubmit={enviarConsulta} className="space-y-3 p-4">
           {error && (
-            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
               <AlertCircle size={14} /> {error}
             </div>
           )}
           {enviado && (
-            <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
+            <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
               <CheckCircle2 size={14} /> Mensaje enviado — te avisamos acá mismo cuando te respondan.
             </div>
           )}
           <input
             type="text" value={asunto} onChange={(e) => setAsunto(e.target.value)}
             placeholder="Asunto — ej. Necesito cambiar el nombre de mi óptica"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
           />
           <textarea
             rows={3} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)}
             placeholder="Contanos qué necesitás…"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
           />
           <div className="flex justify-end">
             <button type="submit" disabled={enviando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -254,8 +254,8 @@ export default function Mensajes({ usuario }) {
       </div>
 
       {/* ─── Historial ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
           <h4 className="text-sm font-bold" style={{ color: INK }}>{filtro === "consulta" ? "Tus consultas" : filtro === "anuncio" ? "Avisos" : "Tus mensajes"}</h4>
           {!cargando && <span className="text-xs font-semibold text-slate-500">{mensajesFiltrados.length} {mensajesFiltrados.length === 1 ? "mensaje" : "mensajes"}</span>}
         </div>
@@ -316,7 +316,7 @@ export default function Mensajes({ usuario }) {
         <div style={{ position: "fixed", left: "-9999px", top: 0 }}>
           <style>{estilosImpresion("printing-factura-admin")}</style>
           <div id="factura-imprimible-admin" className="w-[480px] bg-white p-8 text-sm text-slate-800">
-            <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
+            <div className="mb-6 flex items-center justify-between border-b border-slate-200/60 pb-4">
               <div>
                 <p className="text-lg font-bold" style={{ color: INK }}>Diego Óptica</p>
                 <p className="text-xs text-slate-500">Sistema multi-óptica</p>

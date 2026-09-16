@@ -10,7 +10,7 @@ export default function MiniaturaProducto({ url, alt = "", size = 32, className 
   if (!url) {
     return (
       <span
-        className={"grid shrink-0 place-items-center rounded-lg border border-slate-200 bg-slate-100 text-slate-300 " + className}
+        className={"grid shrink-0 place-items-center rounded-lg border border-slate-200/60 bg-slate-100 text-slate-300 " + className}
         style={{ width: dim, height: dim }}
       >
         <ImageIcon size={Math.round(size * 0.5)} />
@@ -21,7 +21,7 @@ export default function MiniaturaProducto({ url, alt = "", size = 32, className 
     <img
       src={url}
       alt={alt}
-      className={"shrink-0 rounded-lg border border-slate-200 object-cover " + className}
+      className={"shrink-0 rounded-lg border border-slate-200/60 object-cover " + className}
       style={{ width: dim, height: dim }}
     />
   )

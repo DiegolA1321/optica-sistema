@@ -59,7 +59,7 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
           </div>
 
           {error && (
-            <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{error}</p>
+            <p role="alert" className="mt-3 rounded-lg border border-red-200/60 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{error}</p>
           )}
         </div>
 
@@ -68,7 +68,7 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
             type="button"
             onClick={onCancelar}
             disabled={guardando}
-            className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancelar
           </button>

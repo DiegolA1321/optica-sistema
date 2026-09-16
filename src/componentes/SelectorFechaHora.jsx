@@ -52,7 +52,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
   return (
     <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
       {/* Calendario */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+      <div className="rounded-xl border border-slate-200/60 bg-slate-50/40 p-3">
         <div className="mb-2.5 flex items-center justify-between px-0.5">
           <span className="text-xs font-bold capitalize" style={{ color: INK }}>
             {MESES[mesVista.getMonth()]} {mesVista.getFullYear()}
@@ -100,7 +100,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
                     ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300"
                     : sel
                     ? "border-transparent text-white shadow-md"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400 cursor-pointer")
+                    : "border-emerald-200/60 bg-emerald-50 text-emerald-700 hover:border-emerald-400 cursor-pointer")
                 }
                 style={sel ? { background: GRAD, boxShadow: "0 8px 18px -8px rgba(37,99,235,0.5)" } : undefined}
               >
@@ -148,7 +148,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
                       ? "cursor-not-allowed border-transparent text-slate-300 line-through"
                       : sel
                       ? "border-transparent text-white shadow-md cursor-pointer"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer")
+                      : "border-slate-200/60 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer")
                   }
                   style={sel ? { background: GRAD, boxShadow: "0 8px 18px -8px rgba(37,99,235,0.5)" } : !s.libre ? { backgroundColor: "#f1f0ec" } : undefined}
                 >

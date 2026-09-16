@@ -417,7 +417,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       </div>
 
       {/* ─── TABS: general vs. personal ─── */}
-      <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+      <div className="flex gap-1 rounded-2xl border border-slate-200/60 bg-white p-1.5 shadow-sm">
         <button
           type="button"
           onClick={() => setTab("general")}
@@ -438,13 +438,13 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
 
       {/* ─── CONFIRMACIÓN DE GUARDADO (aparece brevemente tras cada cambio) ─── */}
       {guardadoVisible && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-900">
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-3.5 text-emerald-900">
           <CheckCircle2 className="shrink-0 text-emerald-600" size={18} />
           <p className="text-sm font-semibold">Cambios guardados.</p>
         </div>
       )}
       {errorAccion && (
-        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-800">
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-800">
           <AlertTriangle className="shrink-0 text-red-600" size={18} />
           <p className="text-sm font-semibold">{errorAccion}</p>
         </div>
@@ -459,7 +459,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           abrirModalAusencia={abrirModalAusencia}
         />
       ) : !esAdmin ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
             <Lock size={16} className="shrink-0" />
             <p className="text-xs leading-relaxed">Solo el administrador puede editar el horario general de la óptica. Esto es de referencia.</p>
@@ -495,7 +495,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* ─── HORARIO SEMANAL + PARÁMETROS ─── */}
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <h4 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold" style={{ color: INK }}>
               <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Sun size={16} /></span>
               Horario semanal habitual
@@ -513,7 +513,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                 const abierto = diaAbierto(d)
                 const expandido = diasAbiertos.has(dia)
                 return (
-                  <div key={dia} className={"overflow-hidden rounded-xl border transition-colors " + (abierto ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50/60")}>
+                  <div key={dia} className={"overflow-hidden rounded-xl border transition-colors " + (abierto ? "border-slate-200/60 bg-white" : "border-slate-100 bg-slate-50/60")}>
                     <button
                       type="button"
                       onClick={() => alternarDiaAbierto(dia)}
@@ -553,11 +553,11 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                                 <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                                   <input
                                     type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })}
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
+                                    className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
                                   />
                                   <input
                                     type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })}
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
+                                    className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
                                   />
                                 </div>
                               )}
@@ -571,7 +571,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               })}
             </div>
             {errorGuardar && (
-              <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+              <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {errorGuardar}
               </div>
             )}
@@ -581,7 +581,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                   type="button"
                   disabled={guardando}
                   onClick={descartarCambiosHorario}
-                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+                  className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"
                 >
                   Descartar
                 </button>
@@ -598,7 +598,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <h4 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold" style={{ color: INK }}>
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Clock size={16} /></span>
               Duración de cada cita
@@ -607,7 +607,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               <input
                 type="number" min={10} step={5} value={borradorDuracion}
                 onChange={(e) => setBorradorDuracion(Math.max(10, Number(e.target.value) || 10))}
-                className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
+                className="w-24 rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
               />
               <span className="text-sm text-slate-500">minutos por paciente</span>
               {borradorDuracion !== disponibilidad.duracionCita && (
@@ -623,7 +623,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               )}
             </div>
             {errorDuracion && (
-              <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2 text-xs font-medium text-red-700">
+              <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2 text-xs font-medium text-red-700">
                 <AlertTriangle size={13} /> {errorDuracion}
               </div>
             )}
@@ -632,7 +632,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
 
         {/* ─── EXCEPCIONES PUNTUALES ─── */}
         <div className="space-y-6 lg:col-span-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
               <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
                 <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><CalendarDays size={16} /></span>
@@ -677,8 +677,8 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                             ? "border-2 border-dashed border-emerald-400 bg-emerald-50 text-emerald-700 hover:border-emerald-500 cursor-pointer"
                             : "border-2 border-dashed border-red-400 bg-red-50 text-red-700 hover:border-red-500 cursor-pointer")
                         : efectivoAbierto
-                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400 cursor-pointer"
-                        : "border border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 cursor-pointer") +
+                        ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700 hover:border-emerald-400 cursor-pointer"
+                        : "border border-slate-200/60 bg-slate-50 text-slate-500 hover:border-slate-300 cursor-pointer") +
                       (esHoy ? " ring-2 ring-blue-500 ring-offset-1" : "")
                     }
                   >
@@ -703,7 +703,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           </div>
 
           {excepcionesOrdenadas.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
               <h4 className="mb-3 text-sm font-bold" style={{ color: INK }}>Próximos cambios sobre tu horario habitual</h4>
               <div className="divide-y divide-slate-100">
                 {excepcionesOrdenadas.map(([iso, exc]) => {
@@ -752,7 +752,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                   ? "Esta cita ya agendada quedaría fuera del horario si aplicas el cambio:"
                   : `Estas ${avisoConflicto.citas.length} citas ya agendadas quedarían fuera del horario si aplicas el cambio:`}
               </p>
-              <div className="mt-3 max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
+              <div className="mt-3 max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/60">
                 {avisoConflicto.citas.map((c) => (
                   <div key={c.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                     <User size={13} className="shrink-0 text-slate-500" />
@@ -764,7 +764,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               <p className="mt-3 text-xs text-slate-500">Puedes aplicar el cambio igual y reprogramarlas tú mismo después, o cancelar y dejarlas como están.</p>
             </div>
             <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-              <button type="button" onClick={() => setAvisoConflicto(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={() => setAvisoConflicto(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                 Cancelar
               </button>
               <button
@@ -790,13 +790,13 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
             </div>
             <form onSubmit={registrarAusencia} className="space-y-3.5 px-6 py-5">
               {errorAusencia && (
-                <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                   <AlertTriangle size={14} /> {errorAusencia}
                 </div>
               )}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-                <input type="date" required min={hoy} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                <input type="date" required min={hoy} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
               </div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
                 <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
@@ -806,20 +806,20 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Desde</label>
-                    <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                    <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Hasta</label>
-                    <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                    <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
                   </div>
                 </div>
               )}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
-                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
               </div>
               <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setModalAusenciaAbierto(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
+                <button type="button" onClick={() => setModalAusenciaAbierto(false)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
                 <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}>Registrar</button>
               </div>
             </form>
@@ -873,13 +873,13 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
   const descartar = () => setBorrador({ ...SEMANA_PERSONAL_VACIA(), ...semanaGuardada })
 
   if (cargando) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">Cargando tu horario...</div>
+    return <div className="rounded-2xl border border-slate-200/60 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">Cargando tu horario...</div>
   }
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       {/* ─── HORARIO SEMANAL PROPIO ─── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
         <h4 className="mb-1 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold" style={{ color: INK }}>
           <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><UserCog size={16} /></span>
           Mi horario habitual
@@ -893,7 +893,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
             const abierto = diaAbierto(d)
             const expandido = diasAbiertos.has(dia)
             return (
-              <div key={dia} className={"overflow-hidden rounded-xl border transition-colors " + (abierto ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50/60")}>
+              <div key={dia} className={"overflow-hidden rounded-xl border transition-colors " + (abierto ? "border-slate-200/60 bg-white" : "border-slate-100 bg-slate-50/60")}>
                 <button type="button" onClick={() => alternarDiaAbierto(dia)} aria-expanded={expandido} className="flex w-full items-center justify-between gap-2 p-3 text-left cursor-pointer">
                   <div className="min-w-0">
                     <p className={"text-sm font-semibold " + (abierto ? "text-slate-800" : "text-slate-500")}>{ETIQUETAS_DIA[dia]}</p>
@@ -921,8 +921,8 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
                           </div>
                           {s.activo && (
                             <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                              <input type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })} className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500" />
-                              <input type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })} className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                              <input type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                              <input type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500" />
                             </div>
                           )}
                         </div>
@@ -936,18 +936,18 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
         </div>
 
         {error && (
-          <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+          <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
             <AlertTriangle size={14} /> {error}
           </div>
         )}
         {guardadoOk && (
-          <div role="status" className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700">
+          <div role="status" className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700">
             <CheckCircle2 size={14} /> Guardado.
           </div>
         )}
         {hayCambios && (
           <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
-            <button type="button" disabled={guardando} onClick={descartar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Descartar</button>
+            <button type="button" disabled={guardando} onClick={descartar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Descartar</button>
             <button type="button" disabled={guardando} onClick={guardarHorario} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}>
               <CheckCircle2 size={15} /> {guardando ? "Guardando..." : "Guardar cambios"}
             </button>
@@ -956,7 +956,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
       </div>
 
       {/* ─── AUSENCIAS ─── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
           <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
             <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}><CalendarX size={16} /></span>
@@ -1018,7 +1018,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
 
         <div className="space-y-3 px-6 py-5">
           {[["manana", "Mañana", Sun, manana, setManana], ["tarde", "Tarde", Moon, tarde, setTarde]].map(([clave, etiqueta, Icono, valor, setValor]) => (
-            <div key={clave} className="rounded-xl border border-slate-200 p-3">
+            <div key={clave} className="rounded-xl border border-slate-200/60 p-3">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icono size={14} /> {etiqueta}</span>
                 <button
@@ -1035,9 +1035,9 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
               {valor.activo && (
                 <div className="mt-2.5 grid grid-cols-2 gap-2">
                   <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500" />
                   <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500" />
                 </div>
               )}
             </div>
@@ -1045,11 +1045,11 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
 
           <div className="flex gap-3 border-t border-slate-100 pt-4">
             {onQuitar && (
-              <button type="button" onClick={onQuitar} title="Volver al horario habitual" aria-label="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={onQuitar} title="Volver al horario habitual" aria-label="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
                 <RotateCcw size={14} />
               </button>
             )}
-            <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
             <button type="button" onClick={() => onGuardar({ manana, tarde })} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
               <span className="flex items-center justify-center gap-1.5"><CheckCircle2 size={15} /> Guardar</span>
             </button>

@@ -291,7 +291,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
           <button
             type="button"
             onClick={alternarActividad}
-            className={"flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition cursor-pointer " + (mostrarActividad ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
+            className={"flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition cursor-pointer " + (mostrarActividad ? "border-blue-200/60 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
           >
             <History size={17} />
             Actividad
@@ -310,7 +310,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
 
       {/* ─── ACTIVIDAD ─── */}
       {mostrarActividad && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
@@ -322,7 +322,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
               <select
                 value={filtroUsuarioLog}
                 onChange={(e) => setFiltroUsuarioLog(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
               >
                 <option value="todos">Todos los usuarios</option>
                 {usuariosEnLogs.map((n) => (<option key={n} value={n}>{n}</option>))}
@@ -362,7 +362,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
 
       {/* ─── ÉXITO ─── */}
       {mensajeExito && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
           <CheckCircle2 className="text-emerald-500" size={20} />
           <p className="text-sm font-semibold">{mensajeExito}</p>
         </div>
@@ -392,7 +392,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             const categoriaAdmin = CATEGORIAS.find((c) => c.sensible)
             const tieneAdminDelegada = categoriaAdmin.modulos.some((m) => permisoActivo(a, m.id))
             return (
-              <div key={a.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={a.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3">
@@ -449,7 +449,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       {/* ─── MODAL CREAR/EDITAR ─── */}
       {modalAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -468,7 +468,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {error && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertTriangle size={16} />
                     {error}
                   </div>
@@ -480,7 +480,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                     <input
                       type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
                       placeholder="Ej. Ana Torres"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                   <div>
@@ -490,7 +490,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <input
                         type="text" value={etiquetaRol} onChange={(e) => setEtiquetaRol(e.target.value)}
                         placeholder="Ej. Secretaria, Asesor de ventas"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
                     </div>
                   </div>
@@ -498,7 +498,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                 <p className="-mt-2.5 text-[11px] text-slate-500">Solo una etiqueta para que recuerdes para qué lo contrataste — no cambia sus permisos, esos se definen abajo.</p>
 
                 {editandoId != null ? (
-                  <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-600">
+                  <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600">
                     <Info size={17} className="mt-0.5 shrink-0" />
                     <p className="text-xs leading-relaxed">
                       El correo y la contraseña no se pueden cambiar desde acá una vez creada la cuenta. Correo actual: <span className="font-mono font-semibold">{correo}</span>
@@ -513,7 +513,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                         <input
                           type="email" value={correo} onChange={(e) => setCorreo(e.target.value)}
                           placeholder="ana.torres@correo.com"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                       </div>
                     </div>
@@ -523,7 +523,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                         <input
                           type={verClave ? "text" : "password"} value={clave} onChange={(e) => setClave(e.target.value)}
                           placeholder="Mínimo 8 caracteres, con letra y número"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                         <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                           {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -542,7 +542,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                     return (
                       <div
                         key={categoria.id}
-                        className={"rounded-xl border p-3 " + (categoria.sensible ? "border-amber-200 bg-amber-50/50" : "border-slate-200 bg-slate-50")}
+                        className={"rounded-xl border p-3 " + (categoria.sensible ? "border-amber-200/60 bg-amber-50/50" : "border-slate-200/60 bg-slate-50")}
                       >
                         <button
                           type="button"
@@ -566,7 +566,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                         )}
                         <div className="mt-2 grid grid-cols-1 gap-2 pl-6 sm:grid-cols-2">
                           {categoria.modulos.map((m) => (
-                            <label key={m.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300">
+                            <label key={m.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300">
                               <input
                                 type="checkbox"
                                 checked={Boolean(permisos[m.id])}
@@ -585,7 +585,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" disabled={guardando} onClick={cerrarModal} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                <button type="button" disabled={guardando} onClick={cerrarModal} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -601,7 +601,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       {/* ─── MODAL ELIMINAR ─── */}
       {porEliminar != null && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPorEliminar(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
             </div>
@@ -611,17 +611,17 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                 ahora borra también la cuenta de Supabase Auth (vía la Edge
                 Function eliminar-cuenta-auth), no solo la fila de
                 "perfiles" — el correo SÍ queda libre para reusarse. */}
-            <p className="mt-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2.5 text-left text-xs leading-relaxed text-blue-800">
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-blue-200/60 bg-blue-50 p-2.5 text-left text-xs leading-relaxed text-blue-800">
               <Info size={14} className="mt-0.5 shrink-0" />
               Esto elimina también su cuenta de acceso — el correo <span className="font-mono font-semibold">{asistentes.find((a) => a.id === porEliminar)?.correo}</span> queda libre para usarse de nuevo.
             </p>
             {error && (
-              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {error}
               </div>
             )}
             <div className="mt-6 flex gap-3">
-              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setError("") }} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setError("") }} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                 Volver
               </button>
               <button type="button" disabled={eliminando} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer disabled:opacity-50">

@@ -21,6 +21,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CalendarClock,
+  Command,
   BarChart3,
   ShieldCheck,
   ShieldAlert,
@@ -545,7 +546,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         )
       default:
         return (
-          <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-slate-200/60 bg-white p-6">
             <div className="text-center">
               <p className="text-lg text-slate-500">Sección en desarrollo</p>
               <h3 className="mt-1 text-2xl font-bold uppercase text-blue-600">{seccionActiva}</h3>
@@ -556,45 +557,43 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   }
 
   return (
-    <div className="flex h-screen font-sans" style={{ backgroundColor: "#F7F5F0" }}>
+    <div className="flex h-screen bg-slate-50 font-sans">
       {/* Backdrop móvil */}
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 
       {/* ─── SIDEBAR ─── */}
       <aside
         className={
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-white/[0.07] transition-all duration-300 lg:static lg:translate-x-0 " +
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-slate-200/70 bg-slate-50/80 transition-all duration-300 lg:static lg:translate-x-0 " +
           (colapsado ? "lg:w-20 " : "lg:w-72 ") +
           (menuAbierto ? "translate-x-0" : "-translate-x-full")
         }
-        style={{ background: `linear-gradient(180deg, #16404D 0%, ${INK} 55%)` }}
       >
-        {/* Profundidad de marca */}
-        <svg aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
-          {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
-        </svg>
-        <div className="pointer-events-none absolute -left-24 top-1/4 h-56 w-56 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.12), transparent 70%)" }} />
+        {/* Toque de marca — sutil, pensado para fondo claro (antes eran anillos
+            blancos al 5% pensados para el fondo oscuro anterior, invisibles
+            acá). */}
+        <div className="pointer-events-none absolute -left-24 top-1/4 h-56 w-56 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(37,99,235,0.06), transparent 70%)" }} />
 
-        <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
-          <div className={"flex min-w-0 items-center justify-between border-b border-white/10 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+        <div className="sidebar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto">
+          <div className={"flex min-w-0 items-center justify-between border-b border-slate-200/70 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <div className="flex min-w-0 items-center gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                 <Eye size={22} strokeWidth={2.2} />
               </div>
               <div className={"min-w-0 leading-tight " + (colapsado ? "lg:hidden" : "")}>
-                <p className="truncate text-lg font-bold tracking-tight text-white">
+                <p className="truncate text-lg font-bold tracking-tight text-slate-900">
                   {usuario?.opticaNombre || "Mi Óptica"}
                 </p>
-                <p className="text-[11px] font-medium tracking-wide text-white/55">PANEL DE CONTROL</p>
+                <p className="text-[11px] font-medium tracking-wide text-slate-500">PANEL DE CONTROL</p>
               </div>
             </div>
-            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
+            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden cursor-pointer">
               <X size={20} />
             </button>
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/55 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
+            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
             {opcionesVisibles.filter((o) => !o.oculto).map((opcion) => {
               const Icono = opcion.icono
               const activo = seccionActiva === opcion.id
@@ -605,10 +604,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                   onClick={() => navegar(opcion.id)}
                   title={colapsado ? opcion.nombre : undefined}
                   aria-label={opcion.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/75 hover:bg-white/5 hover:text-white")}
-                  style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}
+                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white shadow-md shadow-blue-500/20" : "bg-transparent text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm")}
+                  style={activo ? { background: GRAD } : undefined}
                 >
-                  <Icono size={20} className={activo ? "text-white" : "text-white/75 group-hover:text-white"} />
+                  <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
                   {activo && <span className={"ml-auto h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
@@ -617,8 +616,30 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </nav>
         </div>
 
-        <div className="relative z-10 border-t border-white/10 p-4">
-          <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-white/55 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+        <div className="relative z-10 space-y-3 border-t border-slate-200/70 p-4">
+          {/* Widget de perfil — tarjeta blanca nítida flotando sobre el fondo
+              slate del sidebar (antes bg-slate-50/80 sobre bg-slate-50/80: se
+              fundía con el fondo y perdía la sensación de "tarjeta"). Pedido
+              explícito: iniciales/avatar, nombre completo y rol, siempre
+              visible al pie. Reutiliza el mismo modal "Mi cuenta" que ya abre
+              el menú de usuario de la barra superior, en vez de duplicar un
+              segundo menú desplegable con las mismas dos acciones. */}
+          <button
+            type="button"
+            onClick={() => setModalMiCuentaAbierto(true)}
+            title={colapsado ? `${nombreUsuario} · ${rolUsuario}` : undefined}
+            className={"flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
+          >
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: GRAD }}>{inicialUsuario}</div>
+            <div className={"min-w-0 flex-1 " + (colapsado ? "lg:hidden" : "")}>
+              <p className="truncate text-sm font-bold text-slate-800">{nombreUsuario}</p>
+              <p className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> {rolUsuario}
+              </p>
+            </div>
+          </button>
+
+          <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-slate-400 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span className={colapsado ? "lg:hidden" : ""}>Sistema en línea · v1.0</span>
           </div>
@@ -653,7 +674,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         )}
 
         {/* Barra superior */}
-        <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
+        <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200/60 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer">
               <Menu size={22} />
@@ -671,15 +692,20 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
 
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Paleta de comandos — Ctrl/Cmd+K abre desde cualquier lado, este
-                botón es solo para que se descubra con el mouse. */}
+                botón es solo para que se descubra con el mouse. Ícono + texto
+                (no solo el atajo) para que no se vea como una insignia
+                flotante sin contexto; el kbd va sin borde propio para no
+                anidar dos recuadros dentro del botón. */}
             <button
               type="button"
               onClick={() => setPaletaAbierta(true)}
-              className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 cursor-pointer md:flex"
+              className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 cursor-pointer md:flex"
               title="Ir a una sección (Ctrl+K)"
               aria-label="Abrir paleta de comandos"
             >
-              <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold">Ctrl K</kbd>
+              <Command size={15} />
+              <span className="text-sm font-medium">Comandos</span>
+              <kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">Ctrl K</kbd>
             </button>
 
             {/* Buscador global de pacientes — accesible desde cualquier
@@ -688,7 +714,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               <button
                 type="button"
                 onClick={() => setMostrarBusquedaGlobal((v) => !v)}
-                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer sm:w-64"
+                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-3.5 text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer sm:w-64"
                 title="Buscar paciente"
                 aria-label="Buscar paciente"
               >
@@ -697,7 +723,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               </button>
 
               {mostrarBusquedaGlobal && (
-                <div className="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:left-auto sm:right-0">
+                <div className="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl sm:left-auto sm:right-0">
                   <div className="border-b border-slate-100 p-3">
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -707,7 +733,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                         value={busquedaGlobal}
                         onChange={(e) => setBusquedaGlobal(e.target.value)}
                         placeholder="Paciente, cita de hoy o producto..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
                       />
                     </div>
                   </div>
@@ -778,7 +804,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               <button
                 type="button"
                 onClick={() => setNotifAbierta((v) => !v)}
-                className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+                className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200/60 bg-white text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
                 title="Notificaciones"
                 aria-label="Notificaciones"
               >
@@ -791,7 +817,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               </button>
 
               {notifAbierta && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl">
                   <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                     <p className="text-sm font-bold" style={{ color: INK }}>Notificaciones</p>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">{alertas.length}</span>
@@ -825,7 +851,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               <button
                 type="button"
                 onClick={() => setUserMenuAbierto((v) => !v)}
-                className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer"
+                className="flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer"
               >
                 <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: GRAD }}>{inicialUsuario}</div>
                 <div className="hidden text-left leading-tight sm:block">
@@ -836,7 +862,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               </button>
 
               {userMenuAbierto && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl">
                   <div className="flex items-center gap-3 border-b border-slate-100 p-4">
                     <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{inicialUsuario}</div>
                     <div className="min-w-0">
@@ -898,13 +924,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               igual que "no hay datos todavía", sin ninguna forma de saber que
               en realidad falló la carga. */}
           {erroresCarga.length > 0 && (
-            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200/60 bg-red-50 p-4">
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-red-800">No se pudo cargar: {erroresCarga.join(", ")}.</p>
                 <p className="text-xs text-red-600">Puede que la información que ves esté vieja o incompleta. Revisa tu conexión e intenta recargar la página.</p>
               </div>
-              <button type="button" onClick={() => window.location.reload()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer">
+              <button type="button" onClick={() => window.location.reload()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200/60 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer">
                 <RefreshCw size={13} /> Recargar
               </button>
               <button type="button" onClick={onCerrarErroresCarga} aria-label="Cerrar aviso" className="shrink-0 rounded-lg p-1.5 text-red-400 transition hover:bg-red-100 hover:text-red-600 cursor-pointer">
@@ -926,7 +952,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           onClick={() => setModalMiCuentaAbierto(false)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -945,7 +971,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              <div className="mb-5 space-y-2 rounded-xl border border-slate-200 p-4">
+              <div className="mb-5 space-y-2 rounded-xl border border-slate-200/60 p-4">
                 <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
                   Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
                 </label>
@@ -958,7 +984,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                     onChange={(e) => setCampoRegistroProfesional(e.target.value)}
                     onBlur={guardarRegistroProfesional}
                     placeholder="Ej. SENESCYT-1234567890"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
                   />
                   {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
                   {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}
@@ -1018,7 +1044,7 @@ function PaletaComandos({ opciones, onNavegar, onCerrar }) {
       onClick={onCerrar}
     >
       <div
-        className="flex max-h-[60vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        className="flex max-h-[60vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
         style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -1035,7 +1061,7 @@ function PaletaComandos({ opciones, onNavegar, onCerrar }) {
             placeholder="Ir a..."
             className="w-full text-sm text-slate-800 outline-none placeholder:text-slate-400"
           />
-          <kbd className="hidden shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 sm:block">Esc</kbd>
+          <kbd className="hidden shrink-0 rounded border border-slate-200/60 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 sm:block">Esc</kbd>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
           {filtradas.length === 0 ? (

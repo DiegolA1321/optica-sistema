@@ -21,7 +21,7 @@
 - **Transición Automática de Estados de Citas:**
   - Al abrir la ficha clínica desde una cita: actualizar estado automáticamente a `En Atención` (badge azul).
   - Al guardar la ficha médica: actualizar estado automáticamente a `Atendida` (badge verde).
-  - Tolerancia de inasistencia: Citas no iniciadas tras 15 minutos del horario agendado deben marcarse automáticamente como `No asistió` (badge rojo), permitiendo edición manual.
+  - Tolerancia de inasistencia: Citas no iniciadas tras 10 minutos del horario agendado deben marcarse automáticamente como `No asistió` (badge rojo), permitiendo edición manual.
 - **Prevención de Duplicados (Deduplicación):** Exigir validación por Cédula/DNI + Fecha de Nacimiento en el portal web antes de crear un nuevo paciente, enlazando la cita al registro existente si coincide la identificación.
 - **Priorización Visual del Inventario:** Ordenar las alertas de stock crítico considerando el límite mínimo por producto (`Existencias < Stock Mínimo`), permitiendo la edición/reabastecimiento en un solo clic desde el Dashboard.
 

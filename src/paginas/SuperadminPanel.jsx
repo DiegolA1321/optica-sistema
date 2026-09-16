@@ -2038,7 +2038,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <button
               type="button"
               onClick={() => irAOpticasConFiltro("Todas")}
-              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
+              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
             >
               <AlertTriangle size={13} className="shrink-0" />
               {opticasSinAdmin.length} óptica{opticasSinAdmin.length === 1 ? "" : "s"} sin administrador
@@ -2059,7 +2059,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               {totalActividadResumen} acción{totalActividadResumen === 1 ? "" : "es"} · clic en un punto para ver el detalle
             </p>
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
             {[{ key: "7d", label: "7 días" }, { key: "30d", label: "30 días" }, { key: "mes", label: "Este mes" }].map((r) => (
               <button
                 key={r.key}
@@ -2256,9 +2256,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       </div>
 
       {/* ─── Bandeja ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-inner">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-white p-1 shadow-inner">
             {MENSAJES_FILTROS.map((f) => (
               <button
                 key={f.key}
@@ -2429,7 +2429,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               placeholder="Nombre de la óptica, slug o administrador..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
             />
             {busqueda && (
               <button
@@ -2443,7 +2443,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               </button>
             )}
           </div>
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
             {tarjetas.map((t) => (
               <button
                 key={t.key}
@@ -2463,7 +2463,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-slate-200/60 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 <th className="w-[30%] px-5 py-3.5">Óptica</th>
                 <th className="w-[26%] px-5 py-3.5">Administrador</th>
                 <th className="w-[14%] px-5 py-3.5">Estado</th>
@@ -2575,7 +2575,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+        <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
           {FILTROS_ACTIVIDAD.map((f) => (
             <button
               key={f.key}
@@ -2639,7 +2639,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   type="button"
                   onClick={() => cargarAuditoria(false)}
                   disabled={auditoriaCargandoMas}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
+                  className="rounded-xl border border-slate-200/60 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
                 >
                   {auditoriaCargandoMas ? "Cargando…" : "Cargar más"}
                 </button>
@@ -2686,7 +2686,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <input
               type="text" value={busquedaLeads} onChange={(e) => setBusquedaLeads(e.target.value)}
               placeholder="Buscar por óptica, nombre, correo o teléfono..."
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+              className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -2732,7 +2732,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       onClick={() => contactarLeadWhatsApp(l)}
                       disabled={!l.telefono}
                       title={l.telefono ? "Escribir por WhatsApp" : "Este lead no dejó teléfono"}
-                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <MessageSquare size={13} /> WhatsApp
                     </button>
@@ -2740,12 +2740,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       type="button"
                       onClick={() => contactarLeadGmail(l)}
                       title="Escribir por Gmail"
-                      className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
+                      className="flex items-center gap-1.5 rounded-xl border border-blue-200/60 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
                     >
                       <Mail size={13} /> Gmail
                     </button>
                     {l.estado === "nuevo" && (
-                      <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "contactado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                      <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "contactado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                         <PhoneCall size={13} /> Marcar contactado
                       </button>
                     )}
@@ -2754,7 +2754,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         <button type="button" disabled={procesando} onClick={() => abrirCrearDesdeLead(l)} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}>
                           <Plus size={13} /> Crear cuenta
                         </button>
-                        <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "descartado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                        <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "descartado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                           <X size={13} /> Descartar
                         </button>
                       </>
@@ -2881,7 +2881,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   )
 
   return (
-    <div className="flex h-screen font-sans" style={{ backgroundColor: "#F5F7FA" }}>
+    <div className="flex h-screen bg-slate-50 font-sans">
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 
       {/* ─── TOAST FLOTANTE ─── */}
@@ -2906,37 +2906,33 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {/* ─── SIDEBAR ─── */}
       <aside
         className={
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-white/[0.07] transition-all duration-300 lg:static lg:translate-x-0 " +
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-slate-200/70 bg-slate-50/80 transition-all duration-300 lg:static lg:translate-x-0 " +
           (colapsado ? "lg:w-20 " : "lg:w-72 ") +
           (menuAbierto ? "translate-x-0" : "-translate-x-full")
         }
-        style={{ background: `linear-gradient(180deg, #16404D 0%, ${INK} 55%)` }}
       >
-        <svg aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
-          {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
-        </svg>
-        <div className="pointer-events-none absolute -left-24 top-1/4 h-56 w-56 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.12), transparent 70%)" }} />
+        <div className="pointer-events-none absolute -left-24 top-1/4 h-56 w-56 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(37,99,235,0.06), transparent 70%)" }} />
 
-        <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
-          <div className={"flex items-center justify-between border-b border-white/10 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+        <div className="sidebar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto">
+          <div className={"flex items-center justify-between border-b border-slate-200/70 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                 <ShieldCheck size={22} strokeWidth={2.2} />
               </div>
               <div className={"leading-tight " + (colapsado ? "lg:hidden" : "")}>
-                <p className="text-lg font-bold tracking-tight text-white">
-                  Diego <span style={{ color: "#22D3EE" }}>Óptica</span>
+                <p className="text-lg font-bold tracking-tight text-slate-900">
+                  Diego <span className="text-blue-600">Óptica</span>
                 </p>
-                <p className="text-[11px] font-medium tracking-wide text-white/55">SUPERADMIN</p>
+                <p className="text-[11px] font-medium tracking-wide text-slate-500">SUPERADMIN</p>
               </div>
             </div>
-            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer">
+            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden cursor-pointer">
               <X size={20} />
             </button>
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
+            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
             {NAV.map((opcion) => {
               const Icono = opcion.icono
               const activo = seccion === opcion.id
@@ -2947,10 +2943,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   onClick={() => { setSeccion(opcion.id); setMenuAbierto(false) }}
                   title={colapsado ? opcion.nombre : undefined}
                   aria-label={opcion.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/75 hover:bg-white/5 hover:text-white")}
-                  style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}
+                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white shadow-md shadow-blue-500/20" : "bg-transparent text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm")}
+                  style={activo ? { background: GRAD } : undefined}
                 >
-                  <Icono size={20} className={activo ? "text-white" : "text-white/75 group-hover:text-white"} />
+                  <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
                   {opcion.id === "mensajes" && consultasAbiertas > 0 ? (
                     <span className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10.5px] font-bold " + (activo ? "bg-white/25 text-white" : "bg-amber-400 text-amber-950") + (colapsado ? " lg:hidden" : "")}>
@@ -2965,18 +2961,42 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </nav>
         </div>
 
-        <div className={"relative z-10 border-t border-white/10 p-4 " + (colapsado ? "lg:px-2" : "")}>
+        <div className={"relative z-10 space-y-3 border-t border-slate-200/70 p-4 " + (colapsado ? "lg:px-2" : "")}>
           {!colapsado && (
-            <div className="mb-3 hidden rounded-xl bg-white/5 px-3.5 py-3 lg:block">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-white/65">
+            <div className="hidden rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm lg:block">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
                 <TrendingUp size={12} /> {opticas.length} óptica{opticas.length === 1 ? "" : "s"} · {superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
               </p>
             </div>
           )}
+
+          {/* Widget de perfil — tarjeta blanca nítida flotando sobre el fondo
+              slate del sidebar (antes bg-slate-50/80 sobre bg-slate-50/80: se
+              fundía con el fondo). Mismo criterio que Dashboard.jsx:
+              iniciales, nombre y rol siempre visibles al pie, abre el mismo
+              modal "Mi cuenta" que ya usa el menú de usuario de la barra
+              superior. */}
+          <button
+            type="button"
+            onClick={() => abrirMiCuenta()}
+            title={colapsado ? `${usuario?.nombre || "Superadmin"} · Superadministrador` : undefined}
+            className={"flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
+          >
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: GRAD }}>
+              {(usuario?.nombre || "S").charAt(0).toUpperCase()}
+            </div>
+            <div className={"min-w-0 flex-1 " + (colapsado ? "lg:hidden" : "")}>
+              <p className="truncate text-sm font-bold text-slate-800">{usuario?.nombre || "Superadmin"}</p>
+              <p className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> Superadministrador
+              </p>
+            </div>
+          </button>
+
           <button
             type="button"
             onClick={() => alSalir()}
-            className={"flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/75 transition-colors hover:bg-white/5 hover:text-white cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
+            className={"flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100/80 hover:text-slate-900 cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0" : "")}
           >
             <LogOut size={18} />
             <span className={colapsado ? "lg:hidden" : ""}>Salir</span>
@@ -2986,7 +3006,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
       {/* ─── CONTENIDO ─── */}
       <main className="flex flex-1 flex-col overflow-hidden">
-        <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
+        <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200/60 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer">
               <Menu size={22} />
@@ -3006,7 +3026,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <button
               type="button"
               onClick={() => setUserMenuAbierto((v) => !v)}
-              className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer"
+              className="flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer"
             >
               <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: GRAD }}>
                 {(usuario?.nombre || "S").charAt(0).toUpperCase()}
@@ -3019,7 +3039,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </button>
 
             {userMenuAbierto && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl">
                 <div className="flex items-center gap-3 border-b border-slate-100 p-4">
                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>
                     {(usuario?.nombre || "S").charAt(0).toUpperCase()}
@@ -3073,7 +3093,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         return createPortal(
           <div
             ref={menuAccionesRef}
-            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
+            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuPos.top, left: menuPos.left, animation: "modal-in 120ms ease-out" }}
           >
             {/* Acceso rápido a impersonación desde la lista — antes solo
@@ -3116,7 +3136,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => { setDetalle(null); setRenombrando(false); setAgregarAdminAbierto(false); setAdminAEliminar(null) }}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3154,7 +3174,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
 
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</p>
                   <span className={"mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold " + (detalle.activa ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
@@ -3166,7 +3186,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   type="button"
                   disabled={procesandoId === detalle.id}
                   onClick={() => setOpticaAConfirmar(detalle)}
-                  className={"rounded-xl px-4 py-2.5 text-sm font-semibold transition cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 " + (detalle.activa ? "border border-rose-200 text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-400/60" : "border border-emerald-200 text-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-400/60")}
+                  className={"rounded-xl px-4 py-2.5 text-sm font-semibold transition cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 " + (detalle.activa ? "border border-rose-200/60 text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-400/60" : "border border-emerald-200/60 text-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-400/60")}
                 >
                   {procesandoId === detalle.id ? "Actualizando…" : detalle.activa ? "Suspender" : "Reactivar"}
                 </button>
@@ -3189,11 +3209,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               </button>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
                   <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Users size={13} /> Asistentes</p>
                   <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{asistentesPorOptica.get(detalle.id) || 0}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
                   <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Stethoscope size={13} /> Pacientes</p>
                   <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{pacientesPorOptica.get(detalle.id) || 0}</p>
                 </div>
@@ -3208,14 +3228,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
 
                 {(adminsPorOptica.get(detalle.id) || []).length === 0 ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
+                  <div className="flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
                     <AlertTriangle size={16} /> Sin administrador vinculado.
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {(adminsPorOptica.get(detalle.id) || []).map((a) => (
                       adminAEliminar?.id === a.id ? (
-                        <div key={a.id} className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm">
+                        <div key={a.id} className="rounded-xl border border-rose-200/60 bg-rose-50 p-3 text-sm">
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-rose-700">¿Quitar a {a.nombre}?</span>
                             <div className="flex gap-2">
@@ -3231,7 +3251,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           )}
                         </div>
                       ) : (
-                        <div key={a.id} className="rounded-xl border border-slate-200 p-3">
+                        <div key={a.id} className="rounded-xl border border-slate-200/60 p-3">
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-slate-800">{a.nombre}</p>
@@ -3247,7 +3267,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                               defaultValue={a.fecha_nacimiento || ""}
                               onBlur={(e) => { if (e.target.value !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, e.target.value) }}
                               disabled={guardandoCumple === a.id}
-                              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white disabled:opacity-60"
+                              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white disabled:opacity-60"
                             />
                             {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
                           </div>
@@ -3267,31 +3287,31 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 )}
 
                 {agregarAdminAbierto && (
-                  <form onSubmit={guardarAdminExtra} className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                  <form onSubmit={guardarAdminExtra} className="mt-3 space-y-3 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
                     {errorAdminExtra && (
-                      <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                      <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                         <AlertCircle size={14} /> {errorAdminExtra}
                       </div>
                     )}
                     <input
                       type="text" placeholder="Nombre completo" value={camposAdminExtra.nombre} onChange={(e) => actualizarCampoAdminExtra("nombre", filtrarSoloLetras(e.target.value))}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                     />
                     <input
                       type="email" placeholder="Correo electrónico" value={camposAdminExtra.email} onChange={(e) => actualizarCampoAdminExtra("email", e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div className="relative">
                         <input
                           type={verClaveExtra ? "text" : "password"} placeholder="Contraseña" value={camposAdminExtra.clave} onChange={(e) => actualizarCampoAdminExtra("clave", e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 pr-8 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                         />
                         <button type="button" onClick={() => setVerClaveExtra((v) => !v)} aria-label={verClaveExtra ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{verClaveExtra ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                       </div>
                       <input
                         type={verClaveExtra ? "text" : "password"} placeholder="Confirmar" value={camposAdminExtra.confirmarClave} onChange={(e) => actualizarCampoAdminExtra("confirmarClave", e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                       />
                     </div>
                     <label className="flex items-start gap-2 text-xs text-slate-600">
@@ -3316,9 +3336,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               {/* ─── Suscripción ─── */}
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Suscripción</p>
-                <div className="space-y-3 rounded-xl border border-slate-200 p-3.5">
+                <div className="space-y-3 rounded-xl border border-slate-200/60 p-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+                    <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
                       {[
                         { key: "al_dia", label: "Al día", fg: "#059669" },
                         { key: "pendiente", label: "Pendiente", fg: "#B45309" },
@@ -3348,14 +3368,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <input
                         type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={guardarSuscripcion}
                         placeholder="0.00"
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                        className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
                       />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
                       <input
                         type="date" value={campoVencimiento} onChange={(e) => setCampoVencimiento(e.target.value)} onBlur={guardarSuscripcion}
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                        className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
                       />
                     </div>
                   </div>
@@ -3378,7 +3398,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 ) : (
                   <div className="space-y-2">
                     {facturasOptica.map((f) => (
-                      <div key={f.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 p-3">
+                      <div key={f.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/60 p-3">
                         <div className="min-w-0">
                           <p className="truncate font-mono text-xs font-semibold text-slate-700">{f.numero}</p>
                           <p className="text-xs text-slate-500">{f.periodo} · ${Number(f.monto).toFixed(2)}</p>
@@ -3408,7 +3428,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Slug</p>
-                <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3.5">
+                <div className="flex items-center justify-between rounded-xl border border-slate-200/60 p-3.5">
                   <span className="font-mono text-sm text-slate-700">{detalle.slug}</span>
                   <button type="button" onClick={() => copiarSlug(detalle.slug)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
                     {slugCopiado ? <Check size={14} /> : <Copy size={14} />}
@@ -3428,7 +3448,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
 
                 {mostrarActividadOptica && (
-                  <div className="rounded-xl border border-slate-200 p-3.5">
+                  <div className="rounded-xl border border-slate-200/60 p-3.5">
                     {(() => {
                       const usuariosEnLogsOptica = [...new Set(logsOptica.map((l) => l.usuario_nombre))]
                       const logsFiltradosOptica = filtroUsuarioLogOptica === "todos" ? logsOptica : logsOptica.filter((l) => l.usuario_nombre === filtroUsuarioLogOptica)
@@ -3438,7 +3458,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                             <select
                               value={filtroUsuarioLogOptica}
                               onChange={(e) => setFiltroUsuarioLogOptica(e.target.value)}
-                              className="mb-2.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                              className="mb-2.5 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
                             >
                               <option value="todos">Todos los usuarios</option>
                               {usuariosEnLogsOptica.map((n) => (<option key={n} value={n}>{n}</option>))}
@@ -3489,7 +3509,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Creada</p>
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 p-3.5 text-sm text-slate-700">
+                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 p-3.5 text-sm text-slate-700">
                   <Calendar size={14} className="text-slate-500" />
                   {formatearFecha(detalle.created_at)}
                 </div>
@@ -3510,7 +3530,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <div style={{ position: "fixed", left: "-9999px", top: 0 }}>
           <style>{estilosImpresion("printing-factura")}</style>
           <div id="factura-imprimible" className="w-[480px] bg-white p-8 text-sm text-slate-800">
-            <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
+            <div className="mb-6 flex items-center justify-between border-b border-slate-200/60 pb-4">
               <div>
                 <p className="text-lg font-bold" style={{ color: INK }}>Diego Óptica</p>
                 <p className="text-xs text-slate-500">Sistema multi-óptica</p>
@@ -3555,7 +3575,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !enviandoRespuesta && setMensajeAbierto(null)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3577,7 +3597,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
 
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-700 whitespace-pre-wrap">{mensajeAbierto.cuerpo}</div>
+              <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-sm text-slate-700 whitespace-pre-wrap">{mensajeAbierto.cuerpo}</div>
               <p className="flex items-center gap-1.5 text-xs text-slate-400"><Clock size={11} /> {formatearFechaHora(mensajeAbierto.created_at)}</p>
 
               {mensajeAbierto.tipo === "consulta" && (
@@ -3586,7 +3606,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <textarea
                     rows={4} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value)}
                     placeholder="Escribí tu respuesta para el administrador…"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   />
                   {mensajeAbierto.respondido_at && (
                     <p className="mt-1.5 text-xs text-slate-400">Última respuesta: {formatearFechaHora(mensajeAbierto.respondido_at)}</p>
@@ -3619,7 +3639,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !publicandoAviso && setModalAvisoAbierto(false)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3642,13 +3662,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <form onSubmit={publicarAviso} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorAviso && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} /> {errorAviso}
                   </div>
                 )}
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Destinatario</label>
-                  <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+                  <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
                     <button
                       type="button"
                       onClick={() => setAvisoDestino("todos")}
@@ -3670,7 +3690,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <select
                       value={avisoDestino}
                       onChange={(e) => setAvisoDestino(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="mt-2 w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     >
                       {opticas.map((o) => (
                         <option key={o.id} value={o.id}>{o.nombre}</option>
@@ -3683,7 +3703,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <input
                     type="text" value={avisoAsunto} onChange={(e) => setAvisoAsunto(e.target.value)}
                     placeholder="Ej. Mantenimiento programado"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   />
                 </div>
                 <div>
@@ -3691,12 +3711,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <textarea
                     rows={5} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
                     placeholder="Escribí el aviso…"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   />
                 </div>
               </div>
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setModalAvisoAbierto(false)} disabled={publicandoAviso} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                <button type="button" onClick={() => setModalAvisoAbierto(false)} disabled={publicandoAviso} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                   Cancelar
                 </button>
                 <button type="submit" disabled={publicandoAviso} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
@@ -3716,7 +3736,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={cerrarModal}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3738,7 +3758,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
                 {error && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} />
                     {error}
                   </div>
@@ -3752,7 +3772,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     </div>
                     <p className="text-sm font-bold text-slate-700">Datos de la óptica</p>
                   </div>
-                  <div className="space-y-4 rounded-xl border border-slate-200 p-4">
+                  <div className="space-y-4 rounded-xl border border-slate-200/60 p-4">
                     <div>
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre de la óptica</label>
                       <div className="relative">
@@ -3760,7 +3780,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         <input
                           type="text" value={campos.nombreOptica} onChange={(e) => actualizarCampo("nombreOptica", e.target.value)}
                           placeholder="Ej. Óptica Visión Clara"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                       </div>
                       {sugerenciaNombreOptica && (
@@ -3781,7 +3801,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           type="text" value={campos.slug}
                           onChange={(e) => actualizarCampo("slug", generarSlug(e.target.value))}
                           placeholder="Ej. 4f9a2c"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-16 font-mono text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 font-mono text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                         <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
                           {slugEstado === "verificando" && <Loader2 size={15} className="animate-spin text-slate-400" />}
@@ -3815,13 +3835,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <p className="text-xs text-slate-500">Se puede completar ahora o después, desde el detalle de la óptica.</p>
                     </div>
                   </div>
-                  <div className="space-y-4 rounded-xl border border-slate-200 p-4">
+                  <div className="space-y-4 rounded-xl border border-slate-200/60 p-4">
                     <div>
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">Eslogan</label>
                       <input
                         type="text" value={campos.eslogan} onChange={(e) => actualizarCampo("eslogan", e.target.value)}
                         placeholder="Ej. Ve el mundo con claridad."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -3830,11 +3850,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         <div className="flex items-center gap-2">
                           <input
                             type="color" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
-                            className="h-[42px] w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                            className="h-[42px] w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200/60 bg-slate-50 p-0.5"
                           />
                           <input
                             type="text" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                           />
                         </div>
                       </div>
@@ -3842,7 +3862,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         <label className="mb-1.5 block text-sm font-semibold text-slate-700">Logo</label>
                         <div className="flex items-center gap-2">
                           {campos.logoUrl && (
-                            <img src={campos.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
+                            <img src={campos.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-slate-200/60 object-contain bg-white" />
                           )}
                           <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogoCreacion ? "pointer-events-none opacity-60" : "")}>
                             <ImageIcon size={13} />
@@ -3858,7 +3878,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         <input
                           type="text" value={campos.logoUrl} onChange={(e) => actualizarCampo("logoUrl", e.target.value)}
                           placeholder="https://…"
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                         />
                       </div>
                     </div>
@@ -3877,7 +3897,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <p className="text-xs text-slate-500">Esta persona podrá iniciar sesión y gestionar la óptica.</p>
                     </div>
                   </div>
-                  <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                  <div className="space-y-4 rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
@@ -3886,7 +3906,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <input
                             type="text" value={campos.nombreAdmin} onChange={(e) => actualizarCampo("nombreAdmin", filtrarSoloLetras(e.target.value))}
                             placeholder="Ej. Ana Torres"
-                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                           />
                         </div>
                       </div>
@@ -3897,7 +3917,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <input
                             type="email" value={campos.emailAdmin} onChange={(e) => actualizarCampo("emailAdmin", e.target.value)}
                             placeholder="admin@vision-clara.com"
-                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                           />
                         </div>
                       </div>
@@ -3909,7 +3929,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <Cake className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                           <input
                             type="date" value={campos.fechaNacimientoAdmin} onChange={(e) => actualizarCampo("fechaNacimientoAdmin", e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                           />
                         </div>
                       </div>
@@ -3922,7 +3942,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <input
                             type={verClave ? "text" : "password"} value={campos.clave} onChange={(e) => actualizarCampo("clave", e.target.value)}
                             placeholder="Mínimo 6 caracteres"
-                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                           />
                           <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                             {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -3936,7 +3956,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <input
                             type={verClave ? "text" : "password"} value={campos.confirmarClave} onChange={(e) => actualizarCampo("confirmarClave", e.target.value)}
                             placeholder="Repetir contraseña"
-                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                           />
                         </div>
                       </div>
@@ -3953,7 +3973,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         </span>
                       </div>
                     )}
-                    <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-600">
+                    <label className="flex items-start gap-2 rounded-lg border border-slate-200/60 bg-white p-2.5 text-xs text-slate-600">
                       <input
                         type="checkbox"
                         checked={campos.esOptometra}
@@ -3967,7 +3987,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarModal} disabled={guardando} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                <button type="button" onClick={cerrarModal} disabled={guardando} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardando || slugEstado === "ocupado"} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -3987,7 +4007,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -4008,7 +4028,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <form onSubmit={guardarSuperadmin} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorSuperadmin && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} />
                     {errorSuperadmin}
                   </div>
@@ -4020,7 +4040,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <input
                       type="text" value={camposSuperadmin.nombre} onChange={(e) => actualizarCampoSuperadmin("nombre", filtrarSoloLetras(e.target.value))}
                       placeholder="Ej. María Fernanda Loor"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                 </div>
@@ -4031,7 +4051,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <input
                       type="email" value={camposSuperadmin.email} onChange={(e) => actualizarCampoSuperadmin("email", e.target.value)}
                       placeholder="correo@ejemplo.com"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                 </div>
@@ -4043,7 +4063,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <input
                         type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.clave} onChange={(e) => actualizarCampoSuperadmin("clave", e.target.value)}
                         placeholder="Mínimo 6 caracteres"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
                       <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} aria-label={verClaveSuperadmin ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                     </div>
@@ -4055,14 +4075,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <input
                         type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.confirmarClave} onChange={(e) => actualizarCampoSuperadmin("confirmarClave", e.target.value)}
                         placeholder="Repetir contraseña"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
                     </div>
                   </div>
                 </div>
               </div>
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setModalSuperadminAbierto(false)} disabled={guardandoSuperadmin} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                <button type="button" onClick={() => setModalSuperadminAbierto(false)} disabled={guardandoSuperadmin} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardandoSuperadmin} className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -4082,7 +4102,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !eliminandoSuperadmin && setSuperadminAEliminar(null)}
         >
           <div
-            className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -4095,7 +4115,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               )}
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
-              <button type="button" onClick={() => { setSuperadminAEliminar(null); setErrorEliminarSuperadmin("") }} disabled={eliminandoSuperadmin} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+              <button type="button" onClick={() => { setSuperadminAEliminar(null); setErrorEliminarSuperadmin("") }} disabled={eliminandoSuperadmin} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                 Cancelar
               </button>
               <button type="button" onClick={confirmarEliminarSuperadmin} disabled={eliminandoSuperadmin} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
@@ -4114,7 +4134,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !guardandoMiCuenta && !guardandoClaveNueva && setModalMiCuentaAbierto(false)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -4137,12 +4157,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               {/* ─── Información personal ─── */}
               <form onSubmit={guardarMiCuenta} className="space-y-3">
                 {errorMiCuenta && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} /> {errorMiCuenta}
                   </div>
                 )}
                 {avisoEmailPendiente && (
-                  <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2.5 text-xs font-medium text-blue-700">
+                  <div className="flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50 p-2.5 text-xs font-medium text-blue-700">
                     <Info size={14} className="shrink-0" /> Te enviamos un enlace a {camposMiCuenta.email} para confirmar el cambio de correo — hasta que lo confirmes, seguís entrando con el anterior.
                   </div>
                 )}
@@ -4152,7 +4172,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                       type="text" value={camposMiCuenta.nombre} onChange={(e) => setCamposMiCuenta((p) => ({ ...p, nombre: filtrarSoloLetras(e.target.value) }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                 </div>
@@ -4162,7 +4182,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                       type="email" value={camposMiCuenta.email} onChange={(e) => setCamposMiCuenta((p) => ({ ...p, email: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                   <p className="mt-1.5 text-xs text-slate-500">Es también tu usuario para iniciar sesión.</p>
@@ -4178,12 +4198,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <p className="mb-3 text-sm font-bold text-slate-700">Cambiar contraseña</p>
                 <form onSubmit={actualizarMiClave} className="space-y-3">
                   {errorClaveNueva && (
-                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                       <AlertCircle size={14} /> {errorClaveNueva}
                     </div>
                   )}
                   {claveActualizada && (
-                    <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
+                    <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
                       <CheckCircle2 size={14} /> Contraseña actualizada.
                     </div>
                   )}
@@ -4192,7 +4212,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
                         type={verClaveNueva ? "text" : "password"} placeholder="Nueva contraseña" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
                       <button type="button" onClick={() => setVerClaveNueva((v) => !v)} aria-label={verClaveNueva ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                         {verClaveNueva ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -4200,7 +4220,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     </div>
                     <input
                       type={verClaveNueva ? "text" : "password"} placeholder="Confirmar" value={confirmarClaveNueva} onChange={(e) => setConfirmarClaveNueva(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                   <div className="flex justify-end">
@@ -4239,7 +4259,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               )}
             </p>
             <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                 Cancelar
               </button>
               <button

@@ -37,7 +37,7 @@ export default function CampoCategoria({ valor, onChange, categorias, setCategor
         <button type="button" onClick={confirmar} className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>
           Crear
         </button>
-        <button type="button" onClick={() => setCreando(false)} className="shrink-0 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-500 cursor-pointer">
+        <button type="button" onClick={() => setCreando(false)} className="shrink-0 rounded-xl border border-slate-200/60 px-3 text-sm font-semibold text-slate-500 cursor-pointer">
           Cancelar
         </button>
       </div>
@@ -47,12 +47,12 @@ export default function CampoCategoria({ valor, onChange, categorias, setCategor
   return (
     <div className="flex gap-2">
       <select value={valor} onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
+        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
         {categorias.map((c) => (<option key={c} value={c}>{c}</option>))}
       </select>
       {setCategorias && (
         <button type="button" onClick={() => setCreando(true)} title="Nueva categoría" aria-label="Nueva categoría"
-          className="shrink-0 rounded-xl border border-slate-200 px-3 text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 cursor-pointer">
+          className="shrink-0 rounded-xl border border-slate-200/60 px-3 text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 cursor-pointer">
           <Plus size={16} />
         </button>
       )}

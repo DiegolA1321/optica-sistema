@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { MonitorX, ZoomIn } from "lucide-react"
+import { MonitorOff, ZoomIn } from "lucide-react"
 import { INK } from "@/lib/tema"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -42,7 +42,7 @@ const DPR_BASE = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 
 // (Network, Console) dispara una ráfaga de eventos "resize" mientras el
 // panel anima su tamaño; sin esto, el overlay parpadea a mitad de esa
 // animación aunque el tamaño final sea perfectamente usable.
-const DEBOUNCE_MS = 300
+const DEBOUNCE_MS = 200
 
 function medirVentana() {
   const width = window.innerWidth
@@ -72,11 +72,13 @@ function useDimensionesVentana() {
   return dims
 }
 
-// Envuelve el árbol completo de la app (ver App.jsx) sin desmontarlo nunca —
-// el bloqueo es un overlay a pantalla completa que aparece u desaparece
-// encima según el tamaño de ventana/zoom. Si alguien tenía un formulario a
-// medio llenar y el navegador hizo zoom sin querer, el trabajo sigue intacto
-// debajo al volver a un nivel soportado.
+// Envuelve el árbol completo de la app (ver App.jsx). A diferencia de un
+// overlay semitransparente, esto es un early return: si el zoom/viewport no
+// es soportado, el árbol de la app ni siquiera se renderiza — un lienzo
+// limpio y opaco lo reemplaza por completo, sin fondo del dashboard/login
+// filtrándose detrás. Costo consciente: un formulario a medio llenar se
+// desmonta si el bloqueo se dispara (mitigado por el debounce de 200ms para
+// que abrir DevTools o un resize transitorio no lo gatille).
 export default function ResolutionGuard({
   children,
   minWidth = ANCHO_MINIMO,
@@ -87,40 +89,32 @@ export default function ResolutionGuard({
   const { width, height, zoomLevel } = useDimensionesVentana()
   const bloqueado = zoomLevel < zoomMin || zoomLevel > zoomMax || width < minWidth || height < minHeight
 
+  if (!bloqueado) return children
+
   return (
-    <>
-      {children}
-      {bloqueado && (
+    <div role="alert" className="min-h-screen w-full select-none bg-slate-50 p-6 flex items-center justify-center">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-xl">
         <div
-          role="alert"
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md"
-          style={{ backgroundColor: "rgba(15,23,42,0.9)" }}
+          className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl text-white"
+          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.5)" }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl">
-            <div
-              className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl text-white"
-              style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.5)" }}
-            >
-              <MonitorX size={30} />
-            </div>
-            <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>
-              Nivel de Zoom No Soportado
-            </h1>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              El nivel de zoom actual ({zoomLevel}%) deforma la interfaz visual. Para continuar navegando, por favor
-              restablece el zoom.
-            </p>
-            <div className="mt-6 flex items-start gap-2.5 rounded-xl bg-blue-50 p-4 text-left">
-              <ZoomIn size={16} className="mt-0.5 shrink-0 text-blue-600" />
-              <p className="text-xs leading-relaxed text-blue-800">
-                <span className="font-semibold">Sugerencia:</span> Presiona{" "}
-                <span className="font-semibold">CTRL + 0</span> en tu teclado para restablecer el zoom al 100% de
-                forma inmediata.
-              </p>
-            </div>
-          </div>
+          <MonitorOff size={30} />
         </div>
-      )}
-    </>
+        <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>
+          Nivel de Zoom No Soportado
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+          Para garantizar una experiencia fluida y evitar deformaciones visuales, el sistema requiere un nivel de
+          zoom estándar. Zoom actual: {zoomLevel}%.
+        </p>
+        <div className="mt-6 flex items-start gap-2.5 rounded-xl bg-blue-50 p-4 text-left">
+          <ZoomIn size={16} className="mt-0.5 shrink-0 text-blue-600" />
+          <p className="text-xs leading-relaxed text-blue-800">
+            <span className="font-semibold">Sugerencia:</span> Presiona <span className="font-semibold">CTRL + 0</span>{" "}
+            en tu teclado para restablecer el zoom al 100%.
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }

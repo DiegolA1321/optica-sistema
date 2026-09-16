@@ -104,10 +104,10 @@ const colorAvatar = (nombre) => {
 // lentes" en ningún ojo (ver evaluarCorreccion en ConsultaMedica.jsx) — son
 // dos cosas distintas a propósito, no se funden en una sola categoría.
 const CORRECCION = {
-  "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200" },
-  "Sin evaluar": { label: "Sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200" },
-  "Sin evaluación": { label: "Sin evaluación", icon: Minus, clase: "bg-amber-50 text-amber-700 border-amber-200" },
+  "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200/60" },
+  "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200/60" },
+  "Sin evaluar": { label: "Sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
+  "Sin evaluación": { label: "Sin evaluación", icon: Minus, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
 }
 
 // Colores (hex) para las tarjetas-resumen de corrección
@@ -138,7 +138,7 @@ function MiniaturaAdjunto({ path }) {
   }, [path])
   if (!url) return <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-slate-100"><ImageIcon size={16} className="text-slate-300" /></div>
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="block h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200">
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200/60">
       <img src={url} alt="Adjunto clínico" className="h-full w-full object-cover" />
     </a>
   )
@@ -416,6 +416,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     else if (pacientes.some((p) => p.id !== idEditando && p.cedula === cedula)) errs.cedula = "Ya existe un paciente registrado con esa cédula."
     if (!esTelefonoValido(telefono)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos."
     if (!esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
+    // Igual que el formulario público (AgendarCitaPublica.jsx): la fecha de
+    // nacimiento no es un dato "extra" — es la fuente de la edad que se
+    // muestra en todo el expediente, así que recepción no puede omitirla
+    // como sí puede con el correo/teléfono (que tienen "Sin Correo"/"Sin
+    // Teléfono" como relleno válido).
+    if (!fechaNacimiento) errs.fechaNacimiento = "La fecha de nacimiento es obligatoria."
     return errs
   }
 
@@ -861,14 +867,14 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   return (
     <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
       {notificacion && (
-        <div role="status" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-900"}>
+        <div role="status" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-3.5 text-emerald-900"}>
           <CheckCircle className="shrink-0 text-emerald-500" size={18} />
           <p className="text-sm font-semibold">{notificacion}</p>
         </div>
       )}
 
       {bannerError && (
-        <div role="alert" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-900"}>
+        <div role="alert" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-900"}>
           <AlertCircle className="shrink-0 text-red-500" size={18} />
           <p className="text-sm font-semibold">{bannerError}</p>
         </div>
@@ -943,7 +949,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       </div>
 
       {/* ─── BARRA DE FILTROS ─── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
           <SlidersHorizontal size={14} />
           Filtros
@@ -960,11 +966,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 placeholder="Nombre, cédula, teléfono o correo del paciente..."
                 value={busquedaInput}
                 onChange={(e) => setBusquedaInput(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
               />
               {/* Pista del atajo de teclado — se oculta mientras se escribe para no estorbar. */}
               {!busquedaInput && (
-                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 sm:flex">
+                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-slate-200/60 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 sm:flex">
                   Ctrl K
                 </kbd>
               )}
@@ -982,7 +988,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               id="filtro-estado"
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-36"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-36"
             >
               <option value="Todos">Todos</option>
               <option value="Activo">Activo</option>
@@ -996,7 +1002,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               id="filtro-evolucion"
               value={filtroCorreccion}
               onChange={(e) => setFiltroCorreccion(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-40"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-40"
             >
               <option value="Todos">Todas</option>
               <option value="Bien corregido">Bien corregido</option>
@@ -1013,7 +1019,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               type="date"
               value={filtroFecha}
               onChange={(e) => setFiltroFecha(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-sm text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-44"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-44"
             />
           </div>
 
@@ -1021,7 +1027,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
             <button
               type="button"
               onClick={limpiarFiltros}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 cursor-pointer"
             >
               <X size={15} />
               Limpiar
@@ -1039,7 +1045,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               key={b.key}
               type="button"
               onClick={() => activarBadgeRapido(b.key)}
-              className={"rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 bg-blue-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
+              className={"rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 bg-blue-600 text-white shadow-sm" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
             >
               {b.label}
             </button>
@@ -1048,11 +1054,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       </div>
 
       {/* ─── TABLA ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200/60 bg-slate-50/70 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <th className="cursor-pointer select-none px-5 py-3.5" onClick={() => cambiarOrden("nombre")}>
                   <span className="flex items-center gap-1">Paciente <IconoOrden campo="nombre" /></span>
                 </th>
@@ -1270,7 +1276,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   onClick={() => setPagina(paginaActual - 1)}
                   disabled={paginaActual === 1}
                   aria-label="Página anterior"
-                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200/60 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                 >
                   <ChevronLeft size={14} /> Anterior
                 </button>
@@ -1282,7 +1288,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       onClick={() => setPagina(numero)}
                       aria-label={`Página ${numero}`}
                       aria-current={numero === paginaActual ? "page" : undefined}
-                      className={"min-w-[28px] rounded-lg px-2 py-1.5 font-semibold transition cursor-pointer " + (numero === paginaActual ? "bg-blue-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100")}
+                      className={"min-w-[28px] rounded-lg px-2 py-1.5 font-semibold transition cursor-pointer " + (numero === paginaActual ? "bg-blue-600 text-white shadow-sm" : "border border-slate-200/60 bg-white text-slate-600 hover:bg-slate-100")}
                     >
                       {numero}
                     </button>
@@ -1293,7 +1299,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   onClick={() => setPagina(paginaActual + 1)}
                   disabled={paginaActual === totalPaginas}
                   aria-label="Página siguiente"
-                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200/60 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                 >
                   Siguiente <ChevronRight size={14} />
                 </button>
@@ -1309,7 +1315,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       {/* ─── MODAL CREAR / EDITAR ─── */}
       {modalAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}>
@@ -1338,7 +1344,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 <input
                   id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego"
                   value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
-                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                 />
                 {erroresForm.nombre && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.nombre}</p>}
               </div>
@@ -1353,22 +1359,23 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <input
                       id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10}
                       value={cedula} onChange={(e) => setCedula(filtrarSoloNumeros(e.target.value, 10))}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.cedula ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.cedula ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.cedula && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.cedula}</p>}
                 </div>
 
                 <div>
-                  <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento</label>
+                  <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento *</label>
                   <div className="relative">
                     <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
-                      id="p-nacimiento" type="date"
+                      id="p-nacimiento" type="date" required
                       value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.fechaNacimiento ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                     />
                   </div>
+                  {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
                 </div>
               </div>
 
@@ -1380,7 +1387,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <input
                       id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10}
                       value={telefono} onChange={(e) => setTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.telefono ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.telefono ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.telefono && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.telefono}</p>}
@@ -1393,7 +1400,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <input
                       id="p-correo" type="email" placeholder="correo@ejemplo.com"
                       value={correo} onChange={(e) => setCorreo(e.target.value)}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.correo ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.correo ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.correo && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.correo}</p>}
@@ -1408,7 +1415,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <Heart className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                   <select
                     id="p-referido" value={referidoPor} onChange={(e) => setReferidoPor(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   >
                     <option value="">Nadie / llegó por su cuenta</option>
                     {pacientes.filter((p) => p.nombre !== nombre).map((p) => (
@@ -1421,7 +1428,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </div>
 
               <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4">
-                <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+                <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
                 <button
@@ -1441,7 +1448,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       {/* ─── PACIENTE CREADO: ofrecer abrir su ficha clínica ─── */}
       {pacienteRecienCreado && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPacienteRecienCreado(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
               <CheckCircle size={24} className="text-emerald-600" />
             </div>
@@ -1467,7 +1474,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               <button
                 type="button"
                 onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); abrirAgendar(p) }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
               >
                 <CalendarPlus size={15} /> Agendarle una cita para después
               </button>
@@ -1487,7 +1494,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         return createPortal(
           <div
             ref={menuAccionesRef}
-            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
+            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
           >
             <button
@@ -1547,13 +1554,13 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               const nConsultas = consultas.filter((c) => perteneceAPaciente(c, pacienteAEliminar)).length
               if (nCitas === 0 && nConsultas === 0) return null
               return (
-                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs font-medium text-amber-800">
+                <p className="mt-3 rounded-lg border border-amber-200/60 bg-amber-50 p-2.5 text-xs font-medium text-amber-800">
                   También se eliminarán {nCitas > 0 ? `${nCitas} cita${nCitas === 1 ? "" : "s"}` : ""}{nCitas > 0 && nConsultas > 0 ? " y " : ""}{nConsultas > 0 ? `${nConsultas} consulta${nConsultas === 1 ? "" : "s"} clínica${nConsultas === 1 ? "" : "s"}` : ""} asociadas a este paciente.
                 </p>
               )
             })()}
             <div className="mt-5 flex gap-3">
-              <button type="button" disabled={eliminandoPaciente} onClick={() => setPacienteAEliminar(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+              <button type="button" disabled={eliminandoPaciente} onClick={() => setPacienteAEliminar(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
                 Cancelar
               </button>
               <button type="button" disabled={eliminandoPaciente} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
@@ -1591,12 +1598,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </p>
 
               {/* Credenciales */}
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario</span>
                   <span className="font-mono text-sm font-bold text-slate-800">{cuentaPaciente.cedula || cuentaPaciente.correo}</span>
                 </div>
-                <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Clave temporal</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-base font-black" style={{ color: "#2563EB" }}>{claveGen}</span>
@@ -1607,7 +1614,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 </div>
               </div>
 
-              <button type="button" onClick={copiarCredenciales} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={copiarCredenciales} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                 {copiadoCred ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
                 {copiadoCred ? "¡Copiado!" : "Copiar usuario y clave"}
               </button>
@@ -1617,7 +1624,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </p>
 
               <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setCuentaPaciente(null)} disabled={guardandoCuenta} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="button" onClick={() => setCuentaPaciente(null)} disabled={guardandoCuenta} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                   Cancelar
                 </button>
                 <button type="button" onClick={guardarCuenta} disabled={guardandoCuenta} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
@@ -1636,7 +1643,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           {/* Barra superior de la vista — volver (breadcrumb) y cerrar (X) llevan
               al mismo lugar: la lista de pacientes. Se ofrecen los dos porque
               son gestos distintos con los que la gente ya está familiarizada. */}
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3 sm:px-8">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-white px-4 py-3 sm:px-8">
             <button type="button" onClick={() => setPacienteHistorial(null)} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
               <ArrowLeft size={18} /> Pacientes
             </button>
@@ -1649,7 +1656,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
             const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id)
             if (!solicitudEliminacion) return null
             return (
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 sm:px-8">
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-amber-200/60 bg-amber-50 px-4 py-3 sm:px-8">
                 <div className="flex items-start gap-2.5">
                   <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
                   <div>
@@ -1672,7 +1679,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
-              <div className="flex flex-col flex-wrap gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col flex-wrap gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
@@ -1713,14 +1720,14 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer sm:flex-none"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer sm:flex-none"
                   >
                     <CalendarPlus size={16} /> Agendar cita
                   </button>
                   <button
                     type="button"
                     onClick={() => abrirCuenta(pacienteHistorial)}
-                    className={"flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:flex-none " + (pacienteHistorial.tieneCuenta ? "border-slate-200 text-slate-700 hover:bg-slate-50" : "border-blue-200 text-blue-600 hover:bg-blue-50")}
+                    className={"flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:flex-none " + (pacienteHistorial.tieneCuenta ? "border-slate-200/60 text-slate-700 hover:bg-slate-50" : "border-blue-200/60 text-blue-600 hover:bg-blue-50")}
                   >
                     <KeyRound size={16} /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
                   </button>
@@ -1803,23 +1810,23 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
                       tener que entrar a ninguna pestaña ─── */}
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                    <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{consultasPaciente[0]?.fecha || "—"}</p>
                     </div>
-                    <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white")}>
+                    <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Próximo control</p>
                       <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
                         {proximoControl ? proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                       </p>
                       {inactivo && <p className="text-[11px] font-semibold text-red-600">Vencido hace {diasControl} día{diasControl === 1 ? "" : "s"}</p>}
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                    <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{totalComprasCount}</p>
                       <p className="text-[11px] text-slate-500">${totalComprasMonto.toFixed(2)} en total</p>
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                    <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Star size={12} /> Puntaje de fidelidad</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
                       <p className="text-[11px] text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
@@ -1830,14 +1837,14 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <button
                       type="button"
                       onClick={() => setTabHistorial("pagos")}
-                      className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
+                      className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-amber-200/60 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
                     >
                       <Wallet size={16} className="shrink-0 text-amber-600" />
                       <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
                       <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
                     </button>
                   )}
-                  <div className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
+                  <div className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200/60">
                     <button
                       type="button"
                       onClick={() => setTabHistorial("timeline")}
@@ -1915,7 +1922,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                          <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/60">
                             {facturasPaciente.map((f) => {
                               const anulada = f.estado === "anulada"
                               const saldoFactura = f.estado === "pendiente_pago" && f.cuotasTotales
@@ -1971,11 +1978,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                         <CreditCard size={12} /> Debe ${saldo.toFixed(2)}
                                       </span>
                                       {v.metodoPago === "cuotas" && v.cuotasTotales ? (
-                                        <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                                        <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200/60 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                                           Registrar cuota
                                         </button>
                                       ) : null}
-                                      <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
+                                      <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
                                         Marcar pagado
                                       </button>
                                     </div>
@@ -2009,7 +2016,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                 </div>
                               </div>
 
-                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <div className="rounded-2xl border border-slate-200/60 bg-white p-4">
                                 <div className="mb-3 flex flex-wrap items-center gap-3">
                                   <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
                                   {tendencia && (
@@ -2031,7 +2038,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           )
                         })()}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div className={"rounded-xl border p-4 " + (inactivo ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white")}>
+                          <div className={"rounded-xl border p-4 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
                             {proximoControl ? (
                               <>
@@ -2047,7 +2054,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             )}
                           </div>
 
-                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Activity size={13} /> Última visita</p>
                             <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>
                               {diasDesdeUltimaVisita(pacienteHistorial, consultas) === null ? "—" : `Hace ${diasDesdeUltimaVisita(pacienteHistorial, consultas)} día${diasDesdeUltimaVisita(pacienteHistorial, consultas) === 1 ? "" : "s"}`}
@@ -2055,13 +2062,13 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} registrada{totalConsultasFidelizacion === 1 ? "" : "s"} en total</p>
                           </div>
 
-                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Award size={13} /> Cliente frecuente</p>
                             <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{frecuente ? "Sí" : "Todavía no"}</p>
                             <p className="text-xs text-slate-500">{frecuente ? "3 o más consultas registradas" : `Le faltan ${Math.max(0, 3 - totalConsultasFidelizacion)} para calificar`}</p>
                           </div>
 
-                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Gift size={13} /> Referidos</p>
                             <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{referidosPorEste} paciente{referidosPorEste === 1 ? "" : "s"}</p>
                             <p className="text-xs text-slate-500">
@@ -2093,7 +2100,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           const IconoCorreccion = correccion.icon
                           const tendencia = TENDENCIA[c.evolucionCalculada]
                           return (
-                            <div key={c.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                            <div key={c.id} className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
                               <div className="mb-2.5 flex items-center justify-between">
                                 <span className="font-mono text-xs font-semibold text-slate-500">{c.fecha}</span>
                                 <span className={"inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " + correccion.clase}>
@@ -2139,7 +2146,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                 </div>
                               </div>
                               {(c.diagnostico || c.indicaciones || c.lenteRecomendado || c.imagenes?.length > 0) && (
-                                <div className="mt-2.5 space-y-1.5 border-t border-slate-200 pt-2.5 text-sm">
+                                <div className="mt-2.5 space-y-1.5 border-t border-slate-200/60 pt-2.5 text-sm">
                                   {c.diagnostico && (
                                     <p><span className="font-semibold text-slate-700">Diagnóstico:</span> <span className="text-slate-600">{c.diagnostico}</span></p>
                                   )}
@@ -2232,7 +2239,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       {/* ─── MODAL AGENDAR CITA (desde el perfil del paciente) ─── */}
       {agendarPara && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAgendarPara(null)}>
-          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -2251,7 +2258,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
             <form onSubmit={validarYPedirConfirmacionCita} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorAgendar && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertCircle size={16} /> {errorAgendar}
                   </div>
                 )}
@@ -2262,7 +2269,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     value={agendarMotivo}
                     onChange={(e) => setAgendarMotivo(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   >
                     <option value="" disabled>Seleccione el motivo del examen</option>
                     {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
@@ -2280,7 +2287,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setAgendarPara(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                <button type="button" onClick={() => setAgendarPara(null)} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
                 <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -2380,7 +2387,7 @@ function EventoCitaTimeline({ cita: c, esUltimo }) {
   const enAtencion = c.estado === "En Atención"
   const cancelada = c.estado === "Cancelada"
   const badge = (
-    <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : noAsistio ? "border border-red-200 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200 bg-blue-50 text-blue-700" : cancelada ? "border border-slate-200 bg-slate-100 text-slate-500" : "border border-amber-200 bg-amber-50 text-amber-700")}>
+    <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700" : noAsistio ? "border border-red-200/60 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200/60 bg-blue-50 text-blue-700" : cancelada ? "border border-slate-200/60 bg-slate-100 text-slate-500" : "border border-amber-200/60 bg-amber-50 text-amber-700")}>
       {c.estado || "Pendiente"}
     </span>
   )

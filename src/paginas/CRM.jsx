@@ -343,7 +343,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       </div>
 
       {/* ─── SALUDO AUTOMÁTICO DE CUMPLEAÑOS (configurable por el administrador) ─── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}>
             <Zap size={17} />
@@ -437,8 +437,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       )}
 
       {/* ─── AVISOS ─── */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+          <div className="flex items-center gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Megaphone size={18} /></span>
             <div>
               <h4 className="text-sm font-bold" style={{ color: INK }}>Avisos</h4>
@@ -447,7 +447,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           </div>
 
           <div className="space-y-3 p-4">
-            <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
+            <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
               <button
                 type="button"
                 onClick={() => setAvisoDestinoId("")}
@@ -469,7 +469,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               <select
                 value={avisoDestinoId}
                 onChange={(e) => setAvisoDestinoId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
               >
                 {pacientes.map((p) => (
                   <option key={p.id} value={p.id}>{p.nombre}</option>
@@ -481,7 +481,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               onChange={(e) => setNuevoAviso(e.target.value)}
               rows={2}
               placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, podés pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
-              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+              className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
             />
             <button
               type="button"
@@ -553,8 +553,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, vacioTexto }) {
   const top5 = lista.slice(0, 5)
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/70 p-4">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200/60 bg-slate-50/70 p-4">
         <div className="flex items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ background: bgIcono }}><Icono size={18} /></span>
           <div>
@@ -590,7 +590,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
         <p className="truncate text-[11px] text-slate-500">{p.estado}</p>
       </div>
       {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-        <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
+        <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
           <CheckCircle2 size={11} /> Enviado
         </span>
       ) : yaContactadoHoy ? (
@@ -602,7 +602,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
           onClick={() => onEnviar(p)}
           disabled={!p.telefono}
           title="Ya le escribiste hoy — clic para enviar de nuevo igual"
-          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           <CheckCircle2 size={11} /> Ya contactado hoy
         </button>
@@ -653,7 +653,7 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: bgIcono }}>
@@ -689,7 +689,7 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
                   <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
                   <td className="px-4 py-2.5 text-right">
                     {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-                      <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                      <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
                         <CheckCircle2 size={11} /> Enviado
                       </span>
                     ) : (
@@ -710,7 +710,7 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
         </div>
 
         <div className="border-t border-slate-100 p-4">
-          <button type="button" onClick={onCerrar} className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+          <button type="button" onClick={onCerrar} className="w-full rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
             Cerrar
           </button>
         </div>

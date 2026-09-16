@@ -57,7 +57,7 @@ const PALETA_MOTIVOS = [
   { badge: "bg-pink-50 text-pink-700 border-pink-100", punto: "#ec4899" },
   { badge: "bg-cyan-50 text-cyan-700 border-cyan-100", punto: "#06b6d4" },
 ]
-const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200", punto: "#94a3b8" }
+const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200/60", punto: "#94a3b8" }
 
 const motivoInfo = (motivo = "", catalogo = []) => {
   const idx = catalogo.indexOf(motivo)
@@ -698,7 +698,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
       {/* ─── ÉXITO ─── */}
       {mensajeExito && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
           <CheckCircle2 className="text-emerald-500" size={20} />
           <p className="text-sm font-semibold">{mensajeExito}</p>
         </div>
@@ -706,7 +706,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
       {/* ─── ERROR (cancelar / cambiar estado / reagendar) ─── */}
       {bannerError && (
-        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-4 text-red-900">
           <AlertTriangle className="text-red-500" size={20} />
           <p className="text-sm font-semibold">{bannerError}</p>
         </div>
@@ -714,7 +714,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
       {/* ─── BÚSQUEDA + TIPO DE CITA ─── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
           {[
             { key: "todos", label: "Todas" },
             { key: "primera", label: "Primera vez" },
@@ -738,7 +738,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre o código de cita..."
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </div>
       </div>
@@ -747,7 +747,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {cargaInicial && citas.length === 0 ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+            <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-200/60 bg-white p-5">
               <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
               <div className="flex-1 space-y-2">
                 <div className="h-3 w-1/4 animate-pulse rounded bg-slate-200/70" />
@@ -815,7 +815,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       return (
                         <div
                           key={cita.id}
-                          className={"relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md " + (resuelta ? "border-slate-100 opacity-80" : cita.estado === "En Atención" ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-200")}
+                          className={"relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md " + (resuelta ? "border-slate-100 opacity-80" : cita.estado === "En Atención" ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200/60 hover:border-blue-200/60")}
                         >
                           <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: info.punto }} aria-hidden="true" />
 
@@ -824,13 +824,13 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className={"rounded-md border px-2.5 py-1 text-xs font-semibold " + info.badge}>{cita.motivo}</span>
                                 {!cita.pacienteId && (
-                                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
+                                  <span className="rounded-md border border-amber-200/60 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
                                 )}
                                 {/* Antes solo un ícono junto al nombre para el origen "web"
                                     (fácil de pasar por alto, y nada se mostraba para
                                     "recepción") — badge explícito para ambos orígenes,
                                     mismo patrón ya usado en el perfil del paciente. */}
-                                <span className={"flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold " + (cita.origen === "paciente" ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-slate-200 bg-slate-100 text-slate-500")}>
+                                <span className={"flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold " + (cita.origen === "paciente" ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-slate-200/60 bg-slate-100 text-slate-500")}>
                                   {cita.origen === "paciente" ? <Globe size={11} /> : <Building2 size={11} />}
                                   Origen: {cita.origen === "paciente" ? "Web" : "Recepción"}
                                 </span>
@@ -903,7 +903,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <span>{cita.hora}</span>
                             </div>
                             {cita.estado === "Atendida" ? (
-                              <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+                              <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
                                 <CheckCircle2 size={12} /> Atendida
                               </span>
                             ) : cita.estado === "No Asistió" ? (
@@ -915,11 +915,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                 <X size={12} /> Cancelada por el paciente
                               </span>
                             ) : cita.estado === "En Atención" ? (
-                              <span className="flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                              <span className="flex items-center gap-1 rounded-full border border-blue-200/60 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
                                 <Activity size={12} /> En atención
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
+                              <span className="flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
                                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pendiente
                               </span>
                             )}
@@ -944,7 +944,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         return createPortal(
           <div
             ref={menuAccionesRef}
-            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 text-left shadow-xl"
+            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
           >
             {!cita.pacienteId && (
@@ -1009,7 +1009,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -1028,7 +1028,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             <form onSubmit={validarYPedirConfirmacion} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {error && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertTriangle size={16} />
                     {error}
                   </div>
@@ -1058,7 +1058,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           <input
                             type="text" placeholder="Nombre completo" value={npNombre}
                             onChange={(e) => setNpNombre(filtrarSoloLetras(e.target.value))}
-                            className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-2 " + (npErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                            className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-2 " + (npErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                           />
                           {npErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.nombre}</p>}
                         </div>
@@ -1069,7 +1069,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <input
                                 type="text" inputMode="numeric" maxLength={10} placeholder="Cédula" value={npCedula}
                                 onChange={(e) => setNpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus:ring-2 " + (npErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus:ring-2 " + (npErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                               />
                             </div>
                             {npErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.cedula}</p>}
@@ -1080,7 +1080,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <input
                                 type="text" inputMode="numeric" maxLength={10} placeholder="Teléfono" value={npTelefono}
                                 onChange={(e) => setNpTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                               />
                             </div>
                             {npErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.telefono}</p>}
@@ -1093,7 +1093,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <input
                                 type="email" placeholder="Correo (opcional)" value={npCorreo}
                                 onChange={(e) => setNpCorreo(e.target.value)}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                               />
                             </div>
                             {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
@@ -1103,7 +1103,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             <input
                               type="date" value={npFechaNacimiento}
                               onChange={(e) => setNpFechaNacimiento(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                              className="w-full rounded-lg border border-slate-200/60 bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                             />
                           </div>
                         </div>
@@ -1126,11 +1126,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             onFocus={() => setMostrarDropdown(true)}
                             onChange={(e) => { setBusquedaPaciente(e.target.value); setPacienteId(null); setMostrarDropdown(true) }}
                             placeholder="Escriba para buscar por nombre o cédula..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                           />
                         </div>
                         {mostrarDropdown && pacientesFiltrados.length > 0 && (
-                          <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                          <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
                             {pacientesFiltrados.map((p) => (
                               <li
                                 key={p.id}
@@ -1170,7 +1170,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     value={motivo}
                     onChange={(e) => setMotivo(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   >
                     <option value="" disabled>Seleccione el motivo del examen</option>
                     {motivosConsulta.map((m) => (
@@ -1196,7 +1196,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     setAtenderInmediato(true)
                     setErrorHorarioCustom("")
                   }}
-                  className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/30")}
+                  className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200/60 bg-white hover:border-blue-200/60 hover:bg-blue-50/30")}
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
                     <Zap size={16} />
@@ -1220,7 +1220,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     la grilla de horarios fijos (walk-in, o alguien a quien se
                     decide atender antes/después de su turno). El ing lo probó
                     en vivo preguntando "¿qué pasa si te atiendo a las 3:40?". */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
                   <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-700">
                     <input
                       type="checkbox"
@@ -1238,7 +1238,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           type="time"
                           value={horaCustom}
                           onChange={(e) => { setHoraCustom(e.target.value); setErrorHorarioCustom("") }}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                         />
                       </div>
                       <div>
@@ -1249,7 +1249,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           step={5}
                           value={duracionCustom}
                           onChange={(e) => { setDuracionCustom(e.target.value); setErrorHorarioCustom("") }}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
                         />
                       </div>
                       {errorHorarioCustom && (
@@ -1261,7 +1261,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarModal} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                <button type="button" onClick={cerrarModal} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
                 <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -1291,7 +1291,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── COMPLETAR REGISTRO DEL PACIENTE (Atender sobre una cita sin paciente vinculado) ─── */}
       {completarPara && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarCompletarRegistro}>
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -1313,7 +1313,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
                   <input
                     type="text" value={cpNombre} onChange={(e) => setCpNombre(filtrarSoloLetras(e.target.value))}
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                   />
                   {cpErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.nombre}</p>}
                 </div>
@@ -1325,7 +1325,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <input
                         type="text" inputMode="numeric" maxLength={10} value={cpCedula}
                         onChange={(e) => setCpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                       />
                     </div>
                     {cpErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.cedula}</p>}
@@ -1337,7 +1337,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <input
                         type="text" inputMode="numeric" maxLength={10} value={cpTelefono}
                         onChange={(e) => setCpTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                       />
                     </div>
                     {cpErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.telefono}</p>}
@@ -1350,7 +1350,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
                         type="email" value={cpCorreo} onChange={(e) => setCpCorreo(e.target.value)}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-50")}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
                       />
                     </div>
                     {cpErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.correo}</p>}
@@ -1361,7 +1361,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <Cake size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
                         type="date" value={cpFechaNacimiento} onChange={(e) => setCpFechaNacimiento(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                       />
                     </div>
                   </div>
@@ -1369,7 +1369,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarCompletarRegistro} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                <button type="button" onClick={cerrarCompletarRegistro} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
                 <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -1386,14 +1386,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── MODAL CANCELAR ─── */}
       {porCancelar != null && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPorCancelar(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
             </div>
             <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar esta cita?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Esta acción borra el registro de la agenda por completo y no se puede deshacer.</p>
             <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setPorCancelar(null)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={() => setPorCancelar(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                 Volver
               </button>
               <button type="button" onClick={confirmarCancelacion} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">
@@ -1408,7 +1408,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── MODAL REAGENDAR ─── */}
       {reagendando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarReagendar}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -1427,7 +1427,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             <form onSubmit={confirmarReagendar} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {errorReagendar && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
                     <AlertTriangle size={16} />
                     {errorReagendar}
                   </div>
@@ -1443,7 +1443,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     value={nuevoMotivo}
                     onChange={(e) => setNuevoMotivo(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                   >
                     <option value="" disabled>Seleccione el motivo del examen</option>
                     {motivosConsulta.map((m) => (
@@ -1463,7 +1463,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarReagendar} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                <button type="button" onClick={cerrarReagendar} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
                 <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
@@ -1480,7 +1480,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── CITA REAGENDADA: ofrecer avisar al paciente ─── */}
       {reagendada && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setReagendada(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
               <CheckCircle2 size={24} className="text-emerald-600" />
             </div>
@@ -1489,7 +1489,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               {reagendada.paciente} ahora tiene su cita el <span className="font-semibold text-slate-700">{etiquetaFecha(reagendada.fecha)} a las {reagendada.hora}</span>. Ya se actualizó en su portal — ¿quieres avisarle también por WhatsApp?
             </p>
             <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setReagendada(null)} className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+              <button type="button" onClick={() => setReagendada(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                 Ahora no
               </button>
               <button

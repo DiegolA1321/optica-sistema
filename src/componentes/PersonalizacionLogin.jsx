@@ -161,19 +161,19 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2.5 rounded-xl border border-slate-200 p-3.5">
+      <div className="space-y-2.5 rounded-xl border border-slate-200/60 p-3.5">
         <div>
           <label className="mb-1 block text-xs text-slate-500">Nombre de marca</label>
           <input
             type="text" value={campo.nombreMarca} onChange={(e) => setCampo((p) => ({ ...p, nombreMarca: e.target.value }))}            placeholder="Ej. Óptica Vision Plus"
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+            className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
           />
         </div>
         <div>
           <label className="mb-1 block text-xs text-slate-500">Eslogan</label>
           <input
             type="text" value={campo.eslogan} onChange={(e) => setCampo((p) => ({ ...p, eslogan: e.target.value }))}            placeholder="Ej. Ve el mundo con claridad."
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+            className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -181,10 +181,10 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
             <label className="mb-1 block text-xs text-slate-500">Color de acento</label>
             <div className="flex items-center gap-2">
               <input
-                type="color" value={campo.colorAcento} onChange={(e) => setCampo((p) => ({ ...p, colorAcento: e.target.value }))}                className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                type="color" value={campo.colorAcento} onChange={(e) => setCampo((p) => ({ ...p, colorAcento: e.target.value }))}                className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200/60 bg-slate-50 p-0.5"
               />
               <input
-                type="text" value={campo.colorAcento} onChange={(e) => setCampo((p) => ({ ...p, colorAcento: e.target.value }))}                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
+                type="text" value={campo.colorAcento} onChange={(e) => setCampo((p) => ({ ...p, colorAcento: e.target.value }))}                className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
             <label className="mb-1 block text-xs text-slate-500">Logo (fondo oscuro)</label>
             <div className="flex items-center gap-2">
               {campo.logoUrl && (
-                <img src={campo.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
+                <img src={campo.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200/60 object-contain bg-white" />
               )}
               <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogo ? "pointer-events-none opacity-60" : "")}>
                 <ImageIcon size={13} />
@@ -207,7 +207,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
             <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. Va en la barra superior, el pie de página y el login — todos con fondo oscuro. También puedes pegar una URL:</p>
             <input
               type="text" value={campo.logoUrl} onChange={(e) => setCampo((p) => ({ ...p, logoUrl: e.target.value }))}              placeholder="https://…"
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+              className="mt-1 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
             />
           </div>
         </div>
@@ -215,7 +215,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
           <label className="mb-1 block text-xs text-slate-500">Logo (fondo claro) <span className="normal-case text-slate-400">— opcional</span></label>
           <div className="flex items-center gap-2">
             {campo.logoUrlClaro && (
-              <img src={campo.logoUrlClaro} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-contain bg-white" />
+              <img src={campo.logoUrlClaro} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200/60 object-contain bg-white" />
             )}
             <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogoClaro ? "pointer-events-none opacity-60" : "")}>
               <ImageIcon size={13} />
@@ -229,7 +229,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
           <p className="mt-1 text-[10px] text-slate-400">Para la imagen grande del hero (fondo claro). Si no lo subís, se usa el logo de arriba ahí también. También podés pegar una URL:</p>
           <input
             type="text" value={campo.logoUrlClaro} onChange={(e) => setCampo((p) => ({ ...p, logoUrlClaro: e.target.value }))}            placeholder="https://…"
-            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+            className="mt-1 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -237,11 +237,11 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
             <label className="mb-1 block text-xs text-slate-500">Color secundario</label>
             <div className="flex items-center gap-2">
               <input
-                type="color" value={campo.colorSecundario || "#0E2B33"} onChange={(e) => setCampo((p) => ({ ...p, colorSecundario: e.target.value }))}                className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                type="color" value={campo.colorSecundario || "#0E2B33"} onChange={(e) => setCampo((p) => ({ ...p, colorSecundario: e.target.value }))}                className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200/60 bg-slate-50 p-0.5"
               />
               <input
                 type="text" value={campo.colorSecundario} onChange={(e) => setCampo((p) => ({ ...p, colorSecundario: e.target.value }))}                placeholder="Opcional"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
+                className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">Se mezcla con el color de acento en la barra superior del login.</p>
@@ -263,7 +263,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
           <label className="mb-1 block text-xs text-slate-500">Mensaje de bienvenida (hero)</label>
           <textarea
             rows={3} value={campo.mensaje} onChange={(e) => setCampo((p) => ({ ...p, mensaje: e.target.value }))}            placeholder="Ej. En Óptica Vision Plus cuidamos tu salud visual de principio a fin..."
-            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+            className="w-full resize-none rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
           />
         </div>
       </div>
@@ -274,11 +274,11 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
         </p>
         <div className="space-y-3">
           {campo.servicios.map((s, i) => (
-            <div key={i} className="space-y-2 rounded-xl border border-slate-200 p-3.5">
+            <div key={i} className="space-y-2 rounded-xl border border-slate-200/60 p-3.5">
               <p className="text-xs font-semibold text-slate-400">Tarjeta {i + 1}</p>
               <div className="flex items-center gap-2">
                 {s.imagenUrl && (
-                  <img src={s.imagenUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 object-cover bg-white" />
+                  <img src={s.imagenUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg border border-slate-200/60 object-cover bg-white" />
                 )}
                 <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoImagenServicio === i ? "pointer-events-none opacity-60" : "")}>
                   <ImageIcon size={13} />
@@ -295,13 +295,13 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
                 type="text" value={s.titulo}
                 onChange={(e) => setCampo((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, titulo: e.target.value } : sv) }))}
                                placeholder="Título (ej. Exámenes optométricos)"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
+                className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
               />
               <textarea
                 rows={2} value={s.texto}
                 onChange={(e) => setCampo((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, texto: e.target.value } : sv) }))}
                                placeholder="Descripción breve"
-                className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
+                className="w-full resize-none rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
               />
               <div className="space-y-1.5">
                 {s.features.map((f, k) => (
@@ -309,7 +309,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
                     key={k} type="text" value={f}
                     onChange={(e) => setCampo((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, features: sv.features.map((ft, l) => l === k ? e.target.value : ft) } : sv) }))}
                                        placeholder={`Punto destacado ${k + 1}`}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 focus:bg-white"
                   />
                 ))}
               </div>
@@ -318,7 +318,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur-sm">
+      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200/60 bg-white/95 px-1 py-3 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -334,7 +334,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
             type="button"
             onClick={cancelarCambios}
             disabled={guardando}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
+            className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
           >
             Cancelar cambios
           </button>

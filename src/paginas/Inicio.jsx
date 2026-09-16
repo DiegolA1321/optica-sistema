@@ -179,12 +179,14 @@ export default function Inicio({
   }, [pacientes])
 
   // Top bar de acción: un solo bloque uniforme por módulo (Pacientes, Citas,
-  // Inventario) que combina el atajo directo (crear/agendar/añadir, sin
-  // pasar por la lista completa) con el número que antes vivía aparte en una
-  // fila de KPIs — dos filas casi idénticas que hacían lo mismo con distinto
-  // verbo (una para "crear", otra para "ver la lista", y "ver la lista" ya
-  // lo cubre el menú lateral). Limpieza pedida por Diego: una sola fila,
-  // misma estructura visual para las tres tarjetas.
+  // Inventario). El título de cada tarjeta es "Gestionar X" — pedido
+  // explícito: el botón debe llevar al panel/directorio de ese módulo, no
+  // a un formulario de alta (antes el click de toda la tarjeta abría
+  // directamente "crear nuevo", lo cual no calzaba con lo que decía el
+  // título). El atajo de alta rápida sigue existiendo — pedido original del
+  // ing ("vamos a registrar un nuevo paciente... ingresa aquí
+  // directamente") — pero ahora vive en su propio botón (la línea de abajo
+  // con la flecha), separado del click principal de la tarjeta.
   const accionesRapidas = [
     {
       id: "pacientes",
@@ -195,7 +197,8 @@ export default function Inicio({
       tendencia: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : null,
       ctaLabel: "Registrar paciente",
       color: "slate",
-      onClick: () => (onCrearPacienteRapido ? onCrearPacienteRapido() : setVista?.("pacientes")),
+      onClick: () => setVista?.("pacientes"),
+      alCrearRapido: onCrearPacienteRapido,
     },
     {
       id: "citas",
@@ -205,7 +208,8 @@ export default function Inicio({
       desc: citasHoy.length === 1 ? "cita para hoy" : "citas para hoy",
       ctaLabel: "Agendar cita",
       color: "blue",
-      onClick: () => (onAgendarRapido ? onAgendarRapido() : setVista?.("citas")),
+      onClick: () => setVista?.("citas"),
+      alCrearRapido: onAgendarRapido,
     },
     {
       id: "inventario",
@@ -215,7 +219,8 @@ export default function Inicio({
       desc: productosBajoStock.length === 1 ? "alerta de stock bajo" : "alertas de stock bajo",
       ctaLabel: "Añadir producto",
       color: productosBajoStock.length > 0 ? "amber" : "slate",
-      onClick: () => (onCrearProductoRapido ? onCrearProductoRapido() : setVista?.("inventario")),
+      onClick: () => setVista?.("inventario"),
+      alCrearRapido: onCrearProductoRapido,
     },
   ]
 
@@ -223,8 +228,8 @@ export default function Inicio({
   // usaban los KPIs, ahora compartido por la única fila que queda.
   const kpi = {
     slate: { tile: "#F1F5F9", tileText: "#475569", hoverBorder: "hover:border-slate-300", valor: INK },
-    blue: { tile: GRAD, tileText: "#fff", hoverBorder: "hover:border-blue-200", valor: INK },
-    amber: { tile: "#FEF3C7", tileText: "#D97706", hoverBorder: "hover:border-amber-200", valor: INK },
+    blue: { tile: GRAD, tileText: "#fff", hoverBorder: "hover:border-blue-200/60", valor: INK },
+    amber: { tile: "#FEF3C7", tileText: "#D97706", hoverBorder: "hover:border-amber-200/60", valor: INK },
   }
 
   const hoyFecha = new Date().toLocaleDateString("es-ES", {
@@ -253,7 +258,7 @@ export default function Inicio({
       `}</style>
 
       {/* ─── HERO / BIENVENIDA (claro) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm sm:p-8">
         <svg aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 text-blue-600" viewBox="0 0 400 400" fill="none" stroke="currentColor" style={{ opacity: 0.05 }}>
           {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
         </svg>
@@ -274,7 +279,7 @@ export default function Inicio({
           </div>
 
           <div className="flex flex-col items-start gap-2.5 md:items-end">
-            <span className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold capitalize text-slate-600">
+            <span className="rounded-xl border border-slate-200/60 bg-slate-50 px-3.5 py-2 text-xs font-semibold capitalize text-slate-600">
               {hoyFecha}
             </span>
             {/* Antes era texto fijo, sin relación con opticas.activa — decía
@@ -287,7 +292,7 @@ export default function Inicio({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Módulo clínico activo</span>
               </span>
             ) : (
-              <span className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2">
+              <span className="flex items-center gap-2 rounded-xl border border-red-200/60 bg-red-50 px-3.5 py-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                 <span className="text-[11px] font-bold uppercase tracking-wider text-red-700">Óptica suspendida</span>
               </span>
@@ -296,23 +301,28 @@ export default function Inicio({
         </div>
       </div>
 
-      {/* ─── TOP BAR DE ACCIÓN — un solo bloque uniforme por módulo (antes
-          eran dos filas: atajos de "crear" arriba y KPIs de "ver el total"
-          abajo, casi duplicadas — "ver el total y entrar al módulo" ya lo
-          hace el menú lateral). Cada tarjeta combina el número (a simple
-          vista) con el atajo directo al formulario de "nuevo", sin pasar
-          por la lista completa (el ing probó esto en vivo: "vamos a
-          registrar un nuevo paciente... ingresa aquí directamente"). ─── */}
+      {/* ─── TOP BAR DE ACCIÓN — un solo bloque uniforme por módulo. El click
+          principal de la tarjeta ("Gestionar X") lleva al panel/directorio
+          de ese módulo — el título dice "gestionar", así que el click debe
+          gestionar (ver la lista), no abrir un formulario de alta a secas.
+          El atajo de alta rápida sigue existiendo (pedido original del ing:
+          "vamos a registrar un nuevo paciente... ingresa aquí
+          directamente"), pero ahora es su propio botón anidado (la línea
+          con la flecha) para no mezclar dos acciones distintas en un solo
+          click. ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {accionesRapidas.map((acc) => {
           const Icono = acc.icono
           const c = kpi[acc.color]
           return (
-            <button
+            <div
               key={acc.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={acc.onClick}
-              className={"group flex w-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); acc.onClick() } }}
+              title={acc.titulo}
+              className={"group flex w-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -329,10 +339,20 @@ export default function Inicio({
                   <Icono size={26} />
                 </div>
               </div>
-              <p className="mt-4 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
-                {acc.ctaLabel} <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
-              </p>
-            </button>
+              {acc.alCrearRapido ? (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); acc.alCrearRapido() }}
+                  className="mt-4 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 hover:underline cursor-pointer"
+                >
+                  {acc.ctaLabel} <ArrowRight size={13} />
+                </button>
+              ) : (
+                <p className="mt-4 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
+                  {acc.ctaLabel} <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+                </p>
+              )}
+            </div>
           )
         })}
       </div>
@@ -393,7 +413,7 @@ export default function Inicio({
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {inactivos.map(({ paciente, dias }) => (
-                  <span key={paciente.id} className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm">
+                  <span key={paciente.id} className="rounded-xl border border-red-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm">
                     {paciente.nombre} · hace {dias} días
                   </span>
                 ))}
@@ -409,7 +429,7 @@ export default function Inicio({
       {/* ─── CITAS DE HOY | INVENTARIO (mitad y mitad, mismo patrón de botón) ─── */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Citas de hoy */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
@@ -448,7 +468,7 @@ export default function Inicio({
                         cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>
                       )}
                     </div>
-                    <div className={"flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 font-mono text-xs font-bold " + (cita.colorAvatar || "bg-blue-50 text-blue-600")}>
+                    <div className={"flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/60 font-mono text-xs font-bold " + (cita.colorAvatar || "bg-blue-50 text-blue-600")}>
                       {cita.iniciales || (cita.paciente || cita.nombre || "P").substring(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -460,12 +480,12 @@ export default function Inicio({
                       sesión: Pendiente=ámbar (acá caía en gris por defecto,
                       cuarta repetición del mismo patrón encontrada en el sistema). */}
                   <span className={"rounded-full px-3 py-1 text-[11px] font-bold " + (
-                    cita.estado === "En Espera" ? "border border-amber-200 bg-amber-50 text-amber-700"
-                      : cita.estado === "En Atención" ? "border border-blue-200 bg-blue-50 text-blue-700"
-                      : cita.estado === "Atendida" ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : cita.estado === "No Asistió" ? "border border-red-200 bg-red-50 text-red-700"
-                      : cita.estado === "Cancelada" ? "border border-slate-200 bg-slate-50 text-slate-600"
-                      : "border border-amber-200 bg-amber-50 text-amber-700")}>
+                    cita.estado === "En Espera" ? "border border-amber-200/60 bg-amber-50 text-amber-700"
+                      : cita.estado === "En Atención" ? "border border-blue-200/60 bg-blue-50 text-blue-700"
+                      : cita.estado === "Atendida" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700"
+                      : cita.estado === "No Asistió" ? "border border-red-200/60 bg-red-50 text-red-700"
+                      : cita.estado === "Cancelada" ? "border border-slate-200/60 bg-slate-50 text-slate-600"
+                      : "border border-amber-200/60 bg-amber-50 text-amber-700")}>
                     {cita.estado || "Pendiente"}
                   </span>
                 </button>
@@ -478,7 +498,7 @@ export default function Inicio({
             toggle, siempre primero lo crítico (pedido explícito de Diego).
             Cada fila es un botón: un clic manda directo al modal de
             editar/sumar stock de ESE producto en Inventario.jsx. */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600">
@@ -537,7 +557,7 @@ export default function Inicio({
           Usuarios.jsx — responde "qué cambió", que el resto del panel no
           contestaba) ─── */}
       {esAdmin && actividadReciente.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
@@ -582,15 +602,15 @@ export default function Inicio({
 function InicioSkeleton() {
   return (
     <div className="w-full space-y-6 text-left">
-      <div className="h-36 animate-pulse rounded-3xl border border-slate-200 bg-slate-100/70 sm:h-32" />
+      <div className="h-36 animate-pulse rounded-3xl border border-slate-200/60 bg-slate-100/70 sm:h-32" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-slate-100/70" />
+          <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {[0, 1].map((i) => (
-          <div key={i} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div key={i} className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
             <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-200/70" />
             {Array.from({ length: 3 }).map((_, j) => (
               <div key={j} className="flex items-center gap-3.5 py-1.5">
