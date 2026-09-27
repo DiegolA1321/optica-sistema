@@ -1040,12 +1040,11 @@ function PaletaComandos({ opciones, onNavegar, onCerrar }) {
   return createPortal(
     <div
       className="fixed inset-0 z-[80] flex items-start justify-center p-4 pt-[12vh] backdrop-blur-sm"
-      style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
+      style={{ backgroundColor: "rgba(14,43,51,0.55)" }}
       onClick={onCerrar}
     >
       <div
         className="flex max-h-[60vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-        style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

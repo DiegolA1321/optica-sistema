@@ -383,7 +383,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <Glasses size={22} />
               </div>
               <div className={"leading-tight " + (colapsado ? "lg:hidden" : "")}>
-                <p className="text-lg font-bold tracking-tight text-white">Diego <span style={{ color: "#22D3EE" }}>Óptica</span></p>
+                <p className="text-lg font-bold tracking-tight text-white">{opticaPublica?.nombre || "Mi Óptica"}</p>
                 <p className="text-[11px] font-medium tracking-wide text-white/55">PORTAL DEL PACIENTE</p>
               </div>
             </div>
