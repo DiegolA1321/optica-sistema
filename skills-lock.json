@@ -61,6 +61,12 @@
       "skillPath": "skills/mobile-native/SKILL.md",
       "computedHash": "8d77850a34ec20f745aed3215aa0d587e90438599bb09dc72d9d09ce896a5765"
     },
+    "nielsen-heuristics-audit": {
+      "source": "mastepanoski/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nielsen-heuristics-audit/SKILL.md",
+      "computedHash": "f62b323d02e15647e74d182dd84964746ccbb193ab8c03f7f5225d8cd0d5b2e1"
+    },
     "pick-ui-library": {
       "source": "emilkowalski/skill",
       "sourceType": "github",
