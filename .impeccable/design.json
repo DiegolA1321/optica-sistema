@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T00:00:00.000Z",
+  "title": "Design System: Sistema Óptica",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "primary", "displayName": "Deep Navy Ink", "canonical": "#0E2B33", "tonalRamp": ["#050F13", "#0A1F26", "#0E2B33", "#163C46", "#1F4E5A", "#3A6C79", "#6C97A1", "#A9C6CC"] },
+      "porcelain": { "role": "primary", "displayName": "Warm Porcelain", "canonical": "#F7F5F0", "tonalRamp": ["#3D3A32", "#5C584C", "#837E6D", "#ACA694", "#D3CDBB", "#E6E1D4", "#F0EDE3", "#F7F5F0"] },
+      "gold": { "role": "secondary", "displayName": "Sparse Optical Gold", "canonical": "#C8A24E", "tonalRamp": ["#4A3A17", "#6B531F", "#8C6D28", "#AD8636", "#C8A24E", "#D6B672", "#E3CB99", "#F0E1C4"] },
+      "action-blue": { "role": "primary", "displayName": "Action Blue", "canonical": "#2563EB", "tonalRamp": ["#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#eff6ff"] },
+      "signature-cyan": { "role": "accent", "displayName": "Signature Cyan", "canonical": "#22D3EE", "tonalRamp": ["#164e63", "#0e7490", "#0891b2", "#06b6d4", "#22d3ee", "#67e8f9", "#a5f3fc", "#ecfeff"] },
+      "success-emerald": { "role": "success", "displayName": "Success Emerald", "canonical": "#059669", "tonalRamp": ["#064e3b", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#ecfdf5"] },
+      "danger-red": { "role": "destructive", "displayName": "Danger Red", "canonical": "#DC2626", "tonalRamp": ["#7f1d1d", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fecaca", "#fef2f2"] },
+      "warning-amber": { "role": "warning", "displayName": "Warning Amber", "canonical": "#F59E0B", "tonalRamp": ["#78350f", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fcd34d", "#fde68a", "#fffbeb"] },
+      "tag-purple": { "role": "tertiary", "displayName": "Motivo Tag Purple", "canonical": "#A855F7", "tonalRamp": ["#581c87", "#7e22ce", "#9333ea", "#a855f7", "#c084fc", "#d8b4fe", "#e9d5ff", "#faf5ff"] },
+      "tag-pink": { "role": "tertiary", "displayName": "Motivo Tag Pink", "canonical": "#EC4899", "tonalRamp": ["#831843", "#be185d", "#db2777", "#ec4899", "#f472b6", "#f9a8d4", "#fbcfe8", "#fdf2f8"] },
+      "neutral-ink-text": { "role": "neutral", "displayName": "Slate Text", "canonical": "#334155", "tonalRamp": ["#0f172a", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f8fafc"] },
+      "neutral-muted-text": { "role": "neutral", "displayName": "Slate Muted Text", "canonical": "#64748B", "tonalRamp": ["#0f172a", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f8fafc"] },
+      "neutral-surface": { "role": "neutral", "displayName": "Slate Surface", "canonical": "#F8FAFC", "tonalRamp": ["#0f172a", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f8fafc"] },
+      "neutral-border": { "role": "neutral", "displayName": "Hairline Slate Border", "canonical": "#E2E8F0", "tonalRamp": ["#0f172a", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f8fafc"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Persuade hero)", "purpose": "Marketing/booking hero headline only (Login.jsx, PaginaVenta.jsx) — italic, the one place italic serif is used." },
+      "title": { "displayName": "Title / KPI number", "purpose": "In-app page <h1> and standalone KPI/stat numbers — upright serif, same role does double duty for both." },
+      "body": { "displayName": "Body", "purpose": "Default UI text: tables, forms, card copy, descriptions." },
+      "label": { "displayName": "Label / Eyebrow", "purpose": "Uppercase section eyebrows, KPI captions, small status tags." }
+    },
+    "shadows": [
+      { "name": "resting-card", "value": "0 1px 2px 0 rgba(0,0,0,0.05)", "purpose": "Default state for any white card/panel (Tailwind shadow-sm)." },
+      { "name": "hover-lift", "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)", "purpose": "Clickable card tiles on hover, paired with a -2px translateY nudge (Tailwind shadow-lg)." },
+      { "name": "floating-surface", "value": "0 25px 50px -12px rgba(0,0,0,0.25)", "purpose": "Modals and open dropdown/menu panels (Tailwind shadow-2xl)." },
+      { "name": "gradient-glow-blue", "value": "0 16px 32px -12px rgba(37,99,235,0.6)", "purpose": "Primary marketing CTA glow, tinted to the GRAD gradient's blue end." },
+      { "name": "gradient-glow-cyan", "value": "0 10px 24px -8px rgba(34,211,238,0.6)", "purpose": "Brand/identity tile glow, tinted to the GRAD gradient's cyan end." }
+    ],
+    "motion": [
+      { "name": "overlay-in", "value": "opacity 0 -> 1", "purpose": "Modal/overlay backdrop entrance." },
+      { "name": "modal-in", "value": "opacity 0->1, translateY(8px)->0, scale(0.98)->1", "purpose": "Modal panel entrance, paired with overlay-in." },
+      { "name": "rise-in", "value": "opacity 0->1, translateY(10px)->0", "purpose": "Staggered entrance for hero copy and KPI cards (PaginaVenta, Inicio, Login, AgendarCitaPublica)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default in-app action button (save/confirm-adjacent primary actions).",
+      "html": "<button class=\"ds-btn-primary\">Guardar cambios</button>",
+      "css": ".ds-btn-primary { background: #2563EB; color: #FFFFFF; padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; border: none; cursor: pointer; transition: background 0.15s ease; } .ds-btn-primary:hover { background: #1D4ED8; } .ds-btn-primary:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action button (eliminar/cancelar).",
+      "html": "<button class=\"ds-btn-danger\">Eliminar</button>",
+      "css": ".ds-btn-danger { background: #DC2626; color: #FFFFFF; padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; border: none; cursor: pointer; transition: background 0.15s ease; } .ds-btn-danger:hover { background: #B91C1C; } .ds-btn-danger:focus-visible { outline: 2px solid #fca5a5; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge (success)",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Soft-pastel lifecycle status pill, e.g. \"Atendida\" / \"Confirmada\".",
+      "html": "<span class=\"ds-badge-success\"><span class=\"ds-badge-dot\"></span>Atendida</span>",
+      "css": ".ds-badge-success { display: inline-flex; align-items: center; gap: 6px; background: #ECFDF5; color: #047857; border: 1px solid rgba(167,243,208,0.6); border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 600; font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; } .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: #059669; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Standard white content card on the slate-50 app shell background.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-label\">Pacientes atendidos</p><p class=\"ds-card-value\">128</p></div>",
+      "css": ".ds-card { background: #FFFFFF; border: 1px solid rgba(226,232,240,0.6); border-radius: 24px; padding: 24px; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; } .ds-card-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748B; margin: 0 0 8px; } .ds-card-value { font-family: Newsreader, Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 24px; letter-spacing: -0.01em; color: #0E2B33; margin: 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filled text field with the system's background+border+ring focus treatment.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Buscar paciente...\" />",
+      "css": ".ds-input { width: 100%; background: #F8FAFC; border: 1px solid rgba(226,232,240,0.6); border-radius: 12px; padding: 10px 12px; font-size: 14px; color: #334155; font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; outline: none; transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; } .ds-input:focus { background: #FFFFFF; border-color: #3b82f6; box-shadow: 0 0 0 2px #eff6ff; } .ds-input.ds-input-error { border-color: #f87171; } .ds-input.ds-input-error:focus { border-color: #ef4444; box-shadow: 0 0 0 2px #fecaca; }"
+    },
+    {
+      "name": "Active Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Sidebar navigation item in its active state — the signature gradient fill, the one non-status use of GRAD.",
+      "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">Citas <span class=\"ds-nav-dot\"></span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; font-family: 'Public Sans', ui-sans-serif, system-ui, sans-serif; color: rgba(255,255,255,0.75); text-decoration: none; transition: background 0.15s ease, color 0.15s ease; } .ds-nav-item-active { background: linear-gradient(135deg, #22D3EE, #2563EB); color: #FFFFFF; } .ds-nav-dot { margin-left: auto; width: 6px; height: 6px; border-radius: 9999px; background: rgba(255,255,255,0.8); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clinic in Porcelain and Ink",
+    "overview": "Sistema Óptica reads as a clean, editorial clinical tool: warm porcelain and white surfaces, deep-navy ink for authority and text, a single restrained gold accent for the rare premium moment, and one saturated cyan→blue gradient reserved for identity marks (avatars, the active nav item, the brand tile). It is not a flat SaaS grey dashboard and not a clinical-sterile white box — the serif display face (Newsreader) on page titles, hero copy, and KPI numbers gives it an editorial, slightly upscale \"boutique óptica\" character over a otherwise plain, dense, utilitarian Public Sans UI.\n\nThe system is actually two coherent voices sharing one token set. Operate (everything behind login: the staff panel shell, every clinical/inventory/CRM page, the patient portal) is dense, flat-white-card, high-frequency-use software — spacing is tight, borders are hairline, and color is used almost exclusively as semantic signal (status badges), not decoration. Persuade (the public marketing/booking pages — Login.jsx's hero and PaginaVenta.jsx) loosens up: italic serif headlines, soft blurred radial-gradient orbs behind the hero, glowing gradient CTAs. Both pull from the same INK/PORCELAIN/GOLD/GRAD vocabulary; Persuade just turns the volume up on it.\n\nConfirmed rejection, stated directly in the code: a dark hero on any public-facing page. Login.jsx and PaginaVenta.jsx both comment that a dark tone \"contradice el mensaje de claridad\" — INK is chrome (headers, footers, the login modal band, selected calendar cells), never the surface a visitor lands on.",
+    "keyCharacteristics": [
+      "Warm porcelain/white surfaces with deep-navy ink for text and chrome, never the reverse on a public-facing hero.",
+      "Newsreader serif for anything that should feel like a headline or a hero number; Public Sans for everything functional.",
+      "Status is always communicated through a soft pastel badge (50-shade background, 700-shade text), never a bare color dot.",
+      "One signature gradient (cyan → blue) marks identity: avatars, the active sidebar item, the brand tile — not general decoration.",
+      "Gold is a single accent used sparingly (a small dot, one highlighted callout card) — never a fill, never a large surface."
+    ],
+    "rules": [
+      { "name": "The Light Hero Rule", "body": "Any surface a visitor lands on unauthenticated (Login.jsx hero, PaginaVenta.jsx) stays on Porcelain or white. Ink is for chrome (bars, bands, selected states) and text, never the primary background of a persuasive first screen.", "section": "colors" },
+      { "name": "The Soft Badge Rule", "body": "Every status, category, or state indicator pairs a {color}-50 background with {color}-700 text and a {color}-100/200 border at reduced opacity — never a solid-fill badge, never a bare color dot standing alone as the only signal.", "section": "colors" },
+      { "name": "The Sparse Gold Rule", "body": "Gold marks exactly one premium moment per screen at most — a dot, a border, a single highlighted card. It is never a background fill and never repeats more than once in the same view.", "section": "colors" },
+      { "name": "The Serif Authority Rule", "body": "Newsreader appears only on things that assert or headline: hero copy, page <h1>s, and standalone KPI numbers. Everything else stays in Public Sans.", "section": "typography" },
+      { "name": "The Two-Step Rule", "body": "There is no mid-elevation state. A surface is either a resting card (shadow-sm) or a floating one (shadow-2xl) — nothing fills the gap.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do apply INK/PORCELAIN/GOLD via the src/lib/tema.js constants (inline style, or the font-heading/ACCION_* helper exports it also carries) — this is the system's actual source of truth for brand color, not the Tailwind theme.",
+      "Do pair every status/state color with a text label, never a bare colored dot as the sole signal.",
+      "Do use rounded-full for lifecycle-state pills and avatars, rounded-md/rounded-lg for category tags and compact controls, rounded-xl/2xl/3xl for the card scale — pick from this existing scale rather than a new radius value.",
+      "Do keep public-facing hero surfaces on Porcelain/white; reserve Ink for chrome bars and in-app accents.",
+      "Do reuse the animate-pulse + shape-matched bg-slate-200/70 skeleton pattern for any new loading state."
+    ],
+    "donts": [
+      "Don't reach for @/components/ui/button or @/components/ui/dialog as a base for new UI — both are unused shadcn scaffolding; every real button and modal in the live system is hand-rolled Tailwind per-page.",
+      "Don't rely on the Tailwind theme's --color-primary/--color-background custom properties (in src/index.css) for brand color — they carry shadcn's generic default palette and are not wired to INK/PORCELAIN/GOLD anywhere in the live pages.",
+      "Don't put a dark (Ink) background on a page a first-time, unauthenticated visitor lands on — confirmed explicit rejection in both Login.jsx and PaginaVenta.jsx.",
+      "Don't use the signature cyan→blue gradient as generic decorative fill — it is reserved for identity/active-state marks (avatars, active nav, brand tile, marketing CTA glow).",
+      "Don't introduce a solid-fill badge or a mid-tone shadow between shadow-sm and shadow-2xl — both break the two established patterns documented above."
+    ]
+  }
+}
