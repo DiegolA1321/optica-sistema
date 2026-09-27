@@ -17,6 +17,18 @@
   - Muestra badges claros (`Registrado` / `No registrado`) para que el profesional distinga a primera vista el estado del expediente sin tener que abrir cada sección.
 - **Impresión Cautiva y Privacidad:** Ofrece selectores (checkboxes) para controlar si se imprimen datos sensibles (como valores dióptricos/graduación) o solo el diagnóstico cualitativo.
 
+### Enrutamiento de Skills de IA (Diseño/UX)
+El sistema tiene skills instaladas en `.agents/skills/` (symlinked en `.claude/skills/`). Invócalas según el tipo de tarea en vez de improvisar la revisión a mano:
+
+| Tipo de tarea | Skill a invocar |
+|---|---|
+| Diseño visual, layout, tipografía, color y componentes nuevos | `impeccable` — debe respetar `PRODUCT.md` y `DESIGN.md` del repo (aún no existen; créalos con `impeccable init`/`document` antes de diseñar en frío) |
+| Usabilidad, formularios, estados de carga, foco y navegación por teclado | `web-design-guidelines` (cubre en particular "Estados de Carga (Skeleton Loaders)" y "Formularios Flexibles y Adaptativos" de arriba) |
+| Animaciones, transiciones y micro-interacciones | `emil-design-eng`, y del mismo autor: `animate`, `animation-vocabulary`, `find-animation-opportunities`, `improve-animations`, `review-animations`. (`animate-expo` y `write-swift` son para Expo/Swift nativo — no aplican en este proyecto) |
+| Auditoría de UX o revisión final de pantallas nuevas | `nielsen-heuristics-audit` |
+
+Estas skills no reemplazan el criterio del equipo ni el resto de esta guía: úsalas como ejecutor/auditor de los lineamientos ya definidos arriba, no como reglas nuevas.
+
 ## 3. Automatización de Flujos de Negocio
 - **Transición Automática de Estados de Citas:**
   - Al abrir la ficha clínica desde una cita: actualizar estado automáticamente a `En Atención` (badge azul).
