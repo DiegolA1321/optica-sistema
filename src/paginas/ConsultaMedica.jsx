@@ -85,7 +85,7 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes" }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -419,6 +419,51 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [guardandoFicha, setGuardandoFicha] = useState(false)
   const [errorConfirmarFicha, setErrorConfirmarFicha] = useState("")
 
+  // ── Aviso de cambios sin guardar (Lote 1 del audit UX, punto 1b) ──
+  // "Dirty tracking" contra la lista de campos clínicos editables. Arranca
+  // en pausa (`detectarCambios`) al montar y tras cada resetForm(), porque
+  // el precargado inicial (receta/motivo de la cita) y la limpieza de
+  // campos al iniciar una consulta nueva también disparan estos mismos
+  // setters — sin la pausa, el aviso saltaría de entrada sin que el
+  // usuario haya tocado nada.
+  const [hayCambiosSinGuardar, setHayCambiosSinGuardar] = useState(false)
+  const detectarCambios = useRef(false)
+  const activarDeteccionCambios = () => {
+    detectarCambios.current = false
+    setTimeout(() => { detectarCambios.current = true }, 400)
+  }
+  useEffect(() => { activarDeteccionCambios() }, [])
+  useEffect(() => {
+    if (detectarCambios.current) setHayCambiosSinGuardar(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    motivo, detalleConsulta, usaLentes, antecedentes, alergias, antecedentesFamiliares,
+    retinoscopiaOd, retinoscopiaOi, odEsfera, odCilindro, odEje, odAgudezaSc, odAgudezaCc,
+    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
+    testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
+    biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
+    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, facturaLineas, archivosImagenes,
+  ])
+  // Cierre de pestaña/recarga — el aviso in-app (navegar a otra sección) lo
+  // maneja Dashboard.jsx vía onCambiosSinGuardarChange, no acá.
+  useEffect(() => {
+    const alCerrar = (e) => {
+      if (!hayCambiosSinGuardar) return
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", alCerrar)
+    return () => window.removeEventListener("beforeunload", alCerrar)
+  }, [hayCambiosSinGuardar])
+  // Reporta el estado a Dashboard.jsx, que es quien controla la navegación
+  // por sidebar/Ctrl+K/campanita (todas pasan por su función navegar(), no
+  // por onVolver/onCerrar de acá abajo) — navegar() ya limpia el flag del
+  // lado de Dashboard al confirmar la salida, así que no hace falta un
+  // efecto de desmontaje acá también.
+  useEffect(() => {
+    onCambiosSinGuardarChange?.(hayCambiosSinGuardar)
+  }, [hayCambiosSinGuardar, onCambiosSinGuardarChange])
+
   // Secciones opcionales colapsadas por defecto — lo obligatorio queda fijo y a
   // la vista, lo opcional se expande solo si se necesita (feedback del asesor).
   // "antecedentesPaciente" es la excepción: empieza ABIERTA (primer paciente,
@@ -556,6 +601,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }, [pacienteInicial])
 
   const resetForm = () => {
+    // Pausa la detección de cambios mientras se limpian los campos abajo —
+    // si no, el propio reset (todo pasa de lleno a vacío) se marcaría a sí
+    // mismo como "cambios sin guardar" del usuario.
+    detectarCambios.current = false
     // No reseteaba la fecha — tras guardar y pasar a "Nueva consulta" para
     // el siguiente paciente, la fecha se quedaba en lo que fuera que tuviera
     // el campo (la de la consulta anterior, o una que el optómetra haya
@@ -631,6 +680,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setSeccionesAbiertas({ antecedentesPaciente: true })
     setTieneHistorialAntecedentes(false)
     setMostrarHistorial(false)
+    setHayCambiosSinGuardar(false)
+    activarDeteccionCambios()
   }
 
   // Valida los 3 pasos y, si todo está bien, abre el paso de confirmación antes de guardar
@@ -834,6 +885,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setNotificacion(true)
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
+    setHayCambiosSinGuardar(false)
     setSubTab("diagnostico")
     if (debeOfrecerVenta) setMostrarConfirmarVenta(true)
   }

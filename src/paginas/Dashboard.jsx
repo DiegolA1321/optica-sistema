@@ -148,6 +148,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const guardada = localStorage.getItem('optica_seccion_activa')
     return opcionesVisibles.some((o) => o.id === guardada) ? guardada : "inicio"
   })
+  // Ref (no state): navegar() solo necesita leer el valor actual en el
+  // momento del click, no re-renderizar cuando cambia. Lo actualiza
+  // ConsultaMedica.jsx vía onCambiosSinGuardarChange cada vez que su propio
+  // dirty-tracking cambia (ver audit UX, Lote 1, punto 1b).
+  const fichaClinicaCambiosSinGuardar = useRef(false)
   const [accionPacienteInicio, setAccionPacienteInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
@@ -308,6 +313,15 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const mapa = { consulta: "consultas", consultas_opticas: "consultas" }
     const destino = mapa[vista] || vista
     if (destino !== seccionActiva) {
+      // Único chokepoint de toda navegación por sidebar/Ctrl+K/campanita
+      // (ver audit UX, Lote 1, punto 1b) — cubre salir de la ficha clínica
+      // con cambios sin guardar sin tener que interceptar cada botón que
+      // llama a navegar() por separado.
+      if (seccionActiva === "consultas" && fichaClinicaCambiosSinGuardar.current) {
+        const salir = window.confirm("Tienes cambios sin guardar en la ficha clínica. Si sales ahora, se van a perder. ¿Salir de todas formas?")
+        if (!salir) return
+        fichaClinicaCambiosSinGuardar.current = false
+      }
       const params = new URLSearchParams(window.location.search)
       params.set("seccion", destino)
       window.history.pushState({ seccion: destino }, "", `${window.location.pathname}?${params}`)
@@ -450,6 +464,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               navegar(fichaClinicaOrigen)
             }}
             origenNombre={fichaClinicaOrigen === "citas" ? "Citas médicas" : "Pacientes"}
+            onCambiosSinGuardarChange={(v) => { fichaClinicaCambiosSinGuardar.current = v }}
           />
         )
       case "inventario":
