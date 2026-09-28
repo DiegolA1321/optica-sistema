@@ -20,6 +20,13 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Salida del toast flotante de SuperadminPanel.jsx — antes entraba animado
+   y se desmontaba de golpe al vencer el timeout, sin ninguna transición de
+   salida (audit UX, Lote 2, punto 2c). Reverso exacto de rise-in. */
+@keyframes rise-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(10px); }
+}
 
 /* overlay-in/modal-in/rise-in se disparan vía style={{ animation: "..." }}
    inline en ~17 modales y varias tarjetas de KPI — un guard de

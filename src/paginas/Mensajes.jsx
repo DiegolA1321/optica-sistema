@@ -260,7 +260,18 @@ export default function Mensajes({ usuario }) {
           {!cargando && <span className="text-xs font-semibold text-slate-500">{mensajesFiltrados.length} {mensajesFiltrados.length === 1 ? "mensaje" : "mensajes"}</span>}
         </div>
         {cargando ? (
-          <p className="py-14 text-center text-sm text-slate-400">Cargando…</p>
+          <div className="divide-y divide-slate-100 p-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-start gap-3.5 py-3.5 first:pt-0 last:pb-0">
+                <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-3.5 w-1/3 animate-pulse rounded bg-slate-200/70" />
+                  <div className="h-3 w-full animate-pulse rounded bg-slate-200/60" />
+                  <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200/60" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : mensajesFiltrados.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-14 text-center">
             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><MessageSquare size={24} /></div>

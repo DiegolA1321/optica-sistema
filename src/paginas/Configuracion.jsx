@@ -4,6 +4,7 @@ import { useState } from "react"
 import { createPortal } from "react-dom"
 import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
+import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK } from "@/lib/tema"
@@ -62,6 +63,10 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   // scoped a esta óptica) porque cada uno vive en una tabla distinta.
   const [eliminandoIdx, setEliminandoIdx] = useState(null)
   const [errorEliminar, setErrorEliminar] = useState("")
+  // Confirmación antes de eliminar (audit UX, Lote 2, punto 2a) — el índice
+  // del ítem pendiente de confirmar, no el de `eliminandoIdx` (ese es el
+  // "ya confirmado, borrando ahora").
+  const [porEliminarIdx, setPorEliminarIdx] = useState(null)
 
   // setItems (setMotivosConsulta/setDiagnosticosRapidos/setCategoriasInventario
   // en App.jsx) ahora devuelve la promesa real del guardado en Supabase — antes
@@ -77,19 +82,29 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   }
   const eliminar = async (idx) => {
     setErrorEliminar("")
+    setEliminandoIdx(idx)
     if (verificarUso) {
-      setEliminandoIdx(idx)
       const enUso = await verificarUso(items[idx])
-      setEliminandoIdx(null)
       if (enUso) {
+        setEliminandoIdx(null)
         setErrorEliminar(`"${items[idx]}" ya está en uso — no se puede eliminar. Puedes renombrarlo en su lugar.`)
         return
       }
     }
     const eliminado = items[idx]
     const { error } = await setItems(items.filter((_, i) => i !== idx))
+    setEliminandoIdx(null)
     if (error) onError?.(`No se pudo eliminar "${eliminado}". Revisa tu conexión e intenta de nuevo.`)
     else onExito?.(`"${eliminado}" eliminado de ${titulo.toLowerCase()}.`)
+  }
+  const confirmarEliminar = async () => {
+    // Cierra recién después de que `eliminar` termina (no antes): mientras
+    // está en curso, el modal sigue abierto mostrando "Eliminando..."; si
+    // `verificarUso` encuentra que está en uso, el modal se cierra y ahí
+    // recién se ve el aviso de `errorEliminar` (queda tapado por el modal
+    // si se cierra antes).
+    await eliminar(porEliminarIdx)
+    setPorEliminarIdx(null)
   }
   const iniciarEdicion = (idx) => { setEditandoIdx(idx); setTextoEdit(items[idx]) }
   const guardarEdicion = async (idx) => {
@@ -130,7 +145,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
                 <button type="button" onClick={() => iniciarEdicion(idx)} title="Renombrar" aria-label={`Renombrar ${item}`} className="rounded p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                   <Pencil size={15} />
                 </button>
-                <button type="button" disabled={eliminandoIdx === idx} onClick={() => eliminar(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer disabled:opacity-50">
+                <button type="button" disabled={eliminandoIdx === idx} onClick={() => setPorEliminarIdx(idx)} title="Eliminar" aria-label={`Eliminar ${item}`} className="rounded p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 cursor-pointer disabled:opacity-50">
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -140,6 +155,15 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
             <div role="alert" className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200/60 bg-amber-50 p-2 text-xs font-medium text-amber-800">
               <AlertTriangle size={13} className="shrink-0" /> {errorEliminar}
             </div>
+          )}
+          {porEliminarIdx != null && (
+            <ConfirmarEliminarModal
+              titulo={`¿Eliminar "${items[porEliminarIdx]}"?`}
+              mensaje={`Se quita de ${titulo.toLowerCase()}. Esta acción no se puede deshacer.`}
+              eliminando={eliminandoIdx === porEliminarIdx}
+              onCancelar={() => setPorEliminarIdx(null)}
+              onConfirmar={confirmarEliminar}
+            />
           )}
 
           <div className="mt-2.5 flex gap-2">

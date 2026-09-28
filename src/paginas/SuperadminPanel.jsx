@@ -415,11 +415,24 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // ninguna confirmación de que el guardado real ocurrió. Uno solo, flotante
   // (no el banner inline que usa el resto del sistema), para el estándar
   // SaaS que pidió Diego para este panel específicamente.
-  const [toastGlobal, setToastGlobal] = useState(null) // { tipo: "exito" | "error", texto }
+  const [toastGlobal, setToastGlobal] = useState(null) // { tipo: "exito" | "error", texto, saliendo }
+  // Guarda el id del timeout activo — antes cada llamada agendaba uno nuevo
+  // sin limpiar el anterior, así que dos toasts en menos de 3s corrían una
+  // carrera: el primero podía cerrar el segundo antes de tiempo (audit UX,
+  // Lote 2, punto 2c).
+  const toastTimeoutRef = useRef(null)
   const mostrarToast = (tipo, texto) => {
-    setToastGlobal({ tipo, texto })
-    setTimeout(() => setToastGlobal(null), 3000)
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
+    setToastGlobal({ tipo, texto, saliendo: false })
+    toastTimeoutRef.current = setTimeout(() => {
+      // Entra animado (rise-in) pero antes se desmontaba de golpe al vencer
+      // el timeout — ahora primero pasa por "saliendo" (dispara rise-out) y
+      // recién después de esa animación se desmonta.
+      setToastGlobal((actual) => (actual ? { ...actual, saliendo: true } : actual))
+      toastTimeoutRef.current = setTimeout(() => setToastGlobal(null), 200)
+    }, 3000)
   }
+  useEffect(() => () => { if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current) }, [])
 
   // ─── Crear óptica ───
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -2891,7 +2904,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           className="fixed right-5 top-5 z-[100] flex items-center gap-2.5 rounded-2xl border bg-white px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.16)]"
           style={{
             borderColor: toastGlobal.tipo === "error" ? "#FECDD3" : "#A7F3D0",
-            animation: "rise-in 220ms cubic-bezier(0.16,1,0.3,1) both",
+            animation: toastGlobal.saliendo
+              ? "rise-out 180ms cubic-bezier(0.4,0,1,1) both"
+              : "rise-in 220ms cubic-bezier(0.16,1,0.3,1) both",
           }}
         >
           {toastGlobal.tipo === "error" ? (

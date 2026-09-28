@@ -878,7 +878,27 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
   const descartar = () => setBorrador({ ...SEMANA_PERSONAL_VACIA(), ...semanaGuardada })
 
   if (cargando) {
-    return <div className="rounded-2xl border border-slate-200/60 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">Cargando tu horario...</div>
+    // Mismo lenguaje visual que TablaSkeleton.jsx (animate-pulse +
+    // bg-slate-200/70), con la forma real de esta pantalla — dos tarjetas
+    // lado a lado, cada una con varias filas de día — en vez de su forma
+    // fija de tiles + tabla, que no aplica acá (audit UX, Lote 2, punto 2b).
+    return (
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {[0, 1].map((col) => (
+          <div key={col} className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+              <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-200/70" />
+              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200/70" />
+            </div>
+            <div className="space-y-2.5">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (

@@ -26,6 +26,7 @@ import {
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
 import { hoyISO } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
+import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 
@@ -199,6 +200,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   const [publicandoAviso, setPublicandoAviso] = useState(false)
   const [eliminandoAvisoId, setEliminandoAvisoId] = useState(null)
   const [copiadoAviso, setCopiadoAviso] = useState(null)
+  // Confirmación antes de eliminar (audit UX, Lote 2, punto 2a)
+  const [porEliminarAvisoId, setPorEliminarAvisoId] = useState(null)
 
   useEffect(() => {
     if (!supabase || !usuario?.opticaId) return
@@ -285,6 +288,10 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
     } finally {
       setEliminandoAvisoId(null)
     }
+  }
+  const confirmarEliminarAviso = async () => {
+    await eliminarAviso(porEliminarAvisoId)
+    setPorEliminarAvisoId(null)
   }
 
   // Envío por WhatsApp con prefijo internacional (Ecuador)
@@ -534,7 +541,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
                       <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" aria-label="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                         {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                       </button>
-                      <button type="button" onClick={() => eliminarAviso(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+                      <button type="button" onClick={() => setPorEliminarAvisoId(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
                         {eliminandoAvisoId === a.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                       </button>
                     </div>
@@ -544,6 +551,15 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
             )}
           </div>
         </div>
+      {porEliminarAvisoId != null && (
+        <ConfirmarEliminarModal
+          titulo="¿Eliminar este aviso?"
+          mensaje="Esta acción no se puede deshacer."
+          eliminando={eliminandoAvisoId === porEliminarAvisoId}
+          onCancelar={() => setPorEliminarAvisoId(null)}
+          onConfirmar={confirmarEliminarAviso}
+        />
+      )}
     </div>
   )
 }
