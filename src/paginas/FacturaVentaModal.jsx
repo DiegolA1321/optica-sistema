@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -249,16 +250,19 @@ export default function FacturaVentaModal({
     onCerrar?.()
   }
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModal = useModalAccesible(true, onCerrar)
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="factura-modal-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD_VENTA }}>
               <Receipt size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: INK }}>Nueva factura</h2>
+              <h2 id="factura-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>Nueva factura</h2>
               <p className="text-xs text-slate-500">Varios productos/servicios, un solo pago.</p>
             </div>
           </div>

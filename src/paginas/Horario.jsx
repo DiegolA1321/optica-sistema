@@ -29,6 +29,7 @@ import {
   haySolapamiento, finCitaMinutos,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -399,6 +400,10 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModalAvisoConflicto = useModalAccesible(!!avisoConflicto, () => setAvisoConflicto(null))
+  const refModalAusencia = useModalAccesible(modalAusenciaAbierto, () => setModalAusenciaAbierto(false))
+
   return (
     <div className="w-full space-y-6 text-left">
       {/* ─── HEADER ─── */}
@@ -741,12 +746,12 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       {/* ─── AVISO: EL CAMBIO DEJA CITAS YA AGENDADAS FUERA DE HORARIO ─── */}
       {avisoConflicto && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAvisoConflicto(null)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalAvisoConflicto} role="dialog" aria-modal="true" aria-labelledby="horario-modal-conflicto-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
                 <AlertTriangle size={22} />
               </div>
-              <h2 className="text-lg font-bold" style={{ color: INK }}>Hay citas fuera de este horario</h2>
+              <h2 id="horario-modal-conflicto-titulo" className="text-lg font-bold" style={{ color: INK }}>Hay citas fuera de este horario</h2>
               <p className="mt-1.5 text-sm text-slate-500">
                 {avisoConflicto.citas.length === 1
                   ? "Esta cita ya agendada quedaría fuera del horario si aplicas el cambio:"
@@ -783,9 +788,9 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       {/* ─── MODAL REGISTRAR AUSENCIA (Punto 07) ─── */}
       {modalAusenciaAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAusenciaAbierto(false)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalAusencia} role="dialog" aria-modal="true" aria-labelledby="horario-modal-ausencia-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="border-b border-slate-100 px-6 py-4">
-              <h2 className="text-lg font-bold" style={{ color: INK }}>No podré asistir</h2>
+              <h2 id="horario-modal-ausencia-titulo" className="text-lg font-bold" style={{ color: INK }}>No podré asistir</h2>
               <p className="mt-1 text-xs text-slate-500">Bloquea ese rango de horas en la agenda pública y en la interna.</p>
             </div>
             <form onSubmit={registrarAusencia} className="space-y-3.5 px-6 py-5">
@@ -1005,12 +1010,17 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
 
   const fechaLegible = new Date(fecha + "T00:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — siempre "abierto"
+  // mientras este componente está montado, ya que su caller lo monta y
+  // desmonta condicionalmente en vez de mantenerlo siempre presente.
+  const refModal = useModalAccesible(true, onCerrar)
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="horario-modal-excepcion-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-slate-100 px-6 py-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Excepción de horario</p>
-          <h2 className="text-lg font-bold capitalize" style={{ color: INK }}>{fechaLegible}</h2>
+          <h2 id="horario-modal-excepcion-titulo" className="text-lg font-bold capitalize" style={{ color: INK }}>{fechaLegible}</h2>
           <p className="mt-1 text-xs text-slate-500">
             Normalmente este día: <span className="font-semibold">{resumenHorario(horarioBase)}</span>.
           </p>

@@ -24,6 +24,7 @@ import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { resumenVentasProducto } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import VentaProductoModal from "./VentaProductoModal"
 import CampoCategoria from "../componentes/CampoCategoria"
@@ -323,6 +324,12 @@ export default function Inventario({
     setTimeout(() => setGuardadoExitoso(""), 3000)
   }
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModalAgregar = useModalAccesible(modalAbierto, cerrarModal)
+  const refModalEditar = useModalAccesible(!!editando, cerrarEditar)
+  const refModalEliminar = useModalAccesible(porEliminar != null, () => !eliminando && setPorEliminar(null))
+  const refModalReporte = useModalAccesible(!!(verReporte && reporteProducto), () => setVerReporte(null))
+
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
@@ -559,14 +566,14 @@ export default function Inventario({
       {/* ─── MODAL AGREGAR PRODUCTO ─── */}
       {modalAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalAgregar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-agregar-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <Plus size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
+                  <h2 id="inventario-modal-agregar-titulo" className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
                   <p className="text-xs text-slate-500">Agrega un producto nuevo a la bodega.</p>
                 </div>
               </div>
@@ -635,14 +642,14 @@ export default function Inventario({
       {/* ─── MODAL EDITAR PRODUCTO / AÑADIR STOCK (unificado) ─── */}
       {editando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarEditar}>
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalEditar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-editar-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <Pencil size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
+                  <h2 id="inventario-modal-editar-titulo" className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
                   <p className="text-xs text-slate-500">{edNombre || "Actualiza sus datos o suma stock."}</p>
                 </div>
               </div>
@@ -722,11 +729,11 @@ export default function Inventario({
       {/* ─── MODAL ELIMINAR ─── */}
       {porEliminar != null && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !eliminando && setPorEliminar(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalEliminar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-eliminar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
               <Trash2 size={22} />
             </div>
-            <h2 className="text-lg font-bold" style={{ color: INK }}>Eliminar producto</h2>
+            <h2 id="inventario-modal-eliminar-titulo" className="text-lg font-bold" style={{ color: INK }}>Eliminar producto</h2>
             <p className="mt-1.5 text-sm text-slate-500">¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer.</p>
             {errorEliminar && (
               <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
@@ -760,14 +767,14 @@ export default function Inventario({
       {/* ─── MODAL REPORTE POR PRODUCTO ─── */}
       {verReporte && reporteProducto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setVerReporte(null)}>
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalReporte} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-reporte-titulo" className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
                   <BarChart3 size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>Reporte de ventas</h2>
+                  <h2 id="inventario-modal-reporte-titulo" className="text-lg font-bold" style={{ color: INK }}>Reporte de ventas</h2>
                   <p className="text-xs text-slate-500">{verReporte.nombre}</p>
                 </div>
               </div>

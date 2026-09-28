@@ -36,6 +36,7 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { isoAFechaLocal, minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -347,6 +348,13 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setModalClave(false); setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave("")
     onCerrarSesion("Contraseña actualizada. Vuelve a iniciar sesión con tu nueva contraseña.")
   }
+
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModalEliminar = useModalAccesible(modalEliminarAbierto, () => !enviandoEliminar && setModalEliminarAbierto(false))
+  const refModalAgendar = useModalAccesible(modalAgendar, () => setModalAgendar(false))
+  const refModalReagendar = useModalAccesible(!!reagendando, () => !guardandoReagenda && setReagendando(null))
+  const refModalCancelar = useModalAccesible(!!cancelando, () => !guardandoCancelar && setCancelando(null))
+  const refModalClave = useModalAccesible(modalClave, () => setModalClave(false))
 
   const navegar = (id) => { setSeccion(id); setMenuAbierto(false) }
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
@@ -747,18 +755,18 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       {/* ─── MODAL SOLICITAR ELIMINACIÓN ─── */}
       {modalEliminarAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !enviandoEliminar && setModalEliminarAbierto(false)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalEliminar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-eliminar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             {solicitudEliminarEnviada ? (
               <>
                 <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 size={24} /></div>
-                <h3 className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>Solicitud enviada</h3>
+                <h3 id="portal-modal-eliminar-titulo" className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>Solicitud enviada</h3>
                 <p className="mt-2 text-center text-sm text-slate-500">{nombreOptica} revisará tu pedido y se pondrá en contacto contigo.</p>
                 <button type="button" onClick={() => setModalEliminarAbierto(false)} className="mt-5 w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200 cursor-pointer">Cerrar</button>
               </>
             ) : (
               <>
                 <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600"><ShieldAlert size={24} /></div>
-                <h3 className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar tu cuenta?</h3>
+                <h3 id="portal-modal-eliminar-titulo" className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar tu cuenta?</h3>
                 <p className="mt-2 text-center text-sm text-slate-500">Le avisamos a {nombreOptica} para que elimine tu cuenta y tus datos. Esto no borra nada al instante — la óptica te contactará.</p>
                 {errorPrivacidad && (
                   <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
@@ -786,12 +794,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       {/* ─── MODAL AGENDAR ─── */}
       {modalAgendar && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAgendar(false)}>
-          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalAgendar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-agendar-titulo" className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Stethoscope size={20} /></div>
                 <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h3>
+                  <h3 id="portal-modal-agendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h3>
                   <p className="text-xs text-slate-500">Elige el motivo y un horario disponible.</p>
                 </div>
               </div>
@@ -832,12 +840,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       {/* ─── MODAL REAGENDAR ─── */}
       {reagendando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !guardandoReagenda && setReagendando(null)}>
-          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalReagendar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-reagendar-titulo" className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><CalendarClock size={20} /></div>
                 <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Reagendar cita</h3>
+                  <h3 id="portal-modal-reagendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Reagendar cita</h3>
                   <p className="text-xs text-slate-500">Tenías: {etiquetaFecha(reagendando.fecha)} · {reagendando.hora}</p>
                 </div>
               </div>
@@ -874,12 +882,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       {/* ─── MODAL CANCELAR CITA ─── */}
       {cancelando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !guardandoCancelar && setCancelando(null)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalCancelar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-cancelar-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
                 <AlertCircle size={22} />
               </div>
-              <h2 className="text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h2>
+              <h2 id="portal-modal-cancelar-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h2>
               <p className="mt-1.5 text-sm text-slate-500">
                 {etiquetaFecha(cancelando.fecha)} · {cancelando.hora}. Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.
               </p>
@@ -915,12 +923,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       {/* ─── MODAL CAMBIAR CONTRASEÑA ─── */}
       {modalClave && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalClave(false)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalClave} role="dialog" aria-modal="true" aria-labelledby="portal-modal-clave-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><KeyRound size={20} /></div>
                 <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Cambiar contraseña</h3>
+                  <h3 id="portal-modal-clave-titulo" className="text-lg font-bold" style={{ color: INK }}>Cambiar contraseña</h3>
                   <p className="text-xs text-slate-500">Usa una que no hayas usado antes.</p>
                 </div>
               </div>

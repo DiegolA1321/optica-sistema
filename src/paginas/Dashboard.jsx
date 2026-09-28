@@ -51,6 +51,7 @@ const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 import { diasVencido } from "../utilidades/fidelizacion"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import { INK } from "@/lib/tema"
@@ -571,6 +572,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     }
   }
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModalMiCuenta = useModalAccesible(modalMiCuentaAbierto, () => setModalMiCuentaAbierto(false))
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
       {/* Backdrop móvil */}
@@ -967,6 +971,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           onClick={() => setModalMiCuentaAbierto(false)}
         >
           <div
+            ref={refModalMiCuenta}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-modal-micuenta-titulo"
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -977,7 +985,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                   <Settings size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
+                  <h4 id="dashboard-modal-micuenta-titulo" className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
                   <p className="text-xs text-slate-500">{nombreUsuario} · {rolUsuario}</p>
                 </div>
               </div>

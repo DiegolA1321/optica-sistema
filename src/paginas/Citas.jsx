@@ -41,6 +41,7 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { registrarLog } from "../utilidades/logs"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -658,6 +659,15 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     }
   }
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — un hook por
+  // modal, cada uno gateado por el mismo booleano/valor que ya controla su
+  // renderizado condicional más abajo.
+  const refModalAgendar = useModalAccesible(modalAbierto, cerrarModal)
+  const refModalCompletarRegistro = useModalAccesible(!!completarPara, cerrarCompletarRegistro)
+  const refModalCancelar = useModalAccesible(porCancelar != null, () => setPorCancelar(null))
+  const refModalReagendar = useModalAccesible(reagendando, cerrarReagendar)
+  const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
+
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
@@ -1009,14 +1019,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalAgendar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-agendar-titulo" className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Gestionar cita</h4>
+                  <h4 id="citas-modal-agendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Gestionar cita</h4>
                   <p className="text-xs text-slate-500">Busca al paciente o regístralo si acaba de llegar.</p>
                 </div>
               </div>
@@ -1291,14 +1301,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── COMPLETAR REGISTRO DEL PACIENTE (Atender sobre una cita sin paciente vinculado) ─── */}
       {completarPara && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarCompletarRegistro}>
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalCompletarRegistro} role="dialog" aria-modal="true" aria-labelledby="citas-modal-completar-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>{cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
+                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
                   <p className="text-xs text-slate-500">{cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}</p>
                 </div>
               </div>
@@ -1386,11 +1396,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── MODAL CANCELAR ─── */}
       {porCancelar != null && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPorCancelar(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalCancelar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-cancelar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
             </div>
-            <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar esta cita?</h4>
+            <h4 id="citas-modal-cancelar-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar esta cita?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Esta acción borra el registro de la agenda por completo y no se puede deshacer.</p>
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setPorCancelar(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
@@ -1408,14 +1418,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── MODAL REAGENDAR ─── */}
       {reagendando && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarReagendar}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalReagendar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-reagendar-titulo" className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <CalendarClock size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Editar cita</h4>
+                  <h4 id="citas-modal-reagendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Editar cita</h4>
                   <p className="text-xs text-slate-500">{reagendando.paciente}</p>
                 </div>
               </div>
@@ -1480,11 +1490,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── CITA REAGENDADA: ofrecer avisar al paciente ─── */}
       {reagendada && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setReagendada(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalReagendada} role="dialog" aria-modal="true" aria-labelledby="citas-modal-reagendada-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
               <CheckCircle2 size={24} className="text-emerald-600" />
             </div>
-            <h4 className="text-center text-lg font-bold" style={{ color: INK }}>Cita reagendada</h4>
+            <h4 id="citas-modal-reagendada-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>Cita reagendada</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">
               {reagendada.paciente} ahora tiene su cita el <span className="font-semibold text-slate-700">{etiquetaFecha(reagendada.fecha)} a las {reagendada.hora}</span>. Ya se actualizó en su portal — ¿quieres avisarle también por WhatsApp?
             </p>

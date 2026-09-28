@@ -26,6 +26,7 @@ import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esClaveSegura } from "../utilidades/validaciones"
 import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -274,6 +275,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     mostrarExito(`Usuario ${eliminado?.nombre || ""} eliminado correctamente.`)
   }
 
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModalCrearEditar = useModalAccesible(modalAbierto, cerrarModal)
+  const refModalEliminar = useModalAccesible(porEliminar != null, () => setPorEliminar(null))
+
   return (
     <div className="w-full space-y-6 text-left">
       {/* ─── HEADER ─── */}
@@ -449,14 +454,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       {/* ─── MODAL CREAR/EDITAR ─── */}
       {modalAbierto && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalCrearEditar} role="dialog" aria-modal="true" aria-labelledby="usuarios-modal-titulo" className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar usuario" : "Crear usuario"}</h4>
+                  <h4 id="usuarios-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{editandoId != null ? "Editar usuario" : "Crear usuario"}</h4>
                   <p className="text-xs text-slate-500">{editandoId != null ? "Actualiza su nombre, alias y permisos." : "Cuenta de acceso con permisos por módulo."}</p>
                 </div>
               </div>
@@ -601,11 +606,11 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       {/* ─── MODAL ELIMINAR ─── */}
       {porEliminar != null && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPorEliminar(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalEliminar} role="dialog" aria-modal="true" aria-labelledby="usuarios-modal-eliminar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
             </div>
-            <h4 className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar este perfil?</h4>
+            <h4 id="usuarios-modal-eliminar-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar este perfil?</h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">Ya no podrá iniciar sesión con estas credenciales. Esta acción no se puede deshacer.</p>
             {/* Punto 02 del Diagnóstico Maestro, extensión 2026-09-10: esto
                 ahora borra también la cuenta de Supabase Auth (vía la Edge

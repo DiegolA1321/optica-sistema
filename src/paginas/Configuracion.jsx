@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase } from "../lib/supabaseClient"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -206,6 +207,9 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
   // navegación una vez que el resto del sistema estuviera terminado, en vez
   // de un solo scroll interminable.
   const [tab, setTab] = useState("politicas")
+
+  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const refModalConfirmar = useModalAccesible(!!pendiente, () => setPendiente(null))
 
   return (
     <div className="w-full space-y-6 text-left">
@@ -435,11 +439,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       {/* ─── CONFIRMACIÓN ANTES DE GUARDAR ─── */}
       {pendiente && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPendiente(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+          <div ref={refModalConfirmar} role="dialog" aria-modal="true" aria-labelledby="configuracion-modal-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-blue-50 text-blue-600">
               <AlertTriangle size={22} />
             </div>
-            <h2 className="text-lg font-bold" style={{ color: INK }}>{pendiente.titulo}</h2>
+            <h2 id="configuracion-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{pendiente.titulo}</h2>
             <p className="mt-1.5 text-sm text-slate-500">{pendiente.mensaje}</p>
             <div className="mt-5 flex gap-3">
               <button type="button" onClick={() => setPendiente(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
