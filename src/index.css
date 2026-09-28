@@ -59,8 +59,32 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* modal-in/rise-in/rise-out combinan opacity con movimiento (translateY,
+     scale) — acá se redefinen (mismo nombre, dentro del media query) para
+     animar solo opacity, sin la parte de transform/scale. overlay-in ya es
+     opacity pura, no hace falta redefinirla (audit UX, Lote 2, punto 2d). */
+  @keyframes modal-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
+    /* Antes esto cortaba a 0.01ms incluso las animaciones ya redefinidas
+       arriba — un modal o un toast aparecía/desaparecía de golpe, sin
+       ningún feedback de que algo cambió. Ahora esas quedan como un fade
+       corto real. transition-duration se deja igual de corto a propósito:
+       cubre transiciones de transform puro (el knob de los toggles, el
+       levantamiento de una tarjeta al hover) donde "eliminar el
+       movimiento" es exactamente el resultado correcto, no una pérdida de
+       feedback — a diferencia de las animaciones con opacity de arriba. */
+    animation-duration: 150ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

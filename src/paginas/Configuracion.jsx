@@ -24,7 +24,7 @@ function Interruptor({ activo, onClick, etiqueta }) {
       className={"relative h-7 w-12 shrink-0 rounded-full transition-colors cursor-pointer " + (activo ? "" : "bg-slate-200")}
       style={activo ? { background: GRAD } : undefined}
     >
-      <span className={"absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all " + (activo ? "left-6" : "left-1")} />
+      <span className={"absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (activo ? "translate-x-5" : "translate-x-0")} />
     </button>
   )
 }

@@ -374,7 +374,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           className={"relative h-7 w-12 shrink-0 self-start rounded-full transition-colors cursor-pointer sm:self-auto " + (cumpleAuto ? "" : "bg-slate-200")}
           style={cumpleAuto ? { background: GRAD } : undefined}
         >
-          <span className={"absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all " + (cumpleAuto ? "left-6" : "left-1")} />
+          <span className={"absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (cumpleAuto ? "translate-x-5" : "translate-x-0")} />
         </button>
       </div>
 
