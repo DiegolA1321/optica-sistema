@@ -155,6 +155,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const [fechaNacimiento, setFechaNacimiento] = useState("")
   const [referidoPor, setReferidoPor] = useState("")
   const [erroresForm, setErroresForm] = useState({})
+  const [guardandoPaciente, setGuardandoPaciente] = useState(false)
 
   // Modales
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -333,6 +334,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const [agendarMotivo, setAgendarMotivo] = useState("")
   const [errorAgendar, setErrorAgendar] = useState("")
   const [confirmandoCita, setConfirmandoCita] = useState(false)
+  const [guardandoCita, setGuardandoCita] = useState(false)
 
   // Ofrecer abrir la ficha clínica justo después de crear un paciente nuevo —
   // evita el paso extra de ir a buscarlo de nuevo en Ficha clínica.
@@ -408,6 +410,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     setReferidoPor("")
     setIdEditando(null)
     setErroresForm({})
+    setGuardandoPaciente(false)
   }
 
   const validarFormularioPaciente = () => {
@@ -501,6 +504,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       ? pacientes.find((p) => p.id !== idEditando && (p.nombre || "").trim().toLowerCase() === referidoTexto.toLowerCase())?.id || null
       : null
 
+    setGuardandoPaciente(true)
     if (idEditando) {
       const cambios = {
         nombre,
@@ -514,10 +518,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       if (supabase && opticaId) {
         const { data: actualizados, error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null, referido_por_id: cambios.referidoPorId }).eq("id", idEditando).select()
         if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
+          setGuardandoPaciente(false)
           mostrarError(MENSAJE_SIN_PERMISO)
           return
         }
         if (errorUpdate) {
+          setGuardandoPaciente(false)
           mostrarError("No se pudo actualizar el expediente. Revisa tu conexión e intenta de nuevo.")
           return
         }
@@ -534,6 +540,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         nombre, cedula, telefono, correo, fechaNacimiento, referidoPor, referidoPorId: referidoPorIdResuelto,
       })
       if (errorInsert) {
+        setGuardandoPaciente(false)
         mostrarError("No se pudo registrar el paciente. Revisa tu conexión e intenta de nuevo.")
         return
       }
@@ -654,6 +661,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   }
 
   const confirmarAgendarCita = async () => {
+    setGuardandoCita(true)
     const partes = agendarPara.nombre.trim().split(" ").filter(Boolean)
     const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || "P").toUpperCase()
     const nuevaCita = {
@@ -684,6 +692,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         .select()
         .single()
       if (error) {
+        setGuardandoCita(false)
         mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo agendar la cita. Revisa tu conexión e intenta de nuevo.")
         return
       }
@@ -692,6 +701,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     if (nuevaCita.id == null) nuevaCita.id = Date.now()
     setCitas?.([...citas, nuevaCita])
     mostrarNotif(`Cita agendada para ${agendarPara.nombre}.`)
+    setGuardandoCita(false)
     setConfirmandoCita(false)
     setAgendarPara(null)
   }
@@ -1358,7 +1368,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <div className="relative">
                     <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
-                      id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10}
+                      id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10} autoComplete="off"
                       value={cedula} onChange={(e) => setCedula(filtrarSoloNumeros(e.target.value, 10))}
                       className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.cedula ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                     />
@@ -1434,10 +1444,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+                  disabled={guardandoPaciente}
+                  className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                   style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}
                 >
-                  {idEditando ? "Guardar cambios" : "Registrar paciente"}
+                  {guardandoPaciente ? "Guardando…" : idEditando ? "Guardar cambios" : "Registrar paciente"}
                 </button>
               </div>
             </form>
@@ -1805,6 +1816,10 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               // cada paciente que refirió, mostrado siempre con su desglose
               // al lado para que se entienda de un vistazo cómo se compone.
               const puntajeFidelidad = totalConsultasFidelizacion * 10 + referidosPorEste * 15
+              // Igual que el banner de deuda pendiente (abajo), que ya salta
+              // directo a su pestaña — si el control está vencido, la
+              // tarjeta debe saltar directo a agendar en vez de solo avisar.
+              const TarjetaControl = inactivo ? "button" : "div"
 
               return (
                 <>
@@ -1815,13 +1830,18 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{consultasPaciente[0]?.fecha || "—"}</p>
                     </div>
-                    <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
+                    <TarjetaControl
+                      type={inactivo ? "button" : undefined}
+                      onClick={inactivo ? () => abrirAgendar(pacienteHistorial) : undefined}
+                      title={inactivo ? "Agendar su próximo control" : undefined}
+                      className={"rounded-xl border p-3.5 text-left transition " + (inactivo ? "border-red-200/60 bg-red-50/60 hover:bg-red-100 cursor-pointer" : "border-slate-200/60 bg-white")}
+                    >
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Próximo control</p>
                       <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
                         {proximoControl ? proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                       </p>
-                      {inactivo && <p className="text-[11px] font-semibold text-red-600">Vencido hace {diasControl} día{diasControl === 1 ? "" : "s"}</p>}
-                    </div>
+                      {inactivo && <p className="text-[11px] font-semibold text-red-600">Vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} — toca para agendar</p>}
+                    </TarjetaControl>
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{totalComprasCount}</p>
@@ -2310,6 +2330,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           hora={agendarHora}
           onCancelar={() => setConfirmandoCita(false)}
           onConfirmar={confirmarAgendarCita}
+          guardando={guardandoCita}
         />
       )}
     </div>
