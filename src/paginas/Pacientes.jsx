@@ -1448,7 +1448,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 <button
                   type="submit"
                   disabled={guardandoPaciente}
-                  className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                   style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}
                 >
                   {guardandoPaciente ? "Guardando…" : idEditando ? "Guardar cambios" : "Registrar paciente"}
@@ -1642,7 +1642,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 <button type="button" onClick={() => setCuentaPaciente(null)} disabled={guardandoCuenta} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                   Cancelar
                 </button>
-                <button type="button" onClick={guardarCuenta} disabled={guardandoCuenta} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+                <button type="button" onClick={guardarCuenta} disabled={guardandoCuenta} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
                   {guardandoCuenta ? "Guardando…" : cuentaPaciente.tieneCuenta ? "Guardar nueva clave" : "Crear cuenta"}
                 </button>
               </div>
@@ -1732,6 +1732,24 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   </div>
                 </div>
                 <div className="flex flex-wrap shrink-0 gap-2.5 sm:flex-col sm:w-48">
+                  {/* Acción primaria primero — antes quedaba al final de la
+                      pila, después de hasta 3 botones secundarios (outline),
+                      obligando a escanear toda la columna para llegar a la
+                      única acción con relleno sólido. Único punto de entrada
+                      a la ficha clínica desde acá — ya no existe "Ficha
+                      clínica" como sección aparte del sidebar. Si el
+                      paciente ya tiene una cita de hoy sin atender, se
+                      vincula automáticamente — igual que entrar por
+                      "Atender" en Citas médicas — para que guardar la ficha
+                      también la marque "Atendida" sin un paso aparte. */}
+                  <button
+                    type="button"
+                    onClick={() => abrirFichaClinica(pacienteHistorial)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
+                    style={{ background: GRAD }}
+                  >
+                    <Stethoscope size={16} /> Ficha clínica
+                  </button>
                   <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
@@ -1762,20 +1780,6 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       <Receipt size={16} /> Facturar receta
                     </button>
                   )}
-                  {/* Único punto de entrada a la ficha clínica desde acá — ya no
-                      existe "Ficha clínica" como sección aparte del sidebar.
-                      Si el paciente ya tiene una cita de hoy sin atender, se
-                      vincula automáticamente — igual que entrar por
-                      "Atender" en Citas médicas — para que guardar la ficha
-                      también la marque "Atendida" sin un paso aparte. */}
-                  <button
-                    type="button"
-                    onClick={() => abrirFichaClinica(pacienteHistorial)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
-                    style={{ background: GRAD }}
-                  >
-                    <Stethoscope size={16} /> Ficha clínica
-                  </button>
                 </div>
               </div>
 
@@ -1971,7 +1975,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           </button>
                         </div>
                         {ventasPaciente.length === 0 && facturasPaciente.length === 0 ? (
-                          <div className="flex flex-col items-center gap-2 py-10 text-center">
+                          <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
                           </div>
@@ -2141,7 +2145,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                         </button>
                       </div>
                     ) : consultasPaciente.length === 0 ? (
-                      <div className="flex flex-col items-center gap-2 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2 py-12 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                         <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><AlertCircle size={24} /></div>
                         <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
                       </div>
@@ -2344,7 +2348,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 <button type="button" onClick={() => setAgendarPara(null)} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
                   Confirmar cita <ChevronRight size={16} />
                 </button>
               </div>
@@ -2393,7 +2397,7 @@ function TimelinePaciente({ citas = [], consultas = [], facturas = [], ventas = 
 
   if (eventos.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 py-12 text-center">
+      <div className="flex flex-col items-center gap-2 py-12 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
         <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={24} /></div>
         <p className="text-sm font-medium text-slate-500">Todavía no hay actividad registrada para este paciente.</p>
       </div>
@@ -2486,7 +2490,7 @@ function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
         {abierto ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {abierto ? "Ocultar refracción OD/OI" : "Ver refracción OD/OI"}
       </button>
       {abierto && (
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 font-mono text-xs">
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 font-mono text-xs" style={{ animation: "rise-in 200ms ease-out both" }}>
           <div>
             <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
             <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
