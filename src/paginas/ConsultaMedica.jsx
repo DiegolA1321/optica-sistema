@@ -568,6 +568,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     // formulario completo); sin historial, arranca abierto para completarlo.
     setTieneHistorialAntecedentes(hayHistorial)
     setSeccionesAbiertas((s) => ({ ...s, antecedentesPaciente: !hayHistorial }))
+    // ING7: si ya tiene historia clínica registrada, la ficha abre directo
+    // en Refracción (el resumen plegable de antecedentes queda arriba de
+    // los 3 pasos, ver más abajo) — un paciente nuevo sigue abriendo en
+    // Anamnesis para registrar sus antecedentes por primera vez. Se fija
+    // explícitamente en los dos casos (no solo cuando hay historial) por si
+    // se reselecciona un paciente distinto a mitad de sesión.
+    setSubTab(hayHistorial ? "refraccion" : "anamnesis")
     // La detección de cambios solo se pausaba al montar el componente o al
     // reiniciar el formulario — buscar y elegir un paciente casi siempre
     // toma más de los 400ms de esa pausa, así que la precarga de
@@ -907,6 +914,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         ? "Ese nombre no coincide con ningún paciente registrado. Selecciónalo de la lista."
         : "Selecciona un paciente registrado de la lista."
     } else if (paso === "refraccion") {
+      // Motivo se mudó a este paso (ING7: el examen se hace en función de
+      // él, va arriba de la refracción) — antes vivía en Anamnesis y nunca
+      // se validaba; ahora es obligatorio, sin bloquear los antecedentes
+      // fijos del paciente que sí quedaron fuera de la validación por paso.
+      if (!motivo.trim()) errs.motivo = "Escribe el motivo de la consulta."
       if (!esNumero(odEsfera)) errs.od_esfera = "Número requerido"
       if (!esNumero(odCilindro)) errs.od_cilindro = "Número requerido"
       if (!esNumero(odEje)) errs.od_eje = "Número requerido"
@@ -923,7 +935,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   const mensajeBanner = (paso) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
-    if (paso === "refraccion") return "Revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
+    if (paso === "refraccion") return "Escribe el motivo de la consulta y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico antes de guardar la receta."
     return "Hay campos por completar."
   }
@@ -1175,6 +1187,138 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 </div>
               </div>
             )}
+            {/* ─── Antecedentes del paciente (dato fijo de la persona, no
+                relacional a esta consulta) — visible en los 3 pasos, no
+                solo en Anamnesis, para que un paciente con historial que
+                abre directo en Refracción (ver seleccionarPacienteCombo,
+                pedido ING7) también tenga este resumen a la vista.
+                Colapsado cuando ya están registrados de una visita anterior
+                (pedido de Diego: no repetir este formulario completo en
+                cada visita; solo la primera vez, o si el optómetra quiere
+                revisarlo/editarlo, se despliega). Mismo patrón
+                alternarSeccion() que usa Refracción para retinoscopía/examen
+                físico/biomicroscopía. ─── */}
+            {pacienteId && (
+              <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} aria-expanded={!!seccionesAbiertas.antecedentesPaciente} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
+                    <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
+                      <span className="hidden items-center gap-1 text-[11px] font-normal normal-case text-slate-500 sm:flex">
+                        <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaPrecarga.split("-").reverse().join("/")}` : ""} · toca para ver o editar
+                      </span>
+                    )}
+                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
+                  </span>
+                </button>
+
+                {/* Línea base siempre visible al colapsar — antes, colapsado
+                    solo decía "ya registrados, toca para ver": el optómetra
+                    tenía que abrir el acordeón para enterarse de una alergia
+                    antes de recetar. Ahora el dato real queda a la vista sin
+                    clic, que es justo lo que se necesita revisar antes de
+                    empezar la consulta; el acordeón sigue existiendo para
+                    editar sin repetir el formulario completo cada visita. */}
+                {!seccionesAbiertas.antecedentesPaciente && (
+                  <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/60 bg-white p-3 text-xs leading-relaxed text-slate-700 sm:grid-cols-3">
+                    <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Alergias</span>{alergias || "Ninguna registrada"}</p>
+                    <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
+                    <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
+                  </div>
+                )}
+
+                {seccionesAbiertas.antecedentesPaciente && (
+                <>
+                <div className="flex flex-col gap-3 rounded-lg border border-slate-200/60 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    <Glasses size={16} className="text-slate-500" />
+                    ¿Utiliza o ha utilizado lentes?
+                    {precargado.usaLentes && <InsigniaHistorial fecha={fechaPrecarga} />}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setUsaLentes("si"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
+                      aria-pressed={usaLentes === "si"}
+                      className={
+                        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
+                        (usaLentes === "si"
+                          ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-100"
+                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
+                      }
+                    >
+                      <CheckCircle size={16} className={usaLentes === "si" ? "text-blue-600" : "text-slate-400"} />
+                      Sí
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setUsaLentes("no"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
+                      aria-pressed={usaLentes === "no"}
+                      className={
+                        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
+                        (usaLentes === "no"
+                          ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-red-100"
+                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
+                      }
+                    >
+                      <XCircle size={16} className={usaLentes === "no" ? "text-red-500" : "text-slate-400"} />
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="antecedentes" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
+                    Antecedentes médicos / oculares
+                    {precargado.antecedentes && <InsigniaHistorial fecha={fechaPrecarga} />}
+                  </label>
+                  <textarea
+                    id="antecedentes"
+                    rows={3}
+                    placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años."
+                    value={antecedentes}
+                    onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }}
+                    className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="alergias" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
+                      Alergias
+                      {precargado.alergias && <InsigniaHistorial fecha={fechaPrecarga} />}
+                    </label>
+                    <input
+                      id="alergias"
+                      type="text"
+                      placeholder="Ej. Alergia a fluoresceína, ninguna conocida..."
+                      value={alergias}
+                      onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="antFamiliares" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
+                      Antecedentes familiares oculares
+                      {precargado.antecedentesFamiliares && <InsigniaHistorial fecha={fechaPrecarga} />}
+                    </label>
+                    <input
+                      id="antFamiliares"
+                      type="text"
+                      placeholder="Ej. Glaucoma en línea materna, sin antecedentes..."
+                      value={antecedentesFamiliares}
+                      onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                    />
+                  </div>
+                </div>
+                </>
+                )}
+              </div>
+            )}
+
             {/* PASO 1: ANAMNESIS */}
             {subTab === "anamnesis" && (
               <div className="space-y-5">
@@ -1261,148 +1405,38 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     <TarjetaVisita consulta={historialPaciente[0]} />
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* ─── Antecedentes del paciente — colapsado cuando ya están
-                    registrados de una visita anterior (pedido de Diego: no
-                    repetir este formulario completo en cada visita; solo la
-                    primera vez, o si el optómetra quiere revisarlo/editarlo,
-                    se despliega). Mismo patrón alternarSeccion() que ya usa
-                    Refracción para retinoscopía/examen físico/biomicroscopía. ─── */}
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
-                      <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
-                    </span>
-                    <span className="flex items-center gap-2">
-                      {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
-                        <span className="hidden items-center gap-1 text-[11px] font-normal normal-case text-slate-500 sm:flex">
-                          <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaPrecarga.split("-").reverse().join("/")}` : ""} · toca para ver o editar
-                        </span>
-                      )}
-                      <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
-                    </span>
-                  </button>
-
-                  {/* Línea base siempre visible al colapsar — antes, colapsado
-                      solo decía "ya registrados, toca para ver": el optómetra
-                      tenía que abrir el acordeón para enterarse de una alergia
-                      antes de recetar. Ahora el dato real queda a la vista sin
-                      clic, que es justo lo que se necesita revisar antes de
-                      empezar la consulta; el acordeón sigue existiendo para
-                      editar sin repetir el formulario completo cada visita. */}
-                  {!seccionesAbiertas.antecedentesPaciente && (
-                    <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/60 bg-white p-3 text-xs leading-relaxed text-slate-700 sm:grid-cols-3">
-                      <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Alergias</span>{alergias || "Ninguna registrada"}</p>
-                      <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
-                      <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
-                    </div>
-                  )}
-
-                  {seccionesAbiertas.antecedentesPaciente && (
-                  <>
-                  <div className="flex flex-col gap-3 rounded-lg border border-slate-200/60 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                      <Glasses size={16} className="text-slate-500" />
-                      ¿Utiliza o ha utilizado lentes?
-                      {precargado.usaLentes && <InsigniaHistorial fecha={fechaPrecarga} />}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => { setUsaLentes("si"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
-                        aria-pressed={usaLentes === "si"}
-                        className={
-                          "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
-                          (usaLentes === "si"
-                            ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-100"
-                            : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
-                        }
-                      >
-                        <CheckCircle size={16} className={usaLentes === "si" ? "text-blue-600" : "text-slate-400"} />
-                        Sí
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setUsaLentes("no"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
-                        aria-pressed={usaLentes === "no"}
-                        className={
-                          "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
-                          (usaLentes === "no"
-                            ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-red-100"
-                            : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
-                        }
-                      >
-                        <XCircle size={16} className={usaLentes === "no" ? "text-red-500" : "text-slate-400"} />
-                        No
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="antecedentes" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                      Antecedentes médicos / oculares
-                      {precargado.antecedentes && <InsigniaHistorial fecha={fechaPrecarga} />}
-                    </label>
-                    <textarea
-                      id="antecedentes"
-                      rows={3}
-                      placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años."
-                      value={antecedentes}
-                      onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }}
-                      className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <label htmlFor="alergias" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                        Alergias
-                        {precargado.alergias && <InsigniaHistorial fecha={fechaPrecarga} />}
-                      </label>
-                      <input
-                        id="alergias"
-                        type="text"
-                        placeholder="Ej. Alergia a fluoresceína, ninguna conocida..."
-                        value={alergias}
-                        onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="antFamiliares" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                        Antecedentes familiares oculares
-                        {precargado.antecedentesFamiliares && <InsigniaHistorial fecha={fechaPrecarga} />}
-                      </label>
-                      <input
-                        id="antFamiliares"
-                        type="text"
-                        placeholder="Ej. Glaucoma en línea materna, sin antecedentes..."
-                        value={antecedentesFamiliares}
-                        onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                      />
-                    </div>
-                  </div>
-                  </>
-                  )}
-                </div>
-
+            {/* PASO 2: REFRACCIÓN */}
+            {subTab === "refraccion" && (
+              <div className="space-y-5">
                 {/* ─── Motivo (categoría fija, ya se precarga sola desde la
                     cita al entrar por "Atender") + Detalle de la consulta
                     (texto libre, lo que el paciente cuenta con sus propias
-                    palabras) — dos cosas relacionadas pero distintas: pattern
-                    confirmado con el ing en ING7. ─── */}
+                    palabras) — arriba de la refracción a propósito: el
+                    examen se hace en función de por qué vino hoy (ING7).
+                    Dos cosas relacionadas pero distintas: pattern confirmado
+                    con el ing en ING7. Motivo ahora obligatorio (validado en
+                    este paso, ver validarPaso) — antes no bloqueaba nada. ─── */}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo de la consulta</label>
+                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      Motivo de la consulta <span className="text-red-500">*</span>
+                    </label>
                     <input
                       id="motivo"
                       type="text"
                       placeholder="Ej. Consulta general, examen de control..."
                       value={motivo}
-                      onChange={(e) => setMotivo(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                      onChange={(e) => { setMotivo(e.target.value); limpiarError("motivo") }}
+                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
                     />
+                    {errores.motivo && (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                        <AlertCircle size={13} /> {errores.motivo}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -1418,16 +1452,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     />
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* PASO 2: REFRACCIÓN */}
-            {subTab === "refraccion" && (
-              <div className="space-y-5">
                 <h2 className="text-sm font-bold" style={{ color: INK }}>Valores dióptricos y parámetros de taller</h2>
 
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
                     <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
                       Opcional · punto de partida antes de refinar
@@ -1467,7 +1496,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     patrón. */}
                 {ultimaConsultaPaciente && (
                   <div className="space-y-3 rounded-xl border border-blue-200/60 bg-blue-50/50 p-4">
-                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} className="flex w-full items-center gap-1.5 border-b border-blue-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} aria-expanded={!!seccionesAbiertas.comparacionAnterior} className="flex w-full items-center gap-1.5 border-b border-blue-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                       <History size={16} className="text-blue-600" /> Comparar con visita anterior
                       <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">{ultimaConsultaPaciente.fecha}</span>
                       <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.comparacionAnterior ? "" : "-rotate-90")} />
@@ -1529,7 +1558,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("examenFisico")} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                  <button type="button" onClick={() => alternarSeccion("examenFisico")} aria-expanded={!!seccionesAbiertas.examenFisico} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Examen físico complementario
                     <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
                       Opcional
@@ -1628,7 +1657,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("biomicroscopia")} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                  <button type="button" onClick={() => alternarSeccion("biomicroscopia")} aria-expanded={!!seccionesAbiertas.biomicroscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <Eye size={16} className="text-blue-600" /> Biomicroscopía (segmento anterior)
                     <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
                       Opcional · lámpara de hendidura
