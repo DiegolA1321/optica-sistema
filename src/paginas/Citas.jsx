@@ -861,18 +861,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                   mismo patrón consolidado que ya quedó en Pacientes
                                   (Séptima Mirada, hallazgo #1). */}
                               <div className="flex items-center gap-1">
-                                {!resuelta && puedeMarcarse && (
-                                  <button
-                                    type="button"
-                                    onClick={() => atenderCita(cita)}
-                                    disabled={marcandoEstadoId === cita.id}
-                                    className={"rounded-md p-1.5 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 " + ACCION_VER}
-                                    title="Atender ahora"
-                                    aria-label="Atender ahora"
-                                  >
-                                    {marcandoEstadoId === cita.id ? <Loader2 size={16} className="animate-spin" /> : <Stethoscope size={16} />}
-                                  </button>
-                                )}
+                                {/* "Atender ahora" se movió al pie de la tarjeta como botón
+                                    con etiqueta (ver más abajo) — antes era un ícono suelto
+                                    del mismo tamaño que "Ver perfil"/"Más acciones", fácil de
+                                    pasar por alto (ING6: "está como que muy chiquito... tengo
+                                    que revisar cada cosita"). Misma condición, mismo handler. */}
                                 {cita.pacienteId && (
                                   <button type="button" onClick={() => onVerPerfil?.(cita.pacienteId)} className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Ver perfil del paciente" aria-label="Ver perfil del paciente">
                                     <Eye size={16} />
@@ -917,32 +910,46 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 pl-6">
+                          <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 pl-6">
                             <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
                               <Clock size={14} className="text-slate-500" />
                               <span>{cita.hora}</span>
                             </div>
-                            {cita.estado === "Atendida" ? (
-                              <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
-                                <CheckCircle2 size={12} /> Atendida
-                              </span>
-                            ) : cita.estado === "No Asistió" ? (
-                              <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
-                                <UserX size={12} /> No asistió
-                              </span>
-                            ) : cita.estado === "Cancelada" ? (
-                              <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                                <X size={12} /> Cancelada por el paciente
-                              </span>
-                            ) : cita.estado === "En Atención" ? (
-                              <span className="flex items-center gap-1 rounded-full border border-blue-200/60 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
-                                <Activity size={12} /> En atención
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pendiente
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {cita.estado === "Atendida" ? (
+                                <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+                                  <CheckCircle2 size={12} /> Atendida
+                                </span>
+                              ) : cita.estado === "No Asistió" ? (
+                                <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
+                                  <UserX size={12} /> No asistió
+                                </span>
+                              ) : cita.estado === "Cancelada" ? (
+                                <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                                  <X size={12} /> Cancelada por el paciente
+                                </span>
+                              ) : (
+                                <span className={"flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
+                                  {cita.estado === "En Atención" ? <Activity size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+                                  {cita.estado === "En Atención" ? "En atención" : "Pendiente"}
+                                </span>
+                              )}
+                              {/* Acción primaria de la tarjeta, con etiqueta visible y
+                                  color sólido — antes era un ícono suelto arriba, del
+                                  mismo tamaño que las acciones secundarias (ver más arriba). */}
+                              {!resuelta && puedeMarcarse && (
+                                <button
+                                  type="button"
+                                  onClick={() => atenderCita(cita)}
+                                  disabled={marcandoEstadoId === cita.id}
+                                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                  style={{ background: GRAD, boxShadow: "0 6px 14px -6px rgba(37,99,235,0.5)" }}
+                                >
+                                  {marcandoEstadoId === cita.id ? <Loader2 size={14} className="animate-spin" /> : <Stethoscope size={14} />}
+                                  Atender ahora
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )
