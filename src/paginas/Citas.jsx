@@ -841,13 +841,18 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                 {!cita.pacienteId && (
                                   <span className="rounded-md border border-amber-200/60 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
                                 )}
-                                {/* Antes solo un ícono junto al nombre para el origen "web"
-                                    (fácil de pasar por alto, y nada se mostraba para
-                                    "recepción") — badge explícito para ambos orígenes,
-                                    mismo patrón ya usado en el perfil del paciente. */}
-                                <span className={"flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold " + (cita.origen === "paciente" ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-slate-200/60 bg-slate-100 text-slate-500")}>
-                                  {cita.origen === "paciente" ? <Globe size={11} /> : <Building2 size={11} />}
-                                  Origen: {cita.origen === "paciente" ? "Web" : "Recepción"}
+                                {/* Ícono compacto con tooltip en vez de texto siempre visible
+                                    (ING9: "aunque sea un ícono ahí y ya cuando yo pase el mouse
+                                    que se vea, ya estaría, no necesariamente tiene que ser un
+                                    texto grande"). El nombre accesible vive en el contenedor
+                                    (title + aria-label); el ícono queda aria-hidden para no
+                                    duplicar el anuncio en lectores de pantalla. */}
+                                <span
+                                  title={cita.origen === "paciente" ? "Agendado por el paciente (web)" : "Registrado por el staff (recepción)"}
+                                  aria-label={cita.origen === "paciente" ? "Agendado por el paciente (web)" : "Registrado por el staff (recepción)"}
+                                  className={"flex items-center justify-center rounded-md border p-1 " + (cita.origen === "paciente" ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-slate-200/60 bg-slate-100 text-slate-500")}
+                                >
+                                  {cita.origen === "paciente" ? <Globe size={13} aria-hidden="true" /> : <Building2 size={13} aria-hidden="true" />}
                                 </span>
                               </div>
                               {/* Dos acciones primarias a la vista + el resto (cambiar
