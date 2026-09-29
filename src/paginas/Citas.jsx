@@ -144,6 +144,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // Eje independiente del filtro de estado — separa citas de alguien que
   // nunca ha sido paciente (sin pacienteId todavía) de las de seguimiento.
   const [filtroTipo, setFiltroTipo] = useState("todos") // todos | primera | seguimiento
+  // Tercer eje, también independiente — quién creó el registro (ING6: pedía
+  // un filtro por "creación" manual vs. sistema en vez del botón redundante
+  // de "Crear paciente"). El dato (cita.origen) ya existía por fila; esto
+  // solo agrega el control para filtrar por él.
+  const [filtroOrigen, setFiltroOrigen] = useState("todos") // todos | paciente | staff
   const [porCancelar, setPorCancelar] = useState(null)
 
   // ── "+ Añadir nuevo paciente" inline, dentro del modal en modo Gestionar ──
@@ -633,6 +638,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         if (filtroTipo === "seguimiento") return Boolean(c.pacienteId)
         return true
       })
+      .filter((c) => {
+        if (filtroOrigen === "paciente") return c.origen === "paciente"
+        if (filtroOrigen === "staff") return c.origen !== "paciente"
+        return true
+      })
       .sort((a, b) => {
         if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1
         return minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)
@@ -644,7 +654,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       mapa.get(c.fecha).push(c)
     }
     return Array.from(mapa.entries())
-  }, [citas, busqueda, filtro, filtroTipo])
+  }, [citas, busqueda, filtro, filtroTipo, filtroOrigen])
 
   const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
@@ -722,24 +732,45 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         </div>
       )}
 
-      {/* ─── BÚSQUEDA + TIPO DE CITA ─── */}
+      {/* ─── BÚSQUEDA + TIPO DE CITA + CREACIÓN ─── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-          {[
-            { key: "todos", label: "Todas" },
-            { key: "primera", label: "Primera vez" },
-            { key: "seguimiento", label: "Seguimiento" },
-          ].map((op) => (
-            <button
-              key={op.key}
-              type="button"
-              onClick={() => setFiltroTipo(op.key)}
-              className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (filtroTipo === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-              style={filtroTipo === op.key ? { background: GRAD } : undefined}
-            >
-              {op.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+            {[
+              { key: "todos", label: "Todas" },
+              { key: "primera", label: "Primera vez" },
+              { key: "seguimiento", label: "Seguimiento" },
+            ].map((op) => (
+              <button
+                key={op.key}
+                type="button"
+                onClick={() => setFiltroTipo(op.key)}
+                className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (filtroTipo === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+                style={filtroTipo === op.key ? { background: GRAD } : undefined}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>
+          {/* Filtro por creación (ING6) — mismo patrón visual que el de arriba,
+              eje independiente: quién generó el registro, no si ya es paciente. */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+            {[
+              { key: "todos", label: "Cualquier origen" },
+              { key: "paciente", label: "Web" },
+              { key: "staff", label: "Recepción" },
+            ].map((op) => (
+              <button
+                key={op.key}
+                type="button"
+                onClick={() => setFiltroOrigen(op.key)}
+                className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (filtroOrigen === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+                style={filtroOrigen === op.key ? { background: GRAD } : undefined}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="relative w-full sm:w-80">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
