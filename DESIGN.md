@@ -118,7 +118,7 @@ Palette is small and role-driven: two brand neutrals (ink/porcelain), one scarce
 ### Primary
 - **Ink** (`#0E2B33`): the brand's dark tone. Applied via inline `style` from `src/lib/tema.js`'s `INK` constant (not a Tailwind class, not a CSS custom property) to page titles, hero copy on light surfaces, and dark chrome bars (header/footer bands, the login modal top band, selected day in the appointment calendar). Never the background of a public hero section.
 - **Porcelain** (`#F7F5F0`): the brand's warm light surface, also from `tema.js`. Used for hero backgrounds on public pages and as text-on-ink.
-- **Action Blue** (`#2563EB`, deep `#1D4ED8`, soft `#EFF6FF`): the default interactive color — primary buttons, links, focused inputs (`focus:border-blue-500 focus:ring-2 focus:ring-blue-50`), "info"/in-progress badges.
+- **Action Blue** (`#2563EB`, deep `#1D4ED8`, soft `#EFF6FF`): the default interactive color — primary buttons, links, focused inputs (`focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50`), "info"/in-progress badges.
 
 ### Secondary
 - **Gold** (`#C8A24E`): "acento óptico premium, usar con moderación" per its own source comment. Confirmed sparse in practice — used in only 6 of 22 page files, always as a small dot, border, or single highlighted callout (e.g. a gold-tinted stock-alert card on the dashboard), never as a large fill.

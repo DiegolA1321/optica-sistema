@@ -752,7 +752,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                         value={busquedaGlobal}
                         onChange={(e) => setBusquedaGlobal(e.target.value)}
                         placeholder="Paciente, cita de hoy o producto..."
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
                       />
                     </div>
                   </div>
@@ -1007,7 +1007,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                     onChange={(e) => setCampoRegistroProfesional(e.target.value)}
                     onBlur={guardarRegistroProfesional}
                     placeholder="Ej. SENESCYT-1234567890"
-                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
                   />
                   {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
                   {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}

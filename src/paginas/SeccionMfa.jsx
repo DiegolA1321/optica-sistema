@@ -141,7 +141,7 @@ export default function SeccionMfa() {
           <input
             type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456"
             value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center font-mono text-lg tracking-[0.3em] text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center font-mono text-lg tracking-[0.3em] text-slate-800 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={cancelarInscripcion} className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">

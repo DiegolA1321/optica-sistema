@@ -372,12 +372,12 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="date" value={inicioPersonalizado} onChange={(e) => setInicioPersonalizado(e.target.value)}
-              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
             />
             <span className="text-xs text-slate-400">a</span>
             <input
               type="date" value={finPersonalizado} onChange={(e) => setFinPersonalizado(e.target.value)}
-              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
             />
           </div>
         )}

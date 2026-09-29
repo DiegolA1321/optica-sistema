@@ -477,7 +477,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               <select
                 value={avisoDestinoId}
                 onChange={(e) => setAvisoDestinoId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
               >
                 {pacientes.map((p) => (
                   <option key={p.id} value={p.id}>{p.nombre}</option>
@@ -489,7 +489,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               onChange={(e) => setNuevoAviso(e.target.value)}
               rows={2}
               placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, podés pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
-              className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+              className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
             />
             <button
               type="button"
@@ -513,17 +513,17 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {a.destinatarioNombre ? (
-                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #dbeafe" }}>
+                          <span className="rounded-full px-1.5 py-0.5 text-xs font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #dbeafe" }}>
                             Para: {a.destinatarioNombre}
                           </span>
                         ) : (
-                          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}>
+                          <span className="rounded-full px-1.5 py-0.5 text-xs font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}>
                             General
                           </span>
                         )}
                       </div>
                       <p className="mt-1 text-xs text-slate-700">{a.texto}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">{a.fecha}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{a.fecha}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       {a.destinatarioNombre && (
@@ -607,7 +607,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
         <p className="truncate text-[11px] text-slate-500">{p.estado}</p>
       </div>
       {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-        <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
+        <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
           <CheckCircle2 size={11} /> Enviado
         </span>
       ) : yaContactadoHoy ? (
@@ -619,7 +619,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
           onClick={() => onEnviar(p)}
           disabled={!p.telefono}
           title="Ya le escribiste hoy — clic para enviar de nuevo igual"
-          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           <CheckCircle2 size={11} /> Ya contactado hoy
         </button>
@@ -629,7 +629,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
           onClick={() => onEnviar(p)}
           disabled={!p.telefono}
           title={p.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           <MessageSquare size={11} /> WhatsApp
         </button>
@@ -709,7 +709,7 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
                   <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
                   <td className="px-4 py-2.5 text-right">
                     {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-                      <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                      <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
                         <CheckCircle2 size={11} /> Enviado
                       </span>
                     ) : (
@@ -717,7 +717,7 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
                         type="button"
                         onClick={() => onEnviar(p)}
                         disabled={!p.telefono}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                       >
                         <MessageSquare size={11} /> WhatsApp
                       </button>

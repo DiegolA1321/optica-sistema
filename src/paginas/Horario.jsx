@@ -558,11 +558,11 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                                 <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                                   <input
                                     type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })}
-                                    className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
+                                    className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
                                   />
                                   <input
                                     type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })}
-                                    className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
+                                    className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
                                   />
                                 </div>
                               )}
@@ -612,7 +612,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               <input
                 type="number" min={10} step={5} value={borradorDuracion}
                 onChange={(e) => setBorradorDuracion(Math.max(10, Number(e.target.value) || 10))}
-                className="w-24 rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500"
+                className="w-24 rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus-visible:border-blue-500"
               />
               <span className="text-sm text-slate-500">minutos por paciente</span>
               {borradorDuracion !== disponibilidad.duracionCita && (
@@ -801,27 +801,27 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
               )}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-                <input type="date" required min={hoy} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                <input type="date" required min={hoy} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
               </div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus-visible:ring-red-500" />
                 Todo el día
               </label>
               {!todoElDiaAusencia && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Desde</label>
-                    <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                    <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Hasta</label>
-                    <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                    <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
                   </div>
                 </div>
               )}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
-                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
               </div>
               <div className="flex gap-3 border-t border-slate-100 pt-4">
                 <button type="button" onClick={() => setModalAusenciaAbierto(false)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
@@ -946,8 +946,8 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
                           </div>
                           {s.activo && (
                             <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                              <input type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500" />
-                              <input type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                              <input type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
+                              <input type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
                             </div>
                           )}
                         </div>
@@ -1065,9 +1065,9 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
               {valor.activo && (
                 <div className="mt-2.5 grid grid-cols-2 gap-2">
                   <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
                   <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500" />
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
                 </div>
               )}
             </div>

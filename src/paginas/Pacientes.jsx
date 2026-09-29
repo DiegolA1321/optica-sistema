@@ -966,7 +966,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 placeholder="Nombre, cédula, teléfono o correo del paciente..."
                 value={busquedaInput}
                 onChange={(e) => setBusquedaInput(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
               />
               {/* Pista del atajo de teclado — se oculta mientras se escribe para no estorbar. */}
               {!busquedaInput && (
@@ -988,7 +988,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               id="filtro-estado"
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-36"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white lg:w-36"
             >
               <option value="Todos">Todos</option>
               <option value="Activo">Activo</option>
@@ -1002,7 +1002,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               id="filtro-evolucion"
               value={filtroCorreccion}
               onChange={(e) => setFiltroCorreccion(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-40"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white lg:w-40"
             >
               <option value="Todos">Todas</option>
               <option value="Bien corregido">Bien corregido</option>
@@ -1019,7 +1019,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               type="date"
               value={filtroFecha}
               onChange={(e) => setFiltroFecha(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm text-slate-700 outline-none transition-colors focus:border-blue-500 focus:bg-white lg:w-44"
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white lg:w-44"
             />
           </div>
 
@@ -1342,9 +1342,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   Apellidos y nombres <span className="text-red-500">*</span>
                 </label>
                 <input
-                  id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego"
+                  id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego" autoComplete="name"
                   value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
-                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                 />
                 {erroresForm.nombre && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.nombre}</p>}
               </div>
@@ -1359,7 +1359,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <input
                       id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10}
                       value={cedula} onChange={(e) => setCedula(filtrarSoloNumeros(e.target.value, 10))}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.cedula ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.cedula ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.cedula && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.cedula}</p>}
@@ -1370,9 +1370,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <div className="relative">
                     <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
-                      id="p-nacimiento" type="date" required
+                      id="p-nacimiento" type="date" required autoComplete="bday"
                       value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.fechaNacimiento ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.fechaNacimiento ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
@@ -1385,9 +1385,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
-                      id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10}
+                      id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10} autoComplete="tel"
                       value={telefono} onChange={(e) => setTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.telefono ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.telefono ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.telefono && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.telefono}</p>}
@@ -1398,9 +1398,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                     <input
-                      id="p-correo" type="email" placeholder="correo@ejemplo.com"
+                      id="p-correo" type="email" placeholder="correo@ejemplo.com" autoComplete="email"
                       value={correo} onChange={(e) => setCorreo(e.target.value)}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:bg-white focus:ring-2 " + (erroresForm.correo ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.correo ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                     />
                   </div>
                   {erroresForm.correo && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.correo}</p>}
@@ -1415,7 +1415,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <Heart className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                   <select
                     id="p-referido" value={referidoPor} onChange={(e) => setReferidoPor(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                   >
                     <option value="">Nadie / llegó por su cuenta</option>
                     {pacientes.filter((p) => p.nombre !== nombre).map((p) => (
@@ -2269,7 +2269,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     value={agendarMotivo}
                     onChange={(e) => setAgendarMotivo(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                   >
                     <option value="" disabled>Seleccione el motivo del examen</option>
                     {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}

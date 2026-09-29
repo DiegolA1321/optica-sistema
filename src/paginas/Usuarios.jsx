@@ -327,7 +327,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
               <select
                 value={filtroUsuarioLog}
                 onChange={(e) => setFiltroUsuarioLog(e.target.value)}
-                className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
+                className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
               >
                 <option value="todos">Todos los usuarios</option>
                 {usuariosEnLogs.map((n) => (<option key={n} value={n}>{n}</option>))}
@@ -484,8 +484,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
                     <input
                       type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
-                      placeholder="Ej. Ana Torres"
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                      placeholder="Ej. Ana Torres" autoComplete="name"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                     />
                   </div>
                   <div>
@@ -495,7 +495,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <input
                         type="text" value={etiquetaRol} onChange={(e) => setEtiquetaRol(e.target.value)}
                         placeholder="Ej. Secretaria, Asesor de ventas"
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                     </div>
                   </div>
@@ -517,8 +517,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                         <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                           type="email" value={correo} onChange={(e) => setCorreo(e.target.value)}
-                          placeholder="ana.torres@correo.com"
-                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          placeholder="ana.torres@correo.com" autoComplete="email"
+                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                         />
                       </div>
                     </div>
@@ -527,8 +527,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <div className="relative">
                         <input
                           type={verClave ? "text" : "password"} value={clave} onChange={(e) => setClave(e.target.value)}
-                          placeholder="Mínimo 8 caracteres, con letra y número"
-                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                          placeholder="Mínimo 8 caracteres, con letra y número" autoComplete="new-password"
+                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 pr-9 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                         />
                         <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
                           {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -576,7 +576,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                                 type="checkbox"
                                 checked={Boolean(permisos[m.id])}
                                 onChange={() => alternarPermiso(m.id)}
-                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
                               />
                               {m.nombre}
                             </label>

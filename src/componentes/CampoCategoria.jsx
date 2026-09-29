@@ -32,7 +32,7 @@ export default function CampoCategoria({ valor, onChange, categorias, setCategor
           onChange={(e) => setNueva(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmar() } if (e.key === "Escape") setCreando(false) }}
           placeholder="Nombre de la categoría"
-          className="flex-1 rounded-xl border border-blue-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+          className="flex-1 rounded-xl border border-blue-300 bg-white px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500"
         />
         <button type="button" onClick={confirmar} className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>
           Crear
@@ -47,7 +47,7 @@ export default function CampoCategoria({ valor, onChange, categorias, setCategor
   return (
     <div className="flex gap-2">
       <select value={valor} onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white">
+        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white">
         {categorias.map((c) => (<option key={c} value={c}>{c}</option>))}
       </select>
       {setCategorias && (

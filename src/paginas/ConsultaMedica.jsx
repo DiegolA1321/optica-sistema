@@ -1188,7 +1188,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       type="date"
                       value={fechaConsulta}
                       onChange={(e) => setFechaConsulta(e.target.value)}
-                      className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-blue-500"
+                      className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
                     />
                   </div>
                 </div>
@@ -1213,7 +1213,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         setPacienteSeleccionado("")
                         setMostrarDropdown(true)
                       }}
-                      className={"w-full rounded-lg border bg-white py-2.5 pl-9 pr-8 text-sm text-slate-800 outline-none transition focus:border-blue-500 " + (errores.paciente ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+                      className={"w-full rounded-lg border bg-white py-2.5 pl-9 pr-8 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 " + (errores.paciente ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
                     />
                     <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   </div>
@@ -1342,7 +1342,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años."
                       value={antecedentes}
                       onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }}
-                      className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
                     />
                   </div>
 
@@ -1358,7 +1358,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         placeholder="Ej. Alergia a fluoresceína, ninguna conocida..."
                         value={alergias}
                         onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
                       />
                     </div>
                     <div>
@@ -1372,7 +1372,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         placeholder="Ej. Glaucoma en línea materna, sin antecedentes..."
                         value={antecedentesFamiliares}
                         onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
                       />
                     </div>
                   </div>
@@ -1394,7 +1394,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       placeholder="Ej. Consulta general, examen de control..."
                       value={motivo}
                       onChange={(e) => setMotivo(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
                     />
                   </div>
                   <div>
@@ -1407,7 +1407,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
                       value={detalleConsulta}
                       onChange={(e) => setDetalleConsulta(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
                     />
                   </div>
                 </div>
@@ -1437,7 +1437,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="retinoOd" type="text" placeholder="Ej. -1.00 -0.50 x180"
                         value={retinoscopiaOd} onChange={(e) => setRetinoscopiaOd(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                     <div>
@@ -1445,7 +1445,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="retinoOi" type="text" placeholder="Ej. -0.75 -0.25 x175"
                         value={retinoscopiaOi} onChange={(e) => setRetinoscopiaOi(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                   </div>
@@ -1538,7 +1538,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="testMotor" type="text" placeholder="Ej. Movimientos normales, sin restricción"
                         value={testMotor} onChange={(e) => setTestMotor(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                     <div>
@@ -1546,14 +1546,14 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="oftalmoscopia" type="text" placeholder="Ej. Papila y retina sin alteraciones"
                         value={oftalmoscopia} onChange={(e) => setOftalmoscopia(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                     <div>
                       <label htmlFor="testColor" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500"><Palette size={12} /> Test de color</label>
                       <select
                         id="testColor" value={testColor} onChange={(e) => setTestColor(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus-visible:border-blue-500"
                       >
                         <option value="Normal">Normal</option>
                         <option value="Deficiencia rojo-verde">Deficiencia rojo-verde</option>
@@ -1568,7 +1568,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <label htmlFor="coverLejos" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">Cover test — lejos</label>
                       <select
                         id="coverLejos" value={coverTestLejos} onChange={(e) => setCoverTestLejos(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus-visible:border-blue-500"
                       >
                         <option value="Ortoforia">Ortoforia</option>
                         <option value="Exoforia">Exoforia</option>
@@ -1582,7 +1582,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <label htmlFor="coverCerca" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">Cover test — cerca</label>
                       <select
                         id="coverCerca" value={coverTestCerca} onChange={(e) => setCoverTestCerca(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus-visible:border-blue-500"
                       >
                         <option value="Ortoforia">Ortoforia</option>
                         <option value="Exoforia">Exoforia</option>
@@ -1602,7 +1602,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="pioOd" type="text" placeholder="Ej. 14" inputMode="numeric" maxLength={2}
                         value={pioOd} onChange={(e) => setPioOd(filtrarSoloNumeros(e.target.value, 2))}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                     <div>
@@ -1612,7 +1612,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="pioOi" type="text" placeholder="Ej. 15" inputMode="numeric" maxLength={2}
                         value={pioOi} onChange={(e) => setPioOi(filtrarSoloNumeros(e.target.value, 2))}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                   </div>
@@ -1637,7 +1637,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="biomicroParpados" type="text" placeholder="Ej. Sin alteraciones"
                         value={biomicroParpados} onChange={(e) => setBiomicroParpados(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                     <div>
@@ -1645,7 +1645,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="biomicroCornea" type="text" placeholder="Ej. Transparente, sin lesiones"
                         value={biomicroCornea} onChange={(e) => setBiomicroCornea(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                     <div>
@@ -1653,7 +1653,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       <input
                         id="biomicroCamara" type="text" placeholder="Ej. Formada, cristalino transparente"
                         value={biomicroCamara} onChange={(e) => setBiomicroCamara(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus:border-blue-500"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                       />
                     </div>
                   </div>
@@ -1800,7 +1800,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                 placeholder="Detalle del diagnóstico personalizado..."
                                 value={diagnostico}
                                 onChange={(e) => setDiagnostico(e.target.value)}
-                                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
                                 style={{ color: INK }}
                               />
                             </>
@@ -1815,7 +1815,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                 placeholder="Ej. Se determina progresión leve, control en 6 meses"
                                 value={diagnostico}
                                 onChange={(e) => setDiagnostico(e.target.value)}
-                                className="w-full bg-transparent text-sm font-medium outline-none focus:underline"
+                                className="w-full bg-transparent text-sm font-medium outline-none focus-visible:underline"
                                 style={{ color: INK }}
                               />
                             </>
@@ -1841,7 +1841,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                               setLenteBusquedaProducto("")
                             }
                           }}
-                          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
                         />
                         <Glasses size={16} style={{ color: GOLD }} /> Añadir recomendación de lente
                       </label>
@@ -1859,7 +1859,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             value={lenteRecomendado}
                             readOnly={fichaGuardada}
                             onChange={(e) => setLenteRecomendado(e.target.value)}
-                            className="w-full bg-transparent text-sm font-semibold outline-none focus:underline"
+                            className="w-full bg-transparent text-sm font-semibold outline-none focus-visible:underline"
                             style={{ color: INK }}
                           />
 
@@ -1891,7 +1891,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                       value={lenteBusquedaProducto}
                                       onFocus={() => setLenteMostrarDropdown(true)}
                                       onChange={(e) => { setLenteBusquedaProducto(e.target.value); setLenteMostrarDropdown(true) }}
-                                      className="w-full rounded-lg border border-amber-200/60 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-blue-500"
+                                      className="w-full rounded-lg border border-amber-200/60 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
                                     />
                                   </div>
                                   {lenteMostrarDropdown && lenteProductosFiltrados.length > 0 && (
@@ -2009,7 +2009,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                   value={facturaBusquedaProducto}
                                   onFocus={() => setFacturaMostrarDropdown(true)}
                                   onChange={(e) => { setFacturaBusquedaProducto(e.target.value); setFacturaMostrarDropdown(true) }}
-                                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-800 outline-none focus:border-blue-500"
+                                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
                                 />
                                 {facturaMostrarDropdown && facturaProductosFiltrados.length > 0 && (
                                   <ul className="absolute z-50 mt-1 max-h-40 w-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
@@ -2044,7 +2044,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         ) : (
                           <div className="space-y-2">
                             <input type="text" placeholder="Descripción del servicio (ej. Examen visual, ajuste, garantía...)" value={facturaDescServicio} onChange={(e) => setFacturaDescServicio(e.target.value)}
-                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" />
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500" />
                             <div className="flex items-center gap-2">
                               <label className="text-xs font-semibold text-slate-600">Cantidad</label>
                               <input type="number" min="1" value={facturaCantidadServicio} onChange={(e) => setFacturaCantidadServicio(e.target.value)} className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
@@ -2135,7 +2135,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           value={indicaciones}
                           readOnly={fichaGuardada}
                           onChange={(e) => setIndicaciones(e.target.value)}
-                          className="w-full resize-none bg-transparent text-sm font-medium outline-none focus:underline"
+                          className="w-full resize-none bg-transparent text-sm font-medium outline-none focus-visible:underline"
                           style={{ color: INK }}
                         />
                       </div>
@@ -2157,7 +2157,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                               type="checkbox"
                               checked={incluirMedidasReceta}
                               onChange={(e) => setIncluirMedidasReceta(e.target.checked)}
-                              className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
                             />
                             Incluir medidas de refracción en la receta impresa
                           </label>
@@ -2198,7 +2198,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         value={proximoControlDias}
                         disabled={fichaGuardada}
                         onChange={(e) => setProximoControlDias(Number(e.target.value))}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         <option value={30}>1 mes</option>
                         <option value={90}>3 meses</option>
@@ -2508,13 +2508,13 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
       <div className="grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-2">
         <div>
           <label htmlFor={`${sigla}-avsc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV sin lentes</label>
-          <select id={`${sigla}-avsc`} value={avSc} onChange={(e) => setAvSc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500">
+          <select id={`${sigla}-avsc`} value={avSc} onChange={(e) => setAvSc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
             {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
           </select>
         </div>
         <div>
           <label htmlFor={`${sigla}-avcc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV con lentes</label>
-          <select id={`${sigla}-avcc`} value={avCc} onChange={(e) => setAvCc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500">
+          <select id={`${sigla}-avcc`} value={avCc} onChange={(e) => setAvCc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
             <option value="">Sin evaluar</option>
             {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
           </select>
@@ -2538,7 +2538,7 @@ function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLeng
         inputMode={tipo === "entero" ? "numeric" : "decimal"}
         value={value}
         onChange={manejarCambio}
-        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
       />
       {error && <p className="mt-0.5 text-[10px] font-medium text-red-600">{error}</p>}
     </div>
@@ -2554,7 +2554,7 @@ function MedidaCampo({ id, label, value, onChange }) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500"
+        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
       />
     </div>
   )

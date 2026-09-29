@@ -402,7 +402,7 @@ export default function Inventario({
             <div className="relative flex-1 sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input type="text" placeholder="Buscar producto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
             </div>
             {/* C5: modo compacto — ver más filas sin scroll cuando el catálogo crece */}
             <button
@@ -591,32 +591,32 @@ export default function Inventario({
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
                   <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                   {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
                     <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
-                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
+                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                     {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
                     <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
-                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresForm.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
+                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                     {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
                   </div>
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                   <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                   <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                    className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                    className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>
                 {erroresForm.general && (
                   <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
@@ -667,7 +667,7 @@ export default function Inventario({
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
                   <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                   {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
                 </div>
 
@@ -675,10 +675,10 @@ export default function Inventario({
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Existencia</label>
                   <div className="flex gap-2">
                     <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)}
-                      className={"w-24 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
+                      className={"w-24 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                     <span className="self-center text-xs text-slate-500">unidades ·</span>
                     <input type="number" min="1" step="1" value={sumarStock} onChange={(e) => setSumarStock(e.target.value)} placeholder="+ agregar"
-                      className="w-24 rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50" />
+                      className="w-24 rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-50" />
                     <button type="button" onClick={aplicarSumaStock} disabled={!sumarStock}
                       className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
                       style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
@@ -692,18 +692,18 @@ export default function Inventario({
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
                   <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")} />
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                   {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
                   <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                   <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                    className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" />
+                    className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>
                 {erroresEdicion.general && (
                   <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">

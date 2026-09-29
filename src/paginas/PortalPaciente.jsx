@@ -776,7 +776,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <textarea
                   rows={2} value={motivoEliminar} onChange={(e) => setMotivoEliminar(e.target.value)}
                   placeholder="¿Por qué quieres eliminar tu cuenta? (opcional)"
-                  className="mt-4 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white"
+                  className="mt-4 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-red-400 focus-visible:bg-white"
                 />
                 <div className="mt-4 flex gap-2">
                   <button type="button" onClick={() => setModalEliminarAbierto(false)} disabled={enviandoEliminar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
@@ -814,7 +814,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-600">Motivo de consulta</label>
-                  <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50">
+                  <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50">
                     {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
                   </select>
                 </div>
@@ -939,15 +939,15 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               {errorClave && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Contraseña actual</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
+                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
+                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Confirmar contraseña</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la contraseña" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50" /></div>
+                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la contraseña" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
               </div>
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
                 <button type="button" disabled={guardandoClave} onClick={() => setModalClave(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>

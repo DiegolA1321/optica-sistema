@@ -238,12 +238,12 @@ export default function Mensajes({ usuario }) {
           <input
             type="text" value={asunto} onChange={(e) => setAsunto(e.target.value)}
             placeholder="Asunto — ej. Necesito cambiar el nombre de mi óptica"
-            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
           />
           <textarea
             rows={3} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)}
             placeholder="Contanos qué necesitás…"
-            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
           />
           <div className="flex justify-end">
             <button type="submit" disabled={enviando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>

@@ -748,7 +748,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre o código de cita..."
-            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
           />
         </div>
       </div>
@@ -1068,7 +1068,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           <input
                             type="text" placeholder="Nombre completo" value={npNombre}
                             onChange={(e) => setNpNombre(filtrarSoloLetras(e.target.value))}
-                            className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-2 " + (npErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                            className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.nombre ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                           />
                           {npErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.nombre}</p>}
                         </div>
@@ -1079,7 +1079,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <input
                                 type="text" inputMode="numeric" maxLength={10} placeholder="Cédula" value={npCedula}
                                 onChange={(e) => setNpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus:ring-2 " + (npErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus-visible:ring-2 " + (npErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                               />
                             </div>
                             {npErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.cedula}</p>}
@@ -1090,7 +1090,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <input
                                 type="text" inputMode="numeric" maxLength={10} placeholder="Teléfono" value={npTelefono}
                                 onChange={(e) => setNpTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.telefono ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                               />
                             </div>
                             {npErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.telefono}</p>}
@@ -1103,7 +1103,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                               <input
                                 type="email" placeholder="Correo (opcional)" value={npCorreo}
                                 onChange={(e) => setNpCorreo(e.target.value)}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:ring-2 " + (npErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.correo ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                               />
                             </div>
                             {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
@@ -1113,7 +1113,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             <input
                               type="date" value={npFechaNacimiento}
                               onChange={(e) => setNpFechaNacimiento(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200/60 bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                              className="w-full rounded-lg border border-slate-200/60 bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                             />
                           </div>
                         </div>
@@ -1136,7 +1136,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             onFocus={() => setMostrarDropdown(true)}
                             onChange={(e) => { setBusquedaPaciente(e.target.value); setPacienteId(null); setMostrarDropdown(true) }}
                             placeholder="Escriba para buscar por nombre o cédula..."
-                            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                           />
                         </div>
                         {mostrarDropdown && pacientesFiltrados.length > 0 && (
@@ -1180,7 +1180,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     value={motivo}
                     onChange={(e) => setMotivo(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                   >
                     <option value="" disabled>Seleccione el motivo del examen</option>
                     {motivosConsulta.map((m) => (
@@ -1236,7 +1236,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       type="checkbox"
                       checked={horaPersonalizada}
                       onChange={(e) => { setHoraPersonalizada(e.target.checked); setErrorHorarioCustom(""); if (!e.target.checked) setAtenderInmediato(false) }}
-                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
                     />
                     Llegó en un horario diferente al de la grilla
                   </label>
@@ -1248,7 +1248,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           type="time"
                           value={horaCustom}
                           onChange={(e) => { setHoraCustom(e.target.value); setErrorHorarioCustom("") }}
-                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                         />
                       </div>
                       <div>
@@ -1259,7 +1259,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           step={5}
                           value={duracionCustom}
                           onChange={(e) => { setDuracionCustom(e.target.value); setErrorHorarioCustom("") }}
-                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-50"
+                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                         />
                       </div>
                       {errorHorarioCustom && (
@@ -1323,7 +1323,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
                   <input
                     type="text" value={cpNombre} onChange={(e) => setCpNombre(filtrarSoloLetras(e.target.value))}
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.nombre ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.nombre ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                   />
                   {cpErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.nombre}</p>}
                 </div>
@@ -1335,7 +1335,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <input
                         type="text" inputMode="numeric" maxLength={10} value={cpCedula}
                         onChange={(e) => setCpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.cedula ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                       />
                     </div>
                     {cpErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.cedula}</p>}
@@ -1347,7 +1347,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <input
                         type="text" inputMode="numeric" maxLength={10} value={cpTelefono}
                         onChange={(e) => setCpTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.telefono ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.telefono ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                       />
                     </div>
                     {cpErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.telefono}</p>}
@@ -1360,7 +1360,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
                         type="email" value={cpCorreo} onChange={(e) => setCpCorreo(e.target.value)}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:bg-white focus:ring-2 " + (cpErrores.correo ? "border-red-400 focus:ring-red-100" : "border-slate-200/60 focus:border-blue-500 focus:ring-blue-50")}
+                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.correo ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                       />
                     </div>
                     {cpErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.correo}</p>}
@@ -1371,7 +1371,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       <Cake size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
                         type="date" value={cpFechaNacimiento} onChange={(e) => setCpFechaNacimiento(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                     </div>
                   </div>
@@ -1453,7 +1453,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     value={nuevoMotivo}
                     onChange={(e) => setNuevoMotivo(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                   >
                     <option value="" disabled>Seleccione el motivo del examen</option>
                     {motivosConsulta.map((m) => (
