@@ -1162,13 +1162,16 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                               <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.estadoClinico === "Activo" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
                                 {paciente.estadoClinico}
                               </span>
-                              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
+                              {/* Metadata de identidad (cuenta/origen) — se
+                                  distingue de los 3 badges accionables de
+                                  abajo (cita hoy/pago pendiente/control
+                                  vencido) con un tratamiento de borde en vez
+                                  de relleno, para que no compitan por
+                                  atención en un vistazo rápido de la fila. */}
+                              <span className="flex items-center gap-1 rounded-full border border-slate-200/60 px-2 py-0.5 text-xs font-medium text-slate-500">
                                 {paciente.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
                               </span>
-                              {/* Antes solo un ícono con title junto al nombre en la lista
-                                  (fácil de pasar por alto) — badge explícito igual que en el
-                                  perfil del paciente, para ambos orígenes, no solo web. */}
-                              <span className={"flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.origen === "paciente" ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500")}>
+                              <span className="flex items-center gap-1 rounded-full border border-slate-200/60 px-2 py-0.5 text-xs font-medium text-slate-500">
                                 {paciente.origen === "paciente" ? <Globe size={11} /> : <Building2 size={11} />}
                                 Origen: {paciente.origen === "paciente" ? "Web" : "Recepción"}
                               </span>
