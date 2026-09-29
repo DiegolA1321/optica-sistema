@@ -58,7 +58,7 @@ Verificación cruzada: cada módulo se auditó con un sub-agente de solo lectura
 | Pedido | Estado | Evidencia | BD o UI |
 |---|---|---|---|
 | Renombrar "Bien corregidos" → "Tratamientos finalizados" (u otro) | ⏳ **Pendiente — decisión de negocio** | `Reportes.jsx:324` sigue diciendo "Bien corregidos". El propio ing pidió "confirmar el criterio exacto con la optómetra antes de cerrarlo" — sigue siendo tu decisión, no un olvido técnico | UI |
-| Redefinir "Controles vencidos" (= tratamiento terminado, no atraso) | ⏳ **Pendiente** | `Reportes.jsx:325` — verificado: la métrica actual mide "pasó la fecha de su próximo control sin volver" (atraso/recordatorio), un concepto **distinto** al que pidió el ing ("ya no necesita más controles porque su tratamiento terminó" = alta). No es solo un rename, son dos conceptos que nunca se distinguieron | UI (la fecha de próximo control ya existe, no hace falta columna nueva) |
+| Redefinir "Controles vencidos" (= tratamiento terminado, no atraso) | ⏳ **Pendiente** | `Reportes.jsx:325` — verificado: la métrica actual mide "pasó la fecha de su próximo control sin volver" (atraso/recordatorio), un concepto **distinto** al que pidió el ing ("ya no necesita más controles porque su tratamiento terminó" = alta). **Revisión 2026-09-29**: no es solo un rename — hoy no existe en ningún lado del modelo de datos el concepto de "tratamiento finalizado" (ni columna, ni estado, ni bandera). No se puede calcular la métrica que pidió el ing sin decidir primero cómo se marca eso | **BD** (probablemente un campo nuevo en `pacientes` o `consultas`, ej. `tratamiento_finalizado boolean` — a decidir junto con el criterio clínico) |
 | Encuesta de satisfacción integrada a Reportes | ✅ Hecho | `Reportes.jsx:327`, componente `EncuestaSatisfaccion` | BD + UI |
 | Métrica: % de citas solicitadas que se atienden | ✅ Hecho | `Reportes.jsx:307-314,326` — comentario cita el ejemplo textual del ing ("90% de conversión") | UI |
 
@@ -149,8 +149,9 @@ Verificación cruzada: cada módulo se auditó con un sub-agente de solo lectura
 | Pedido | Estado | Evidencia | BD o UI |
 |---|---|---|---|
 | "Atender" entra directo a la ficha clínica | ✅ Hecho | `Citas.jsx:460-465` → `onAtender` abre `ConsultaMedica` con `citaIdInicial`/`pacienteInicial` | UI |
-| Separar "motivo" (fijo) de "Detalle de la consulta" (libre) | ✅ Hecho | `ConsultaMedica.jsx:147-153` — comentario cita explícitamente esta separación pedida en vivo | UI |
-| Antecedentes del paciente (fijos) separados, primero, no repetidos cada vez | ✅ Hecho | Bloque colapsable "Antecedentes del paciente", con vista previa de línea base sin necesidad de expandir | UI |
+| Separar "motivo" (fijo) de "Detalle de la consulta" (libre) | ✅ Hecho | `ConsultaMedica.jsx:147-153` — comentario cita explícitamente esta separación pedida en vivo. **Actualizado 2026-09-29** (commit `186251d`): ambos se movieron arriba de Refracción (paso 2) — "el examen se hace en función de él" (ING7) — y "Motivo" ahora es obligatorio, validado en ese paso (`validarPaso`), algo que antes no bloqueaba nada | UI |
+| Ficha clínica abre directo en Refracción para pacientes con historial; paciente nuevo sigue en Anamnesis | ✅ Hecho (commit `186251d`, 2026-09-29) | `ConsultaMedica.jsx` — `seleccionarPacienteCombo` salta a `subTab="refraccion"` cuando hay historial, o se queda en `"anamnesis"` si es nuevo | UI |
+| Antecedentes del paciente (fijos) separados, primero, no repetidos cada vez | ✅ Hecho | Bloque colapsable "Antecedentes del paciente", con vista previa de línea base sin necesidad de expandir. **Actualizado 2026-09-29** (commit `186251d`): el bloque se reubicó fuera de Anamnesis — ahora vive arriba de los 3 pasos (visible sin importar en cuál esté el optómetra), no solo en el paso 1 | UI |
 | Minimizar "Estado de corrección"/"Tendencia de graduación" (no protagonismo) | ✅ Hecho | `ConsultaMedica.jsx:1737-1745` — comentario cita "ING7" explícitamente; se retiró de la receta impresa, queda como referencia interna | UI |
 | Checkbox medidas de refracción: config general + override por consulta | ✅ Hecho | `mostrarMedidasPaciente` (config general) + `incluirMedidasReceta` (por consulta) | UI (config ya en BD) |
 | Diagnóstico categoría fija + detalle libre; checkbox "¿Recomendar lente?" con buscador | ✅ Hecho | `diagnosticoCategorias`, `recomendarLente`, `lenteRecomendadoProductoId` vinculado a inventario | UI |
@@ -162,9 +163,10 @@ Verificación cruzada: cada módulo se auditó con un sub-agente de solo lectura
 | Validación bloqueante al avanzar sin completar campos obligatorios | ✅ Hecho | `ConsultaMedica.jsx:936-958` (`irA`) + banner "No puedes continuar todavía" | UI |
 | Monto/costo de la consulta, aparte de venta de productos | 🟡 Parcial | Se puede facturar como línea de "servicio" genérica (`facturaTipoLinea`), pero no es un campo obligatorio y dedicado como pidió el ing | BD (columna nueva o convención de línea de factura — requiere decidir esquema) |
 | Factura multi-producto real | ✅ Hecho | `facturaLineas` (array) + RPC `crear_factura_venta` — Punto 06, migración 0072 | BD (ya migrada) |
-| Ícono para origen de la cita (no texto largo) | 🟡 Parcial (ver Citas médicas arriba) | Mismo hallazgo que en la tabla de Citas | UI |
+| Ícono para origen de la cita (no texto largo) | ✅ Hecho — actualizado 2026-09-29 (commit `93f38ea`, ver Citas médicas arriba) | Esta fila estaba desactualizada: cuando se escribió, el badge de origen todavía era ícono+texto siempre visible. Ya se corrigió a ícono compacto con tooltip | UI |
 | Estados automáticos completos (En Atención/Atendida/No Asistió) | ✅ Hecho | Ver tabla de Citas médicas arriba | BD + UI |
 | Marcar "Atendido" manualmente sin ficha completa | ✅ Hecho | `Citas.jsx:990` — botón en "Más acciones" marca "Atendida" directo, sin pasar por la ficha | UI |
+| "Editar cita" para cambiar horario y volver a marcar "En atención" manualmente tras un "No Asistió" automático (ING9) | ✅ Hecho — verificado 2026-09-29 | `Citas.jsx:1001,1020-1030` — `puedeMarcarseAqui = !esFutura(cita.fecha)` no excluye el estado "No Asistió"; el menú "Más acciones" ofrece "Paciente en atención" para cualquier cita no futura que no esté ya "En Atención", más "Editar cita" (reagendar) siempre disponible aparte | UI |
 | Categoría de diagnóstico "Otro" con detalle libre | ✅ Hecho | `ConsultaMedica.jsx:1760-1792` — "Otro" siempre disponible, detalle obligatorio si se elige | UI |
 
 ---
@@ -213,7 +215,23 @@ Las 4 implementadas el 2026-09-29 en la rama `mejoras-ing`, una por commit, `npm
 ## Para después
 *(Requiere base de datos, decisión de negocio, o pruebas con datos reales)*
 
-1. **Definir y renombrar "Bien corregidos"** en Reportes — pendiente explícitamente de tu decisión y la de la optómetra sobre el nombre/criterio exacto.
-2. **Redefinir "Controles vencidos"** para medir fin-de-tratamiento en vez de atraso — requiere decidir el criterio clínico primero; una vez decidido, el cambio de cálculo/label es solo interfaz (la fecha ya existe en BD).
-3. **Notificación activa** (push/SMS/correo) cuando una cita pasa su hora sin cambio de estado — Diego ya decidió explícitamente el 2026-09-10 mantenerlo solo visual, sin canal activo. Se deja acá por si se quiere reabrir esa decisión, no porque falte implementar algo que se haya pedido y olvidado.
-4. **Campo dedicado "monto de la cita/consulta"**, separado de la venta de productos — hoy se cubre indirectamente con una línea de "servicio" genérica en la factura; si se quiere un campo obligatorio y distinto, implica decidir el esquema (¿columna en `consultas`? ¿siempre una línea de factura?).
+1. **Definir y renombrar "Bien corregidos"** en Reportes — pendiente explícitamente de tu decisión y la de la optómetra sobre el nombre/criterio exacto. Solo UI una vez decidido el nombre — ~15 min.
+2. **Redefinir "Controles vencidos"** para medir fin-de-tratamiento en vez de atraso — requiere decidir el criterio clínico primero, **y probablemente un campo nuevo en BD** (ver hallazgo de la revisión final abajo) — no es solo cambiar el cálculo/label como se pensó originalmente. Estimado: ~2-3 horas (migración + lógica + prueba) una vez decidido el criterio.
+3. **Notificación activa** (push/SMS/correo) cuando una cita pasa su hora sin cambio de estado — Diego ya decidió explícitamente el 2026-09-10 mantenerlo solo visual, sin canal activo. Se deja acá por si se quiere reabrir esa decisión, no porque falte implementar algo que se haya pedido y olvidado. Estimado si se reactiva: ~2-4 horas para una versión simple por correo, reusando la infraestructura de Resend ya integrada para otros flujos.
+4. **Campo dedicado "monto de la cita/consulta"**, separado de la venta de productos — hoy se cubre indirectamente con una línea de "servicio" genérica en la factura; si se quiere un campo obligatorio y distinto, implica decidir el esquema (¿columna en `consultas`? ¿siempre una línea de factura automática?). Estimado: ~1-2 horas si se resuelve reusando el mecanismo de línea de factura ya existente, ~2-3 horas si se quiere una columna dedicada nueva.
+
+---
+
+## Revisión final (2026-09-29) — recorrido completo del flujo de ING9
+
+Solo lectura, sin cambios de código ni datos. Releídas las 10 transcripciones y este archivo, comparadas contra el código actual de `main` incluyendo los 3 commits de hoy (`mejoras-ing`, `mejoras-pacientes`, `mejoras-ficha`). Recorrido el flujo completo que describe ING9: agendar → llegada/margen de gracia → "Atender" → ficha clínica (anamnesis/refracción/diagnóstico) → guardar → venta del lente recomendado → historial del paciente.
+
+**Resultado**: todo el flujo descrito en ING9 está construido y funcionando, incluyendo un punto que no estaba verificado explícitamente antes — la recuperación manual de un "No Asistió" automático (ING9: *"si el sistema lo reconoció así... puedo darle clic a 'Atender'... o en todo caso... 'Editar cita' para poder cambiar el horario y ahí sí poder marcarlo como 'En atención'"*): confirmado en código, `Citas.jsx:1001-1030`, el menú "Más acciones" ofrece "Paciente en atención" para cualquier cita no futura sin importar su estado actual, más "Editar cita" aparte.
+
+**Lo único que sigue pendiente o incompleto**, ordenado por qué tan visible sería en una demostración:
+
+1. **Reportes: "Bien corregidos" / "Controles vencidos"** — Alto. Son 2 de los 8 KPIs visibles apenas se abre Reportes, con el wording exacto que el ing cuestionó en la reunión del 3 de septiembre. UI (~15 min) para el primero una vez decidido el nombre; **BD** (~2-3 horas, campo nuevo) para el segundo, porque no existe ningún concepto de "tratamiento finalizado" en los datos hoy.
+2. **Notificación activa cuando pasa el margen de 10 minutos** — Alto en teoría (es parte central de la narrativa "todo es automático" que el ing describe en ING9), pero ya es una decisión tuya tomada el 2026-09-10, no un olvido. BD/infraestructura (~2-4 horas) si se quiere reabrir esa decisión.
+3. **Campo dedicado para el monto de la consulta** (aparte de la venta de productos) — Medio, solo sale a la luz si el ing pregunta específicamente por el costo de la consulta en sí. BD (~1-2 horas reusando el mecanismo existente, ~2-3 horas con columna dedicada).
+
+No se encontró ningún otro punto pendiente al recorrer el resto del flujo de ING9 con el código actual.
