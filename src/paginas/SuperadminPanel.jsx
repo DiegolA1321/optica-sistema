@@ -833,22 +833,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     cargarDatos()
   }, [])
 
-  // Escape cierra lo que esté abierto en ese momento, de más "encima" a menos
-  // — mismo orden de prioridad que usarías cerrando a mano con la X de cada uno.
-  // "Crear óptica", el detalle de óptica (incluida su confirmación de
-  // eliminar admin), "Quitar superadmin" y "Mi cuenta" ya no pasan por acá:
-  // cada uno tiene su propio Escape vía useModalAccesible (ver más arriba).
+  // Escape cierra el menú "Más acciones" — todos los modales de este panel
+  // ya migraron a su propio Escape vía useModalAccesible (ver más arriba);
+  // esto es lo único que le quedaba a gestionar al viejo handler global.
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key !== "Escape") return
-      if (modalAvisoAbierto) { if (!publicandoAviso) setModalAvisoAbierto(false); return }
-      if (mensajeAbierto) { if (!enviandoRespuesta) setMensajeAbierto(null); return }
-      if (modalSuperadminAbierto) { if (!guardandoSuperadmin) setModalSuperadminAbierto(false); return }
-      if (menuAccionesId != null) { setMenuAccionesId(null); return }
-    }
+    if (menuAccionesId == null) return
+    const onKey = (e) => { if (e.key === "Escape") setMenuAccionesId(null) }
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
-  }, [modalAvisoAbierto, publicandoAviso, mensajeAbierto, enviandoRespuesta, modalSuperadminAbierto, guardandoSuperadmin, menuAccionesId])
+  }, [menuAccionesId])
 
   const adminsPorOptica = useMemo(() => {
     const mapa = new Map()
@@ -1196,7 +1189,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }
 
   // Migración a useModalAccesible (mismo patrón del Lote 1): Escape, foco
-  // atrapado y devolución de foco al disparador para los 4 modales propios
+  // atrapado y devolución de foco al disparador para los 7 modales propios
   // de este panel que quedaron fuera de esa ronda. Cada onCerrar replica
   // exactamente la condición de cierre que ya tenía su propio backdrop
   // onClick / el handler global de Escape — ver docs/nielsen-medicion-final.md.
@@ -1204,6 +1197,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const refModalCrearOptica = useModalAccesible(modalAbierto, cerrarModal)
   const refModalEliminarSuperadmin = useModalAccesible(!!superadminAEliminar, () => setSuperadminAEliminar(null))
   const refModalMiCuenta = useModalAccesible(modalMiCuentaAbierto, () => { if (!guardandoMiCuenta && !guardandoClaveNueva) setModalMiCuentaAbierto(false) })
+  const refModalMensaje = useModalAccesible(!!mensajeAbierto, () => { if (!enviandoRespuesta) setMensajeAbierto(null) })
+  const refModalAviso = useModalAccesible(modalAvisoAbierto, () => { if (!publicandoAviso) setModalAvisoAbierto(false) })
+  const refModalAgregarSuperadmin = useModalAccesible(modalSuperadminAbierto, () => { if (!guardandoSuperadmin) setModalSuperadminAbierto(false) })
 
   const actualizarCampo = (clave, valor) => {
     setCampos((prev) => ({ ...prev, [clave]: valor }))
@@ -3615,6 +3611,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !enviandoRespuesta && setMensajeAbierto(null)}
         >
           <div
+            ref={refModalMensaje}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-mensaje-titulo"
             className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -3625,7 +3625,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   {mensajeAbierto.tipo === "anuncio" ? <Megaphone size={20} /> : <MessageSquare size={20} />}
                 </div>
                 <div className="min-w-0">
-                  <h4 className="truncate text-lg font-bold" style={{ color: INK }}>{mensajeAbierto.asunto}</h4>
+                  <h4 id="superadmin-modal-mensaje-titulo" className="truncate text-lg font-bold" style={{ color: INK }}>{mensajeAbierto.asunto}</h4>
                   <p className="truncate text-xs text-slate-500">
                     {mensajeAbierto.tipo === "anuncio" ? "Aviso general" : <>{mensajeAbierto.remitente_nombre} · {opticas.find((o) => o.id === mensajeAbierto.optica_id)?.nombre || "Óptica"}</>}
                   </p>
@@ -3679,6 +3679,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !publicandoAviso && setModalAvisoAbierto(false)}
         >
           <div
+            ref={refModalAviso}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-aviso-titulo"
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -3689,7 +3693,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <Megaphone size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Nuevo aviso</h4>
+                  <h4 id="superadmin-modal-aviso-titulo" className="text-lg font-bold" style={{ color: INK }}>Nuevo aviso</h4>
                   <p className="text-xs text-slate-500">
                     {avisoDestino === "todos" ? "Lo van a ver todos los administradores de óptica." : "Solo lo va a ver el administrador de esa óptica."}
                   </p>
@@ -4051,6 +4055,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
         >
           <div
+            ref={refModalAgregarSuperadmin}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-agregar-superadmin-titulo"
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -4061,7 +4069,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <ShieldCheck size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Agregar superadmin</h4>
+                  <h4 id="superadmin-modal-agregar-superadmin-titulo" className="text-lg font-bold" style={{ color: INK }}>Agregar superadmin</h4>
                   <p className="text-xs text-slate-500">Tendrá el mismo acceso total que vos.</p>
                 </div>
               </div>
