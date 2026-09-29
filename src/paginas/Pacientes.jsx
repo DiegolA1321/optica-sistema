@@ -1865,26 +1865,47 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
                     </button>
                   )}
-                  <div className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200/60">
+                  {/* Segmented control tipo píldora — mismo lenguaje que el
+                      resto del sistema para "esto está activo" (ver filtros
+                      de Citas.jsx), en vez del subrayado recto que tenía
+                      antes. role="tablist"/"tab"/aria-selected para que un
+                      lector de pantalla las anuncie como pestañas, no como
+                      4 botones sueltos. */}
+                  <div role="tablist" aria-label="Secciones del paciente" className="mt-6 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
                     <button
                       type="button"
+                      role="tab"
+                      id="tab-timeline"
+                      aria-selected={tabHistorial === "timeline"}
+                      aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("timeline")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "timeline" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "timeline" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "timeline" ? { background: GRAD } : undefined}
                     >
                       <History size={14} /> Historial
                     </button>
                     <button
                       type="button"
+                      role="tab"
+                      id="tab-clinica"
+                      aria-selected={tabHistorial === "clinica"}
+                      aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("clinica")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "clinica" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "clinica" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "clinica" ? { background: GRAD } : undefined}
                     >
                       <Eye size={14} /> Ficha clínica
-                      {consultasPaciente.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{consultasPaciente.length}</span>}
+                      {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "clinica" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
                     </button>
                     <button
                       type="button"
+                      role="tab"
+                      id="tab-pagos"
+                      aria-selected={tabHistorial === "pagos"}
+                      aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("pagos")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "pagos" ? { background: GRAD } : undefined}
                     >
                       {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
                           pestaña — "aquí están los productos que yo le he
@@ -1892,20 +1913,29 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           literal: es un listado de productos, el estado de
                           pago es solo un dato de cada fila. */}
                       <Wallet size={14} /> Lentes/Productos
-                      {totalComprasCount > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{totalComprasCount}</span>}
-                      {deudaTotal > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">${deudaTotal.toFixed(0)}</span>}
+                      {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
+                      {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
                     </button>
                     <button
                       type="button"
+                      role="tab"
+                      id="tab-fidelizacion"
+                      aria-selected={tabHistorial === "fidelizacion"}
+                      aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("fidelizacion")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "fidelizacion" ? { background: GRAD } : undefined}
                     >
                       <Heart size={14} /> Controles/Fidelización
-                      {inactivo && <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">Vencido</span>}
+                      {inactivo && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "fidelizacion" ? "bg-white/25 text-white" : "bg-red-100 text-red-700")}>Vencido</span>}
                     </button>
                   </div>
 
-                  <div className="py-6">
+                  {/* key={tabHistorial}: remonta el panel en cada cambio de
+                      pestaña para que "rise-in" (ya estándar en el resto del
+                      sistema, 320ms) se dispare de nuevo — antes el
+                      contenido cambiaba de golpe sin ninguna transición. */}
+                  <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
                     {tabHistorial === "timeline" ? (
                       <TimelinePaciente
                         citas={citasPaciente}
