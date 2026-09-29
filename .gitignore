@@ -33,4 +33,7 @@ supabase/.temp
 /transcripcion_*.txt
 
 .vercel
+# Cubre .env.local y cualquier .env.<entorno> (ej. .env.optica-dev, para
+# separar migraciones/datos de prueba de producción) — nunca angostar este
+# patrón a un nombre de archivo fijo.
 .env*
