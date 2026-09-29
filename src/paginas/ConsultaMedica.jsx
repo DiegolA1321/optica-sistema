@@ -568,6 +568,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     // formulario completo); sin historial, arranca abierto para completarlo.
     setTieneHistorialAntecedentes(hayHistorial)
     setSeccionesAbiertas((s) => ({ ...s, antecedentesPaciente: !hayHistorial }))
+    // La detección de cambios solo se pausaba al montar el componente o al
+    // reiniciar el formulario — buscar y elegir un paciente casi siempre
+    // toma más de los 400ms de esa pausa, así que la precarga de
+    // antecedentes/alergias/etc. de arriba (todos campos vigilados por el
+    // dirty-tracking) podía disparar el aviso de "cambios sin guardar" antes
+    // de que el optómetra tocara nada. Se re-arma acá también.
+    activarDeteccionCambios()
   }
 
   // Llega desde "¿Deseas abrir su ficha clínica ahora?" al crear un paciente en
