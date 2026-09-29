@@ -258,7 +258,7 @@ export default function Inicio({
       `}</style>
 
       {/* ─── HERO / BIENVENIDA (claro) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6">
         <svg aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 text-blue-600" viewBox="0 0 400 400" fill="none" stroke="currentColor" style={{ opacity: 0.05 }}>
           {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
         </svg>
@@ -322,12 +322,12 @@ export default function Inicio({
               onClick={acc.onClick}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); acc.onClick() } }}
               title={acc.titulo}
-              className={"group flex w-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
+              className={"group flex w-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{acc.titulo}</p>
-                  <h4 className="text-4xl font-serif font-semibold" style={{ color: c.valor }}>{acc.valor}</h4>
+                  <h4 className="text-3xl font-serif font-semibold" style={{ color: c.valor }}>{acc.valor}</h4>
                   <p className="text-xs text-slate-500">{acc.desc}</p>
                   {acc.tendencia && (
                     <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
@@ -430,7 +430,7 @@ export default function Inicio({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Citas de hoy */}
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                 <Calendar size={18} />
@@ -499,7 +499,7 @@ export default function Inicio({
             Cada fila es un botón: un clic manda directo al modal de
             editar/sumar stock de ESE producto en Inventario.jsx. */}
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600">
                 <AlertTriangle size={18} />
@@ -558,7 +558,7 @@ export default function Inicio({
           contestaba) ─── */}
       {esAdmin && actividadReciente.length > 0 && (
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
                 <History size={18} />

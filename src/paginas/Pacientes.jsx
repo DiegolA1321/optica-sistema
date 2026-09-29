@@ -50,6 +50,7 @@ import {
   Clock,
   Star,
   Building2,
+  HelpCircle,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -107,7 +108,7 @@ const CORRECCION = {
   "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200/60" },
   "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200/60" },
   "Sin evaluar": { label: "Sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
-  "Sin evaluación": { label: "Sin evaluación", icon: Minus, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
+  "Sin evaluación": { label: "Sin evaluación", icon: HelpCircle, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
 }
 
 // Colores (hex) para las tarjetas-resumen de corrección
@@ -1195,7 +1196,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           </div>
                           <div className="flex items-center gap-1.5 text-slate-500">
                             <Mail size={13} className="text-slate-500" />
-                            <span className="max-w-[160px] truncate">{paciente.correo}</span>
+                            <span className="max-w-[160px] truncate" title={paciente.correo}>{paciente.correo}</span>
                           </div>
                         </div>
                       </td>

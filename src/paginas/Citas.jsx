@@ -755,14 +755,19 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
       {/* ─── LISTADO ─── */}
       {cargaInicial && citas.length === 0 ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-200/60 bg-white p-5">
-              <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 w-1/4 animate-pulse rounded bg-slate-200/70" />
-                <div className="h-2.5 w-1/6 animate-pulse rounded bg-slate-200/60" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 pl-6 shadow-sm">
+              <div className="absolute inset-y-0 left-0 w-1.5 animate-pulse bg-slate-200/70" aria-hidden="true" />
+              <div className="mb-4 h-5 w-24 animate-pulse rounded-md bg-slate-200/70" />
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200/70" />
+                  <div className="h-2.5 w-1/3 animate-pulse rounded bg-slate-200/60" />
+                </div>
               </div>
+              <div className="mt-4 h-5 w-20 animate-pulse rounded-full bg-slate-200/60" />
             </div>
           ))}
         </div>
@@ -790,7 +795,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     style={hoyDia ? { backgroundColor: INK, borderColor: INK, color: "#fff" } : { backgroundColor: "#fff", borderColor: "rgba(14,43,51,0.1)", color: "#334155" }}
                   >
                     <span className="font-serif text-lg font-semibold leading-none">{t.diaNum}</span>
-                    <span className={"mt-0.5 text-[10px] font-semibold uppercase " + (hoyDia ? "text-white/60" : "text-slate-500")}>{t.mes}</span>
+                    <span className={"mt-0.5 text-xs font-semibold uppercase " + (hoyDia ? "text-white/60" : "text-slate-500")}>{t.mes}</span>
                   </div>
                   <div className="mt-2 w-px flex-1" style={{ backgroundColor: "rgba(14,43,51,0.1)" }} />
                 </div>
@@ -892,7 +897,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                   <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Motivo indicado en línea: {cita.motivoPublico}</span>
                                 )}
                                 {cita.codigo && (
-                                  <span className="mt-0.5 block font-mono text-[10.5px] text-slate-400" title="Código que el paciente recibió al reservar en línea">{cita.codigo}</span>
+                                  <span className="mt-0.5 block font-mono text-xs text-slate-400" title="Código que el paciente recibió al reservar en línea">{cita.codigo}</span>
                                 )}
                                 {cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle) && (
                                   <span
@@ -1243,7 +1248,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   {horaPersonalizada && (
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Hora real</label>
+                        <label className="mb-1 block text-xs font-semibold text-slate-500">Hora real</label>
                         <input
                           type="time"
                           value={horaCustom}
@@ -1252,7 +1257,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Duración estimada (min)</label>
+                        <label className="mb-1 block text-xs font-semibold text-slate-500">Duración estimada (min)</label>
                         <input
                           type="number"
                           min={5}

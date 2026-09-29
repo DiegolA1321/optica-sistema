@@ -2618,7 +2618,7 @@ function ConfirmarVentaModal({ producto, tipoLente, onCancelar, onConfirmar }) {
 // Registrado/no registrado a simple vista en una sección colapsable opcional
 function EtiquetaRegistro({ registrado }) {
   return (
-    <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold normal-case " + (registrado ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+    <span className={"rounded-full px-2 py-0.5 text-xs font-bold normal-case " + (registrado ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
       {registrado ? "Registrado" : "No registrado"}
     </span>
   )
@@ -2649,7 +2649,7 @@ function TarjetaVisita({ consulta: c }) {
 function InsigniaHistorial({ fecha }) {
   const fechaCorta = fecha ? fecha.split("-").reverse().join("/") : null
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600" title="Puedes editarlo si cambió">
+    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600" title="Puedes editarlo si cambió">
       <History size={10} /> {fechaCorta ? `De su visita del ${fechaCorta}` : "De su historial"}
     </span>
   )
