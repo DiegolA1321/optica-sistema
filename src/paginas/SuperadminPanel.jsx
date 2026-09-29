@@ -62,6 +62,7 @@ import SeccionMfa from "./SeccionMfa"
 import { esHoy, etiquetaFecha, fechaAISO } from "../utilidades/disponibilidad"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
@@ -834,22 +835,20 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // Escape cierra lo que esté abierto en ese momento, de más "encima" a menos
   // — mismo orden de prioridad que usarías cerrando a mano con la X de cada uno.
+  // "Crear óptica", el detalle de óptica (incluida su confirmación de
+  // eliminar admin), "Quitar superadmin" y "Mi cuenta" ya no pasan por acá:
+  // cada uno tiene su propio Escape vía useModalAccesible (ver más arriba).
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return
-      if (superadminAEliminar) { setSuperadminAEliminar(null); return }
-      if (adminAEliminar) { setAdminAEliminar(null); return }
-      if (modalMiCuentaAbierto) { if (!guardandoMiCuenta && !guardandoClaveNueva) setModalMiCuentaAbierto(false); return }
       if (modalAvisoAbierto) { if (!publicandoAviso) setModalAvisoAbierto(false); return }
       if (mensajeAbierto) { if (!enviandoRespuesta) setMensajeAbierto(null); return }
       if (modalSuperadminAbierto) { if (!guardandoSuperadmin) setModalSuperadminAbierto(false); return }
-      if (modalAbierto) { if (!guardando) setModalAbierto(false); return }
-      if (detalle) { setDetalle(null); setRenombrando(false); setAgregarAdminAbierto(false); return }
       if (menuAccionesId != null) { setMenuAccionesId(null); return }
     }
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
-  }, [superadminAEliminar, adminAEliminar, modalMiCuentaAbierto, guardandoMiCuenta, guardandoClaveNueva, modalAvisoAbierto, publicandoAviso, mensajeAbierto, enviandoRespuesta, modalSuperadminAbierto, guardandoSuperadmin, modalAbierto, guardando, detalle, menuAccionesId])
+  }, [modalAvisoAbierto, publicandoAviso, mensajeAbierto, enviandoRespuesta, modalSuperadminAbierto, guardandoSuperadmin, menuAccionesId])
 
   const adminsPorOptica = useMemo(() => {
     const mapa = new Map()
@@ -1184,6 +1183,27 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (guardando) return
     setModalAbierto(false)
   }
+
+  // Detalle de óptica: Escape cancela primero la confirmación de eliminar
+  // admin si está abierta (mismo orden de dos pasos que ya tenía el handler
+  // global de Escape), y solo en un segundo Escape cierra el modal entero.
+  const cerrarDetalle = () => {
+    if (adminAEliminar) { setAdminAEliminar(null); return }
+    setDetalle(null)
+    setRenombrando(false)
+    setAgregarAdminAbierto(false)
+    setAdminAEliminar(null)
+  }
+
+  // Migración a useModalAccesible (mismo patrón del Lote 1): Escape, foco
+  // atrapado y devolución de foco al disparador para los 4 modales propios
+  // de este panel que quedaron fuera de esa ronda. Cada onCerrar replica
+  // exactamente la condición de cierre que ya tenía su propio backdrop
+  // onClick / el handler global de Escape — ver docs/nielsen-medicion-final.md.
+  const refModalDetalleOptica = useModalAccesible(!!detalle, cerrarDetalle)
+  const refModalCrearOptica = useModalAccesible(modalAbierto, cerrarModal)
+  const refModalEliminarSuperadmin = useModalAccesible(!!superadminAEliminar, () => setSuperadminAEliminar(null))
+  const refModalMiCuenta = useModalAccesible(modalMiCuentaAbierto, () => { if (!guardandoMiCuenta && !guardandoClaveNueva) setModalMiCuentaAbierto(false) })
 
   const actualizarCampo = (clave, valor) => {
     setCampos((prev) => ({ ...prev, [clave]: valor }))
@@ -3151,6 +3171,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => { setDetalle(null); setRenombrando(false); setAgregarAdminAbierto(false); setAdminAEliminar(null) }}
         >
           <div
+            ref={refModalDetalleOptica}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-detalle-titulo"
             className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -3160,7 +3184,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>
                   {detalle.nombre.charAt(0).toUpperCase()}
                 </div>
-                <div className="min-w-0">
+                <div id="superadmin-modal-detalle-titulo" className="min-w-0">
                   {renombrando ? (
                     <div className="flex items-center gap-1.5">
                       <input
@@ -3752,6 +3776,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={cerrarModal}
         >
           <div
+            ref={refModalCrearOptica}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-crear-optica-titulo"
             className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -3762,7 +3790,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <Building2 size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Crear óptica</h4>
+                  <h4 id="superadmin-modal-crear-optica-titulo" className="text-lg font-bold" style={{ color: INK }}>Crear óptica</h4>
                   <p className="text-xs text-slate-500">Se crea la óptica y la cuenta de su administrador en un solo paso.</p>
                 </div>
               </div>
@@ -4118,13 +4146,17 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !eliminandoSuperadmin && setSuperadminAEliminar(null)}
         >
           <div
+            ref={refModalEliminarSuperadmin}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-eliminar-titulo"
             className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">
               <div className="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-rose-50 text-rose-600"><AlertTriangle size={20} /></div>
-              <h4 className="text-base font-bold" style={{ color: INK }}>¿Quitar a {superadminAEliminar.nombre} como superadmin?</h4>
+              <h4 id="superadmin-modal-eliminar-titulo" className="text-base font-bold" style={{ color: INK }}>¿Quitar a {superadminAEliminar.nombre} como superadmin?</h4>
               <p className="mt-1.5 text-sm text-slate-500">Perderá acceso al panel y su cuenta de acceso se elimina — su correo queda libre para usarse de nuevo.</p>
               {errorEliminarSuperadmin && (
                 <p role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarSuperadmin}</p>
@@ -4150,6 +4182,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           onClick={() => !guardandoMiCuenta && !guardandoClaveNueva && setModalMiCuentaAbierto(false)}
         >
           <div
+            ref={refModalMiCuenta}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="superadmin-modal-mi-cuenta-titulo"
             className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
             style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
             onClick={(e) => e.stopPropagation()}
@@ -4160,7 +4196,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <Settings size={20} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
+                  <h4 id="superadmin-modal-mi-cuenta-titulo" className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
                   <p className="text-xs text-slate-500">Tus datos y tu acceso a este panel.</p>
                 </div>
               </div>
