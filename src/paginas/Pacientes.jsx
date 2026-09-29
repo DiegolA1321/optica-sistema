@@ -1496,7 +1496,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           <div
             ref={menuAccionesRef}
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
-            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
+            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
           >
             <button
               type="button"
@@ -1640,7 +1640,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
       {/* ─── MODAL HISTORIAL CLÍNICO ─── */}
       {pacienteHistorial && createPortal(
-        <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 200ms ease-out" }}>
+        <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 320ms ease-out" }}>
           {/* Barra superior de la vista — volver (breadcrumb) y cerrar (X) llevan
               al mismo lugar: la lista de pacientes. Se ofrecen los dos porque
               son gestos distintos con los que la gente ya está familiarizada. */}

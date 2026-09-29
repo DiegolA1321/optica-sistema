@@ -27,6 +27,10 @@
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(10px); }
 }
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
 
 /* overlay-in/modal-in/rise-in se disparan vía style={{ animation: "..." }}
    inline en ~17 modales y varias tarjetas de KPI — un guard de
@@ -74,6 +78,10 @@
   @keyframes rise-out {
     from { opacity: 1; }
     to { opacity: 0; }
+  }
+  @keyframes menu-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   *, *::before, *::after {
     /* Antes esto cortaba a 0.01ms incluso las animaciones ya redefinidas

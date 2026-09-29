@@ -78,7 +78,7 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
+      className="group flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 cursor-pointer"
       style={{
         borderColor: activo ? c.ring : "rgba(14,43,51,0.08)",
         boxShadow: activo ? `0 0 0 3px ${c.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
@@ -689,7 +689,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           <button
             type="button"
             onClick={() => abrirModal()}
-            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
           >
             <UserPlus size={18} />
@@ -960,7 +960,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           <div
             ref={menuAccionesRef}
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
-            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "modal-in 120ms ease-out" }}
+            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
           >
             {!cita.pacienteId && (
               <>
@@ -1279,7 +1279,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 <button type="button" onClick={cerrarModal} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
                   {atenderInmediato ? "Atender ahora" : "Confirmar cita"}
                   <ChevronRight size={16} />
                 </button>
@@ -1387,7 +1387,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 <button type="button" onClick={cerrarCompletarRegistro} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
-                <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
                   {cpGuardando ? "Guardando…" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
                   <ChevronRight size={16} />
                 </button>
@@ -1481,7 +1481,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 <button type="button" onClick={cerrarReagendar} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                   Cancelar
                 </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
                   Guardar cambios
                   <ChevronRight size={16} />
                 </button>
