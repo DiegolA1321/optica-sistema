@@ -553,9 +553,13 @@ export default function Inicio({
         </section>
       </div>
 
-      {/* ─── ACTIVIDAD RECIENTE (solo admin principal, misma fuente que
+      {/* ─── REGISTRO DE ACTIVIDAD (solo admin principal, misma fuente que
           Usuarios.jsx — responde "qué cambió", que el resto del panel no
-          contestaba) ─── */}
+          contestaba). Título/copy ajustados para que se lea como registro
+          de auditoría, no como un atajo de navegación — no es el mismo
+          widget que ING1 pidió quitar (aquella "búsqueda rápida de
+          paciente" ya no existe); esta sección viene de un pedido distinto
+          (exponer "Actividad" también al admin de la óptica). ─── */}
       {esAdmin && actividadReciente.length > 0 && (
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
@@ -564,8 +568,8 @@ export default function Inicio({
                 <History size={18} />
               </div>
               <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Actividad reciente</h4>
-                <p className="text-[11px] text-slate-500">Últimas acciones del equipo</p>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Registro de actividad</h4>
+                <p className="text-[11px] text-slate-500">Qué cambió y quién lo hizo</p>
               </div>
             </div>
             <button type="button" onClick={() => setVista?.("usuarios")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
