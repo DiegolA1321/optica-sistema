@@ -26,7 +26,7 @@ import {
 import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
-  haySolapamiento, finCitaMinutos,
+  haySolapamiento, finCitaMinutos, slotsDisponibles,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -37,6 +37,16 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 const ORDEN_LV = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+
+// Mismos colores por estado que usa Citas.jsx, en versión badge compacta
+// para la lista de "Citas registradas" del modal de excepción de horario.
+const ESTADO_BADGE_CLASE = {
+  "Atendida": "bg-emerald-50 text-emerald-600",
+  "No Asistió": "bg-red-50 text-red-600",
+  "Cancelada": "bg-slate-100 text-slate-500",
+  "En Atención": "bg-blue-50 text-blue-600",
+  "Pendiente": "bg-amber-50 text-amber-600",
+}
 
 // Texto legible de un horario de dos sesiones — reemplaza al viejo "inicio–fin"
 // plano ahora que cada día puede tener mañana y tarde por separado.
@@ -737,6 +747,8 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           fecha={fechaEditando}
           excepcion={excepcionActual}
           horarioBase={horarioBaseFecha}
+          disponibilidad={disponibilidad}
+          citas={citas}
           onGuardar={guardarExcepcion}
           onQuitar={excepcionActual ? quitarExcepcion : null}
           onCerrar={() => setFechaEditando(null)}
@@ -1023,12 +1035,23 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
   )
 }
 
-function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, onCerrar }) {
+function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas, onGuardar, onQuitar, onCerrar }) {
   const base = excepcion || horarioBase
   const [manana, setManana] = useState({ ...horarioBase.manana, ...base.manana })
   const [tarde, setTarde] = useState({ ...horarioBase.tarde, ...base.tarde })
 
   const fechaLegible = new Date(fecha + "T00:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
+
+  // Citas + horarios libres de este día (reunión 29 sept., punto 9 del plan)
+  // — informativo, calculado sobre el horario realmente guardado (no sobre
+  // el borrador de mañana/tarde que se edita más abajo en este mismo modal).
+  const citasDelDia = (citas || [])
+    .filter((c) => c.fecha === fecha)
+    .sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
+  const slots = slotsDisponibles(fecha, disponibilidad, citas || [])
+  const diaEstaAbierto = diaAbierto(horarioEfectivo(fecha, disponibilidad))
+  const slotsLibres = slots.filter((s) => s.libre)
+  const slotsOcupados = slots.length - slotsLibres.length
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — siempre "abierto"
   // mientras este componente está montado, ya que su caller lo monta y
@@ -1037,8 +1060,8 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="horario-modal-excepcion-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-        <div className="border-b border-slate-100 px-6 py-4">
+      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="horario-modal-excepcion-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+        <div className="shrink-0 border-b border-slate-100 px-6 py-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Excepción de horario</p>
           <h2 id="horario-modal-excepcion-titulo" className="text-lg font-bold capitalize" style={{ color: INK }}>{fechaLegible}</h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -1046,44 +1069,93 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, onGuardar, onQuitar, o
           </p>
         </div>
 
-        <div className="space-y-3 px-6 py-5">
-          {[["manana", "Mañana", Sun, manana, setManana], ["tarde", "Tarde", Moon, tarde, setTarde]].map(([clave, etiqueta, Icono, valor, setValor]) => (
-            <div key={clave} className="rounded-xl border border-slate-200/60 p-3">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icono size={14} /> {etiqueta}</span>
-                <button
-                  type="button" onClick={() => setValor((v) => ({ ...v, activo: !v.activo }))}
-                  role="switch"
-                  aria-checked={valor.activo}
-                  aria-label={valor.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
-                  className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
-                  style={{ backgroundColor: valor.activo ? "#059669" : "#e2e8f0" }}
-                >
-                  <span className={"absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform " + (valor.activo ? "translate-x-[22px]" : "translate-x-0")} />
-                </button>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          {/* Citas registradas + horarios libres (reunión 29 sept., punto 9 del
+              plan) — informativo, no forma parte del formulario de abajo. */}
+          <div>
+            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <CalendarDays size={13} /> Citas registradas <span className="font-normal normal-case text-slate-400">· {citasDelDia.length}</span>
+            </h3>
+            {citasDelDia.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Sin citas registradas este día.</p>
+            ) : (
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60">
+                {citasDelDia.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-700">{c.paciente}</p>
+                      <p className="text-xs text-slate-500">{c.hora}</p>
+                    </div>
+                    <span className={"shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
+                      {c.estado || "Pendiente"}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {valor.activo && (
-                <div className="mt-2.5 grid grid-cols-2 gap-2">
-                  <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                  <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                </div>
-              )}
-            </div>
-          ))}
-
-          <div className="flex gap-3 border-t border-slate-100 pt-4">
-            {onQuitar && (
-              <button type="button" onClick={onQuitar} title="Volver al horario habitual" aria-label="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
-                <RotateCcw size={14} />
-              </button>
             )}
-            <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
-            <button type="button" onClick={() => onGuardar({ manana, tarde })} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
-              <span className="flex items-center justify-center gap-1.5"><CheckCircle2 size={15} /> Guardar</span>
-            </button>
           </div>
+
+          <div>
+            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <Clock size={13} /> Horarios libres
+            </h3>
+            {!diaEstaAbierto ? (
+              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Día cerrado — no hay horarios que mostrar.</p>
+            ) : (
+              <>
+                <p className="mb-2 text-xs text-slate-500">{slotsOcupados} ocupados · {slotsLibres.length} disponibles</p>
+                {slotsLibres.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Sin horarios libres este día.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {slotsLibres.map((s) => (
+                      <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">{s.hora}</span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="space-y-3 border-t border-slate-100 pt-4">
+            {[["manana", "Mañana", Sun, manana, setManana], ["tarde", "Tarde", Moon, tarde, setTarde]].map(([clave, etiqueta, Icono, valor, setValor]) => (
+              <div key={clave} className="rounded-xl border border-slate-200/60 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icono size={14} /> {etiqueta}</span>
+                  <button
+                    type="button" onClick={() => setValor((v) => ({ ...v, activo: !v.activo }))}
+                    role="switch"
+                    aria-checked={valor.activo}
+                    aria-label={valor.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
+                    className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
+                    style={{ backgroundColor: valor.activo ? "#059669" : "#e2e8f0" }}
+                  >
+                    <span className={"absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform " + (valor.activo ? "translate-x-[22px]" : "translate-x-0")} />
+                  </button>
+                </div>
+                {valor.activo && (
+                  <div className="mt-2.5 grid grid-cols-2 gap-2">
+                    <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
+                    <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4">
+          {onQuitar && (
+            <button type="button" onClick={onQuitar} title="Volver al horario habitual" aria-label="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
+              <RotateCcw size={14} />
+            </button>
+          )}
+          <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="button" onClick={() => onGuardar({ manana, tarde })} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
+            <span className="flex items-center justify-center gap-1.5"><CheckCircle2 size={15} /> Guardar</span>
+          </button>
         </div>
       </div>
     </div>,
