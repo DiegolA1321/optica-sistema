@@ -167,6 +167,10 @@ function mapCita(c) {
     // solapamiento por duración personalizada solo funcionaban con el dato
     // recién creado en memoria, nunca con uno recargado desde la base.
     origen: c.origen, duracionMinutos: c.duracion_minutos,
+    // cancelada_por (0078) — mismo hallazgo que origen/duracionMinutos: sin
+    // esto en el whitelist, el badge de "Cancelada" solo distinguía quién
+    // canceló en el registro recién creado en memoria, nunca al recargar.
+    canceladaPor: c.cancelada_por,
   }
 }
 function mapConsulta(c) {

@@ -8,7 +8,6 @@ import {
   Clock,
   User,
   CheckCircle2,
-  Trash2,
   X,
   Search,
   CalendarDays,
@@ -432,12 +431,21 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setNpErrores({})
   }
 
+  // No se elimina la cita (reunión 29 sept., punto 2 del plan: "no deberíamos
+  // eliminar citas, sino reagendarlas") — se marca Cancelada, igual que
+  // cuando cancela el propio paciente desde el portal, distinguiendo quién
+  // canceló (cancelada_por, migración 0078) para que el badge no diga
+  // "por el paciente" en una cita que canceló recepción.
   const confirmarCancelacion = async () => {
     if (porCancelar == null) return
     const cancelada = citas.find((c) => c.id === porCancelar)
     if (supabase && opticaId) {
-      const { data: eliminadas, error: errorCancelar } = await supabase.from("citas").delete().eq("id", porCancelar).select()
-      if (fueBloqueadoPorPermiso({ error: errorCancelar, data: eliminadas })) {
+      const { data: actualizadas, error: errorCancelar } = await supabase
+        .from("citas")
+        .update({ estado: "Cancelada", cancelada_por: "recepcion" })
+        .eq("id", porCancelar)
+        .select()
+      if (fueBloqueadoPorPermiso({ error: errorCancelar, data: actualizadas })) {
         setBannerError(MENSAJE_SIN_PERMISO)
         setPorCancelar(null)
         return
@@ -449,7 +457,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       }
     }
     setBannerError("")
-    setCitas(citas.filter((c) => c.id !== porCancelar))
+    setCitas(citas.map((c) => (c.id === porCancelar ? { ...c, estado: "Cancelada", canceladaPor: "recepcion" } : c)))
     registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${cancelada.fecha}` : "")
     setPorCancelar(null)
   }
@@ -1086,7 +1094,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                                 </span>
                               ) : cita.estado === "Cancelada" ? (
                                 <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                                  <X size={12} /> Cancelada por el paciente
+                                  <X size={12} /> {cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : "Cancelada por el paciente"}
                                 </span>
                               ) : (
                                 <span className={"flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
@@ -1186,7 +1194,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
             >
-              <Trash2 size={15} /> Eliminar cita
+              <X size={15} /> Cancelar cita
             </button>
           </div>,
           document.body,
@@ -1597,14 +1605,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
               <AlertTriangle size={24} className="text-red-500" />
             </div>
-            <h4 id="citas-modal-cancelar-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar esta cita?</h4>
-            <p className="mt-1.5 text-center text-sm text-slate-500">Esta acción borra el registro de la agenda por completo y no se puede deshacer.</p>
+            <h4 id="citas-modal-cancelar-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h4>
+            <p className="mt-1.5 text-center text-sm text-slate-500">La cita queda marcada como Cancelada — el registro no se borra y se puede reagendar cuando quieras.</p>
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setPorCancelar(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                 Volver
               </button>
               <button type="button" onClick={confirmarCancelacion} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">
-                Sí, eliminar
+                Sí, cancelar
               </button>
             </div>
           </div>
