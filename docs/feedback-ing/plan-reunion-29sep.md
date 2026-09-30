@@ -139,11 +139,11 @@ Antes de estimar esto falta una decisión de producto: ¿"Optómetra" es un perm
 
 Las 4 decisiones de Diego (D1-D4, sección 0) reemplazan la vieja Fase 0 ("aclarar con el ing") — ya no hay nada pendiente de aclarar, hay que construir. Las fases quedan ordenadas por: sin-BD primero, luego BD (con aviso previo), luego el resto de pendientes de la reunión que no dependían de ninguna contradicción.
 
-### Fase 1 — Decisiones de hoy sin tocar BD (arrancar ya, con tu aprobación)
-1. **D1** — Antecedentes solo en el paso Anamnesis (quitar de Refracción y Diagnóstico) — `ConsultaMedica.jsx` — ~30-60 min
-2. **D4** — Vista por rol: propagar `es_optometra` a `usuario` (`App.jsx`, `Login.jsx`) y filtrar `Inicio.jsx` (agenda del día/en atención) para quien tiene el flag activo — ~4-6h
-3. Filtro por rango de fechas en Citas médicas (pendiente de la reunión, sigue vigente) — `Citas.jsx` — ~2h
-4. Notificación de no asistencia en la campana (pendiente anterior 2.2, opción A) — `Dashboard.jsx` — ~1-2h
+### Fase 1 — Decisiones de hoy sin tocar BD (arrancar ya, con tu aprobación) — ✅ **PUBLICADA en `main`** (commit `7cf84b9`, merge de `reunion-29sep`)
+1. **D1** — Antecedentes solo en el paso Anamnesis (quitar de Refracción y Diagnóstico) — `ConsultaMedica.jsx` — ~30-60 min — ✅ `f06da43`
+2. **D4** — Vista por rol: propagar `es_optometra` a `usuario` (`App.jsx`, `Login.jsx`) y filtrar `Inicio.jsx` (agenda del día/en atención) para quien tiene el flag activo — ~4-6h — ✅ `12a65a8`, `a220b75`, `6b97371`, `9130a7f`
+3. Filtro por rango de fechas en Citas médicas (pendiente de la reunión, sigue vigente) — `Citas.jsx` — ~2h — ✅ `a75920c`
+4. Notificación de no asistencia en la campana (pendiente anterior 2.2, opción A) — `Dashboard.jsx` — ~1-2h — ✅ `6e55b8e`
 
 *Subtotal Fase 1: ~8-10h.*
 
