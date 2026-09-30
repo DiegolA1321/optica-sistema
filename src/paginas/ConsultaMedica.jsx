@@ -1188,17 +1188,19 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
               </div>
             )}
             {/* ─── Antecedentes del paciente (dato fijo de la persona, no
-                relacional a esta consulta) — visible en los 3 pasos, no
-                solo en Anamnesis, para que un paciente con historial que
-                abre directo en Refracción (ver seleccionarPacienteCombo,
-                pedido ING7) también tenga este resumen a la vista.
-                Colapsado cuando ya están registrados de una visita anterior
-                (pedido de Diego: no repetir este formulario completo en
-                cada visita; solo la primera vez, o si el optómetra quiere
-                revisarlo/editarlo, se despliega). Mismo patrón
-                alternarSeccion() que usa Refracción para retinoscopía/examen
-                físico/biomicroscopía. ─── */}
-            {pacienteId && (
+                relacional a esta consulta) — se muestra una sola vez, en el
+                paso donde se abre la ficha para este paciente (decisión de
+                Diego, 29 sept.): paciente nuevo abre en Anamnesis y el
+                bloque vive solo ahí; paciente con historial abre directo en
+                Refracción (ver seleccionarPacienteCombo, pedido ING7) y el
+                resumen plegado vive solo ahí — nunca en los dos pasos ni en
+                Diagnóstico. Colapsado cuando ya están registrados de una
+                visita anterior (pedido de Diego: no repetir este formulario
+                completo en cada visita; solo la primera vez, o si el
+                optómetra quiere revisarlo/editarlo, se despliega). Mismo
+                patrón alternarSeccion() que usa Refracción para
+                retinoscopía/examen físico/biomicroscopía. ─── */}
+            {pacienteId && (tieneHistorialAntecedentes ? subTab === "refraccion" : subTab === "anamnesis") && (
               <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                 <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} aria-expanded={!!seccionesAbiertas.antecedentesPaciente} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
                   <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
