@@ -9,8 +9,10 @@
 
 ## Inventario (`Inventario.jsx`)
 
-### I1. Eliminar un producto es un `DELETE` real, sin aviso de su historial de ventas
+### I1. Eliminar un producto es un `DELETE` real, sin aviso de su historial de ventas — ✅ **Implementado** (`51ee470`, migración `0081`)
 **Criterio aplicado**: [5] Conservar el registro en lugar de borrarlo.
+
+> Se construyó la opción de "ir más lejos": `inventario.activo boolean` (migración `0081_inventario_activo.sql`). Un producto sin ventas se sigue eliminando tal cual, con confirmación; uno con ventas se desactiva (deja de poder elegirse en `VentaProductoModal`/factura/lente recomendado de `ConsultaMedica.jsx`, pero conserva su historial y su reporte de ventas, con toggle "Ver descontinuados" y botón "Reactivar"). Verificado en vivo: los 2 productos existentes quedaron con `activo = true` tras aplicar la migración.
 
 `confirmarEliminar()` (`Inventario.jsx:181-203`) hace `supabase.from("inventario").delete()` sin comprobar antes si el producto tiene ventas asociadas. La tabla `ventas` sí protege el dato financiero a nivel de base (`producto_id references inventario(id) on delete set null` + columna `producto_nombre` cacheada, `supabase/migrations/0047_ventas_productos.sql:24-25`), así que una venta pasada no se rompe — pero el botón "Ver reporte de ventas" (`Inventario.jsx:539`) vive sobre la fila del producto: en cuanto se elimina, ese reporte deja de ser alcanzable desde Inventario, aunque existan ventas con pagos `pendiente` asociadas a ese producto. El mismo criterio que ya se aplicó a Citas (reemplazar "Eliminar cita" por "Cancelar cita", `plan-reunion-29sep.md` Fase 3b) no llegó a Inventario.
 
@@ -28,8 +30,10 @@ El ing pidió explícitamente el orden del formulario "categoría → descripci�
 
 - **BD**: no. **Riesgo**: bajo (solo reordenar 2 `<th>`/`<td>`). **Tiempo**: ~20 min.
 
-### I3. El nombre del paciente en "Reporte de ventas" no enlaza a su perfil
+### I3. El nombre del paciente en "Reporte de ventas" no enlaza a su perfil — ✅ **Implementado** (`b0d0a91`)
 **Criterio aplicado**: [9] Flujos conectados end-to-end.
+
+> Más barato de lo previsto: el deep-link ya existía (`accionPacienteInicio`/`accionInicial`, usado por el buscador global y por Citas.jsx/Inicio.jsx) — no hizo falta construir plomería nueva en `Dashboard.jsx`, solo exponer el mismo callback `onVerPerfil` a `Inventario`/`CRM` y convertir el nombre en un botón en ambos.
 
 El modal "Reporte de ventas" (`Inventario.jsx:768-836`) muestra, por cada venta, `nombrePaciente(v.pacienteId)` como texto plano (`Inventario.jsx:814`). Si un empleado ve ahí "Diego Alarcón · $45 · Pendiente" y quiere revisar o cobrar esa deuda, hoy tiene que cerrar el modal, ir a Pacientes y volver a buscarlo — exactamente el "buscar dos veces" que el ing marcó como objetivo a evitar (`transcripcion_ordenada.txt:129-130`). No existe hoy en todo el código ningún mecanismo para abrir el perfil de un paciente específico desde otro módulo (verificado: no hay ningún `pacienteIdInicial` ni prop equivalente en `Pacientes.jsx`/`Dashboard.jsx`) — sí existe el patrón general para otros deep-links (`productoIdParaReabastecer`, `fichaClinicaPacienteInicial`, `Dashboard.jsx:166-167`), que se puede replicar.
 
@@ -41,7 +45,7 @@ El modal "Reporte de ventas" (`Inventario.jsx:768-836`) muestra, por cada venta,
 
 ## CRM y fidelización (`CRM.jsx`)
 
-### C1. Los 4 bloques curados y "Ver detalles" no enlazan al perfil del paciente
+### C1. Los 4 bloques curados y "Ver detalles" no enlazan al perfil del paciente — ✅ **Implementado** (`b0d0a91`)
 **Criterio aplicado**: [9] Flujos conectados end-to-end.
 
 `FilaContacto` (`CRM.jsx:602-639`) y la tabla de `ModalDetalleCRM` (`CRM.jsx:706-726`) muestran el nombre del paciente como texto plano — la única acción disponible es "WhatsApp". Si la óptica ve "Juan Pérez — sin visitar hace 45 días" y quiere revisar su historial antes de escribirle (o registrar algo en su ficha), no hay atajo: hay que ir a Pacientes y buscarlo de nuevo. Mismo defecto que I3 en Inventario, mismo mecanismo a construir — no son dos features, es un solo deep-link reutilizado en dos módulos.
@@ -56,8 +60,10 @@ El modal "Reporte de ventas" (`Inventario.jsx:768-836`) muestra, por cada venta,
 
 ## Reportes (`Reportes.jsx`)
 
-### R1. Reportes no recibe `usuario` — no se filtra por rol pese a que D4 ya existe
+### R1. Reportes no recibe `usuario` — no se filtra por rol pese a que D4 ya existe — ✅ **Implementado** (`90c4b53`)
 **Criterio aplicado**: [8] Vistas adaptadas al rol real del usuario.
+
+> Alcance decidido por Diego, distinto al propuesto abajo: en vez de filtrar por `profesionalId`, se ocultan directamente las métricas financieras (Ingresos, Conversión a venta, Productos más vendidos) para un optómetra no-admin — el resto (Consultas, Pacientes nuevos, Bien corregidos, Tratamientos finalizados, Controles atrasados, Citas→atendidos, Satisfacción, Diagnósticos, Tendencia de inasistencias, Estado de corrección) queda visible para todos los roles con permiso al módulo.
 
 El 29 de septiembre el ing pidió explícitamente que el administrador vea el control global y el optómetra vea solo lo suyo (`reunion-zoom-29sep.md`, 03:45), y Diego ya decidió (D4, `plan-reunion-29sep.md`) reutilizar el flag `perfiles.es_optometra` para eso — ya implementado en `Inicio.jsx` y `Citas.jsx` (commits `12a65a8`, `a220b75`, `6b97371`, `9130a7f`). Pero `Reportes.jsx` no recibe `usuario` en absoluto: `Dashboard.jsx:529` lo instancia como `<Reportes cargaInicial={...} pacientes={...} consultas={...} citas={...} ventas={...} facturasVenta={...} respuestasSatisfaccion={...} />`, sin el prop. Todos los KPIs (consultas, ingresos, conversión, satisfacción) son siempre el agregado de toda la óptica, sin importar quién los mire.
 
@@ -108,8 +114,10 @@ La campanita de Inicio ya muestra "N consultas esperando respuesta" mientras `me
 
 ## Portal del paciente (`PortalPaciente.jsx`)
 
-### P1. "Solicitar mis medidas completas" no envía nada — es solo un `useState` local
+### P1. "Solicitar mis medidas completas" no envía nada — es solo un `useState` local — ✅ **Implementado** (`f727a8b`, migración `0080`)
 **Criterio aplicado**: [9] Flujos conectados end-to-end. *(Este hallazgo se lee más como un defecto funcional que una mejora de diseño — se incluye igual porque apareció al aplicar el mismo criterio con el que se revisó todo lo demás.)*
+
+> Se descartó reutilizar `mensajes` (ese canal es óptica-admin ↔ Diego/superadmin, no paciente↔óptica — ver `docs/feedback-ing/` conversación del 30/09). Se construyó en su lugar `pacientes_base.medidas_solicitadas_en timestamptz` + RPC `solicitar_medidas_paciente` (token, reutiliza `sesion_paciente_valida` de la migración 0063) — más liviano que el precedente de `solicitudes_eliminacion_paciente` porque no necesita tabla ni motivo aparte. El personal ve un banner en el perfil del paciente y una entrada en la campana de notificaciones; "marcar atendida" es un update normal sin RPC nuevo de ese lado.
 
 El botón "Solicitar mis medidas completas" (`PortalPaciente.jsx:643-649`) llama únicamente a `setMedidasSolicitadas(true)` — no hay ningún `supabase.rpc(...)` ni insert de por medio. El paciente ve "Solicitud enviada" (con ícono de check verde) pero **nadie del lado de la óptica recibe ni ve esa solicitud en ningún lado** — no hay fila nueva en `mensajes`, ni entrada en `alertas`, ni tabla dedicada. Es una confirmación visual sin acción real detrás — justo lo que CLAUDE.md §2 pide evitar ("Micro-feedback Inmediato" implica que la confirmación refleje algo que de verdad ocurrió), y contradice el criterio [9] con el ejemplo más literal posible: un botón que aparenta conectar dos lados del sistema y no conecta ninguno.
 
@@ -130,13 +138,13 @@ Búsqueda confirmada: ni "pago", "compra", "factura" ni "producto" aparecen en n
 
 ## Resumen
 
-| Módulo | Hallazgos | Requieren BD | Ya construido/reutilizable |
-|---|---|---|---|
-| Inventario | I1, I2, I3 | I1 (opcional) | I3 sienta la base del deep-link que reutiliza C1 |
-| CRM | C1 | No | Reutiliza el deep-link de I3 |
-| Reportes | R1, R2 | No | Reutiliza `es_optometra` (D4) y `destino` de alertas (patrón de `Dashboard.jsx`) |
-| Configuración | G1 | Sí | Reutiliza el patrón de `opticas.marca` |
-| Mensajes | M1 | No | Reutiliza el patrón `alertas.push` de `Dashboard.jsx` |
-| Portal del paciente | P1, P2 | P1 sí, P2 no | P2 reutiliza el patrón RLS de lectura por paciente ya usado en citas/consultas |
+| Módulo | Hallazgos | Estado | Requieren BD | Ya construido/reutilizable |
+|---|---|---|---|---|
+| Inventario | I1, I2, I3 | I1 ✅ `51ee470` (0081) · I3 ✅ `b0d0a91` · I2 ⏳ pendiente | I1 (hecho) | I3 reutilizó el deep-link existente (`accionPacienteInicio`), no hizo falta construirlo |
+| CRM | C1 | ✅ `b0d0a91` | No | Reutilizó el deep-link de I3 |
+| Reportes | R1, R2 | R1 ✅ `90c4b53` (alcance final: ocultar KPIs financieros) · R2 ⏳ pendiente | No | R1 reutilizó `es_optometra` (D4) |
+| Configuración | G1 | ⏳ pendiente | Sí | Reutiliza el patrón de `opticas.marca` |
+| Mensajes | M1 | ⏳ pendiente | No | Reutiliza el patrón `alertas.push` de `Dashboard.jsx` |
+| Portal del paciente | P1, P2 | P1 ✅ `f727a8b` (0080) · P2 ⏳ pendiente | P1 sí (hecho) · P2 no | P2 reutiliza el patrón RLS de lectura por paciente ya usado en citas/consultas |
 
-Ningún hallazgo de este documento se construye sin la confirmación de Diego — quedan listados como propuestas a discutir, en el mismo formato que ya usa `plan-reunion-29sep.md` para que sea fácil promoverlos a un plan de fases si él los aprueba.
+5 de 10 hallazgos implementados y verificados (2026-09-30): I1, I3, C1, R1, P1. Quedan pendientes de confirmar con Diego: I2, R2, G1, M1, P2 — mismo criterio de este documento, sin construirse todavía.
