@@ -134,13 +134,31 @@ Escala 0-4 por heurística (0 = no cumple, 4 = cumple completamente). `n/a` = he
 3. **`transition-all` sin acotar, creciendo en vez de achicarse** (H4) — 98 ocurrencias en todo el sistema (antes ~82), incluyendo código nuevo de esta ronda (`Pacientes.jsx`: 9, `Horario.jsx`: 6). Solo los 5 de `Citas.jsx` de una ronda anterior siguen resueltos.
 
 ### Bajo
-4. **`ConfirmarCitaModal.jsx`/`ConfirmarFichaModal.jsx` sin foco atrapado** (H3) — tienen Escape hand-rolled y `role="dialog"`/`aria-modal`, pero no usan `useModalAccesible`; es el único motivo que sigue topando H3 del panel de staff en 3 en vez de 4.
-5. **Indicador de pestañas inconsistente, ahora solo en `Configuracion.jsx`** (H4) — `Pacientes.jsx` migró a `role="tab"`+píldora esta ronda (commit `e606b01`); `Configuracion.jsx:283` sigue con `border-b-2`, el único lugar del sistema con ese patrón.
-6. **`SuperadminPanel.jsx` — menú "Más acciones" sin `transform-origin` propio** (review-animations / H4) — sigue reusando la animación de modal centrado para un menú anclado a su disparador, mismo patrón ya corregido en `Citas.jsx`/`Pacientes.jsx`. Candidato explícito a un Plan 004 según `plans/README.md`.
-7. **`PortalPaciente.jsx` — `OjoReceta` en `text-[10px]`** (H8/legibilidad) — "Esfera · Cilindro · Eje" sigue bajo el mínimo práctico de legibilidad ya corregido en CRM/Citas/ConsultaMedica.
+4. ~~**`ConfirmarCitaModal.jsx`/`ConfirmarFichaModal.jsx` sin foco atrapado** (H3) — tienen Escape hand-rolled y `role="dialog"`/`aria-modal`, pero no usan `useModalAccesible`; es el único motivo que sigue topando H3 del panel de staff en 3 en vez de 4.~~ ✅ **Resuelto post-medición** (commit `5380508`) — ver nota abajo.
+5. ~~**Indicador de pestañas inconsistente, ahora solo en `Configuracion.jsx`** (H4) — `Pacientes.jsx` migró a `role="tab"`+píldora esta ronda (commit `e606b01`); `Configuracion.jsx:283` sigue con `border-b-2`, el único lugar del sistema con ese patrón.~~ ✅ **Resuelto post-medición** (commit `358244a`) — ver nota abajo.
+6. ~~**`SuperadminPanel.jsx` — menú "Más acciones" sin `transform-origin` propio** (review-animations / H4) — sigue reusando la animación de modal centrado para un menú anclado a su disparador, mismo patrón ya corregido en `Citas.jsx`/`Pacientes.jsx`. Candidato explícito a un Plan 004 según `plans/README.md`.~~ ✅ **Resuelto post-medición** (commit `110beff`) — ver nota abajo.
+7. ~~**`PortalPaciente.jsx` — `OjoReceta` en `text-[10px]`** (H8/legibilidad) — "Esfera · Cilindro · Eje" sigue bajo el mínimo práctico de legibilidad ya corregido en CRM/Citas/ConsultaMedica.~~ ✅ **Resuelto post-medición** (commit `05dfb40`) — ver nota abajo.
 8. **`PortalPaciente.jsx` — 4 botones en `transition-all` sin acotar** (H4) — líneas 461, 832, 871, 954, sin tocar.
 9. **MFA no obligatorio para el rol `admin`** (H5, ángulo de seguridad) — registrado como decisión pendiente desde la primera medición, no defecto.
-10. **`Dashboard.jsx:323` usa `window.confirm()` nativo del navegador en vez del patrón de modal propio del sistema** (H4, no reportado en las dos mediciones anteriores) — el aviso de "cambios sin guardar en la ficha clínica" es el único punto de confirmación del sistema que rompe la consistencia visual (diálogo nativo del navegador, sin estilo, en vez del patrón `modal-in`/`ConfirmarCitaModal` usado en el resto del sistema para confirmaciones similares).
+10. ~~**`Dashboard.jsx:323` usa `window.confirm()` nativo del navegador en vez del patrón de modal propio del sistema** (H4, no reportado en las dos mediciones anteriores) — el aviso de "cambios sin guardar en la ficha clínica" es el único punto de confirmación del sistema que rompe la consistencia visual (diálogo nativo del navegador, sin estilo, en vez del patrón `modal-in`/`ConfirmarCitaModal` usado en el resto del sistema para confirmaciones similares).~~ ✅ **Resuelto post-medición** (commit `87c8059`) — ver nota abajo.
+
+---
+
+## Nota post-medición (2026-09-30, después de esta medición)
+
+Cinco de los diez pendientes de la sección 4 se corrigieron en la misma sesión, inmediatamente después de cerrar esta medición — un commit por punto, con `npm test` (79/79) después de cada uno:
+
+- **#4** — `ConfirmarCitaModal.jsx`/`ConfirmarFichaModal.jsx` migrados a `useModalAccesible` (foco atrapado real + devolución de foco, no solo Escape) — commit `5380508`.
+- **#5** — `Configuracion.jsx` pasa de `border-b-2` a `role="tab"`/`aria-selected`/píldora, mismos atributos que `Pacientes.jsx` — commit `358244a`.
+- **#6** — `SuperadminPanel.jsx`: el menú "Más acciones" pasa de `modal-in` a `menu-in` + `transformOrigin: "top right"`, igual que `Citas.jsx`/`Pacientes.jsx` — commit `110beff`.
+- **#7** — `PortalPaciente.jsx:1045` (`OjoReceta`): `text-[10px]` → `text-xs` — commit `05dfb40`.
+- **#10** — `Dashboard.jsx`: `window.confirm()` nativo reemplazado por `ConfirmarEliminarModal` (patrón propio del sistema) al salir de la ficha clínica con cambios sin guardar — commit `87c8059`.
+
+Además, se agregó una regla nueva en `CLAUDE.md` (commit `ea8e3f9`): no usar `transition-all` en código nuevo — sin tocar los ~98 usos existentes (pendiente #3), que quedan como limpieza retroactiva aparte.
+
+**Los puntajes de las secciones 1 y 2 de este documento no se recalculan** — reflejan el estado del código en el momento de la medición (2026-09-30, antes de estas correcciones), igual que hizo `nielsen-medicion-final.md` con la migración de modales del superadmin que quedó pendiente de recalcular en su momento. Una próxima medición debería reflejar el impacto real de estos cinco fixes — candidatos directos: H3 del panel de staff (`ConfirmarCitaModal`/`ConfirmarFichaModal`, hoy tope en 3), H4 del panel de staff y del superadmin (consistencia de pestañas/menú), y el nuevo hallazgo de `window.confirm()` que esta medición encontró y ya no existe.
+
+No se tocaron en esta sesión: #1 (blancos de toque), #2 (canal de soporte), #3 (`transition-all` existente, solo se frenó su crecimiento hacia adelante), #8 (`PortalPaciente.jsx` `transition-all`) ni #9 (MFA no obligatorio) — siguen pendientes tal como están documentados arriba.
 
 ---
 
