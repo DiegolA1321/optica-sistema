@@ -501,6 +501,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onModalAlEntrarConsumido={() => setAbrirCrearProductoAlEntrar(false)}
             productoIdParaReabastecer={productoIdParaReabastecer}
             onProductoParaReabastecerConsumido={() => setProductoIdParaReabastecer(null)}
+            onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />
         )
       case "citas":
@@ -524,9 +525,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "horario":
         return <Horario usuario={usuario} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} citas={citas} />
       case "crm":
-        return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} />
+        return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} />
+        return <Reportes usuario={usuario} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":

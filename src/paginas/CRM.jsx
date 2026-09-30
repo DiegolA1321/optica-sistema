@@ -51,7 +51,7 @@ const diffCumpleEnVentana = (mes, dia) => {
   return mejor
 }
 
-export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion }) {
+export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion, onVerPerfil }) {
   // Procesamiento conectado y en tiempo real
   const prospectosDinamicos = useMemo(() => {
     return pacientes.map((p) => {
@@ -389,6 +389,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           contactadosHoy={contactadosHoy}
           onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("referidos")}
+          onVerPerfil={onVerPerfil}
           vacioTexto="Todavía ningún paciente aparece como quien refirió a otro."
         />
         <BloqueContacto
@@ -400,6 +401,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           contactadosHoy={contactadosHoy}
           onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("fieles")}
+          onVerPerfil={onVerPerfil}
           vacioTexto="Todavía nadie cruza el mínimo de consultas para ser paciente frecuente."
         />
         <BloqueContacto
@@ -411,6 +413,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           contactadosHoy={contactadosHoy}
           onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("cumpleanos")}
+          onVerPerfil={onVerPerfil}
           vacioTexto="Ningún paciente cumple años en los próximos días."
         />
         <BloqueContacto
@@ -422,6 +425,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           contactadosHoy={contactadosHoy}
           onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
           onVerDetalles={() => setDetalleAbierto("inactivos")}
+          onVerPerfil={onVerPerfil}
           vacioTexto="No hay pacientes con el control vencido por ahora."
         />
       </div>
@@ -440,6 +444,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           cumpleAuto={cumpleAuto}
           contactadosHoy={contactadosHoy}
           onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
+          onVerPerfil={onVerPerfil}
           onCerrar={() => setDetalleAbierto(null)}
         />
       )}
@@ -567,7 +572,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 // ─── Bloque curado (top 5) — pacientes más atendidos / cumpleaños / inactivos ───
 // Mismo componente para los tres: la fila de contacto (nombre, estado,
 // WhatsApp) es idéntica, solo cambian los datos que recibe.
-function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, vacioTexto }) {
+function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, onVerPerfil, vacioTexto }) {
   const top5 = lista.slice(0, 5)
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
@@ -592,18 +597,24 @@ function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, cont
             <p className="text-xs font-medium text-slate-500">{vacioTexto}</p>
           </div>
         ) : (
-          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} yaContactadoHoy={!!contactadosHoy[p.id]} onEnviar={onEnviar} />)
+          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} yaContactadoHoy={!!contactadosHoy[p.id]} onEnviar={onEnviar} onVerPerfil={onVerPerfil} />)
         )}
       </div>
     </div>
   )
 }
 
-function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar }) {
+function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar, onVerPerfil }) {
   return (
     <div className="flex items-center justify-between gap-2 p-3">
       <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-slate-800">{p.paciente}</p>
+        {onVerPerfil ? (
+          <button type="button" onClick={() => onVerPerfil(p.id)} className="truncate text-sm font-bold text-slate-800 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+            {p.paciente}
+          </button>
+        ) : (
+          <p className="truncate text-sm font-bold text-slate-800">{p.paciente}</p>
+        )}
         <p className="truncate text-[11px] text-slate-500">{p.estado}</p>
       </div>
       {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
@@ -642,7 +653,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
 // Caso de la reunión con el ing: cada bloque tiene su botón "Ver detalles"
 // con la tabla completa, ordenable (cercanía de cumpleaños, frecuencia de
 // atención, meses de inactividad).
-function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
+function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onVerPerfil, onCerrar }) {
   const { titulo, icono: Icono, bgIcono, lista, columnaLabel, columnaValor, dirDefecto, ordenAbsoluto } = config
   const [orden, setOrden] = useState({ campo: "metrica", dir: dirDefecto })
 
@@ -705,7 +716,13 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onCerrar }) {
             <tbody className="divide-y divide-slate-100">
               {ordenadas.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50/70">
-                  <td className="px-4 py-2.5 font-semibold text-slate-800">{p.paciente}</td>
+                  <td className="px-4 py-2.5 font-semibold text-slate-800">
+                    {onVerPerfil ? (
+                      <button type="button" onClick={() => onVerPerfil(p.id)} className="underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+                        {p.paciente}
+                      </button>
+                    ) : p.paciente}
+                  </td>
                   <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
                   <td className="px-4 py-2.5 text-right">
                     {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (

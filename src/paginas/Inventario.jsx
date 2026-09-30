@@ -56,6 +56,7 @@ export default function Inventario({
   onModalAlEntrarConsumido,
   productoIdParaReabastecer = null,
   onProductoParaReabastecerConsumido,
+  onVerPerfil,
 }) {
   const opticaId = usuario?.opticaId
   // Catálogo de categorías editable desde Configuración (feedback de la
@@ -811,7 +812,13 @@ export default function Inventario({
                   {reporteProducto.ventas.map((v) => (
                     <div key={v.id} className="flex items-center justify-between px-3 py-2.5">
                       <div>
-                        <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
+                        {onVerPerfil && v.pacienteId != null ? (
+                          <button type="button" onClick={() => onVerPerfil(v.pacienteId)} className="text-sm font-semibold text-slate-700 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+                            {nombrePaciente(v.pacienteId)}
+                          </button>
+                        ) : (
+                          <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
+                        )}
                         <p className="text-[11px] text-slate-500">{v.cantidad} u. · {new Date(v.creadoEn).toLocaleDateString("es-ES")}</p>
                       </div>
                       <div className="flex items-center gap-2">
