@@ -154,8 +154,8 @@ Las 4 decisiones de Diego (D1-D4, sección 0) reemplazan la vieja Fase 0 ("aclar
 *Subtotal Fase 2: ~6-9h + 2 migraciones (avisadas antes de aplicarse).*
 
 ### Fase 3 — Resto de pedidos de la reunión, bajo riesgo, sin BD
-7. Ocultar el buscador de paciente en Anamnesis cuando ya viene resuelto desde "Atender" — ~1-2h
-8. Reubicar el panel de tendencia/estado de corrección antes de empezar a llenar refracción — ~2-3h
+7. Ocultar el buscador de paciente en Anamnesis cuando ya viene resuelto desde "Atender" — ~1-2h — ✅ `5142dc3`
+8. Reubicar el contexto de la visita anterior (+ tendencia histórica entre las 2 últimas consultas) antes de empezar a llenar refracción; panel en vivo renombrado a "Comparación con la refracción de hoy" — ~2-3h — ✅ `bd68d92`
 9. Horarios ocupados/disponibles en el modal de Mi Horario — ~2-3h
 10. Modal de confirmación antes de "Atender" (resumen + Ingresar/Cerrar) — ~2h
 11. Separar pestaña "Controles" (clínico) de "Fidelización" — ~2-3h
@@ -164,7 +164,7 @@ Las 4 decisiones de Diego (D1-D4, sección 0) reemplazan la vieja Fase 0 ("aclar
 *Subtotal Fase 3: ~13-20h.*
 
 ### Fase 4 — Resto de pedidos que requieren BD o Configuración, riesgo medio
-13. Motivo de consulta como selector configurable — ~3-4h
+13. Motivo de consulta como selector configurable — ~3-4h — ✅ `22efbce`, sin migración: reutiliza el catálogo `motivosConsulta` que ya existía en `parametrizacion` (Configuración)
 14. Tratamiento finalizado / `estado_clinico` + métricas en Reportes (pendiente anterior 2.1, opción A) — construir junto con el punto 11 de la Fase 3 — ~3-4h
 15. Renombrar "Lentes/Productos" → "Productos y servicios" + clasificación real por tipo — ~1h rename / +3-4h clasificación
 16. Botón "Enviar mensaje por CRM" individual desde el perfil — ~2h
