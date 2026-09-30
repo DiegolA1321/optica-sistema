@@ -315,7 +315,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   const facturaProductosFiltrados = useMemo(() => {
     const q = facturaBusquedaProducto.trim().toLowerCase()
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
+    // activo: false (migración 0081) = descontinuado, no debe ofrecerse
+    // para una factura/venta nueva aunque le quede stock físico.
+    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
     if (!q) return disponibles
     return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
   }, [inventario, facturaBusquedaProducto])
@@ -325,7 +327,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   const lenteProductosFiltrados = useMemo(() => {
     const q = lenteBusquedaProducto.trim().toLowerCase()
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
+    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
     if (!q) return disponibles
     return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
   }, [inventario, lenteBusquedaProducto])

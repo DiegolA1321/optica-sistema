@@ -19,6 +19,8 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
+  Archive,
+  RotateCcw,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { resumenVentasProducto } from "../utilidades/ventas"
@@ -80,6 +82,10 @@ export default function Inventario({
 
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
   const [soloBajo, setSoloBajo] = useState(false)
+  // Descontinuados (activo: false, migración 0081) ocultos por defecto — no
+  // deben estorbar el catálogo del día a día, pero siguen siendo
+  // encontrables/reactivables/con su reporte de ventas intacto.
+  const [verDescontinuados, setVerDescontinuados] = useState(false)
   const [porEliminar, setPorEliminar] = useState(null)
   const [errorEliminar, setErrorEliminar] = useState("")
   const [eliminando, setEliminando] = useState(false)
@@ -145,7 +151,14 @@ export default function Inventario({
     if (precio === "" || isNaN(precioNum) || precioNum < 0) errs.precio = "Ingresa un precio válido."
     const duplicado = productos.find((p) => p.nombre.trim().toLowerCase() === nombre.trim().toLowerCase())
     if (!errs.nombre && duplicado) {
-      errs.nombre = `Ya existe "${duplicado.nombre}" en bodega (${duplicado.stock} u.). Usa el botón de editar de esa fila para sumar stock, en vez de crear un producto duplicado.`
+      // Si el duplicado está descontinuado (activo: false, oculto por
+      // defecto de la tabla — ver "Ver descontinuados"), el mensaje genérico
+      // de "usa el botón de editar de esa fila" apunta a una fila que el
+      // usuario no está viendo en este momento. Se le dice explícitamente
+      // que reactive en vez de crear uno nuevo.
+      errs.nombre = duplicado.activo === false
+        ? `"${duplicado.nombre}" ya existe pero está descontinuado. Actívalo desde "Ver descontinuados" en vez de crear uno nuevo.`
+        : `Ya existe "${duplicado.nombre}" en bodega (${duplicado.stock} u.). Usa el botón de editar de esa fila para sumar stock, en vez de crear un producto duplicado.`
     }
     setErroresForm(errs)
     if (Object.keys(errs).length > 0) return
@@ -179,10 +192,43 @@ export default function Inventario({
     limpiarFormulario()
   }
 
+  // Un producto con ventas asociadas no se elimina — se desactiva (migración
+  // 0081, caso de la reunión con el ing: "conservar el registro en lugar de
+  // borrar"). Antes de esta columna, borrar un producto con ventas no
+  // rompía el historial (producto_id references ... on delete set null +
+  // producto_nombre cacheado, 0047), pero sí dejaba inalcanzable su "Reporte
+  // de ventas" desde la tabla. Un producto sin ninguna venta se sigue
+  // eliminando tal cual, con confirmación.
+  const tieneVentasAsociadas = (id) => ventas.some((v) => v.productoId === id)
+  const porEliminarTieneVentas = porEliminar != null && tieneVentasAsociadas(porEliminar)
+
   const confirmarEliminar = async () => {
     if (porEliminar == null) return
     setEliminando(true)
-    const eliminado = productos.find((p) => p.id === porEliminar)
+    const producto = productos.find((p) => p.id === porEliminar)
+
+    if (porEliminarTieneVentas) {
+      if (supabase && opticaId) {
+        const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update({ activo: false }).eq("id", porEliminar).select()
+        if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
+          setErrorEliminar(MENSAJE_SIN_PERMISO)
+          setEliminando(false)
+          return
+        }
+        if (errorUpdate) {
+          setErrorEliminar("No se pudo desactivar el producto. Revisa tu conexión e intenta de nuevo.")
+          setEliminando(false)
+          return
+        }
+      }
+      setProductos(productos.map((p) => (p.id === porEliminar ? { ...p, activo: false } : p)))
+      registrarLog(usuario, "inventario", "Desactivó un producto del inventario", producto?.nombre || "")
+      setEliminando(false)
+      setPorEliminar(null)
+      setErrorEliminar("")
+      return
+    }
+
     if (supabase && opticaId) {
       const { data: eliminados, error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar).select()
       if (fueBloqueadoPorPermiso({ error: errorDelete, data: eliminados })) {
@@ -197,10 +243,28 @@ export default function Inventario({
       }
     }
     setProductos(productos.filter((p) => p.id !== porEliminar))
-    registrarLog(usuario, "inventario", "Eliminó un producto del inventario", eliminado?.nombre || "")
+    registrarLog(usuario, "inventario", "Eliminó un producto del inventario", producto?.nombre || "")
     setEliminando(false)
     setPorEliminar(null)
     setErrorEliminar("")
+  }
+
+  const [activandoId, setActivandoId] = useState(null)
+  const activarProducto = async (prod) => {
+    setActivandoId(prod.id)
+    if (supabase && opticaId) {
+      const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update({ activo: true }).eq("id", prod.id).select()
+      if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados }) || errorUpdate) {
+        setActivandoId(null)
+        setGuardadoExitoso("")
+        return
+      }
+    }
+    setProductos(productos.map((p) => (p.id === prod.id ? { ...p, activo: true } : p)))
+    registrarLog(usuario, "inventario", "Reactivó un producto del inventario", prod.nombre)
+    setActivandoId(null)
+    setGuardadoExitoso(`"${prod.nombre}" reactivado — ya puede volver a venderse.`)
+    setTimeout(() => setGuardadoExitoso(""), 3000)
   }
 
   const abrirEditar = (prod) => {
@@ -280,8 +344,10 @@ export default function Inventario({
     const coincideTexto = p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q)
     const coincideCat = filtroCategoria === "Todas" || p.categoria === filtroCategoria
     const coincideBajo = !soloBajo || esStockBajo(p)
-    return coincideTexto && coincideCat && coincideBajo
+    const coincideActivo = verDescontinuados ? p.activo === false : p.activo !== false
+    return coincideTexto && coincideCat && coincideBajo && coincideActivo
   })
+  const descontinuados = productos.filter((p) => p.activo === false)
 
   // Orden de la tabla — mismo patrón orden/cambiarOrden/IconoOrden que ya
   // usa CRM.jsx y ahora Pacientes.jsx, para no inventar uno nuevo por página.
@@ -441,6 +507,16 @@ export default function Inventario({
             <AlertTriangle size={12} />
             Stock bajo{resumen.bajos.length ? ` (${resumen.bajos.length})` : ""}
           </button>
+
+          {descontinuados.length > 0 && (
+            <button type="button" onClick={() => setVerDescontinuados((v) => !v)}
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
+              style={verDescontinuados ? { backgroundColor: "#475569", borderColor: "#475569", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
+              title="Productos descontinuados — conservan su historial de ventas, no aparecen para vender">
+              <Archive size={12} />
+              {verDescontinuados ? "Viendo descontinuados" : `Ver descontinuados (${descontinuados.length})`}
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -529,6 +605,19 @@ export default function Inventario({
                       <td className={"px-4 font-mono font-bold text-slate-600 " + celdaY}>${Number(prod.precio).toFixed(2)}</td>
                       <td className={"px-4 " + celdaY}>
                         <div className="flex items-center justify-center gap-1">
+                          {prod.activo === false ? (
+                            <>
+                              <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
+                                <BarChart3 size={16} />
+                              </button>
+                              <button type="button" onClick={() => activarProducto(prod)} disabled={activandoId === prod.id}
+                                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                                title="Reactivar producto — vuelve a poder venderse" aria-label="Reactivar producto">
+                                <RotateCcw size={16} />
+                              </button>
+                            </>
+                          ) : (
+                          <>
                           <button type="button" onClick={() => abrirEditar(prod)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar / añadir stock" aria-label="Editar o añadir stock">
                             <Pencil size={16} />
                           </button>
@@ -540,9 +629,12 @@ export default function Inventario({
                           <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
                             <BarChart3 size={16} />
                           </button>
-                          <button type="button" onClick={() => setPorEliminar(prod.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR} title="Eliminar producto" aria-label="Eliminar producto">
+                          <button type="button" onClick={() => setPorEliminar(prod.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}
+                            title={tieneVentasAsociadas(prod.id) ? "Desactivar producto (tiene ventas registradas)" : "Eliminar producto"} aria-label="Eliminar o desactivar producto">
                             <Trash2 size={16} />
                           </button>
+                          </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -731,11 +823,15 @@ export default function Inventario({
       {porEliminar != null && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !eliminando && setPorEliminar(null)}>
           <div ref={refModalEliminar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-eliminar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
-              <Trash2 size={22} />
+            <div className={"mb-4 grid h-12 w-12 place-items-center rounded-full " + (porEliminarTieneVentas ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600")}>
+              {porEliminarTieneVentas ? <Archive size={22} /> : <Trash2 size={22} />}
             </div>
-            <h2 id="inventario-modal-eliminar-titulo" className="text-lg font-bold" style={{ color: INK }}>Eliminar producto</h2>
-            <p className="mt-1.5 text-sm text-slate-500">¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer.</p>
+            <h2 id="inventario-modal-eliminar-titulo" className="text-lg font-bold" style={{ color: INK }}>{porEliminarTieneVentas ? "Desactivar producto" : "Eliminar producto"}</h2>
+            <p className="mt-1.5 text-sm text-slate-500">
+              {porEliminarTieneVentas
+                ? "Este producto tiene ventas registradas — no se puede eliminar sin perder ese historial. Se va a desactivar: deja de poder elegirse en una venta nueva, pero conserva su historial y puedes reactivarlo cuando quieras."
+                : "¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer."}
+            </p>
             {errorEliminar && (
               <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={14} /> {errorEliminar}
@@ -743,7 +839,10 @@ export default function Inventario({
             )}
             <div className="mt-5 flex gap-3">
               <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
-              <button type="button" disabled={eliminando} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer disabled:opacity-50">{eliminando ? "Eliminando..." : "Eliminar"}</button>
+              <button type="button" disabled={eliminando} onClick={confirmarEliminar}
+                className={"flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-50 " + (porEliminarTieneVentas ? "bg-amber-600 hover:bg-amber-700" : "bg-red-600 hover:bg-red-700")}>
+                {eliminando ? (porEliminarTieneVentas ? "Desactivando..." : "Eliminando...") : (porEliminarTieneVentas ? "Desactivar" : "Eliminar")}
+              </button>
             </div>
           </div>
         </div>,

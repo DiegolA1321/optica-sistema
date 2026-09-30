@@ -77,7 +77,9 @@ export default function VentaProductoModal({
   }, [pacientes, busquedaPaciente])
 
   const productosFiltrados = useMemo(() => {
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
+    // activo: false (migración 0081) = descontinuado — no debe poder
+    // elegirse para una venta nueva, aunque le quede stock físico.
+    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
     const q = busquedaProducto.trim().toLowerCase()
     if (!q) return disponibles.slice(0, 8)
     return disponibles.filter((p) => p.nombre.toLowerCase().includes(q)).slice(0, 8)

@@ -514,7 +514,7 @@ function App() {
       // skeleton en vez de "no hay datos todavía" mientras tanto.
       Promise.allSettled([
         supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null })))
+          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false })))
           else if (error) registrarErrorCarga('inventario')
         }),
         // pacientes/citas/consultas: hidratan el estado local con lo real de
