@@ -51,6 +51,7 @@ import {
   Star,
   Building2,
   HelpCircle,
+  MessageCircle,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -58,6 +59,7 @@ import VentaProductoModal from "./VentaProductoModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
+import { linkWhatsApp } from "../utilidades/whatsapp"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
@@ -335,6 +337,22 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const [errorAgendar, setErrorAgendar] = useState("")
   const [confirmandoCita, setConfirmandoCita] = useState(false)
   const [guardandoCita, setGuardandoCita] = useState(false)
+
+  // "Enviar mensaje" desde el perfil (reunión 29 sept., punto 4) — reusa el
+  // mismo mecanismo de WhatsApp que ya usa CRM.jsx (sin envío automático:
+  // abre wa.me con el texto precargado), ahora compartido vía
+  // utilidades/whatsapp.js en vez de estar reimplementado ahí y en
+  // Citas.jsx.
+  const [mensajePara, setMensajePara] = useState(null)
+  const [textoMensaje, setTextoMensaje] = useState("")
+  const abrirMensaje = (paciente) => {
+    setMensajePara(paciente)
+    setTextoMensaje(`Hola ${paciente.nombre}, te escribimos de ${usuario?.opticaNombre || "tu óptica"}. `)
+  }
+  const enviarMensajeWhatsApp = () => {
+    window.open(linkWhatsApp(mensajePara.telefono, textoMensaje), "_blank")
+    setMensajePara(null)
+  }
 
   // Ofrecer abrir la ficha clínica justo después de crear un paciente nuevo —
   // evita el paso extra de ir a buscarlo de nuevo en Ficha clínica.
@@ -1759,6 +1777,15 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   </button>
                   <button
                     type="button"
+                    onClick={() => abrirMensaje(pacienteHistorial)}
+                    disabled={!pacienteHistorial.telefono}
+                    title={pacienteHistorial.telefono ? undefined : "Este paciente no tiene teléfono registrado"}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+                  >
+                    <MessageCircle size={16} /> Enviar mensaje
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => abrirCuenta(pacienteHistorial)}
                     className={"flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:flex-none " + (pacienteHistorial.tieneCuenta ? "border-slate-200/60 text-slate-700 hover:bg-slate-50" : "border-blue-200/60 text-blue-600 hover:bg-blue-50")}
                   >
@@ -2355,6 +2382,51 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           onConfirmar={confirmarAgendarCita}
           guardando={guardandoCita}
         />
+      )}
+
+      {/* ─── MODAL ENVIAR MENSAJE (desde el perfil del paciente) ─── */}
+      {mensajePara && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMensajePara(null)}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
+                  <MessageCircle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold" style={{ color: INK }}>Enviar mensaje</h3>
+                  <p className="text-xs text-slate-500">Para {mensajePara.nombre} · {mensajePara.telefono}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setMensajePara(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 p-5">
+              <div>
+                <label htmlFor="texto-mensaje-whatsapp" className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
+                <textarea
+                  id="texto-mensaje-whatsapp"
+                  rows={4}
+                  value={textoMensaje}
+                  onChange={(e) => setTextoMensaje(e.target.value)}
+                  className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+                <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp con este texto ya escrito — tú lo revisas y lo mandas ahí.</p>
+              </div>
+              <button
+                type="button"
+                onClick={enviarMensajeWhatsApp}
+                disabled={!textoMensaje.trim()}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+              >
+                <MessageCircle size={15} /> Enviar por WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
