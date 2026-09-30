@@ -85,6 +85,15 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
+// Umbral compartido por calcularEvolucionIA (refracción de hoy vs. visita
+// anterior) y tendenciaHistorica (entre las 2 visitas anteriores, sin
+// depender de lo que se teclee hoy): variaciones menores a 0.25 D se leen
+// como ruido de medición, no un cambio real.
+const verdictoPorVariacion = (variacionPromedio) => {
+  if (Math.abs(variacionPromedio) < 0.25) return "Sin cambios"
+  return variacionPromedio > 0.25 ? "Aumentó" : "Disminuyó"
+}
+
 export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
@@ -587,9 +596,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
     const variacionPromedio = (Math.abs(eeOdActual) - Math.abs(eeOdPrev) + (Math.abs(eeOiActual) - Math.abs(eeOiPrev))) / 2
 
-    if (Math.abs(variacionPromedio) < 0.25) return "Sin cambios"
-    if (variacionPromedio > 0.25) return "Aumentó"
-    return "Disminuyó"
+    return verdictoPorVariacion(variacionPromedio)
   }, [odEsfera, odCilindro, oiEsfera, oiCilindro, ultimaConsultaPaciente])
 
   // --- Estado de corrección: ¿la corrección actual (anteojos/lentes) logra buena AV? ---
@@ -608,6 +615,25 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     const variacion = (Math.abs(odA) - Math.abs(odP) + (Math.abs(oiA) - Math.abs(oiP))) / 2
     return { primera: false, odA, oiA, odP, oiP, variacion, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
   }, [odEsfera, odCilindro, oiEsfera, oiCilindro, ultimaConsultaPaciente, calcularEvolucionIA])
+
+  // --- Tendencia histórica (entre las 2 visitas anteriores, sin depender de
+  // la refracción de hoy) — contexto que sí puede mostrarse antes de
+  // empezar a refractar. Distinta de analisisEvolucion/calcularEvolucionIA
+  // arriba, que comparan la refracción de hoy contra la visita anterior y
+  // solo tienen sentido una vez que hay datos de hoy que comparar (ver
+  // "Comparación con la refracción de hoy" en PanelEvolucion). Decisión de
+  // Diego, 30 sept.
+  const tendenciaHistorica = useMemo(() => {
+    if (historialPaciente.length < 2) return null
+    const ee = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
+    const [reciente, previa] = historialPaciente
+    const odR = ee(reciente.od?.esfera, reciente.od?.cilindro)
+    const oiR = ee(reciente.oi?.esfera, reciente.oi?.cilindro)
+    const odP = ee(previa.od?.esfera, previa.od?.cilindro)
+    const oiP = ee(previa.oi?.esfera, previa.oi?.cilindro)
+    const variacion = (Math.abs(odR) - Math.abs(odP) + (Math.abs(oiR) - Math.abs(oiP))) / 2
+    return { variacion, verdicto: verdictoPorVariacion(variacion), fechaReciente: reciente.fecha, fechaPrevia: previa.fecha }
+  }, [historialPaciente])
 
   const seleccionarPacienteCombo = (paciente) => {
     setPacienteId(paciente.id)
@@ -1551,47 +1577,16 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
                 </div>
 
-                <h2 className="text-sm font-bold" style={{ color: INK }}>Valores dióptricos y parámetros de taller</h2>
-
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                    <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
-                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
-                      Opcional · punto de partida antes de refinar
-                      <EtiquetaRegistro registrado={registradoRetinoscopia} />
-                    </span>
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.retinoscopia ? "" : "-rotate-90")} />
-                  </button>
-                  {seccionesAbiertas.retinoscopia && (
-                  <>
-                  <p className="text-xs text-slate-500">Hallazgo objetivo antes de refinar con la refracción subjetiva del paciente, abajo.</p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="retinoOd" className="mb-1 block text-xs font-semibold text-slate-500">Hallazgo OD</label>
-                      <input
-                        id="retinoOd" type="text" placeholder="Ej. -1.00 -0.50 x180"
-                        value={retinoscopiaOd} onChange={(e) => setRetinoscopiaOd(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="retinoOi" className="mb-1 block text-xs font-semibold text-slate-500">Hallazgo OI</label>
-                      <input
-                        id="retinoOi" type="text" placeholder="Ej. -0.75 -0.25 x175"
-                        value={retinoscopiaOi} onChange={(e) => setRetinoscopiaOi(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                  </>
-                  )}
-                </div>
-
-                {/* D1: el optómetra ya comparaba mentalmente con la visita
-                    anterior — analisisEvolucion ya calculaba la tendencia,
-                    pero nunca mostraba los valores reales lado a lado.
-                    Colapsable como retinoscopia/examen físico arriba, mismo
-                    patrón. */}
+                {/* ─── Contexto de la visita anterior: se movió acá arriba,
+                    antes de retinoscopía/refracción subjetiva, para que el
+                    optómetra lo tenga a la vista desde el arranque en vez de
+                    revisarlo a medio examen. La tendencia histórica (entre
+                    las 2 visitas anteriores) se calcula sin depender de lo
+                    que se teclee hoy — por eso puede mostrarse acá; el
+                    cálculo "en vivo" contra la refracción de hoy se movió a
+                    "Comparación con la refracción de hoy", más abajo.
+                    Colapsable como retinoscopia/examen físico, mismo
+                    patrón. Decisión de Diego, 30 sept. ─── */}
                 {ultimaConsultaPaciente && (
                   <div className="space-y-3 rounded-xl border border-blue-200/60 bg-blue-50/50 p-4">
                     <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} aria-expanded={!!seccionesAbiertas.comparacionAnterior} className="flex w-full items-center gap-1.5 border-b border-blue-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
@@ -1634,8 +1629,58 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     {ultimaConsultaPaciente.diagnostico && (
                       <p className="text-xs text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico anterior:</span> {ultimaConsultaPaciente.diagnostico}</p>
                     )}
+                    {tendenciaHistorica && (() => {
+                      const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
+                      const IconoT = t.icon
+                      const signo = tendenciaHistorica.variacion > 0 ? "+" : ""
+                      return (
+                        <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white/70 px-3 py-1.5 text-xs text-slate-500">
+                          <IconoT size={13} style={{ color: t.fg }} />
+                          <span>
+                            Tendencia de graduación (entre las 2 últimas consultas, {tendenciaHistorica.fechaPrevia} → {tendenciaHistorica.fechaReciente}):{" "}
+                            <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto}</span> ({signo}{tendenciaHistorica.variacion.toFixed(2)} D)
+                          </span>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
+
+                <h2 className="text-sm font-bold" style={{ color: INK }}>Valores dióptricos y parámetros de taller</h2>
+
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                    <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Opcional · punto de partida antes de refinar
+                      <EtiquetaRegistro registrado={registradoRetinoscopia} />
+                    </span>
+                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.retinoscopia ? "" : "-rotate-90")} />
+                  </button>
+                  {seccionesAbiertas.retinoscopia && (
+                  <>
+                  <p className="text-xs text-slate-500">Hallazgo objetivo antes de refinar con la refracción subjetiva del paciente, abajo.</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="retinoOd" className="mb-1 block text-xs font-semibold text-slate-500">Hallazgo OD</label>
+                      <input
+                        id="retinoOd" type="text" placeholder="Ej. -1.00 -0.50 x180"
+                        value={retinoscopiaOd} onChange={(e) => setRetinoscopiaOd(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="retinoOi" className="mb-1 block text-xs font-semibold text-slate-500">Hallazgo OI</label>
+                      <input
+                        id="retinoOi" type="text" placeholder="Ej. -0.75 -0.25 x175"
+                        value={retinoscopiaOi} onChange={(e) => setRetinoscopiaOi(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  </>
+                  )}
+                </div>
 
                 <p className="text-sm font-semibold" style={{ color: INK }}>Refracción subjetiva final</p>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -2580,7 +2625,7 @@ function PanelEvolucion({ analisis, correccion, compacto }) {
           return (
             <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500">
               <IconoT size={13} style={{ color: t.fg }} />
-              <span>Tendencia de graduación: <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto}</span> ({signo}{analisis.variacion.toFixed(2)} D)</span>
+              <span>Comparación con la refracción de hoy: <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto}</span> ({signo}{analisis.variacion.toFixed(2)} D)</span>
             </div>
           )
         })()}
@@ -2610,12 +2655,15 @@ function PanelEvolucion({ analisis, correccion, compacto }) {
         </div>
       </div>
 
-      {/* Tendencia de graduación: dato de contexto, no un veredicto de mejoría/empeoramiento */}
+      {/* Comparación con la refracción de hoy: dato de contexto, no un veredicto de mejoría/empeoramiento.
+          Distinta de "Comparar con visita anterior" (arriba, al inicio del paso Refracción) — esta
+          compara lo que se acaba de teclear hoy contra la visita anterior, por eso solo puede
+          mostrarse una vez que hay datos de hoy que comparar. */}
       {analisis.primera ? (
         <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-5">
           <div className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-200 text-slate-500"><Sparkles size={14} /></span>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Tendencia de graduación</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Comparación con la refracción de hoy</h4>
           </div>
           <p className="mt-2 text-xs text-slate-500">
             Es la <span className="font-semibold text-slate-600">primera consulta</span> de este paciente: estos valores quedarán como punto de partida para comparar a futuro.
@@ -2630,7 +2678,7 @@ function PanelEvolucion({ analisis, correccion, compacto }) {
           <div className="rounded-2xl border border-slate-200/60 bg-white p-5">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                <Sparkles size={13} className="text-slate-500" /> Tendencia de graduación (dato de contexto)
+                <Sparkles size={13} className="text-slate-500" /> Comparación con la refracción de hoy
               </h4>
               <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.bg, color: t.fg }}>
                 <IconoT size={12} /> {analisis.verdicto}
