@@ -3125,7 +3125,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <div
             ref={menuAccionesRef}
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
-            style={{ top: menuPos.top, left: menuPos.left, animation: "modal-in 120ms ease-out" }}
+            style={{ top: menuPos.top, left: menuPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
           >
             {/* Acceso rápido a impersonación desde la lista — antes solo
                 vivía dentro del modal de detalle, un paso extra para la
