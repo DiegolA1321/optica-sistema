@@ -536,10 +536,13 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
     try {
       const u = usuario.trim().toLowerCase()
 
-      // Acceso de demostración fijo para el portal del paciente — siempre
-      // funciona, sin depender de ninguna cuenta real, útil para probar el
-      // portal sin tener que crear un paciente primero.
-      if (u === "paciente@gmail.com" && password === "123456") {
+      // Acceso de demostración fijo para el portal del paciente — solo en
+      // desarrollo local (import.meta.env.DEV), nunca en el build de
+      // producción: Vite reemplaza este flag por una constante en build time
+      // y elimina la rama muerta, así que el usuario/clave fijos no llegan
+      // a los archivos generados en dist/. Útil para probar el portal sin
+      // tener que crear un paciente primero.
+      if (import.meta.env.DEV && u === "paciente@gmail.com" && password === "123456") {
         const demo = pacientes.find((p) => p.nombre === "María Elena Anchundia") || {
           id: 2,
           nombre: "María Elena Anchundia",
