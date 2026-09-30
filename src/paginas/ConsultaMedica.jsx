@@ -235,11 +235,23 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // esta pantalla — no se guarda en la consulta, solo afecta qué se imprime.
   const [incluirMedidasReceta, setIncluirMedidasReceta] = useState(true)
 
+  // --- Costo de la consulta (D3, reunión 29 sept.) — obligatorio, separado
+  // a propósito del editor opcional de factura de abajo: mezclarlo con
+  // facturaLineas habría repetido el problema que señaló el ing (una
+  // consulta cuya "Atendida" dependía de si se vendía o no un producto).
+  // Se cobra con una llamada aparte a crear_factura_venta (una sola línea
+  // de tipo "servicio", "Consulta") — sin columna nueva en `consultas`. ---
+  const [costoConsulta, setCostoConsulta] = useState("")
+  const [costoConsultaEstado, setCostoConsultaEstado] = useState(null) // null | 'guardada' | 'error'
+  const [costoConsultaErrorMsg, setCostoConsultaErrorMsg] = useState("")
+  const [guardandoCostoConsultaAhora, setGuardandoCostoConsultaAhora] = useState(false)
+
   // --- Factura de esta consulta (Punto 06) — reemplaza el vínculo de un
   // solo producto que había antes. Arma un borrador de líneas mientras se
   // llena la ficha; la factura real (crear_factura_venta) recién se crea
   // DESPUÉS de guardar la consulta, porque necesita su id — borrador local
-  // + envío encadenado al guardar, en vez de forzar un cambio de flujo acá. ---
+  // + envío encadenado al guardar, en vez de forzar un cambio de flujo acá.
+  // Sigue siendo opcional y separada del costo de la consulta de arriba. ---
   const [mostrarEditorFactura, setMostrarEditorFactura] = useState(false)
   const [facturaLineas, setFacturaLineas] = useState([])
   const [facturaTipoLinea, setFacturaTipoLinea] = useState("producto")
@@ -411,6 +423,66 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (consultaGuardadaId) intentarCrearFactura(consultaGuardadaId)
   }
 
+  // Cobro obligatorio de la consulta (D3, reunión 29 sept.) — independiente
+  // del editor opcional de arriba: una sola línea de tipo "servicio",
+  // descripción fija "Consulta", encadenada a la consulta recién guardada.
+  // Reutiliza crear_factura_venta (sin migración: la tabla ya acepta
+  // precio_unitario >= 0, así que un control de garantía puede cobrar $0,
+  // y ya rechaza un array de líneas vacío, así que nunca queda sin cobrar).
+  const intentarCobrarConsulta = async (consultaId) => {
+    if (!supabase || !usuario?.opticaId) return { ok: false }
+    setGuardandoCostoConsultaAhora(true)
+    const { data, error } = await supabase
+      .rpc("crear_factura_venta", {
+        p_optica_id: usuario.opticaId,
+        p_paciente_id: pacienteId,
+        p_metodo_pago: "directo",
+        p_lineas: [{
+          producto_id: null,
+          tipo: "servicio",
+          descripcion: "Consulta",
+          cantidad: 1,
+          precio_unitario: parseFloat(costoConsulta) || 0,
+        }],
+        p_cita_id: citaEnAtencionId || null,
+        p_consulta_id: consultaId,
+        p_cuotas_totales: null,
+        p_registrado_por: usuario?.id || null,
+      })
+      .single()
+    setGuardandoCostoConsultaAhora(false)
+    if (error) {
+      setCostoConsultaEstado("error")
+      setCostoConsultaErrorMsg(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message || "No se pudo registrar el cobro de la consulta. Revisa tu conexión e intenta de nuevo.")
+      return { ok: false }
+    }
+    setCostoConsultaEstado("guardada")
+    setCostoConsultaErrorMsg("")
+    setFacturasVenta?.((prev) => [{
+      id: data.id, pacienteId, citaId: citaEnAtencionId || null, consultaId,
+      metodoPago: "directo", cuotasTotales: null,
+      cuotasPagadas: 0, montoTotal: data.monto_total, estado: data.estado, creadoEn: data.created_at,
+    }, ...prev])
+    registrarLog(usuario, "consultas", "Registró el cobro de la consulta", `$${(parseFloat(costoConsulta) || 0).toFixed(2)}`)
+    return { ok: true }
+  }
+
+  // Extraído del guardado principal para poder reusarlo desde "Reintentar
+  // cobro" — la cita solo pasa a "Atendida" cuando el cobro de arriba tuvo
+  // éxito, nunca al guardar la ficha sola (a diferencia del diseño anterior).
+  const marcarCitaAtendida = async () => {
+    if (!citaEnAtencionId || !supabase) return
+    const { error: errorCita } = await supabase.from("citas").update({ estado: "Atendida" }).eq("id", citaEnAtencionId)
+    if (errorCita) console.error("El cobro se registró, pero no se pudo marcar la cita como atendida:", errorCita.message)
+    else setCitas?.(citas.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
+  }
+
+  const reintentarCobroConsulta = async () => {
+    if (!consultaGuardadaId) return
+    const resultado = await intentarCobrarConsulta(consultaGuardadaId)
+    if (resultado.ok) await marcarCitaAtendida()
+  }
+
   const [notificacion, setNotificacion] = useState(false)
   const [errores, setErrores] = useState({})
   const [bannerError, setBannerError] = useState("")
@@ -443,6 +515,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
     recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, facturaLineas, archivosImagenes,
+    costoConsulta,
   ])
   // Cierre de pestaña/recarga — el aviso in-app (navegar a otra sección) lo
   // maneja Dashboard.jsx vía onCambiosSinGuardarChange, no acá.
@@ -673,6 +746,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setIncluirMedidasReceta(true)
     setMostrarConfirmarVenta(false)
     setMostrarModalFacturaVenta(false)
+    setCostoConsulta("")
+    setCostoConsultaEstado(null)
+    setCostoConsultaErrorMsg("")
     setMostrarEditorFactura(false)
     setFacturaLineas([])
     setFacturaTipoLinea("producto")
@@ -849,12 +925,16 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
 
-      // Si esta ficha se abrió desde "Atender" en Citas médicas, guardarla
-      // resuelve esa cita — el optómetra no tiene que ir a marcarla aparte.
-      if (citaEnAtencionId) {
-        const { error: errorCita } = await supabase.from("citas").update({ estado: "Atendida" }).eq("id", citaEnAtencionId)
-        if (errorCita) console.error("La ficha se guardó, pero no se pudo marcar la cita como atendida:", errorCita.message)
-        else setCitas?.(citas.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
+      // D3 (reunión 29 sept.): el cobro de la consulta es obligatorio para
+      // toda ficha — si además viene de "Atender" una cita, esa cita pasa a
+      // "Atendida" solo cuando el cobro tiene éxito, no al guardar la ficha
+      // sola como antes. Si el cobro falla, la ficha ya quedó guardada — se
+      // avisa (banner más abajo) y se puede reintentar sin perder el monto.
+      if (idConsultaGuardada) {
+        const resultadoCobroConsulta = await intentarCobrarConsulta(idConsultaGuardada)
+        if (citaEnAtencionId && resultadoCobroConsulta.ok) {
+          await marcarCitaAtendida()
+        }
       }
     }
 
@@ -929,6 +1009,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       else if (parseFloat(oiEje) < 0 || parseFloat(oiEje) > 180) errs.oi_eje = "El eje va de 0° a 180°"
     } else if (paso === "diagnostico") {
       if (diagnosticoCategorias.length === 0) errs.diagnostico = "Selecciona al menos una categoría de diagnóstico."
+      // D3: el costo puede ser 0 (ej. un control por garantía) pero no puede
+      // quedar vacío — por eso se valida con esNumero, no con un simple `if (!costoConsulta)`.
+      if (!esNumero(costoConsulta)) errs.costoConsulta = "Ingresa el costo de la consulta (puede ser 0)."
+      else if (parseFloat(costoConsulta) < 0) errs.costoConsulta = "El costo no puede ser negativo."
     }
     return errs
   }
@@ -936,7 +1020,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const mensajeBanner = (paso) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
     if (paso === "refraccion") return "Escribe el motivo de la consulta y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
-    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico antes de guardar la receta."
+    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico y el costo de la consulta (puede ser 0) antes de guardar la receta."
     return "Hay campos por completar."
   }
 
@@ -1965,12 +2049,61 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </div>
                     )}
 
+                    {/* D3 (reunión 29 sept.): costo de la consulta, obligatorio
+                        y separado a propósito del editor opcional de abajo —
+                        se cobra con su propia llamada a crear_factura_venta,
+                        nunca se mezcla con facturaLineas (venta de producto). */}
+                    {!fichaGuardada && (
+                      <div className="no-print space-y-1.5 rounded-lg border border-slate-200/60 bg-white p-3">
+                        <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                          <Receipt size={12} /> Costo de la consulta
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-500">$</span>
+                          <input
+                            type="number" min="0" step="0.01" placeholder="0.00"
+                            value={costoConsulta}
+                            onChange={(e) => { setCostoConsulta(e.target.value); limpiarError("costoConsulta") }}
+                            className="w-28 rounded-lg border px-2 py-1.5 text-sm outline-none focus-visible:border-blue-500"
+                            style={{ borderColor: errores.costoConsulta ? "#fca5a5" : "#cbd5e1" }}
+                          />
+                          <span className="text-xs text-slate-500">Puede ser 0 (ej. un control por garantía), pero es obligatorio.</span>
+                        </div>
+                        {errores.costoConsulta && <p className="text-xs font-semibold text-red-600">{errores.costoConsulta}</p>}
+                      </div>
+                    )}
+
+                    {fichaGuardada && costoConsultaEstado === "guardada" && (
+                      <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
+                        <Receipt size={13} className="text-emerald-500" /> Consulta cobrada — ${(parseFloat(costoConsulta) || 0).toFixed(2)}.
+                      </p>
+                    )}
+
+                    {fichaGuardada && costoConsultaEstado === "error" && (
+                      <div role="alert" className="no-print space-y-2 rounded-lg border border-red-200/60 bg-red-50 p-3">
+                        <p className="flex items-start gap-1.5 text-xs font-semibold text-red-700">
+                          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                          La ficha clínica se guardó correctamente, pero el cobro de la consulta no se pudo registrar: {costoConsultaErrorMsg}
+                        </p>
+                        <p className="text-xs text-red-600">
+                          {citaEnAtencionId
+                            ? "La cita sigue \"En Atención\" hasta que el cobro se registre. Podés reintentar sin perder el monto ingresado."
+                            : "Podés reintentar sin perder el monto ingresado."}
+                        </p>
+                        <button type="button" onClick={reintentarCobroConsulta} disabled={guardandoCostoConsultaAhora} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer">
+                          {guardandoCostoConsultaAhora ? "Reintentando..." : "Reintentar cobro"}
+                        </button>
+                      </div>
+                    )}
+
                     {/* Punto 06: factura de esta consulta. Sin modal — la
                         consulta todavía no existe hasta guardar la ficha, así
                         que el editor vive embebido acá mismo (mismo criterio
                         que el mecanismo que reemplaza). No depende de
                         "recomendarLente": un servicio solo (ej. un examen) es
-                        una factura válida sin ningún producto de por medio. */}
+                        una factura válida sin ningún producto de por medio.
+                        Sigue siendo opcional — el costo obligatorio de la
+                        consulta vive aparte, arriba. */}
                     {!fichaGuardada && !mostrarEditorFactura && facturaLineas.length === 0 && (
                       <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
                         <span className="text-xs font-medium text-slate-600">¿Vas a facturar algo en esta consulta?</span>
