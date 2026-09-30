@@ -55,10 +55,11 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
+import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import VentaProductoModal from "./VentaProductoModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
-import { isoAFechaLocal, minutosDesdeMedianoche, esHoy } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
@@ -255,6 +256,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
   // Historial clínico (consultas y citas del paciente)
   const [pacienteHistorial, setPacienteHistorial] = useState(null)
+  // Selector de cita al entrar a la ficha clínica desde el perfil (pedido del
+  // ing, reunión 29 sept.): { paciente, citas } cuando hay que elegir, o null.
+  const [seleccionCitaPara, setSeleccionCitaPara] = useState(null)
   // Edad calculada desde fecha_nacimiento — mismo cálculo que ya usa
   // ConsultaMedica.jsx para la receta impresa, ahora también visible en el
   // encabezado del expediente (pedido explícito de Diego).
@@ -621,15 +625,30 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     setPacienteAEliminar(null)
   }
 
-  // Ir a la ficha clínica de un paciente — vincula automáticamente su cita de
-  // hoy sin atender (si tiene una), igual que entrar por "Atender" en Citas
-  // médicas, para que guardar la ficha también la marque "Atendida" sin un
-  // paso aparte. Un solo lugar para esta lógica: la usan el botón grande del
-  // perfil y el atajo "Nueva ficha clínica" del menú de la tabla.
+  // Ir a la ficha clínica de un paciente. Si tiene citas sin terminar
+  // (pendientes o ya en atención), el ing pidió (reunión 29 sept.) mostrar
+  // primero esa lista para elegir cuál se está atendiendo, en vez de adivinar
+  // "la de hoy" en silencio como antes — con varias citas pendientes, o una
+  // pendiente para otro día, el vínculo se perdía. Al elegir, la ficha queda
+  // vinculada a esa cita (motivo precargado, "En Atención", igual que
+  // "Atender" en Citas médicas), para que guardarla también la marque
+  // "Atendida" sin un paso aparte. Sin ninguna cita sin terminar, se abre sin
+  // vincular, como antes. Un solo lugar para esta lógica: la usan el botón
+  // grande del perfil y el atajo "Nueva ficha clínica" del menú de la tabla.
   const abrirFichaClinica = (paciente) => {
     setPacienteHistorial(null)
-    const citaDeHoy = citas.find((c) => perteneceAPaciente(c, paciente) && esHoy(c.fecha) && c.estado !== "Atendida" && c.estado !== "No Asistió")
-    onIrAFichaClinica?.(paciente, citaDeHoy?.id)
+    const citasSinTerminar = citas
+      .filter((c) => perteneceAPaciente(c, paciente) && (c.estado === "Pendiente" || c.estado === "En Atención"))
+      .slice()
+      .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)))
+    if (citasSinTerminar.length > 0) {
+      setSeleccionCitaPara({
+        paciente,
+        citas: citasSinTerminar.map((c) => ({ id: c.id, estado: c.estado, motivo: c.motivo, fechaEtiqueta: etiquetaFecha(c.fecha), horaEtiqueta: horaA12(c.hora) })),
+      })
+      return
+    }
+    onIrAFichaClinica?.(paciente)
   }
 
   // Venta rápida desde la tabla — abre el perfil 360° directo en la pestaña
@@ -1763,10 +1782,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       única acción con relleno sólido. Único punto de entrada
                       a la ficha clínica desde acá — ya no existe "Ficha
                       clínica" como sección aparte del sidebar. Si el
-                      paciente ya tiene una cita de hoy sin atender, se
-                      vincula automáticamente — igual que entrar por
-                      "Atender" en Citas médicas — para que guardar la ficha
-                      también la marque "Atendida" sin un paso aparte. */}
+                      paciente tiene citas pendientes o en atención, primero
+                      pide elegir cuál (ver abrirFichaClinica/
+                      SeleccionarCitaModal) — igual que entrar por "Atender"
+                      en Citas médicas — para que guardar la ficha también la
+                      marque "Atendida" sin un paso aparte. */}
                   <button
                     type="button"
                     onClick={() => abrirFichaClinica(pacienteHistorial)}
@@ -2388,6 +2408,18 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           onCancelar={() => setConfirmandoCita(false)}
           onConfirmar={confirmarAgendarCita}
           guardando={guardandoCita}
+        />
+      )}
+
+      {/* ─── SELECCIÓN DE CITA AL ENTRAR A LA FICHA CLÍNICA (pedido del ing,
+          reunión 29 sept.) ─── */}
+      {seleccionCitaPara && (
+        <SeleccionarCitaModal
+          paciente={seleccionCitaPara.paciente.nombre}
+          citas={seleccionCitaPara.citas}
+          onSeleccionar={(citaId) => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); onIrAFichaClinica?.(p, citaId) }}
+          onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); onIrAFichaClinica?.(p) }}
+          onCerrar={() => setSeleccionCitaPara(null)}
         />
       )}
 
