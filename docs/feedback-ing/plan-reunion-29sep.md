@@ -157,11 +157,18 @@ Las 4 decisiones de Diego (D1-D4, sección 0) reemplazan la vieja Fase 0 ("aclar
 7. Ocultar el buscador de paciente en Anamnesis cuando ya viene resuelto desde "Atender" — ~1-2h — ✅ `5142dc3`
 8. Reubicar el contexto de la visita anterior (+ tendencia histórica entre las 2 últimas consultas) antes de empezar a llenar refracción; panel en vivo renombrado a "Comparación con la refracción de hoy" — ~2-3h — ✅ `bd68d92`
 9. Horarios ocupados/disponibles en el modal de Mi Horario — ~2-3h
-10. Modal de confirmación antes de "Atender" (resumen + Ingresar/Cerrar) — ~2h
+10. Modal de confirmación antes de "Atender" (resumen + Ingresar/Cerrar) — ~2h — ✅ `c62df39`
 11. Separar pestaña "Controles" (clínico) de "Fidelización" — ~2-3h
 12. Vista por día/mes en Citas médicas — ~3-6h según alcance
 
 *Subtotal Fase 3: ~13-20h.*
+
+### Fase 3b — Seguimiento del 30 sept. sobre Citas (no estaban como filas propias en este plan)
+
+Diego pidió retomar "no deberíamos eliminar citas, sino reagendarlas" y "fecha real de atención" — ambos ya estaban en el análisis de la reunión (sección 3, Contradicción C tangencialmente, y el propio ing en la transcripción) pero no habían quedado como filas de tabla separadas. Quedan así:
+
+- **No eliminar citas**: "Eliminar cita" (`DELETE` real) reemplazado por "Cancelar cita" (`estado = 'Cancelada'`, igual que cuando cancela el paciente desde el portal). Nueva columna `citas_base.cancelada_por` (migración `0078`) distingue quién canceló, para el badge. "Reagendar" (Editar cita) ya existía, sin cambios. — ✅ `86960ef` (migración), `cb460db` (código)
+- **Fecha real de atención**: `consultas.fecha` ya capturaba la fecha real (independiente de la fecha/hora agendada de la cita); faltaba el vínculo. Nueva columna `consultas_base.cita_id` (migración `0079`, mismo patrón que `facturas_venta.cita_id`) vincula la ficha con su cita sin duplicarla. Citas.jsx muestra "Atendida el {fecha real}" cuando difiere de la agendada. — ✅ `86960ef` (migración), `21cdc42` (código)
 
 ### Fase 4 — Resto de pedidos que requieren BD o Configuración, riesgo medio
 13. Motivo de consulta como selector configurable — ~3-4h — ✅ `22efbce`, sin migración: reutiliza el catálogo `motivosConsulta` que ya existía en `parametrizacion` (Configuración)
