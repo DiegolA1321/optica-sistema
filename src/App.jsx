@@ -535,8 +535,8 @@ function App() {
         else if (error) registrarErrorCarga('solicitudes de eliminación')
       })
 
-      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
-        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '' })))
+      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol, es_optometra').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
+        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '', esOptometra: !!a.es_optometra })))
         else if (error) registrarErrorCarga('usuarios y permisos')
       })
     }
