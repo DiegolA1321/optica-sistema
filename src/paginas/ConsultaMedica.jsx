@@ -1064,6 +1064,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       else if (parseFloat(oiEje) < 0 || parseFloat(oiEje) > 180) errs.oi_eje = "El eje va de 0° a 180°"
     } else if (paso === "diagnostico") {
       if (diagnosticoCategorias.length === 0) errs.diagnostico = "Selecciona al menos una categoría de diagnóstico."
+      // "Otro" no dice nada por sí solo — es la única fuente del diagnóstico
+      // en ese caso, así que el detalle deja de ser opcional (mismo criterio
+      // que "Otros" en motivo de consulta, línea ~1056).
+      if (diagnosticoCategorias.includes("Otro") && !diagnostico.trim()) errs.diagnosticoDetalle = "Describe el diagnóstico en el detalle — con \"Otro\" no puede quedar vacío."
       // D3: el costo puede ser 0 (ej. un control por garantía) pero no puede
       // quedar vacío — por eso se valida con esNumero, no con un simple `if (!costoConsulta)`.
       if (!esNumero(costoConsulta)) errs.costoConsulta = "Ingresa el costo de la consulta (puede ser 0)."
@@ -1075,7 +1079,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const mensajeBanner = (paso) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
     if (paso === "refraccion") return "Selecciona el motivo de la consulta (si es \"Otros\", descríbelo en el detalle) y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
-    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico y el costo de la consulta (puede ser 0) antes de guardar la receta."
+    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) y el costo de la consulta (puede ser 0) antes de guardar la receta."
     return "Hay campos por completar."
   }
 
@@ -1989,6 +1993,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                   onClick={() => {
                                     setDiagnosticoCategorias((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]))
                                     limpiarError("diagnostico")
+                                    limpiarError("diagnosticoDetalle")
                                   }}
                                   className="rounded-full border px-3 py-1.5 text-xs font-bold transition cursor-pointer"
                                   style={activo ? { backgroundColor: "#2563eb", borderColor: "#2563eb", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}
@@ -2018,10 +2023,15 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                                 rows={3}
                                 placeholder="Detalle del diagnóstico personalizado..."
                                 value={diagnostico}
-                                onChange={(e) => setDiagnostico(e.target.value)}
-                                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                                onChange={(e) => { setDiagnostico(e.target.value); limpiarError("diagnosticoDetalle") }}
+                                className={"w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-sm font-medium leading-relaxed outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.diagnosticoDetalle ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
                                 style={{ color: INK }}
                               />
+                              {errores.diagnosticoDetalle && (
+                                <p className="no-print mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                  <AlertCircle size={13} /> {errores.diagnosticoDetalle}
+                                </p>
+                              )}
                             </>
                           ) : (
                             <>
