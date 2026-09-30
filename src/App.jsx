@@ -211,6 +211,15 @@ function mapFacturaVenta(f) {
     id: f.id, pacienteId: f.paciente_id, citaId: f.cita_id, consultaId: f.consulta_id,
     metodoPago: f.metodo_pago, cuotasTotales: f.cuotas_totales, cuotasPagadas: f.cuotas_pagadas,
     montoTotal: Number(f.monto_total), estado: f.estado, creadoEn: f.created_at,
+    // facturas_venta_lineas llega embebida por el select de abajo (join por
+    // factura_id) — sin esto, `lineas` solo existía para una factura recién
+    // creada en la misma sesión (FacturaVentaModal arma el objeto local con
+    // sus líneas al guardar) y desaparecía en cualquier recarga de página,
+    // porque este mapper nunca la incluía.
+    lineas: (f.facturas_venta_lineas || []).map((l) => ({
+      id: l.id, productoId: l.producto_id, tipo: l.tipo, descripcion: l.descripcion,
+      cantidad: l.cantidad, precioUnitario: Number(l.precio_unitario),
+    })),
   }
 }
 function mapRespuestaSatisfaccion(r) {
@@ -532,7 +541,7 @@ function App() {
         else if (error) registrarErrorCarga('ventas')
       })
 
-      supabase.from('facturas_venta').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+      supabase.from('facturas_venta').select('*, facturas_venta_lineas(*)').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setFacturasVenta(data.map(mapFacturaVenta))
         else if (error) registrarErrorCarga('facturas')
       })

@@ -1805,6 +1805,34 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                 .filter((f) => f.pacienteId === pacienteHistorial.id)
                 .slice()
                 .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
+              // "Productos y servicios" (reunión 29 sept., punto 1): separa por
+              // tipo de LÍNEA, no por factura completa — una factura mixta
+              // (ej. "Consulta" + un armazón) aparece con una fila en cada
+              // tabla. Una venta rápida (VentaProductoModal) siempre es
+              // producto, nunca tiene líneas de servicio.
+              const lineasProductos = []
+              const lineasServicios = []
+              for (const v of ventasPaciente) {
+                lineasProductos.push({
+                  key: "venta-" + v.id, descripcion: v.productoNombre, cantidad: v.cantidad,
+                  montoTotal: Number(v.montoTotal), metodoPago: v.metodoPago, estado: v.estado,
+                  cuotasTotales: v.cuotasTotales, cuotasPagadas: v.cuotasPagadas, fecha: v.creadoEn,
+                  origen: "venta", venta: v,
+                })
+              }
+              for (const f of facturasPaciente) {
+                for (const l of f.lineas || []) {
+                  const fila = {
+                    key: "factura-" + f.id + "-" + l.id, descripcion: l.descripcion, cantidad: l.cantidad,
+                    montoTotal: l.cantidad * Number(l.precioUnitario), metodoPago: f.metodoPago, estado: f.estado,
+                    cuotasTotales: f.cuotasTotales, cuotasPagadas: f.cuotasPagadas, fecha: f.creadoEn,
+                    origen: "factura", factura: f,
+                  }
+                  ;(l.tipo === "servicio" ? lineasServicios : lineasProductos).push(fila)
+                }
+              }
+              lineasProductos.sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+              lineasServicios.sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
               const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0)
               const diasControl = diasVencido(pacienteHistorial, consultas)
               const proximoControl = fechaProximoControl(pacienteHistorial, consultas)
@@ -1917,9 +1945,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
                           pestaña — "aquí están los productos que yo le he
                           vendido al paciente", así que la etiqueta pasa a ser
-                          literal: es un listado de productos, el estado de
-                          pago es solo un dato de cada fila. */}
-                      <Wallet size={14} /> Lentes/Productos
+                          literal. Reunión 29 sept.: separa productos de
+                          servicios (la línea "Consulta" del cobro de la
+                          ficha clínica incluida), así que el nombre ya no
+                          puede ser solo "productos". */}
+                      <Wallet size={14} /> Productos y servicios
                       {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
                       {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
                     </button>
@@ -1974,56 +2004,23 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             <span className="text-[11px] font-medium opacity-90">Varios productos/servicios, incluye cuotas</span>
                           </button>
                         </div>
-                        {ventasPaciente.length === 0 && facturasPaciente.length === 0 ? (
-                          <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
-                            <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
-                            <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
-                          </div>
-                        ) : (
-                          <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/60">
-                            {facturasPaciente.map((f) => {
-                              const anulada = f.estado === "anulada"
-                              const saldoFactura = f.estado === "pendiente_pago" && f.cuotasTotales
-                                ? f.montoTotal * Math.max(0, f.cuotasTotales - (f.cuotasPagadas || 0)) / f.cuotasTotales
-                                : 0
-                              return (
-                                <div key={"factura-" + f.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <p className={"text-sm font-semibold " + (anulada ? "text-slate-400 line-through" : "text-slate-800")}>
-                                      {f.lineas?.length ? f.lineas.map((l) => l.descripcion).join(", ") : "Factura"}
-                                    </p>
-                                    <p className="text-[11px] text-slate-500">
-                                      ${Number(f.montoTotal).toFixed(2)} · {METODOS_PAGO[f.metodoPago] || f.metodoPago}
-                                      {f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales})` : ""}
-                                      {" · "}{new Date(f.creadoEn).toLocaleDateString("es-ES")}
-                                    </p>
-                                  </div>
-                                  {anulada ? (
-                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
-                                      Anulada
-                                    </span>
-                                  ) : f.estado === "pagada" ? (
-                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                                      <CheckCircle size={12} /> Pagada
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                                      <CreditCard size={12} /> Debe ${saldoFactura.toFixed(2)}
-                                    </span>
-                                  )}
-                                </div>
-                              )
-                            })}
-                            {ventasPaciente.map((v) => {
+                        {(() => {
+                          // Fila compartida entre "Productos" y "Servicios" —
+                          // mismo diseño y jerarquía de badges que ya existían
+                          // (Pagada/Debe $X/Anulada para facturas; Pagado/Debe
+                          // $X + acciones de cuota para ventas rápidas).
+                          const renderFila = (fila) => {
+                            if (fila.origen === "venta") {
+                              const v = fila.venta
                               const saldo = saldoVenta(v)
                               return (
-                                <div key={v.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div key={fila.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                   <div>
-                                    <p className="text-sm font-semibold text-slate-800">{v.productoNombre}</p>
+                                    <p className="text-sm font-semibold text-slate-800">{fila.descripcion}</p>
                                     <p className="text-[11px] text-slate-500">
-                                      {v.cantidad} u. · ${Number(v.montoTotal).toFixed(2)} · {METODOS_PAGO[v.metodoPago] || v.metodoPago}
-                                      {v.metodoPago === "cuotas" && v.cuotasTotales ? ` (${v.cuotasPagadas || 0}/${v.cuotasTotales})` : ""}
-                                      {" · "}{new Date(v.creadoEn).toLocaleDateString("es-ES")}
+                                      {fila.cantidad} u. · ${fila.montoTotal.toFixed(2)} · {METODOS_PAGO[fila.metodoPago] || fila.metodoPago}
+                                      {fila.metodoPago === "cuotas" && fila.cuotasTotales ? ` (${fila.cuotasPagadas || 0}/${fila.cuotasTotales})` : ""}
+                                      {" · "}{new Date(fila.fecha).toLocaleDateString("es-ES")}
                                     </p>
                                   </div>
                                   {v.estado === "completado" ? (
@@ -2047,9 +2044,78 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                   )}
                                 </div>
                               )
-                            })}
-                          </div>
-                        )}
+                            }
+                            const f = fila.factura
+                            const anulada = f.estado === "anulada"
+                            const saldoFactura = f.estado === "pendiente_pago" && f.cuotasTotales
+                              ? f.montoTotal * Math.max(0, f.cuotasTotales - (f.cuotasPagadas || 0)) / f.cuotasTotales
+                              : 0
+                            return (
+                              <div key={fila.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <p className={"text-sm font-semibold " + (anulada ? "text-slate-400 line-through" : "text-slate-800")}>
+                                    {fila.descripcion}{fila.cantidad > 1 ? ` (${fila.cantidad})` : ""}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500">
+                                    ${fila.montoTotal.toFixed(2)} · {METODOS_PAGO[fila.metodoPago] || fila.metodoPago}
+                                    {fila.metodoPago === "cuotas" && fila.cuotasTotales ? ` (${fila.cuotasPagadas || 0}/${fila.cuotasTotales})` : ""}
+                                    {" · "}{new Date(fila.fecha).toLocaleDateString("es-ES")}
+                                  </p>
+                                </div>
+                                {anulada ? (
+                                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
+                                    Anulada
+                                  </span>
+                                ) : f.estado === "pagada" ? (
+                                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                    <CheckCircle size={12} /> Pagada
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                    <CreditCard size={12} /> Debe ${saldoFactura.toFixed(2)} (factura completa)
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          }
+
+                          if (lineasProductos.length === 0 && lineasServicios.length === 0) {
+                            return (
+                              <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
+                                <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
+                                <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
+                              </div>
+                            )
+                          }
+                          return (
+                            <>
+                              <div>
+                                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                  <Glasses size={13} /> Productos <span className="font-normal normal-case text-slate-400">· {lineasProductos.length}</span>
+                                </h3>
+                                {lineasProductos.length === 0 ? (
+                                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-sm text-slate-500">Sin productos vendidos todavía.</p>
+                                ) : (
+                                  <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/60">
+                                    {lineasProductos.map(renderFila)}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                  <Stethoscope size={13} /> Servicios <span className="font-normal normal-case text-slate-400">· {lineasServicios.length}</span>
+                                </h3>
+                                {lineasServicios.length === 0 ? (
+                                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-sm text-slate-500">Sin servicios cobrados todavía (consulta, limpieza, ajustes...).</p>
+                                ) : (
+                                  <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/60">
+                                    {lineasServicios.map(renderFila)}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )
+                        })()}
                       </div>
                     ) : tabHistorial === "fidelizacion" ? (
                       <div className="space-y-4">
