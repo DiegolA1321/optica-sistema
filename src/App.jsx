@@ -192,6 +192,10 @@ function mapConsulta(c) {
     // (un dato editable, no una marca de tiempo) — sin esto, "cuál se
     // registró más reciente" no tenía ninguna fuente fiable.
     creadoEn: c.created_at,
+    // cita_id (0079) — vínculo con la cita que originó esta consulta, sin
+    // el cual Citas.jsx no puede mostrar la fecha real de atención cuando
+    // difiere de la fecha agendada (punto 3, reunión 29 sept.).
+    citaId: c.cita_id,
   }
 }
 function mapVenta(v) {

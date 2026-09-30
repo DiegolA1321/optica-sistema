@@ -927,6 +927,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           profesional_nombre: nuevaFicha.profesionalNombre,
           profesional_registro: nuevaFicha.profesionalRegistro,
           imagenes: nuevaFicha.imagenes,
+          // Vincula la consulta con la cita que la originó (0079) — sin
+          // duplicar el registro: la cita conserva su fecha/hora agendada,
+          // esta consulta ya trae su propia fecha real (fechaConsulta,
+          // arranca en hoyISO()) para el caso de una cita atendida en un
+          // día distinto al agendado (punto 3, reunión 29 sept.).
+          cita_id: citaEnAtencionId || null,
         })
         .select()
         .single()

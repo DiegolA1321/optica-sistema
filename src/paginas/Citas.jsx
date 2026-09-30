@@ -95,7 +95,7 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
   )
 }
 
-export default function Citas({ usuario, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], onAtender, onVerPerfil }) {
+export default function Citas({ usuario, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -760,6 +760,20 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
 
+  // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
+  // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
+  // la consulta que sí guarda cuándo se atendió de verdad. Si hay más de
+  // una consulta para la misma cita (caso raro), se toma la más reciente.
+  const fechaRealPorCitaId = useMemo(() => {
+    const mapa = new Map()
+    for (const c of consultas) {
+      if (!c.citaId) continue
+      const previa = mapa.get(c.citaId)
+      if (!previa || (c.creadoEn || "") > (previa.creadoEn || "")) mapa.set(c.citaId, { fecha: c.fecha, creadoEn: c.creadoEn })
+    }
+    return mapa
+  }, [consultas])
+
   const tituloDia = (dia) => {
     const objFecha = parseFechaFlexible(dia)
     return {
@@ -995,6 +1009,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       // una cita "Atendida" se quedaba sin edición ni cambio de estado
                       // posible, ni forma de deshacerlo).
                       const puedeMarcarse = !esFutura(cita.fecha)
+                      // Fecha real de atención (punto 3, reunión 29 sept.) —
+                      // solo se muestra cuando difiere de la fecha agendada,
+                      // para no repetir el mismo dato en el caso común.
+                      const fechaReal = fechaRealPorCitaId.get(cita.id)?.fecha
+                      const fechaRealDistinta = fechaReal && fechaReal !== cita.fecha
                       return (
                         <div
                           key={cita.id}
@@ -1085,9 +1104,14 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             </div>
                             <div className="flex items-center gap-2">
                               {cita.estado === "Atendida" ? (
-                                <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
-                                  <CheckCircle2 size={12} /> Atendida
-                                </span>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+                                    <CheckCircle2 size={12} /> Atendida
+                                  </span>
+                                  {fechaRealDistinta && (
+                                    <span className="text-[11px] font-medium text-slate-400">Atendida el {etiquetaFecha(fechaReal)}</span>
+                                  )}
+                                </div>
                               ) : cita.estado === "No Asistió" ? (
                                 <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
                                   <UserX size={12} /> No asistió

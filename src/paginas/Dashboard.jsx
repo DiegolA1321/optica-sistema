@@ -502,6 +502,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setCitas={setCitas}
             pacientes={pacientes}
             setPacientes={setPacientes}
+            consultas={consultas}
             disponibilidad={disponibilidad}
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
