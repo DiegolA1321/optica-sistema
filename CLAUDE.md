@@ -16,6 +16,7 @@
   - En formularios extensos (como la Ficha Clínica), prioriza acordeones/bloques colapsables.
   - Muestra badges claros (`Registrado` / `No registrado`) para que el profesional distinga a primera vista el estado del expediente sin tener que abrir cada sección.
 - **Impresión Cautiva y Privacidad:** Ofrece selectores (checkboxes) para controlar si se imprimen datos sensibles (como valores dióptricos/graduación) o solo el diagnóstico cualitativo.
+- **Transiciones Acotadas:** No uses `transition-all` en código nuevo — declara la transición sobre las propiedades concretas que cambian (ej. `transition-colors`, `transition-transform`, o `transition` con el set acotado de Tailwind) para no animar por accidente propiedades de layout. No hace falta corregir los usos existentes de `transition-all` al tocar un archivo por otro motivo; es una regla para código nuevo, no una limpieza retroactiva obligatoria.
 
 ### Enrutamiento de Skills de IA (Diseño/UX)
 El sistema tiene skills instaladas en `.agents/skills/` (symlinked en `.claude/skills/`). Invócalas según el tipo de tarea en vez de improvisar la revisión a mano:
