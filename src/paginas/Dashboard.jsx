@@ -457,6 +457,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setFacturasVenta={setFacturasVenta}
             parametrizacion={parametrizacion}
             diagnosticosRapidos={diagnosticosRapidos}
+            motivosConsulta={motivosConsulta}
             pacienteInicial={fichaClinicaPacienteInicial}
             citaIdInicial={fichaClinicaCitaId}
             motivoInicial={fichaClinicaMotivoInicial}

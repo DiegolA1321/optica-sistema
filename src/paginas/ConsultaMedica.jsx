@@ -94,7 +94,7 @@ const verdictoPorVariacion = (variacionPromedio) => {
   return variacionPromedio > 0.25 ? "Aumentó" : "Disminuyó"
 }
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -707,8 +707,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     // El motivo ya se eligió al agendar la cita (categoría fija) — el ing
     // probó "Atender" y esperaba verlo ya puesto acá, no volver a escribirlo:
     // "el motivo de la consulta debería estar registrado ahí porque está en
-    // la cita".
-    if (motivoInicial) setMotivo(motivoInicial)
+    // la cita". Si la cita es de antes de este catálogo (o su motivo ya no
+    // está en Configuración), cae en "Otros" y el texto original no se
+    // pierde: pasa al detalle.
+    if (motivoInicial) {
+      if (motivosConsulta.includes(motivoInicial)) {
+        setMotivo(motivoInicial)
+      } else {
+        setMotivo("Otros")
+        setDetalleConsulta(motivoInicial)
+      }
+    }
     onPacienteInicialConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pacienteInicial])
@@ -1024,7 +1033,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // él, va arriba de la refracción) — antes vivía en Anamnesis y nunca
       // se validaba; ahora es obligatorio, sin bloquear los antecedentes
       // fijos del paciente que sí quedaron fuera de la validación por paso.
-      if (!motivo.trim()) errs.motivo = "Escribe el motivo de la consulta."
+      if (!motivo.trim()) errs.motivo = "Selecciona el motivo de la consulta."
+      // "Otros" no dice nada por sí solo — si se elige, el detalle deja de ser opcional.
+      else if (motivo === "Otros" && !detalleConsulta.trim()) errs.detalleConsulta = "Describe el motivo de la consulta."
       if (!esNumero(odEsfera)) errs.od_esfera = "Número requerido"
       if (!esNumero(odCilindro)) errs.od_cilindro = "Número requerido"
       if (!esNumero(odEje)) errs.od_eje = "Número requerido"
@@ -1045,7 +1056,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   const mensajeBanner = (paso) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
-    if (paso === "refraccion") return "Escribe el motivo de la consulta y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
+    if (paso === "refraccion") return "Selecciona el motivo de la consulta (si es \"Otros\", descríbelo en el detalle) y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico y el costo de la consulta (puede ser 0) antes de guardar la receta."
     return "Hay campos por completar."
   }
@@ -1548,14 +1559,20 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Motivo de la consulta <span className="text-red-500">*</span>
                     </label>
-                    <input
+                    <select
                       id="motivo"
-                      type="text"
-                      placeholder="Ej. Consulta general, examen de control..."
                       value={motivo}
-                      onChange={(e) => { setMotivo(e.target.value); limpiarError("motivo") }}
-                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                    />
+                      onChange={(e) => {
+                        setMotivo(e.target.value)
+                        limpiarError("motivo")
+                        if (e.target.value !== "Otros") limpiarError("detalleConsulta")
+                      }}
+                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+                    >
+                      <option value="" disabled>Selecciona un motivo...</option>
+                      {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
+                      <option value="Otros">Otros</option>
+                    </select>
                     {errores.motivo && (
                       <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
                         <AlertCircle size={13} /> {errores.motivo}
@@ -1564,16 +1581,21 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
                   <div>
                     <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Detalle de la consulta <span className="font-normal text-slate-400">(opcional)</span>
+                      Detalle de la consulta {motivo === "Otros" ? <span className="text-red-500">*</span> : <span className="font-normal text-slate-400">(opcional)</span>}
                     </label>
                     <input
                       id="detalleConsulta"
                       type="text"
                       placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
                       value={detalleConsulta}
-                      onChange={(e) => setDetalleConsulta(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                      onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
+                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
                     />
+                    {errores.detalleConsulta && (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                        <AlertCircle size={13} /> {errores.detalleConsulta}
+                      </p>
+                    )}
                   </div>
                 </div>
 
