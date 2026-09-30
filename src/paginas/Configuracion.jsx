@@ -271,7 +271,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       </div>
 
       {/* ─── NAVEGACIÓN ─── */}
-      <div className="flex gap-1 overflow-x-auto border-b border-slate-200/60">
+      {/* Segmented control tipo píldora — mismo lenguaje y mismos atributos
+          de accesibilidad que Pacientes.jsx (role="tablist"/"tab"/
+          aria-selected), en vez del subrayado recto (border-b-2) que tenía
+          antes y que solo quedaba en esta pantalla del sistema. */}
+      <div role="tablist" aria-label="Secciones de configuración" className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
         {PESTANAS.map((p) => {
           const Icono = p.icon
           const activo = tab === p.id
@@ -279,8 +283,13 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             <button
               key={p.id}
               type="button"
+              role="tab"
+              id={"tab-" + p.id}
+              aria-selected={activo}
+              aria-controls="panel-configuracion"
               onClick={() => setTab(p.id)}
-              className={"flex shrink-0 items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition cursor-pointer " + (activo ? "border-b-2 border-blue-600 text-blue-600" : "border-b-2 border-transparent text-slate-500 hover:text-slate-800")}
+              className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (activo ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+              style={activo ? { background: GRAD } : undefined}
             >
               <Icono size={14} /> {p.label}
             </button>
@@ -289,7 +298,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       </div>
 
       {tab === "politicas" && (
-      <>
+      <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-politicas">
       {/* ─── POLÍTICAS HACIA EL PACIENTE ─── */}
       <div>
         <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Políticas hacia el paciente</p>
@@ -386,11 +395,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           />
         </div>
       </div>
-      </>
+      </div>
       )}
 
       {tab === "catalogos" && (
-      <>
+      <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-catalogos">
       {/* ─── CATÁLOGOS EDITABLES ─── */}
       <div>
         <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Catálogos editables</p>
@@ -442,11 +451,11 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           />
         </div>
       </div>
-      </>
+      </div>
       )}
 
       {tab === "login" && (
-        <div>
+        <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-login">
           <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Página de login</p>
           <p className="mb-3 text-xs leading-relaxed text-slate-500">
             Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Usa "Guardar cambios" al final para aplicarlos.
