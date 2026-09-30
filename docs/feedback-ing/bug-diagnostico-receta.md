@@ -1,7 +1,9 @@
-# Bug reproducido: validación prematura en "Diagnóstico y receta"
+# Bug corregido: validación prematura en "Diagnóstico y receta"
+
+**Estado: ✅ Corregido y verificado (2026-09-30).** Los dos problemas de este informe (submit fantasma al llegar a Diagnóstico, y "Otro" sin detalle obligatorio) ya están arreglados en `main`. Ver [Corrección aplicada](#corrección-aplicada-2026-09-30) al final.
 
 **Fecha**: 2026-09-30
-**Metodología**: solo lectura de código + QA en vivo con Playwright sobre el sistema en local (`npm run dev`, puerto 5174), sesión de Andres Rosado Vera (administrador). No se guardó ninguna ficha clínica — cada reproducción se descartó con "Salir de todas formas" / "Cerrar ficha clínica" antes de confirmar el guardado. Se usaron solo pacientes/citas de prueba (`Prueba Control Vencido Reverso`, `Walkin Prueba QA`).
+**Metodología**: solo lectura de código + QA en vivo con Playwright sobre el sistema en local (`npm run dev`), sesión de Andres Rosado Vera (administrador). No se guardó ninguna ficha clínica — cada reproducción se descartó con "Salir de todas formas" / "Cerrar ficha clínica" antes de confirmar el guardado. Se usaron solo pacientes/citas de prueba (`Prueba Control Vencido Reverso`, `Walkin Prueba QA`).
 
 **Origen**: `docs/feedback-ing/reunion-zoom-29sep.md`, líneas 37-39 (minuto ~11-13 del Video 1):
 > Ing. Supervisor: Me pide seleccionar una categoría de diagnóstico. Bueno, esto está bugeado aquí. Diagnóstico y receta.
@@ -75,22 +77,42 @@ La respuesta del tesista en la reunión sugiere que se interpretó el comentario
 
 ---
 
-## Corrección sugerida (no aplicada — solo lectura, según lo pedido)
+## Otros hallazgos menores durante la reproducción (no bloqueantes, no eran el foco del pedido)
 
-Cualquiera de estas dos opciones, aplicada a `ConsultaMedica.jsx:2530-2546`, elimina la causa raíz:
-
-1. Dar un `key` distinto a cada rama del ternario (ej. `key="btn-siguiente"` vs `key="btn-guardar"`), forzando a React a desmontar/montar en vez de mutar el nodo existente.
-2. Separar "Guardar ficha clínica" en un botón `type="button"` con `onClick={() => formRef.current.requestSubmit()}` (o llamar a `intentarGuardar` directamente), en vez de depender de `type="submit"` + reconciliación de nodo compartido.
-
-La opción 1 es el cambio mínimo y más seguro.
+1. **"Otro" como categoría de diagnóstico no era realmente obligatorio en el detalle**, pese a que la UI lo presenta así ("el detalle deja de ser una nota opcional... es la única fuente del diagnóstico", comentario en `ConsultaMedica.jsx:2006-2010`). `validarPaso("diagnostico")` (`ConsultaMedica.jsx:1065-1070`) solo exigía que `diagnosticoCategorias` no estuviera vacío y que `costoConsulta` fuera un número — nunca validaba que, si la categoría era "Otro", el textarea de detalle tuviera contenido. Se podía guardar una receta con diagnóstico = "Otro" sin ninguna descripción. **Corregido — ver abajo.**
+2. No se observaron bloques de la receta superpuestos o mal alineados en ningún paso, con o sin "Otro" seleccionado, con o sin "Añadir recomendación de lente" — el layout se ve correcto en las capturas 04, 06 y 07.
+3. El buscador de paciente dentro de la ficha (el hallazgo de "no debería aparecer si ya estoy en el paciente", ING9/29-sept) sigue efectivamente ausente al entrar por "Atender" — confirmado en ambas repeticiones (capturas 02).
 
 ---
 
-## Otros hallazgos menores durante la reproducción (no bloqueantes, no eran el foco del pedido)
+## Corrección aplicada (2026-09-30)
 
-1. **"Otro" como categoría de diagnóstico no es realmente obligatorio en el detalle**, pese a que la UI lo presenta así ("el detalle deja de ser una nota opcional... es la única fuente del diagnóstico", comentario en `ConsultaMedica.jsx:2006-2010`). `validarPaso("diagnostico")` (`ConsultaMedica.jsx:1065-1070`) solo exige que `diagnosticoCategorias` no esté vacío y que `costoConsulta` sea un número — nunca valida que, si la categoría es "Otro", el textarea de detalle tenga contenido. En teoría se podría guardar una receta con diagnóstico = "Otro" sin ninguna descripción. No se pudo confirmar guardando de verdad (bloqueado intencionalmente por no tener autorización para guardar), pero el código de validación es inequívoco en este punto.
-2. No se observaron bloques de la receta superpuestos o mal alineados en ningún paso, con o sin "Otro" seleccionado, con o sin "Añadir recomendación de lente" — el layout se ve correcto en las capturas 04, 06 y 07.
-3. El buscador de paciente dentro de la ficha (el hallazgo de "no debería aparecer si ya estoy en el paciente", ING9/29-sept) sigue efectivamente ausente al entrar por "Atender" — confirmado en ambas repeticiones (capturas 02).
+Ambos problemas se corrigieron en `main`, un commit por corrección, `npm test` en verde después de cada uno:
+
+### 1. Submit fantasma al llegar a Diagnóstico — commit `254fd10` *(fix(consulta): key distinta por botón para evitar el submit fantasma en Diagnóstico)*
+
+Se aplicó la opción 1 ya identificada en la causa raíz: `key` distinta para cada uno de los 3 botones que comparten el slot de navegación (`ConsultaMedica.jsx:2530-2576` — "Siguiente", "Guardar ficha clínica" y "Nueva consulta", las 3 ramas del mismo condicional, no solo las 2 que se veían en el bug original). Con `key` propia, React desmonta/monta en vez de reutilizar el mismo nodo `<button>` y mutarle el `type` a mitad del clic.
+
+No se encontró ningún otro lugar en `ConsultaMedica.jsx` (ni en el resto de `src/`, revisado con foco en este mismo archivo) donde un botón cambie de `type="button"` a `type="submit"` compartiendo slot sin `key` — es el único `type="submit"` de todo el componente.
+
+### 2. "Otro" sin detalle obligatorio — commit `d86e349` *(fix(consulta): exige detalle al elegir "Otro" como categoría de diagnóstico)*
+
+`validarPaso("diagnostico")` ahora exige, además de al menos una categoría y el costo, que si `diagnosticoCategorias` incluye "Otro" el campo de detalle no esté vacío — mismo criterio que ya existía para "Otros" en motivo de consulta. Error dedicado (`errores.diagnosticoDetalle`), borde rojo + mensaje bajo el textarea, y el banner de la parte superior también menciona el caso "Otro". Se limpia al tipear o al deseleccionar la categoría.
+
+### 3. Prueba automática — commit `eb92396` *(test(consulta): regresión para el submit fantasma y validación de "Otro" en Diagnóstico)*
+
+`src/paginas/ConsultaMedica.test.jsx`, 4 pruebas. La más importante no prueba el síntoma (el navegador real evalúa "¿es este un botón de envío?" *después* de que React re-renderiza en el mismo clic — jsdom no reproduce esa condición de carrera, se confirmó empíricamente quitando las 3 `key` y viendo que el síntoma seguía sin aparecer en el test), sino la causa raíz, que sí es 100% observable con el mismo motor de reconciliación de React en cualquier entorno: que "Siguiente" y "Guardar ficha clínica" son dos nodos `<button>` distintos al cambiar de paso, no el mismo reutilizado. Se verificó quitando las 3 `key` de nuevo — ese test específico falla como se espera, y vuelve a pasar con el fix puesto. Las otras 3 pruebas cubren el comportamiento observable: llegar a Diagnóstico con "Siguiente" no muestra ningún error todavía; "Otro" sin detalle y guardar sí muestra el error nuevo; "Otro" con detalle no lo muestra.
+
+### Verificación en vivo (Playwright, mismo flujo del informe original)
+
+Repetido con el patch de HMR ya aplicado (`npm run dev`), paciente de prueba con "Ficha clínica en curso":
+
+- **Refracción → Diagnóstico con "Siguiente" (clic real)**: se instrumentó de nuevo un listener de `submit` sobre el formulario antes del clic — esta vez el clic real solo disparó el evento `click` del botón, **ningún** evento `submit` del formulario. Sin banner de error, sin categoría/costo marcados en rojo. Screenshot no necesaria (ausencia de contenido); confirmado por consola + snapshot de accesibilidad limpio.
+- **"Otro" sin detalle + "Guardar ficha clínica"**: muestra el error nuevo bajo el textarea ("Describe el diagnóstico en el detalle — con 'Otro' no puede quedar vacío.") y también el de costo (vacío en la prueba) — sin guardar nada (0 peticiones `POST`/`PATCH` a `consultas` o `facturas_venta` en la sesión, solo los `GET` de carga inicial).
+
+![Fix verificado: "Otro" exige detalle](capturas-bug-diagnostico/08-FIX-otro-requiere-detalle.png)
+
+Ninguna ficha clínica se guardó durante la verificación. Las dos citas de prueba (`Prueba Control Vencido Reverso`, `Walkin Prueba QA`), que habían quedado "En Atención" tras la sesión de reproducción original, se devolvieron a "Pendiente" directamente en la base de datos al cerrar esta sesión — **nota**: al ser citas con fecha pasada, el cron de auto-inasistencia del sistema (migraciones `0071`/`0076`, cada ~5 min) las vuelve a marcar "No Asistió" poco después, que es su comportamiento normal y esperado para una cita "Pendiente" ya vencida — no es un efecto de este trabajo ni algo que haya que corregir.
 
 ---
 
@@ -105,5 +127,6 @@ La opción 1 es el cambio mínimo y más seguro.
 | `05-diagnostico-limpio-via-tab.png` | Mismo paso, llegada limpia al hacer clic en la pestaña del stepper en vez de "Siguiente" |
 | `06-categoria-otro-seleccionada.png` | Categoría "Otro" seleccionada, textarea de detalle visible |
 | `07-BUG-segundo-paciente-walkin.png` | **Bug reproducido** — segundo paciente de prueba, ficha independiente |
+| `08-FIX-otro-requiere-detalle.png` | **Fix verificado** — "Otro" sin detalle + costo vacío muestra ambos errores nuevos al intentar guardar |
 
-Las citas de prueba usadas (`Prueba Control Vencido Reverso`, `Walkin Prueba QA`) quedaron en estado "En Atención" tras esta sesión — es el comportamiento esperado al usar "Atender"/"Paciente en atención", no un efecto secundario del bug. Ninguna ficha clínica ni factura fue guardada (0 inserciones a `consultas` o `facturas_venta` en las peticiones de red de la sesión).
+Las citas de prueba usadas (`Prueba Control Vencido Reverso`, `Walkin Prueba QA`) terminaron la sesión de reproducción en estado "En Atención" — comportamiento esperado al usar "Atender"/"Paciente en atención", no un efecto secundario del bug. Al cerrar la sesión de corrección se devolvieron a "Pendiente" (ver nota del cron de auto-inasistencia arriba). Ninguna ficha clínica ni factura fue guardada en ningún momento de este trabajo (0 inserciones a `consultas` o `facturas_venta` en las peticiones de red de ambas sesiones).
