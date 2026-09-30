@@ -56,6 +56,7 @@ import {
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
+import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import VentaProductoModal from "./VentaProductoModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
@@ -259,6 +260,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // Selector de cita al entrar a la ficha clínica desde el perfil (pedido del
   // ing, reunión 29 sept.): { paciente, citas } cuando hay que elegir, o null.
   const [seleccionCitaPara, setSeleccionCitaPara] = useState(null)
+  // D2 (reunión 29 sept.): igual que "Atender" en Citas médicas, elegir una
+  // cita de un paciente web sin confirmar por recepción pide confirmar sus
+  // datos primero — { paciente, citaId } o null. Reutiliza
+  // ConfirmarDatosPacienteModal en vez de duplicar ese formulario acá.
+  const [confirmarDatosPara, setConfirmarDatosPara] = useState(null)
   // Edad calculada desde fecha_nacimiento — mismo cálculo que ya usa
   // ConsultaMedica.jsx para la receta impresa, ahora también visible en el
   // encabezado del expediente (pedido explícito de Diego).
@@ -2417,9 +2423,35 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         <SeleccionarCitaModal
           paciente={seleccionCitaPara.paciente.nombre}
           citas={seleccionCitaPara.citas}
-          onSeleccionar={(citaId) => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); onIrAFichaClinica?.(p, citaId) }}
+          onSeleccionar={(citaId) => {
+            const p = seleccionCitaPara.paciente
+            setSeleccionCitaPara(null)
+            // D2: mismo chequeo que "Atender" en Citas médicas — un paciente
+            // web sin confirmar por recepción no entra directo a la ficha.
+            if (p.origen === "paciente" && !p.confirmadoRecepcion) {
+              setConfirmarDatosPara({ paciente: p, citaId })
+              return
+            }
+            onIrAFichaClinica?.(p, citaId)
+          }}
           onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); onIrAFichaClinica?.(p) }}
           onCerrar={() => setSeleccionCitaPara(null)}
+        />
+      )}
+
+      {/* ─── CONFIRMAR DATOS DEL PACIENTE (D2, reunión 29 sept.) ─── */}
+      {confirmarDatosPara && (
+        <ConfirmarDatosPacienteModal
+          usuario={usuario}
+          paciente={confirmarDatosPara.paciente}
+          pacientes={pacientes}
+          setPacientes={setPacientes}
+          onConfirmado={(pacienteConfirmado) => {
+            const { citaId } = confirmarDatosPara
+            setConfirmarDatosPara(null)
+            onIrAFichaClinica?.(pacienteConfirmado, citaId)
+          }}
+          onCerrar={() => setConfirmarDatosPara(null)}
         />
       )}
 

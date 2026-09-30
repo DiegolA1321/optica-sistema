@@ -37,10 +37,11 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
+import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO } from "../utilidades/disponibilidad"
-import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
+import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
-import { crearRegistroPaciente } from "../utilidades/pacientes"
+import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_VER } from "@/lib/tema"
@@ -344,11 +345,13 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [cpFechaNacimiento, setCpFechaNacimiento] = useState("")
   const [cpErrores, setCpErrores] = useState({})
   const [cpGuardando, setCpGuardando] = useState(false)
-  // D2 (reunión 29 sept.): id del paciente que YA existe (se registró/dedupe
-  // al agendar por la web, migración 0067) y solo falta que recepción
-  // confirme o corrija sus datos — null en los otros dos modos del mismo
-  // modal (crear nuevo / solo registro), donde sí hay que insertar.
-  const [cpConfirmarPacienteId, setCpConfirmarPacienteId] = useState(null)
+  // D2 (reunión 29 sept.): paciente que YA existe (se registró/dedupe al
+  // agendar por la web, migración 0067) y solo falta que recepción confirme o
+  // corrija sus datos antes de abrir la ficha clínica — { cita, paciente } o
+  // null. Reutiliza ConfirmarDatosPacienteModal (también usado desde
+  // Pacientes.jsx al elegir una cita desde el perfil del paciente) en vez de
+  // duplicar el formulario acá.
+  const [confirmarDatosPara, setConfirmarDatosPara] = useState(null)
   // true cuando el registro se abrió desde "Crear paciente" (una cita futura
   // sin paciente vinculado, agendada en línea) en vez de "Atender ahora" —
   // en ese caso solo se crea y vincula al paciente, sin forzar la cita a
@@ -368,15 +371,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     return { paciente: nuevoPaciente }
   }
 
-  const validarDatosPacienteInline = (nombre, cedula, telefono, correo, idEnEdicion) => {
-    const errs = {}
-    if (!esNombreValido(nombre)) errs.nombre = "Ingresa un nombre válido (solo letras)."
-    if (!esCedulaValida(cedula)) errs.cedula = "Esa cédula no es válida — revisa los dígitos."
-    else if (pacientes.some((p) => p.id !== idEnEdicion && p.cedula === cedula)) errs.cedula = "Ya existe un paciente registrado con esa cédula."
-    if (!esTelefonoValido(telefono)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos."
-    if (correo && !esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
-    return errs
-  }
+  const validarDatosPacienteInline = (nombre, cedula, telefono, correo, idEnEdicion) =>
+    validarDatosPaciente(pacientes, { nombre, cedula, telefono, correo }, idEnEdicion)
 
   // Días colapsados manualmente (feedback del asesor: si hay muchas citas en un
   // día, poder colapsarlo para ver el siguiente sin tener que hacer scroll).
@@ -664,17 +660,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       // D2 (reunión 29 sept.): un paciente que se registró solo al agendar
       // por la web (origen='paciente') todavía no fue revisado por
       // recepción — antes de abrir la ficha, se confirma o corrige una vez
-      // sus datos (mismo modal de "Completar registro", en modo confirmar).
+      // sus datos (ConfirmarDatosPacienteModal).
       if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
-        setCompletarPara(cita)
-        setCpConfirmarPacienteId(paciente.id)
-        setCpNombre(paciente.nombre || "")
-        setCpCedula(paciente.cedula || "")
-        setCpTelefono(paciente.telefono || "")
-        setCpCorreo(paciente.correo || "")
-        setCpFechaNacimiento(paciente.fecha_nacimiento || "")
-        setCpErrores({})
-        setCpSoloRegistro(false)
+        setConfirmarDatosPara({ cita, paciente })
         return
       }
       marcarEstado(cita.id, "En Atención")
@@ -682,7 +670,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       return
     }
     setCompletarPara(cita)
-    setCpConfirmarPacienteId(null)
     setCpNombre(cita.paciente || "")
     setCpCedula(cita.cedula || "")
     setCpTelefono(cita.telefono || "")
@@ -710,7 +697,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const cerrarCompletarRegistro = () => {
     setCompletarPara(null)
-    setCpConfirmarPacienteId(null)
     setCpNombre("")
     setCpCedula("")
     setCpTelefono("")
@@ -722,40 +708,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const guardarCompletarRegistro = async (e) => {
     e.preventDefault()
-    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, cpConfirmarPacienteId)
+    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, null)
     setCpErrores(errs)
     if (Object.keys(errs).length > 0) return
 
     setCpGuardando(true)
-
-    // D2 (reunión 29 sept.): el paciente ya existe (crear_cita_publica ya lo
-    // resolvió/creó al agendar, migración 0067) — acá solo se corrige/confirma
-    // sus datos y se marca confirmado_recepcion, nunca se inserta uno nuevo.
-    if (cpConfirmarPacienteId) {
-      const pacienteOriginal = pacientes.find((p) => p.id === cpConfirmarPacienteId)
-      const cambios = { nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fecha_nacimiento: cpFechaNacimiento || null, confirmado_recepcion: true }
-      if (supabase && opticaId) {
-        const { data: actualizado, error: errorConfirmar } = await supabase.from("pacientes").update(cambios).eq("id", cpConfirmarPacienteId).select()
-        if (fueBloqueadoPorPermiso({ error: errorConfirmar, data: actualizado })) {
-          setCpGuardando(false)
-          setBannerError(MENSAJE_SIN_PERMISO)
-          return
-        }
-        if (errorConfirmar) {
-          setCpGuardando(false)
-          setBannerError("No se pudieron confirmar los datos del paciente. Revisa tu conexión e intenta de nuevo.")
-          return
-        }
-      }
-      const pacienteConfirmado = { ...pacienteOriginal, nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fecha_nacimiento: cpFechaNacimiento || null, confirmadoRecepcion: true }
-      setPacientes?.(pacientes.map((p) => (p.id === cpConfirmarPacienteId ? pacienteConfirmado : p)))
-      const citaId = completarPara.id
-      cerrarCompletarRegistro()
-      setCpGuardando(false)
-      await marcarEstado(citaId, "En Atención")
-      onAtender?.(pacienteConfirmado, citaId)
-      return
-    }
 
     const { paciente: nuevoPaciente, error } = await crearPacienteInline({
       nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento,
@@ -1627,11 +1584,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpConfirmarPacienteId ? "Confirmar datos del paciente" : cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
+                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
                   <p className="text-xs text-slate-500">
-                    {cpConfirmarPacienteId
-                      ? "Se registró por la web y todavía no pasó por recepción — revisa o corrige sus datos antes de abrir la ficha clínica."
-                      : cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}
+                    {cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}
                   </p>
                 </div>
               </div>
@@ -1706,7 +1661,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   Cancelar
                 </button>
                 <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {cpGuardando ? "Guardando…" : cpConfirmarPacienteId ? "Confirmar y atender" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
+                  {cpGuardando ? "Guardando…" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -1714,6 +1669,23 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           </div>
         </div>,
         document.body
+      )}
+
+      {/* ─── CONFIRMAR DATOS DEL PACIENTE (D2, reunión 29 sept.) ─── */}
+      {confirmarDatosPara && (
+        <ConfirmarDatosPacienteModal
+          usuario={usuario}
+          paciente={confirmarDatosPara.paciente}
+          pacientes={pacientes}
+          setPacientes={setPacientes}
+          onConfirmado={(pacienteConfirmado) => {
+            const { cita } = confirmarDatosPara
+            setConfirmarDatosPara(null)
+            marcarEstado(cita.id, "En Atención")
+            onAtender?.(pacienteConfirmado, cita.id)
+          }}
+          onCerrar={() => setConfirmarDatosPara(null)}
+        />
       )}
 
       {/* ─── MODAL CANCELAR ─── */}
