@@ -44,6 +44,7 @@ import {
   Megaphone,
   Send,
   Cake,
+  IdCard,
   Receipt,
   Printer,
   Wallet,
@@ -63,7 +64,7 @@ import { esHoy, etiquetaFecha, fechaAISO } from "../utilidades/disponibilidad"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
-import { filtrarSoloLetras, esNombreValido, esEmailValido } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
@@ -124,8 +125,8 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-const camposOpticaIniciales = { nombreOptica: "", slug: "", eslogan: "", colorAcento: "#2563EB", logoUrl: "", nombreAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "", esOptometra: true }
-const camposCuentaIniciales = { nombre: "", email: "", clave: "", confirmarClave: "", esOptometra: true }
+const camposOpticaIniciales = { nombreOptica: "", slug: "", eslogan: "", colorAcento: "#2563EB", logoUrl: "", nombreAdmin: "", cedulaAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "", esOptometra: true }
+const camposCuentaIniciales = { nombre: "", cedula: "", email: "", clave: "", confirmarClave: "", esOptometra: true }
 
 const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })
 const formatearFechaHora = (fecha) =>
@@ -483,6 +484,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [generandoFactura, setGenerandoFactura] = useState(false)
   const [facturaImprimir, setFacturaImprimir] = useState(null)
   const [guardandoCumple, setGuardandoCumple] = useState(null) // id del admin en guardado
+  // Cédula (migración 0082) — mismo patrón inline que fecha_nacimiento:
+  // editable por el superadmin en una cuenta de admin ya existente.
+  const [guardandoCedula, setGuardandoCedula] = useState(null) // id del admin en guardado
+  const [errorCedulaAdmin, setErrorCedulaAdmin] = useState(null) // { id, mensaje }
 
   // ─── Detalle: agregar / quitar administrador ───
   const [agregarAdminAbierto, setAgregarAdminAbierto] = useState(false)
@@ -638,7 +643,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     try {
       const resultados = await Promise.all([
         supabase.from("opticas").select("*").order("created_at", { ascending: false }),
-        supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra, created_at").eq("rol", "admin"),
+        supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra, cedula, created_at").eq("rol", "admin"),
         supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
         supabase.from("perfiles").select("optica_id, created_at").eq("rol", "asistente"),
         supabase.from("pacientes").select("optica_id, created_at"),
@@ -1208,7 +1213,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const guardar = async (e) => {
     e.preventDefault()
     setError("")
-    const { nombreOptica, slug, eslogan, colorAcento, logoUrl, nombreAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave, esOptometra } = campos
+    const { nombreOptica, slug, eslogan, colorAcento, logoUrl, nombreAdmin, cedulaAdmin, emailAdmin, fechaNacimientoAdmin, clave, confirmarClave, esOptometra } = campos
     if (!nombreOptica.trim() || !slug.trim() || !clave) {
       setError("Completa todos los campos.")
       return
@@ -1218,6 +1223,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       return
     }
     if (!esNombreValido(nombreAdmin)) { setError("Ingresa un nombre válido para el administrador (solo letras)."); return }
+    // Cédula obligatoria para cuentas nuevas (migración 0082) — evita que la
+    // misma persona termine con dos cuentas de admin.
+    const cedulaAdminLimpia = cedulaAdmin.trim()
+    if (!cedulaAdminLimpia) { setError("Completa la cédula del administrador."); return }
+    if (!esCedulaValida(cedulaAdminLimpia)) { setError("La cédula del administrador no es válida."); return }
     if (!esEmailValido(emailAdmin, false)) { setError("Ingresa un correo válido para el administrador (ej. nombre@dominio.com)."); return }
     if (clave.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.")
@@ -1301,12 +1311,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     // superadmin de verdad.
     const { error: errorPerfil } = await supabase
       .from("perfiles")
-      .insert({ id: alta.user.id, optica_id: nuevaOptica.id, rol: "admin", nombre: nombreAdmin.trim(), email: emailAdmin.trim(), fecha_nacimiento: fechaNacimientoAdmin || null, es_optometra: esOptometra })
+      .insert({ id: alta.user.id, optica_id: nuevaOptica.id, rol: "admin", nombre: nombreAdmin.trim(), cedula: cedulaAdminLimpia, email: emailAdmin.trim(), fecha_nacimiento: fechaNacimientoAdmin || null, es_optometra: esOptometra })
 
     await temp.auth.signOut()
 
     if (errorPerfil) {
-      setError(errorPerfil.message + " — la óptica y la cuenta de correo ya quedaron creadas, revisá en Supabase.")
+      const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
+      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas, revisá en Supabase.")
       setGuardando(false)
       cargarDatos()
       return
@@ -1562,6 +1573,32 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!error) setAdmins((prev) => prev.map((a) => (a.id === adminId ? { ...a, es_optometra: valor } : a)))
   }
 
+  // Cédula (migración 0082): editable en una cuenta de admin ya existente —
+  // igual que en Usuarios.jsx, vacío es válido (cuenta antigua sin cédula
+  // registrada), pero si se escribe algo tiene que pasar el mismo chequeo de
+  // formato y de duplicado por óptica que en la creación.
+  const guardarCedula = async (adminId, valor) => {
+    const limpia = valor.trim()
+    if (limpia && !esCedulaValida(limpia)) {
+      setErrorCedulaAdmin({ id: adminId, mensaje: "Cédula inválida." })
+      return
+    }
+    setGuardandoCedula(adminId)
+    setErrorCedulaAdmin(null)
+    const { error } = await supabase.from("perfiles").update({ cedula: limpia || null }).eq("id", adminId)
+    setGuardandoCedula(null)
+    if (error) {
+      setErrorCedulaAdmin({
+        id: adminId,
+        mensaje: error.code === "23505" || /duplicate key|unique constraint/i.test(error.message)
+          ? "Esa cédula ya está registrada por otro administrador de esta óptica."
+          : "No se pudo guardar. Intenta de nuevo.",
+      })
+      return
+    }
+    setAdmins((prev) => prev.map((a) => (a.id === adminId ? { ...a, cedula: limpia || null } : a)))
+  }
+
   const abrirAgregarAdmin = () => {
     setCamposAdminExtra(camposCuentaIniciales)
     setVerClaveExtra(false)
@@ -1572,8 +1609,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const guardarAdminExtra = async (e) => {
     e.preventDefault()
     setErrorAdminExtra("")
-    const { nombre, email, clave, confirmarClave, esOptometra } = camposAdminExtra
+    const { nombre, cedula, email, clave, confirmarClave, esOptometra } = camposAdminExtra
     if (!esNombreValido(nombre)) { setErrorAdminExtra("Ingresa un nombre válido (solo letras)."); return }
+    const cedulaExtraLimpia = cedula.trim()
+    if (!cedulaExtraLimpia) { setErrorAdminExtra("Completa la cédula."); return }
+    if (!esCedulaValida(cedulaExtraLimpia)) { setErrorAdminExtra("La cédula ingresada no es válida."); return }
     if (!esEmailValido(email, false)) { setErrorAdminExtra("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
     if (!clave) { setErrorAdminExtra("Completa la contraseña."); return }
     if (clave.length < 6) { setErrorAdminExtra("La contraseña debe tener al menos 6 caracteres."); return }
@@ -1597,10 +1637,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     // Ciberseguridad: insert con la sesión del superadmin (supabase), no con
     // la del usuario recién creado — ver nota igual en crearOptica más
     // arriba.
-    const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, optica_id: detalle.id, rol: "admin", nombre: nombre.trim(), email: email.trim(), es_optometra: esOptometra })
+    const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, optica_id: detalle.id, rol: "admin", nombre: nombre.trim(), cedula: cedulaExtraLimpia, email: email.trim(), es_optometra: esOptometra })
     await temp.auth.signOut()
     if (errorPerfil) {
-      setErrorAdminExtra(errorPerfil.message + " — la cuenta de correo ya quedó creada, revisá en Supabase.")
+      const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
+      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada, revisá en Supabase.")
       setGuardandoAdminExtra(false)
       return
     }
@@ -3306,6 +3347,23 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                             />
                             {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
                           </div>
+                          <div className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2">
+                            <IdCard size={13} className="shrink-0 text-slate-400" />
+                            <label className="text-xs text-slate-500">Cédula</label>
+                            <input
+                              type="text" inputMode="numeric"
+                              defaultValue={a.cedula || ""}
+                              onBlur={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 10); if (v !== (a.cedula || "")) guardarCedula(a.id, v) }}
+                              disabled={guardandoCedula === a.id}
+                              placeholder="10 dígitos"
+                              maxLength={10}
+                              className="w-24 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white disabled:opacity-60"
+                            />
+                            {guardandoCedula === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                          </div>
+                          {errorCedulaAdmin?.id === a.id && (
+                            <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-600">{errorCedulaAdmin.mensaje}</p>
+                          )}
                           <label className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
                             <input
                               type="checkbox"
@@ -3330,6 +3388,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     )}
                     <input
                       type="text" placeholder="Nombre completo" value={camposAdminExtra.nombre} onChange={(e) => actualizarCampoAdminExtra("nombre", filtrarSoloLetras(e.target.value))}
+                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                    <input
+                      type="text" inputMode="numeric" placeholder="Cédula (10 dígitos)" maxLength={10}
+                      value={camposAdminExtra.cedula} onChange={(e) => actualizarCampoAdminExtra("cedula", e.target.value.replace(/\D/g, "").slice(0, 10))}
                       className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                     />
                     <input
@@ -3971,6 +4034,19 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
+                        <div className="relative">
+                          <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input
+                            type="text" inputMode="numeric" value={campos.cedulaAdmin}
+                            onChange={(e) => actualizarCampo("cedulaAdmin", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            placeholder="10 dígitos" maxLength={10}
+                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                          />
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-500">Única por óptica — evita que la misma persona tenga dos cuentas.</p>
+                      </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento <span className="font-normal text-slate-400">(opcional)</span></label>
                         <div className="relative">

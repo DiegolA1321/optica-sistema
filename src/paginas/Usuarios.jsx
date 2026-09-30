@@ -17,6 +17,7 @@ import {
   Mail,
   Info,
   Tag,
+  IdCard,
   CheckSquare,
   Square,
   History,
@@ -24,7 +25,7 @@ import {
   Glasses,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
-import { filtrarSoloLetras, esNombreValido, esEmailValido, esClaveSegura } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esClaveSegura, esCedulaValida } from "../utilidades/validaciones"
 import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -95,6 +96,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const [editandoId, setEditandoId] = useState(null)
   const [nombre, setNombre] = useState("")
   const [etiquetaRol, setEtiquetaRol] = useState("")
+  // Cédula (migración 0082): obligatoria para cuentas nuevas, para evitar
+  // que la misma persona termine con dos cuentas. Las cuentas ya existentes
+  // pueden no tenerla — se puede completar desde este mismo modal de editar.
+  const [cedula, setCedula] = useState("")
   const [correo, setCorreo] = useState("")
   const [clave, setClave] = useState("")
   const [verClave, setVerClave] = useState(false)
@@ -148,6 +153,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     setEditandoId(null)
     setNombre("")
     setEtiquetaRol("")
+    setCedula("")
     setCorreo("")
     setClave("")
     setVerClave(false)
@@ -161,6 +167,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     setEditandoId(a.id)
     setNombre(a.nombre)
     setEtiquetaRol(a.etiquetaRol || "")
+    setCedula(a.cedula || "")
     setCorreo(a.correo)
     setClave("")
     setVerClave(false)
@@ -196,11 +203,20 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
 
     if (editandoId != null) {
       if (!esNombreValido(nombre)) { setError("Ingresa un nombre válido (solo letras)."); return }
+      // La cédula puede quedar vacía en una cuenta vieja que nunca la tuvo —
+      // solo se valida el formato si se está completando/cambiando ahora.
+      const cedulaLimpia = cedula.trim()
+      if (cedulaLimpia && !esCedulaValida(cedulaLimpia)) { setError("La cédula ingresada no es válida."); return }
       setGuardando(true)
-      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null, es_optometra: esOptometra }).eq("id", editandoId)
+      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null, es_optometra: esOptometra, cedula: cedulaLimpia || null }).eq("id", editandoId)
       setGuardando(false)
-      if (errorUpdate) { setError(errorUpdate.message); return }
-      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim(), esOptometra } : a)))
+      if (errorUpdate) {
+        setError(errorUpdate.code === "23505" || /duplicate key|unique constraint/i.test(errorUpdate.message)
+          ? "Esa cédula ya está registrada por otro usuario de esta óptica."
+          : errorUpdate.message)
+        return
+      }
+      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim(), esOptometra, cedula: cedulaLimpia || null } : a)))
       registrarLog(usuario, "usuarios", "Editó los permisos de un usuario", nombre.trim())
       setModalAbierto(false)
       mostrarExito(`Permisos de ${nombre.trim()} actualizados correctamente.`)
@@ -217,6 +233,12 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       setError("La contraseña debe tener al menos 8 caracteres, con al menos una letra y un número.")
       return
     }
+    // Cédula obligatoria para cuentas nuevas (migración 0082) — evita que la
+    // misma persona termine con dos cuentas. Se valida ANTES de signUp para
+    // no crear una cuenta de Auth huérfana si la cédula ya falla acá.
+    const cedulaCrear = cedula.trim()
+    if (!cedulaCrear) { setError("Completa la cédula."); return }
+    if (!esCedulaValida(cedulaCrear)) { setError("La cédula ingresada no es válida."); return }
     setGuardando(true)
     const temp = crearClienteTemporal()
     const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: correo.trim(), password: clave })
@@ -244,14 +266,18 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     // esto, scoped a la óptica del admin que llama.
     const { error: errorPerfil } = await supabase
       .from("perfiles")
-      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null, es_optometra: esOptometra })
+      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null, es_optometra: esOptometra, cedula: cedulaCrear })
     await temp.auth.signOut()
     setGuardando(false)
     if (errorPerfil) {
-      setError(errorPerfil.message + " — la cuenta de correo ya quedó creada, contactá soporte si esto se repite.")
+      const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
+      setError(
+        (cedulaDuplicada ? "Esa cédula ya está registrada por otro usuario de esta óptica." : errorPerfil.message)
+        + " — la cuenta de correo ya quedó creada, contactá soporte si esto se repite."
+      )
       return
     }
-    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim(), esOptometra }])
+    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim(), esOptometra, cedula: cedulaCrear }])
     registrarLog(usuario, "usuarios", "Creó un usuario nuevo", nombre.trim())
     setModalAbierto(false)
     mostrarExito(`Usuario ${nombre.trim()} creado correctamente.`)
@@ -512,6 +538,22 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                   </div>
                 </div>
                 <p className="-mt-2.5 text-[11px] text-slate-500">Solo una etiqueta para que recuerdes para qué lo contrataste — no cambia sus permisos, esos se definen abajo.</p>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    Cédula {editandoId == null && <span className="text-red-500">*</span>}
+                    {editandoId != null && !cedula && <span className="normal-case text-slate-500">(cuenta antigua sin cédula registrada — puedes completarla)</span>}
+                  </label>
+                  <div className="relative">
+                    <IdCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="10 dígitos" maxLength={10}
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">Única por óptica — evita que la misma persona tenga dos cuentas.</p>
+                </div>
 
                 {editandoId != null ? (
                   <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600">
