@@ -55,6 +55,11 @@ export function diasDesdeUltimaVisita(paciente, consultas = []) {
 // el optómetra fijó en la última consulta (proximoControlDias); si el
 // paciente nunca ha tenido consulta, usa el umbral genérico desde su registro.
 export function fechaProximoControl(paciente, consultas = []) {
+  // Un paciente "De alta" (tratamiento finalizado, ConsultaMedica.jsx) ya no
+  // tiene un próximo control pendiente — sin este corte, Reportes/Pacientes/
+  // CRM/la campana seguirían contándolo como atrasado para siempre.
+  if (paciente.estadoClinico === "De alta") return null
+
   const consultasPaciente = consultasDe(paciente, consultas)
   const conFecha = consultasPaciente
     .map((c) => ({ c, fecha: parseFechaFlexible(c.fecha) }))

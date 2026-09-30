@@ -66,6 +66,14 @@ describe("fidelizacion (con fecha fija: 10 de marzo de 2026)", () => {
       esperado.setDate(esperado.getDate() + UMBRAL_INACTIVO_DIAS)
       expect(objetivo.getTime()).toBe(esperado.getTime())
     })
+
+    it("un paciente 'De alta' nunca está atrasado, aunque su última consulta sea vieja", () => {
+      const paciente = { id: 1, nombre: "Ana", fechaRegistro: "2020-01-01", estadoClinico: "De alta" }
+      const consultas = [{ pacienteId: 1, fecha: "2024-01-01", proximoControlDias: 30 }]
+      expect(fechaProximoControl(paciente, consultas)).toBeNull()
+      expect(diasVencido(paciente, consultas)).toBeNull()
+      expect(esInactivo(paciente, consultas)).toBe(false)
+    })
   })
 
   describe("contarConsultas / esClienteFrecuente", () => {
