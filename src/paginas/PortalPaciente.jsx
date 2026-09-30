@@ -1042,7 +1042,7 @@ function OjoReceta({ sigla, titulo, ojo = {}, color, mostrarMedidas }) {
           <p className="font-mono text-sm font-bold" style={{ color: INK }}>
             {ojo.esfera ?? "—"} {ojo.cilindro ?? ""} {ojo.eje != null ? `x${ojo.eje}` : ""}
           </p>
-          <p className="mt-0.5 text-[10px] text-slate-500">Esfera · Cilindro · Eje</p>
+          <p className="mt-0.5 text-xs text-slate-500">Esfera · Cilindro · Eje</p>
         </div>
       ) : (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 bg-white py-3.5 text-slate-500">
