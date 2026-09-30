@@ -16,6 +16,7 @@ import {
   CalendarClock,
   CalendarCheck,
   Sun,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   UserX,
@@ -36,7 +37,7 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
@@ -59,6 +60,12 @@ const PALETA_MOTIVOS = [
   { badge: "bg-cyan-50 text-cyan-700 border-cyan-100", punto: "#06b6d4" },
 ]
 const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200/60", punto: "#94a3b8" }
+
+// Orden de los grupos por estado dentro del modal "Citas del día" (vista por
+// mes) — lo más urgente de revisar primero.
+const ORDEN_ESTADOS_MODAL = ["En Atención", "Pendiente", "Atendida", "No Asistió", "Cancelada"]
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 
 const motivoInfo = (motivo = "", catalogo = []) => {
   const idx = catalogo.indexOf(motivo)
@@ -934,6 +941,37 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     }
   }
 
+  // ── Vista por día / por mes (reunión 29 sept., punto 12 del plan) — "día"
+  // es la lista agrupada de siempre (grupos, de arriba), sin cambios. "mes"
+  // es un calendario nuevo que reutiliza el mismo `grupos` (mismos filtros,
+  // misma búsqueda) solo que indexado por fecha para pintar un contador por
+  // día y abrir el detalle en un modal. ──
+  const [vista, setVista] = useState("dia") // dia | mes
+  const [mesVista, setMesVista] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1) })
+  const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
+
+  const gruposPorFecha = useMemo(() => new Map(grupos), [grupos])
+
+  const diasDelMes = useMemo(() => {
+    const primerDia = new Date(mesVista.getFullYear(), mesVista.getMonth(), 1)
+    const ultimoDia = new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)
+    const offset = (primerDia.getDay() + 6) % 7 // semana empieza en lunes
+    const arr = []
+    for (let i = 0; i < offset; i++) arr.push(null)
+    for (let n = 1; n <= ultimoDia.getDate(); n++) {
+      arr.push(fechaAISO(new Date(mesVista.getFullYear(), mesVista.getMonth(), n)))
+    }
+    return arr
+  }, [mesVista])
+
+  const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
+  const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
+
+  const citasDelDiaModal = diaModalMes ? (gruposPorFecha.get(diaModalMes) || []) : []
+  const gruposEstadoModal = ORDEN_ESTADOS_MODAL
+    .map((estado) => [estado, citasDelDiaModal.filter((c) => c.estado === estado)])
+    .filter(([, arr]) => arr.length > 0)
+
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — un hook por
   // modal, cada uno gateado por el mismo booleano/valor que ya controla su
   // renderizado condicional más abajo.
@@ -942,6 +980,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const refModalCancelar = useModalAccesible(porCancelar != null, () => setPorCancelar(null))
   const refModalReagendar = useModalAccesible(reagendando, cerrarReagendar)
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
+  const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -976,7 +1015,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── KPIs / FILTROS ─── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiBoton icono={CalendarDays} valor={citas.length} etiqueta="Total agendadas" tono="slate" activo={filtro === "todas"} onClick={() => setFiltro("todas")} />
-        <KpiBoton icono={Sun} valor={totalHoy} etiqueta="Citas de hoy" tono="blue" activo={filtro === "hoy"} onClick={() => setFiltro("hoy")} />
+        <KpiBoton icono={Sun} valor={totalHoy} etiqueta="Citas de hoy" tono="blue" activo={filtro === "hoy"} onClick={() => { setFiltro("hoy"); setMesVista(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) }} />
         <KpiBoton icono={CalendarClock} valor={totalProximas} etiqueta="Próximas (futuras)" tono="amber" activo={filtro === "proximas"} onClick={() => setFiltro("proximas")} />
         <KpiBoton icono={CalendarCheck} valor={totalAtendidas} etiqueta="Ya atendidas" tono="emerald" activo={filtro === "atendidas"} onClick={() => setFiltro("atendidas")} />
       </div>
@@ -1000,6 +1039,24 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {/* ─── BÚSQUEDA + TIPO DE CITA + CREACIÓN ─── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
+          {/* Alternar Día / Mes (reunión 29 sept., punto 12) — sin vista
+              semanal, según lo acordado. "Día" es la lista de siempre. */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+            {[
+              { key: "dia", label: "Día" },
+              { key: "mes", label: "Mes" },
+            ].map((op) => (
+              <button
+                key={op.key}
+                type="button"
+                onClick={() => setVista(op.key)}
+                className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (vista === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+                style={vista === op.key ? { background: GRAD } : undefined}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
             {[
               { key: "todos", label: "Todas" },
@@ -1104,6 +1161,46 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             </div>
           ))}
         </div>
+      ) : vista === "mes" ? (
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-sm font-bold capitalize" style={{ color: INK }}>{MESES[mesVista.getMonth()]} {mesVista.getFullYear()}</span>
+            <div className="flex gap-1 text-slate-500">
+              <button type="button" onClick={irMesAnterior} aria-label="Mes anterior" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
+              <button type="button" onClick={irMesSiguiente} aria-label="Mes siguiente" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
+            </div>
+          </div>
+          <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
+            {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
+          </div>
+          <div className="grid grid-cols-7 gap-1.5">
+            {diasDelMes.map((iso, i) => {
+              if (!iso) return <span key={`vacio-${i}`} />
+              const citasDia = gruposPorFecha.get(iso) || []
+              const hoyDia = iso === hoyISO()
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => setDiaModalMes(iso)}
+                  title={citasDia.length > 0 ? `${citasDia.length} ${citasDia.length === 1 ? "cita" : "citas"}` : "Sin citas"}
+                  className={
+                    "relative flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-sm font-bold transition-all cursor-pointer " +
+                    (citasDia.length > 0
+                      ? "border-blue-200/60 bg-blue-50/50 text-slate-700 hover:border-blue-400"
+                      : "border-slate-200/60 bg-white text-slate-400 hover:border-slate-300") +
+                    (hoyDia ? " ring-2 ring-blue-500 ring-offset-1" : "")
+                  }
+                >
+                  <span>{Number(iso.slice(-2))}</span>
+                  {citasDia.length > 0 && (
+                    <span className="rounded-full px-1.5 py-px text-[10px] font-bold text-white" style={{ background: GRAD }}>{citasDia.length}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       ) : grupos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
@@ -1171,75 +1268,56 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         </div>
       )}
 
-      {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) ─── */}
-      {menuAccionesId != null && menuAccionesPos && (() => {
-        const cita = citas.find((c) => c.id === menuAccionesId)
-        if (!cita) return null
-        const puedeMarcarseAqui = !esFutura(cita.fecha)
-        return createPortal(
-          <div
-            ref={menuAccionesRef}
-            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
-            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
-          >
-            {!cita.pacienteId && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => { setMenuAccionesId(null); registrarPacienteParaCita(cita) }}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
-                >
-                  <UserPlus size={15} /> Crear paciente
-                </button>
-                <div className="my-1 border-t border-slate-100" />
-              </>
-            )}
-            {puedeMarcarseAqui && (
-              <>
-                {cita.estado !== "En Atención" && (
-                  <button
-                    type="button"
-                    onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "En Atención") }}
-                    className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
-                  >
-                    <Activity size={15} /> Paciente en atención
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "Atendida") }}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
-                >
-                  <CheckCircle2 size={15} /> Marcar atendida
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "No Asistió") }}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-                >
-                  <UserX size={15} /> No asistió
-                </button>
-                <div className="my-1 border-t border-slate-100" />
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => { setMenuAccionesId(null); abrirReagendar(cita) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-            >
-              <CalendarClock size={15} /> Editar cita
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-            >
-              <X size={15} /> Cancelar cita
-            </button>
-          </div>,
-          document.body,
-        )
-      })()}
+      {/* ─── MODAL "CITAS DEL DÍA" (vista por mes) ─── */}
+      {diaModalMes && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setDiaModalMes(null)}>
+          <div ref={refModalDiaMes} role="dialog" aria-modal="true" aria-labelledby="citas-modal-dia-titulo" className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h4 id="citas-modal-dia-titulo" className="text-lg font-bold capitalize" style={{ color: INK }}>{etiquetaFecha(diaModalMes)}</h4>
+                <p className="text-xs text-slate-500">{citasDelDiaModal.length} {citasDelDiaModal.length === 1 ? "cita" : "citas"} registradas</p>
+              </div>
+              <button type="button" onClick={() => setDiaModalMes(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {citasDelDiaModal.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                  <p className="text-sm font-medium text-slate-500">Sin citas registradas este día.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {gruposEstadoModal.map(([estado, citasEstado]) => (
+                    <div key={estado}>
+                      <h5 className="mb-2.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        {estado === "Atendida" ? "Atendidas" : estado === "En Atención" ? "En atención" : estado === "No Asistió" ? "No asistió" : estado}
+                        <span className="text-slate-400">· {citasEstado.length}</span>
+                      </h5>
+                      <div className="grid grid-cols-1 gap-4">
+                        {citasEstado.map((cita) => (
+                          <TarjetaCita
+                            key={cita.id}
+                            cita={cita}
+                            motivosConsulta={motivosConsulta}
+                            fechaRealPorCitaId={fechaRealPorCitaId}
+                            marcandoEstadoId={marcandoEstadoId}
+                            menuAccionesId={menuAccionesId}
+                            onVerPerfil={onVerPerfil}
+                            onAtender={atenderCita}
+                            onAbrirMenuAcciones={abrirMenuAcciones}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && createPortal(
@@ -1761,6 +1839,79 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         </div>,
         document.body
       )}
+
+      {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) — va al
+          final del árbol a propósito: puede abrirse desde una tarjeta dentro del modal
+          "Citas del día" (vista por mes), y como ambos son portales a document.body, el que
+          se monta después queda visualmente encima. ─── */}
+      {menuAccionesId != null && menuAccionesPos && (() => {
+        const cita = citas.find((c) => c.id === menuAccionesId)
+        if (!cita) return null
+        const puedeMarcarseAqui = !esFutura(cita.fecha)
+        return createPortal(
+          <div
+            ref={menuAccionesRef}
+            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
+            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
+          >
+            {!cita.pacienteId && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setMenuAccionesId(null); registrarPacienteParaCita(cita) }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
+                >
+                  <UserPlus size={15} /> Crear paciente
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+              </>
+            )}
+            {puedeMarcarseAqui && (
+              <>
+                {cita.estado !== "En Atención" && (
+                  <button
+                    type="button"
+                    onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "En Atención") }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
+                  >
+                    <Activity size={15} /> Paciente en atención
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "Atendida") }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
+                >
+                  <CheckCircle2 size={15} /> Marcar atendida
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "No Asistió") }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+                >
+                  <UserX size={15} /> No asistió
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); abrirReagendar(cita) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+            >
+              <CalendarClock size={15} /> Editar cita
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+            >
+              <X size={15} /> Cancelar cita
+            </button>
+          </div>,
+          document.body,
+        )
+      })()}
     </div>
   )
 }
