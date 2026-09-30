@@ -156,7 +156,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida }) {
+export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1754,6 +1754,25 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </div>
             )
           })()}
+
+          {pacienteHistorial.medidasSolicitadasEn && (
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-blue-200/60 bg-blue-50 px-4 py-3 sm:px-8">
+              <div className="flex items-start gap-2.5">
+                <Eye size={18} className="mt-0.5 shrink-0 text-blue-600" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-800">Este paciente pidió ver sus medidas completas (esfera/cilindro/eje) desde el portal.</p>
+                  <p className="text-[11px] text-blue-600">Entrégaselas por el canal que prefieras y marca esta solicitud como atendida.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => marcarMedidasAtendidas?.(pacienteHistorial.id)}
+                className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
+              >
+                Marcar atendida
+              </button>
+            </div>
+          )}
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 py-6 sm:px-8 sm:py-8">

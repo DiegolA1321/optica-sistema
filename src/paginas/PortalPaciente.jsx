@@ -219,7 +219,37 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     [consultas, usuario],
   )
   const ultimaReceta = misConsultas[0] || null
+  // Antes solo cambiaba este estado local (setMedidasSolicitadas(true)) sin
+  // avisar a nadie — el botón mostraba "Solicitud enviada" pero la óptica
+  // nunca se enteraba. Ahora llama de verdad a solicitar_medidas_paciente
+  // (migración 0080), que marca pacientes.medidas_solicitadas_en y eso
+  // alimenta un banner en el perfil del paciente (Pacientes.jsx) y la
+  // campana de notificaciones (Dashboard.jsx) del lado de la óptica. La
+  // confirmación en sí sigue siendo de esta sesión (verificar_login_paciente/
+  // obtener_paciente_por_id no devuelven este campo, a propósito, para no
+  // ampliar su firma) — un recargo del portal vuelve a mostrar el botón,
+  // pero re-enviar la solicitud no duplica nada ni hace daño.
   const [medidasSolicitadas, setMedidasSolicitadas] = useState(false)
+  const [errorMedidas, setErrorMedidas] = useState("")
+  const [enviandoMedidas, setEnviandoMedidas] = useState(false)
+  const solicitarMedidasCompletas = async () => {
+    setErrorMedidas("")
+    setEnviandoMedidas(true)
+    if (supabase) {
+      const { data, error } = await supabase.rpc("solicitar_medidas_paciente", {
+        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
+        p_token: usuario?.token,
+      })
+      setEnviandoMedidas(false)
+      if (error || data !== true) {
+        setErrorMedidas("No pudimos enviar tu solicitud. Intenta de nuevo en un momento.")
+        return
+      }
+    } else {
+      setEnviandoMedidas(false)
+    }
+    setMedidasSolicitadas(true)
+  }
 
   const misCitas = useMemo(() => {
     if (!usuario?.id && !usuario?.cedula) return citas
@@ -637,14 +667,17 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     </div>
                     {!mostrarMedidas && (
                       <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-3.5 sm:flex-row sm:items-center">
-                        <p className="flex-1 text-xs leading-relaxed text-slate-500">
-                          Por política de tu óptica, las medidas exactas de tu receta no se muestran en el portal. Si las necesitas para otro proveedor, puedes solicitarlas — tienen un costo adicional por la toma y entrega del examen.
-                        </p>
+                        <div className="flex-1">
+                          <p className="text-xs leading-relaxed text-slate-500">
+                            Por política de tu óptica, las medidas exactas de tu receta no se muestran en el portal. Si las necesitas para otro proveedor, puedes solicitarlas — tienen un costo adicional por la toma y entrega del examen.
+                          </p>
+                          {errorMedidas && <p className="mt-1.5 text-xs font-semibold text-red-600">{errorMedidas}</p>}
+                        </div>
                         {medidasSolicitadas ? (
                           <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"><CheckCircle2 size={14} /> Solicitud enviada</span>
                         ) : (
-                          <button type="button" onClick={() => setMedidasSolicitadas(true)} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-                            <Lock size={14} /> Solicitar mis medidas completas
+                          <button type="button" onClick={solicitarMedidasCompletas} disabled={enviandoMedidas} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                            <Lock size={14} /> {enviandoMedidas ? "Enviando..." : "Solicitar mis medidas completas"}
                           </button>
                         )}
                       </div>

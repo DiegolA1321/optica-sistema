@@ -155,6 +155,8 @@ function mapPaciente(p) {
     // si no está en esta lista blanca, se guarda bien pero desaparece del
     // frontend en el siguiente reload.
     confirmadoRecepcion: p.confirmado_recepcion,
+    // medidas_solicitadas_en (migración 0080) — mismo hallazgo, otra vez.
+    medidasSolicitadasEn: p.medidas_solicitadas_en,
   }
 }
 function mapCita(c) {
@@ -574,6 +576,17 @@ function App() {
     setSolicitudesEliminacion((prev) => prev.filter((s) => s.id !== solicitudId))
   }
 
+  // medidas_solicitadas_en (migración 0080): a diferencia de la eliminación,
+  // no necesita un RPC propio para "marcar atendida" — la RLS de staff ya
+  // permite escribir `pacientes` directo (0034_permisos_asistente_en_rls),
+  // así que es un update normal como cualquier otro campo del perfil.
+  const marcarMedidasAtendidas = async (pacienteId) => {
+    if (!supabase) return { error: new Error('Sin conexión a Supabase') }
+    const { error } = await supabase.from('pacientes').update({ medidas_solicitadas_en: null }).eq('id', pacienteId)
+    if (!error) setPacientes((prev) => prev.map((p) => (p.id === pacienteId ? { ...p, medidasSolicitadasEn: null } : p)))
+    return { error }
+  }
+
   // Los 4 wrappers de abajo antes eran "optimista + fire-and-forget": si el
   // update a Supabase fallaba (red, RLS), el único rastro era un
   // console.error — la UI nunca se enteraba, así que Configuracion.jsx no
@@ -963,6 +976,7 @@ function App() {
           respuestasSatisfaccion={respuestasSatisfaccion}
           solicitudesEliminacion={solicitudesEliminacion}
           marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
+          marcarMedidasAtendidas={marcarMedidasAtendidas}
           disponibilidad={disponibilidad}
           setDisponibilidad={setDisponibilidad}
           horarioPersonal={horarioPersonal}
