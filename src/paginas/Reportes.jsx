@@ -14,6 +14,7 @@ import {
   Star,
   CalendarRange,
   Info,
+  ShieldCheck,
 } from "lucide-react"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { fechaAISO } from "../utilidades/disponibilidad"
@@ -47,7 +48,8 @@ function ultimosNMeses(n) {
 // Selector de período para los KPIs de flujo (consultas, pacientes nuevos,
 // ingresos, conversión) — antes fijos siempre a "este mes", sin forma de
 // comparar un trimestre o armar algo para el contador. Los KPIs de estado
-// actual (Bien corregidos, Controles vencidos, Citas → atendidos) no
+// actual (Bien corregidos, Tratamientos finalizados, Controles atrasados,
+// Citas → atendidos) no
 // cambian con el período: son una foto de ahora mismo, no un flujo.
 // Fechas como texto "AAAA-MM-DD" a propósito — mismo formato que ya usan
 // consultas.fecha/pacientes.fechaRegistro, comparar como texto alcanza
@@ -133,6 +135,10 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
   )
 
   const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultas)).length, [pacientes, consultas])
+
+  // Punto 2.1 (plan 29 sept.): pacientes que el optómetra marcó "De alta"
+  // desde el Paso 3 de la ficha clínica (checkbox "Tratamiento finalizado").
+  const tratamientosFinalizados = useMemo(() => pacientes.filter((p) => p.estadoClinico === "De alta").length, [pacientes])
 
   // Vínculo receta → venta (anteproyecto: "tasa de conversión de recetas a
   // ventas" e "ingresos" como indicadores de impacto operativo).
@@ -315,14 +321,15 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
 
   // Los 4 primeros KPIs "de flujo" siguen al selector de período (arriba);
   // los siguientes 4 son una foto del estado actual y no cambian con él
-  // (no tendría sentido "Controles vencidos en marzo", por ejemplo).
+  // (no tendría sentido "Controles atrasados en marzo", por ejemplo).
   const kpis = [
     { key: "consultas", label: "Consultas", sub: rango.etiqueta, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
     { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length + facturasVentaEsteMes.length} venta${(ventasRealesEsteMes.length + facturasVentaEsteMes.length) === 1 ? "" : "s"} · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta}`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin evaluar`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
-    { key: "vencidos", label: "Controles vencidos", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — no cambia con el período seleccionado arriba." },
+    { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
+    { key: "vencidos", label: "Controles atrasados", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — excluye a los pacientes de alta. No cambia con el período seleccionado arriba." },
     { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
