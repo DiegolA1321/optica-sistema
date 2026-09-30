@@ -181,6 +181,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [cpFechaNacimiento, setCpFechaNacimiento] = useState("")
   const [cpErrores, setCpErrores] = useState({})
   const [cpGuardando, setCpGuardando] = useState(false)
+  // D2 (reunión 29 sept.): id del paciente que YA existe (se registró/dedupe
+  // al agendar por la web, migración 0067) y solo falta que recepción
+  // confirme o corrija sus datos — null en los otros dos modos del mismo
+  // modal (crear nuevo / solo registro), donde sí hay que insertar.
+  const [cpConfirmarPacienteId, setCpConfirmarPacienteId] = useState(null)
   // true cuando el registro se abrió desde "Crear paciente" (una cita futura
   // sin paciente vinculado, agendada en línea) en vez de "Atender ahora" —
   // en ese caso solo se crea y vincula al paciente, sin forzar la cita a
@@ -475,11 +480,28 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     if (cita.pacienteId) {
       const paciente = pacientes.find((p) => p.id === cita.pacienteId)
       if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
+      // D2 (reunión 29 sept.): un paciente que se registró solo al agendar
+      // por la web (origen='paciente') todavía no fue revisado por
+      // recepción — antes de abrir la ficha, se confirma o corrige una vez
+      // sus datos (mismo modal de "Completar registro", en modo confirmar).
+      if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
+        setCompletarPara(cita)
+        setCpConfirmarPacienteId(paciente.id)
+        setCpNombre(paciente.nombre || "")
+        setCpCedula(paciente.cedula || "")
+        setCpTelefono(paciente.telefono || "")
+        setCpCorreo(paciente.correo || "")
+        setCpFechaNacimiento(paciente.fecha_nacimiento || "")
+        setCpErrores({})
+        setCpSoloRegistro(false)
+        return
+      }
       marcarEstado(cita.id, "En Atención")
       onAtender?.(paciente, cita.id)
       return
     }
     setCompletarPara(cita)
+    setCpConfirmarPacienteId(null)
     setCpNombre(cita.paciente || "")
     setCpCedula(cita.cedula || "")
     setCpTelefono(cita.telefono || "")
@@ -495,6 +517,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // "En Atención" ni salta a la ficha clínica. ──
   const registrarPacienteParaCita = (cita) => {
     setCompletarPara(cita)
+    setCpConfirmarPacienteId(null)
     setCpNombre(cita.paciente || "")
     setCpCedula(cita.cedula || "")
     setCpTelefono(cita.telefono || "")
@@ -506,6 +529,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const cerrarCompletarRegistro = () => {
     setCompletarPara(null)
+    setCpConfirmarPacienteId(null)
     setCpNombre("")
     setCpCedula("")
     setCpTelefono("")
@@ -517,11 +541,41 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const guardarCompletarRegistro = async (e) => {
     e.preventDefault()
-    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, null)
+    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, cpConfirmarPacienteId)
     setCpErrores(errs)
     if (Object.keys(errs).length > 0) return
 
     setCpGuardando(true)
+
+    // D2 (reunión 29 sept.): el paciente ya existe (crear_cita_publica ya lo
+    // resolvió/creó al agendar, migración 0067) — acá solo se corrige/confirma
+    // sus datos y se marca confirmado_recepcion, nunca se inserta uno nuevo.
+    if (cpConfirmarPacienteId) {
+      const pacienteOriginal = pacientes.find((p) => p.id === cpConfirmarPacienteId)
+      const cambios = { nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fecha_nacimiento: cpFechaNacimiento || null, confirmado_recepcion: true }
+      if (supabase && opticaId) {
+        const { data: actualizado, error: errorConfirmar } = await supabase.from("pacientes").update(cambios).eq("id", cpConfirmarPacienteId).select()
+        if (fueBloqueadoPorPermiso({ error: errorConfirmar, data: actualizado })) {
+          setCpGuardando(false)
+          setBannerError(MENSAJE_SIN_PERMISO)
+          return
+        }
+        if (errorConfirmar) {
+          setCpGuardando(false)
+          setBannerError("No se pudieron confirmar los datos del paciente. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
+      }
+      const pacienteConfirmado = { ...pacienteOriginal, nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fecha_nacimiento: cpFechaNacimiento || null, confirmadoRecepcion: true }
+      setPacientes?.(pacientes.map((p) => (p.id === cpConfirmarPacienteId ? pacienteConfirmado : p)))
+      const citaId = completarPara.id
+      cerrarCompletarRegistro()
+      setCpGuardando(false)
+      await marcarEstado(citaId, "En Atención")
+      onAtender?.(pacienteConfirmado, citaId)
+      return
+    }
+
     const { paciente: nuevoPaciente, error } = await crearPacienteInline({
       nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento,
     })
@@ -1416,8 +1470,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
-                  <p className="text-xs text-slate-500">{cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}</p>
+                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpConfirmarPacienteId ? "Confirmar datos del paciente" : cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
+                  <p className="text-xs text-slate-500">
+                    {cpConfirmarPacienteId
+                      ? "Se registró por la web y todavía no pasó por recepción — revisa o corrige sus datos antes de abrir la ficha clínica."
+                      : cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}
+                  </p>
                 </div>
               </div>
               <button type="button" onClick={cerrarCompletarRegistro} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -1491,7 +1549,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   Cancelar
                 </button>
                 <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {cpGuardando ? "Guardando…" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
+                  {cpGuardando ? "Guardando…" : cpConfirmarPacienteId ? "Confirmar y atender" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
                   <ChevronRight size={16} />
                 </button>
               </div>

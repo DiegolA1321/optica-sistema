@@ -151,6 +151,10 @@ function mapPaciente(p) {
     // llegar al frontend después de recargar. Encontrado auditando el
     // sistema conectado, no en una prueba en vivo de esta sesión.
     origen: p.origen,
+    // confirmado_recepcion (migración 0077, D2) — mismo hallazgo que origen:
+    // si no está en esta lista blanca, se guarda bien pero desaparece del
+    // frontend en el siguiente reload.
+    confirmadoRecepcion: p.confirmado_recepcion,
   }
 }
 function mapCita(c) {
