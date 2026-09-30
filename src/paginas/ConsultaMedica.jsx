@@ -2529,6 +2529,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 )}
                 {subTab !== "diagnostico" ? (
                   <button
+                    key="btn-siguiente"
                     type="button"
                     onClick={() => irA(subTab === "anamnesis" ? "refraccion" : "diagnostico")}
                     className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
@@ -2537,7 +2538,18 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     Siguiente <ArrowRight size={15} />
                   </button>
                 ) : !fichaGuardada ? (
+                  // key distinta del botón "Siguiente" de arriba a propósito: sin
+                  // ella, React reutiliza el mismo nodo <button> al cambiar de
+                  // paso y solo le muta el atributo type de "button" a "submit"
+                  // A MITAD del despacho síncrono del clic — el navegador evalúa
+                  // si el clic activa un envío de formulario DESPUÉS de ese
+                  // re-render, así que un clic real en "Siguiente" terminaba
+                  // disparando un submit fantasma del formulario completo
+                  // (intentarGuardar) apenas se entraba a Diagnóstico, mostrando
+                  // el error de categoría/costo sin que el usuario tocara nada
+                  // (bug reportado por el ing 29-sept, ver docs/feedback-ing/bug-diagnostico-receta.md).
                   <button
+                    key="btn-guardar"
                     type="submit"
                     className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
                     style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}
@@ -2546,6 +2558,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </button>
                 ) : (
                   <button
+                    key="btn-nueva-consulta"
                     type="button"
                     onClick={resetForm}
                     className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
