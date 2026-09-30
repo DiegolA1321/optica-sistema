@@ -1917,20 +1917,16 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "timeline" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
                       style={tabHistorial === "timeline" ? { background: GRAD } : undefined}
                     >
+                      {/* El ing notó que "Historial" y "Ficha clínica" se
+                          repetían (reunión 29 sept., punto 3) — eran dos
+                          pestañas mostrando la misma consulta, una resumida
+                          (OD/OI) y otra con el detalle completo. Se
+                          fusionan: cada evento de consulta en esta línea de
+                          tiempo ahora se expande a la ficha clínica
+                          completa (ver EventoConsultaTimeline), así que el
+                          badge de "cuántas consultas tiene" se muda acá. */}
                       <History size={14} /> Historial
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-clinica"
-                      aria-selected={tabHistorial === "clinica"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("clinica")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "clinica" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "clinica" ? { background: GRAD } : undefined}
-                    >
-                      <Eye size={14} /> Ficha clínica
-                      {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "clinica" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
+                      {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "timeline" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
                     </button>
                     <button
                       type="button"
@@ -2210,116 +2206,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                           Gestionar recordatorios en CRM <ChevronRight size={13} />
                         </button>
                       </div>
-                    ) : consultasPaciente.length === 0 ? (
-                      <div className="flex flex-col items-center gap-2 py-12 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
-                        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><AlertCircle size={24} /></div>
-                        <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
-                      </div>
-                    ) : (
-                      // tabHistorial === "clinica" — Ficha clínica completa,
-                      // única salida posible de esta cadena de ternarios.
-                      <div className="space-y-4">
-                        {consultasPaciente.map((c) => {
-                          const correccion = CORRECCION[c.estadoCorreccion] || CORRECCION["Sin evaluación"]
-                          const IconoCorreccion = correccion.icon
-                          const tendencia = TENDENCIA[c.evolucionCalculada]
-                          return (
-                            <div key={c.id} className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
-                              <div className="mb-2.5 flex items-center justify-between">
-                                <span className="font-mono text-xs font-semibold text-slate-500">{c.fecha}</span>
-                                <span className={"inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " + correccion.clase}>
-                                  <IconoCorreccion size={13} /> {correccion.label}
-                                </span>
-                              </div>
-                              {tendencia && (
-                                <p className="mb-2 flex items-center gap-1 text-[11px] text-slate-500">
-                                  <tendencia.icon size={11} style={{ color: tendencia.fg }} />
-                                  Graduación: <span style={{ color: tendencia.fg }}>{tendencia.label.toLowerCase()}</span>
-                                </p>
-                              )}
-                              {c.motivo && (
-                                <p className="mb-1 text-sm text-slate-600">
-                                  <span className="font-semibold text-slate-700">Motivo:</span> {c.motivo}
-                                </p>
-                              )}
-                              {c.usaLentes && (
-                                <p className="mb-2 flex items-center gap-1.5 text-sm text-slate-600">
-                                  <Glasses size={13} className="text-slate-400" />
-                                  <span className="font-semibold text-slate-700">¿Usa lentes?</span> {c.usaLentes === "si" ? "Sí" : "No"}
-                                </p>
-                              )}
-                              {c.antecedentes && (
-                                <p className="mb-2 text-sm text-slate-600">
-                                  <span className="font-semibold text-slate-700">Antecedentes:</span> {c.antecedentes}
-                                </p>
-                              )}
-                              {(c.alergias || c.antecedentesFamiliares) && (
-                                <div className="mb-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-                                  {c.alergias && <p><span className="font-semibold">Alergias:</span> {c.alergias}</p>}
-                                  {c.antecedentesFamiliares && <p><span className="font-semibold">Ant. familiares:</span> {c.antecedentesFamiliares}</p>}
-                                </div>
-                              )}
-                              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2.5 font-mono text-xs">
-                                <div>
-                                  <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
-                                  <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
-                                </div>
-                                <div>
-                                  <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera} | {c.oi?.cilindro} | {c.oi?.eje}°
-                                  <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
-                                </div>
-                              </div>
-                              {(c.diagnostico || c.indicaciones || c.lenteRecomendado || c.imagenes?.length > 0) && (
-                                <div className="mt-2.5 space-y-1.5 border-t border-slate-200/60 pt-2.5 text-sm">
-                                  {c.diagnostico && (
-                                    <p><span className="font-semibold text-slate-700">Diagnóstico:</span> <span className="text-slate-600">{c.diagnostico}</span></p>
-                                  )}
-                                  {c.lenteRecomendado && (
-                                    <p className="flex items-center gap-1.5"><Glasses size={13} style={{ color: "#C8A24E" }} /> <span className="font-semibold text-slate-700">Lente:</span> <span className="text-slate-600">{c.lenteRecomendado}</span></p>
-                                  )}
-                                  {c.productoNombre && (
-                                    <p className="flex items-center gap-1.5 text-xs text-blue-600"><CheckCircle size={12} /> Vinculado a bodega: <span className="font-semibold">{c.productoNombre}</span> (1 unidad descontada)</p>
-                                  )}
-                                  {c.indicaciones && (
-                                    <p><span className="font-semibold text-slate-700">Indicaciones:</span> <span className="text-slate-600">{c.indicaciones}</span></p>
-                                  )}
-                                  {(c.examen?.testMotor || c.examen?.oftalmoscopia || (c.examen?.testColor && c.examen.testColor !== "Normal") || c.examen?.pioOd || c.examen?.pioOi || (c.examen?.coverTestLejos && c.examen.coverTestLejos !== "Ortoforia") || (c.examen?.coverTestCerca && c.examen.coverTestCerca !== "Ortoforia")) && (
-                                    <div className="rounded-lg bg-slate-100/70 p-2 text-xs text-slate-500">
-                                      {c.examen?.testMotor && <p><span className="font-semibold text-slate-600">Motilidad ocular:</span> {c.examen.testMotor}</p>}
-                                      {((c.examen?.coverTestLejos && c.examen.coverTestLejos !== "Ortoforia") || (c.examen?.coverTestCerca && c.examen.coverTestCerca !== "Ortoforia")) && (
-                                        <p><span className="font-semibold text-slate-600">Cover test:</span> lejos {c.examen?.coverTestLejos || "—"} · cerca {c.examen?.coverTestCerca || "—"}</p>
-                                      )}
-                                      {c.examen?.oftalmoscopia && <p><span className="font-semibold text-slate-600">Oftalmoscopia:</span> {c.examen.oftalmoscopia}</p>}
-                                      {c.examen?.testColor && c.examen.testColor !== "Normal" && <p><span className="font-semibold text-slate-600">Test de color:</span> {c.examen.testColor}</p>}
-                                      {(c.examen?.pioOd || c.examen?.pioOi) && <p><span className="font-semibold text-slate-600">PIO:</span> OD {c.examen?.pioOd || "—"} · OI {c.examen?.pioOi || "—"} mmHg</p>}
-                                    </div>
-                                  )}
-                                  {(c.examen?.biomicroscopia?.parpados || c.examen?.biomicroscopia?.cornea || c.examen?.biomicroscopia?.camara) && (
-                                    <div className="rounded-lg bg-slate-100/70 p-2 text-xs text-slate-500">
-                                      <p className="mb-0.5 font-semibold text-slate-600">Biomicroscopía:</p>
-                                      {c.examen.biomicroscopia?.parpados && <p>Párpados/conjuntiva: {c.examen.biomicroscopia.parpados}</p>}
-                                      {c.examen.biomicroscopia?.cornea && <p>Córnea: {c.examen.biomicroscopia.cornea}</p>}
-                                      {c.examen.biomicroscopia?.camara && <p>Cámara anterior/cristalino: {c.examen.biomicroscopia.camara}</p>}
-                                    </div>
-                                  )}
-                                  {(c.retinoscopia?.od || c.retinoscopia?.oi) && (
-                                    <p className="text-xs text-slate-500"><span className="font-semibold text-slate-600">Retinoscopía:</span> OD {c.retinoscopia?.od || "—"} · OI {c.retinoscopia?.oi || "—"}</p>
-                                  )}
-                                  {c.imagenes?.length > 0 && (
-                                    <div>
-                                      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {c.imagenes.map((img) => <MiniaturaAdjunto key={img.path} path={img.path} />)}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
+                    ) : null}
                   </div>
                 </>
               )
@@ -2552,19 +2439,79 @@ function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
           <Glasses size={13} style={{ color: "#C8A24E" }} /> <span className="font-semibold text-slate-700">Receta generada:</span> {c.lenteRecomendado}
         </p>
       )}
+      {/* Reunión 29 sept., punto 3: acá vivía antes solo OD/OI — al
+          fusionar "Historial" y "Ficha clínica" (que mostraba todo esto
+          aparte, en su propia pestaña) este desplegable pasa a ser la
+          ficha clínica completa de la consulta, no solo la refracción. */}
       <button type="button" onClick={onToggle} className="mt-2 flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-        {abierto ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {abierto ? "Ocultar refracción OD/OI" : "Ver refracción OD/OI"}
+        {abierto ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {abierto ? "Ocultar ficha clínica completa" : "Ver ficha clínica completa"}
       </button>
       {abierto && (
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 font-mono text-xs" style={{ animation: "rise-in 200ms ease-out both" }}>
-          <div>
-            <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
-            <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
+        <div className="mt-2 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-sm" style={{ animation: "rise-in 200ms ease-out both" }}>
+          {c.motivo && (
+            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Motivo:</span> {c.motivo}</p>
+          )}
+          {c.usaLentes && (
+            <p className="flex items-center gap-1.5 text-sm text-slate-600">
+              <Glasses size={13} className="text-slate-400" />
+              <span className="font-semibold text-slate-700">¿Usa lentes?</span> {c.usaLentes === "si" ? "Sí" : "No"}
+            </p>
+          )}
+          {c.antecedentes && (
+            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Antecedentes:</span> {c.antecedentes}</p>
+          )}
+          {(c.alergias || c.antecedentesFamiliares) && (
+            <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+              {c.alergias && <p><span className="font-semibold">Alergias:</span> {c.alergias}</p>}
+              {c.antecedentesFamiliares && <p><span className="font-semibold">Ant. familiares:</span> {c.antecedentesFamiliares}</p>}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2.5 font-mono text-xs">
+            <div>
+              <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
+              <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
+            </div>
+            <div>
+              <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera} | {c.oi?.cilindro} | {c.oi?.eje}°
+              <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
+            </div>
           </div>
-          <div>
-            <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera} | {c.oi?.cilindro} | {c.oi?.eje}°
-            <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
-          </div>
+          {c.productoNombre && (
+            <p className="flex items-center gap-1.5 text-xs text-blue-600"><CheckCircle size={12} /> Vinculado a bodega: <span className="font-semibold">{c.productoNombre}</span> (1 unidad descontada)</p>
+          )}
+          {c.indicaciones && (
+            <p><span className="font-semibold text-slate-700">Indicaciones:</span> <span className="text-slate-600">{c.indicaciones}</span></p>
+          )}
+          {(c.examen?.testMotor || c.examen?.oftalmoscopia || (c.examen?.testColor && c.examen.testColor !== "Normal") || c.examen?.pioOd || c.examen?.pioOi || (c.examen?.coverTestLejos && c.examen.coverTestLejos !== "Ortoforia") || (c.examen?.coverTestCerca && c.examen.coverTestCerca !== "Ortoforia")) && (
+            <div className="rounded-lg bg-slate-100/70 p-2 text-xs text-slate-500">
+              {c.examen?.testMotor && <p><span className="font-semibold text-slate-600">Motilidad ocular:</span> {c.examen.testMotor}</p>}
+              {((c.examen?.coverTestLejos && c.examen.coverTestLejos !== "Ortoforia") || (c.examen?.coverTestCerca && c.examen.coverTestCerca !== "Ortoforia")) && (
+                <p><span className="font-semibold text-slate-600">Cover test:</span> lejos {c.examen?.coverTestLejos || "—"} · cerca {c.examen?.coverTestCerca || "—"}</p>
+              )}
+              {c.examen?.oftalmoscopia && <p><span className="font-semibold text-slate-600">Oftalmoscopia:</span> {c.examen.oftalmoscopia}</p>}
+              {c.examen?.testColor && c.examen.testColor !== "Normal" && <p><span className="font-semibold text-slate-600">Test de color:</span> {c.examen.testColor}</p>}
+              {(c.examen?.pioOd || c.examen?.pioOi) && <p><span className="font-semibold text-slate-600">PIO:</span> OD {c.examen?.pioOd || "—"} · OI {c.examen?.pioOi || "—"} mmHg</p>}
+            </div>
+          )}
+          {(c.examen?.biomicroscopia?.parpados || c.examen?.biomicroscopia?.cornea || c.examen?.biomicroscopia?.camara) && (
+            <div className="rounded-lg bg-slate-100/70 p-2 text-xs text-slate-500">
+              <p className="mb-0.5 font-semibold text-slate-600">Biomicroscopía:</p>
+              {c.examen.biomicroscopia?.parpados && <p>Párpados/conjuntiva: {c.examen.biomicroscopia.parpados}</p>}
+              {c.examen.biomicroscopia?.cornea && <p>Córnea: {c.examen.biomicroscopia.cornea}</p>}
+              {c.examen.biomicroscopia?.camara && <p>Cámara anterior/cristalino: {c.examen.biomicroscopia.camara}</p>}
+            </div>
+          )}
+          {(c.retinoscopia?.od || c.retinoscopia?.oi) && (
+            <p className="text-xs text-slate-500"><span className="font-semibold text-slate-600">Retinoscopía:</span> OD {c.retinoscopia?.od || "—"} · OI {c.retinoscopia?.oi || "—"}</p>
+          )}
+          {c.imagenes?.length > 0 && (
+            <div>
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
+              <div className="flex flex-wrap gap-2">
+                {c.imagenes.map((img) => <MiniaturaAdjunto key={img.path} path={img.path} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </FilaTimeline>
