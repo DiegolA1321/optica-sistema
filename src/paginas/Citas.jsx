@@ -33,6 +33,7 @@ import {
   Globe,
   Building2,
   Zap,
+  CalendarRange,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -140,7 +141,10 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   }, [abrirModalAlEntrar])
 
   const [busqueda, setBusqueda] = useState("")
-  const [filtro, setFiltro] = useState("todas") // todas | hoy | proximas | atendidas
+  // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
+  // — su agenda del día — en vez de "todas". El admin (sea o no también
+  // optómetra) sigue viendo "todas" por defecto, como hoy.
+  const [filtro, setFiltro] = useState(() => (usuario?.rol !== "admin" && usuario?.esOptometra ? "hoy" : "todas")) // todas | hoy | proximas | atendidas
   // Eje independiente del filtro de estado — separa citas de alguien que
   // nunca ha sido paciente (sin pacienteId todavía) de las de seguimiento.
   const [filtroTipo, setFiltroTipo] = useState("todos") // todos | primera | seguimiento
@@ -149,6 +153,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // de "Crear paciente"). El dato (cita.origen) ya existía por fila; esto
   // solo agrega el control para filtrar por él.
   const [filtroOrigen, setFiltroOrigen] = useState("todos") // todos | paciente | staff
+  // Cuarto eje, independiente de los KPIs de arriba (todas/hoy/próximas) —
+  // pedido de la reunión del 29 sept.: un rango de fechas propio para casos
+  // como "todas las de la siguiente semana" que no calzan en esos presets.
+  const [rangoDesde, setRangoDesde] = useState("")
+  const [rangoHasta, setRangoHasta] = useState("")
   const [porCancelar, setPorCancelar] = useState(null)
 
   // ── "+ Añadir nuevo paciente" inline, dentro del modal en modo Gestionar ──
@@ -643,6 +652,20 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         if (filtroOrigen === "staff") return c.origen !== "paciente"
         return true
       })
+      .filter((c) => {
+        if (!rangoDesde && !rangoHasta) return true
+        const fecha = parseFechaFlexible(c.fecha)
+        if (!fecha) return true
+        if (rangoDesde) {
+          const desde = parseFechaFlexible(rangoDesde)
+          if (desde && fecha < desde) return false
+        }
+        if (rangoHasta) {
+          const hasta = parseFechaFlexible(rangoHasta)
+          if (hasta && fecha > hasta) return false
+        }
+        return true
+      })
       .sort((a, b) => {
         if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1
         return minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)
@@ -654,7 +677,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       mapa.get(c.fecha).push(c)
     }
     return Array.from(mapa.entries())
-  }, [citas, busqueda, filtro, filtroTipo, filtroOrigen])
+  }, [citas, busqueda, filtro, filtroTipo, filtroOrigen, rangoDesde, rangoHasta])
 
   const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
@@ -770,6 +793,43 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 {op.label}
               </button>
             ))}
+          </div>
+          {/* Rango de fechas personalizado — pedido de la reunión del 29 sept.
+              ("poder yo definir un filtrado por fechas... para ver todas las
+              de la siguiente semana"), eje independiente de los KPIs de
+              arriba y de los otros dos filtros de esta barra. */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 pl-2.5 shadow-sm">
+            <CalendarRange size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <label htmlFor="rango-desde" className="sr-only">Desde</label>
+            <input
+              id="rango-desde"
+              type="date"
+              value={rangoDesde}
+              onChange={(e) => setRangoDesde(e.target.value)}
+              max={rangoHasta || undefined}
+              className="rounded-lg bg-transparent px-1.5 py-1 text-xs font-semibold text-slate-600 outline-none"
+            />
+            <span className="text-xs text-slate-400">–</span>
+            <label htmlFor="rango-hasta" className="sr-only">Hasta</label>
+            <input
+              id="rango-hasta"
+              type="date"
+              value={rangoHasta}
+              onChange={(e) => setRangoHasta(e.target.value)}
+              min={rangoDesde || undefined}
+              className="rounded-lg bg-transparent px-1.5 py-1 text-xs font-semibold text-slate-600 outline-none"
+            />
+            {(rangoDesde || rangoHasta) && (
+              <button
+                type="button"
+                onClick={() => { setRangoDesde(""); setRangoHasta("") }}
+                aria-label="Limpiar rango de fechas"
+                title="Limpiar rango de fechas"
+                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
         </div>
         <div className="relative w-full sm:w-80">

@@ -21,6 +21,7 @@ import {
   Square,
   History,
   Loader2,
+  Glasses,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esClaveSegura } from "../utilidades/validaciones"
@@ -98,6 +99,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const [clave, setClave] = useState("")
   const [verClave, setVerClave] = useState(false)
   const [permisos, setPermisos] = useState(permisosPorDefecto())
+  const [esOptometra, setEsOptometra] = useState(false)
   const [error, setError] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [porEliminar, setPorEliminar] = useState(null)
@@ -150,6 +152,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     setClave("")
     setVerClave(false)
     setPermisos(permisosPorDefecto())
+    setEsOptometra(false)
     setError("")
     setModalAbierto(true)
   }
@@ -162,6 +165,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     setClave("")
     setVerClave(false)
     setPermisos({ ...permisosPorDefecto(), ...a.permisos })
+    setEsOptometra(!!a.esOptometra)
     setError("")
     setModalAbierto(true)
   }
@@ -193,10 +197,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     if (editandoId != null) {
       if (!esNombreValido(nombre)) { setError("Ingresa un nombre válido (solo letras)."); return }
       setGuardando(true)
-      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null }).eq("id", editandoId)
+      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null, es_optometra: esOptometra }).eq("id", editandoId)
       setGuardando(false)
       if (errorUpdate) { setError(errorUpdate.message); return }
-      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim() } : a)))
+      setAsistentes(asistentes.map((a) => (a.id === editandoId ? { ...a, nombre: nombre.trim(), permisos, etiquetaRol: etiquetaRol.trim(), esOptometra } : a)))
       registrarLog(usuario, "usuarios", "Editó los permisos de un usuario", nombre.trim())
       setModalAbierto(false)
       mostrarExito(`Permisos de ${nombre.trim()} actualizados correctamente.`)
@@ -240,14 +244,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
     // esto, scoped a la óptica del admin que llama.
     const { error: errorPerfil } = await supabase
       .from("perfiles")
-      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null })
+      .insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos, etiqueta_rol: etiquetaRol.trim() || null, es_optometra: esOptometra })
     await temp.auth.signOut()
     setGuardando(false)
     if (errorPerfil) {
       setError(errorPerfil.message + " — la cuenta de correo ya quedó creada, contactá soporte si esto se repite.")
       return
     }
-    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim() }])
+    setAsistentes([...asistentes, { id: alta.user.id, nombre: nombre.trim(), correo: correo.trim(), permisos, etiquetaRol: etiquetaRol.trim(), esOptometra }])
     registrarLog(usuario, "usuarios", "Creó un usuario nuevo", nombre.trim())
     setModalAbierto(false)
     mostrarExito(`Usuario ${nombre.trim()} creado correctamente.`)
@@ -407,11 +411,18 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <div>
                         <p className="text-sm font-bold text-slate-800">{a.nombre}</p>
                         <p className="font-mono text-xs text-slate-500">{a.correo}</p>
-                        {a.etiquetaRol && (
-                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                            <Tag size={10} /> {a.etiquetaRol}
-                          </span>
-                        )}
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {a.etiquetaRol && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                              <Tag size={10} /> {a.etiquetaRol}
+                            </span>
+                          )}
+                          {a.esOptometra && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                              <Glasses size={10} /> Optómetra
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -538,6 +549,23 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                     </div>
                   </div>
                 )}
+
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 transition hover:border-blue-300">
+                  <input
+                    type="checkbox"
+                    checked={esOptometra}
+                    onChange={(e) => setEsOptometra(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
+                  />
+                  <span className="text-sm">
+                    <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                      <Glasses size={15} className="text-blue-600" /> Es optómetra/licenciado
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                      Su Inicio y Citas médicas se enfocan en su propia agenda del día y los pacientes en atención, en vez de la vista global del equipo.
+                    </span>
+                  </span>
+                </label>
 
                 <div className="space-y-3">
                   <p className="text-sm font-semibold text-slate-700">Módulos y permisos</p>

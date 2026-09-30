@@ -29,6 +29,7 @@ import {
   MessageSquare,
   Loader2,
   Search,
+  UserX,
 } from "lucide-react"
 
 // Módulos del sistema — Inicio se queda como import normal porque es lo
@@ -378,6 +379,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     })
     const citasDeHoy = citas.filter((c) => esHoy(c.fecha))
     if (citasDeHoy.length) arr.push({ icon: Calendar, color: "#2563eb", bg: "#eff6ff", texto: `${citasDeHoy.length} cita${citasDeHoy.length > 1 ? "s" : ""} para hoy`, sub: "Revisa la agenda del día", destino: "citas" })
+    // No asistió (pendiente 2.2, opción A) — solo del día, con el mismo
+    // patrón que el resto de este arreglo; reutiliza el auto no-show que ya
+    // marca la cita a los 10 min de su horario (migraciones 0071/0076).
+    const noAsistioHoy = citas.filter((c) => c.estado === "No Asistió" && esHoy(c.fecha))
+    if (noAsistioHoy.length) arr.push({ icon: UserX, color: "#dc2626", bg: "#fef2f2", texto: `${noAsistioHoy.length} paciente${noAsistioHoy.length > 1 ? "s" : ""} no asistió hoy`, sub: "Revisa si conviene reagendar", destino: "citas" })
     if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: `Le escribiste al equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
     if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: `Publicado por el equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
     pacientes.forEach((p) => {

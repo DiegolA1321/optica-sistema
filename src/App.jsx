@@ -535,8 +535,8 @@ function App() {
         else if (error) registrarErrorCarga('solicitudes de eliminación')
       })
 
-      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
-        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '' })))
+      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol, es_optometra').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
+        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '', esOptometra: !!a.es_optometra })))
         else if (error) registrarErrorCarga('usuarios y permisos')
       })
     }
@@ -722,12 +722,12 @@ function App() {
           // solo se sigue la sesión en el sitio de su propia óptica (o en el
           // genérico sin slug, que es el caso normal en desarrollo).
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null });
+          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, esOptometra: !!perfil.es_optometra });
           setPantallaActual('dashboard');
         } else if (perfil.rol === 'asistente') {
           const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, permisos: perfil.permisos || {} });
+          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, permisos: perfil.permisos || {}, esOptometra: !!perfil.es_optometra });
           setPantallaActual('dashboard');
         }
       } finally {

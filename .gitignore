@@ -37,3 +37,9 @@ supabase/.temp
 # separar migraciones/datos de prueba de producción) — nunca angostar este
 # patrón a un nombre de archivo fijo.
 .env*
+
+# Material de referencia sin procesar (transcripciones crudas)
+/feedback-ing/
+
+# Auditoría de reunión con citas textuales del ingeniero (no se versiona)
+/docs/feedback-ing/reunion-zoom-29sep.md

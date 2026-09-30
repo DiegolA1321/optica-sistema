@@ -12,6 +12,7 @@ import {
   Clock,
   History,
   TrendingUp,
+  Stethoscope,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades/disponibilidad"
@@ -49,6 +50,13 @@ export default function Inicio({
   // RLS es la red de seguridad real si algún día cambia el gate del lado
   // del cliente.
   const esAdmin = usuario?.rol === "admin"
+  // D4 (reunión 29 sept.): "optómetra" es un flag (perfiles.es_optometra) que
+  // puede tener tanto un admin como un asistente — no un tercer rol. Un
+  // asistente marcado como tal ve su agenda del día en vez de la vista
+  // global del equipo; un admin marcado la ve ADEMÁS de la vista global
+  // (nunca pierde su vista de equipo, solo gana la sección "Mi agenda").
+  const esOptometra = !!usuario?.esOptometra
+  const esOptometraNoAdmin = esOptometra && !esAdmin
   const [actividadReciente, setActividadReciente] = useState([])
   useEffect(() => {
     if (!esAdmin || !supabase || !usuario?.opticaId) return
@@ -149,6 +157,15 @@ export default function Inicio({
     [citas]
   )
 
+  // Para "Mi agenda" (vista del optómetra, D4): pacientes en atención ahora
+  // mismo (no acotado a hoy, mismo criterio sin fecha que ya usa el badge de
+  // Citas.jsx) y lo que todavía le falta atender de la agenda de hoy.
+  const pacientesEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención"), [citas])
+  const citasPendientesHoy = useMemo(
+    () => citasHoy.filter((c) => !["Atendida", "No Asistió", "Cancelada"].includes(c.estado)),
+    [citasHoy]
+  )
+
   // El ing probó este panel con la agenda vacía para el día y vio un hueco
   // en blanco ("Últimas citas... para evitar que se vea así vacío"). Si no
   // hay citas hoy, cae a las más recientes ya pasadas (más reciente primero)
@@ -232,6 +249,51 @@ export default function Inicio({
     amber: { tile: "#FEF3C7", tileText: "#D97706", hoverBorder: "hover:border-amber-200/60", valor: INK },
   }
 
+  // Fila de una cita — compartida entre "Últimas citas / Agenda cercana" (que
+  // puede mostrar historial cuando no hay nada hoy) y "Mi agenda" (siempre
+  // hoy, así que mostrarFecha va fijo en false).
+  const renderFilaCita = (cita, idx, mostrarFecha) => (
+    <button
+      type="button"
+      key={cita.id || idx}
+      onClick={() => (cita.pacienteId && onVerPerfilPaciente ? onVerPerfilPaciente(cita.pacienteId) : setVista?.("citas"))}
+      title={cita.pacienteId ? `Ver ficha de ${cita.paciente || cita.nombre}` : "Ver en la agenda completa"}
+      className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between rounded-lg px-2 py-3.5 text-left transition-colors first:pt-0 last:pb-0 hover:bg-slate-50/80 cursor-pointer"
+    >
+      <div className="flex items-center gap-3.5">
+        <div className="flex w-20 flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-2 py-1.5 font-mono text-xs font-bold text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600">
+          <span>{cita.hora || "09:00 AM"}</span>
+          {mostrarFecha ? (
+            <span className="font-sans text-[10px] font-medium text-slate-500">
+              {(() => { const f = parseFechaFlexible(cita.fecha); return f ? f.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "" })()}
+            </span>
+          ) : (
+            cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>
+          )}
+        </div>
+        <div className={"flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/60 font-mono text-xs font-bold " + (cita.colorAvatar || "bg-blue-50 text-blue-600")}>
+          {cita.iniciales || (cita.paciente || cita.nombre || "P").substring(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <h5 className="text-sm font-bold text-slate-800">{cita.paciente || cita.nombre}</h5>
+          <p className="text-[11px] text-slate-500">{cita.motivo || "Consulta general"}</p>
+        </div>
+      </div>
+      {/* Mismo criterio de color usado en Citas.jsx/Pacientes.jsx esta
+          sesión: Pendiente=ámbar (acá caía en gris por defecto,
+          cuarta repetición del mismo patrón encontrada en el sistema). */}
+      <span className={"rounded-full px-3 py-1 text-[11px] font-bold " + (
+        cita.estado === "En Espera" ? "border border-amber-200/60 bg-amber-50 text-amber-700"
+          : cita.estado === "En Atención" ? "border border-blue-200/60 bg-blue-50 text-blue-700"
+          : cita.estado === "Atendida" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700"
+          : cita.estado === "No Asistió" ? "border border-red-200/60 bg-red-50 text-red-700"
+          : cita.estado === "Cancelada" ? "border border-slate-200/60 bg-slate-50 text-slate-600"
+          : "border border-amber-200/60 bg-amber-50 text-amber-700")}>
+        {cita.estado || "Pendiente"}
+      </span>
+    </button>
+  )
+
   const hoyFecha = new Date().toLocaleDateString("es-ES", {
     weekday: "long",
     year: "numeric",
@@ -301,6 +363,12 @@ export default function Inicio({
         </div>
       </div>
 
+      {/* D4: el optómetra que no es admin no ve la vista global del equipo
+          (top bar de gestión, cumpleaños, controles vencidos, agenda +
+          inventario) — solo "Mi agenda", más abajo. El admin (sea o no
+          también optómetra) sigue viendo todo este bloque igual que hoy. */}
+      {!esOptometraNoAdmin && (
+      <>
       {/* ─── TOP BAR DE ACCIÓN — un solo bloque uniforme por módulo. El click
           principal de la tarjeta ("Gestionar X") lleva al panel/directorio
           de ese módulo — el título dice "gestionar", así que el click debe
@@ -449,47 +517,7 @@ export default function Inicio({
             {citasParaMostrar.length === 0 ? (
               <EstadoVacio icon={Calendar} texto="Todavía no hay citas registradas." />
             ) : (
-              citasParaMostrar.map((cita, idx) => (
-                <button
-                  type="button"
-                  key={cita.id || idx}
-                  onClick={() => (cita.pacienteId && onVerPerfilPaciente ? onVerPerfilPaciente(cita.pacienteId) : setVista?.("citas"))}
-                  title={cita.pacienteId ? `Ver ficha de ${cita.paciente || cita.nombre}` : "Ver en la agenda completa"}
-                  className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between rounded-lg px-2 py-3.5 text-left transition-colors first:pt-0 last:pb-0 hover:bg-slate-50/80 cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="flex w-20 flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-2 py-1.5 font-mono text-xs font-bold text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600">
-                      <span>{cita.hora || "09:00 AM"}</span>
-                      {mostrandoHistorial ? (
-                        <span className="font-sans text-[10px] font-medium text-slate-500">
-                          {(() => { const f = parseFechaFlexible(cita.fecha); return f ? f.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "" })()}
-                        </span>
-                      ) : (
-                        cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>
-                      )}
-                    </div>
-                    <div className={"flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/60 font-mono text-xs font-bold " + (cita.colorAvatar || "bg-blue-50 text-blue-600")}>
-                      {cita.iniciales || (cita.paciente || cita.nombre || "P").substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h5 className="text-sm font-bold text-slate-800">{cita.paciente || cita.nombre}</h5>
-                      <p className="text-[11px] text-slate-500">{cita.motivo || "Consulta general"}</p>
-                    </div>
-                  </div>
-                  {/* Mismo criterio de color usado en Citas.jsx/Pacientes.jsx esta
-                      sesión: Pendiente=ámbar (acá caía en gris por defecto,
-                      cuarta repetición del mismo patrón encontrada en el sistema). */}
-                  <span className={"rounded-full px-3 py-1 text-[11px] font-bold " + (
-                    cita.estado === "En Espera" ? "border border-amber-200/60 bg-amber-50 text-amber-700"
-                      : cita.estado === "En Atención" ? "border border-blue-200/60 bg-blue-50 text-blue-700"
-                      : cita.estado === "Atendida" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700"
-                      : cita.estado === "No Asistió" ? "border border-red-200/60 bg-red-50 text-red-700"
-                      : cita.estado === "Cancelada" ? "border border-slate-200/60 bg-slate-50 text-slate-600"
-                      : "border border-amber-200/60 bg-amber-50 text-amber-700")}>
-                    {cita.estado || "Pendiente"}
-                  </span>
-                </button>
-              ))
+              citasParaMostrar.map((cita, idx) => renderFilaCita(cita, idx, mostrandoHistorial))
             )}
           </div>
         </section>
@@ -552,6 +580,44 @@ export default function Inicio({
           </div>
         </section>
       </div>
+      </>
+      )}
+
+      {/* ─── MI AGENDA (D4, reunión 29 sept.): para quien esté marcado
+          es_optometra=true — su agenda de hoy, con "en atención" ya
+          visible en el badge de cada fila. Para un asistente-optómetra es
+          la única vista de citas de Inicio; para un admin-optómetra se
+          suma a la vista global de arriba, no la reemplaza. La agenda es
+          compartida entre todos los optómetras de la óptica (no hay hoy
+          una columna que asigne cada cita a una persona en particular). ─── */}
+      {esOptometra && (
+        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
+                <Stethoscope size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Mi agenda</h4>
+                <p className="text-[11px] text-slate-500">
+                  {citasPendientesHoy.length} {citasPendientesHoy.length === 1 ? "cita pendiente" : "citas pendientes"} hoy
+                  {pacientesEnAtencion.length > 0 ? ` · ${pacientesEnAtencion.length} en atención` : ""}
+                </p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+              Ver mis citas <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {citasHoy.length === 0 ? (
+              <EstadoVacio icon={Stethoscope} texto="No tienes citas agendadas para hoy." />
+            ) : (
+              citasHoy.map((cita, idx) => renderFilaCita(cita, idx, false))
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ─── REGISTRO DE ACTIVIDAD (solo admin principal, misma fuente que
           Usuarios.jsx — responde "qué cambió", que el resto del panel no
