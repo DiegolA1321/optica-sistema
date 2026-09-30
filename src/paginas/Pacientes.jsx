@@ -1970,14 +1970,75 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       contenido cambiaba de golpe sin ninguna transición. */}
                   <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
                     {tabHistorial === "timeline" ? (
-                      <TimelinePaciente
-                        citas={citasPaciente}
-                        consultas={consultasPaciente}
-                        facturas={facturasPaciente}
-                        ventas={ventasPaciente}
-                        abiertos={timelineAbiertos}
-                        alternarAbierto={(id) => setTimelineAbiertos((prev) => ({ ...prev, [id]: !prev[id] }))}
-                      />
+                      <div className="space-y-4">
+                        {/* Resumen clínico (reunión 29 sept., punto 2): vivía
+                            en "Controles/Fidelización" — se mueve acá porque
+                            es seguimiento clínico, no fidelización. Próximo
+                            control se mantiene también como recordatorio en
+                            la pestaña Fidelización (Diego, 30 sept.). */}
+                        {consultasPaciente.length > 0 && (() => {
+                          const ultima = consultasPaciente[0]
+                          const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
+                          const IconoCorreccion = correccion.icon
+                          const tendencia = TENDENCIA[ultima.evolucionCalculada]
+                          const colorEstado = CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"]
+                          return (
+                            <>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
+                                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
+                                  <div>
+                                    <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{ultima.estadoCorreccion || "Sin evaluación"}</p>
+                                    <p className="text-xs text-slate-500">Estado de corrección más reciente · {ultima.fecha}</p>
+                                  </div>
+                                </div>
+                                <div className={"rounded-2xl border p-4 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
+                                  <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
+                                  {proximoControl ? (
+                                    <>
+                                      <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
+                                        {proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                                      </p>
+                                      <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
+                                        {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-slate-200/60 bg-white p-4">
+                                <div className="mb-3 flex flex-wrap items-center gap-3">
+                                  <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
+                                  {tendencia && (
+                                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
+                                      <tendencia.icon size={12} /> {tendencia.label}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mb-3 flex items-center gap-4">
+                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OD_COLOR }} /> Ojo derecho</span>
+                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OI_COLOR }} /> Ojo izquierdo</span>
+                                  <span className="ml-auto text-[11px] text-slate-500">Equivalente esférico (dioptrías)</span>
+                                </div>
+                                <GraficoEvolucion consultas={[...consultasPaciente].reverse()} />
+                              </div>
+
+                              <p className="flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
+                            </>
+                          )
+                        })()}
+                        <TimelinePaciente
+                          citas={citasPaciente}
+                          consultas={consultasPaciente}
+                          facturas={facturasPaciente}
+                          ventas={ventasPaciente}
+                          abiertos={timelineAbiertos}
+                          alternarAbierto={(id) => setTimelineAbiertos((prev) => ({ ...prev, [id]: !prev[id] }))}
+                        />
+                      </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -2115,49 +2176,15 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       </div>
                     ) : tabHistorial === "fidelizacion" ? (
                       <div className="space-y-4">
-                        {/* Estado de corrección + tendencia de graduación
-                            (antes vivían en una pestaña "Evolución" aparte —
-                            ahora forman parte de "Controles/Fidelización",
-                            un único lugar para todo lo relacionado a
-                            seguimiento clínico del paciente). */}
-                        {consultasPaciente.length > 0 && (() => {
-                          const ultima = consultasPaciente[0]
-                          const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
-                          const IconoCorreccion = correccion.icon
-                          const tendencia = TENDENCIA[ultima.evolucionCalculada]
-                          const colorEstado = CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"]
-                          return (
-                            <>
-                              <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
-                                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
-                                <div>
-                                  <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{ultima.estadoCorreccion || "Sin evaluación"}</p>
-                                  <p className="text-xs text-slate-500">Estado de corrección más reciente · {ultima.fecha}</p>
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl border border-slate-200/60 bg-white p-4">
-                                <div className="mb-3 flex flex-wrap items-center gap-3">
-                                  <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-                                  {tendencia && (
-                                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
-                                      <tendencia.icon size={12} /> {tendencia.label}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="mb-3 flex items-center gap-4">
-                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OD_COLOR }} /> Ojo derecho</span>
-                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OI_COLOR }} /> Ojo izquierdo</span>
-                                  <span className="ml-auto text-[11px] text-slate-500">Equivalente esférico (dioptrías)</span>
-                                </div>
-                                <GraficoEvolucion consultas={[...consultasPaciente].reverse()} />
-                              </div>
-
-                              <p className="flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
-                            </>
-                          )
-                        })()}
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {/* El bloque clínico (Estado de corrección + Tendencia
+                            de graduación) se mudó a "Historial" (reunión 29
+                            sept., punto 2) — acá queda solo lo relacionado a
+                            fidelización. Próximo control se mantiene acá
+                            también, como recordatorio (Diego, 30 sept.), y
+                            Puntaje de fidelidad — que ya existía arriba, en
+                            la tira de resumen siempre visible — se suma acá
+                            porque es donde alguien esperaría encontrarlo. */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           <div className={"rounded-xl border p-4 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
                             {proximoControl ? (
@@ -2195,6 +2222,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                               {referidosPorEste > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}
                               {pacienteHistorial.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{pacienteHistorial.referidoPor}</span></>}
                             </p>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
+                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
+                            <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
                           </div>
                         </div>
 
