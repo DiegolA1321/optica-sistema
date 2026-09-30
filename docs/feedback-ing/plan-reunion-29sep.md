@@ -147,9 +147,9 @@ Las 4 decisiones de Diego (D1-D4, sección 0) reemplazan la vieja Fase 0 ("aclar
 
 *Subtotal Fase 1: ~8-10h.*
 
-### Fase 2 — Decisiones de hoy que requieren BD (te aviso antes de correr cada migración)
-5. **D3** — Columna `consultas.costo_consulta` + campo en Paso 3 de la Ficha Clínica + mover el disparador de "Atendida" para que dependa de guardar ficha+costo (construye también el pendiente 2.3) — ~3-4h
-6. **D2** — Columna `pacientes_base.confirmado_recepcion` + paso de confirmar/completar datos al "Atender" una cita de origen web no confirmada — `Citas.jsx` — ~3-5h
+### Fase 2 — Decisiones de hoy que requieren BD (te aviso antes de correr cada migración) — ✅ **PUBLICADA en `main`**
+5. **D3** — Campo de costo de consulta en Paso 3 de la Ficha Clínica + mover el disparador de "Atendida" para que dependa de guardar ficha+cobro (construye también el pendiente 2.3) — ~3-4h — ✅ `ea97531`, implementado sin migración: reutiliza `facturas_venta`/`crear_factura_venta` con una línea de servicio "Consulta" (costo obligatorio, puede ser 0) en vez de una columna dedicada `consultas.costo_consulta`
+6. **D2** — Columna `pacientes_base.confirmado_recepcion` + paso de confirmar/completar datos al "Atender" una cita de origen web no confirmada — `Citas.jsx` — ~3-5h — ✅ `a6ad1a6` (migración `0077`), `48222c8`
 
 *Subtotal Fase 2: ~6-9h + 2 migraciones (avisadas antes de aplicarse).*
 
