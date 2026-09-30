@@ -654,7 +654,21 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       })
       return
     }
-    onIrAFichaClinica?.(paciente)
+    irAFichaConfirmandoSiHaceFalta(paciente)
+  }
+
+  // D2 (reunión 29 sept.): mismo chequeo que "Atender" en Citas médicas —
+  // un paciente de origen web sin confirmar por recepción no entra directo a
+  // la ficha clínica, tenga o no una cita vinculada (elegida en
+  // SeleccionarCitaModal, "Abrir sin vincular", o sin ninguna cita
+  // pendiente). Un solo punto de entrada para no repetir el chequeo en cada
+  // callback de arriba.
+  const irAFichaConfirmandoSiHaceFalta = (paciente, citaId) => {
+    if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
+      setConfirmarDatosPara({ paciente, citaId })
+      return
+    }
+    onIrAFichaClinica?.(paciente, citaId)
   }
 
   // Venta rápida desde la tabla — abre el perfil 360° directo en la pestaña
@@ -2423,18 +2437,8 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         <SeleccionarCitaModal
           paciente={seleccionCitaPara.paciente.nombre}
           citas={seleccionCitaPara.citas}
-          onSeleccionar={(citaId) => {
-            const p = seleccionCitaPara.paciente
-            setSeleccionCitaPara(null)
-            // D2: mismo chequeo que "Atender" en Citas médicas — un paciente
-            // web sin confirmar por recepción no entra directo a la ficha.
-            if (p.origen === "paciente" && !p.confirmadoRecepcion) {
-              setConfirmarDatosPara({ paciente: p, citaId })
-              return
-            }
-            onIrAFichaClinica?.(p, citaId)
-          }}
-          onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); onIrAFichaClinica?.(p) }}
+          onSeleccionar={(citaId) => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); irAFichaConfirmandoSiHaceFalta(p, citaId) }}
+          onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); irAFichaConfirmandoSiHaceFalta(p) }}
           onCerrar={() => setSeleccionCitaPara(null)}
         />
       )}
