@@ -170,6 +170,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [npErrores, setNpErrores] = useState({})
   const [npGuardando, setNpGuardando] = useState(false)
 
+  // ── Resumen previo a "Atender" (reunión 29 sept., punto 1 del plan):
+  // antes de entrar a la ficha clínica (o al paso de confirmar datos de
+  // D2), se muestra un resumen de la cita con "Ingresar a la ficha
+  // clínica" / "Cerrar" — este último no cambia ningún estado. ──
+  const [resumenPara, setResumenPara] = useState(null) // la cita, o null
+
   // ── "Atender" sobre una cita sin paciente vinculado todavía (primera cita
   // agendada desde la web pública, o registrada como visita rápida) — pide
   // completar el registro antes de abrir la ficha clínica ──
@@ -473,10 +479,19 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     }
   }
 
-  // ── Atender: pasa la cita a "En Atención" y abre la ficha clínica del
-  // paciente ya vinculado. Si la cita no tiene paciente vinculado (primera
-  // cita agendada desde la web pública), pide completar su registro primero. ──
+  // ── "Atender": abre primero el resumen de la cita (punto 1, reunión 29
+  // sept.) — la lógica real de entrar a la ficha vive en ingresarAFicha,
+  // disparada recién cuando se confirma ese resumen. ──
   const atenderCita = (cita) => {
+    setResumenPara(cita)
+  }
+
+  // ── Pasa la cita a "En Atención" y abre la ficha clínica del paciente ya
+  // vinculado. Si la cita no tiene paciente vinculado (primera cita
+  // agendada desde la web pública), pide completar su registro primero. Si
+  // el paciente es web y no está confirmado por recepción (D2), pide
+  // confirmar/completar sus datos antes de la ficha. ──
+  const ingresarAFicha = (cita) => {
     if (cita.pacienteId) {
       const paciente = pacientes.find((p) => p.id === cita.pacienteId)
       if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
@@ -1457,6 +1472,22 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           onCancelar={() => setConfirmando(false)}
           onConfirmar={agendarCita}
           etiquetaConfirmar={atenderInmediato ? "Atender ahora" : "Confirmar"}
+        />
+      )}
+
+      {/* ─── RESUMEN PREVIO A "ATENDER" (punto 1, reunión 29 sept.) ─── */}
+      {resumenPara && (
+        <ConfirmarCitaModal
+          titulo="Resumen de la cita"
+          subtitulo="Revisa los datos antes de entrar a la ficha clínica."
+          paciente={resumenPara.paciente}
+          motivo={resumenPara.motivo}
+          fecha={etiquetaFecha(resumenPara.fecha)}
+          hora={resumenPara.hora}
+          onCancelar={() => setResumenPara(null)}
+          onConfirmar={() => { const cita = resumenPara; setResumenPara(null); ingresarAFicha(cita) }}
+          etiquetaCancelar="Cerrar"
+          etiquetaConfirmar="Ingresar a la ficha clínica"
         />
       )}
 

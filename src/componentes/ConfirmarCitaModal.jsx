@@ -20,7 +20,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // dejar el header/botones fuera de pantalla en una ventana chica (ver
 // C6/lección de modales). Dos arquitecturas de modal competían por lo
 // mismo sin ninguna razón real para que este fuera distinto.
-export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "", etiquetaConfirmar = "Confirmar" }) {
+export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "", etiquetaConfirmar = "Confirmar", etiquetaCancelar = "Cancelar", titulo = "¿Confirmar esta cita?", subtitulo = "Revisa los datos antes de agendar." }) {
   // El Dialog de Radix cerraba con Escape "gratis" — el patrón hand-rolled
   // al que se pasó este modal no lo hace en ningún otro lugar del sistema,
   // así que se agrega acá para no perder ese cierre por teclado.
@@ -48,8 +48,8 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
           <div className="mb-4 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: GRAD }}>
             <CalendarCheck size={22} />
           </div>
-          <h2 id="confirmar-cita-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Confirmar esta cita?</h2>
-          <p className="mt-1.5 text-sm text-slate-500">Revisa los datos antes de agendar.</p>
+          <h2 id="confirmar-cita-titulo" className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
+          <p className="mt-1.5 text-sm text-slate-500">{subtitulo}</p>
 
           <div className="mt-4 space-y-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
             {paciente && <FilaDato icon={User} label="Paciente" valor={paciente} />}
@@ -70,7 +70,7 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
             disabled={guardando}
             className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Cancelar
+            {etiquetaCancelar}
           </button>
           <button
             type="button"
