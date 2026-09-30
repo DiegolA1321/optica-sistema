@@ -1430,6 +1430,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </div>
                 </div>
 
+                {/* ─── Buscador de paciente: solo si la ficha se abrió sin uno ya
+                    resuelto. Cuando llega desde "Atender" o desde el perfil del
+                    paciente (pacienteInicial → seleccionarPacienteCombo ya fijó
+                    pacienteId), no tiene sentido dejarlo buscar/cambiar de
+                    paciente acá — el nombre sigue visible en la barra sticky de
+                    identidad de arriba. Sigue apareciendo para el caso real en
+                    que sí hace falta: "Nueva consulta" al final de la ficha
+                    (resetForm limpia pacienteId a propósito para el siguiente
+                    paciente) y cualquier apertura sin paciente precargado.
+                    Decisión de Diego, 30 sept. ─── */}
+                {!pacienteId && (
                 <div className="relative" ref={dropdownRef}>
                   <label htmlFor="paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">
                     Paciente <span className="text-red-500">*</span>
@@ -1481,6 +1492,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     </p>
                   )}
                 </div>
+                )}
 
                 {/* ─── Última cita: la visita más reciente de historialPaciente (misma
                     fuente y orden que el modal "Ver historial"), a la vista sin abrir
