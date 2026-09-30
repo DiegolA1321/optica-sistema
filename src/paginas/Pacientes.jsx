@@ -99,6 +99,13 @@ const colorAvatar = (nombre) => {
   return PALETA_AVATAR[h % PALETA_AVATAR.length]
 }
 
+// "De alta" es un estado positivo/resuelto (el ing lo pidió como cierre de
+// tratamiento, punto 2.1), no algo que requiera atención — no comparte el
+// ámbar que el resto de la fila usa para "esto necesita revisión" (pago
+// pendiente, control vencido, etc.).
+const claseBadgeEstadoClinico = (estado) =>
+  estado === "Activo" ? "bg-emerald-50 text-emerald-700" : estado === "De alta" ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-700"
+
 // Estado de corrección: ¿la corrección actual (anteojos/lentes) logra buena agudeza visual?
 // Es el dato clínicamente accionable — un error refractivo no se autocorrige, se maneja con
 // anteojos, lentes de contacto o cirugía refractiva; esto mide si ese manejo está funcionando.
@@ -1021,7 +1028,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
             >
               <option value="Todos">Todos</option>
               <option value="Activo">Activo</option>
-              <option value="Revisión">Revisión</option>
+              <option value="De alta">De alta</option>
             </select>
           </div>
 
@@ -1177,7 +1184,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             </p>
                             <p className="mt-0.5 font-mono text-xs text-slate-500">{paciente.cedula}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (paciente.estadoClinico === "Activo" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + claseBadgeEstadoClinico(paciente.estadoClinico)}>
                                 {paciente.estadoClinico}
                               </span>
                               {/* Metadata de identidad (cuenta/origen) — se
@@ -1728,7 +1735,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       {edadPaciente != null && <span className="flex items-center gap-1.5"><Cake size={14} /> {edadPaciente} años</span>}
                     </div>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                      <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.estadoClinico === "Activo" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                      <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + claseBadgeEstadoClinico(pacienteHistorial.estadoClinico)}>
                         {pacienteHistorial.estadoClinico}
                       </span>
                       {/* Cuenta Portal — pedido explícito de Diego: etiqueta
