@@ -55,6 +55,7 @@ import { diasVencido } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
+import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 
@@ -155,6 +156,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // ConsultaMedica.jsx vía onCambiosSinGuardarChange cada vez que su propio
   // dirty-tracking cambia (ver audit UX, Lote 1, punto 1b).
   const fichaClinicaCambiosSinGuardar = useRef(false)
+  // Destino pendiente cuando navegar() necesita confirmar que se van a
+  // perder cambios sin guardar de la ficha clínica (antes: window.confirm
+  // nativo del navegador, sin el estilo del resto del sistema).
+  const [confirmSalirFicha, setConfirmSalirFicha] = useState(null)
   const [accionPacienteInicio, setAccionPacienteInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
@@ -310,20 +315,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     return () => window.removeEventListener("popstate", alPopState)
   }, [opcionesVisibles])
 
-  // Navegación unificada (mapea alias de otros módulos)
-  const navegar = (vista) => {
-    const mapa = { consulta: "consultas", consultas_opticas: "consultas" }
-    const destino = mapa[vista] || vista
+  // Navegación real, una vez que ya no hace falta (o ya se confirmó) salir
+  // de cambios sin guardar en la ficha clínica.
+  const irADestino = (destino) => {
     if (destino !== seccionActiva) {
-      // Único chokepoint de toda navegación por sidebar/Ctrl+K/campanita
-      // (ver audit UX, Lote 1, punto 1b) — cubre salir de la ficha clínica
-      // con cambios sin guardar sin tener que interceptar cada botón que
-      // llama a navegar() por separado.
-      if (seccionActiva === "consultas" && fichaClinicaCambiosSinGuardar.current) {
-        const salir = window.confirm("Tienes cambios sin guardar en la ficha clínica. Si sales ahora, se van a perder. ¿Salir de todas formas?")
-        if (!salir) return
-        fichaClinicaCambiosSinGuardar.current = false
-      }
       const params = new URLSearchParams(window.location.search)
       params.set("seccion", destino)
       window.history.pushState({ seccion: destino }, "", `${window.location.pathname}?${params}`)
@@ -331,6 +326,21 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     setSeccionActiva(destino)
     setMenuAbierto(false)
     setNotifAbierta(false)
+  }
+
+  // Navegación unificada (mapea alias de otros módulos)
+  const navegar = (vista) => {
+    const mapa = { consulta: "consultas", consultas_opticas: "consultas" }
+    const destino = mapa[vista] || vista
+    // Único chokepoint de toda navegación por sidebar/Ctrl+K/campanita
+    // (ver audit UX, Lote 1, punto 1b) — cubre salir de la ficha clínica
+    // con cambios sin guardar sin tener que interceptar cada botón que
+    // llama a navegar() por separado.
+    if (destino !== seccionActiva && seccionActiva === "consultas" && fichaClinicaCambiosSinGuardar.current) {
+      setConfirmSalirFicha(destino)
+      return
+    }
+    irADestino(destino)
   }
 
   // Único punto de entrada a Ficha clínica, sea desde el perfil de un
@@ -1025,6 +1035,21 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             </div>
           </div>
         </div>
+      )}
+
+      {confirmSalirFicha && (
+        <ConfirmarEliminarModal
+          titulo="¿Salir de la ficha clínica?"
+          mensaje="Tienes cambios sin guardar en la ficha clínica. Si sales ahora, se van a perder."
+          etiquetaConfirmar="Salir de todas formas"
+          onCancelar={() => setConfirmSalirFicha(null)}
+          onConfirmar={() => {
+            const destino = confirmSalirFicha
+            fichaClinicaCambiosSinGuardar.current = false
+            setConfirmSalirFicha(null)
+            irADestino(destino)
+          }}
+        />
       )}
 
       {paletaAbierta && (
