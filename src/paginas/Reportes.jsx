@@ -82,7 +82,15 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [] }) {
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [] }) {
+  // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
+  // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
+  // atención — las métricas financieras (ingresos, conversión a venta,
+  // productos más vendidos) se ocultan porque no le competen a esa vista.
+  // No cambia qué tan permiso tiene para ENTRAR a Reportes (eso lo sigue
+  // decidiendo Dashboard.jsx vía usuario.permisos.reportes) — solo lo que
+  // ve una vez adentro.
+  const esOptometraNoAdmin = !!usuario?.esOptometra && usuario?.rol !== "admin"
   const [periodo, setPeriodo] = useState("mes")
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")
   const [finPersonalizado, setFinPersonalizado] = useState("")
@@ -334,6 +342,11 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
 
+  // Un optómetra que no es admin no ve las métricas financieras (Diego,
+  // 2026-09-30): Ingresos y Conversión a venta salen de la grilla de KPIs;
+  // "Productos más vendidos" (más abajo) se oculta con el mismo criterio.
+  const kpisVisibles = esOptometraNoAdmin ? kpis.filter((k) => k.key !== "ingresos" && k.key !== "conversion") : kpis
+
   // Cada KPI y cada gráfico se calcula directo de props (pacientes/consultas/
   // citas/ventas) que App.jsx hidrata de forma asíncrona — sin esto, la
   // primera vez que se entra a Reportes se veían todos los KPIs en 0 y cada
@@ -392,7 +405,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
 
       {/* ─── KPIs ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((k, i) => (
+        {kpisVisibles.map((k, i) => (
           <div
             key={k.key}
             className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -540,7 +553,9 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
           )}
         </div>
 
-        {/* ─── PRODUCTOS MÁS VENDIDOS (H3, rotación de inventario) ─── */}
+        {/* ─── PRODUCTOS MÁS VENDIDOS (H3, rotación de inventario) ───
+            Financiero (ventas) — oculto para un optómetra que no es admin. ─── */}
+        {!esOptometraNoAdmin && (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "205ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Productos más vendidos</h3>
           <p className="mb-5 text-xs text-slate-500">Top 5 por unidades · período seleccionado arriba</p>
@@ -571,6 +586,7 @@ export default function Reportes({ cargaInicial = false, pacientes = [], consult
             </div>
           )}
         </div>
+        )}
 
         {/* ─── ESTADO DE CORRECCIÓN ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "220ms" }}>
