@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
 import { createPortal } from "react-dom"
 import { CalendarCheck, User, Stethoscope, CalendarDays, Clock } from "lucide-react"
 import { INK } from "@/lib/tema"
 import FilaDato from "./FilaDato"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -21,22 +21,19 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // C6/lección de modales). Dos arquitecturas de modal competían por lo
 // mismo sin ninguna razón real para que este fuera distinto.
 export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "", etiquetaConfirmar = "Confirmar", etiquetaCancelar = "Cancelar", titulo = "¿Confirmar esta cita?", subtitulo = "Revisa los datos antes de agendar." }) {
-  // El Dialog de Radix cerraba con Escape "gratis" — el patrón hand-rolled
-  // al que se pasó este modal no lo hace en ningún otro lugar del sistema,
-  // así que se agrega acá para no perder ese cierre por teclado.
-  useEffect(() => {
-    const onKeyDown = (e) => { if (e.key === "Escape" && !guardando) onCancelar() }
-    document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
-  }, [guardando, onCancelar])
+  // Escape + foco atrapado + devolución de foco, mismo hook que ya usa el
+  // resto del sistema (antes: Escape agregado a mano, sin trap de foco).
+  const cerrar = () => { if (!guardando) onCancelar() }
+  const refModal = useModalAccesible(true, cerrar)
 
   return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
       style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-      onClick={() => !guardando && onCancelar()}
+      onClick={cerrar}
     >
       <div
+        ref={refModal}
         className="flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
         onClick={(e) => e.stopPropagation()}

@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
 import { createPortal } from "react-dom"
 import { ClipboardCheck, User, Stethoscope, Glasses, CheckCircle2 } from "lucide-react"
 import { INK } from "@/lib/tema"
 import FilaDato from "./FilaDato"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -20,19 +20,19 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // ConfirmarCitaModal.jsx), con el Escape agregado a mano para no perder lo
 // que Radix daba gratis.
 export default function ConfirmarFichaModal({ paciente, diagnostico, lenteRecomendado, usaLentes, onCancelar, onConfirmar, guardando = false, error = "" }) {
-  useEffect(() => {
-    const onKeyDown = (e) => { if (e.key === "Escape" && !guardando) onCancelar() }
-    document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
-  }, [guardando, onCancelar])
+  // Escape + foco atrapado + devolución de foco, mismo hook que ya usa el
+  // resto del sistema (antes: Escape agregado a mano, sin trap de foco).
+  const cerrar = () => { if (!guardando) onCancelar() }
+  const refModal = useModalAccesible(true, cerrar)
 
   return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
       style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-      onClick={() => !guardando && onCancelar()}
+      onClick={cerrar}
     >
       <div
+        ref={refModal}
         className="flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
         onClick={(e) => e.stopPropagation()}
