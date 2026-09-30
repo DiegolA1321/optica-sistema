@@ -141,7 +141,10 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   }, [abrirModalAlEntrar])
 
   const [busqueda, setBusqueda] = useState("")
-  const [filtro, setFiltro] = useState("todas") // todas | hoy | proximas | atendidas
+  // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
+  // — su agenda del día — en vez de "todas". El admin (sea o no también
+  // optómetra) sigue viendo "todas" por defecto, como hoy.
+  const [filtro, setFiltro] = useState(() => (usuario?.rol !== "admin" && usuario?.esOptometra ? "hoy" : "todas")) // todas | hoy | proximas | atendidas
   // Eje independiente del filtro de estado — separa citas de alguien que
   // nunca ha sido paciente (sin pacienteId todavía) de las de seguimiento.
   const [filtroTipo, setFiltroTipo] = useState("todos") // todos | primera | seguimiento
