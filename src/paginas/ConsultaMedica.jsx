@@ -236,6 +236,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const lenteDropdownRef = useRef(null)
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
+  // Punto 2.1 (plan 29 sept.): arranca en false en CADA ficha nueva, incluso
+  // si el paciente ya está "De alta" — así, si vuelve a consulta y se guarda
+  // sin marcarla, su estado_clinico vuelve a "Activo" (pedido explícito de
+  // Diego), en vez de quedar "de alta" para siempre por inercia.
+  const [tratamientoFinalizado, setTratamientoFinalizado] = useState(false)
   // Checkbox de la receta (Paso 3) — decide caso por caso si esta receta en
   // particular incluye las medidas exactas, solo disponible cuando la
   // política general de la óptica (Configuración > Políticas hacia el
@@ -523,7 +528,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
-    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, facturaLineas, archivosImagenes,
+    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, tratamientoFinalizado, facturaLineas, archivosImagenes,
     costoConsulta,
   ])
   // Cierre de pestaña/recarga — el aviso in-app (navegar a otra sección) lo
@@ -778,6 +783,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setLenteMostrarDropdown(false)
     setIndicaciones("")
     setProximoControlDias(180)
+    setTratamientoFinalizado(false)
     setIncluirMedidasReceta(true)
     setMostrarConfirmarVenta(false)
     setMostrarModalFacturaVenta(false)
@@ -833,6 +839,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
     const tendenciaGraduacion = calcularEvolucionIA
     const estadoCorreccion = estadoCorreccionActual
+    // Punto 2.1 (plan 29 sept.): toda ficha decide explícitamente el estado
+    // clínico del paciente — "De alta" si se marcó la casilla, "Activo" si
+    // no (incluso para un paciente que ya estaba de alta y vuelve a consulta).
+    const nuevoEstadoClinico = tratamientoFinalizado ? "De alta" : "Activo"
     // Compatibilidad con Reportes.jsx ("Conversión a venta" mide si
     // consultas.producto_id quedó lleno) — Punto 06 reemplazó el selector
     // de un solo producto por el borrador de factura, así que se toma la
@@ -963,7 +973,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // dejar rastro de auditoría — la auditoría de superadmin/admin ya
       // existía para el resto del sistema, esta era la excepción real.
       registrarLog(usuario, "consultas", "Registró una ficha clínica", `${nuevaFicha.paciente} · ${nuevaFicha.fecha}`)
-      const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta }).eq("id", pacienteId)
+      const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta, estado_clinico: nuevoEstadoClinico }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
 
       // D3 (reunión 29 sept.): el cobro de la consulta es obligatorio para
@@ -1008,7 +1018,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (pacientesLista.length > 0 && setPacientes) {
       const pacientesActualizados = pacientesLista.map((p) => {
         if (p.id === pacienteId) {
-          return { ...p, evolucion: tendenciaGraduacion, estadoCorreccion, ultimaConsulta: fechaConsulta }
+          return { ...p, evolucion: tendenciaGraduacion, estadoCorreccion, ultimaConsulta: fechaConsulta, estadoClinico: nuevoEstadoClinico }
         }
         return p
       })
@@ -2443,24 +2453,45 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </p>
                     )}
 
+                    {/* Punto 2.1 (plan 29 sept.): si el optómetra da de alta
+                        al paciente, ya no tiene sentido pedirle un próximo
+                        control — se oculta el selector y se explica por qué. */}
+                    <label className="no-print flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={tratamientoFinalizado}
+                        disabled={fichaGuardada}
+                        onChange={(e) => setTratamientoFinalizado(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500 disabled:cursor-not-allowed"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold" style={{ color: INK }}>Tratamiento finalizado</span>
+                        <span className="block text-xs text-slate-500">El paciente ya no necesita más controles — queda marcado como "De alta".</span>
+                      </span>
+                    </label>
+
                     <div className="print-force-color flex items-center gap-3 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
                       <CalendarClock size={18} className="no-print shrink-0 text-blue-600" />
                       <div className="flex-1">
                         <label htmlFor="proximoControl" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Próximo control recomendado</label>
-                        <p className="no-print text-[11px] text-slate-500">Define cuándo el CRM debe avisar si el paciente no ha vuelto.</p>
+                        <p className="no-print text-[11px] text-slate-500">
+                          {tratamientoFinalizado ? "No aplica — el tratamiento quedó finalizado." : "Define cuándo el CRM debe avisar si el paciente no ha vuelto."}
+                        </p>
                       </div>
-                      <select
-                        id="proximoControl"
-                        value={proximoControlDias}
-                        disabled={fichaGuardada}
-                        onChange={(e) => setProximoControlDias(Number(e.target.value))}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        <option value={30}>1 mes</option>
-                        <option value={90}>3 meses</option>
-                        <option value={180}>6 meses</option>
-                        <option value={365}>1 año</option>
-                      </select>
+                      {!tratamientoFinalizado && (
+                        <select
+                          id="proximoControl"
+                          value={proximoControlDias}
+                          disabled={fichaGuardada}
+                          onChange={(e) => setProximoControlDias(Number(e.target.value))}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <option value={30}>1 mes</option>
+                          <option value={90}>3 meses</option>
+                          <option value={180}>6 meses</option>
+                          <option value={365}>1 año</option>
+                        </select>
+                      )}
                     </div>
                   </div>
 
