@@ -37,6 +37,9 @@ export default function FacturaVentaModal({
   categorias = [],
   setCategorias,
   pacienteFijo,
+  // Sin pacienteFijo (venta iniciada desde Inventario) el panel pide elegir
+  // al paciente de esta lista.
+  pacientes = [],
   // Precarga una línea al abrir (ej. el lente que el optómetra ya vinculó
   // en la ficha clínica) — "listo para cobrar en un solo paso" en vez de
   // obligar a volver a buscar el mismo producto que ya se eligió antes.
@@ -101,6 +104,16 @@ export default function FacturaVentaModal({
   const [npImagenUrl, setNpImagenUrl] = useState(null)
   const [erroresNp, setErroresNp] = useState({})
   const [guardandoNp, setGuardandoNp] = useState(false)
+
+  const [pacienteSel, setPacienteSel] = useState(null)
+  const [busquedaPaciente, setBusquedaPaciente] = useState("")
+  const [mostrarDropdownPaciente, setMostrarDropdownPaciente] = useState(false)
+  const paciente = pacienteFijo || pacienteSel
+  const pacientesFiltrados = useMemo(() => {
+    const q = busquedaPaciente.trim().toLowerCase()
+    const base = q ? pacientes.filter((p) => p.nombre.toLowerCase().includes(q) || (p.cedula || "").includes(q)) : pacientes
+    return base.slice(0, 8)
+  }, [pacientes, busquedaPaciente])
 
   const [metodoPago, setMetodoPago] = useState("directo")
   const [cuotasTotales, setCuotasTotales] = useState("3")
@@ -224,6 +237,7 @@ export default function FacturaVentaModal({
 
   const confirmarFactura = async (e) => {
     e.preventDefault()
+    if (!paciente) { setError("Selecciona el paciente de esta venta."); return }
     if (lineas.length === 0) { setError("Agrega al menos una línea antes de guardar."); return }
     if (lineas.some((l) => l.precioTexto !== undefined && (l.precioTexto.trim() === "" || Number.isNaN(parseFloat(l.precioTexto)) || parseFloat(l.precioTexto) < 0))) {
       setError("Revisa los precios: cada uno debe ser un número de 0 en adelante."); return
@@ -238,7 +252,7 @@ export default function FacturaVentaModal({
       const { data, error: errorRpc } = await supabase
         .rpc("crear_factura_venta", {
           p_optica_id: opticaId,
-          p_paciente_id: pacienteFijo.id,
+          p_paciente_id: paciente.id,
           p_metodo_pago: metodoPago,
           p_lineas: lineas.map((l) => ({
             producto_id: l.productoId,
@@ -267,9 +281,9 @@ export default function FacturaVentaModal({
           return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
         }))
       }
-      registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${pacienteFijo.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
+      registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
       onGuardado?.({
-        id: data.id, pacienteId: pacienteFijo.id, citaId, consultaId,
+        id: data.id, pacienteId: paciente.id, citaId, consultaId,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
         estado: data.estado, creadoEn: data.created_at,
         lineas,
@@ -304,9 +318,46 @@ export default function FacturaVentaModal({
         <form onSubmit={confirmarFactura} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
 
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
-              <div className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">{pacienteFijo?.nombre}</div>
+            <div className="relative">
+              <label htmlFor="factura-paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
+              {pacienteFijo ? (
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">{pacienteFijo.nombre}</div>
+              ) : pacienteSel ? (
+                <div className="flex items-center justify-between rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2.5">
+                  <span className="truncate text-sm font-semibold text-emerald-800">{pacienteSel.nombre}</span>
+                  <button type="button" onClick={() => { setPacienteSel(null); setBusquedaPaciente("") }} aria-label="Cambiar paciente" className="text-sm font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">×</button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      id="factura-paciente"
+                      type="text"
+                      placeholder="Busca al paciente por nombre o cédula..."
+                      value={busquedaPaciente}
+                      onFocus={() => setMostrarDropdownPaciente(true)}
+                      onChange={(e) => { setBusquedaPaciente(e.target.value); setMostrarDropdownPaciente(true) }}
+                      className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                  </div>
+                  {mostrarDropdownPaciente && pacientesFiltrados.length > 0 && (
+                    <ul className="absolute z-20 mt-1 max-h-44 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
+                      {pacientesFiltrados.map((p) => (
+                        <li key={p.id}>
+                          <button type="button" onClick={() => { setPacienteSel(p); setMostrarDropdownPaciente(false); setError("") }} className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700">
+                            <span className="truncate">{p.nombre}</span>
+                            {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-500">{p.cedula}</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {mostrarDropdownPaciente && busquedaPaciente.trim() && pacientesFiltrados.length === 0 && (
+                    <p className="mt-1.5 text-xs text-slate-500">Ningún paciente coincide. Regístralo primero en Pacientes.</p>
+                  )}
+                </>
+              )}
             </div>
 
             <div>
