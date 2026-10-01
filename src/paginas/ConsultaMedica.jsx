@@ -689,6 +689,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     const nuevaFicha = {
       fecha: fechaConsulta,
       pacienteId,
+      // Sin esto, el aviso de cobro pendiente (Citas/perfil) no vería esta
+      // consulta hasta recargar la página.
+      citaId: citaEnAtencionId || null,
       paciente: pacienteSeleccionado,
       motivo,
       detalleConsulta,
