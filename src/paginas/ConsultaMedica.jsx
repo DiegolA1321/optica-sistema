@@ -94,6 +94,35 @@ const verdictoPorVariacion = (variacionPromedio) => {
   return variacionPromedio > 0.25 ? "Aumentó" : "Disminuyó"
 }
 
+const numONull = (v) => {
+  const n = parseFloat(v)
+  return Number.isNaN(n) ? null : n
+}
+
+// Equivalente esférico de un ojo (esfera + cilindro/2). null si ese ojo no
+// tiene esfera ni cilindro registrados: sin dato no hay cálculo, nunca un 0.
+const eeOjo = (esf, cil) => {
+  const e = numONull(esf)
+  const c = numONull(cil)
+  if (e === null && c === null) return null
+  return (e ?? 0) + (c ?? 0) / 2
+}
+
+// Variación promedio de |EE| entre dos refracciones ({od,oi}), calculada solo
+// sobre los ojos que tienen dato en ambas. null si no hay nada comparable.
+const variacionEntre = (a, b) => {
+  const difs = ["od", "oi"]
+    .map((o) => {
+      const x = eeOjo(a?.[o]?.esfera, a?.[o]?.cilindro)
+      const y = eeOjo(b?.[o]?.esfera, b?.[o]?.cilindro)
+      return x === null || y === null ? null : Math.abs(x) - Math.abs(y)
+    })
+    .filter((d) => d !== null)
+  return difs.length ? difs.reduce((s, d) => s + d, 0) / difs.length : null
+}
+
+const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
+
 export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
@@ -174,24 +203,27 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [retinoscopiaOi, setRetinoscopiaOi] = useState("")
 
   // --- Ojo Derecho (OD) ---
-  const [odEsfera, setOdEsfera] = useState("0.00")
-  const [odCilindro, setOdCilindro] = useState("0.00")
-  const [odEje, setOdEje] = useState("0")
-  const [odAgudezaSc, setOdAgudezaSc] = useState("20/20")
+  // Vacío significa "no medido", nunca "normal" (propuesta de flujo de
+  // atención, Ronda 3): ningún campo de refracción arranca con un valor
+  // por defecto — los números de ejemplo son solo placeholder.
+  const [odEsfera, setOdEsfera] = useState("")
+  const [odCilindro, setOdCilindro] = useState("")
+  const [odEje, setOdEje] = useState("")
+  const [odAgudezaSc, setOdAgudezaSc] = useState("")
   const [odAgudezaCc, setOdAgudezaCc] = useState("")
 
   // --- Ojo Izquierdo (OI) ---
-  const [oiEsfera, setOiEsfera] = useState("0.00")
-  const [oiCilindro, setOiCilindro] = useState("0.00")
-  const [oiEje, setOiEje] = useState("0")
-  const [oiAgudezaSc, setOiAgudezaSc] = useState("20/20")
+  const [oiEsfera, setOiEsfera] = useState("")
+  const [oiCilindro, setOiCilindro] = useState("")
+  const [oiEje, setOiEje] = useState("")
+  const [oiAgudezaSc, setOiAgudezaSc] = useState("")
   const [oiAgudezaCc, setOiAgudezaCc] = useState("")
 
   // --- Adición y Medidas ---
-  const [adicion, setAdicion] = useState("+0.00")
-  const [dp, setDp] = useState("64 mm")
-  const [alt, setAlt] = useState("18 mm")
-  const [avCerca, setAvCerca] = useState("J1")
+  const [adicion, setAdicion] = useState("")
+  const [dp, setDp] = useState("")
+  const [alt, setAlt] = useState("")
+  const [avCerca, setAvCerca] = useState("")
 
   // --- Examen físico complementario ---
   const [testMotor, setTestMotor] = useState("")
@@ -593,17 +625,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const calcularEvolucionIA = useMemo(() => {
     if (!ultimaConsultaPaciente) return "Primera consulta"
 
-    const calcularEE = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
-
-    const eeOdActual = calcularEE(odEsfera, odCilindro)
-    const eeOiActual = calcularEE(oiEsfera, oiCilindro)
-
-    const eeOdPrev = calcularEE(ultimaConsultaPaciente.od?.esfera, ultimaConsultaPaciente.od?.cilindro)
-    const eeOiPrev = calcularEE(ultimaConsultaPaciente.oi?.esfera, ultimaConsultaPaciente.oi?.cilindro)
-
-    const variacionPromedio = (Math.abs(eeOdActual) - Math.abs(eeOdPrev) + (Math.abs(eeOiActual) - Math.abs(eeOiPrev))) / 2
-
-    return verdictoPorVariacion(variacionPromedio)
+    // Sin refracción registrada hoy (o sin un ojo comparable) no hay
+    // veredicto: "Sin evaluación", nunca un "Sin cambios" falso.
+    const variacionPromedio = variacionEntre(
+      { od: { esfera: odEsfera, cilindro: odCilindro }, oi: { esfera: oiEsfera, cilindro: oiCilindro } },
+      ultimaConsultaPaciente,
+    )
+    return variacionPromedio === null ? "Sin evaluación" : verdictoPorVariacion(variacionPromedio)
   }, [odEsfera, odCilindro, oiEsfera, oiCilindro, ultimaConsultaPaciente])
 
   // --- Estado de corrección: ¿la corrección actual (anteojos/lentes) logra buena AV? ---
@@ -613,14 +641,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   )
   // --- Detalle del análisis (solo para mostrar; no altera la lógica) ---
   const analisisEvolucion = useMemo(() => {
-    const ee = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
-    const odA = ee(odEsfera, odCilindro)
-    const oiA = ee(oiEsfera, oiCilindro)
-    if (!ultimaConsultaPaciente) return { primera: true, odA, oiA }
-    const odP = ee(ultimaConsultaPaciente.od?.esfera, ultimaConsultaPaciente.od?.cilindro)
-    const oiP = ee(ultimaConsultaPaciente.oi?.esfera, ultimaConsultaPaciente.oi?.cilindro)
-    const variacion = (Math.abs(odA) - Math.abs(odP) + (Math.abs(oiA) - Math.abs(oiP))) / 2
-    return { primera: false, odA, oiA, odP, oiP, variacion, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
+    if (!ultimaConsultaPaciente) return { primera: true, variacion: null }
+    const variacion = variacionEntre(
+      { od: { esfera: odEsfera, cilindro: odCilindro }, oi: { esfera: oiEsfera, cilindro: oiCilindro } },
+      ultimaConsultaPaciente,
+    )
+    return { primera: false, variacion, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
   }, [odEsfera, odCilindro, oiEsfera, oiCilindro, ultimaConsultaPaciente, calcularEvolucionIA])
 
   // --- Tendencia histórica (entre las 2 visitas anteriores, sin depender de
@@ -632,13 +658,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // Diego, 30 sept.
   const tendenciaHistorica = useMemo(() => {
     if (historialPaciente.length < 2) return null
-    const ee = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
     const [reciente, previa] = historialPaciente
-    const odR = ee(reciente.od?.esfera, reciente.od?.cilindro)
-    const oiR = ee(reciente.oi?.esfera, reciente.oi?.cilindro)
-    const odP = ee(previa.od?.esfera, previa.od?.cilindro)
-    const oiP = ee(previa.oi?.esfera, previa.oi?.cilindro)
-    const variacion = (Math.abs(odR) - Math.abs(odP) + (Math.abs(oiR) - Math.abs(oiP))) / 2
+    const variacion = variacionEntre(reciente, previa)
+    if (variacion === null) return null
     return { variacion, verdicto: verdictoPorVariacion(variacion), fechaReciente: reciente.fecha, fechaPrevia: previa.fecha }
   }, [historialPaciente])
 
@@ -752,20 +774,20 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setFechaPrecarga(null)
     setRetinoscopiaOd("")
     setRetinoscopiaOi("")
-    setOdEsfera("0.00")
-    setOdCilindro("0.00")
-    setOdEje("0")
-    setOdAgudezaSc("20/70")
+    setOdEsfera("")
+    setOdCilindro("")
+    setOdEje("")
+    setOdAgudezaSc("")
     setOdAgudezaCc("")
-    setOiEsfera("0.00")
-    setOiCilindro("0.00")
-    setOiEje("0")
-    setOiAgudezaSc("20/50")
+    setOiEsfera("")
+    setOiCilindro("")
+    setOiEje("")
+    setOiAgudezaSc("")
     setOiAgudezaCc("")
-    setAdicion("+0.00")
-    setDp("64 mm")
-    setAlt("18 mm")
-    setAvCerca("J1")
+    setAdicion("")
+    setDp("")
+    setAlt("")
+    setAvCerca("")
     setTestMotor("")
     setCoverTestLejos("Ortoforia")
     setCoverTestCerca("Ortoforia")
@@ -1054,14 +1076,19 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (!motivo.trim()) errs.motivo = "Selecciona el motivo de la consulta."
       // "Otros" no dice nada por sí solo — si se elige, el detalle deja de ser opcional.
       else if (motivo === "Otros" && !detalleConsulta.trim()) errs.detalleConsulta = "Describe el motivo de la consulta."
-      if (!esNumero(odEsfera)) errs.od_esfera = "Número requerido"
-      if (!esNumero(odCilindro)) errs.od_cilindro = "Número requerido"
-      if (!esNumero(odEje)) errs.od_eje = "Número requerido"
-      else if (parseFloat(odEje) < 0 || parseFloat(odEje) > 180) errs.od_eje = "El eje va de 0° a 180°"
-      if (!esNumero(oiEsfera)) errs.oi_esfera = "Número requerido"
-      if (!esNumero(oiCilindro)) errs.oi_cilindro = "Número requerido"
-      if (!esNumero(oiEje)) errs.oi_eje = "Número requerido"
-      else if (parseFloat(oiEje) < 0 || parseFloat(oiEje) > 180) errs.oi_eje = "El eje va de 0° a 180°"
+      // Refracción: todo opcional (puede haber citas que no midan algunos
+      // valores). Solo se valida lo que sí se escribió: que sea un número, el
+      // rango del eje, y que un cilindro real traiga su eje.
+      for (const [pre, esf, cil, eje] of [["od", odEsfera, odCilindro, odEje], ["oi", oiEsfera, oiCilindro, oiEje]]) {
+        if (esf.trim() && !esNumero(esf)) errs[`${pre}_esfera`] = "Número no válido"
+        if (cil.trim() && !esNumero(cil)) errs[`${pre}_cilindro`] = "Número no válido"
+        if (eje.trim()) {
+          if (!esNumero(eje)) errs[`${pre}_eje`] = "Número no válido"
+          else if (parseFloat(eje) < 0 || parseFloat(eje) > 180) errs[`${pre}_eje`] = "El eje va de 0° a 180°"
+        } else if (esNumero(cil) && parseFloat(cil) !== 0) {
+          errs[`${pre}_eje`] = "Indica el eje del cilindro"
+        }
+      }
     } else if (paso === "diagnostico") {
       if (diagnosticoCategorias.length === 0) errs.diagnostico = "Selecciona al menos una categoría de diagnóstico."
       // "Otro" no dice nada por sí solo — es la única fuente del diagnóstico
@@ -1078,7 +1105,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
   const mensajeBanner = (paso) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
-    if (paso === "refraccion") return "Selecciona el motivo de la consulta (si es \"Otros\", descríbelo en el detalle) y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
+    if (paso === "refraccion") return "Selecciona el motivo de la consulta (si es \"Otros\", descríbelo en el detalle) y revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) y el costo de la consulta (puede ser 0) antes de guardar la receta."
     return "Hay campos por completar."
   }
@@ -1649,8 +1676,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           // no strings vacíos — así arrancan estos campos) —
                           // evita pisar en silencio algo que el optómetra ya
                           // tecleó a mano.
-                          const enDefecto = (v, def) => !v || v === def
-                          const puedeCopiar = enDefecto(actual.esfera, "0.00") && enDefecto(actual.cilindro, "0.00") && enDefecto(actual.eje, "0")
+                          const puedeCopiar = !actual.esfera && !actual.cilindro && !actual.eje
                           return (
                           <div key={sigla} className="rounded-lg border border-blue-100 bg-white p-3 font-mono text-xs">
                             <div className="mb-1.5 flex items-center justify-between">
@@ -1732,15 +1758,19 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
                 </div>
 
+                {estadoCorreccionActual !== "Sin evaluar" && (
+                  <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
+                )}
+
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <p className="flex items-center gap-1.5 border-b border-slate-200/60 pb-2 text-sm font-semibold" style={{ color: INK }}>
                     <Ruler size={16} className="text-blue-600" /> Parámetros de visión cercana y centrado
                   </p>
                   <div className={"grid grid-cols-1 gap-3 sm:grid-cols-" + (manejaProgresion ? "4" : "3")}>
-                    {manejaProgresion && <MedidaCampo id="add" label="Adición (ADD)" value={adicion} onChange={setAdicion} />}
-                    <MedidaCampo id="dp" label="Distancia pupilar (DP)" value={dp} onChange={setDp} />
-                    <MedidaCampo id="alt" label="Altura pupilar (ALT)" value={alt} onChange={setAlt} />
-                    <MedidaCampo id="avCerca" label="AV Cerca (Jaeger)" value={avCerca} onChange={setAvCerca} />
+                    {manejaProgresion && <MedidaCampo id="add" label="Adición (ADD)" value={adicion} onChange={setAdicion} placeholder="+0.00" />}
+                    <MedidaCampo id="dp" label="Distancia pupilar (DP)" value={dp} onChange={setDp} placeholder="64 mm" />
+                    <MedidaCampo id="alt" label="Altura pupilar (ALT)" value={alt} onChange={setAlt} placeholder="18 mm" />
+                    <MedidaCampo id="avCerca" label="AV Cerca (Jaeger)" value={avCerca} onChange={setAvCerca} placeholder="J1" />
                   </div>
                 </div>
 
@@ -1884,16 +1914,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   )}
                 </div>
 
-                {/* Evolución en vivo mientras se editan los valores */}
-                <PanelEvolucion analisis={analisisEvolucion} correccion={estadoCorreccionActual} compacto />
+                {/* Pie: variación frente a la visita anterior, solo si hay valores */}
+                <LineaVariacion analisis={analisisEvolucion} />
               </div>
             )}
 
             {/* PASO 3: DIAGNÓSTICO Y RECETA */}
             {subTab === "diagnostico" && (
               <div className="space-y-5">
-                {/* Análisis de evolución asistido (no se imprime) */}
-                <PanelEvolucion analisis={analisisEvolucion} correccion={estadoCorreccionActual} />
+                {/* Una línea de variación en vez de las tarjetas "Estado de
+                    corrección" y "Comparación" (que repetían lo del paso 2). */}
+                <LineaVariacion analisis={analisisEvolucion} />
 
                 {/* Barra de acción (no se imprime) */}
                 <div className="no-print flex items-center justify-between gap-4">
@@ -2689,118 +2720,37 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
 /* ---------- Subcomponentes ---------- */
 
-function PanelEvolucion({ analisis, correccion, compacto }) {
-  const c = CORRECCION[correccion] || CORRECCION["Requiere ajuste"]
-  const IconoC = c.icon
-
-  if (compacto) {
-    return (
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border px-4 py-2.5" style={{ borderColor: c.border, backgroundColor: c.bg }}>
-          <span className="flex items-center gap-1.5 text-sm font-bold" style={{ color: c.fg }}>
-            <IconoC size={16} /> {correccion}
-          </span>
-          <span className="text-xs text-slate-500">Según agudeza visual con la corrección actual</span>
-        </div>
-        {!analisis.primera && (() => {
-          const t = TENDENCIA[analisis.verdicto] || TENDENCIA["Sin cambios"]
-          const IconoT = t.icon
-          const signo = analisis.variacion > 0 ? "+" : ""
-          return (
-            <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500">
-              <IconoT size={13} style={{ color: t.fg }} />
-              <span>Comparación con la refracción de hoy: <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto}</span> ({signo}{analisis.variacion.toFixed(2)} D)</span>
-            </div>
-          )
-        })()}
-      </div>
-    )
-  }
-
+// Una sola línea de variación frente a la visita anterior — reemplaza las
+// tarjetas grandes "Comparación con la refracción de hoy". Solo aparece si hay
+// valores de hoy comparables con los de la visita anterior.
+function LineaVariacion({ analisis }) {
+  if (!analisis || analisis.primera || analisis.variacion == null) return null
+  const t = TENDENCIA[analisis.verdicto] || TENDENCIA["Sin cambios"]
+  const IconoT = t.icon
   return (
-    <div className="space-y-4">
-      {/* Estado de corrección: lo clínicamente accionable */}
-      <div className="overflow-hidden rounded-2xl border" style={{ borderColor: c.border }}>
-        <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: c.bg }}>
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><IconoC size={16} /></span>
-            <h3 className="text-sm font-bold" style={{ color: INK }}>Estado de corrección visual</h3>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: "#fff", color: c.fg, border: `1px solid ${c.border}` }}>
-            <IconoC size={14} /> {correccion}
-          </span>
-        </div>
-        <div className="bg-white p-5">
-          <p className="text-sm text-slate-600">{c.txt}</p>
-          <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
-            <span className="font-semibold text-slate-600">Recuerda: </span>
-            un error refractivo no se corrige por sí solo; se maneja de forma efectiva con anteojos, lentes de contacto o cirugía refractiva.
-          </p>
-        </div>
-      </div>
-
-      {/* Comparación con la refracción de hoy: dato de contexto, no un veredicto de mejoría/empeoramiento.
-          Distinta de "Comparar con visita anterior" (arriba, al inicio del paso Refracción) — esta
-          compara lo que se acaba de teclear hoy contra la visita anterior, por eso solo puede
-          mostrarse una vez que hay datos de hoy que comparar. */}
-      {analisis.primera ? (
-        <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-5">
-          <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-200 text-slate-500"><Sparkles size={14} /></span>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Comparación con la refracción de hoy</h4>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Es la <span className="font-semibold text-slate-600">primera consulta</span> de este paciente: estos valores quedarán como punto de partida para comparar a futuro.
-          </p>
-        </div>
-      ) : (() => {
-        const t = TENDENCIA[analisis.verdicto] || TENDENCIA["Sin cambios"]
-        const IconoT = t.icon
-        const signo = analisis.variacion > 0 ? "+" : ""
-        const varTxt = `${signo}${analisis.variacion.toFixed(2)} D`
-        return (
-          <div className="rounded-2xl border border-slate-200/60 bg-white p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                <Sparkles size={13} className="text-slate-500" /> Comparación con la refracción de hoy
-              </h4>
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.bg, color: t.fg }}>
-                <IconoT size={12} /> {analisis.verdicto}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ComparaOjo sigla="OD" prev={analisis.odP} actual={analisis.odA} />
-              <ComparaOjo sigla="OI" prev={analisis.oiP} actual={analisis.oiA} />
-            </div>
-            <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 text-xs">
-              <span className="text-slate-500">Variación promedio</span>
-              <span className="font-mono font-bold" style={{ color: t.fg }}>{varTxt}</span>
-            </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-              Calculado por <span className="font-semibold text-slate-500">equivalente esférico</span> (Esfera + Cilindro/2) frente a
-              la consulta del {analisis.fechaPrev}. Es solo un dato de referencia: no indica por sí mismo mejoría ni empeoramiento.
-            </p>
-          </div>
-        )
-      })()}
-    </div>
+    <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
+      <IconoT size={13} style={{ color: t.fg }} aria-hidden="true" />
+      Variación frente al {analisis.fechaPrev}:{" "}
+      <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto.toLowerCase()}</span> ({textoVariacion(analisis.variacion)})
+    </p>
   )
 }
 
-function ComparaOjo({ sigla, prev, actual }) {
-  const fmt = (n) => `${n > 0 ? "+" : ""}${Number(n).toFixed(2)}`
+// Estado de corrección como chip junto a su dato (AV con lentes), solo si se
+// registró en ambos ojos — antes era una tarjeta que casi siempre decía
+// "Sin evaluar".
+function ChipCorreccion({ correccion }) {
+  if (correccion === "Sin evaluar") return null
+  const c = CORRECCION[correccion]
+  const IconoC = c.icon
   return (
-    <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3">
-      <span className="grid h-5 w-5 place-items-center rounded font-mono text-[10px] font-bold text-white" style={{ backgroundColor: sigla === "OD" ? "#2563EB" : "#06b6d4" }}>
-        {sigla}
-      </span>
-      <div className="mt-2 flex items-center gap-2 font-mono text-sm">
-        <span className="text-slate-500">{fmt(prev)}</span>
-        <ArrowRight size={13} className="text-slate-300" />
-        <span className="font-bold" style={{ color: "#0E2B33" }}>{fmt(actual)}</span>
-      </div>
-      <p className="mt-0.5 text-[10px] text-slate-500">Equiv. esférico</p>
-    </div>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold"
+      style={{ borderColor: c.border, backgroundColor: c.bg, color: c.fg }}
+      title={c.txt}
+    >
+      <IconoC size={13} aria-hidden="true" /> Corrección: {correccion === "Bien corregido" ? "efectiva" : "requiere ajuste"}
+    </span>
   )
 }
 
@@ -2816,14 +2766,15 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
         <h3 className="text-sm font-bold" style={{ color }}>{titulo}</h3>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} />
-        <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} />
-        <NumCampo label="Eje (°)" value={eje} onChange={(v) => { setEje(v); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-eje`} error={errores[`${pre}_eje`]} tipo="entero" maxLength={3} />
+        <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} placeholder="0.00" />
+        <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} placeholder="0.00" />
+        <NumCampo label="Eje (°)" value={eje} onChange={(v) => { setEje(v); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-eje`} error={errores[`${pre}_eje`]} tipo="entero" maxLength={3} placeholder="0" />
       </div>
       <div className="grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-2">
         <div>
           <label htmlFor={`${sigla}-avsc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV sin lentes</label>
           <select id={`${sigla}-avsc`} value={avSc} onChange={(e) => setAvSc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
+            <option value="">Sin evaluar</option>
             {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
           </select>
         </div>
@@ -2839,7 +2790,7 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
   )
 }
 
-function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLength }) {
+function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLength, placeholder }) {
   const manejarCambio = (e) => {
     const filtrado = tipo === "entero" ? filtrarSoloNumeros(e.target.value, maxLength) : filtrarNumeroDecimalConSigno(e.target.value)
     onChange(filtrado)
@@ -2853,14 +2804,15 @@ function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLeng
         inputMode={tipo === "entero" ? "numeric" : "decimal"}
         value={value}
         onChange={manejarCambio}
-        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+        placeholder={placeholder}
+        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
       />
       {error && <p className="mt-0.5 text-[10px] font-medium text-red-600">{error}</p>}
     </div>
   )
 }
 
-function MedidaCampo({ id, label, value, onChange }) {
+function MedidaCampo({ id, label, value, onChange, placeholder }) {
   return (
     <div>
       <label htmlFor={id} className="mb-1 block text-xs font-semibold text-slate-500">{label}</label>
@@ -2869,7 +2821,8 @@ function MedidaCampo({ id, label, value, onChange }) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500"
       />
     </div>
   )
@@ -2952,8 +2905,8 @@ function TarjetaVisita({ consulta: c }) {
       {c.detalleConsulta && <p className="mt-1 text-xs italic text-slate-500">"{c.detalleConsulta}"</p>}
       <p className="mt-1.5 text-sm text-slate-700">{c.diagnostico || "Sin diagnóstico registrado"}</p>
       <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-500">
-        <span>OD: {c.od?.esfera ?? "—"} {c.od?.cilindro ?? ""} x{c.od?.eje ?? "—"} · AV {c.od?.avCc ?? "—"}</span>
-        <span>OI: {c.oi?.esfera ?? "—"} {c.oi?.cilindro ?? ""} x{c.oi?.eje ?? "—"} · AV {c.oi?.avCc ?? "—"}</span>
+        <span>OD: {textoOjo(c.od)} · AV {c.od?.avCc || "—"}</span>
+        <span>OI: {textoOjo(c.oi)} · AV {c.oi?.avCc || "—"}</span>
       </div>
       {c.lenteRecomendado && <p className="mt-1.5 text-[11px] text-slate-500">Lente recomendado: <span className="font-semibold text-slate-600">{c.lenteRecomendado}</span></p>}
     </div>
@@ -2968,6 +2921,12 @@ function InsigniaHistorial({ fecha }) {
       <History size={10} /> {fechaCorta ? `De su visita del ${fechaCorta}` : "De su historial"}
     </span>
   )
+}
+
+// "-1.00 -0.50 x180", o "No registrada" si ese ojo no se midió.
+function textoOjo(o) {
+  if (!o || (!o.esfera && !o.cilindro && !o.eje)) return "No registrada"
+  return [o.esfera, o.cilindro, o.eje ? `x${o.eje}` : ""].filter(Boolean).join(" ")
 }
 
 function RecetaDato({ label, valor }) {

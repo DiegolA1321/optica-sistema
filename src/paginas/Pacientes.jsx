@@ -2667,11 +2667,11 @@ function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
           )}
           <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2.5 font-mono text-xs">
             <div>
-              <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
+              <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera || c.od?.cilindro || c.od?.eje ? `${c.od?.esfera || "—"} | ${c.od?.cilindro || "—"} | ${c.od?.eje || "—"}°` : "No registrada"}
               <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
             </div>
             <div>
-              <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera} | {c.oi?.cilindro} | {c.oi?.eje}°
+              <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera || c.oi?.cilindro || c.oi?.eje ? `${c.oi?.esfera || "—"} | ${c.oi?.cilindro || "—"} | ${c.oi?.eje || "—"}°` : "No registrada"}
               <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
             </div>
           </div>
