@@ -18,10 +18,16 @@ const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción d
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul, tipo "producto"
 const VIOLETA = "#7c3aed" // tipo "servicio"
 
+// Panel de cobro ÚNICO (propuesta de flujo de atención, Ronda 4): el mismo
+// panel se usa al guardar la ficha clínica (consulta + lente precargados,
+// "Más tarde" / "Cobrar y finalizar"), desde el perfil del paciente ("Nueva
+// venta", vacío) y para cobrar un cobro pendiente. Una venta de un producto
+// es una factura de una línea.
+//
 // Punto 06 del Diagnóstico Maestro: factura con líneas múltiples (producto
 // y/o servicio) y un solo método de pago para el total — a diferencia de
 // VentaProductoModal.jsx (un producto = una venta), que sigue existiendo
-// tal cual para la venta simple (decisión de Diego: no se toca).
+// para Inventario.
 // Un servicio (examen, ajuste, garantía) no tiene producto_id y no
 // descuenta inventario — ver crear_factura_venta (migración 0072).
 export default function FacturaVentaModal({
@@ -37,6 +43,15 @@ export default function FacturaVentaModal({
   // Si el producto ya no existe o se quedó sin stock, se ignora en
   // silencio y el modal abre vacío, como siempre.
   lineaInicial,
+  // Varias líneas precargadas: [{ tipo: "servicio", descripcion, cantidad,
+  // precioUnitario }, { tipo: "producto", productoId, cantidad }]. Los
+  // productos sin stock (o ya inexistentes) se omiten en silencio.
+  lineasIniciales,
+  titulo = "Nueva venta",
+  subtitulo = "Varios productos/servicios, un solo pago.",
+  etiquetaGuardar = "Guardar venta",
+  // Si se pasa, el botón secundario es "Más tarde" (en vez de "Cancelar").
+  onMasTarde,
   // Encadena la factura a la consulta/cita de origen — mismos parámetros
   // que ya usa ConsultaMedica.jsx al crear la factura desde su propio
   // editor embebido (ver crear_factura_venta, migración 0072).
@@ -48,11 +63,19 @@ export default function FacturaVentaModal({
   const opticaId = usuario?.opticaId
 
   const [lineas, setLineas] = useState(() => {
-    if (!lineaInicial?.productoId) return []
-    const p = inventario.find((x) => x.id === lineaInicial.productoId)
-    if (!p || (Number(p.stock) || 0) <= 0) return []
-    const cant = Math.min(Math.max(1, lineaInicial.cantidad || 1), Number(p.stock) || 1)
-    return [{ tipo: "producto", productoId: p.id, descripcion: p.nombre, cantidad: cant, precioUnitario: Number(p.precio) || 0 }]
+    const iniciales = lineasIniciales || (lineaInicial?.productoId ? [{ tipo: "producto", ...lineaInicial }] : [])
+    const out = []
+    for (const l of iniciales) {
+      if (l.tipo === "servicio" || !l.productoId) {
+        out.push({ tipo: "servicio", productoId: null, descripcion: l.descripcion || "Servicio", cantidad: Math.max(1, l.cantidad || 1), precioUnitario: Math.max(0, Number(l.precioUnitario) || 0) })
+        continue
+      }
+      const p = inventario.find((x) => x.id === l.productoId)
+      if (!p || (Number(p.stock) || 0) <= 0) continue
+      const cant = Math.min(Math.max(1, l.cantidad || 1), Number(p.stock) || 1)
+      out.push({ tipo: "producto", productoId: p.id, descripcion: p.nombre, cantidad: cant, precioUnitario: Number(p.precio) || 0 })
+    }
+    return out
   })
   const [tipoLinea, setTipoLinea] = useState("producto")
 
@@ -132,6 +155,10 @@ export default function FacturaVentaModal({
   }
 
   const quitarLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx))
+  // El precio de un servicio (p. ej. la consulta precargada con su costo
+  // base) es editable en el momento; puede ser 0. El de un producto sale de
+  // inventario.
+  const editarPrecioLinea = (idx, valor) => setLineas((prev) => prev.map((l, i) => (i === idx ? { ...l, precioTexto: valor, precioUnitario: Math.max(0, parseFloat(valor) || 0) } : l)))
 
   const abrirAltaProducto = () => {
     setNpNombre(busquedaProducto)
@@ -198,6 +225,9 @@ export default function FacturaVentaModal({
   const confirmarFactura = async (e) => {
     e.preventDefault()
     if (lineas.length === 0) { setError("Agrega al menos una línea antes de guardar."); return }
+    if (lineas.some((l) => l.precioTexto !== undefined && (l.precioTexto.trim() === "" || Number.isNaN(parseFloat(l.precioTexto)) || parseFloat(l.precioTexto) < 0))) {
+      setError("Revisa los precios: cada uno debe ser un número de 0 en adelante."); return
+    }
     const cuotasNum = metodoPago === "cuotas" ? parseInt(cuotasTotales, 10) : null
     if (metodoPago === "cuotas" && (!cuotasNum || cuotasNum < 1)) { setError("Ingresa un número de cuotas válido."); return }
 
@@ -237,7 +267,7 @@ export default function FacturaVentaModal({
           return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
         }))
       }
-      registrarLog(usuario, "pacientes", "Generó una factura", `${pacienteFijo.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
+      registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${pacienteFijo.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
       onGuardado?.({
         id: data.id, pacienteId: pacienteFijo.id, citaId, consultaId,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
@@ -262,8 +292,8 @@ export default function FacturaVentaModal({
               <Receipt size={20} />
             </div>
             <div>
-              <h2 id="factura-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>Nueva factura</h2>
-              <p className="text-xs text-slate-500">Varios productos/servicios, un solo pago.</p>
+              <h2 id="factura-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
+              <p className="text-xs text-slate-500">{subtitulo}</p>
             </div>
           </div>
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -300,7 +330,20 @@ export default function FacturaVentaModal({
                         <span className="truncate text-sm font-semibold text-slate-700">{l.descripcion}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
-                        <span className="font-mono text-xs text-slate-500">{l.cantidad} × ${l.precioUnitario.toFixed(2)} = ${(l.cantidad * l.precioUnitario).toFixed(2)}</span>
+                        {l.tipo === "servicio" ? (
+                          <span className="flex items-center gap-1 font-mono text-xs text-slate-500">
+                            {l.cantidad} × $
+                            <input
+                              type="number" min="0" step="0.01" inputMode="decimal"
+                              aria-label={`Precio de ${l.descripcion}`}
+                              value={l.precioTexto ?? String(l.precioUnitario)}
+                              onChange={(e) => editarPrecioLinea(i, e.target.value)}
+                              className="w-20 rounded-md border border-slate-300 px-1.5 py-1 text-right text-xs outline-none focus-visible:border-blue-500"
+                            />
+                          </span>
+                        ) : (
+                          <span className="font-mono text-xs text-slate-500">{l.cantidad} × ${l.precioUnitario.toFixed(2)} = ${(l.cantidad * l.precioUnitario).toFixed(2)}</span>
+                        )}
                         <button type="button" onClick={() => quitarLinea(i)} aria-label="Quitar línea" className="text-sm font-bold text-slate-400 hover:text-red-600 cursor-pointer">×</button>
                       </span>
                     </div>
@@ -446,7 +489,7 @@ export default function FacturaVentaModal({
                 )}
 
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <span className="text-sm font-semibold text-slate-600">Total factura</span>
+                  <span className="text-sm font-semibold text-slate-600">Total</span>
                   <span className="font-mono text-xl font-bold text-slate-800">${total.toFixed(2)}</span>
                 </div>
 
@@ -482,12 +525,12 @@ export default function FacturaVentaModal({
 
           {!agregandoProducto && (
             <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
-              <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                Cancelar
+              <button type="button" onClick={onMasTarde || onCerrar} disabled={guardando} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
+                {onMasTarde ? "Más tarde" : "Cancelar"}
               </button>
               <button type="submit" disabled={guardando} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer"
                 style={{ background: GRAD_VENTA, boxShadow: "0 12px 24px -12px rgba(5,150,105,0.5)" }}>
-                {guardando ? "Guardando..." : "Guardar factura"}
+                {guardando ? "Guardando..." : etiquetaGuardar}
               </button>
             </div>
           )}
