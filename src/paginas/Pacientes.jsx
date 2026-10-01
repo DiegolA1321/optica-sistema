@@ -59,7 +59,7 @@ import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
-import { costoBaseMotivo } from "../utilidades/costosConsulta"
+import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
@@ -702,10 +702,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // la venta justo después de guardar una ficha.
   const abrirFacturaConReceta = (consulta) => {
     setTabHistorial("pagos")
-    setFacturaLineaInicial(consulta?.productoId ? { productoId: consulta.productoId, cantidad: 1 } : undefined)
+    const productoReceta = consulta?.productoId || consulta?.lenteProductoId
+    setFacturaLineaInicial(productoReceta ? { productoId: productoReceta, cantidad: 1 } : undefined)
     setMostrarFactura(true)
     mostrarNotif(
-      consulta?.productoId
+      consulta?.productoId || consulta?.lenteProductoId
         ? `Factura precargada con "${consulta.productoNombre || consulta.lenteRecomendado}".`
         : `Abriendo factura para ${pacienteHistorial?.nombre}.`,
     )
@@ -2372,7 +2373,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           titulo={`Cobrar la atención de ${pacienteHistorial.nombre}`}
           subtitulo={`Consulta del ${cobrandoPendiente.consulta.fecha}${cobrandoPendiente.consulta.motivo ? ` · ${cobrandoPendiente.consulta.motivo}` : ""}`}
           etiquetaGuardar="Cobrar y finalizar"
-          lineasIniciales={[{ tipo: "servicio", descripcion: `Consulta${cobrandoPendiente.consulta.motivo ? ` — ${cobrandoPendiente.consulta.motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, cobrandoPendiente.consulta.motivo) }]}
+          lineasIniciales={lineasCobroConsulta(cobrandoPendiente.consulta, parametrizacion)}
           consultaId={cobrandoPendiente.consulta.id}
           citaId={cobrandoPendiente.cita?.id || null}
           onGuardado={alCobrarPendiente}

@@ -181,6 +181,9 @@ function mapConsulta(c) {
     usaLentes: c.usa_lentes, antecedentes: c.antecedentes, alergias: c.alergias, antecedentesFamiliares: c.antecedentes_familiares,
     retinoscopia: c.datos_clinicos?.retinoscopia, od: c.datos_clinicos?.od, oi: c.datos_clinicos?.oi,
     medidas: c.datos_clinicos?.medidas, examen: c.datos_clinicos?.examen,
+    // Producto de inventario vinculado al lente recomendado (jsonb, sin columna
+    // propia): permite precargarlo al cobrar "más tarde" desde Citas o el perfil.
+    lenteProductoId: c.datos_clinicos?.lente_producto_id || null,
     diagnostico: c.diagnostico, diagnosticoCategorias: c.diagnostico_categorias || [], lenteRecomendado: c.lente_recomendado, indicaciones: c.indicaciones,
     proximoControlDias: c.proximo_control_dias, evolucionCalculada: c.evolucion_calculada, estadoCorreccion: c.estado_correccion,
     productoId: c.producto_id, productoNombre: c.producto_nombre, montoVenta: c.monto_venta != null ? Number(c.monto_venta) : null,

@@ -13,3 +13,15 @@ export function renombrarCostoMotivo(costos = {}, viejo, nuevo) {
   const { [viejo]: valor, ...resto } = costos
   return { ...resto, [nuevo]: valor }
 }
+
+// Líneas con las que arranca el panel de cobro de una consulta: la consulta
+// (costo base del motivo, editable, puede ser 0) y el lente recomendado si
+// quedó vinculado a un producto de inventario (consultas.datos_clinicos
+// .lente_producto_id). Compartido por la ficha, Citas y el perfil, para que
+// cobrar "más tarde" no pierda el lente.
+export function lineasCobroConsulta({ motivo, lenteProductoId }, parametrizacion) {
+  return [
+    { tipo: "servicio", descripcion: `Consulta${motivo ? ` — ${motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, motivo) },
+    ...(lenteProductoId ? [{ tipo: "producto", productoId: lenteProductoId, cantidad: 1 }] : []),
+  ]
+}

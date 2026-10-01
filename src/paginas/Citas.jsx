@@ -44,7 +44,7 @@ import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validacione
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
-import { costoBaseMotivo } from "../utilidades/costosConsulta"
+import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import FacturaVentaModal from "./FacturaVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -1702,7 +1702,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             titulo={`Cobrar la atención de ${paciente.nombre}`}
             subtitulo={`Consulta${consulta.motivo ? ` · ${consulta.motivo}` : ""}`}
             etiquetaGuardar="Cobrar y finalizar"
-            lineasIniciales={[{ tipo: "servicio", descripcion: `Consulta${consulta.motivo ? ` — ${consulta.motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, consulta.motivo) }]}
+            lineasIniciales={lineasCobroConsulta(consulta, parametrizacion)}
             consultaId={consulta.id}
             citaId={cobrandoCita.id}
             onGuardado={alCobrarCita}

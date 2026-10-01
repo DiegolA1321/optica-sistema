@@ -38,7 +38,7 @@ import {
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import { hoyISO } from "../utilidades/disponibilidad"
-import { costoBaseMotivo } from "../utilidades/costosConsulta"
+import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -713,6 +713,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // esas pantallas.
       diagnostico: [diagnosticoCategorias.join(", "), diagnostico.trim()].filter(Boolean).join(" — "),
       lenteRecomendado,
+      lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null,
       indicaciones,
       proximoControlDias,
       evolucionCalculada: tendenciaGraduacion,
@@ -761,7 +762,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, lente_producto_id: nuevaFicha.lenteProductoId },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -2332,10 +2333,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           titulo={`Cobrar la atención de ${pacienteInfo.nombre}`}
           subtitulo={`Consulta${motivo ? ` · ${motivo}` : ""}`}
           etiquetaGuardar="Cobrar y finalizar"
-          lineasIniciales={[
-            { tipo: "servicio", descripcion: `Consulta${motivo ? ` — ${motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, motivo) },
-            ...(recomendarLente && lenteRecomendadoProductoId ? [{ tipo: "producto", productoId: lenteRecomendadoProductoId, cantidad: 1 }] : []),
-          ]}
+          lineasIniciales={lineasCobroConsulta({ motivo, lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null }, parametrizacion)}
           consultaId={consultaGuardadaId}
           citaId={citaEnAtencionId}
           onGuardado={alCobrar}

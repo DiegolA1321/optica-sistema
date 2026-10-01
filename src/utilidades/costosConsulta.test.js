@@ -22,3 +22,21 @@ describe("renombrarCostoMotivo", () => {
     expect(renombrarCostoMotivo(c, "A", "C")).toBe(c)
   })
 })
+
+import { lineasCobroConsulta } from "./costosConsulta"
+
+describe("lineasCobroConsulta", () => {
+  const param = { costosMotivo: { "Consulta General": 15 } }
+  it("consulta con el costo base del motivo y el lente vinculado", () => {
+    const l = lineasCobroConsulta({ motivo: "Consulta General", lenteProductoId: "p1" }, param)
+    expect(l).toEqual([
+      { tipo: "servicio", descripcion: "Consulta — Consulta General", cantidad: 1, precioUnitario: 15 },
+      { tipo: "producto", productoId: "p1", cantidad: 1 },
+    ])
+  })
+  it("sin lente vinculado, solo la consulta (a $0 si no hay costo configurado)", () => {
+    const l = lineasCobroConsulta({ motivo: "Otro", lenteProductoId: null }, param)
+    expect(l).toHaveLength(1)
+    expect(l[0].precioUnitario).toBe(0)
+  })
+})
