@@ -189,6 +189,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // palabras al llegar ("me duelen los ojos..."). Uno es relacional a la
   // cita, el otro es libre y específico de esta visita.
   const [detalleConsulta, setDetalleConsulta] = useState("")
+  // Con cita, el motivo llega relleno y se muestra como dato (con "Cambiar");
+  // sin cita aparece el selector obligatorio. El detalle es un enlace
+  // "+ Agregar detalle" salvo que el motivo sea "Otros" (ahí es obligatorio).
+  const [editandoMotivo, setEditandoMotivo] = useState(false)
+  const [mostrarDetalle, setMostrarDetalle] = useState(false)
+  const detalleRef = useRef(null)
   const [usaLentes, setUsaLentes] = useState("")
   const [antecedentes, setAntecedentes] = useState("")
   const [alergias, setAlergias] = useState("")
@@ -592,12 +598,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // sola apenas detecta que ese paciente ya tiene antecedentes/alergias/etc.
   // registrados de una visita anterior — pedido de Diego: no repetir el
   // formulario completo en cada visita de un paciente que ya lo llenó.
-  const [seccionesAbiertas, setSeccionesAbiertas] = useState({ antecedentesPaciente: true })
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState({ antecedentesPaciente: true, refraccionSubjetiva: true })
   const alternarSeccion = (id) => setSeccionesAbiertas((prev) => ({ ...prev, [id]: !prev[id] }))
   // Si hay algo que resumir en el cuadro colapsado (antecedentes ya
   // registrados de antes) — independiente de si el usuario los editó justo
   // ahora, que ya no cuenta como "precargado" campo por campo.
   const [tieneHistorialAntecedentes, setTieneHistorialAntecedentes] = useState(false)
+
+  // Al elegir "Otros" el detalle pasa a ser obligatorio: el foco va directo ahí.
+  useEffect(() => {
+    if (motivo === "Otros") detalleRef.current?.focus()
+  }, [motivo])
 
   // Scroll automático al inicio del formulario al cambiar de paso
   const inicioFormRef = useRef(null)
@@ -702,7 +713,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     // Anamnesis para registrar sus antecedentes por primera vez. Se fija
     // explícitamente en los dos casos (no solo cuando hay historial) por si
     // se reselecciona un paciente distinto a mitad de sesión.
-    setSubTab(hayHistorial ? "refraccion" : "anamnesis")
+    // Propuesta de flujo de atención (Ronda 3): primero el contexto del
+    // paciente y el motivo, después la captura — la ficha abre siempre en el
+    // paso 1, con o sin historial (antes abría en Refracción si ya tenía).
+    setSubTab("anamnesis")
     // La detección de cambios solo se pausaba al montar el componente o al
     // reiniciar el formulario — buscar y elegir un paciente casi siempre
     // toma más de los 400ms de esa pausa, así que la precarga de
@@ -832,7 +846,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setBannerError("")
     setFichaGuardada(false)
     setSubTab("anamnesis")
-    setSeccionesAbiertas({ antecedentesPaciente: true })
+    setSeccionesAbiertas({ antecedentesPaciente: true, refraccionSubjetiva: true })
+    setEditandoMotivo(false)
+    setMostrarDetalle(false)
     setTieneHistorialAntecedentes(false)
     setMostrarHistorial(false)
     setHayCambiosSinGuardar(false)
@@ -1068,14 +1084,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (!pacienteId) errs.paciente = busquedaPaciente.trim()
         ? "Ese nombre no coincide con ningún paciente registrado. Selecciónalo de la lista."
         : "Selecciona un paciente registrado de la lista."
-    } else if (paso === "refraccion") {
-      // Motivo se mudó a este paso (ING7: el examen se hace en función de
-      // él, va arriba de la refracción) — antes vivía en Anamnesis y nunca
-      // se validaba; ahora es obligatorio, sin bloquear los antecedentes
-      // fijos del paciente que sí quedaron fuera de la validación por paso.
-      if (!motivo.trim()) errs.motivo = "Selecciona el motivo de la consulta."
+      // El motivo se decide antes de capturar nada (viene de la cita, o se
+      // elige acá si la ficha se abrió sin cita) — es obligatorio.
+      else if (!motivo.trim()) errs.motivo = "Selecciona el motivo de la consulta."
       // "Otros" no dice nada por sí solo — si se elige, el detalle deja de ser opcional.
-      else if (motivo === "Otros" && !detalleConsulta.trim()) errs.detalleConsulta = "Describe el motivo de la consulta."
+      else if (motivo === "Otros" && !detalleConsulta.trim()) errs.detalleConsulta = "Describe el motivo."
+    } else if (paso === "refraccion") {
       // Refracción: todo opcional (puede haber citas que no midan algunos
       // valores). Solo se valida lo que sí se escribió: que sea un número, el
       // rango del eje, y que un cilindro real traiga su eje.
@@ -1104,8 +1118,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   }
 
   const mensajeBanner = (paso) => {
-    if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
-    if (paso === "refraccion") return "Selecciona el motivo de la consulta (si es \"Otros\", descríbelo en el detalle) y revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
+    if (paso === "anamnesis") return "Selecciona un paciente registrado y el motivo de la consulta (si es \"Otros\", descríbelo) antes de continuar."
+    if (paso === "refraccion") return "Revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) y el costo de la consulta (puede ser 0) antes de guardar la receta."
     return "Hay campos por completar."
   }
@@ -1155,6 +1169,25 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // el ing pidió justo esto: no todas las consultas requieren retinoscopía,
   // examen físico o biomicroscopía, pero al colapsarlas hay que poder ver de
   // un vistazo cuáles sí se llenaron sin tener que volver a abrirlas.
+  // "Copiar de la visita anterior": solo si la refracción de hoy está vacía y
+  // la visita anterior sí tiene valores — nunca pisa lo que se tecleó.
+  const copiarDesdeAnterior = (() => {
+    const ant = ultimaConsultaPaciente
+    if (!ant) return null
+    const hayPrevios = ["od", "oi"].some((o) => ant[o]?.esfera || ant[o]?.cilindro || ant[o]?.eje)
+    const hoyVacio = !odEsfera && !odCilindro && !odEje && !oiEsfera && !oiCilindro && !oiEje
+    if (!hayPrevios || !hoyVacio) return null
+    return {
+      fecha: ant.fecha,
+      accion: () => {
+        setOdEsfera(ant.od?.esfera || ""); setOdCilindro(ant.od?.cilindro || ""); setOdEje(ant.od?.eje || "")
+        setOiEsfera(ant.oi?.esfera || ""); setOiCilindro(ant.oi?.cilindro || ""); setOiEje(ant.oi?.eje || "")
+      },
+    }
+  })()
+  const registradoAntecedentes = Boolean(antecedentes.trim() || alergias.trim() || antecedentesFamiliares.trim() || usaLentes)
+  const registradoRefraccion = Boolean(odEsfera.trim() || odCilindro.trim() || odEje.trim() || odAgudezaSc || odAgudezaCc || oiEsfera.trim() || oiCilindro.trim() || oiEje.trim() || oiAgudezaSc || oiAgudezaCc)
+  const registradoCercana = Boolean(adicion.trim() || dp.trim() || alt.trim() || avCerca.trim())
   const registradoRetinoscopia = Boolean(retinoscopiaOd.trim() || retinoscopiaOi.trim())
   const registradoExamenFisico = Boolean(testMotor.trim() || oftalmoscopia.trim() || pioOd.trim() || pioOi.trim())
   const registradoBiomicroscopia = Boolean(biomicroParpados.trim() || biomicroCornea.trim() || biomicroCamara.trim())
@@ -1233,6 +1266,18 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     return "RX-" + (fechaConsulta || "").replace(/-/g, "") + "-" + h.toString(36).toUpperCase().slice(0, 4)
   }, [pacienteSeleccionado, fechaConsulta])
 
+  // Barra de la visita: cita de origen, alergias (rojo si hay) y última graduación.
+  const citaDeLaVisita = useMemo(() => citas.find((c) => c.id === citaEnAtencionId) || null, [citas, citaEnAtencionId])
+  const alergiaSignificativa = Boolean(alergias.trim()) && !/^(ning|no\b|sin\b|n\/a|na$|-+$|—)/i.test(alergias.trim())
+  const ultimaGraduacion = useMemo(() => {
+    if (!ultimaConsultaPaciente) return null
+    const od = textoOjo(ultimaConsultaPaciente.od)
+    const oi = textoOjo(ultimaConsultaPaciente.oi)
+    if (od === "No registrada" && oi === "No registrada") return null
+    return { fecha: ultimaConsultaPaciente.fecha, od, oi }
+  }, [ultimaConsultaPaciente])
+  const fechaCorta = (iso) => (iso ? iso.split("-").reverse().join("/") : "")
+
   const fechaLarga = useMemo(() => {
     try {
       const d = new Date(fechaConsulta + "T00:00:00")
@@ -1308,15 +1353,58 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
             le está tomando las medidas. Sticky respecto del contenedor con
             scroll real (Dashboard.jsx, no la ventana), no se necesita
             ningún offset especial. */}
+        {/* ─── BARRA DE LA VISITA ─── Opaca (sin blur) y con el scroll
+            del paso calculado debajo de ella (scrollMarginTop de
+            inicioFormRef) para que ya no tape el título de la sección.
+            Reúne lo que antes se repartía entre esta barra, el bloque
+            "Datos del paciente e historial" y el campo de motivo:
+            paciente, cita de origen, fecha de la consulta (editable),
+            alergias (rojo) y última graduación. */}
         {pacienteId && pacienteSeleccionado && (
-          <div className="no-print sticky top-0 z-10 mb-4 flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
-              <User size={15} />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold" style={{ color: INK }}>{pacienteSeleccionado}</p>
-              <p className="text-[11px] text-slate-500">Ficha clínica en curso</p>
+          <div className="no-print sticky top-0 z-10 mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
+                  <User size={15} />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold" style={{ color: INK }}>
+                    {pacienteSeleccionado}{edadPaciente != null ? ` · ${edadPaciente} años` : ""}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {citaDeLaVisita
+                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? `Hoy ${fechaCorta(citaDeLaVisita.fecha).slice(0, 5)}` : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
+                      : "Sin cita · consulta directa"}
+                    {motivo && !citaDeLaVisita ? ` · ${motivo}` : ""}
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                <Calendar size={13} aria-hidden="true" /> Fecha de la consulta
+                <input
+                  type="date"
+                  value={fechaConsulta}
+                  onChange={(e) => setFechaConsulta(e.target.value)}
+                  className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
+                />
+              </label>
             </div>
+            {(alergiaSignificativa || ultimaGraduacion) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                {alergiaSignificativa && (
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-bold text-red-700">
+                    <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
+                    <span className="truncate">Alergias: {alergias.trim()}</span>
+                  </span>
+                )}
+                {ultimaGraduacion && (
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200/60 bg-slate-50 px-2.5 py-1 font-mono text-[11px] text-slate-600">
+                    <Glasses size={12} className="shrink-0 text-slate-500" aria-hidden="true" />
+                    <span className="truncate">Últ. graduación ({fechaCorta(ultimaGraduacion.fecha)}): OD {ultimaGraduacion.od} · OI {ultimaGraduacion.oi}</span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1347,7 +1435,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           </div>
 
           <form onSubmit={intentarGuardar} className="flex flex-1 flex-col justify-between gap-6 p-6">
-            <div ref={inicioFormRef} />
+            <div ref={inicioFormRef} style={{ scrollMarginTop: 140 }} />
             {bannerError && (
               <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
@@ -1370,11 +1458,50 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 optómetra quiere revisarlo/editarlo, se despliega). Mismo
                 patrón alternarSeccion() que usa Refracción para
                 retinoscopía/examen físico/biomicroscopía. ─── */}
-            {pacienteId && (tieneHistorialAntecedentes ? subTab === "refraccion" : subTab === "anamnesis") && (
+            {/* Contexto en lectura, arriba: última visita, tendencia y acceso al
+                historial (lo que pidió el ingeniero el 29 sep: "todo el
+                contexto del paciente primero, y luego me dedico a registrar"). */}
+            {pacienteId && subTab === "anamnesis" && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3">
+                <div className="min-w-0 space-y-0.5 text-xs text-slate-600">
+                  {ultimaConsultaPaciente ? (
+                    <>
+                      <p>
+                        <span className="font-bold" style={{ color: INK }}>Última visita</span> {fechaCorta(ultimaConsultaPaciente.fecha)} · {ultimaConsultaPaciente.diagnostico || "Sin diagnóstico registrado"}
+                      </p>
+                      {tendenciaHistorica && (() => {
+                        const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
+                        const IconoT = t.icon
+                        return (
+                          <p className="flex items-center gap-1">
+                            <IconoT size={12} style={{ color: t.fg }} aria-hidden="true" />
+                            Tendencia: <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto.toLowerCase()}</span> ({textoVariacion(tendenciaHistorica.variacion)})
+                          </p>
+                        )
+                      })()}
+                    </>
+                  ) : (
+                    <p><span className="font-bold" style={{ color: INK }}>Primera consulta</span> de este paciente — sin historial previo.</p>
+                  )}
+                </div>
+                {historialPaciente.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarHistorial(true)}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700 cursor-pointer"
+                  >
+                    <History size={13} /> Ver historial ({historialPaciente.length})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {pacienteId && subTab === "anamnesis" && (
               <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                 <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} aria-expanded={!!seccionesAbiertas.antecedentesPaciente} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
                   <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
                     <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
+                    <EtiquetaRegistro registrado={registradoAntecedentes} />
                   </span>
                   <span className="flex items-center gap-2">
                     {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
@@ -1491,37 +1618,15 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
               </div>
             )}
 
-            {/* PASO 1: ANAMNESIS */}
+            {/* PASO 1: CONTEXTO Y ANAMNESIS */}
             {subTab === "anamnesis" && (
               <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                  <h2 className="text-sm font-bold" style={{ color: INK }}>Datos del paciente e historial clínico</h2>
-                  <div className="flex items-center gap-2">
-                    {pacienteId && (
-                      <button
-                        type="button"
-                        onClick={() => setMostrarHistorial(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 cursor-pointer"
-                      >
-                        <History size={13} /> Ver historial ({historialPaciente.length})
-                      </button>
-                    )}
-                    <Calendar size={14} className="text-slate-500" />
-                    <input
-                      type="date"
-                      value={fechaConsulta}
-                      onChange={(e) => setFechaConsulta(e.target.value)}
-                      className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
-                    />
-                  </div>
-                </div>
-
                 {/* ─── Buscador de paciente: solo si la ficha se abrió sin uno ya
                     resuelto. Cuando llega desde "Atender" o desde el perfil del
                     paciente (pacienteInicial → seleccionarPacienteCombo ya fijó
                     pacienteId), no tiene sentido dejarlo buscar/cambiar de
-                    paciente acá — el nombre sigue visible en la barra sticky de
-                    identidad de arriba. Sigue apareciendo para el caso real en
+                    paciente acá — el nombre sigue visible en la barra de la
+                    visita de arriba. Sigue apareciendo para el caso real en
                     que sí hace falta: "Nueva consulta" al final de la ficha
                     (resetForm limpia pacienteId a propósito para el siguiente
                     paciente) y cualquier apertura sin paciente precargado.
@@ -1580,13 +1685,72 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 </div>
                 )}
 
-                {/* ─── Última cita: la visita más reciente de historialPaciente (misma
-                    fuente y orden que el modal "Ver historial"), a la vista sin abrir
-                    el historial completo. Solo se muestra si ya hay al menos una consulta. ─── */}
-                {pacienteId && historialPaciente.length > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Última cita</span>
-                    <TarjetaVisita consulta={historialPaciente[0]} />
+                {/* ─── Motivo de la consulta: con cita llega relleno y se
+                    muestra como dato (con "Cambiar"); sin cita (entrada desde
+                    el perfil) es el selector obligatorio de siempre. Al elegir
+                    "Otros", el detalle se abre debajo con el foco puesto. ─── */}
+                {pacienteId && (
+                  <div className="space-y-3">
+                    {citaEnAtencionId && motivo && motivo !== "Otros" && !editandoMotivo ? (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Motivo de la consulta</p>
+                          <p className="text-sm font-semibold" style={{ color: INK }}>{motivo} <span className="text-xs font-normal text-slate-400">(de la cita)</span></p>
+                        </div>
+                        <button type="button" onClick={() => setEditandoMotivo(true)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cambiar</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Motivo de la consulta <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="motivo"
+                          value={motivo}
+                          onChange={(e) => {
+                            setMotivo(e.target.value)
+                            limpiarError("motivo")
+                            if (e.target.value !== "Otros") limpiarError("detalleConsulta")
+                          }}
+                          className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+                        >
+                          <option value="" disabled>Selecciona un motivo...</option>
+                          {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
+                          <option value="Otros">Otros</option>
+                        </select>
+                        {errores.motivo && (
+                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                            <AlertCircle size={13} /> {errores.motivo}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {motivo === "Otros" || detalleConsulta || mostrarDetalle ? (
+                      <div>
+                        <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          {motivo === "Otros" ? <>Describe el motivo <span className="text-red-500">*</span></> : <>Detalle de la consulta <span className="font-normal text-slate-400">(opcional)</span></>}
+                        </label>
+                        <input
+                          id="detalleConsulta"
+                          ref={detalleRef}
+                          type="text"
+                          placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
+                          value={detalleConsulta}
+                          onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
+                          className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+                        />
+                        {errores.detalleConsulta && (
+                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                            <AlertCircle size={13} /> {errores.detalleConsulta}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => { setMostrarDetalle(true); setTimeout(() => detalleRef.current?.focus(), 30) }} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                        + Agregar detalle
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1595,129 +1759,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
             {/* PASO 2: REFRACCIÓN */}
             {subTab === "refraccion" && (
               <div className="space-y-5">
-                {/* ─── Motivo (categoría fija, ya se precarga sola desde la
-                    cita al entrar por "Atender") + Detalle de la consulta
-                    (texto libre, lo que el paciente cuenta con sus propias
-                    palabras) — arriba de la refracción a propósito: el
-                    examen se hace en función de por qué vino hoy (ING7).
-                    Dos cosas relacionadas pero distintas: pattern confirmado
-                    con el ing en ING7. Motivo ahora obligatorio (validado en
-                    este paso, ver validarPaso) — antes no bloqueaba nada. ─── */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Motivo de la consulta <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="motivo"
-                      value={motivo}
-                      onChange={(e) => {
-                        setMotivo(e.target.value)
-                        limpiarError("motivo")
-                        if (e.target.value !== "Otros") limpiarError("detalleConsulta")
-                      }}
-                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                    >
-                      <option value="" disabled>Selecciona un motivo...</option>
-                      {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
-                      <option value="Otros">Otros</option>
-                    </select>
-                    {errores.motivo && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                        <AlertCircle size={13} /> {errores.motivo}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Detalle de la consulta {motivo === "Otros" ? <span className="text-red-500">*</span> : <span className="font-normal text-slate-400">(opcional)</span>}
-                    </label>
-                    <input
-                      id="detalleConsulta"
-                      type="text"
-                      placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
-                      value={detalleConsulta}
-                      onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
-                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                    />
-                    {errores.detalleConsulta && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                        <AlertCircle size={13} /> {errores.detalleConsulta}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* ─── Contexto de la visita anterior: se movió acá arriba,
-                    antes de retinoscopía/refracción subjetiva, para que el
-                    optómetra lo tenga a la vista desde el arranque en vez de
-                    revisarlo a medio examen. La tendencia histórica (entre
-                    las 2 visitas anteriores) se calcula sin depender de lo
-                    que se teclee hoy — por eso puede mostrarse acá; el
-                    cálculo "en vivo" contra la refracción de hoy se movió a
-                    "Comparación con la refracción de hoy", más abajo.
-                    Colapsable como retinoscopia/examen físico, mismo
-                    patrón. Decisión de Diego, 30 sept. ─── */}
-                {ultimaConsultaPaciente && (
-                  <div className="space-y-3 rounded-xl border border-blue-200/60 bg-blue-50/50 p-4">
-                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} aria-expanded={!!seccionesAbiertas.comparacionAnterior} className="flex w-full items-center gap-1.5 border-b border-blue-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                      <History size={16} className="text-blue-600" /> Comparar con visita anterior
-                      <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">{ultimaConsultaPaciente.fecha}</span>
-                      <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.comparacionAnterior ? "" : "-rotate-90")} />
-                    </button>
-                    {seccionesAbiertas.comparacionAnterior && (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {[
-                          { sigla: "OD", datos: ultimaConsultaPaciente.od, actual: { esfera: odEsfera, cilindro: odCilindro, eje: odEje }, copiar: () => { setOdEsfera(ultimaConsultaPaciente.od?.esfera || ""); setOdCilindro(ultimaConsultaPaciente.od?.cilindro || ""); setOdEje(ultimaConsultaPaciente.od?.eje || "") } },
-                          { sigla: "OI", datos: ultimaConsultaPaciente.oi, actual: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje }, copiar: () => { setOiEsfera(ultimaConsultaPaciente.oi?.esfera || ""); setOiCilindro(ultimaConsultaPaciente.oi?.cilindro || ""); setOiEje(ultimaConsultaPaciente.oi?.eje || "") } },
-                        ].map(({ sigla, datos, actual, copiar }) => {
-                          // D2: solo se puede copiar de un tirón si los 3 campos
-                          // actuales siguen en su valor por defecto ("0.00"/"0",
-                          // no strings vacíos — así arrancan estos campos) —
-                          // evita pisar en silencio algo que el optómetra ya
-                          // tecleó a mano.
-                          const puedeCopiar = !actual.esfera && !actual.cilindro && !actual.eje
-                          return (
-                          <div key={sigla} className="rounded-lg border border-blue-100 bg-white p-3 font-mono text-xs">
-                            <div className="mb-1.5 flex items-center justify-between">
-                              <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-blue-700">{sigla}</p>
-                              {puedeCopiar && (
-                                <button type="button" onClick={copiar} className="font-sans text-[10px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                                  Usar estos valores
-                                </button>
-                              )}
-                            </div>
-                            <p><span className="text-slate-500">Esfera:</span> <span className="font-semibold text-slate-800">{datos?.esfera || "—"}</span></p>
-                            <p><span className="text-slate-500">Cilindro:</span> <span className="font-semibold text-slate-800">{datos?.cilindro || "—"}</span></p>
-                            <p><span className="text-slate-500">Eje:</span> <span className="font-semibold text-slate-800">{datos?.eje || "—"}°</span></p>
-                            <p><span className="text-slate-500">AV c/c:</span> <span className="font-semibold text-slate-800">{datos?.avCc || "—"}</span></p>
-                          </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {ultimaConsultaPaciente.diagnostico && (
-                      <p className="text-xs text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico anterior:</span> {ultimaConsultaPaciente.diagnostico}</p>
-                    )}
-                    {tendenciaHistorica && (() => {
-                      const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
-                      const IconoT = t.icon
-                      const signo = tendenciaHistorica.variacion > 0 ? "+" : ""
-                      return (
-                        <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white/70 px-3 py-1.5 text-xs text-slate-500">
-                          <IconoT size={13} style={{ color: t.fg }} />
-                          <span>
-                            Tendencia de graduación (entre las 2 últimas consultas, {tendenciaHistorica.fechaPrevia} → {tendenciaHistorica.fechaReciente}):{" "}
-                            <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto}</span> ({signo}{tendenciaHistorica.variacion.toFixed(2)} D)
-                          </span>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
-
-                <h2 className="text-sm font-bold" style={{ color: INK }}>Valores dióptricos y parámetros de taller</h2>
-
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
@@ -1752,26 +1793,50 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   )}
                 </div>
 
-                <p className="text-sm font-semibold" style={{ color: INK }}>Refracción subjetiva final</p>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
-                  <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("refraccionSubjetiva")} aria-expanded={!!seccionesAbiertas.refraccionSubjetiva} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                    <Eye size={16} className="text-blue-600" /> Refracción subjetiva final
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Todo opcional · vacío significa "no medido"
+                      <EtiquetaRegistro registrado={registradoRefraccion} />
+                    </span>
+                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.refraccionSubjetiva ? "" : "-rotate-90")} />
+                  </button>
+                  {seccionesAbiertas.refraccionSubjetiva && (
+                  <>
+                  {copiarDesdeAnterior && (
+                    <button type="button" onClick={copiarDesdeAnterior.accion} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                      <History size={13} aria-hidden="true" /> Copiar de la visita anterior ({fechaCorta(copiarDesdeAnterior.fecha)})
+                    </button>
+                  )}
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                    <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                  </div>
+                  {estadoCorreccionActual !== "Sin evaluar" && (
+                    <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
+                  )}
+                  </>
+                  )}
                 </div>
 
-                {estadoCorreccionActual !== "Sin evaluar" && (
-                  <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
-                )}
-
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <p className="flex items-center gap-1.5 border-b border-slate-200/60 pb-2 text-sm font-semibold" style={{ color: INK }}>
-                    <Ruler size={16} className="text-blue-600" /> Parámetros de visión cercana y centrado
-                  </p>
+                  <button type="button" onClick={() => alternarSeccion("visionCercana")} aria-expanded={!!seccionesAbiertas.visionCercana} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                    <Ruler size={16} className="text-blue-600" /> Visión cercana y centrado
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Opcional
+                      <EtiquetaRegistro registrado={registradoCercana} />
+                    </span>
+                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.visionCercana ? "" : "-rotate-90")} />
+                  </button>
+                  {seccionesAbiertas.visionCercana && (
                   <div className={"grid grid-cols-1 gap-3 sm:grid-cols-" + (manejaProgresion ? "4" : "3")}>
                     {manejaProgresion && <MedidaCampo id="add" label="Adición (ADD)" value={adicion} onChange={setAdicion} placeholder="+0.00" />}
                     <MedidaCampo id="dp" label="Distancia pupilar (DP)" value={dp} onChange={setDp} placeholder="64 mm" />
                     <MedidaCampo id="alt" label="Altura pupilar (ALT)" value={alt} onChange={setAlt} placeholder="18 mm" />
                     <MedidaCampo id="avCerca" label="AV Cerca (Jaeger)" value={avCerca} onChange={setAvCerca} placeholder="J1" />
                   </div>
+                  )}
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">

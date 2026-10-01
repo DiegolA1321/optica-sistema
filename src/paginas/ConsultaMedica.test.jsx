@@ -35,9 +35,9 @@ function avanzarHastaRefraccion() {
   fireEvent.click(screen.getByText(PACIENTE.nombre))
   // "Primera consulta" (sin historial) interrumpe con un aviso que hay que cerrar.
   fireEvent.click(screen.getByRole("button", { name: /Entendido, completar antecedentes/i }))
-  fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
-
+  // El motivo se decide en el paso 1 (sin cita, es el selector obligatorio).
   fireEvent.change(screen.getByLabelText(/Motivo de la consulta/i), { target: { value: "Consulta General" } })
+  fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
 }
 
 describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta", () => {
@@ -109,5 +109,45 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
     fireEvent.click(screen.getByRole("button", { name: /Guardar ficha clínica/i }))
 
     expect(screen.queryByText(/Describe el diagnóstico en el detalle/i)).not.toBeInTheDocument()
+  })
+
+  it("la refracción arranca vacía: ningún valor por defecto, solo placeholders", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
+
+    for (const id of ["OD-esf", "OD-cil", "OD-eje", "OI-esf", "OI-cil", "OI-eje", "dp", "alt", "avCerca", "add"]) {
+      const el = document.getElementById(id)
+      // Visión cercana arranca colapsada; las medidas de ojo sí están visibles.
+      if (el) expect(el.value).toBe("")
+    }
+    expect(screen.getByLabelText("Esfera", { selector: "#OD-esf" })).toHaveAttribute("placeholder", "0.00")
+    expect(screen.getAllByText("No registrado").length).toBeGreaterThan(0)
+  })
+
+  it("se puede pasar a Diagnóstico sin medir nada, pero un cilindro sin eje se señala", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
+
+    fireEvent.change(document.getElementById("OD-cil"), { target: { value: "-1.00" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByText(/Indica el eje del cilindro/i)).toBeInTheDocument()
+
+    fireEvent.change(document.getElementById("OD-eje"), { target: { value: "90" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByRole("button", { name: /Guardar ficha clínica/i })).toBeInTheDocument()
+  })
+
+  it("elegir motivo \"Otros\" abre el detalle con foco y exige describirlo", () => {
+    renderFicha()
+    fireEvent.change(screen.getByLabelText(/Paciente */i), { target: { value: "Paciente De" } })
+    fireEvent.click(screen.getByText(PACIENTE.nombre))
+    fireEvent.click(screen.getByRole("button", { name: /Entendido, completar antecedentes/i }))
+
+    fireEvent.change(screen.getByLabelText(/Motivo de la consulta/i), { target: { value: "Otros" } })
+    const detalle = screen.getByLabelText(/Describe el motivo/i)
+    expect(detalle).toHaveFocus()
+
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByText("Describe el motivo.")).toBeInTheDocument()
   })
 })
