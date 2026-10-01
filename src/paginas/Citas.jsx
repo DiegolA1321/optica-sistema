@@ -40,6 +40,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
+import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
 import { registrarLog } from "../utilidades/logs"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -67,6 +68,10 @@ const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200/60", p
 const ORDEN_ESTADOS_MODAL = ["En Atención", "Pendiente", "Atendida", "No Asistió", "Cancelada"]
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
+
+// Cita sin paciente vinculado todavía y aún sin resolver — la web agenda sin
+// ficha, y recepción la registra al atenderla.
+const porRegistrar = (c) => !c.pacienteId && !["Atendida", "No Asistió", "Cancelada"].includes(c.estado)
 
 const motivoInfo = (motivo = "", catalogo = []) => {
   const idx = catalogo.indexOf(motivo)
@@ -109,14 +114,11 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
 function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, onVerPerfil, onAtender, onAbrirMenuAcciones }) {
   const info = motivoInfo(cita.motivo, motivosConsulta)
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
-  // Sólo se puede marcar el desenlace de una cita que ya debió ocurrir —
-  // no tiene sentido registrar "atendida"/"no asistió" para el futuro.
-  // Se puede seguir cambiando el estado (y editando) incluso ya
-  // resuelta — para corregir un estado marcado por error, no solo
-  // para decidirlo la primera vez (pedido explícito de Diego: antes
-  // una cita "Atendida" se quedaba sin edición ni cambio de estado
-  // posible, ni forma de deshacerlo).
-  const puedeMarcarse = !esFutura(cita.fecha)
+  // "Atender" está disponible en toda cita que no esté ya Atendida o
+  // Cancelada: pendiente, en atención, "No asistió" (la paciente llegó 12
+  // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
+  // agendada no cambia — la fecha real queda en la consulta (cita_id).
+  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
@@ -236,7 +238,7 @@ function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstado
           {/* Acción primaria de la tarjeta, con etiqueta visible y
               color sólido — antes era un ícono suelto arriba, del
               mismo tamaño que las acciones secundarias (ver más arriba). */}
-          {!resuelta && puedeMarcarse && (
+          {puedeAtender && (
             <button
               type="button"
               onClick={() => onAtender(cita)}
@@ -245,7 +247,7 @@ function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstado
               style={{ background: GRAD, boxShadow: "0 6px 14px -6px rgba(37,99,235,0.5)" }}
             >
               {marcandoEstadoId === cita.id ? <Loader2 size={14} className="animate-spin" /> : <Stethoscope size={14} />}
-              Atender ahora
+              Atender
             </button>
           )}
         </div>
@@ -303,19 +305,16 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // — su agenda del día — en vez de "todas". El admin (sea o no también
   // optómetra) sigue viendo "todas" por defecto, como hoy.
   const [filtro, setFiltro] = useState(() => (usuario?.rol !== "admin" && usuario?.esOptometra ? "hoy" : "todas")) // todas | hoy | proximas | atendidas
-  // Eje independiente del filtro de estado — separa citas de alguien que
-  // nunca ha sido paciente (sin pacienteId todavía) de las de seguimiento.
-  const [filtroTipo, setFiltroTipo] = useState("todos") // todos | primera | seguimiento
-  // Tercer eje, también independiente — quién creó el registro (ING6: pedía
-  // un filtro por "creación" manual vs. sistema en vez del botón redundante
-  // de "Crear paciente"). El dato (cita.origen) ya existía por fila; esto
-  // solo agrega el control para filtrar por él.
-  const [filtroOrigen, setFiltroOrigen] = useState("todos") // todos | paciente | staff
-  // Cuarto eje, independiente de los KPIs de arriba (todas/hoy/próximas) —
-  // pedido de la reunión del 29 sept.: un rango de fechas propio para casos
-  // como "todas las de la siguiente semana" que no calzan en esos presets.
+  // Rango de fechas propio (reunión 29 sept.: "todas las de la siguiente
+  // semana"), independiente de los KPIs. Sin rango, la lista abre en hoy y lo
+  // próximo, y lo pasado queda plegado en "Anteriores". Con rango, se muestra
+  // exactamente ese tramo — hacia atrás o hacia adelante.
   const [rangoDesde, setRangoDesde] = useState("")
   const [rangoHasta, setRangoHasta] = useState("")
+  // Aviso "N por registrar": citas sin paciente vinculado todavía (la web
+  // agenda sin ficha). Reemplaza al filtro Primera vez/Seguimiento.
+  const [soloPorRegistrar, setSoloPorRegistrar] = useState(false)
+  const [anterioresAbierto, setAnterioresAbierto] = useState(false)
   const [porCancelar, setPorCancelar] = useState(null)
 
   // ── "+ Añadir nuevo paciente" inline, dentro del modal en modo Gestionar ──
@@ -459,6 +458,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     }
     setErrorHorarioCustom("")
     setError("")
+    // "Atender ahora": el formulario ya es la confirmación — se salta el
+    // segundo diálogo y se entra directo a la ficha.
+    if (atenderInmediato) {
+      agendarCita()
+      return
+    }
     setConfirmando(true)
   }
 
@@ -758,6 +763,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [nuevaHora, setNuevaHora] = useState("")
   const [nuevoMotivo, setNuevoMotivo] = useState("")
   const [errorReagendar, setErrorReagendar] = useState("")
+  const [estadoCorregido, setEstadoCorregido] = useState("")
   const [reagendada, setReagendada] = useState(null) // cita ya guardada, para ofrecer avisar por WhatsApp
 
   const abrirReagendar = (cita) => {
@@ -765,6 +771,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setNuevaFecha("")
     setNuevaHora("")
     setNuevoMotivo(cita.motivo || "")
+    setEstadoCorregido(cita.estado)
     setErrorReagendar("")
   }
 
@@ -773,6 +780,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setNuevaFecha("")
     setNuevaHora("")
     setNuevoMotivo("")
+    setEstadoCorregido("")
     setErrorReagendar("")
   }
 
@@ -780,6 +788,31 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     e.preventDefault()
     if (!nuevoMotivo) {
       setErrorReagendar("Selecciona el motivo del examen.")
+      return
+    }
+    // Los estados son automáticos; "Corregir estado" es la excepción manual
+    // (deshacer un estado puesto por error). Si solo cambió eso (y/o el
+    // motivo), no hace falta elegir una fecha nueva.
+    const estadoCambiado = estadoCorregido && estadoCorregido !== reagendando.estado
+    const sinNuevoHorario = !nuevaFecha && !nuevaHora
+    if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo)) {
+      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}) }
+      if (supabase && opticaId) {
+        const { data: actualizadas, error: errorUpdate } = await supabase.from("citas").update(cambios).eq("id", reagendando.id).select()
+        if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizadas })) {
+          setErrorReagendar(MENSAJE_SIN_PERMISO)
+          return
+        }
+        if (errorUpdate) {
+          setErrorReagendar("No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
+      }
+      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambios } : c)))
+      registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${reagendando.fecha}`)
+      cerrarReagendar()
+      setMensajeExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
+      setTimeout(() => setMensajeExito(null), 3000)
       return
     }
     if (!nuevaFecha || !nuevaHora) {
@@ -791,7 +824,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     // sin que eso la reabra como "Pendiente" por accidente; ese cambio de
     // estado sigue siendo una acción aparte y explícita ("Cambiar estado").
     const resueltaAlEditar = ["Atendida", "No Asistió", "Cancelada"].includes(reagendando.estado)
-    const nuevoEstado = resueltaAlEditar ? reagendando.estado : "Pendiente"
+    const nuevoEstado = estadoCambiado ? estadoCorregido : resueltaAlEditar ? reagendando.estado : "Pendiente"
     const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }
     if (supabase && opticaId) {
       const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }).eq("id", reagendando.id).select()
@@ -819,57 +852,44 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     window.open(url, "_blank")
   }
 
-  // Filtrado + orden cronológico
-  const grupos = useMemo(() => {
+  // Filtrado base (búsqueda + KPI de estado + "por registrar"). Lo comparten la
+  // lista y la vista por mes; el rango de fechas solo recorta la lista.
+  const filtradasBase = useMemo(() => {
     const texto = busqueda.trim().toLowerCase()
-    const filtradas = citas
-      .filter((c) => {
-        // Además del nombre, busca por el código de cita (CIT-2026-ABC123)
-        // que el paciente recibe al reservar en línea — antes ese código no
-        // servía para nada; ahora el personal puede encontrar su cita si la
-        // dan por teléfono.
-        if (texto && !c.paciente.toLowerCase().includes(texto) && !(c.codigo || "").toLowerCase().includes(texto)) return false
-        if (filtro === "hoy") return esHoy(c.fecha)
-        if (filtro === "proximas") return esFutura(c.fecha)
-        if (filtro === "atendidas") return c.estado === "Atendida"
-        return true
-      })
-      .filter((c) => {
-        if (filtroTipo === "primera") return !c.pacienteId
-        if (filtroTipo === "seguimiento") return Boolean(c.pacienteId)
-        return true
-      })
-      .filter((c) => {
-        if (filtroOrigen === "paciente") return c.origen === "paciente"
-        if (filtroOrigen === "staff") return c.origen !== "paciente"
-        return true
-      })
-      .filter((c) => {
-        if (!rangoDesde && !rangoHasta) return true
-        const fecha = parseFechaFlexible(c.fecha)
-        if (!fecha) return true
-        if (rangoDesde) {
-          const desde = parseFechaFlexible(rangoDesde)
-          if (desde && fecha < desde) return false
-        }
-        if (rangoHasta) {
-          const hasta = parseFechaFlexible(rangoHasta)
-          if (hasta && fecha > hasta) return false
-        }
-        return true
-      })
-      .sort((a, b) => {
-        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1
-        return minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)
-      })
+    return citas.filter((c) => {
+      // Además del nombre, busca por el código de cita (CIT-2026-ABC123)
+      // que el paciente recibe al reservar en línea — antes ese código no
+      // servía para nada; ahora el personal puede encontrar su cita si la
+      // dan por teléfono.
+      if (texto && !c.paciente.toLowerCase().includes(texto) && !(c.codigo || "").toLowerCase().includes(texto)) return false
+      if (soloPorRegistrar && !(porRegistrar(c))) return false
+      if (filtro === "hoy") return esHoy(c.fecha)
+      if (filtro === "proximas") return esFutura(c.fecha)
+      if (filtro === "atendidas") return c.estado === "Atendida"
+      return true
+    })
+  }, [citas, busqueda, filtro, soloPorRegistrar])
 
-    const mapa = new Map()
-    for (const c of filtradas) {
-      if (!mapa.has(c.fecha)) mapa.set(c.fecha, [])
-      mapa.get(c.fecha).push(c)
+  const hayRango = Boolean(rangoDesde || rangoHasta)
+
+  // Lista: sin rango → hoy en adelante + "Anteriores" (más reciente primero).
+  // Con rango → solo ese tramo, cronológico. "Ya atendidas" es por naturaleza
+  // un historial, así que va de la más reciente a la más antigua.
+  const { grupos, gruposAnteriores } = useMemo(() => {
+    const hoy = hoyISO()
+    if (hayRango) {
+      const enRango = filtradasBase.filter((c) => (!rangoDesde || c.fecha >= rangoDesde) && (!rangoHasta || c.fecha <= rangoHasta))
+      return { grupos: agruparPorDia(ordenarCitas(enRango)), gruposAnteriores: [] }
     }
-    return Array.from(mapa.entries())
-  }, [citas, busqueda, filtro, filtroTipo, filtroOrigen, rangoDesde, rangoHasta])
+    if (filtro === "atendidas") {
+      return { grupos: agruparPorDia(ordenarCitas(filtradasBase, true)), gruposAnteriores: [] }
+    }
+    const { proximas, anteriores } = particionarAgenda(filtradasBase, hoy)
+    return { grupos: agruparPorDia(proximas), gruposAnteriores: agruparPorDia(anteriores) }
+  }, [filtradasBase, filtro, hayRango, rangoDesde, rangoHasta])
+
+  const totalAnteriores = gruposAnteriores.reduce((n, [, cs]) => n + cs.length, 0)
+  const totalPorRegistrar = useMemo(() => citas.filter(porRegistrar).length, [citas])
 
   const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
@@ -907,7 +927,25 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [mesVista, setMesVista] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1) })
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
-  const gruposPorFecha = useMemo(() => new Map(grupos), [grupos])
+  // "Hoy" vuelve a la agenda de hoy: sin rango, sin filtros de estado ni
+  // "por registrar", en la vista Día y con el calendario en el mes actual.
+  const irAHoy = () => {
+    setRangoDesde("")
+    setRangoHasta("")
+    setFiltro("todas")
+    setSoloPorRegistrar(false)
+    setBusqueda("")
+    setVista("dia")
+    const h = new Date()
+    setMesVista(new Date(h.getFullYear(), h.getMonth(), 1))
+  }
+  const moverRango = (sentido) => {
+    const r = desplazarRango(rangoDesde, rangoHasta, sentido, hoyISO())
+    setRangoDesde(r.desde)
+    setRangoHasta(r.hasta)
+  }
+
+  const gruposPorFecha = useMemo(() => new Map(agruparPorDia(filtradasBase)), [filtradasBase])
 
   const diasDelMes = useMemo(() => {
     const primerDia = new Date(mesVista.getFullYear(), mesVista.getMonth(), 1)
@@ -939,6 +977,71 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
+  // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
+  const renderDia = ([dia, citasDia]) => {
+          const t = tituloDia(dia)
+          const hoyDia = esHoy(dia)
+          return (
+            <div key={dia} className="flex gap-4">
+              {/* Rail de día */}
+              <div className="flex w-14 shrink-0 flex-col items-center">
+                <div
+                  className="flex w-full flex-col items-center rounded-xl border py-2"
+                  style={hoyDia ? { backgroundColor: INK, borderColor: INK, color: "#fff" } : { backgroundColor: "#fff", borderColor: "rgba(14,43,51,0.1)", color: "#334155" }}
+                >
+                  <span className="font-serif text-lg font-semibold leading-none">{t.diaNum}</span>
+                  <span className={"mt-0.5 text-xs font-semibold uppercase " + (hoyDia ? "text-white/60" : "text-slate-500")}>{t.mes}</span>
+                </div>
+                <div className="mt-2 w-px flex-1" style={{ backgroundColor: "rgba(14,43,51,0.1)" }} />
+              </div>
+
+              {/* Citas del día */}
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => alternarDia(dia)}
+                  className="mb-3 flex w-full items-center gap-2 text-left cursor-pointer"
+                  title={diasColapsados.has(dia) ? "Expandir este día" : "Colapsar este día"}
+                >
+                  <ChevronDown size={15} className={"shrink-0 text-slate-500 transition-transform " + (diasColapsados.has(dia) ? "-rotate-90" : "")} />
+                  <h4 className="text-sm font-bold capitalize" style={{ color: INK }}>{t.etiqueta}</h4>
+                  {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
+                  <span className="text-xs text-slate-500">· {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}</span>
+                </button>
+
+                {!diasColapsados.has(dia) && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {citasDia.map((cita) => (
+                    <TarjetaCita
+                      key={cita.id}
+                      cita={cita}
+                      motivosConsulta={motivosConsulta}
+                      fechaRealPorCitaId={fechaRealPorCitaId}
+                      marcandoEstadoId={marcandoEstadoId}
+                      menuAccionesId={menuAccionesId}
+                      onVerPerfil={onVerPerfil}
+                      onAtender={atenderCita}
+                      onAbrirMenuAcciones={abrirMenuAcciones}
+                    />
+                  ))}
+                </div>
+                )}
+              </div>
+            </div>
+          )
+  }
+
+  // Hoy sin citas nunca deja la pantalla en blanco: se avisa y se muestra lo
+  // más cercano (criterio 1 del ingeniero).
+  const anterioresVisibles = anterioresAbierto || (grupos.length === 0 && totalAnteriores > 0)
+  const avisoSinCitasHoy = hayRango || filtro !== "todas" || soloPorRegistrar || busqueda
+    ? null
+    : grupos.length === 0
+      ? "No hay citas próximas. Debajo está lo último atendido."
+      : grupos[0][0] !== hoyISO()
+        ? `Hoy no hay citas. Lo próximo es ${etiquetaFecha(grupos[0][0])}.`
+        : null
+
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
@@ -952,7 +1055,21 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             <p className="text-sm text-slate-500">Planificación y control de consultas de refracción.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
+          {/* Buscar y crear son las dos entradas de la pantalla — juntas, en el
+              encabezado (propuesta de flujo de atención, Ronda 1). */}
+          <div className="relative w-full sm:w-72">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <label htmlFor="citas-busqueda" className="sr-only">Buscar paciente o código de cita</label>
+            <input
+              id="citas-busqueda"
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar paciente o código..."
+              className="w-full rounded-xl border border-slate-200/60 bg-white py-3 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+            />
+          </div>
           {/* "Agendar cita" existía como botón aparte, más limitado (fecha en
               blanco, y sin forma de crear un paciente nuevo si no había
               ninguno todavía) — "Gestionar" ya cubre ese caso y más, así que
@@ -993,68 +1110,41 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         </div>
       )}
 
-      {/* ─── BÚSQUEDA + TIPO DE CITA + CREACIÓN ─── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Alternar Día / Mes (reunión 29 sept., punto 12) — sin vista
-              semanal, según lo acordado. "Día" es la lista de siempre. */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            {[
-              { key: "dia", label: "Día" },
-              { key: "mes", label: "Mes" },
-            ].map((op) => (
-              <button
-                key={op.key}
-                type="button"
-                onClick={() => setVista(op.key)}
-                className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (vista === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-                style={vista === op.key ? { background: GRAD } : undefined}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            {[
-              { key: "todos", label: "Todas" },
-              { key: "primera", label: "Primera vez" },
-              { key: "seguimiento", label: "Seguimiento" },
-            ].map((op) => (
-              <button
-                key={op.key}
-                type="button"
-                onClick={() => setFiltroTipo(op.key)}
-                className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (filtroTipo === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-                style={filtroTipo === op.key ? { background: GRAD } : undefined}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>
-          {/* Filtro por creación (ING6) — mismo patrón visual que el de arriba,
-              eje independiente: quién generó el registro, no si ya es paciente. */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            {[
-              { key: "todos", label: "Cualquier origen" },
-              { key: "paciente", label: "Web" },
-              { key: "staff", label: "Recepción" },
-            ].map((op) => (
-              <button
-                key={op.key}
-                type="button"
-                onClick={() => setFiltroOrigen(op.key)}
-                className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " + (filtroOrigen === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-                style={filtroOrigen === op.key ? { background: GRAD } : undefined}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>
-          {/* Rango de fechas personalizado — pedido de la reunión del 29 sept.
-              ("poder yo definir un filtrado por fechas... para ver todas las
-              de la siguiente semana"), eje independiente de los KPIs de
-              arriba y de los otros dos filtros de esta barra. */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 pl-2.5 shadow-sm">
+      {/* ─── UNA SOLA FILA DE CONTROL: Hoy · Día|Mes · rango · por registrar ─── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={irAHoy}
+          className="rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"
+        >
+          Hoy
+        </button>
+        {/* Alternar Día / Mes (reunión 29 sept., punto 12) — sin vista
+            semanal, según lo acordado. "Día" es la lista de siempre. */}
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+          {[
+            { key: "dia", label: "Día" },
+            { key: "mes", label: "Mes" },
+          ].map((op) => (
+            <button
+              key={op.key}
+              type="button"
+              onClick={() => setVista(op.key)}
+              className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vista === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+              style={vista === op.key ? { background: GRAD } : undefined}
+            >
+              {op.label}
+            </button>
+          ))}
+        </div>
+        {/* Rango de fechas (pedido del 29 sept.) con flechas para ir a la
+            semana anterior o siguiente sin escribir fechas. Hacia atrás y
+            hacia adelante. Solo aplica a la vista Día. */}
+        {vista === "dia" && (
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+            <button type="button" onClick={() => moverRango(-1)} aria-label="Semana anterior" title="Semana anterior" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+              <ChevronLeft size={16} />
+            </button>
             <CalendarRange size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
             <label htmlFor="rango-desde" className="sr-only">Desde</label>
             <input
@@ -1075,29 +1165,34 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               min={rangoDesde || undefined}
               className="rounded-lg bg-transparent px-1.5 py-1 text-xs font-semibold text-slate-600 outline-none"
             />
-            {(rangoDesde || rangoHasta) && (
+            {hayRango && (
               <button
                 type="button"
                 onClick={() => { setRangoDesde(""); setRangoHasta("") }}
                 aria-label="Limpiar rango de fechas"
                 title="Limpiar rango de fechas"
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
               >
                 <X size={13} />
               </button>
             )}
+            <button type="button" onClick={() => moverRango(1)} aria-label="Semana siguiente" title="Semana siguiente" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+              <ChevronRight size={16} />
+            </button>
           </div>
-        </div>
-        <div className="relative w-full sm:w-80">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre o código de cita..."
-            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-          />
-        </div>
+        )}
+        {totalPorRegistrar > 0 && (
+          <button
+            type="button"
+            onClick={() => setSoloPorRegistrar((v) => !v)}
+            aria-pressed={soloPorRegistrar}
+            title="Citas agendadas en línea cuyo paciente aún no está registrado"
+            className={"flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors cursor-pointer " + (soloPorRegistrar ? "border-amber-300 bg-amber-100 text-amber-800" : "border-amber-200/60 bg-amber-50 text-amber-700 hover:bg-amber-100")}
+          >
+            <UserPlus size={13} aria-hidden="true" />
+            {totalPorRegistrar} por registrar
+          </button>
+        )}
       </div>
 
       {/* ─── LISTADO ─── */}
@@ -1158,7 +1253,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             })}
           </div>
         </div>
-      ) : grupos.length === 0 ? (
+      ) : grupos.length === 0 && totalAnteriores === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />
@@ -1170,58 +1265,27 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         </div>
       ) : (
         <div className="space-y-8">
-          {grupos.map(([dia, citasDia]) => {
-            const t = tituloDia(dia)
-            const hoyDia = esHoy(dia)
-            return (
-              <div key={dia} className="flex gap-4">
-                {/* Rail de día */}
-                <div className="flex w-14 shrink-0 flex-col items-center">
-                  <div
-                    className="flex w-full flex-col items-center rounded-xl border py-2"
-                    style={hoyDia ? { backgroundColor: INK, borderColor: INK, color: "#fff" } : { backgroundColor: "#fff", borderColor: "rgba(14,43,51,0.1)", color: "#334155" }}
-                  >
-                    <span className="font-serif text-lg font-semibold leading-none">{t.diaNum}</span>
-                    <span className={"mt-0.5 text-xs font-semibold uppercase " + (hoyDia ? "text-white/60" : "text-slate-500")}>{t.mes}</span>
-                  </div>
-                  <div className="mt-2 w-px flex-1" style={{ backgroundColor: "rgba(14,43,51,0.1)" }} />
-                </div>
-
-                {/* Citas del día */}
-                <div className="min-w-0 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => alternarDia(dia)}
-                    className="mb-3 flex w-full items-center gap-2 text-left cursor-pointer"
-                    title={diasColapsados.has(dia) ? "Expandir este día" : "Colapsar este día"}
-                  >
-                    <ChevronDown size={15} className={"shrink-0 text-slate-500 transition-transform " + (diasColapsados.has(dia) ? "-rotate-90" : "")} />
-                    <h4 className="text-sm font-bold capitalize" style={{ color: INK }}>{t.etiqueta}</h4>
-                    {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
-                    <span className="text-xs text-slate-500">· {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}</span>
-                  </button>
-
-                  {!diasColapsados.has(dia) && (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {citasDia.map((cita) => (
-                      <TarjetaCita
-                        key={cita.id}
-                        cita={cita}
-                        motivosConsulta={motivosConsulta}
-                        fechaRealPorCitaId={fechaRealPorCitaId}
-                        marcandoEstadoId={marcandoEstadoId}
-                        menuAccionesId={menuAccionesId}
-                        onVerPerfil={onVerPerfil}
-                        onAtender={atenderCita}
-                        onAbrirMenuAcciones={abrirMenuAcciones}
-                      />
-                    ))}
-                  </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          {avisoSinCitasHoy && (
+            <p role="status" className="rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm text-slate-600">
+              {avisoSinCitasHoy}
+            </p>
+          )}
+          {grupos.map(renderDia)}
+          {totalAnteriores > 0 && (
+            <section aria-label="Citas anteriores">
+              <button
+                type="button"
+                onClick={() => setAnterioresAbierto((v) => !v)}
+                aria-expanded={anterioresVisibles}
+                className="flex w-full items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer"
+              >
+                <ChevronDown size={16} className={"shrink-0 text-slate-500 transition-transform " + (anterioresVisibles ? "" : "-rotate-90")} aria-hidden="true" />
+                <span className="text-sm font-bold" style={{ color: INK }}>Anteriores</span>
+                <span className="text-xs text-slate-500">· {totalAnteriores} {totalAnteriores === 1 ? "cita" : "citas"}, de la más reciente a la más antigua</span>
+              </button>
+              {anterioresVisibles && <div className="mt-6 space-y-8">{gruposAnteriores.map(renderDia)}</div>}
+            </section>
+          )}
         </div>
       )}
 
@@ -1562,7 +1626,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {resumenPara && (
         <ConfirmarCitaModal
           titulo="Resumen de la cita"
-          subtitulo="Revisa los datos antes de entrar a la ficha clínica."
+          subtitulo={
+            resumenPara.fecha !== hoyISO()
+              ? `Esta cita está agendada para ${etiquetaFecha(resumenPara.fecha)}. Se atenderá hoy y la fecha agendada no cambia.`
+              : "Revisa los datos antes de entrar a la ficha clínica."
+          }
           paciente={resumenPara.paciente}
           motivo={resumenPara.motivo}
           fecha={etiquetaFecha(resumenPara.fecha)}
@@ -1570,7 +1638,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           onCancelar={() => setResumenPara(null)}
           onConfirmar={() => { const cita = resumenPara; setResumenPara(null); ingresarAFicha(cita) }}
           etiquetaCancelar="Cerrar"
-          etiquetaConfirmar="Ingresar a la ficha clínica"
+          etiquetaConfirmar={resumenPara.fecha !== hoyISO() ? "Atender hoy" : "Ingresar a la ficha clínica"}
         />
       )}
 
@@ -1765,6 +1833,26 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   onCambiarFecha={setNuevaFecha}
                   onCambiarHora={setNuevaHora}
                 />
+
+                {/* Excepción, no flujo normal: el estado lo deduce el sistema
+                    (En atención al abrir la ficha, Atendida al cobrar, No
+                    asistió a los 10 minutos). Esto solo sirve para deshacer un
+                    estado puesto por error. */}
+                <details className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-600">Corregir estado (excepción)</summary>
+                  <p className="mt-2 text-xs text-slate-500">El estado cambia solo según lo que ocurre en la visita. Úsalo únicamente para deshacer un estado puesto por error.</p>
+                  <label htmlFor="citas-estado-corregido" className="sr-only">Estado de la cita</label>
+                  <select
+                    id="citas-estado-corregido"
+                    value={estadoCorregido}
+                    onChange={(e) => setEstadoCorregido(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                  >
+                    {ORDEN_ESTADOS_MODAL.map((e) => (
+                      <option key={e} value={e}>{e === "En Atención" ? "En atención" : e === "No Asistió" ? "No asistió" : e}</option>
+                    ))}
+                  </select>
+                </details>
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
@@ -1819,7 +1907,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       {menuAccionesId != null && menuAccionesPos && (() => {
         const cita = citas.find((c) => c.id === menuAccionesId)
         if (!cita) return null
-        const puedeMarcarseAqui = !esFutura(cita.fecha)
+        // "No asistió" lo marca solo el sistema a los 10 minutos; a mano se
+        // ofrece únicamente mientras la cita sigue pendiente y ya pasó su hora.
+        const puedeMarcarNoAsistio = cita.estado === "Pendiente" && yaPasoLaHora(cita)
         return createPortal(
           <div
             ref={menuAccionesRef}
@@ -1838,24 +1928,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 <div className="my-1 border-t border-slate-100" />
               </>
             )}
-            {puedeMarcarseAqui && (
+            {puedeMarcarNoAsistio && (
               <>
-                {cita.estado !== "En Atención" && (
-                  <button
-                    type="button"
-                    onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "En Atención") }}
-                    className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
-                  >
-                    <Activity size={15} /> Paciente en atención
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "Atendida") }}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
-                >
-                  <CheckCircle2 size={15} /> Marcar atendida
-                </button>
                 <button
                   type="button"
                   onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "No Asistió") }}

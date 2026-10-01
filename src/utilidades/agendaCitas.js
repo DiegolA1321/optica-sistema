@@ -15,6 +15,11 @@ export function particionarAgenda(citas, hoy) {
   return { proximas, anteriores }
 }
 
+// Orden cronológico (o inverso) de una lista de citas.
+export function ordenarCitas(citas, descendente = false) {
+  return [...citas].sort(descendente ? (a, b) => porFechaHora(b, a) : porFechaHora)
+}
+
 // Agrupa citas ya ordenadas por día, conservando el orden recibido.
 export function agruparPorDia(citas) {
   const mapa = new Map()
