@@ -46,8 +46,7 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
   // key propia. React reutilizaba el mismo nodo <button> al cambiar de paso y
   // solo le mutaba el atributo type de "button" a "submit" a mitad del clic,
   // lo que disparaba un submit fantasma de intentarGuardar (que valida los 3
-  // pasos) apenas se llegaba a Diagnóstico — mostrando el error de categoría/
-  // costo sin que el usuario hubiera tocado nada todavía.
+  // pasos) apenas se llegaba a Diagnóstico — mostrando el error de categoría sin que el usuario hubiera tocado nada todavía.
   it("'Siguiente' y 'Guardar ficha clínica' son nodos <button> distintos, no el mismo reutilizado", () => {
     // Esta es la comprobación que de verdad detecta la regresión: el bug real
     // (un clic real de mouse muta el type="button" a type="submit" A MITAD del
@@ -76,7 +75,8 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
 
     expect(screen.queryByText(/No puedes continuar todavía/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Selecciona al menos una categoría de diagnóstico/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Ingresa el costo de la consulta/i)).not.toBeInTheDocument()
+    // El costo ya no se captura en la ficha: se cobra en el panel que aparece al guardar.
+    expect(screen.queryByText(/Costo de la consulta/i)).not.toBeInTheDocument()
     // El botón visible en este paso debe seguir siendo "Guardar ficha clínica"
     // (type="submit"), no haberse reenviado/reseteado a otro estado.
     expect(screen.getByRole("button", { name: /Guardar ficha clínica/i })).toBeInTheDocument()
@@ -88,7 +88,6 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
 
     fireEvent.click(screen.getByRole("button", { name: "Otro" }))
-    fireEvent.change(screen.getByPlaceholderText("0.00"), { target: { value: "0" } })
 
     fireEvent.click(screen.getByRole("button", { name: /Guardar ficha clínica/i }))
 
@@ -104,7 +103,6 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
 
     fireEvent.click(screen.getByRole("button", { name: "Otro" }))
     fireEvent.change(screen.getByLabelText(/Detalle del diagnóstico personalizado/i), { target: { value: "Hallazgo descrito a mano por el optómetra." } })
-    fireEvent.change(screen.getByPlaceholderText("0.00"), { target: { value: "0" } })
 
     fireEvent.click(screen.getByRole("button", { name: /Guardar ficha clínica/i }))
 
@@ -149,5 +147,33 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
 
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
     expect(screen.getByText("Describe el motivo.")).toBeInTheDocument()
+  })
+
+  it("al guardar la ficha aparece el panel de cobro con la consulta precargada (costo base del motivo)", () => {
+    render(
+      <ConsultaMedica
+        usuario={{ nombre: "Optómetra de prueba" }}
+        pacientes={[PACIENTE]}
+        consultas={[]}
+        setConsultas={() => {}}
+        inventario={[]}
+        parametrizacion={{ costosMotivo: { "Consulta General": 15 } }}
+        diagnosticosRapidos={["Miopía"]}
+        motivosConsulta={["Consulta General"]}
+        citas={[]}
+      />
+    )
+    avanzarHastaRefraccion()
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
+    fireEvent.click(screen.getByRole("button", { name: /Guardar ficha clínica/i }))
+    // Confirmación previa de la ficha
+    fireEvent.click(screen.getByRole("button", { name: /^Confirmar$/ }))
+
+    return screen.findByText(/Cobrar la atención de Paciente De Prueba/i).then(() => {
+      expect(screen.getByRole("button", { name: /Cobrar y finalizar/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /Más tarde/i })).toBeInTheDocument()
+      expect(screen.getByLabelText(/Precio de Consulta/i)).toHaveValue(15)
+    })
   })
 })
