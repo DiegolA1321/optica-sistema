@@ -58,6 +58,8 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import FacturaVentaModal from "./FacturaVentaModal"
+import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
+import { costoBaseMotivo } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
@@ -155,7 +157,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -314,6 +316,21 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
   const registrarFactura = (factura) => {
     setFacturasVenta?.((prev) => [factura, ...prev])
+  }
+
+  // Cobro pendiente (Ronda 4): ficha guardada con "Más tarde" en el panel de
+  // cobro. Se cobra con el mismo panel; al cobrar, la cita (si la hay) pasa a
+  // Atendida.
+  const [cobrandoPendiente, setCobrandoPendiente] = useState(null) // { consulta, cita } | null
+  useEffect(() => { if (!pacienteHistorial) setCobrandoPendiente(null) }, [pacienteHistorial])
+  const alCobrarPendiente = async (factura) => {
+    registrarFactura(factura)
+    const cita = cobrandoPendiente?.cita
+    if (cita) {
+      const { error } = await marcarCitaAtendidaDb(supabase, cita.id)
+      if (!error) setCitas?.((prev) => prev.map((c) => (c.id === cita.id ? { ...c, estado: "Atendida" } : c)))
+    }
+    mostrarNotif(cita ? "Cobro registrado · cita atendida." : "Cobro registrado.")
   }
 
 
@@ -1945,6 +1962,24 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
               return (
                 <>
+                  {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
+                      para después ("Más tarde" en el panel de cobro) ─── */}
+                  {cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
+                    <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                        <Receipt size={16} className="shrink-0" />
+                        Cobro pendiente de la consulta del {consulta.fecha}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCobrandoPendiente({ consulta, cita })}
+                        className="rounded-lg bg-amber-600 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer"
+                      >
+                        Cobrar
+                      </button>
+                    </div>
+                  ))}
+
                   {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
                       tener que entrar a ninguna pestaña ─── */}
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -2324,6 +2359,25 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           </div>
         </div>,
         document.getElementById("vista-completa-root") || document.body
+      )}
+
+      {cobrandoPendiente && pacienteHistorial && (
+        <FacturaVentaModal
+          usuario={usuario}
+          inventario={inventario}
+          setInventario={setInventario}
+          categorias={categoriasInventario}
+          setCategorias={setCategoriasInventario}
+          pacienteFijo={pacienteHistorial}
+          titulo={`Cobrar la atención de ${pacienteHistorial.nombre}`}
+          subtitulo={`Consulta del ${cobrandoPendiente.consulta.fecha}${cobrandoPendiente.consulta.motivo ? ` · ${cobrandoPendiente.consulta.motivo}` : ""}`}
+          etiquetaGuardar="Cobrar y finalizar"
+          lineasIniciales={[{ tipo: "servicio", descripcion: `Consulta${cobrandoPendiente.consulta.motivo ? ` — ${cobrandoPendiente.consulta.motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, cobrandoPendiente.consulta.motivo) }]}
+          consultaId={cobrandoPendiente.consulta.id}
+          citaId={cobrandoPendiente.cita?.id || null}
+          onGuardado={alCobrarPendiente}
+          onCerrar={() => setCobrandoPendiente(null)}
+        />
       )}
 
       {/* ─── PANEL DE COBRO / NUEVA VENTA (desde el perfil del paciente) ─── */}

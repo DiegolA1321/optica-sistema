@@ -448,6 +448,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setCitas={setCitas}
             disponibilidad={disponibilidad}
             motivosConsulta={motivosConsulta}
+            parametrizacion={parametrizacion}
             inventario={inventario}
             setInventario={setInventario}
             categoriasInventario={categoriasInventario}
@@ -528,6 +529,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
             motivosConsulta={motivosConsulta}
+            inventario={inventario}
+            setInventario={setInventario}
+            facturasVenta={facturasVenta}
+            setFacturasVenta={setFacturasVenta}
+            parametrizacion={parametrizacion}
             onAtender={(paciente, citaId, motivo) => irAFichaClinica(paciente, { citaId, origen: "citas", motivo })}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />

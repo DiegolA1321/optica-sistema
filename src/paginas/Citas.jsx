@@ -34,6 +34,7 @@ import {
   Building2,
   Zap,
   CalendarRange,
+  Receipt,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -42,6 +43,9 @@ import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, min
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
 import { registrarLog } from "../utilidades/logs"
+import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
+import { costoBaseMotivo } from "../utilidades/costosConsulta"
+import FacturaVentaModal from "./FacturaVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -111,7 +115,7 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
 // Tarjeta de cita — extraída de la lista agrupada por día para poder
 // reutilizarla tal cual (mismo diseño, ya aprobado por el ing) dentro del
 // modal de "Citas del día" de la vista por mes, sin mantener dos copias.
-function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, onVerPerfil, onAtender, onAbrirMenuAcciones }) {
+function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onVerPerfil, onAtender, onCobrar, onAbrirMenuAcciones }) {
   const info = motivoInfo(cita.motivo, motivosConsulta)
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
@@ -235,10 +239,25 @@ function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstado
               {cita.estado === "En Atención" ? "En atención" : "Pendiente"}
             </span>
           )}
+          {cobroPendiente && (
+            <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+              <Receipt size={12} aria-hidden="true" /> Cobro pendiente
+            </span>
+          )}
           {/* Acción primaria de la tarjeta, con etiqueta visible y
               color sólido — antes era un ícono suelto arriba, del
               mismo tamaño que las acciones secundarias (ver más arriba). */}
-          {puedeAtender && (
+          {cobroPendiente ? (
+            // La ficha ya se guardó: "Atender" abriría otra consulta. Lo que
+            // falta es cobrar.
+            <button
+              type="button"
+              onClick={() => onCobrar(cita)}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer"
+            >
+              <Receipt size={14} /> Cobrar
+            </button>
+          ) : puedeAtender && (
             <button
               type="button"
               onClick={() => onAtender(cita)}
@@ -256,7 +275,7 @@ function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstado
   )
 }
 
-export default function Citas({ usuario, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], onAtender, onVerPerfil }) {
+export default function Citas({ usuario, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -332,6 +351,28 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // D2), se muestra un resumen de la cita con "Ingresar a la ficha
   // clínica" / "Cerrar" — este último no cambia ningún estado. ──
   const [resumenPara, setResumenPara] = useState(null) // la cita, o null
+
+  // ── Cobro pendiente (Ronda 4): una cita "En atención" cuya ficha ya se
+  // guardó pero cuyo cobro quedó para después ("Más tarde"). Se cobra con el
+  // mismo panel único que usa la ficha clínica. ──
+  const pendientesPorCita = useMemo(() => {
+    const m = new Map()
+    for (const p of cobrosPendientes(consultas, facturasVenta, citas)) if (p.cita) m.set(p.cita.id, p.consulta)
+    return m
+  }, [consultas, facturasVenta, citas])
+  const [cobrandoCita, setCobrandoCita] = useState(null) // la cita, o null
+  const cobrarCita = (cita) => setCobrandoCita(cita)
+  const alCobrarCita = async (factura) => {
+    const cita = cobrandoCita
+    setFacturasVenta?.((prev) => [factura, ...prev])
+    if (cita) {
+      const { error: errorAtendida } = await marcarCitaAtendidaDb(supabase, cita.id)
+      if (errorAtendida) setBannerError("El cobro se registró, pero no se pudo marcar la cita como atendida.")
+      else setCitas((prev) => prev.map((c) => (c.id === cita.id ? { ...c, estado: "Atendida" } : c)))
+    }
+    setMensajeExito("Cobro registrado · cita atendida.")
+    setTimeout(() => setMensajeExito(null), 3000)
+  }
 
   // ── "Atender" sobre una cita sin paciente vinculado todavía (primera cita
   // agendada desde la web pública, o registrada como visita rápida) — pide
@@ -1021,7 +1062,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       marcandoEstadoId={marcandoEstadoId}
                       menuAccionesId={menuAccionesId}
                       onVerPerfil={onVerPerfil}
-                      onAtender={atenderCita}
+                      cobroPendiente={pendientesPorCita.has(cita.id)}
+                        onCobrar={cobrarCita}
+                        onAtender={atenderCita}
                       onAbrirMenuAcciones={abrirMenuAcciones}
                     />
                   ))}
@@ -1326,7 +1369,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             marcandoEstadoId={marcandoEstadoId}
                             menuAccionesId={menuAccionesId}
                             onVerPerfil={onVerPerfil}
-                            onAtender={atenderCita}
+                            cobroPendiente={pendientesPorCita.has(cita.id)}
+                        onCobrar={cobrarCita}
+                        onAtender={atenderCita}
                             onAbrirMenuAcciones={abrirMenuAcciones}
                           />
                         ))}
@@ -1642,6 +1687,29 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           etiquetaConfirmar={resumenPara.fecha !== hoyISO() ? "Atender hoy" : "Ingresar a la ficha clínica"}
         />
       )}
+
+      {/* ─── PANEL DE COBRO (cobro pendiente de una cita en atención) ─── */}
+      {cobrandoCita && (() => {
+        const paciente = pacientes.find((p) => p.id === cobrandoCita.pacienteId)
+        const consulta = pendientesPorCita.get(cobrandoCita.id)
+        if (!paciente || !consulta) return null
+        return (
+          <FacturaVentaModal
+            usuario={usuario}
+            inventario={inventario}
+            setInventario={setInventario}
+            pacienteFijo={paciente}
+            titulo={`Cobrar la atención de ${paciente.nombre}`}
+            subtitulo={`Consulta${consulta.motivo ? ` · ${consulta.motivo}` : ""}`}
+            etiquetaGuardar="Cobrar y finalizar"
+            lineasIniciales={[{ tipo: "servicio", descripcion: `Consulta${consulta.motivo ? ` — ${consulta.motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, consulta.motivo) }]}
+            consultaId={consulta.id}
+            citaId={cobrandoCita.id}
+            onGuardado={alCobrarCita}
+            onCerrar={() => setCobrandoCita(null)}
+          />
+        )
+      })()}
 
       {/* ─── COMPLETAR REGISTRO DEL PACIENTE (Atender sobre una cita sin paciente vinculado) ─── */}
       {completarPara && createPortal(
