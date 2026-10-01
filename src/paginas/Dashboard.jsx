@@ -508,6 +508,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             pacientes={pacientes}
             ventas={ventas}
             setVentas={setVentas}
+            facturasVenta={facturasVenta}
+            setFacturasVenta={setFacturasVenta}
             abrirModalAlEntrar={abrirCrearProductoAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirCrearProductoAlEntrar(false)}
             productoIdParaReabastecer={productoIdParaReabastecer}

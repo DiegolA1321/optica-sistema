@@ -13,7 +13,7 @@ import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
 
-// ─── Paleta de firma (consistente con VentaProductoModal.jsx) ───
+// ─── Paleta de firma (paleta de venta/dinero) ───
 const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción de venta/dinero
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul, tipo "producto"
 const VIOLETA = "#7c3aed" // tipo "servicio"
@@ -25,9 +25,9 @@ const VIOLETA = "#7c3aed" // tipo "servicio"
 // es una factura de una línea.
 //
 // Punto 06 del Diagnóstico Maestro: factura con líneas múltiples (producto
-// y/o servicio) y un solo método de pago para el total — a diferencia de
-// VentaProductoModal.jsx (un producto = una venta), que sigue existiendo
-// para Inventario.
+// y/o servicio) y un solo método de pago para el total. Desde la Ronda 4 es
+// también el único camino de venta (reemplazó a VentaProductoModal, que se
+// retiró junto con "Vender" de Inventario).
 // Un servicio (examen, ajuste, garantía) no tiene producto_id y no
 // descuenta inventario — ver crear_factura_venta (migración 0072).
 export default function FacturaVentaModal({
@@ -92,7 +92,7 @@ export default function FacturaVentaModal({
   const [precioServicio, setPrecioServicio] = useState("")
 
   // Alta rápida de producto sin salir del flujo — mismo caso de la reunión
-  // con el ing ya resuelto en VentaProductoModal.jsx, reutilizado tal cual.
+  // con el ing, ya resuelto antes en el modal de venta rápida (retirado).
   const CATEGORIAS_NP = categorias.length > 0 ? categorias : ["Armazones", "Accesorios"]
   const [agregandoProducto, setAgregandoProducto] = useState(false)
   const [npNombre, setNpNombre] = useState("")
