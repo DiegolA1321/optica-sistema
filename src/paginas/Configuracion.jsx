@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { createPortal } from "react-dom"
-import { Settings, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
+import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { costoBaseMotivo, renombrarCostoMotivo } from "../utilidades/costosConsulta"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -52,7 +53,7 @@ function FilaParametro({ icon: Icon, titulo, descripcion, activo, onClick, etiqu
 // Lista editable de etiquetas (motivos, diagnósticos rápidos...): agregar,
 // renombrar y eliminar — el sistema trae opciones por defecto, pero cada
 // óptica ajusta el catálogo a su propio lenguaje clínico.
-function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, placeholder, verificarUso, onExito, onError }) {
+function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, placeholder, verificarUso, onExito, onError, onRenombrado }) {
   const [nuevo, setNuevo] = useState("")
   const [editandoIdx, setEditandoIdx] = useState(null)
   const [textoEdit, setTextoEdit] = useState("")
@@ -113,7 +114,10 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
     if (!v || v === items[idx]) return
     const { error } = await setItems(items.map((it, i) => (i === idx ? v : it)))
     if (error) onError?.(`No se pudo renombrar a "${v}". Revisa tu conexión e intenta de nuevo.`)
-    else onExito?.(`Renombrado a "${v}" correctamente.`)
+    else {
+      onRenombrado?.(items[idx], v)
+      onExito?.(`Renombrado a "${v}" correctamente.`)
+    }
   }
 
   return (
@@ -182,6 +186,76 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
               style={{ background: GRAD }}
             >
               <Plus size={14} /> Agregar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Costo base de la consulta por motivo — el panel de cobro lo trae precargado
+// (editable en el momento, puede ser 0). Botón de guardado explícito: un
+// autoguardado invisible se lee como un botón que falta.
+function CostosPorMotivo({ motivos, parametrizacion, setParametrizacion, onExito, onError }) {
+  const guardados = Object.fromEntries(motivos.map((m) => [m, costoBaseMotivo(parametrizacion, m)]))
+  const [borrador, setBorrador] = useState({})
+  const [guardando, setGuardando] = useState(false)
+  const valorDe = (m) => (m in borrador ? borrador[m] : String(guardados[m]))
+  const numeroDe = (m) => parseFloat(valorDe(m))
+  const invalido = (m) => valorDe(m).trim() === "" || Number.isNaN(numeroDe(m)) || numeroDe(m) < 0
+  const hayCambios = motivos.some((m) => m in borrador && !invalido(m) && numeroDe(m) !== guardados[m])
+  const hayInvalidos = motivos.some((m) => m in borrador && invalido(m))
+
+  const guardar = async () => {
+    setGuardando(true)
+    const costos = Object.fromEntries(motivos.map((m) => [m, invalido(m) ? guardados[m] : Math.round(numeroDe(m) * 100) / 100]))
+    const { error } = (await setParametrizacion((prev) => ({ ...prev, costosMotivo: costos }))) || {}
+    setGuardando(false)
+    if (error) { onError?.("No se pudieron guardar los costos. Revisa tu conexión e intenta de nuevo."); return }
+    setBorrador({})
+    onExito?.("Costos por motivo guardados correctamente.")
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200/60 bg-white p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
+          <Receipt size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold" style={{ color: INK }}>Costo base de la consulta por motivo</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+            Al guardar una ficha, el panel de cobro trae este valor ya puesto (se puede cambiar en el momento, incluso a $0). Un motivo sin costo cuenta como $0.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {motivos.map((m) => (
+              <label key={m} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{m}</span>
+                <span className="flex items-center gap-1 text-sm font-semibold text-slate-500">
+                  $
+                  <input
+                    type="number" min="0" step="0.01" inputMode="decimal"
+                    aria-label={`Costo base de ${m}`}
+                    value={valorDe(m)}
+                    onChange={(e) => setBorrador((b) => ({ ...b, [m]: e.target.value }))}
+                    className={"w-24 rounded-md border bg-white px-2 py-1 text-right font-mono text-sm outline-none focus-visible:border-blue-500 " + (m in borrador && invalido(m) ? "border-red-400" : "border-slate-200/60")}
+                  />
+                </span>
+              </label>
+            ))}
+            {motivos.length === 0 && <p className="text-xs italic text-slate-500">Primero agrega al menos un motivo de consulta arriba.</p>}
+          </div>
+          {hayInvalidos && <p className="mt-2 text-xs font-medium text-red-600">Cada costo debe ser un número de 0 en adelante.</p>}
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={guardar}
+              disabled={!hayCambios || hayInvalidos || guardando}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              style={{ background: GRAD }}
+            >
+              {guardando ? "Guardando…" : "Guardar costos"}
             </button>
           </div>
         </div>
@@ -413,6 +487,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             onExito={mostrarExito}
             onError={mostrarError}
             placeholder="Ej. Revisión de lentes de contacto"
+            onRenombrado={(viejo, nuevo) => setParametrizacion((prev) => ({ ...prev, costosMotivo: renombrarCostoMotivo(prev.costosMotivo, viejo, nuevo) }))}
             verificarUso={async (item) => {
               if (!supabase || !usuario?.opticaId) return false
               const { count } = await supabase.from("citas").select("id", { count: "exact", head: true }).eq("optica_id", usuario.opticaId).eq("motivo", item)
@@ -450,6 +525,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             }}
           />
         </div>
+        <CostosPorMotivo motivos={motivosConsulta} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
       </div>
       </div>
       )}

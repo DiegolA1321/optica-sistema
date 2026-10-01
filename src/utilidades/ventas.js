@@ -19,8 +19,25 @@ export function saldoVenta(venta) {
 // Reporte por producto: unidades vendidas, ingreso total, pacientes
 // distintos que lo compraron, cuántas ventas de ese producto siguen con
 // saldo pendiente.
-export function resumenVentasProducto(ventas, productoId) {
-  const delProducto = ventas.filter((v) => v.productoId === productoId)
+// Las líneas de producto de facturas_venta (panel de cobro único) cuentan como
+// ventas del producto, igual que las de la tabla vieja `ventas`.
+export function ventasDeFacturas(facturas = [], productoId) {
+  const out = []
+  for (const f of facturas) {
+    if (f.estado === "anulada") continue
+    ;(f.lineas || []).forEach((l, i) => {
+      if (l.tipo !== "producto" || l.productoId !== productoId) return
+      out.push({
+        id: `f-${f.id}-${i}`, pacienteId: f.pacienteId, productoId, cantidad: l.cantidad,
+        montoTotal: l.cantidad * l.precioUnitario, estado: f.estado === "pagada" ? "completado" : "pendiente", creadoEn: f.creadoEn || "",
+      })
+    })
+  }
+  return out
+}
+
+export function resumenVentasProducto(ventas, productoId, facturas = []) {
+  const delProducto = [...ventas.filter((v) => v.productoId === productoId), ...ventasDeFacturas(facturas, productoId)]
   const pacientesUnicos = new Set(delProducto.map((v) => v.pacienteId))
   const unidades = delProducto.reduce((a, v) => a + (Number(v.cantidad) || 0), 0)
   const ingreso = delProducto.reduce((a, v) => a + (Number(v.montoTotal) || 0), 0)

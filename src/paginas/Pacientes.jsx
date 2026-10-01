@@ -57,8 +57,9 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import VentaProductoModal from "./VentaProductoModal"
 import FacturaVentaModal from "./FacturaVentaModal"
+import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
+import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
@@ -156,7 +157,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -300,15 +301,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // Qué eventos del Timeline están expandidos (mostrando el detalle de
   // refracción OD/OI de esa consulta) — por id de consulta, cerrado por defecto.
   const [timelineAbiertos, setTimelineAbiertos] = useState({})
-  // "Pagos pendientes" en el perfil del paciente + "Vender producto" desde
-  // ahí mismo — caso de la reunión con el ing (ver Sexta Mirada, Inventario
-  // puntos 5 y 6). Reusa el mismo VentaProductoModal que Inventario.jsx.
-  const [mostrarVenta, setMostrarVenta] = useState(false)
-  useEffect(() => { if (!pacienteHistorial) setMostrarVenta(false) }, [pacienteHistorial])
-  // "Nueva factura" (Punto 06) — mismo lugar, mismo criterio, pero para una
-  // venta con varias líneas producto/servicio y cuotas. Vive aparte de
-  // "Vender producto" porque son dos tablas distintas (facturas_venta vs.
-  // ventas) mientras no se migre el camino viejo.
+  // "Nueva venta" (Ronda 4 del flujo de atención): antes había dos botones,
+  // "Vender producto" (un producto, pago directo, tabla `ventas`) y "Nueva
+  // factura" (varias líneas, cuotas, tabla `facturas_venta`). Una venta de un
+  // producto es una factura de una línea, así que se fundieron en uno solo que
+  // abre el mismo panel de cobro que usa la ficha clínica. Las ventas viejas
+  // (tabla `ventas`) se siguen mostrando y cobrando en cuotas como siempre.
   const [mostrarFactura, setMostrarFactura] = useState(false)
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
   // Línea a precargar en FacturaVentaModal cuando se factura la receta
@@ -320,9 +318,21 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     setFacturasVenta?.((prev) => [factura, ...prev])
   }
 
-  const registrarVenta = (venta) => {
-    setVentas?.((prev) => [venta, ...prev])
+  // Cobro pendiente (Ronda 4): ficha guardada con "Más tarde" en el panel de
+  // cobro. Se cobra con el mismo panel; al cobrar, la cita (si la hay) pasa a
+  // Atendida.
+  const [cobrandoPendiente, setCobrandoPendiente] = useState(null) // { consulta, cita } | null
+  useEffect(() => { if (!pacienteHistorial) setCobrandoPendiente(null) }, [pacienteHistorial])
+  const alCobrarPendiente = async (factura) => {
+    registrarFactura(factura)
+    const cita = cobrandoPendiente?.cita
+    if (cita) {
+      const { error } = await marcarCitaAtendidaDb(supabase, cita.id)
+      if (!error) setCitas?.((prev) => prev.map((c) => (c.id === cita.id ? { ...c, estado: "Atendida" } : c)))
+    }
+    mostrarNotif(cita ? "Cobro registrado · cita atendida." : "Cobro registrado.")
   }
+
 
   const marcarVentaPagada = async (venta) => {
     const cuotasFinales = venta.cuotasTotales || venta.cuotasPagadas
@@ -678,8 +688,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   const abrirVentaRapida = (paciente) => {
     setPacienteHistorial(paciente)
     setTabHistorial("pagos")
-    setMostrarVenta(true)
-    mostrarNotif(`Venta rápida lista para ${paciente.nombre}.`)
+    setFacturaLineaInicial(undefined)
+    setMostrarFactura(true)
+    mostrarNotif(`Nueva venta lista para ${paciente.nombre}.`)
   }
 
   // Facturar directo desde el encabezado del perfil, con la receta de la
@@ -691,10 +702,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // la venta justo después de guardar una ficha.
   const abrirFacturaConReceta = (consulta) => {
     setTabHistorial("pagos")
-    setFacturaLineaInicial(consulta?.productoId ? { productoId: consulta.productoId, cantidad: 1 } : undefined)
+    const productoReceta = consulta?.productoId || consulta?.lenteProductoId
+    setFacturaLineaInicial(productoReceta ? { productoId: productoReceta, cantidad: 1 } : undefined)
     setMostrarFactura(true)
     mostrarNotif(
-      consulta?.productoId
+      consulta?.productoId || consulta?.lenteProductoId
         ? `Factura precargada con "${consulta.productoNombre || consulta.lenteRecomendado}".`
         : `Abriendo factura para ${pacienteHistorial?.nombre}.`,
     )
@@ -1316,7 +1328,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
                               <CalendarPlus size={16} />
                             </button>
-                            <button type="button" onClick={() => abrirVentaRapida(paciente)} title="Venta rápida" aria-label="Venta rápida" className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer">
+                            <button type="button" onClick={() => abrirVentaRapida(paciente)} title="Nueva venta" aria-label="Nueva venta" className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer">
                               <ShoppingCart size={16} />
                             </button>
                           </div>
@@ -1588,7 +1600,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               onClick={() => { setMenuAccionesId(null); abrirVentaRapida(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
             >
-              <ShoppingCart size={15} /> Venta rápida
+              <ShoppingCart size={15} /> Nueva venta
             </button>
             <div className="my-1 border-t border-slate-100" />
             <button
@@ -1951,6 +1963,24 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
               return (
                 <>
+                  {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
+                      para después ("Más tarde" en el panel de cobro) ─── */}
+                  {cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
+                    <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                        <Receipt size={16} className="shrink-0" />
+                        Cobro pendiente de la consulta del {consulta.fecha}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCobrandoPendiente({ consulta, cita })}
+                        className="rounded-lg bg-amber-600 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer"
+                      >
+                        Cobrar
+                      </button>
+                    </div>
+                  ))}
+
                   {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
                       tener que entrar a ninguna pestaña ─── */}
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -2134,26 +2164,15 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            onClick={() => setMostrarVenta(true)}
-                            className="flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                            style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
-                          >
-                            <span className="flex items-center gap-2"><ShoppingCart size={16} /> Vender producto</span>
-                            <span className="text-[11px] font-medium opacity-90">Un solo producto, pago directo</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
-                            className="flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                            style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}
-                          >
-                            <span className="flex items-center gap-2"><Receipt size={16} /> Nueva factura</span>
-                            <span className="text-[11px] font-medium opacity-90">Varios productos/servicios, incluye cuotas</span>
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
+                          className="flex w-full flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer"
+                          style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+                        >
+                          <span className="flex items-center gap-2"><Receipt size={16} /> Nueva venta</span>
+                          <span className="text-[11px] font-medium opacity-90">Productos y servicios, con pago directo, tarjeta o cuotas</span>
+                        </button>
                         {(() => {
                           // Fila compartida entre "Productos" y "Servicios" —
                           // mismo diseño y jerarquía de badges que ya existían
@@ -2343,22 +2362,26 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         document.getElementById("vista-completa-root") || document.body
       )}
 
-      {/* ─── MODAL VENDER PRODUCTO (desde el perfil del paciente) ─── */}
-      {mostrarVenta && pacienteHistorial && (
-        <VentaProductoModal
+      {cobrandoPendiente && pacienteHistorial && (
+        <FacturaVentaModal
           usuario={usuario}
-          pacientes={pacientes}
           inventario={inventario}
           setInventario={setInventario}
           categorias={categoriasInventario}
           setCategorias={setCategoriasInventario}
           pacienteFijo={pacienteHistorial}
-          onGuardado={registrarVenta}
-          onCerrar={() => setMostrarVenta(false)}
+          titulo={`Cobrar la atención de ${pacienteHistorial.nombre}`}
+          subtitulo={`Consulta del ${cobrandoPendiente.consulta.fecha}${cobrandoPendiente.consulta.motivo ? ` · ${cobrandoPendiente.consulta.motivo}` : ""}`}
+          etiquetaGuardar="Cobrar y finalizar"
+          lineasIniciales={lineasCobroConsulta(cobrandoPendiente.consulta, parametrizacion)}
+          consultaId={cobrandoPendiente.consulta.id}
+          citaId={cobrandoPendiente.cita?.id || null}
+          onGuardado={alCobrarPendiente}
+          onCerrar={() => setCobrandoPendiente(null)}
         />
       )}
 
-      {/* ─── MODAL NUEVA FACTURA (desde el perfil del paciente) ─── */}
+      {/* ─── PANEL DE COBRO / NUEVA VENTA (desde el perfil del paciente) ─── */}
       {mostrarFactura && pacienteHistorial && (
         <FacturaVentaModal
           usuario={usuario}
@@ -2667,11 +2690,11 @@ function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
           )}
           <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2.5 font-mono text-xs">
             <div>
-              <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera} | {c.od?.cilindro} | {c.od?.eje}°
+              <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera || c.od?.cilindro || c.od?.eje ? `${c.od?.esfera || "—"} | ${c.od?.cilindro || "—"} | ${c.od?.eje || "—"}°` : "No registrada"}
               <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
             </div>
             <div>
-              <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera} | {c.oi?.cilindro} | {c.oi?.eje}°
+              <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera || c.oi?.cilindro || c.oi?.eje ? `${c.oi?.esfera || "—"} | ${c.oi?.cilindro || "—"} | ${c.oi?.eje || "—"}°` : "No registrada"}
               <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
             </div>
           </div>

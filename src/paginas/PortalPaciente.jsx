@@ -1073,7 +1073,7 @@ function OjoReceta({ sigla, titulo, ojo = {}, color, mostrarMedidas }) {
       {mostrarMedidas ? (
         <div className="rounded-lg border border-slate-200 bg-white py-3.5 text-center">
           <p className="font-mono text-sm font-bold" style={{ color: INK }}>
-            {ojo.esfera ?? "—"} {ojo.cilindro ?? ""} {ojo.eje != null ? `x${ojo.eje}` : ""}
+            {ojo.esfera || ojo.cilindro || ojo.eje ? [ojo.esfera || "—", ojo.cilindro, ojo.eje ? `x${ojo.eje}` : ""].filter(Boolean).join(" ") : "No registrada"}
           </p>
           <p className="mt-0.5 text-xs text-slate-500">Esfera · Cilindro · Eje</p>
         </div>

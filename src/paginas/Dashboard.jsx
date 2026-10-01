@@ -348,7 +348,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // recordar Dashboard para que "Volver" (a diferencia de "X", que siempre
   // sale a la lista de origen) pueda reabrir el perfil del paciente en vez
   // de aterrizar en la lista pelada.
-  const irAFichaClinica = (paciente, { citaId = null, origen = "pacientes" } = {}) => {
+  const irAFichaClinica = (paciente, { citaId = null, origen = "pacientes", motivo = null } = {}) => {
     setFichaClinicaPacienteInicial(paciente)
     setFichaClinicaCitaId(citaId)
     setFichaClinicaOrigen(origen)
@@ -358,7 +358,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     // clínica (ING7) — se resuelve acá porque Dashboard ya tiene `citas`
     // completo, sin tener que hacer viajar el objeto cita entero por Citas.jsx.
     const citaOrigen = citaId ? citas.find((c) => c.id === citaId) : null
-    setFichaClinicaMotivoInicial(citaOrigen?.motivo || null)
+    // Con "Atender ahora" (walk-in) la cita se acaba de crear en Citas.jsx y
+    // este `citas` todavía es el de antes del alta — el motivo llegaba vacío.
+    // Citas.jsx ahora lo manda explícito; la búsqueda queda como respaldo.
+    setFichaClinicaMotivoInicial(motivo || citaOrigen?.motivo || null)
     navegar("consultas")
   }
 
@@ -445,6 +448,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setCitas={setCitas}
             disponibilidad={disponibilidad}
             motivosConsulta={motivosConsulta}
+            parametrizacion={parametrizacion}
             inventario={inventario}
             setInventario={setInventario}
             categoriasInventario={categoriasInventario}
@@ -504,6 +508,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             pacientes={pacientes}
             ventas={ventas}
             setVentas={setVentas}
+            facturasVenta={facturasVenta}
+            setFacturasVenta={setFacturasVenta}
             abrirModalAlEntrar={abrirCrearProductoAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirCrearProductoAlEntrar(false)}
             productoIdParaReabastecer={productoIdParaReabastecer}
@@ -525,7 +531,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
             motivosConsulta={motivosConsulta}
-            onAtender={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "citas" })}
+            inventario={inventario}
+            setInventario={setInventario}
+            facturasVenta={facturasVenta}
+            setFacturasVenta={setFacturasVenta}
+            parametrizacion={parametrizacion}
+            onAtender={(paciente, citaId, motivo) => irAFichaClinica(paciente, { citaId, origen: "citas", motivo })}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />
         )

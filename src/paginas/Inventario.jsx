@@ -23,12 +23,12 @@ import {
   RotateCcw,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
-import { resumenVentasProducto } from "../utilidades/ventas"
+import { resumenVentasProducto, ventasDeFacturas } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
-import VentaProductoModal from "./VentaProductoModal"
+import FacturaVentaModal from "./FacturaVentaModal"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -54,6 +54,8 @@ export default function Inventario({
   pacientes = [],
   ventas = [],
   setVentas,
+  facturasVenta = [],
+  setFacturasVenta,
   abrirModalAlEntrar = false,
   onModalAlEntrarConsumido,
   productoIdParaReabastecer = null,
@@ -199,7 +201,7 @@ export default function Inventario({
   // producto_nombre cacheado, 0047), pero sí dejaba inalcanzable su "Reporte
   // de ventas" desde la tabla. Un producto sin ninguna venta se sigue
   // eliminando tal cual, con confirmación.
-  const tieneVentasAsociadas = (id) => ventas.some((v) => v.productoId === id)
+  const tieneVentasAsociadas = (id) => ventas.some((v) => v.productoId === id) || ventasDeFacturas(facturasVenta, id).length > 0
   const porEliminarTieneVentas = porEliminar != null && tieneVentasAsociadas(porEliminar)
 
   const confirmarEliminar = async () => {
@@ -382,11 +384,11 @@ export default function Inventario({
     return { total: productos.length, unidades, valor, bajos }
   }, [productos])
 
-  const reporteProducto = useMemo(() => (verReporte ? resumenVentasProducto(ventas, verReporte.id) : null), [ventas, verReporte])
+  const reporteProducto = useMemo(() => (verReporte ? resumenVentasProducto(ventas, verReporte.id, facturasVenta) : null), [ventas, facturasVenta, verReporte])
   const nombrePaciente = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
 
-  const registrarVenta = (venta) => {
-    setVentas?.((prev) => [venta, ...prev])
+  const registrarVenta = (factura) => {
+    setFacturasVenta?.((prev) => [factura, ...prev])
     setGuardadoExitoso("Venta registrada correctamente.")
     setTimeout(() => setGuardadoExitoso(""), 3000)
   }
@@ -851,14 +853,14 @@ export default function Inventario({
 
       {/* ─── MODAL VENDER PRODUCTO ─── */}
       {vendiendo && (
-        <VentaProductoModal
+        <FacturaVentaModal
           usuario={usuario}
           pacientes={pacientes}
           inventario={productos}
           setInventario={setProductos}
           categorias={CATEGORIAS}
           setCategorias={setCategorias}
-          productoFijo={vendiendo}
+          lineasIniciales={[{ tipo: "producto", productoId: vendiendo.id, cantidad: 1 }]}
           onGuardado={registrarVenta}
           onCerrar={() => setVendiendo(null)}
         />

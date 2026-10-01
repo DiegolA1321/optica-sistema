@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import { hoyISO } from "../utilidades/disponibilidad"
+import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -94,6 +95,35 @@ const verdictoPorVariacion = (variacionPromedio) => {
   return variacionPromedio > 0.25 ? "Aumentó" : "Disminuyó"
 }
 
+const numONull = (v) => {
+  const n = parseFloat(v)
+  return Number.isNaN(n) ? null : n
+}
+
+// Equivalente esférico de un ojo (esfera + cilindro/2). null si ese ojo no
+// tiene esfera ni cilindro registrados: sin dato no hay cálculo, nunca un 0.
+const eeOjo = (esf, cil) => {
+  const e = numONull(esf)
+  const c = numONull(cil)
+  if (e === null && c === null) return null
+  return (e ?? 0) + (c ?? 0) / 2
+}
+
+// Variación promedio de |EE| entre dos refracciones ({od,oi}), calculada solo
+// sobre los ojos que tienen dato en ambas. null si no hay nada comparable.
+const variacionEntre = (a, b) => {
+  const difs = ["od", "oi"]
+    .map((o) => {
+      const x = eeOjo(a?.[o]?.esfera, a?.[o]?.cilindro)
+      const y = eeOjo(b?.[o]?.esfera, b?.[o]?.cilindro)
+      return x === null || y === null ? null : Math.abs(x) - Math.abs(y)
+    })
+    .filter((d) => d !== null)
+  return difs.length ? difs.reduce((s, d) => s + d, 0) / difs.length : null
+}
+
+const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
+
 export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
@@ -133,9 +163,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setMostrarDropdown(false)
       }
-      if (dropdownProductoRef.current && !dropdownProductoRef.current.contains(event.target)) {
-        setFacturaMostrarDropdown(false)
-      }
       if (lenteDropdownRef.current && !lenteDropdownRef.current.contains(event.target)) {
         setLenteMostrarDropdown(false)
       }
@@ -160,6 +187,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // palabras al llegar ("me duelen los ojos..."). Uno es relacional a la
   // cita, el otro es libre y específico de esta visita.
   const [detalleConsulta, setDetalleConsulta] = useState("")
+  // Con cita, el motivo llega relleno y se muestra como dato (con "Cambiar");
+  // sin cita aparece el selector obligatorio. El detalle es un enlace
+  // "+ Agregar detalle" salvo que el motivo sea "Otros" (ahí es obligatorio).
+  const [editandoMotivo, setEditandoMotivo] = useState(false)
+  const [mostrarDetalle, setMostrarDetalle] = useState(false)
+  const detalleRef = useRef(null)
   const [usaLentes, setUsaLentes] = useState("")
   const [antecedentes, setAntecedentes] = useState("")
   const [alergias, setAlergias] = useState("")
@@ -174,24 +207,27 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [retinoscopiaOi, setRetinoscopiaOi] = useState("")
 
   // --- Ojo Derecho (OD) ---
-  const [odEsfera, setOdEsfera] = useState("0.00")
-  const [odCilindro, setOdCilindro] = useState("0.00")
-  const [odEje, setOdEje] = useState("0")
-  const [odAgudezaSc, setOdAgudezaSc] = useState("20/20")
+  // Vacío significa "no medido", nunca "normal" (propuesta de flujo de
+  // atención, Ronda 3): ningún campo de refracción arranca con un valor
+  // por defecto — los números de ejemplo son solo placeholder.
+  const [odEsfera, setOdEsfera] = useState("")
+  const [odCilindro, setOdCilindro] = useState("")
+  const [odEje, setOdEje] = useState("")
+  const [odAgudezaSc, setOdAgudezaSc] = useState("")
   const [odAgudezaCc, setOdAgudezaCc] = useState("")
 
   // --- Ojo Izquierdo (OI) ---
-  const [oiEsfera, setOiEsfera] = useState("0.00")
-  const [oiCilindro, setOiCilindro] = useState("0.00")
-  const [oiEje, setOiEje] = useState("0")
-  const [oiAgudezaSc, setOiAgudezaSc] = useState("20/20")
+  const [oiEsfera, setOiEsfera] = useState("")
+  const [oiCilindro, setOiCilindro] = useState("")
+  const [oiEje, setOiEje] = useState("")
+  const [oiAgudezaSc, setOiAgudezaSc] = useState("")
   const [oiAgudezaCc, setOiAgudezaCc] = useState("")
 
   // --- Adición y Medidas ---
-  const [adicion, setAdicion] = useState("+0.00")
-  const [dp, setDp] = useState("64 mm")
-  const [alt, setAlt] = useState("18 mm")
-  const [avCerca, setAvCerca] = useState("J1")
+  const [adicion, setAdicion] = useState("")
+  const [dp, setDp] = useState("")
+  const [alt, setAlt] = useState("")
+  const [avCerca, setAvCerca] = useState("")
 
   // --- Examen físico complementario ---
   const [testMotor, setTestMotor] = useState("")
@@ -227,7 +263,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // Vincula el texto libre de arriba a un producto real de inventario —
   // sin esto no hay forma de precargar una línea de cobro real al cerrar
   // la consulta (el texto por sí solo no tiene precio ni stock). Queda
-  // aparte de facturaLineas (el editor de factura completo más abajo):
+  // aparte del panel de cobro (que se abre al guardar la ficha):
   // esto es específicamente "¿qué lente recomendó el optómetra?", no una
   // factura ya armada — la venta recién se decide después de guardar.
   const [lenteRecomendadoProductoId, setLenteRecomendadoProductoId] = useState(null)
@@ -249,60 +285,21 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // esta pantalla — no se guarda en la consulta, solo afecta qué se imprime.
   const [incluirMedidasReceta, setIncluirMedidasReceta] = useState(true)
 
-  // --- Costo de la consulta (D3, reunión 29 sept.) — obligatorio, separado
-  // a propósito del editor opcional de factura de abajo: mezclarlo con
-  // facturaLineas habría repetido el problema que señaló el ing (una
-  // consulta cuya "Atendida" dependía de si se vendía o no un producto).
-  // Se cobra con una llamada aparte a crear_factura_venta (una sola línea
-  // de tipo "servicio", "Consulta") — sin columna nueva en `consultas`. ---
-  const [costoConsulta, setCostoConsulta] = useState("")
-  const [costoConsultaEstado, setCostoConsultaEstado] = useState(null) // null | 'guardada' | 'error'
-  const [costoConsultaErrorMsg, setCostoConsultaErrorMsg] = useState("")
-  const [guardandoCostoConsultaAhora, setGuardandoCostoConsultaAhora] = useState(false)
-
-  // --- Factura de esta consulta (Punto 06) — reemplaza el vínculo de un
-  // solo producto que había antes. Arma un borrador de líneas mientras se
-  // llena la ficha; la factura real (crear_factura_venta) recién se crea
-  // DESPUÉS de guardar la consulta, porque necesita su id — borrador local
-  // + envío encadenado al guardar, en vez de forzar un cambio de flujo acá.
-  // Sigue siendo opcional y separada del costo de la consulta de arriba. ---
-  const [mostrarEditorFactura, setMostrarEditorFactura] = useState(false)
-  const [facturaLineas, setFacturaLineas] = useState([])
-  const [facturaTipoLinea, setFacturaTipoLinea] = useState("producto")
-  const [facturaProductoId, setFacturaProductoId] = useState(null)
-  const [facturaBusquedaProducto, setFacturaBusquedaProducto] = useState("")
-  const [facturaMostrarDropdown, setFacturaMostrarDropdown] = useState(false)
-  const [facturaCantidadProducto, setFacturaCantidadProducto] = useState("1")
-  const [facturaDescServicio, setFacturaDescServicio] = useState("")
-  const [facturaCantidadServicio, setFacturaCantidadServicio] = useState("1")
-  const [facturaPrecioServicio, setFacturaPrecioServicio] = useState("")
-  const [facturaMetodoPago, setFacturaMetodoPago] = useState("directo")
-  const [facturaCuotasTotales, setFacturaCuotasTotales] = useState("3")
-  const dropdownProductoRef = useRef(null)
-
-  // Resultado de intentar crear la factura al guardar la ficha — Diego
-  // pidió que una falla (ej. stock insuficiente) no sea un error silencioso
-  // de consola: se avisa visible y se puede reintentar sin perder las
-  // líneas, porque la ficha clínica ya quedó guardada de todas formas.
+  // --- Cobro (Ronda 4 del flujo de atención) ---
+  // Antes la ficha mezclaba tres lugares para el dinero (campo "Costo de la
+  // consulta", editor "Factura de esta consulta" y el modal "lente sugerido").
+  // Ahora la ficha solo captura lo clínico; al guardarla aparece UN panel de
+  // cobro (FacturaVentaModal, el mismo del perfil del paciente) ya relleno
+  // con la consulta (costo base del motivo, editable, puede ser 0) y el lente
+  // recomendado si está vinculado a inventario.
   const [consultaGuardadaId, setConsultaGuardadaId] = useState(null)
-  const [facturaEstadoGuardado, setFacturaEstadoGuardado] = useState(null) // null | 'guardada' | 'error'
-  const [facturaErrorMsg, setFacturaErrorMsg] = useState("")
-  const [guardandoFacturaAhora, setGuardandoFacturaAhora] = useState(false)
-
-  // Cierre de consulta con integración de venta "cero fricción": si el
-  // optómetra vinculó un lente real de inventario (lenteRecomendadoProductoId)
-  // y NO armó ya una factura a mano en el editor de arriba (facturaLineas
-  // sigue vacío — si ya la armó, esa factura atómica de Punto 06 es la que
-  // manda, no hace falta preguntar de nuevo), al guardar la ficha se ofrece
-  // procesar la venta ahí mismo en vez de dejarlo para después.
-  const [mostrarConfirmarVenta, setMostrarConfirmarVenta] = useState(false)
-  const [mostrarModalFacturaVenta, setMostrarModalFacturaVenta] = useState(false)
+  const [mostrarPanelCobro, setMostrarPanelCobro] = useState(false)
+  const [cobroEstado, setCobroEstado] = useState(null) // null | 'pendiente' | 'cobrado'
+  const [cobroTotal, setCobroTotal] = useState(0)
 
   // Mantiene en sincronía el campo legado consultas.producto_id (lo lee
   // Reportes.jsx para "Conversión a venta", ver Punto 06) cuando la venta se
-  // registra DESPUÉS de guardar la ficha a través de este flujo — a
-  // diferencia del editor embebido de factura, que ya lo deja resuelto
-  // desde el insert inicial de la consulta.
+  // registra DESPUÉS de guardar la ficha.
   const sincronizarProductoConsulta = async (factura) => {
     const linea = factura.lineas?.find((l) => l.tipo === "producto")
     if (!linea || !consultaGuardadaId) return
@@ -313,17 +310,23 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setHistorialConsultas((prev) => prev.map((c) => (c.id === consultaGuardadaId ? { ...c, productoId: linea.productoId, productoNombre: linea.descripcion, montoVenta } : c)))
   }
 
-  const facturaProductosFiltrados = useMemo(() => {
-    const q = facturaBusquedaProducto.trim().toLowerCase()
-    // activo: false (migración 0081) = descontinuado, no debe ofrecerse
-    // para una factura/venta nueva aunque le quede stock físico.
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
-    if (!q) return disponibles
-    return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
-  }, [inventario, facturaBusquedaProducto])
+  // La cita solo pasa a "Atendida" cuando el cobro tuvo éxito ("Cobrar y
+  // finalizar"), nunca al guardar la ficha sola.
+  const marcarCitaAtendida = async () => {
+    if (!citaEnAtencionId || !supabase) return
+    const { error: errorCita } = await supabase.from("citas").update({ estado: "Atendida" }).eq("id", citaEnAtencionId)
+    if (errorCita) console.error("El cobro se registró, pero no se pudo marcar la cita como atendida:", errorCita.message)
+    else setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
+  }
 
-  const facturaProductoSeleccionado = useMemo(() => inventario.find((p) => p.id === facturaProductoId) || null, [inventario, facturaProductoId])
-  const facturaTotal = useMemo(() => facturaLineas.reduce((sum, l) => sum + l.cantidad * l.precioUnitario, 0), [facturaLineas])
+  const alCobrar = async (factura) => {
+    setFacturasVenta?.((prev) => [factura, ...prev])
+    await sincronizarProductoConsulta(factura)
+    await marcarCitaAtendida()
+    setCobroTotal(Number(factura.montoTotal) || 0)
+    setCobroEstado("cobrado")
+    registrarLog(usuario, "consultas", "Cobró la atención desde la ficha clínica", `$${(Number(factura.montoTotal) || 0).toFixed(2)}`)
+  }
 
   const lenteProductosFiltrados = useMemo(() => {
     const q = lenteBusquedaProducto.trim().toLowerCase()
@@ -352,152 +355,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   useEffect(() => {
     return () => previsualizacionesImagenes.forEach((url) => URL.revokeObjectURL(url))
   }, [previsualizacionesImagenes])
-
-  const agregarLineaFacturaProducto = () => {
-    if (!facturaProductoSeleccionado) return
-    const cant = parseInt(facturaCantidadProducto, 10) || 1
-    setFacturaLineas((prev) => [...prev, {
-      tipo: "producto",
-      productoId: facturaProductoSeleccionado.id,
-      descripcion: facturaProductoSeleccionado.nombre,
-      cantidad: cant,
-      precioUnitario: Number(facturaProductoSeleccionado.precio) || 0,
-    }])
-    setFacturaProductoId(null)
-    setFacturaBusquedaProducto("")
-    setFacturaCantidadProducto("1")
-  }
-
-  const agregarLineaFacturaServicio = () => {
-    const desc = facturaDescServicio.trim()
-    const precio = parseFloat(facturaPrecioServicio)
-    if (!desc || isNaN(precio) || precio < 0) return
-    setFacturaLineas((prev) => [...prev, {
-      tipo: "servicio",
-      productoId: null,
-      descripcion: desc,
-      cantidad: parseInt(facturaCantidadServicio, 10) || 1,
-      precioUnitario: precio,
-    }])
-    setFacturaDescServicio("")
-    setFacturaCantidadServicio("1")
-    setFacturaPrecioServicio("")
-  }
-
-  const quitarLineaFactura = (idx) => setFacturaLineas((prev) => prev.filter((_, i) => i !== idx))
-
-  // Llama a la RPC atómica con el borrador ya armado — usada tanto justo
-  // después de guardar la ficha como desde "Reintentar generar factura".
-  // Nunca limpia facturaLineas si falla: son las líneas que el optómetra
-  // reintentará, no algo para descartar.
-  const intentarCrearFactura = async (consultaId) => {
-    if (facturaLineas.length === 0 || !supabase || !usuario?.opticaId) return
-    setGuardandoFacturaAhora(true)
-    const cuotasNum = facturaMetodoPago === "cuotas" ? (parseInt(facturaCuotasTotales, 10) || null) : null
-    const { data, error } = await supabase
-      .rpc("crear_factura_venta", {
-        p_optica_id: usuario.opticaId,
-        p_paciente_id: pacienteId,
-        p_metodo_pago: facturaMetodoPago,
-        p_lineas: facturaLineas.map((l) => ({
-          producto_id: l.productoId,
-          tipo: l.tipo,
-          descripcion: l.descripcion,
-          cantidad: l.cantidad,
-          precio_unitario: l.precioUnitario,
-        })),
-        p_cita_id: citaEnAtencionId || null,
-        p_consulta_id: consultaId,
-        p_cuotas_totales: cuotasNum,
-        p_registrado_por: usuario?.id || null,
-      })
-      .single()
-    setGuardandoFacturaAhora(false)
-    if (error) {
-      setFacturaEstadoGuardado("error")
-      setFacturaErrorMsg(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message || "No se pudo generar la factura. Revisa tu conexión e intenta de nuevo.")
-      return
-    }
-    // Las líneas de producto ya descontaron su stock dentro de la propia
-    // transacción — se refleja acá para que el resto de la sesión no
-    // necesite recargar para verlo.
-    setInventario?.((prev) => prev.map((p) => {
-      const linea = facturaLineas.find((l) => l.tipo === "producto" && l.productoId === p.id)
-      return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
-    }))
-    setFacturaEstadoGuardado("guardada")
-    setFacturaErrorMsg("")
-    setFacturasVenta?.((prev) => [{
-      id: data.id, pacienteId, citaId: citaEnAtencionId || null, consultaId,
-      metodoPago: facturaMetodoPago, cuotasTotales: cuotasNum,
-      cuotasPagadas: 0, montoTotal: data.monto_total, estado: data.estado, creadoEn: data.created_at,
-    }, ...prev])
-    registrarLog(usuario, "consultas", "Generó una factura desde la ficha clínica", `${facturaLineas.length} línea(s) · $${facturaTotal.toFixed(2)}`)
-  }
-
-  const reintentarFactura = () => {
-    if (consultaGuardadaId) intentarCrearFactura(consultaGuardadaId)
-  }
-
-  // Cobro obligatorio de la consulta (D3, reunión 29 sept.) — independiente
-  // del editor opcional de arriba: una sola línea de tipo "servicio",
-  // descripción fija "Consulta", encadenada a la consulta recién guardada.
-  // Reutiliza crear_factura_venta (sin migración: la tabla ya acepta
-  // precio_unitario >= 0, así que un control de garantía puede cobrar $0,
-  // y ya rechaza un array de líneas vacío, así que nunca queda sin cobrar).
-  const intentarCobrarConsulta = async (consultaId) => {
-    if (!supabase || !usuario?.opticaId) return { ok: false }
-    setGuardandoCostoConsultaAhora(true)
-    const { data, error } = await supabase
-      .rpc("crear_factura_venta", {
-        p_optica_id: usuario.opticaId,
-        p_paciente_id: pacienteId,
-        p_metodo_pago: "directo",
-        p_lineas: [{
-          producto_id: null,
-          tipo: "servicio",
-          descripcion: "Consulta",
-          cantidad: 1,
-          precio_unitario: parseFloat(costoConsulta) || 0,
-        }],
-        p_cita_id: citaEnAtencionId || null,
-        p_consulta_id: consultaId,
-        p_cuotas_totales: null,
-        p_registrado_por: usuario?.id || null,
-      })
-      .single()
-    setGuardandoCostoConsultaAhora(false)
-    if (error) {
-      setCostoConsultaEstado("error")
-      setCostoConsultaErrorMsg(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message || "No se pudo registrar el cobro de la consulta. Revisa tu conexión e intenta de nuevo.")
-      return { ok: false }
-    }
-    setCostoConsultaEstado("guardada")
-    setCostoConsultaErrorMsg("")
-    setFacturasVenta?.((prev) => [{
-      id: data.id, pacienteId, citaId: citaEnAtencionId || null, consultaId,
-      metodoPago: "directo", cuotasTotales: null,
-      cuotasPagadas: 0, montoTotal: data.monto_total, estado: data.estado, creadoEn: data.created_at,
-    }, ...prev])
-    registrarLog(usuario, "consultas", "Registró el cobro de la consulta", `$${(parseFloat(costoConsulta) || 0).toFixed(2)}`)
-    return { ok: true }
-  }
-
-  // Extraído del guardado principal para poder reusarlo desde "Reintentar
-  // cobro" — la cita solo pasa a "Atendida" cuando el cobro de arriba tuvo
-  // éxito, nunca al guardar la ficha sola (a diferencia del diseño anterior).
-  const marcarCitaAtendida = async () => {
-    if (!citaEnAtencionId || !supabase) return
-    const { error: errorCita } = await supabase.from("citas").update({ estado: "Atendida" }).eq("id", citaEnAtencionId)
-    if (errorCita) console.error("El cobro se registró, pero no se pudo marcar la cita como atendida:", errorCita.message)
-    else setCitas?.(citas.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
-  }
-
-  const reintentarCobroConsulta = async () => {
-    if (!consultaGuardadaId) return
-    const resultado = await intentarCobrarConsulta(consultaGuardadaId)
-    if (resultado.ok) await marcarCitaAtendida()
-  }
 
   const [notificacion, setNotificacion] = useState(false)
   const [errores, setErrores] = useState({})
@@ -530,8 +387,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
-    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, tratamientoFinalizado, facturaLineas, archivosImagenes,
-    costoConsulta,
+    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, tratamientoFinalizado, archivosImagenes,
   ])
   // Cierre de pestaña/recarga — el aviso in-app (navegar a otra sección) lo
   // maneja Dashboard.jsx vía onCambiosSinGuardarChange, no acá.
@@ -560,12 +416,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // sola apenas detecta que ese paciente ya tiene antecedentes/alergias/etc.
   // registrados de una visita anterior — pedido de Diego: no repetir el
   // formulario completo en cada visita de un paciente que ya lo llenó.
-  const [seccionesAbiertas, setSeccionesAbiertas] = useState({ antecedentesPaciente: true })
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState({ antecedentesPaciente: true, refraccionSubjetiva: true })
   const alternarSeccion = (id) => setSeccionesAbiertas((prev) => ({ ...prev, [id]: !prev[id] }))
   // Si hay algo que resumir en el cuadro colapsado (antecedentes ya
   // registrados de antes) — independiente de si el usuario los editó justo
   // ahora, que ya no cuenta como "precargado" campo por campo.
   const [tieneHistorialAntecedentes, setTieneHistorialAntecedentes] = useState(false)
+
+  // Al elegir "Otros" el detalle pasa a ser obligatorio: el foco va directo ahí.
+  useEffect(() => {
+    if (motivo === "Otros") detalleRef.current?.focus()
+  }, [motivo])
 
   // Scroll automático al inicio del formulario al cambiar de paso
   const inicioFormRef = useRef(null)
@@ -593,17 +454,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const calcularEvolucionIA = useMemo(() => {
     if (!ultimaConsultaPaciente) return "Primera consulta"
 
-    const calcularEE = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
-
-    const eeOdActual = calcularEE(odEsfera, odCilindro)
-    const eeOiActual = calcularEE(oiEsfera, oiCilindro)
-
-    const eeOdPrev = calcularEE(ultimaConsultaPaciente.od?.esfera, ultimaConsultaPaciente.od?.cilindro)
-    const eeOiPrev = calcularEE(ultimaConsultaPaciente.oi?.esfera, ultimaConsultaPaciente.oi?.cilindro)
-
-    const variacionPromedio = (Math.abs(eeOdActual) - Math.abs(eeOdPrev) + (Math.abs(eeOiActual) - Math.abs(eeOiPrev))) / 2
-
-    return verdictoPorVariacion(variacionPromedio)
+    // Sin refracción registrada hoy (o sin un ojo comparable) no hay
+    // veredicto: "Sin evaluación", nunca un "Sin cambios" falso.
+    const variacionPromedio = variacionEntre(
+      { od: { esfera: odEsfera, cilindro: odCilindro }, oi: { esfera: oiEsfera, cilindro: oiCilindro } },
+      ultimaConsultaPaciente,
+    )
+    return variacionPromedio === null ? "Sin evaluación" : verdictoPorVariacion(variacionPromedio)
   }, [odEsfera, odCilindro, oiEsfera, oiCilindro, ultimaConsultaPaciente])
 
   // --- Estado de corrección: ¿la corrección actual (anteojos/lentes) logra buena AV? ---
@@ -613,14 +470,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   )
   // --- Detalle del análisis (solo para mostrar; no altera la lógica) ---
   const analisisEvolucion = useMemo(() => {
-    const ee = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
-    const odA = ee(odEsfera, odCilindro)
-    const oiA = ee(oiEsfera, oiCilindro)
-    if (!ultimaConsultaPaciente) return { primera: true, odA, oiA }
-    const odP = ee(ultimaConsultaPaciente.od?.esfera, ultimaConsultaPaciente.od?.cilindro)
-    const oiP = ee(ultimaConsultaPaciente.oi?.esfera, ultimaConsultaPaciente.oi?.cilindro)
-    const variacion = (Math.abs(odA) - Math.abs(odP) + (Math.abs(oiA) - Math.abs(oiP))) / 2
-    return { primera: false, odA, oiA, odP, oiP, variacion, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
+    if (!ultimaConsultaPaciente) return { primera: true, variacion: null }
+    const variacion = variacionEntre(
+      { od: { esfera: odEsfera, cilindro: odCilindro }, oi: { esfera: oiEsfera, cilindro: oiCilindro } },
+      ultimaConsultaPaciente,
+    )
+    return { primera: false, variacion, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
   }, [odEsfera, odCilindro, oiEsfera, oiCilindro, ultimaConsultaPaciente, calcularEvolucionIA])
 
   // --- Tendencia histórica (entre las 2 visitas anteriores, sin depender de
@@ -632,13 +487,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // Diego, 30 sept.
   const tendenciaHistorica = useMemo(() => {
     if (historialPaciente.length < 2) return null
-    const ee = (esf, cil) => parseFloat(esf || 0) + parseFloat(cil || 0) / 2
     const [reciente, previa] = historialPaciente
-    const odR = ee(reciente.od?.esfera, reciente.od?.cilindro)
-    const oiR = ee(reciente.oi?.esfera, reciente.oi?.cilindro)
-    const odP = ee(previa.od?.esfera, previa.od?.cilindro)
-    const oiP = ee(previa.oi?.esfera, previa.oi?.cilindro)
-    const variacion = (Math.abs(odR) - Math.abs(odP) + (Math.abs(oiR) - Math.abs(oiP))) / 2
+    const variacion = variacionEntre(reciente, previa)
+    if (variacion === null) return null
     return { variacion, verdicto: verdictoPorVariacion(variacion), fechaReciente: reciente.fecha, fechaPrevia: previa.fecha }
   }, [historialPaciente])
 
@@ -680,7 +531,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     // Anamnesis para registrar sus antecedentes por primera vez. Se fija
     // explícitamente en los dos casos (no solo cuando hay historial) por si
     // se reselecciona un paciente distinto a mitad de sesión.
-    setSubTab(hayHistorial ? "refraccion" : "anamnesis")
+    // Propuesta de flujo de atención (Ronda 3): primero el contexto del
+    // paciente y el motivo, después la captura — la ficha abre siempre en el
+    // paso 1, con o sin historial (antes abría en Refracción si ya tenía).
+    setSubTab("anamnesis")
     // La detección de cambios solo se pausaba al montar el componente o al
     // reiniciar el formulario — buscar y elegir un paciente casi siempre
     // toma más de los 400ms de esa pausa, así que la precarga de
@@ -752,20 +606,20 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setFechaPrecarga(null)
     setRetinoscopiaOd("")
     setRetinoscopiaOi("")
-    setOdEsfera("0.00")
-    setOdCilindro("0.00")
-    setOdEje("0")
-    setOdAgudezaSc("20/70")
+    setOdEsfera("")
+    setOdCilindro("")
+    setOdEje("")
+    setOdAgudezaSc("")
     setOdAgudezaCc("")
-    setOiEsfera("0.00")
-    setOiCilindro("0.00")
-    setOiEje("0")
-    setOiAgudezaSc("20/50")
+    setOiEsfera("")
+    setOiCilindro("")
+    setOiEje("")
+    setOiAgudezaSc("")
     setOiAgudezaCc("")
-    setAdicion("+0.00")
-    setDp("64 mm")
-    setAlt("18 mm")
-    setAvCerca("J1")
+    setAdicion("")
+    setDp("")
+    setAlt("")
+    setAvCerca("")
     setTestMotor("")
     setCoverTestLejos("Ortoforia")
     setCoverTestCerca("Ortoforia")
@@ -787,30 +641,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setProximoControlDias(180)
     setTratamientoFinalizado(false)
     setIncluirMedidasReceta(true)
-    setMostrarConfirmarVenta(false)
-    setMostrarModalFacturaVenta(false)
-    setCostoConsulta("")
-    setCostoConsultaEstado(null)
-    setCostoConsultaErrorMsg("")
-    setMostrarEditorFactura(false)
-    setFacturaLineas([])
-    setFacturaTipoLinea("producto")
-    setFacturaProductoId(null)
-    setFacturaBusquedaProducto("")
-    setFacturaCantidadProducto("1")
-    setFacturaDescServicio("")
-    setFacturaCantidadServicio("1")
-    setFacturaPrecioServicio("")
-    setFacturaMetodoPago("directo")
-    setFacturaCuotasTotales("3")
+    setMostrarPanelCobro(false)
+    setCobroEstado(null)
+    setCobroTotal(0)
     setConsultaGuardadaId(null)
-    setFacturaEstadoGuardado(null)
-    setFacturaErrorMsg("")
     setErrores({})
     setBannerError("")
     setFichaGuardada(false)
     setSubTab("anamnesis")
-    setSeccionesAbiertas({ antecedentesPaciente: true })
+    setSeccionesAbiertas({ antecedentesPaciente: true, refraccionSubjetiva: true })
+    setEditandoMotivo(false)
+    setMostrarDetalle(false)
     setTieneHistorialAntecedentes(false)
     setMostrarHistorial(false)
     setHayCambiosSinGuardar(false)
@@ -845,18 +686,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     // clínico del paciente — "De alta" si se marcó la casilla, "Activo" si
     // no (incluso para un paciente que ya estaba de alta y vuelve a consulta).
     const nuevoEstadoClinico = tratamientoFinalizado ? "De alta" : "Activo"
-    // Compatibilidad con Reportes.jsx ("Conversión a venta" mide si
-    // consultas.producto_id quedó lleno) — Punto 06 reemplazó el selector
-    // de un solo producto por el borrador de factura, así que se toma la
-    // primera línea de tipo "producto" de esa factura para no dejar esa
-    // métrica en 0% para siempre. No afecta a crear_factura_venta — es solo
-    // este campo legado de `consultas`, que ya no descuenta stock por sí
-    // mismo (eso lo hace la factura).
-    const primeraLineaProducto = facturaLineas.find((l) => l.tipo === "producto")
-
     const nuevaFicha = {
       fecha: fechaConsulta,
       pacienteId,
+      // Sin esto, el aviso de cobro pendiente (Citas/perfil) no vería esta
+      // consulta hasta recargar la página.
+      citaId: citaEnAtencionId || null,
       paciente: pacienteSeleccionado,
       motivo,
       detalleConsulta,
@@ -878,13 +713,15 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // esas pantallas.
       diagnostico: [diagnosticoCategorias.join(", "), diagnostico.trim()].filter(Boolean).join(" — "),
       lenteRecomendado,
+      lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null,
       indicaciones,
       proximoControlDias,
       evolucionCalculada: tendenciaGraduacion,
       estadoCorreccion,
-      productoId: primeraLineaProducto?.productoId || null,
-      productoNombre: primeraLineaProducto?.descripcion || null,
-      montoVenta: primeraLineaProducto ? primeraLineaProducto.cantidad * primeraLineaProducto.precioUnitario : null,
+      // Se llenan al cobrar (sincronizarProductoConsulta) si se vende un producto.
+      productoId: null,
+      productoNombre: null,
+      montoVenta: null,
     }
 
     nuevaFicha.profesionalNombre = usuario?.nombre || null
@@ -925,7 +762,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, lente_producto_id: nuevaFicha.lenteProductoId },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -978,40 +815,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta, estado_clinico: nuevoEstadoClinico }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
 
-      // D3 (reunión 29 sept.): el cobro de la consulta es obligatorio para
-      // toda ficha — si además viene de "Atender" una cita, esa cita pasa a
-      // "Atendida" solo cuando el cobro tiene éxito, no al guardar la ficha
-      // sola como antes. Si el cobro falla, la ficha ya quedó guardada — se
-      // avisa (banner más abajo) y se puede reintentar sin perder el monto.
-      if (idConsultaGuardada) {
-        const resultadoCobroConsulta = await intentarCobrarConsulta(idConsultaGuardada)
-        if (citaEnAtencionId && resultadoCobroConsulta.ok) {
-          await marcarCitaAtendida()
-        }
-      }
     }
-
-    // Genera la factura de esta consulta (Punto 06) si el optómetra armó
-    // alguna línea en el Paso 3 — reemplaza el vínculo de un solo producto
-    // (hallazgo G5/I4: antes eran dos llamadas separadas, mismo riesgo de
-    // descuento perdido en una carrera; ahora resuelto de raíz porque
-    // crear_factura_venta es una sola transacción atómica). Si falla (ej.
-    // stock insuficiente en una línea), la ficha clínica YA quedó guardada
-    // — nada de la consulta se pierde — pero hace falta avisarlo de forma
-    // visible (no en consola) y dejar reintentar sin perder las líneas
-    // armadas: eso lo maneja intentarCrearFactura + el banner de abajo en
-    // el JSX, no acá. Usa idConsultaGuardada (no nuevaFicha.id, que abajo
-    // se rellena con un id falso si Supabase no está configurado).
-    if (facturaLineas.length > 0 && idConsultaGuardada) {
-      await intentarCrearFactura(idConsultaGuardada)
-    }
-
-    // Cero fricción: un lente recomendado y vinculado a inventario, sin que
-    // el optómetra ya haya armado su propia factura arriba, es la señal de
-    // que probablemente se va a vender ahora mismo — se lo ofrece en vez de
-    // dejar que la venta se pierda para "después" (que en la práctica nunca
-    // llega, porque no hay ningún otro recordatorio de esto en el sistema).
-    const debeOfrecerVenta = recomendarLente && lenteRecomendadoProductoId && facturaLineas.length === 0 && idConsultaGuardada
 
     if (nuevaFicha.id == null) nuevaFicha.id = Date.now()
 
@@ -1034,7 +838,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
     setSubTab("diagnostico")
-    if (debeOfrecerVenta) setMostrarConfirmarVenta(true)
+    // La ficha clínica ya quedó guardada: ahora aparece el panel de cobro. Si
+    // se elige "Más tarde", queda como cobro pendiente (cita En atención).
+    setCobroEstado("pendiente")
+    setMostrarPanelCobro(true)
   }
 
   // ── Validación por paso ──
@@ -1046,40 +853,39 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (!pacienteId) errs.paciente = busquedaPaciente.trim()
         ? "Ese nombre no coincide con ningún paciente registrado. Selecciónalo de la lista."
         : "Selecciona un paciente registrado de la lista."
-    } else if (paso === "refraccion") {
-      // Motivo se mudó a este paso (ING7: el examen se hace en función de
-      // él, va arriba de la refracción) — antes vivía en Anamnesis y nunca
-      // se validaba; ahora es obligatorio, sin bloquear los antecedentes
-      // fijos del paciente que sí quedaron fuera de la validación por paso.
-      if (!motivo.trim()) errs.motivo = "Selecciona el motivo de la consulta."
+      // El motivo se decide antes de capturar nada (viene de la cita, o se
+      // elige acá si la ficha se abrió sin cita) — es obligatorio.
+      else if (!motivo.trim()) errs.motivo = "Selecciona el motivo de la consulta."
       // "Otros" no dice nada por sí solo — si se elige, el detalle deja de ser opcional.
-      else if (motivo === "Otros" && !detalleConsulta.trim()) errs.detalleConsulta = "Describe el motivo de la consulta."
-      if (!esNumero(odEsfera)) errs.od_esfera = "Número requerido"
-      if (!esNumero(odCilindro)) errs.od_cilindro = "Número requerido"
-      if (!esNumero(odEje)) errs.od_eje = "Número requerido"
-      else if (parseFloat(odEje) < 0 || parseFloat(odEje) > 180) errs.od_eje = "El eje va de 0° a 180°"
-      if (!esNumero(oiEsfera)) errs.oi_esfera = "Número requerido"
-      if (!esNumero(oiCilindro)) errs.oi_cilindro = "Número requerido"
-      if (!esNumero(oiEje)) errs.oi_eje = "Número requerido"
-      else if (parseFloat(oiEje) < 0 || parseFloat(oiEje) > 180) errs.oi_eje = "El eje va de 0° a 180°"
+      else if (motivo === "Otros" && !detalleConsulta.trim()) errs.detalleConsulta = "Describe el motivo."
+    } else if (paso === "refraccion") {
+      // Refracción: todo opcional (puede haber citas que no midan algunos
+      // valores). Solo se valida lo que sí se escribió: que sea un número, el
+      // rango del eje, y que un cilindro real traiga su eje.
+      for (const [pre, esf, cil, eje] of [["od", odEsfera, odCilindro, odEje], ["oi", oiEsfera, oiCilindro, oiEje]]) {
+        if (esf.trim() && !esNumero(esf)) errs[`${pre}_esfera`] = "Número no válido"
+        if (cil.trim() && !esNumero(cil)) errs[`${pre}_cilindro`] = "Número no válido"
+        if (eje.trim()) {
+          if (!esNumero(eje)) errs[`${pre}_eje`] = "Número no válido"
+          else if (parseFloat(eje) < 0 || parseFloat(eje) > 180) errs[`${pre}_eje`] = "El eje va de 0° a 180°"
+        } else if (esNumero(cil) && parseFloat(cil) !== 0) {
+          errs[`${pre}_eje`] = "Indica el eje del cilindro"
+        }
+      }
     } else if (paso === "diagnostico") {
       if (diagnosticoCategorias.length === 0) errs.diagnostico = "Selecciona al menos una categoría de diagnóstico."
       // "Otro" no dice nada por sí solo — es la única fuente del diagnóstico
       // en ese caso, así que el detalle deja de ser opcional (mismo criterio
       // que "Otros" en motivo de consulta, línea ~1056).
       if (diagnosticoCategorias.includes("Otro") && !diagnostico.trim()) errs.diagnosticoDetalle = "Describe el diagnóstico en el detalle — con \"Otro\" no puede quedar vacío."
-      // D3: el costo puede ser 0 (ej. un control por garantía) pero no puede
-      // quedar vacío — por eso se valida con esNumero, no con un simple `if (!costoConsulta)`.
-      if (!esNumero(costoConsulta)) errs.costoConsulta = "Ingresa el costo de la consulta (puede ser 0)."
-      else if (parseFloat(costoConsulta) < 0) errs.costoConsulta = "El costo no puede ser negativo."
     }
     return errs
   }
 
   const mensajeBanner = (paso) => {
-    if (paso === "anamnesis") return "Selecciona un paciente registrado de la lista antes de continuar."
-    if (paso === "refraccion") return "Selecciona el motivo de la consulta (si es \"Otros\", descríbelo en el detalle) y revisa la refracción: esfera, cilindro y eje deben ser números válidos en ambos ojos."
-    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) y el costo de la consulta (puede ser 0) antes de guardar la receta."
+    if (paso === "anamnesis") return "Selecciona un paciente registrado y el motivo de la consulta (si es \"Otros\", descríbelo) antes de continuar."
+    if (paso === "refraccion") return "Revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
+    if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) antes de guardar la ficha."
     return "Hay campos por completar."
   }
 
@@ -1128,6 +934,25 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // el ing pidió justo esto: no todas las consultas requieren retinoscopía,
   // examen físico o biomicroscopía, pero al colapsarlas hay que poder ver de
   // un vistazo cuáles sí se llenaron sin tener que volver a abrirlas.
+  // "Copiar de la visita anterior": solo si la refracción de hoy está vacía y
+  // la visita anterior sí tiene valores — nunca pisa lo que se tecleó.
+  const copiarDesdeAnterior = (() => {
+    const ant = ultimaConsultaPaciente
+    if (!ant) return null
+    const hayPrevios = ["od", "oi"].some((o) => ant[o]?.esfera || ant[o]?.cilindro || ant[o]?.eje)
+    const hoyVacio = !odEsfera && !odCilindro && !odEje && !oiEsfera && !oiCilindro && !oiEje
+    if (!hayPrevios || !hoyVacio) return null
+    return {
+      fecha: ant.fecha,
+      accion: () => {
+        setOdEsfera(ant.od?.esfera || ""); setOdCilindro(ant.od?.cilindro || ""); setOdEje(ant.od?.eje || "")
+        setOiEsfera(ant.oi?.esfera || ""); setOiCilindro(ant.oi?.cilindro || ""); setOiEje(ant.oi?.eje || "")
+      },
+    }
+  })()
+  const registradoAntecedentes = Boolean(antecedentes.trim() || alergias.trim() || antecedentesFamiliares.trim() || usaLentes)
+  const registradoRefraccion = Boolean(odEsfera.trim() || odCilindro.trim() || odEje.trim() || odAgudezaSc || odAgudezaCc || oiEsfera.trim() || oiCilindro.trim() || oiEje.trim() || oiAgudezaSc || oiAgudezaCc)
+  const registradoCercana = Boolean(adicion.trim() || dp.trim() || alt.trim() || avCerca.trim())
   const registradoRetinoscopia = Boolean(retinoscopiaOd.trim() || retinoscopiaOi.trim())
   const registradoExamenFisico = Boolean(testMotor.trim() || oftalmoscopia.trim() || pioOd.trim() || pioOi.trim())
   const registradoBiomicroscopia = Boolean(biomicroParpados.trim() || biomicroCornea.trim() || biomicroCamara.trim())
@@ -1206,6 +1031,18 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     return "RX-" + (fechaConsulta || "").replace(/-/g, "") + "-" + h.toString(36).toUpperCase().slice(0, 4)
   }, [pacienteSeleccionado, fechaConsulta])
 
+  // Barra de la visita: cita de origen, alergias (rojo si hay) y última graduación.
+  const citaDeLaVisita = useMemo(() => citas.find((c) => c.id === citaEnAtencionId) || null, [citas, citaEnAtencionId])
+  const alergiaSignificativa = Boolean(alergias.trim()) && !/^(ning|no\b|sin\b|n\/a|na$|-+$|—)/i.test(alergias.trim())
+  const ultimaGraduacion = useMemo(() => {
+    if (!ultimaConsultaPaciente) return null
+    const od = textoOjo(ultimaConsultaPaciente.od)
+    const oi = textoOjo(ultimaConsultaPaciente.oi)
+    if (od === "No registrada" && oi === "No registrada") return null
+    return { fecha: ultimaConsultaPaciente.fecha, od, oi }
+  }, [ultimaConsultaPaciente])
+  const fechaCorta = (iso) => (iso ? iso.split("-").reverse().join("/") : "")
+
   const fechaLarga = useMemo(() => {
     try {
       const d = new Date(fechaConsulta + "T00:00:00")
@@ -1281,15 +1118,58 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
             le está tomando las medidas. Sticky respecto del contenedor con
             scroll real (Dashboard.jsx, no la ventana), no se necesita
             ningún offset especial. */}
+        {/* ─── BARRA DE LA VISITA ─── Opaca (sin blur) y con el scroll
+            del paso calculado debajo de ella (scrollMarginTop de
+            inicioFormRef) para que ya no tape el título de la sección.
+            Reúne lo que antes se repartía entre esta barra, el bloque
+            "Datos del paciente e historial" y el campo de motivo:
+            paciente, cita de origen, fecha de la consulta (editable),
+            alergias (rojo) y última graduación. */}
         {pacienteId && pacienteSeleccionado && (
-          <div className="no-print sticky top-0 z-10 mb-4 flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
-              <User size={15} />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold" style={{ color: INK }}>{pacienteSeleccionado}</p>
-              <p className="text-[11px] text-slate-500">Ficha clínica en curso</p>
+          <div className="no-print sticky top-0 z-10 mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
+                  <User size={15} />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold" style={{ color: INK }}>
+                    {pacienteSeleccionado}{edadPaciente != null ? ` · ${edadPaciente} años` : ""}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {citaDeLaVisita
+                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? `Hoy ${fechaCorta(citaDeLaVisita.fecha).slice(0, 5)}` : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
+                      : "Sin cita · consulta directa"}
+                    {motivo && !citaDeLaVisita ? ` · ${motivo}` : ""}
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                <Calendar size={13} aria-hidden="true" /> Fecha de la consulta
+                <input
+                  type="date"
+                  value={fechaConsulta}
+                  onChange={(e) => setFechaConsulta(e.target.value)}
+                  className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
+                />
+              </label>
             </div>
+            {(alergiaSignificativa || ultimaGraduacion) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                {alergiaSignificativa && (
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-bold text-red-700">
+                    <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
+                    <span className="truncate">Alergias: {alergias.trim()}</span>
+                  </span>
+                )}
+                {ultimaGraduacion && (
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200/60 bg-slate-50 px-2.5 py-1 font-mono text-[11px] text-slate-600">
+                    <Glasses size={12} className="shrink-0 text-slate-500" aria-hidden="true" />
+                    <span className="truncate">Últ. graduación ({fechaCorta(ultimaGraduacion.fecha)}): OD {ultimaGraduacion.od} · OI {ultimaGraduacion.oi}</span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1320,7 +1200,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           </div>
 
           <form onSubmit={intentarGuardar} className="flex flex-1 flex-col justify-between gap-6 p-6">
-            <div ref={inicioFormRef} />
+            <div ref={inicioFormRef} style={{ scrollMarginTop: 140 }} />
             {bannerError && (
               <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
@@ -1343,11 +1223,50 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 optómetra quiere revisarlo/editarlo, se despliega). Mismo
                 patrón alternarSeccion() que usa Refracción para
                 retinoscopía/examen físico/biomicroscopía. ─── */}
-            {pacienteId && (tieneHistorialAntecedentes ? subTab === "refraccion" : subTab === "anamnesis") && (
+            {/* Contexto en lectura, arriba: última visita, tendencia y acceso al
+                historial (lo que pidió el ingeniero el 29 sep: "todo el
+                contexto del paciente primero, y luego me dedico a registrar"). */}
+            {pacienteId && subTab === "anamnesis" && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3">
+                <div className="min-w-0 space-y-0.5 text-xs text-slate-600">
+                  {ultimaConsultaPaciente ? (
+                    <>
+                      <p>
+                        <span className="font-bold" style={{ color: INK }}>Última visita</span> {fechaCorta(ultimaConsultaPaciente.fecha)} · {ultimaConsultaPaciente.diagnostico || "Sin diagnóstico registrado"}
+                      </p>
+                      {tendenciaHistorica && (() => {
+                        const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
+                        const IconoT = t.icon
+                        return (
+                          <p className="flex items-center gap-1">
+                            <IconoT size={12} style={{ color: t.fg }} aria-hidden="true" />
+                            Tendencia: <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto.toLowerCase()}</span> ({textoVariacion(tendenciaHistorica.variacion)})
+                          </p>
+                        )
+                      })()}
+                    </>
+                  ) : (
+                    <p><span className="font-bold" style={{ color: INK }}>Primera consulta</span> de este paciente — sin historial previo.</p>
+                  )}
+                </div>
+                {historialPaciente.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarHistorial(true)}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700 cursor-pointer"
+                  >
+                    <History size={13} /> Ver historial ({historialPaciente.length})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {pacienteId && subTab === "anamnesis" && (
               <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                 <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} aria-expanded={!!seccionesAbiertas.antecedentesPaciente} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
                   <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
                     <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
+                    <EtiquetaRegistro registrado={registradoAntecedentes} />
                   </span>
                   <span className="flex items-center gap-2">
                     {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
@@ -1464,37 +1383,15 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
               </div>
             )}
 
-            {/* PASO 1: ANAMNESIS */}
+            {/* PASO 1: CONTEXTO Y ANAMNESIS */}
             {subTab === "anamnesis" && (
               <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                  <h2 className="text-sm font-bold" style={{ color: INK }}>Datos del paciente e historial clínico</h2>
-                  <div className="flex items-center gap-2">
-                    {pacienteId && (
-                      <button
-                        type="button"
-                        onClick={() => setMostrarHistorial(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 cursor-pointer"
-                      >
-                        <History size={13} /> Ver historial ({historialPaciente.length})
-                      </button>
-                    )}
-                    <Calendar size={14} className="text-slate-500" />
-                    <input
-                      type="date"
-                      value={fechaConsulta}
-                      onChange={(e) => setFechaConsulta(e.target.value)}
-                      className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
-                    />
-                  </div>
-                </div>
-
                 {/* ─── Buscador de paciente: solo si la ficha se abrió sin uno ya
                     resuelto. Cuando llega desde "Atender" o desde el perfil del
                     paciente (pacienteInicial → seleccionarPacienteCombo ya fijó
                     pacienteId), no tiene sentido dejarlo buscar/cambiar de
-                    paciente acá — el nombre sigue visible en la barra sticky de
-                    identidad de arriba. Sigue apareciendo para el caso real en
+                    paciente acá — el nombre sigue visible en la barra de la
+                    visita de arriba. Sigue apareciendo para el caso real en
                     que sí hace falta: "Nueva consulta" al final de la ficha
                     (resetForm limpia pacienteId a propósito para el siguiente
                     paciente) y cualquier apertura sin paciente precargado.
@@ -1553,13 +1450,72 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 </div>
                 )}
 
-                {/* ─── Última cita: la visita más reciente de historialPaciente (misma
-                    fuente y orden que el modal "Ver historial"), a la vista sin abrir
-                    el historial completo. Solo se muestra si ya hay al menos una consulta. ─── */}
-                {pacienteId && historialPaciente.length > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Última cita</span>
-                    <TarjetaVisita consulta={historialPaciente[0]} />
+                {/* ─── Motivo de la consulta: con cita llega relleno y se
+                    muestra como dato (con "Cambiar"); sin cita (entrada desde
+                    el perfil) es el selector obligatorio de siempre. Al elegir
+                    "Otros", el detalle se abre debajo con el foco puesto. ─── */}
+                {pacienteId && (
+                  <div className="space-y-3">
+                    {citaEnAtencionId && motivo && motivo !== "Otros" && !editandoMotivo ? (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Motivo de la consulta</p>
+                          <p className="text-sm font-semibold" style={{ color: INK }}>{motivo} <span className="text-xs font-normal text-slate-400">(de la cita)</span></p>
+                        </div>
+                        <button type="button" onClick={() => setEditandoMotivo(true)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cambiar</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Motivo de la consulta <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="motivo"
+                          value={motivo}
+                          onChange={(e) => {
+                            setMotivo(e.target.value)
+                            limpiarError("motivo")
+                            if (e.target.value !== "Otros") limpiarError("detalleConsulta")
+                          }}
+                          className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+                        >
+                          <option value="" disabled>Selecciona un motivo...</option>
+                          {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
+                          <option value="Otros">Otros</option>
+                        </select>
+                        {errores.motivo && (
+                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                            <AlertCircle size={13} /> {errores.motivo}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {motivo === "Otros" || detalleConsulta || mostrarDetalle ? (
+                      <div>
+                        <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          {motivo === "Otros" ? <>Describe el motivo <span className="text-red-500">*</span></> : <>Detalle de la consulta <span className="font-normal text-slate-400">(opcional)</span></>}
+                        </label>
+                        <input
+                          id="detalleConsulta"
+                          ref={detalleRef}
+                          type="text"
+                          placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
+                          value={detalleConsulta}
+                          onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
+                          className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+                        />
+                        {errores.detalleConsulta && (
+                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                            <AlertCircle size={13} /> {errores.detalleConsulta}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => { setMostrarDetalle(true); setTimeout(() => detalleRef.current?.focus(), 30) }} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                        + Agregar detalle
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1568,130 +1524,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
             {/* PASO 2: REFRACCIÓN */}
             {subTab === "refraccion" && (
               <div className="space-y-5">
-                {/* ─── Motivo (categoría fija, ya se precarga sola desde la
-                    cita al entrar por "Atender") + Detalle de la consulta
-                    (texto libre, lo que el paciente cuenta con sus propias
-                    palabras) — arriba de la refracción a propósito: el
-                    examen se hace en función de por qué vino hoy (ING7).
-                    Dos cosas relacionadas pero distintas: pattern confirmado
-                    con el ing en ING7. Motivo ahora obligatorio (validado en
-                    este paso, ver validarPaso) — antes no bloqueaba nada. ─── */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Motivo de la consulta <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="motivo"
-                      value={motivo}
-                      onChange={(e) => {
-                        setMotivo(e.target.value)
-                        limpiarError("motivo")
-                        if (e.target.value !== "Otros") limpiarError("detalleConsulta")
-                      }}
-                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                    >
-                      <option value="" disabled>Selecciona un motivo...</option>
-                      {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
-                      <option value="Otros">Otros</option>
-                    </select>
-                    {errores.motivo && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                        <AlertCircle size={13} /> {errores.motivo}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Detalle de la consulta {motivo === "Otros" ? <span className="text-red-500">*</span> : <span className="font-normal text-slate-400">(opcional)</span>}
-                    </label>
-                    <input
-                      id="detalleConsulta"
-                      type="text"
-                      placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
-                      value={detalleConsulta}
-                      onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
-                      className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                    />
-                    {errores.detalleConsulta && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                        <AlertCircle size={13} /> {errores.detalleConsulta}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* ─── Contexto de la visita anterior: se movió acá arriba,
-                    antes de retinoscopía/refracción subjetiva, para que el
-                    optómetra lo tenga a la vista desde el arranque en vez de
-                    revisarlo a medio examen. La tendencia histórica (entre
-                    las 2 visitas anteriores) se calcula sin depender de lo
-                    que se teclee hoy — por eso puede mostrarse acá; el
-                    cálculo "en vivo" contra la refracción de hoy se movió a
-                    "Comparación con la refracción de hoy", más abajo.
-                    Colapsable como retinoscopia/examen físico, mismo
-                    patrón. Decisión de Diego, 30 sept. ─── */}
-                {ultimaConsultaPaciente && (
-                  <div className="space-y-3 rounded-xl border border-blue-200/60 bg-blue-50/50 p-4">
-                    <button type="button" onClick={() => alternarSeccion("comparacionAnterior")} aria-expanded={!!seccionesAbiertas.comparacionAnterior} className="flex w-full items-center gap-1.5 border-b border-blue-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                      <History size={16} className="text-blue-600" /> Comparar con visita anterior
-                      <span className="ml-auto text-[10px] font-normal normal-case text-slate-500">{ultimaConsultaPaciente.fecha}</span>
-                      <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.comparacionAnterior ? "" : "-rotate-90")} />
-                    </button>
-                    {seccionesAbiertas.comparacionAnterior && (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {[
-                          { sigla: "OD", datos: ultimaConsultaPaciente.od, actual: { esfera: odEsfera, cilindro: odCilindro, eje: odEje }, copiar: () => { setOdEsfera(ultimaConsultaPaciente.od?.esfera || ""); setOdCilindro(ultimaConsultaPaciente.od?.cilindro || ""); setOdEje(ultimaConsultaPaciente.od?.eje || "") } },
-                          { sigla: "OI", datos: ultimaConsultaPaciente.oi, actual: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje }, copiar: () => { setOiEsfera(ultimaConsultaPaciente.oi?.esfera || ""); setOiCilindro(ultimaConsultaPaciente.oi?.cilindro || ""); setOiEje(ultimaConsultaPaciente.oi?.eje || "") } },
-                        ].map(({ sigla, datos, actual, copiar }) => {
-                          // D2: solo se puede copiar de un tirón si los 3 campos
-                          // actuales siguen en su valor por defecto ("0.00"/"0",
-                          // no strings vacíos — así arrancan estos campos) —
-                          // evita pisar en silencio algo que el optómetra ya
-                          // tecleó a mano.
-                          const enDefecto = (v, def) => !v || v === def
-                          const puedeCopiar = enDefecto(actual.esfera, "0.00") && enDefecto(actual.cilindro, "0.00") && enDefecto(actual.eje, "0")
-                          return (
-                          <div key={sigla} className="rounded-lg border border-blue-100 bg-white p-3 font-mono text-xs">
-                            <div className="mb-1.5 flex items-center justify-between">
-                              <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-blue-700">{sigla}</p>
-                              {puedeCopiar && (
-                                <button type="button" onClick={copiar} className="font-sans text-[10px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                                  Usar estos valores
-                                </button>
-                              )}
-                            </div>
-                            <p><span className="text-slate-500">Esfera:</span> <span className="font-semibold text-slate-800">{datos?.esfera || "—"}</span></p>
-                            <p><span className="text-slate-500">Cilindro:</span> <span className="font-semibold text-slate-800">{datos?.cilindro || "—"}</span></p>
-                            <p><span className="text-slate-500">Eje:</span> <span className="font-semibold text-slate-800">{datos?.eje || "—"}°</span></p>
-                            <p><span className="text-slate-500">AV c/c:</span> <span className="font-semibold text-slate-800">{datos?.avCc || "—"}</span></p>
-                          </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {ultimaConsultaPaciente.diagnostico && (
-                      <p className="text-xs text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico anterior:</span> {ultimaConsultaPaciente.diagnostico}</p>
-                    )}
-                    {tendenciaHistorica && (() => {
-                      const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
-                      const IconoT = t.icon
-                      const signo = tendenciaHistorica.variacion > 0 ? "+" : ""
-                      return (
-                        <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white/70 px-3 py-1.5 text-xs text-slate-500">
-                          <IconoT size={13} style={{ color: t.fg }} />
-                          <span>
-                            Tendencia de graduación (entre las 2 últimas consultas, {tendenciaHistorica.fechaPrevia} → {tendenciaHistorica.fechaReciente}):{" "}
-                            <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto}</span> ({signo}{tendenciaHistorica.variacion.toFixed(2)} D)
-                          </span>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
-
-                <h2 className="text-sm font-bold" style={{ color: INK }}>Valores dióptricos y parámetros de taller</h2>
-
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
@@ -1726,22 +1558,50 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   )}
                 </div>
 
-                <p className="text-sm font-semibold" style={{ color: INK }}>Refracción subjetiva final</p>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
-                  <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                  <button type="button" onClick={() => alternarSeccion("refraccionSubjetiva")} aria-expanded={!!seccionesAbiertas.refraccionSubjetiva} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                    <Eye size={16} className="text-blue-600" /> Refracción subjetiva final
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Todo opcional · vacío significa "no medido"
+                      <EtiquetaRegistro registrado={registradoRefraccion} />
+                    </span>
+                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.refraccionSubjetiva ? "" : "-rotate-90")} />
+                  </button>
+                  {seccionesAbiertas.refraccionSubjetiva && (
+                  <>
+                  {copiarDesdeAnterior && (
+                    <button type="button" onClick={copiarDesdeAnterior.accion} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                      <History size={13} aria-hidden="true" /> Copiar de la visita anterior ({fechaCorta(copiarDesdeAnterior.fecha)})
+                    </button>
+                  )}
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                    <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                  </div>
+                  {estadoCorreccionActual !== "Sin evaluar" && (
+                    <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
+                  )}
+                  </>
+                  )}
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <p className="flex items-center gap-1.5 border-b border-slate-200/60 pb-2 text-sm font-semibold" style={{ color: INK }}>
-                    <Ruler size={16} className="text-blue-600" /> Parámetros de visión cercana y centrado
-                  </p>
+                  <button type="button" onClick={() => alternarSeccion("visionCercana")} aria-expanded={!!seccionesAbiertas.visionCercana} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
+                    <Ruler size={16} className="text-blue-600" /> Visión cercana y centrado
+                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                      Opcional
+                      <EtiquetaRegistro registrado={registradoCercana} />
+                    </span>
+                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.visionCercana ? "" : "-rotate-90")} />
+                  </button>
+                  {seccionesAbiertas.visionCercana && (
                   <div className={"grid grid-cols-1 gap-3 sm:grid-cols-" + (manejaProgresion ? "4" : "3")}>
-                    {manejaProgresion && <MedidaCampo id="add" label="Adición (ADD)" value={adicion} onChange={setAdicion} />}
-                    <MedidaCampo id="dp" label="Distancia pupilar (DP)" value={dp} onChange={setDp} />
-                    <MedidaCampo id="alt" label="Altura pupilar (ALT)" value={alt} onChange={setAlt} />
-                    <MedidaCampo id="avCerca" label="AV Cerca (Jaeger)" value={avCerca} onChange={setAvCerca} />
+                    {manejaProgresion && <MedidaCampo id="add" label="Adición (ADD)" value={adicion} onChange={setAdicion} placeholder="+0.00" />}
+                    <MedidaCampo id="dp" label="Distancia pupilar (DP)" value={dp} onChange={setDp} placeholder="64 mm" />
+                    <MedidaCampo id="alt" label="Altura pupilar (ALT)" value={alt} onChange={setAlt} placeholder="18 mm" />
+                    <MedidaCampo id="avCerca" label="AV Cerca (Jaeger)" value={avCerca} onChange={setAvCerca} placeholder="J1" />
                   </div>
+                  )}
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
@@ -1884,16 +1744,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   )}
                 </div>
 
-                {/* Evolución en vivo mientras se editan los valores */}
-                <PanelEvolucion analisis={analisisEvolucion} correccion={estadoCorreccionActual} compacto />
+                {/* Pie: variación frente a la visita anterior, solo si hay valores */}
+                <LineaVariacion analisis={analisisEvolucion} />
               </div>
             )}
 
             {/* PASO 3: DIAGNÓSTICO Y RECETA */}
             {subTab === "diagnostico" && (
               <div className="space-y-5">
-                {/* Análisis de evolución asistido (no se imprime) */}
-                <PanelEvolucion analisis={analisisEvolucion} correccion={estadoCorreccionActual} />
+                {/* Una línea de variación en vez de las tarjetas "Estado de
+                    corrección" y "Comparación" (que repetían lo del paso 2). */}
+                <LineaVariacion analisis={analisisEvolucion} />
 
                 {/* Barra de acción (no se imprime) */}
                 <div className="no-print flex items-center justify-between gap-4">
@@ -2156,224 +2017,31 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </div>
                     )}
 
-                    {/* D3 (reunión 29 sept.): costo de la consulta, obligatorio
-                        y separado a propósito del editor opcional de abajo —
-                        se cobra con su propia llamada a crear_factura_venta,
-                        nunca se mezcla con facturaLineas (venta de producto). */}
-                    {!fichaGuardada && (
-                      <div className="no-print space-y-1.5 rounded-lg border border-slate-200/60 bg-white p-3">
-                        <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                          <Receipt size={12} /> Costo de la consulta
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-slate-500">$</span>
-                          <input
-                            type="number" min="0" step="0.01" placeholder="0.00"
-                            value={costoConsulta}
-                            onChange={(e) => { setCostoConsulta(e.target.value); limpiarError("costoConsulta") }}
-                            className="w-28 rounded-lg border px-2 py-1.5 text-sm outline-none focus-visible:border-blue-500"
-                            style={{ borderColor: errores.costoConsulta ? "#fca5a5" : "#cbd5e1" }}
-                          />
-                          <span className="text-xs text-slate-500">Puede ser 0 (ej. un control por garantía), pero es obligatorio.</span>
-                        </div>
-                        {errores.costoConsulta && <p className="text-xs font-semibold text-red-600">{errores.costoConsulta}</p>}
-                      </div>
-                    )}
-
-                    {fichaGuardada && costoConsultaEstado === "guardada" && (
-                      <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
-                        <Receipt size={13} className="text-emerald-500" /> Consulta cobrada — ${(parseFloat(costoConsulta) || 0).toFixed(2)}.
-                      </p>
-                    )}
-
-                    {fichaGuardada && costoConsultaEstado === "error" && (
-                      <div role="alert" className="no-print space-y-2 rounded-lg border border-red-200/60 bg-red-50 p-3">
-                        <p className="flex items-start gap-1.5 text-xs font-semibold text-red-700">
-                          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                          La ficha clínica se guardó correctamente, pero el cobro de la consulta no se pudo registrar: {costoConsultaErrorMsg}
+                    {/* Estado del cobro (Ronda 4): la ficha ya se guardó y el
+                        panel de cobro se abrió solo. "Más tarde" lo deja
+                        pendiente y la cita en "En atención". */}
+                    {fichaGuardada && cobroEstado === "pendiente" && (
+                      <div role="status" className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/60 bg-amber-50 p-3">
+                        <p className="flex items-start gap-1.5 text-xs font-semibold text-amber-800">
+                          <Receipt size={14} className="mt-0.5 shrink-0" />
+                          Cobro pendiente — la ficha ya está guardada{citaEnAtencionId ? "; la cita sigue \"En atención\" hasta que se cobre" : ""}.
                         </p>
-                        <p className="text-xs text-red-600">
-                          {citaEnAtencionId
-                            ? "La cita sigue \"En Atención\" hasta que el cobro se registre. Podés reintentar sin perder el monto ingresado."
-                            : "Podés reintentar sin perder el monto ingresado."}
-                        </p>
-                        <button type="button" onClick={reintentarCobroConsulta} disabled={guardandoCostoConsultaAhora} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer">
-                          {guardandoCostoConsultaAhora ? "Reintentando..." : "Reintentar cobro"}
+                        <button type="button" onClick={() => setMostrarPanelCobro(true)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">
+                          Cobrar ahora
                         </button>
                       </div>
                     )}
-
-                    {/* Punto 06: factura de esta consulta. Sin modal — la
-                        consulta todavía no existe hasta guardar la ficha, así
-                        que el editor vive embebido acá mismo (mismo criterio
-                        que el mecanismo que reemplaza). No depende de
-                        "recomendarLente": un servicio solo (ej. un examen) es
-                        una factura válida sin ningún producto de por medio.
-                        Sigue siendo opcional — el costo obligatorio de la
-                        consulta vive aparte, arriba. */}
-                    {!fichaGuardada && !mostrarEditorFactura && facturaLineas.length === 0 && (
-                      <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
-                        <span className="text-xs font-medium text-slate-600">¿Vas a facturar algo en esta consulta?</span>
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => setMostrarEditorFactura(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 cursor-pointer">
-                            No, más tarde
-                          </button>
-                          <button type="button" onClick={() => setMostrarEditorFactura(true)} className="rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer">
-                            Sí, agregar líneas
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!fichaGuardada && (mostrarEditorFactura || facturaLineas.length > 0) && (
-                      <div className="no-print space-y-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3" ref={dropdownProductoRef}>
-                        <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                          <Receipt size={12} /> Factura de esta consulta
-                        </label>
-
-                        {facturaLineas.length > 0 && (
-                          <div className="space-y-1.5">
-                            {facturaLineas.map((l, i) => (
-                              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm">
-                                <span className="flex min-w-0 items-center gap-2">
-                                  {l.tipo === "producto" ? (
-                                    <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
-                                  ) : (
-                                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-violet-600">
-                                      <Wrench size={13} />
-                                    </span>
-                                  )}
-                                  <span className="truncate font-semibold text-slate-700">{l.descripcion}</span>
-                                </span>
-                                <span className="flex shrink-0 items-center gap-2">
-                                  <span className="font-mono text-xs text-slate-500">{l.cantidad} × ${l.precioUnitario.toFixed(2)} = ${(l.cantidad * l.precioUnitario).toFixed(2)}</span>
-                                  <button type="button" onClick={() => quitarLineaFactura(i)} aria-label="Quitar línea" className="text-sm font-bold text-slate-400 hover:text-red-600 cursor-pointer">×</button>
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => setFacturaTipoLinea("producto")} className="flex-1 rounded-lg border py-1.5 text-xs font-bold transition cursor-pointer"
-                            style={facturaTipoLinea === "producto" ? { background: GRAD, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
-                            Producto
-                          </button>
-                          <button type="button" onClick={() => setFacturaTipoLinea("servicio")} className="flex-1 rounded-lg border py-1.5 text-xs font-bold transition cursor-pointer"
-                            style={facturaTipoLinea === "servicio" ? { backgroundColor: "#7c3aed", borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
-                            Servicio
-                          </button>
-                        </div>
-
-                        {facturaTipoLinea === "producto" ? (
-                          <div className="space-y-2">
-                            {facturaProductoSeleccionado ? (
-                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-2 text-sm">
-                                <span className="flex min-w-0 items-center gap-2">
-                                  <MiniaturaProducto url={facturaProductoSeleccionado.imagen_url} alt={facturaProductoSeleccionado.nombre} size={22} />
-                                  <span className="truncate font-semibold text-blue-800">{facturaProductoSeleccionado.nombre}</span>
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono text-xs text-blue-600">{facturaProductoSeleccionado.stock} u. · ${Number(facturaProductoSeleccionado.precio).toFixed(2)}</span>
-                                  <button type="button" onClick={() => { setFacturaProductoId(null); setFacturaBusquedaProducto("") }} aria-label="Quitar selección" className="rounded-md px-1.5 py-0.5 text-sm font-bold text-blue-500 hover:bg-blue-100 hover:text-blue-700 cursor-pointer">×</button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="relative">
-                                <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                                <input
-                                  type="text"
-                                  placeholder="Buscar producto con stock..."
-                                  value={facturaBusquedaProducto}
-                                  onFocus={() => setFacturaMostrarDropdown(true)}
-                                  onChange={(e) => { setFacturaBusquedaProducto(e.target.value); setFacturaMostrarDropdown(true) }}
-                                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-8 pr-3 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                                />
-                                {facturaMostrarDropdown && facturaProductosFiltrados.length > 0 && (
-                                  <ul className="absolute z-50 mt-1 max-h-40 w-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
-                                    {facturaProductosFiltrados.map((p) => (
-                                      <li
-                                        key={p.id}
-                                        onClick={() => { setFacturaProductoId(p.id); setFacturaBusquedaProducto(p.nombre); setFacturaMostrarDropdown(false) }}
-                                        className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                                      >
-                                        <span className="flex min-w-0 items-center gap-2">
-                                          <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
-                                          <span className="truncate font-semibold">{p.nombre}</span>
-                                        </span>
-                                        <span className="shrink-0 font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                                {facturaMostrarDropdown && facturaBusquedaProducto && facturaProductosFiltrados.length === 0 && (
-                                  <p className="mt-1.5 text-xs text-slate-500">Ningún producto con stock coincide con la búsqueda.</p>
-                                )}
-                              </div>
-                            )}
-                            {facturaProductoSeleccionado && (
-                              <div className="flex items-center gap-2">
-                                <label className="text-xs font-semibold text-slate-600">Cantidad</label>
-                                <input type="number" min="1" max={facturaProductoSeleccionado.stock} value={facturaCantidadProducto} onChange={(e) => setFacturaCantidadProducto(e.target.value)} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
-                                <button type="button" onClick={agregarLineaFacturaProducto} className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-white cursor-pointer" style={{ backgroundColor: INK }}>+ Agregar línea</button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <input type="text" placeholder="Descripción del servicio (ej. Examen visual, ajuste, garantía...)" value={facturaDescServicio} onChange={(e) => setFacturaDescServicio(e.target.value)}
-                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500" />
-                            <div className="flex items-center gap-2">
-                              <label className="text-xs font-semibold text-slate-600">Cantidad</label>
-                              <input type="number" min="1" value={facturaCantidadServicio} onChange={(e) => setFacturaCantidadServicio(e.target.value)} className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
-                              <label className="text-xs font-semibold text-slate-600">Precio</label>
-                              <input type="number" min="0" step="0.01" value={facturaPrecioServicio} onChange={(e) => setFacturaPrecioServicio(e.target.value)} placeholder="0.00" className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
-                              <button type="button" onClick={agregarLineaFacturaServicio} className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-white cursor-pointer" style={{ backgroundColor: INK }}>+ Agregar línea</button>
-                            </div>
-                          </div>
-                        )}
-
-                        {facturaLineas.length > 0 && (
-                          <>
-                            <div className="flex items-center justify-between border-t border-slate-200/60 pt-2">
-                              <span className="text-xs font-semibold text-slate-600">Total factura</span>
-                              <span className="font-mono text-base font-bold text-slate-800">${facturaTotal.toFixed(2)}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              {[{ v: "directo", t: "Directo" }, { v: "tarjeta", t: "Tarjeta" }, { v: "cuotas", t: "Cuotas" }].map((m) => (
-                                <button key={m.v} type="button" onClick={() => setFacturaMetodoPago(m.v)} className="flex-1 rounded-lg border py-1.5 text-xs font-bold transition cursor-pointer"
-                                  style={facturaMetodoPago === m.v ? { background: "linear-gradient(135deg,#34d399,#059669)", borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
-                                  {m.t}
-                                </button>
-                              ))}
-                            </div>
-                            {facturaMetodoPago === "cuotas" && (
-                              <div className="flex items-center gap-2">
-                                <label className="text-xs font-semibold text-slate-600">Número de cuotas</label>
-                                <input type="number" min="1" value={facturaCuotasTotales} onChange={(e) => setFacturaCuotasTotales(e.target.value)} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm" />
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {fichaGuardada && facturaLineas.length > 0 && facturaEstadoGuardado === "guardada" && (
-                      <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
-                        <Receipt size={13} className="text-emerald-500" /> Factura generada — {facturaLineas.length} línea{facturaLineas.length === 1 ? "" : "s"}, ${facturaTotal.toFixed(2)}.
-                      </p>
-                    )}
-
-                    {fichaGuardada && facturaEstadoGuardado === "error" && (
-                      <div role="alert" className="no-print space-y-2 rounded-lg border border-red-200/60 bg-red-50 p-3">
-                        <p className="flex items-start gap-1.5 text-xs font-semibold text-red-700">
-                          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                          La ficha clínica se guardó correctamente, pero la factura no se pudo generar: {facturaErrorMsg}
+                    {fichaGuardada && cobroEstado === "cobrado" && (
+                      <div role="status" className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+                          <CheckCircle size={14} className="shrink-0" />
+                          Cobrado ${cobroTotal.toFixed(2)}{citaEnAtencionId ? " · cita atendida" : ""}. Ya puedes imprimir la receta.
                         </p>
-                        <p className="text-xs text-red-600">Tus líneas siguen aquí — no se perdieron. Podés resolver el problema (por ejemplo, agregar stock desde Inventario) y reintentar.</p>
-                        <button type="button" onClick={reintentarFactura} disabled={guardandoFacturaAhora} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer">
-                          {guardandoFacturaAhora ? "Reintentando..." : "Reintentar generar factura"}
-                        </button>
+                        {(onVolver || onCerrar) && (
+                          <button type="button" onClick={onVolver || onCerrar} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">
+                            Volver a {origenNombre}
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -2655,32 +2323,22 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         document.body
       )}
 
-      {/* ─── Cero fricción: ficha guardada con un lente recomendado y
-          vinculado a inventario → se ofrece procesar la venta ahí mismo, en
-          vez de dejarlo para "después" (donde en la práctica se pierde). ─── */}
-      {mostrarConfirmarVenta && (
-        <ConfirmarVentaModal
-          producto={lenteProductoVinculado}
-          tipoLente={lenteRecomendado}
-          onCancelar={() => setMostrarConfirmarVenta(false)}
-          onConfirmar={() => { setMostrarConfirmarVenta(false); setMostrarModalFacturaVenta(true) }}
-        />
-      )}
-
-      {mostrarModalFacturaVenta && pacienteInfo && lenteRecomendadoProductoId && (
+      {/* ─── PANEL DE COBRO (Ronda 4): aparece al guardar la ficha ─── */}
+      {mostrarPanelCobro && pacienteInfo && (
         <FacturaVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}
           pacienteFijo={pacienteInfo}
-          lineaInicial={{ productoId: lenteRecomendadoProductoId, cantidad: 1 }}
+          titulo={`Cobrar la atención de ${pacienteInfo.nombre}`}
+          subtitulo={`Consulta${motivo ? ` · ${motivo}` : ""}`}
+          etiquetaGuardar="Cobrar y finalizar"
+          lineasIniciales={lineasCobroConsulta({ motivo, lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null }, parametrizacion)}
           consultaId={consultaGuardadaId}
           citaId={citaEnAtencionId}
-          onGuardado={(factura) => {
-            setFacturasVenta?.((prev) => [factura, ...prev])
-            sincronizarProductoConsulta(factura)
-          }}
-          onCerrar={() => setMostrarModalFacturaVenta(false)}
+          onGuardado={alCobrar}
+          onMasTarde={() => setMostrarPanelCobro(false)}
+          onCerrar={() => setMostrarPanelCobro(false)}
         />
       )}
     </div>
@@ -2689,118 +2347,37 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
 /* ---------- Subcomponentes ---------- */
 
-function PanelEvolucion({ analisis, correccion, compacto }) {
-  const c = CORRECCION[correccion] || CORRECCION["Requiere ajuste"]
-  const IconoC = c.icon
-
-  if (compacto) {
-    return (
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border px-4 py-2.5" style={{ borderColor: c.border, backgroundColor: c.bg }}>
-          <span className="flex items-center gap-1.5 text-sm font-bold" style={{ color: c.fg }}>
-            <IconoC size={16} /> {correccion}
-          </span>
-          <span className="text-xs text-slate-500">Según agudeza visual con la corrección actual</span>
-        </div>
-        {!analisis.primera && (() => {
-          const t = TENDENCIA[analisis.verdicto] || TENDENCIA["Sin cambios"]
-          const IconoT = t.icon
-          const signo = analisis.variacion > 0 ? "+" : ""
-          return (
-            <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500">
-              <IconoT size={13} style={{ color: t.fg }} />
-              <span>Comparación con la refracción de hoy: <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto}</span> ({signo}{analisis.variacion.toFixed(2)} D)</span>
-            </div>
-          )
-        })()}
-      </div>
-    )
-  }
-
+// Una sola línea de variación frente a la visita anterior — reemplaza las
+// tarjetas grandes "Comparación con la refracción de hoy". Solo aparece si hay
+// valores de hoy comparables con los de la visita anterior.
+function LineaVariacion({ analisis }) {
+  if (!analisis || analisis.primera || analisis.variacion == null) return null
+  const t = TENDENCIA[analisis.verdicto] || TENDENCIA["Sin cambios"]
+  const IconoT = t.icon
   return (
-    <div className="space-y-4">
-      {/* Estado de corrección: lo clínicamente accionable */}
-      <div className="overflow-hidden rounded-2xl border" style={{ borderColor: c.border }}>
-        <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: c.bg }}>
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><IconoC size={16} /></span>
-            <h3 className="text-sm font-bold" style={{ color: INK }}>Estado de corrección visual</h3>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: "#fff", color: c.fg, border: `1px solid ${c.border}` }}>
-            <IconoC size={14} /> {correccion}
-          </span>
-        </div>
-        <div className="bg-white p-5">
-          <p className="text-sm text-slate-600">{c.txt}</p>
-          <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
-            <span className="font-semibold text-slate-600">Recuerda: </span>
-            un error refractivo no se corrige por sí solo; se maneja de forma efectiva con anteojos, lentes de contacto o cirugía refractiva.
-          </p>
-        </div>
-      </div>
-
-      {/* Comparación con la refracción de hoy: dato de contexto, no un veredicto de mejoría/empeoramiento.
-          Distinta de "Comparar con visita anterior" (arriba, al inicio del paso Refracción) — esta
-          compara lo que se acaba de teclear hoy contra la visita anterior, por eso solo puede
-          mostrarse una vez que hay datos de hoy que comparar. */}
-      {analisis.primera ? (
-        <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-5">
-          <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-200 text-slate-500"><Sparkles size={14} /></span>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Comparación con la refracción de hoy</h4>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Es la <span className="font-semibold text-slate-600">primera consulta</span> de este paciente: estos valores quedarán como punto de partida para comparar a futuro.
-          </p>
-        </div>
-      ) : (() => {
-        const t = TENDENCIA[analisis.verdicto] || TENDENCIA["Sin cambios"]
-        const IconoT = t.icon
-        const signo = analisis.variacion > 0 ? "+" : ""
-        const varTxt = `${signo}${analisis.variacion.toFixed(2)} D`
-        return (
-          <div className="rounded-2xl border border-slate-200/60 bg-white p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                <Sparkles size={13} className="text-slate-500" /> Comparación con la refracción de hoy
-              </h4>
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.bg, color: t.fg }}>
-                <IconoT size={12} /> {analisis.verdicto}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ComparaOjo sigla="OD" prev={analisis.odP} actual={analisis.odA} />
-              <ComparaOjo sigla="OI" prev={analisis.oiP} actual={analisis.oiA} />
-            </div>
-            <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 text-xs">
-              <span className="text-slate-500">Variación promedio</span>
-              <span className="font-mono font-bold" style={{ color: t.fg }}>{varTxt}</span>
-            </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-              Calculado por <span className="font-semibold text-slate-500">equivalente esférico</span> (Esfera + Cilindro/2) frente a
-              la consulta del {analisis.fechaPrev}. Es solo un dato de referencia: no indica por sí mismo mejoría ni empeoramiento.
-            </p>
-          </div>
-        )
-      })()}
-    </div>
+    <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
+      <IconoT size={13} style={{ color: t.fg }} aria-hidden="true" />
+      Variación frente al {analisis.fechaPrev}:{" "}
+      <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto.toLowerCase()}</span> ({textoVariacion(analisis.variacion)})
+    </p>
   )
 }
 
-function ComparaOjo({ sigla, prev, actual }) {
-  const fmt = (n) => `${n > 0 ? "+" : ""}${Number(n).toFixed(2)}`
+// Estado de corrección como chip junto a su dato (AV con lentes), solo si se
+// registró en ambos ojos — antes era una tarjeta que casi siempre decía
+// "Sin evaluar".
+function ChipCorreccion({ correccion }) {
+  if (correccion === "Sin evaluar") return null
+  const c = CORRECCION[correccion]
+  const IconoC = c.icon
   return (
-    <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3">
-      <span className="grid h-5 w-5 place-items-center rounded font-mono text-[10px] font-bold text-white" style={{ backgroundColor: sigla === "OD" ? "#2563EB" : "#06b6d4" }}>
-        {sigla}
-      </span>
-      <div className="mt-2 flex items-center gap-2 font-mono text-sm">
-        <span className="text-slate-500">{fmt(prev)}</span>
-        <ArrowRight size={13} className="text-slate-300" />
-        <span className="font-bold" style={{ color: "#0E2B33" }}>{fmt(actual)}</span>
-      </div>
-      <p className="mt-0.5 text-[10px] text-slate-500">Equiv. esférico</p>
-    </div>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold"
+      style={{ borderColor: c.border, backgroundColor: c.bg, color: c.fg }}
+      title={c.txt}
+    >
+      <IconoC size={13} aria-hidden="true" /> Corrección: {correccion === "Bien corregido" ? "efectiva" : "requiere ajuste"}
+    </span>
   )
 }
 
@@ -2816,14 +2393,15 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
         <h3 className="text-sm font-bold" style={{ color }}>{titulo}</h3>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} />
-        <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} />
-        <NumCampo label="Eje (°)" value={eje} onChange={(v) => { setEje(v); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-eje`} error={errores[`${pre}_eje`]} tipo="entero" maxLength={3} />
+        <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} placeholder="0.00" />
+        <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} placeholder="0.00" />
+        <NumCampo label="Eje (°)" value={eje} onChange={(v) => { setEje(v); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-eje`} error={errores[`${pre}_eje`]} tipo="entero" maxLength={3} placeholder="0" />
       </div>
       <div className="grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-2">
         <div>
           <label htmlFor={`${sigla}-avsc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV sin lentes</label>
           <select id={`${sigla}-avsc`} value={avSc} onChange={(e) => setAvSc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
+            <option value="">Sin evaluar</option>
             {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
           </select>
         </div>
@@ -2839,7 +2417,7 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
   )
 }
 
-function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLength }) {
+function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLength, placeholder }) {
   const manejarCambio = (e) => {
     const filtrado = tipo === "entero" ? filtrarSoloNumeros(e.target.value, maxLength) : filtrarNumeroDecimalConSigno(e.target.value)
     onChange(filtrado)
@@ -2853,14 +2431,15 @@ function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLeng
         inputMode={tipo === "entero" ? "numeric" : "decimal"}
         value={value}
         onChange={manejarCambio}
-        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
+        placeholder={placeholder}
+        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
       />
       {error && <p className="mt-0.5 text-[10px] font-medium text-red-600">{error}</p>}
     </div>
   )
 }
 
-function MedidaCampo({ id, label, value, onChange }) {
+function MedidaCampo({ id, label, value, onChange, placeholder }) {
   return (
     <div>
       <label htmlFor={id} className="mb-1 block text-xs font-semibold text-slate-500">{label}</label>
@@ -2869,64 +2448,10 @@ function MedidaCampo({ id, label, value, onChange }) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500"
       />
     </div>
-  )
-}
-
-// Se muestra justo después de guardar la ficha si había un lente
-// recomendado y vinculado a inventario — mismo patrón hand-rolled que
-// ConfirmarFichaModal.jsx (el proyecto dejó de usar el Dialog de Radix acá).
-function ConfirmarVentaModal({ producto, tipoLente, onCancelar, onConfirmar }) {
-  useEffect(() => {
-    const onKeyDown = (e) => { if (e.key === "Escape") onCancelar() }
-    document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
-  }, [onCancelar])
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
-      style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-      onClick={onCancelar}
-    >
-      <div
-        className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
-        style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirmar-venta-titulo"
-      >
-        <div className="px-6 py-6">
-          <div className="mb-3 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-            <Receipt size={22} />
-          </div>
-          <h2 id="confirmar-venta-titulo" className="text-lg font-bold" style={{ color: INK }}>Recomendación de Lente Detectada</h2>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Se detectó el registro de un lente sugerido ({tipoLente || producto?.nombre}). ¿Desea efectuar o gestionar la compra en este momento?
-          </p>
-          {producto && (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3.5 py-2.5">
-              <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-emerald-800">
-                <Glasses size={14} className="shrink-0" /> <span className="truncate">{producto.nombre}</span>
-              </span>
-              <span className="shrink-0 font-mono text-xs text-emerald-700">${Number(producto.precio).toFixed(2)}</span>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-          <button type="button" onClick={onCancelar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-            No, Solo Guardar Ficha
-          </button>
-          <button type="button" onClick={onConfirmar} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-            Sí, Gestionar Venta
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
   )
 }
 
@@ -2952,8 +2477,8 @@ function TarjetaVisita({ consulta: c }) {
       {c.detalleConsulta && <p className="mt-1 text-xs italic text-slate-500">"{c.detalleConsulta}"</p>}
       <p className="mt-1.5 text-sm text-slate-700">{c.diagnostico || "Sin diagnóstico registrado"}</p>
       <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-500">
-        <span>OD: {c.od?.esfera ?? "—"} {c.od?.cilindro ?? ""} x{c.od?.eje ?? "—"} · AV {c.od?.avCc ?? "—"}</span>
-        <span>OI: {c.oi?.esfera ?? "—"} {c.oi?.cilindro ?? ""} x{c.oi?.eje ?? "—"} · AV {c.oi?.avCc ?? "—"}</span>
+        <span>OD: {textoOjo(c.od)} · AV {c.od?.avCc || "—"}</span>
+        <span>OI: {textoOjo(c.oi)} · AV {c.oi?.avCc || "—"}</span>
       </div>
       {c.lenteRecomendado && <p className="mt-1.5 text-[11px] text-slate-500">Lente recomendado: <span className="font-semibold text-slate-600">{c.lenteRecomendado}</span></p>}
     </div>
@@ -2968,6 +2493,12 @@ function InsigniaHistorial({ fecha }) {
       <History size={10} /> {fechaCorta ? `De su visita del ${fechaCorta}` : "De su historial"}
     </span>
   )
+}
+
+// "-1.00 -0.50 x180", o "No registrada" si ese ojo no se midió.
+function textoOjo(o) {
+  if (!o || (!o.esfera && !o.cilindro && !o.eje)) return "No registrada"
+  return [o.esfera, o.cilindro, o.eje ? `x${o.eje}` : ""].filter(Boolean).join(" ")
 }
 
 function RecetaDato({ label, valor }) {
