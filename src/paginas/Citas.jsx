@@ -528,7 +528,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setConfirmando(false)
     cerrarModal()
     if (irADeUnaALaFicha) {
-      onAtender?.(paciente, nuevaCita.id)
+      onAtender?.(paciente, nuevaCita.id, nuevaCita.motivo)
     } else {
       setMensajeExito("Cita registrada y guardada correctamente.")
       setTimeout(() => setMensajeExito(null), 3000)
@@ -671,7 +671,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         return
       }
       marcarEstado(cita.id, "En Atención")
-      onAtender?.(paciente, cita.id)
+      onAtender?.(paciente, cita.id, cita.motivo)
       return
     }
     setCompletarPara(cita)
@@ -729,6 +729,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     }
 
     const citaId = completarPara.id
+    const motivoCita = completarPara.motivo
     const soloRegistro = cpSoloRegistro
     const cambiosCita = soloRegistro
       ? { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula }
@@ -753,7 +754,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       setMensajeExito("Paciente registrado y vinculado a su cita.")
       setTimeout(() => setMensajeExito(null), 3000)
     } else {
-      onAtender?.(nuevoPaciente, citaId)
+      onAtender?.(nuevoPaciente, citaId, motivoCita)
     }
   }
 
@@ -1750,7 +1751,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             const { cita } = confirmarDatosPara
             setConfirmarDatosPara(null)
             marcarEstado(cita.id, "En Atención")
-            onAtender?.(pacienteConfirmado, cita.id)
+            onAtender?.(pacienteConfirmado, cita.id, cita.motivo)
           }}
           onCerrar={() => setConfirmarDatosPara(null)}
         />
