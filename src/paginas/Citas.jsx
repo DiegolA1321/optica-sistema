@@ -41,10 +41,10 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { lunesDeSemana, sumarDiasISO } from "../utilidades/calendarioSemana"
+import { lunesDeSemana, sumarDiasISO, minutosAHHMM } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
@@ -596,6 +596,24 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const abrirModal = () => {
     setFecha(hoyISO())
+    setModalAbierto(true)
+  }
+
+  // Clic en un espacio libre del calendario semanal: abre el mismo modal con
+  // el día y la hora ya elegidos. Si la hora coincide con un horario de la
+  // grilla de reserva, se elige ese; si no (la grilla visual es de 30 min y la
+  // de reserva de `duracionCita`), se usa el horario personalizado.
+  const abrirModalEn = (fechaISO, minutos) => {
+    const hhmm = minutosAHHMM(minutos)
+    const slot = slotsDisponibles(fechaISO, disponibilidad, citas).find((s) => s.hora === horaA12(hhmm) && s.libre)
+    setFecha(fechaISO)
+    if (slot) {
+      setHora(slot.hora)
+    } else {
+      setHoraPersonalizada(true)
+      setHoraCustom(hhmm)
+      setDuracionCustom(disponibilidad?.duracionCita || 40)
+    }
     setModalAbierto(true)
   }
 
@@ -1321,7 +1339,17 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           ))}
         </div>
       ) : vistaActiva === "semana" ? (
-        <CalendarioSemanal lunes={semanaLunes} citas={citas} disponibilidad={disponibilidad} cobroPendienteIds={pendientesPorCita} />
+        <CalendarioSemanal
+          lunes={semanaLunes}
+          citas={citas}
+          disponibilidad={disponibilidad}
+          cobroPendienteIds={pendientesPorCita}
+          onAtender={atenderCita}
+          onEditar={abrirReagendar}
+          onCancelar={(cita) => setPorCancelar(cita.id)}
+          onCobrar={cobrarCita}
+          onHuecoLibre={abrirModalEn}
+        />
       ) : vistaActiva === "mes" ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">

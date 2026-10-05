@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { lunesDeSemana, diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, validarMovimiento } from "./calendarioSemana"
+import { lunesDeSemana, diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, validarMovimiento, celdaLibre } from "./calendarioSemana"
 
 const sesion = (inicio, fin) => ({ activo: true, inicio, fin })
 const cerrado = { manana: { activo: false }, tarde: { activo: false } }
@@ -101,5 +101,25 @@ describe("validarMovimiento", () => {
   it("rechaza una ausencia", () => {
     const d = disp({ excepciones: { "2026-10-07": { ...jornada, ausencias: [{ inicio: "11:00", fin: "12:00" }] } } })
     expect(validarMovimiento(cita, "2026-10-07", 11 * 60, d, [cita], AHORA).ok).toBe(false)
+  })
+})
+
+describe("celdaLibre", () => {
+  const citas = [
+    { id: 1, fecha: "2026-10-07", hora: "10:00 AM", estado: "Pendiente" },
+    { id: 2, fecha: "2026-10-07", hora: "11:00 AM", estado: "Cancelada" },
+  ]
+  const libre = (f, m, d = disp()) => celdaLibre(f, m, d, citas, AHORA)
+  it("es libre dentro del horario, sin cita ni ausencia", () => expect(libre("2026-10-07", 9 * 60)).toBe(true))
+  it("no lo es sobre una cita activa, pero sí sobre una cancelada", () => {
+    expect(libre("2026-10-07", 10 * 60)).toBe(false)
+    expect(libre("2026-10-07", 11 * 60)).toBe(true)
+  })
+  it("no lo es en el almuerzo, fuera de horario, en el pasado ni en una ausencia", () => {
+    expect(libre("2026-10-07", 13 * 60 + 30)).toBe(false)
+    expect(libre("2026-10-07", 8 * 60)).toBe(false)
+    expect(libre("2026-10-05", 8 * 60 + 30)).toBe(false)
+    const d = disp({ excepciones: { "2026-10-08": { ...jornada, ausencias: [{ inicio: "15:00", fin: "16:00" }] } } })
+    expect(libre("2026-10-08", 15 * 60, d)).toBe(false)
   })
 })

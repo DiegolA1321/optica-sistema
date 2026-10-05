@@ -162,3 +162,20 @@ export function validarMovimiento(cita, fechaISO, inicioMin, disponibilidad, cit
   return { ok: true }
 }
 
+
+// ¿Se puede agendar al hacer clic en esta celda de la grilla? Debe estar
+// dentro de una sesión de atención, fuera de las ausencias, no ser pasada y no
+// caer sobre una cita que sigue en agenda (las canceladas dejan el horario libre).
+export function celdaLibre(fechaISO, inicioMin, disponibilidad, citas = [], ahora = new Date()) {
+  const hoy = fechaAISO(ahora)
+  if (fechaISO < hoy) return false
+  if (fechaISO === hoy && inicioMin <= ahora.getHours() * 60 + ahora.getMinutes()) return false
+  if (!sesionesDelDia(fechaISO, disponibilidad).some((s) => inicioMin >= s.inicio && inicioMin < s.fin)) return false
+  if (ausenciasDeFecha(fechaISO, disponibilidad).some((a) => inicioMin >= minutosDesde24h(a.inicio) && inicioMin < minutosDesde24h(a.fin))) return false
+  const duracionDefault = disponibilidad?.duracionCita || 40
+  return !citas.some((c) => {
+    if (c.fecha !== fechaISO || c.estado === "Cancelada") return false
+    const ini = minutosDesdeMedianoche(c.hora)
+    return inicioMin >= ini && inicioMin < ini + duracionDe(c, duracionDefault)
+  })
+}

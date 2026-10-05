@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Receipt } from "lucide-react"
-import { isoAFechaLocal, hoyISO } from "../utilidades/disponibilidad"
-import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, PASO_MINUTOS } from "../utilidades/calendarioSemana"
+import { createPortal } from "react-dom"
+import { Receipt, Stethoscope, CalendarClock, X, Plus } from "lucide-react"
+import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
+import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
@@ -40,7 +41,109 @@ export function tituloSemana(dias) {
   return `${a.getDate()} de ${MESES[a.getMonth()]} al ${b.getDate()} de ${MESES[b.getMonth()]} de ${b.getFullYear()}`
 }
 
-export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds }) {
+const BADGE_ESTADO = {
+  "En Atención": "border-blue-200/60 bg-blue-50 text-blue-700",
+  Atendida: "border-emerald-200/60 bg-emerald-50 text-emerald-700",
+  "No Asistió": "border-red-200/60 bg-red-50 text-red-700",
+  Cancelada: "border-slate-200/60 bg-slate-50 text-slate-600",
+}
+const BADGE_PENDIENTE = "border-amber-200/60 bg-amber-50 text-amber-700"
+const ANCHO_TARJETA = 288
+
+// Tarjeta flotante con los datos de la cita y las mismas acciones que tiene en
+// la lista. Se ancla junto al bloque (a su derecha, o a su izquierda si no
+// cabe) y se cierra con Escape, con un clic fuera o al desplazar.
+function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onEditar, onCancelar, onCobrar }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) onCerrar() }
+    const tecla = (e) => { if (e.key === "Escape") onCerrar() }
+    document.addEventListener("mousedown", fuera)
+    document.addEventListener("keydown", tecla)
+    window.addEventListener("scroll", onCerrar, true)
+    window.addEventListener("resize", onCerrar)
+    return () => {
+      document.removeEventListener("mousedown", fuera)
+      document.removeEventListener("keydown", tecla)
+      window.removeEventListener("scroll", onCerrar, true)
+      window.removeEventListener("resize", onCerrar)
+    }
+  }, [onCerrar])
+
+  const cabeDerecha = ancla.right + 8 + ANCHO_TARJETA <= window.innerWidth - 8
+  const left = cabeDerecha ? ancla.right + 8 : Math.max(8, ancla.left - 8 - ANCHO_TARJETA)
+  const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 300))
+
+  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  return createPortal(
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={`Cita de ${cita.paciente}`}
+      className="fixed z-50 rounded-xl border border-slate-200/60 bg-white p-4 text-left shadow-xl"
+      style={{ top, left, width: ANCHO_TARJETA, animation: "menu-in 160ms ease-out" }}
+    >
+      <div className="flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200/60 bg-slate-50 text-xs font-bold text-slate-600">
+          {cita.iniciales || (cita.paciente || "P").slice(0, 2).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold" style={{ color: INK }}>{cita.paciente}</p>
+          <p className="truncate text-xs text-slate-500">{[cita.cedula, cita.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto"}</p>
+        </div>
+        <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+          <X size={14} />
+        </button>
+      </div>
+
+      <dl className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 text-xs">
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Motivo</dt><dd className="truncate font-semibold text-slate-700">{cita.motivo || "Consulta general"}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Fecha y hora</dt><dd className="font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
+      </dl>
+
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <span className={"rounded-full border px-2 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{cita.estado || "Pendiente"}</span>
+        {cobroPendiente && (
+          <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            <Receipt size={11} aria-hidden="true" /> Cobro pendiente
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {cobroPendiente ? (
+          <button type="button" onClick={() => onCobrar(cita)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer">
+            <Receipt size={14} /> Cobrar
+          </button>
+        ) : puedeAtender && (
+          <button type="button" onClick={() => onAtender(cita)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
+            <Stethoscope size={14} /> Atender
+          </button>
+        )}
+        <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+          <CalendarClock size={14} /> Editar cita
+        </button>
+        {cita.estado !== "Cancelada" && (
+          <button type="button" onClick={() => onCancelar(cita)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
+            <X size={14} /> Cancelar cita
+          </button>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre }) {
+  // Cita con la tarjeta abierta y dónde anclarla (rect del bloque clicado).
+  const [abierta, setAbierta] = useState(null) // { id, ancla } | null
+  const cerrarTarjeta = useRef(() => setAbierta(null)).current
+  // Celda libre bajo el puntero: { iso, min } | null (fantasma "+ agendar").
+  const [hover, setHover] = useState(null)
+  const citaAbierta = abierta ? citas.find((c) => c.id === abierta.id) : null
+  // Las acciones cierran la tarjeta y delegan en las funciones reales de Citas.
+  const conCierre = (fn) => (cita) => { setAbierta(null); fn?.(cita) }
+
   const dias = useMemo(() => diasDeSemana(lunes, disponibilidad, citas), [lunes, disponibilidad, citas])
   const rango = useMemo(() => rangoHoras(dias, disponibilidad, citas), [dias, disponibilidad, citas])
   const duracionDefault = disponibilidad?.duracionCita || 40
@@ -123,8 +226,37 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
           {dias.map((iso) => {
             const franjas = franjasSombreadas(iso, disponibilidad, rango)
             const bloques = bloquesDelDia(citas, iso, duracionDefault)
+            // Minuto (alineado a la grilla de 30) bajo el puntero, o null.
+            const minutoBajoPuntero = (e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              const min = rango.inicio + Math.floor((e.clientY - r.top) / PX_POR_MIN / PASO_MINUTOS) * PASO_MINUTOS
+              return min >= rango.inicio && min < rango.fin ? min : null
+            }
             return (
-              <div key={iso} className={"relative border-l border-slate-100 " + (iso === hoy ? "bg-blue-50/30" : "")} style={{ height: alto, ...fondoLineas }}>
+              <div
+                key={iso}
+                className={"relative border-l border-slate-100 " + (iso === hoy ? "bg-blue-50/30" : "")}
+                style={{ height: alto, ...fondoLineas }}
+                onMouseMove={(e) => {
+                  const min = minutoBajoPuntero(e)
+                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, new Date())
+                  setHover((h) => (libre ? (h && h.iso === iso && h.min === min ? h : { iso, min }) : h ? null : h))
+                }}
+                onMouseLeave={() => setHover(null)}
+                onClick={(e) => {
+                  const min = minutoBajoPuntero(e)
+                  if (min != null && celdaLibre(iso, min, disponibilidad, citas, new Date())) onHuecoLibre?.(iso, min)
+                }}
+              >
+                {hover && hover.iso === iso && (
+                  <div
+                    className="pointer-events-none absolute inset-x-0.5 z-[1] flex items-center justify-center rounded-md border border-dashed border-blue-300 bg-blue-50/60 text-blue-600"
+                    style={{ top: (hover.min - rango.inicio) * PX_POR_MIN + 1, height: PASO_MINUTOS * PX_POR_MIN - 2 }}
+                    aria-hidden="true"
+                  >
+                    <Plus size={14} /> <span className="ml-1 text-[11px] font-semibold">{minutosAHHMM(hover.min)}</span>
+                  </div>
+                )}
                 {franjas.map((f, i) => (
                   <div
                     key={i}
@@ -140,9 +272,17 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                   const ancho = 100 / b.cols
                   const cobro = cobroPendienteIds?.has(b.cita.id)
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={b.cita.id}
-                      className="absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const r = e.currentTarget.getBoundingClientRect()
+                        setHover(null)
+                        setAbierta({ id: b.cita.id, ancla: { top: r.top, left: r.left, right: r.right } })
+                      }}
+                      title={`${b.cita.paciente} · ${b.cita.hora}`}
+                      className={"absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left transition-shadow hover:shadow-md cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : "")}
                       style={{
                         top: (b.inicio - rango.inicio) * PX_POR_MIN + 1,
                         height: altoBloque,
@@ -161,7 +301,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                       {altoBloque >= 46 && (
                         <p className="truncate text-[11px] text-slate-500">{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
                       )}
-                    </div>
+                    </button>
                   )
                 })}
 
@@ -177,6 +317,19 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
           })}
         </div>
       </div>
+
+      {citaAbierta && (
+        <TarjetaFlotante
+          cita={citaAbierta}
+          ancla={abierta.ancla}
+          cobroPendiente={!!cobroPendienteIds?.has(citaAbierta.id)}
+          onCerrar={cerrarTarjeta}
+          onAtender={conCierre(onAtender)}
+          onEditar={conCierre(onEditar)}
+          onCancelar={conCierre(onCancelar)}
+          onCobrar={conCierre(onCobrar)}
+        />
+      )}
     </section>
   )
 }
