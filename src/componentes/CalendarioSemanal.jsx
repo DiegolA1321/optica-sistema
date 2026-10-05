@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Receipt, Stethoscope, CalendarClock, X, Plus } from "lucide-react"
 import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
-import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, PASO_MINUTOS } from "../utilidades/calendarioSemana"
+import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
@@ -134,12 +134,17 @@ function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onE
   )
 }
 
-export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre }) {
+export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre, onMover }) {
   // Cita con la tarjeta abierta y dónde anclarla (rect del bloque clicado).
   const [abierta, setAbierta] = useState(null) // { id, ancla } | null
   const cerrarTarjeta = useRef(() => setAbierta(null)).current
   // Celda libre bajo el puntero: { iso, min } | null (fantasma "+ agendar").
   const [hover, setHover] = useState(null)
+  // Arrastrar y soltar (solo citas pendientes): la cita que se lleva, dónde la
+  // tomó la mano y el destino bajo el puntero ya validado.
+  const [arrastre, setArrastre] = useState(null) // { id, offsetMin, dur }
+  const [destino, setDestino] = useState(null) // { iso, min, ok, motivo }
+  const terminarArrastre = () => { setArrastre(null); setDestino(null) }
   const citaAbierta = abierta ? citas.find((c) => c.id === abierta.id) : null
   // Las acciones cierran la tarjeta y delegan en las funciones reales de Citas.
   const conCierre = (fn) => (cita) => { setAbierta(null); fn?.(cita) }
@@ -256,6 +261,24 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                   setHover((h) => (libre ? (h && h.iso === iso && h.min === min ? h : { iso, min }) : h ? null : h))
                 }}
                 onMouseLeave={() => setHover(null)}
+                onDragOver={(e) => {
+                  if (!arrastre) return
+                  const cita = citas.find((c) => c.id === arrastre.id)
+                  if (!cita) return
+                  const r = e.currentTarget.getBoundingClientRect()
+                  const crudo = rango.inicio + (e.clientY - r.top) / PX_POR_MIN - arrastre.offsetMin
+                  const min = Math.round(crudo / PASO_MINUTOS) * PASO_MINUTOS
+                  const v = validarMovimiento(cita, iso, min, disponibilidad, citas, new Date())
+                  setDestino((d) => (d && d.iso === iso && d.min === min && d.ok === v.ok ? d : { iso, min, ok: v.ok, motivo: v.motivo }))
+                  if (v.ok) { e.preventDefault(); e.dataTransfer.dropEffect = "move" }
+                }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDestino((d) => (d && d.iso === iso ? null : d)) }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const cita = arrastre && citas.find((c) => c.id === arrastre.id)
+                  if (cita && destino?.ok && destino.iso === iso) onMover?.(cita, iso, destino.min)
+                  terminarArrastre()
+                }}
                 onClick={(e) => {
                   const min = minutoBajoPuntero(e)
                   if (min != null && celdaLibre(iso, min, disponibilidad, citas, new Date())) onHuecoLibre?.(iso, min)
@@ -279,6 +302,16 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                   />
                 ))}
 
+                {arrastre && destino && destino.iso === iso && (
+                  <div
+                    className={"pointer-events-none absolute inset-x-0.5 z-[4] rounded-md border-2 border-dashed px-2 py-1 text-[11px] font-semibold " + (destino.ok ? "border-blue-400 bg-blue-100/60 text-blue-700" : "border-red-300 bg-red-100/60 text-red-700")}
+                    style={{ top: (destino.min - rango.inicio) * PX_POR_MIN, height: Math.max(22, arrastre.dur * PX_POR_MIN) }}
+                    aria-hidden="true"
+                  >
+                    {destino.ok ? minutosAHHMM(destino.min) : destino.motivo}
+                  </div>
+                )}
+
                 {bloques.map((b) => {
                   const color = colorDe(b.cita.estado)
                   const altoBloque = Math.max(22, (b.fin - b.inicio) * PX_POR_MIN - 2)
@@ -297,7 +330,17 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         setHover(null)
                         setAbierta({ id: b.cita.id, ancla: { top: r.top, left: r.left, right: r.right } })
                       }}
-                      title={`${b.cita.paciente} · ${b.cita.hora}`}
+                      draggable={b.cita.estado === "Pendiente"}
+                      onDragStart={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect()
+                        e.dataTransfer.effectAllowed = "move"
+                        e.dataTransfer.setData("text/plain", String(b.cita.id))
+                        setAbierta(null)
+                        setHover(null)
+                        setArrastre({ id: b.cita.id, offsetMin: Math.max(0, Math.min(b.fin - b.inicio - 1, (e.clientY - r.top) / PX_POR_MIN)), dur: b.fin - b.inicio })
+                      }}
+                      onDragEnd={terminarArrastre}
+                      title={`${b.cita.paciente} · ${b.cita.hora}${b.cita.estado === "Pendiente" ? " — arrastra para reagendar" : ""}`}
                       className={"absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left transition-shadow hover:shadow-md cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
                       style={{
                         top: (b.inicio - rango.inicio) * PX_POR_MIN + 1,
@@ -306,7 +349,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         width: `calc(${ancho}% - 4px)`,
                         backgroundColor: color.fondo,
                         borderLeftColor: color.linea,
-                        opacity: atenuada ? 0.25 : b.cancelada ? 0.45 : 1,
+                        opacity: arrastre?.id === b.cita.id ? 0.35 : atenuada ? 0.25 : b.cancelada ? 0.45 : 1,
                         zIndex: esCoincidencia ? 3 : b.cancelada ? 1 : 2,
                       }}
                     >

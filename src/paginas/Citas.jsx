@@ -44,7 +44,7 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { lunesDeSemana, sumarDiasISO, minutosAHHMM } from "../utilidades/calendarioSemana"
+import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
@@ -930,10 +930,54 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     window.open(url, "_blank")
   }
 
-  // Filtrado base (búsqueda + KPI de estado + "por registrar"). Lo comparten la
-  // lista y la vista por mes; el rango de fechas solo recorta la lista.
+  // ── Reagendar arrastrando una cita pendiente en el calendario semanal: el
+  // calendario ya validó el destino (sin cruces, dentro del horario, no en el
+  // pasado); aquí se pide confirmación y se guarda con el mismo update de
+  // fecha/hora que "Editar cita". La cita conserva su registro (mismo id). ──
+  const [moviendo, setMoviendo] = useState(null) // { cita, fecha, hora } | null
+  const [guardandoMovimiento, setGuardandoMovimiento] = useState(false)
+  const pedirMovimiento = (cita, fechaISO, minutos) => setMoviendo({ cita, fecha: fechaISO, hora: horaA12(minutosAHHMM(minutos)) })
+  const confirmarMovimiento = async () => {
+    if (!moviendo || guardandoMovimiento) return
+    const { cita, fecha: nuevaFecha, hora: nuevaHora } = moviendo
+    // Se revalida: la agenda pudo cambiar mientras se confirmaba.
+    const v = validarMovimiento(cita, nuevaFecha, minutosDesdeMedianoche(nuevaHora), disponibilidad, citas)
+    if (!v.ok) {
+      setBannerError(v.motivo)
+      setMoviendo(null)
+      return
+    }
+    setGuardandoMovimiento(true)
+    try {
+      if (supabase && opticaId) {
+        const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora }).eq("id", cita.id).select()
+        if (fueBloqueadoPorPermiso({ error: errorUpdate, data: reagendadas })) {
+          setBannerError(MENSAJE_SIN_PERMISO)
+          setMoviendo(null)
+          return
+        }
+        if (errorUpdate) {
+          setBannerError(errorUpdate.code === "23505" ? "Ese horario ya no está disponible — alguien más lo acaba de reservar." : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
+          setMoviendo(null)
+          return
+        }
+      }
+      const citaActualizada = { ...cita, fecha: nuevaFecha, hora: nuevaHora }
+      setCitas((prev) => prev.map((c) => (c.id === cita.id ? citaActualizada : c)))
+      registrarLog(usuario, "citas", "Reagendó una cita (arrastrando en el calendario)", `${cita.paciente} · ${nuevaFecha}`)
+      setBannerError("")
+      setMoviendo(null)
+      setReagendada(citaActualizada)
+    } finally {
+      setGuardandoMovimiento(false)
+    }
+  }
+
   // Semana visible en la vista Semana (lunes, ISO); la usa también el aviso de búsqueda.
   const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
+
+  // Filtrado base (búsqueda + KPI de estado + "por registrar"). Lo comparten la
+  // lista y la vista por mes; el rango de fechas solo recorta la lista.
 
   // Además del nombre, la búsqueda mira el código de cita (CIT-2026-ABC123)
   // que el paciente recibe al reservar en línea — así el personal puede
@@ -1098,6 +1142,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const refModalCompletarRegistro = useModalAccesible(!!completarPara, cerrarCompletarRegistro)
   const refModalCancelar = useModalAccesible(porCancelar != null, () => setPorCancelar(null))
   const refModalReagendar = useModalAccesible(reagendando, cerrarReagendar)
+  const refModalMover = useModalAccesible(!!moviendo, () => setMoviendo(null))
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
@@ -1389,6 +1434,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
           onHuecoLibre={abrirModalEn}
+          onMover={pedirMovimiento}
         />
       ) : vistaActiva === "mes" ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
@@ -1974,6 +2020,33 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
               </button>
               <button type="button" onClick={confirmarCancelacion} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">
                 Sí, cancelar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ─── CONFIRMAR MOVIMIENTO (arrastrar y soltar en el calendario) ─── */}
+      {moviendo && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMoviendo(null)}>
+          <div ref={refModalMover} role="dialog" aria-modal="true" aria-labelledby="citas-modal-mover-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-blue-50">
+              <CalendarClock size={24} className="text-blue-600" />
+            </div>
+            <h4 id="citas-modal-mover-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>
+              ¿Mover la cita de {moviendo.cita.paciente} al {isoAFechaLocal(moviendo.fecha).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })} a las {moviendo.hora}?
+            </h4>
+            <p className="mt-1.5 text-center text-sm text-slate-500">
+              Ahora está {moviendo.cita.fecha === moviendo.fecha ? "ese mismo día" : "el " + isoAFechaLocal(moviendo.cita.fecha).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })} a las {moviendo.cita.hora}. La cita se reagenda, no se crea otra.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setMoviendo(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                Volver
+              </button>
+              <button type="button" onClick={confirmarMovimiento} disabled={guardandoMovimiento} className="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+                {guardandoMovimiento && <Loader2 size={14} className="animate-spin" />}
+                Sí, mover
               </button>
             </div>
           </div>
