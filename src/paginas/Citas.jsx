@@ -932,21 +932,51 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   // Filtrado base (búsqueda + KPI de estado + "por registrar"). Lo comparten la
   // lista y la vista por mes; el rango de fechas solo recorta la lista.
-  const filtradasBase = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase()
-    return citas.filter((c) => {
-      // Además del nombre, busca por el código de cita (CIT-2026-ABC123)
-      // que el paciente recibe al reservar en línea — antes ese código no
-      // servía para nada; ahora el personal puede encontrar su cita si la
-      // dan por teléfono.
-      if (texto && !c.paciente.toLowerCase().includes(texto) && !(c.codigo || "").toLowerCase().includes(texto)) return false
-      if (soloPorRegistrar && !(porRegistrar(c))) return false
-      if (filtro === "hoy") return esHoy(c.fecha)
-      if (filtro === "proximas") return esFutura(c.fecha)
-      if (filtro === "atendidas") return c.estado === "Atendida"
-      return true
-    })
-  }, [citas, busqueda, filtro, soloPorRegistrar])
+  // Semana visible en la vista Semana (lunes, ISO); la usa también el aviso de búsqueda.
+  const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
+
+  // Además del nombre, la búsqueda mira el código de cita (CIT-2026-ABC123)
+  // que el paciente recibe al reservar en línea — así el personal puede
+  // encontrar su cita si la dan por teléfono.
+  const textoBusqueda = busqueda.trim().toLowerCase()
+  const coincideBusqueda = (c) => c.paciente.toLowerCase().includes(textoBusqueda) || (c.codigo || "").toLowerCase().includes(textoBusqueda)
+
+  // Solo los filtros de estado (indicadores de arriba + "por registrar"). La
+  // vista Semana parte de aquí: la búsqueda no oculta citas, las resalta.
+  const filtradasPorEstado = useMemo(() => citas.filter((c) => {
+    if (soloPorRegistrar && !(porRegistrar(c))) return false
+    if (filtro === "hoy") return esHoy(c.fecha)
+    if (filtro === "proximas") return esFutura(c.fecha)
+    if (filtro === "atendidas") return c.estado === "Atendida"
+    return true
+  }), [citas, filtro, soloPorRegistrar])
+
+  const filtradasBase = useMemo(
+    () => (textoBusqueda ? filtradasPorEstado.filter(coincideBusqueda) : filtradasPorEstado),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filtradasPorEstado, textoBusqueda]
+  )
+
+  // Vista Semana: si lo buscado no está en la semana que se ve, ofrece ir a la
+  // semana de la coincidencia más cercana (la próxima, o la última pasada).
+  const avisoBusquedaSemana = useMemo(() => {
+    if (!textoBusqueda) return null
+    const coincidencias = filtradasPorEstado.filter(coincideBusqueda)
+    if (coincidencias.length === 0) return { texto: "Ninguna cita coincide con la búsqueda." }
+    const finSemana = sumarDiasISO(semanaLunes, 6)
+    if (coincidencias.some((c) => c.fecha >= semanaLunes && c.fecha <= finSemana)) return null
+    const hoy = hoyISO()
+    const mejor = [...coincidencias].sort((a, b) => {
+      const da = Math.abs(isoAFechaLocal(a.fecha) - isoAFechaLocal(semanaLunes))
+      const db = Math.abs(isoAFechaLocal(b.fecha) - isoAFechaLocal(semanaLunes))
+      return da - db || (a.fecha >= hoy ? -1 : 1)
+    })[0]
+    return {
+      texto: `${mejor.paciente} tiene su cita el ${etiquetaFecha(mejor.fecha)}, en otra semana.`,
+      irA: () => setSemanaLunes(lunesDeSemana(mejor.fecha)),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtradasPorEstado, textoBusqueda, semanaLunes])
 
   const hayRango = Boolean(rangoDesde || rangoHasta)
 
@@ -1006,7 +1036,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setVistaState(v)
     try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento: no se recuerda */ }
   }
-  const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
   const [cabeSemana, setCabeSemana] = useState(() => (typeof window === "undefined" || !window.matchMedia ? true : window.matchMedia(CONSULTA_ANCHO_SEMANA).matches))
   useEffect(() => {
     if (!window.matchMedia) return
@@ -1344,6 +1373,17 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           citas={citas}
           disponibilidad={disponibilidad}
           cobroPendienteIds={pendientesPorCita}
+          citasVisibles={filtradasPorEstado}
+          coincide={textoBusqueda ? coincideBusqueda : null}
+          aviso={avisoBusquedaSemana}
+          onDiaClick={(iso) => {
+            // Un día de la semana → ese día en la lista.
+            setRangoDesde(iso)
+            setRangoHasta(iso)
+            setFiltro("todas")
+            setSoloPorRegistrar(false)
+            setVista("lista")
+          }}
           onAtender={atenderCita}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
@@ -1367,7 +1407,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 <button
                   key={iso}
                   type="button"
-                  onClick={() => setDiaModalMes(iso)}
+                  onClick={() => {
+                    // Un día del mes → esa semana en la vista Semana (si la
+                    // pantalla es angosta y no cabe, se conserva el detalle
+                    // del día en el modal de siempre).
+                    if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
+                  }}
                   title={citasDia.length > 0 ? `${citasDia.length} ${citasDia.length === 1 ? "cita" : "citas"}` : "Sin citas"}
                   className={
                     "relative flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-sm font-bold transition-all cursor-pointer " +

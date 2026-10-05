@@ -134,7 +134,7 @@ function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onE
   )
 }
 
-export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre }) {
+export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre }) {
   // Cita con la tarjeta abierta y dónde anclarla (rect del bloque clicado).
   const [abierta, setAbierta] = useState(null) // { id, ancla } | null
   const cerrarTarjeta = useRef(() => setAbierta(null)).current
@@ -188,6 +188,16 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
     <section aria-label="Calendario semanal" className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
         <h2 className="text-sm font-bold" style={{ color: INK }}>{tituloSemana(dias)}</h2>
+        {aviso && (
+          <p role="status" className="flex min-w-0 items-center gap-2 text-xs text-slate-600">
+            <span className="truncate">{aviso.texto}</span>
+            {aviso.irA && (
+              <button type="button" onClick={aviso.irA} className="shrink-0 rounded-lg border border-blue-200/60 bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
+                Ir a esa semana
+              </button>
+            )}
+          </p>
+        )}
       </div>
 
       <div ref={refScroll} className="relative overflow-y-auto" style={{ maxHeight: "min(70vh, 720px)" }}>
@@ -198,13 +208,16 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
             const f = isoAFechaLocal(iso)
             const esHoyCol = iso === hoy
             return (
-              <div
+              <button
+                type="button"
                 key={iso}
-                className={"flex flex-col items-center justify-center border-l border-slate-100 text-xs font-semibold " + (esHoyCol ? "bg-blue-50 text-blue-700" : "text-slate-600")}
+                onClick={() => onDiaClick?.(iso)}
+                title="Ver este día en la lista"
+                className={"flex flex-col items-center justify-center border-l border-slate-100 text-xs font-semibold transition-colors cursor-pointer " + (esHoyCol ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "text-slate-600 hover:bg-slate-50")}
               >
                 <span className="uppercase tracking-wide">{DIAS_CORTOS[f.getDay()]}</span>
                 <span className={"text-base font-bold " + (esHoyCol ? "text-blue-700" : "")} style={esHoyCol ? undefined : { color: INK }}>{f.getDate()}</span>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -225,7 +238,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
 
           {dias.map((iso) => {
             const franjas = franjasSombreadas(iso, disponibilidad, rango)
-            const bloques = bloquesDelDia(citas, iso, duracionDefault)
+            const bloques = bloquesDelDia(citasVisibles || citas, iso, duracionDefault)
             // Minuto (alineado a la grilla de 30) bajo el puntero, o null.
             const minutoBajoPuntero = (e) => {
               const r = e.currentTarget.getBoundingClientRect()
@@ -271,6 +284,9 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                   const altoBloque = Math.max(22, (b.fin - b.inicio) * PX_POR_MIN - 2)
                   const ancho = 100 / b.cols
                   const cobro = cobroPendienteIds?.has(b.cita.id)
+                  // Con búsqueda activa: la coincidencia se resalta y el resto se atenúa.
+                  const esCoincidencia = !!coincide && coincide(b.cita)
+                  const atenuada = !!coincide && !esCoincidencia
                   return (
                     <button
                       type="button"
@@ -282,7 +298,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         setAbierta({ id: b.cita.id, ancla: { top: r.top, left: r.left, right: r.right } })
                       }}
                       title={`${b.cita.paciente} · ${b.cita.hora}`}
-                      className={"absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left transition-shadow hover:shadow-md cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : "")}
+                      className={"absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left transition-shadow hover:shadow-md cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
                       style={{
                         top: (b.inicio - rango.inicio) * PX_POR_MIN + 1,
                         height: altoBloque,
@@ -290,8 +306,8 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         width: `calc(${ancho}% - 4px)`,
                         backgroundColor: color.fondo,
                         borderLeftColor: color.linea,
-                        opacity: b.cancelada ? 0.45 : 1,
-                        zIndex: b.cancelada ? 1 : 2,
+                        opacity: atenuada ? 0.25 : b.cancelada ? 0.45 : 1,
+                        zIndex: esCoincidencia ? 3 : b.cancelada ? 1 : 2,
                       }}
                     >
                       <div className="flex items-start justify-between gap-1">
