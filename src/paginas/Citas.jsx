@@ -38,6 +38,7 @@ import {
   List,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
+import CalendarioSemanal from "../componentes/CalendarioSemanal"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO } from "../utilidades/disponibilidad"
@@ -1319,6 +1320,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             </div>
           ))}
         </div>
+      ) : vistaActiva === "semana" ? (
+        <CalendarioSemanal lunes={semanaLunes} citas={citas} disponibilidad={disponibilidad} cobroPendienteIds={pendientesPorCita} />
       ) : vistaActiva === "mes" ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
