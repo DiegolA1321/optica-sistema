@@ -35,6 +35,7 @@ import {
   Zap,
   CalendarRange,
   Receipt,
+  List,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -42,6 +43,7 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
+import { lunesDeSemana, sumarDiasISO } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
@@ -72,6 +74,21 @@ const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200/60", p
 const ORDEN_ESTADOS_MODAL = ["En Atención", "Pendiente", "Atendida", "No Asistió", "Cancelada"]
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
+
+// La última vista elegida se recuerda en este navegador (solo una comodidad
+// por persona: si el almacenamiento no está disponible, se abre en Lista).
+const CLAVE_VISTA = "citas_vista"
+const VISTAS = ["lista", "semana", "mes"]
+const leerVistaGuardada = () => {
+  try {
+    const v = localStorage.getItem(CLAVE_VISTA)
+    return VISTAS.includes(v) ? v : "lista"
+  } catch {
+    return "lista"
+  }
+}
+// Debajo de este ancho el calendario semanal no cabe: se muestra la lista.
+const CONSULTA_ANCHO_SEMANA = "(min-width: 1024px)"
 
 // Cita sin paciente vinculado todavía y aún sin resolver — la web agenda sin
 // ficha, y recepción la registra al atenderla.
@@ -965,21 +982,38 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // es un calendario nuevo que reutiliza el mismo `grupos` (mismos filtros,
   // misma búsqueda) solo que indexado por fecha para pintar un contador por
   // día y abrir el detalle en un modal. ──
-  const [vista, setVista] = useState("dia") // dia | mes
+  const [vista, setVistaState] = useState(leerVistaGuardada) // lista | semana | mes
+  const setVista = (v) => {
+    setVistaState(v)
+    try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento: no se recuerda */ }
+  }
+  const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
+  const [cabeSemana, setCabeSemana] = useState(() => (typeof window === "undefined" || !window.matchMedia ? true : window.matchMedia(CONSULTA_ANCHO_SEMANA).matches))
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const mq = window.matchMedia(CONSULTA_ANCHO_SEMANA)
+    const alCambiar = () => setCabeSemana(mq.matches)
+    mq.addEventListener("change", alCambiar)
+    return () => mq.removeEventListener("change", alCambiar)
+  }, [])
+  // La preferencia guardada se respeta, pero en pantallas angostas la semana
+  // se muestra como lista (sin pisar lo que la persona eligió).
+  const vistaActiva = vista === "semana" && !cabeSemana ? "lista" : vista
   const [mesVista, setMesVista] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1) })
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
   // "Hoy" vuelve a la agenda de hoy: sin rango, sin filtros de estado ni
-  // "por registrar", en la vista Día y con el calendario en el mes actual.
+  // "por registrar", y lleva el periodo de la vista actual a hoy: la lista
+  // vuelve a hoy, la semana a la semana actual, el mes al mes actual.
   const irAHoy = () => {
     setRangoDesde("")
     setRangoHasta("")
     setFiltro("todas")
     setSoloPorRegistrar(false)
     setBusqueda("")
-    setVista("dia")
     const h = new Date()
     setMesVista(new Date(h.getFullYear(), h.getMonth(), 1))
+    setSemanaLunes(lunesDeSemana(hoyISO()))
   }
   const moverRango = (sentido) => {
     const r = desplazarRango(rangoDesde, rangoHasta, sentido, hoyISO())
@@ -1163,28 +1197,56 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         >
           Hoy
         </button>
-        {/* Alternar Día / Mes (reunión 29 sept., punto 12) — sin vista
-            semanal, según lo acordado. "Día" es la lista de siempre. */}
-        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+        {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
+            Cobrar) y la semana/el mes para planificar. Conviven sobre los
+            mismos datos. La semana no se ofrece donde no cabe. */}
+        <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
           {[
-            { key: "dia", label: "Día" },
-            { key: "mes", label: "Mes" },
+            { key: "lista", label: "Lista", Icono: List },
+            ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
+            { key: "mes", label: "Mes", Icono: CalendarDays },
           ].map((op) => (
             <button
               key={op.key}
               type="button"
               onClick={() => setVista(op.key)}
-              className={"rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vista === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-              style={vista === op.key ? { background: GRAD } : undefined}
+              aria-pressed={vistaActiva === op.key}
+              className={"flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaActiva === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+              style={vistaActiva === op.key ? { background: GRAD } : undefined}
             >
+              <op.Icono size={14} aria-hidden="true" />
               {op.label}
             </button>
           ))}
         </div>
+        {/* Flechas del periodo en la misma fila: semana o mes según la vista
+            (la lista usa su propio rango de fechas, justo debajo). */}
+        {(vistaActiva === "semana" || vistaActiva === "mes") && (
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
+              aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+              title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+              className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
+              aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+              title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+              className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
         {/* Rango de fechas (pedido del 29 sept.) con flechas para ir a la
             semana anterior o siguiente sin escribir fechas. Hacia atrás y
             hacia adelante. Solo aplica a la vista Día. */}
-        {vista === "dia" && (
+        {vistaActiva === "lista" && (
           <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
             <button type="button" onClick={() => moverRango(-1)} aria-label="Semana anterior" title="Semana anterior" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
               <ChevronLeft size={16} />
@@ -1257,14 +1319,10 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             </div>
           ))}
         </div>
-      ) : vista === "mes" ? (
+      ) : vistaActiva === "mes" ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <span className="text-sm font-bold capitalize" style={{ color: INK }}>{MESES[mesVista.getMonth()]} {mesVista.getFullYear()}</span>
-            <div className="flex gap-1 text-slate-500">
-              <button type="button" onClick={irMesAnterior} aria-label="Mes anterior" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
-              <button type="button" onClick={irMesSiguiente} aria-label="Mes siguiente" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
-            </div>
           </div>
           <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
             {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
