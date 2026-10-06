@@ -63,9 +63,10 @@ import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
+import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
-import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
@@ -372,12 +373,27 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // Citas.jsx.
   const [mensajePara, setMensajePara] = useState(null)
   const [textoMensaje, setTextoMensaje] = useState("")
+  // Desde aquí se escribe al paciente aunque los envíos automáticos del CRM
+  // estén apagados: el mensaje es manual (se abre WhatsApp), queda marcado como
+  // "contactado hoy" en el CRM y registrado en Actividad.
+  const nombreOptica = usuario?.opticaNombre || "tu óptica"
+  const plantillasMensaje = (paciente) => {
+    const control = fechaProximoControl(paciente, consultas)
+    const cumple = diasParaCumpleanos(paciente.fecha_nacimiento || paciente.fechaNacimiento)
+    return [
+      { id: "saludo", etiqueta: "Saludo", texto: `Hola ${paciente.nombre}, te escribimos de ${nombreOptica}. ` },
+      ...(control ? [{ id: "control", etiqueta: "Recordar control", texto: `Hola ${paciente.nombre}, te escribimos de ${nombreOptica}. Te recordamos que tu próximo control visual es el ${control.toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })}. ¡Escríbenos para agendar tu cita!` }] : []),
+      ...(cumple != null && cumple <= 30 ? [{ id: "cumple", etiqueta: "Cumpleaños", texto: `Hola ${paciente.nombre}, ¡de parte de todo el equipo de ${nombreOptica} te deseamos un feliz cumpleaños! ` }] : []),
+    ]
+  }
   const abrirMensaje = (paciente) => {
     setMensajePara(paciente)
-    setTextoMensaje(`Hola ${paciente.nombre}, te escribimos de ${usuario?.opticaNombre || "tu óptica"}. `)
+    setTextoMensaje(plantillasMensaje(paciente)[0].texto)
   }
   const enviarMensajeWhatsApp = () => {
     window.open(linkWhatsApp(mensajePara.telefono, textoMensaje), "_blank")
+    marcarContactadoHoy(mensajePara.id)
+    registrarLog(usuario, "crm", "Envió un mensaje por WhatsApp desde el perfil del paciente", mensajePara.nombre)
     setMensajePara(null)
   }
 
@@ -1959,13 +1975,34 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               // cada paciente que refirió, mostrado siempre con su desglose
               // al lado para que se entienda de un vistazo cómo se compone.
               const puntajeFidelidad = totalConsultasFidelizacion * 10 + referidosPorEste * 15
-              // Igual que el banner de deuda pendiente (abajo), que ya salta
-              // directo a su pestaña — si el control está vencido, la
-              // tarjeta debe saltar directo a agendar en vez de solo avisar.
-              const TarjetaControl = inactivo ? "button" : "div"
+              const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
 
               return (
                 <>
+                  {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
+                      El próximo control vive aquí (y en el historial clínico),
+                      no en Fidelización. ─── */}
+                  {(proximoControl || (diasCumple != null && diasCumple <= 30)) && (
+                    <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
+                      {proximoControl && (inactivo ? (
+                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} title="Agendar su próximo control" className="inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer">
+                          <AlertTriangle size={13} aria-hidden="true" /> Control vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} · Agendar
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                          <Calendar size={13} className="text-slate-500" aria-hidden="true" />
+                          Próximo control: {proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                          <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
+                        </span>
+                      ))}
+                      {diasCumple != null && diasCumple <= 30 && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "rgba(200,162,78,0.4)", backgroundColor: "rgba(200,162,78,0.1)", color: "#7c5e14" }}>
+                          <Cake size={13} aria-hidden="true" /> {diasCumple === 0 ? "Hoy cumple años" : `Cumple años en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
                       para después ("Más tarde" en el panel de cobro) ─── */}
                   {cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
@@ -1986,23 +2023,11 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
 
                   {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
                       tener que entrar a ninguna pestaña ─── */}
-                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{consultasPaciente[0]?.fecha || "—"}</p>
                     </div>
-                    <TarjetaControl
-                      type={inactivo ? "button" : undefined}
-                      onClick={inactivo ? () => abrirAgendar(pacienteHistorial) : undefined}
-                      title={inactivo ? "Agendar su próximo control" : undefined}
-                      className={"rounded-xl border p-3.5 text-left transition " + (inactivo ? "border-red-200/60 bg-red-50/60 hover:bg-red-100 cursor-pointer" : "border-slate-200/60 bg-white")}
-                    >
-                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Próximo control</p>
-                      <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
-                        {proximoControl ? proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—"}
-                      </p>
-                      {inactivo && <p className="text-[11px] font-semibold text-red-600">Vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} — toca para agendar</p>}
-                    </TarjetaControl>
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{totalComprasCount}</p>
@@ -2291,31 +2316,10 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       </div>
                     ) : tabHistorial === "fidelizacion" ? (
                       <div className="space-y-4">
-                        {/* El bloque clínico (Estado de corrección + Tendencia
-                            de graduación) se mudó a "Historial" (reunión 29
-                            sept., punto 2) — acá queda solo lo relacionado a
-                            fidelización. Próximo control se mantiene acá
-                            también, como recordatorio (Diego, 30 sept.), y
-                            Puntaje de fidelidad — que ya existía arriba, en
-                            la tira de resumen siempre visible — se suma acá
-                            porque es donde alguien esperaría encontrarlo. */}
+                        {/* El bloque clínico (estado de corrección, tendencia y próximo control) vive
+                            en "Historial"; el próximo control también se ve en la cabecera del perfil.
+                            Acá queda solo lo que habla de la relación con el paciente. */}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className={"rounded-xl border p-4 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
-                            {proximoControl ? (
-                              <>
-                                <p className={"mt-1.5 text-lg font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
-                                  {proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
-                                </p>
-                                <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
-                                  {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="mt-1.5 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
-                            )}
-                          </div>
-
                           <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Activity size={13} /> Última visita</p>
                             <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>
@@ -2339,6 +2343,13 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             </p>
                           </div>
 
+                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Cake size={13} /> Cumpleaños</p>
+                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>
+                              {diasCumple == null ? "—" : diasCumple === 0 ? "Hoy" : `${diasCumple} día${diasCumple === 1 ? "" : "s"} para su cumpleaños`}
+                            </p>
+                            <p className="text-xs text-slate-500">{diasCumple == null ? "Sin fecha de nacimiento registrada." : edadPaciente != null ? `Cumple ${edadPaciente + (diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
+                          </div>
                           <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
                             <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
@@ -2514,7 +2525,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <MessageCircle size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Enviar mensaje</h3>
+                  <h3 className="text-lg font-bold" style={{ color: INK }}>Enviar mensaje por CRM</h3>
                   <p className="text-xs text-slate-500">Para {mensajePara.nombre} · {mensajePara.telefono}</p>
                 </div>
               </div>
@@ -2523,6 +2534,12 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               </button>
             </div>
             <div className="space-y-3 p-5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Plantilla</span>
+                {plantillasMensaje(mensajePara).map((p) => (
+                  <button key={p.id} type="button" onClick={() => setTextoMensaje(p.texto)} className="rounded-full border border-slate-200/60 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">{p.etiqueta}</button>
+                ))}
+              </div>
               <div>
                 <label htmlFor="texto-mensaje-whatsapp" className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
                 <textarea
@@ -2532,7 +2549,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   onChange={(e) => setTextoMensaje(e.target.value)}
                   className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
-                <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp con este texto ya escrito — tú lo revisas y lo mandas ahí.</p>
+                <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp con este texto ya escrito: tú lo revisas y lo mandas ahí. Funciona aunque los envíos automáticos estén apagados, y queda marcado como contactado hoy en el CRM.</p>
               </div>
               <button
                 type="button"
