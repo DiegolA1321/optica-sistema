@@ -1,12 +1,13 @@
 "use client"
 
 import { createPortal } from "react-dom"
-import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck } from "lucide-react"
+import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck, LogOut } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { etiquetaFecha } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
+import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -41,7 +42,7 @@ function Fila({ icono: Icono, etiqueta, children }) {
 // en la lista y en el modal "Citas del día". "Ingresar" lleva a la ficha
 // clínica de esa cita (o al cobro si ya quedó pendiente) y "Ver perfil" abre
 // el paciente en otra pestaña para no perder el lugar en la agenda.
-export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar }) {
+export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar, onDejarDeAtender }) {
   const refModal = useModalAccesible(true, onCerrar)
   const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
   const agendada = fechaHoraAgendada(cita.creadoEn)
@@ -115,6 +116,11 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
               Pre-triage: {triage}
             </p>
           )}
+          {diasAtencionAbierta(cita) !== null && (
+            <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+              <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(diasAtencionAbierta(cita))}
+            </p>
+          )}
           {cobroPendiente && (
             <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-amber-300/70 bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800">
               <Receipt size={13} aria-hidden="true" /> Cobro pendiente
@@ -146,6 +152,11 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
             <button type="button" onClick={() => onEditar(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 cursor-pointer">
               <CalendarClock size={13} aria-hidden="true" /> Editar cita
             </button>
+            {cita.estado === "En Atención" && onDejarDeAtender && (
+              <button type="button" onClick={() => onDejarDeAtender(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 cursor-pointer">
+                <LogOut size={13} aria-hidden="true" /> Dejar de atender
+              </button>
+            )}
             {cita.estado !== "Cancelada" && (
               <button type="button" onClick={() => onCancelar(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 transition-colors hover:text-red-700 cursor-pointer">
                 <X size={13} aria-hidden="true" /> Cancelar cita

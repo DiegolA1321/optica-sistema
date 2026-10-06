@@ -34,6 +34,7 @@ import {
   Zap,
   Receipt,
   List,
+  LogOut,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
@@ -44,6 +45,8 @@ import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { ChipFiltro, BuscadorCitas, SelectorEstado, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
+import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
+import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
@@ -264,6 +267,11 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
               {cita.estado === "En Atención" ? "En atención" : "Pendiente"}
             </span>
           )}
+          {diasAtencionAbierta(cita) !== null && (
+            <span title={textoAtencionAbierta(diasAtencionAbierta(cita))} className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+              <AlertTriangle size={11} aria-hidden="true" /> Abierta hace {diasAtencionAbierta(cita)} d
+            </span>
+          )}
           {cobroPendiente && (
             <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
               <Receipt size={12} aria-hidden="true" /> Cobro pendiente
@@ -300,7 +308,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -400,6 +408,9 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // Detalle de la cita (R12-R13): se abre al hacer clic en la cita. Se guarda
   // el id y no la cita, para que el modal refleje los cambios de estado.
   const [detalleCitaId, setDetalleCitaId] = useState(null)
+  // Atención abierta de un día anterior que se quiere dejar de atender (desde el menú, el detalle o el aviso).
+  const [dejarCita, setDejarCita] = useState(null)
+  const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
   const abrirDetalle = (cita) => setDetalleCitaId(cita.id)
   const alCobrarCita = async (factura) => {
     const cita = cobrandoCita
@@ -1302,6 +1313,18 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
         </div>
       </div>
 
+      {/* ─── ATENCIONES ABIERTAS DE DÍAS ANTERIORES ─── */}
+      {atencionesAntiguas.length > 0 && (
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+          <AlertTriangle size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
+          <p className="font-semibold">
+            {atencionesAntiguas.length === 1 ? "1 atención abierta de un día anterior" : `${atencionesAntiguas.length} atenciones abiertas de días anteriores`}
+          </p>
+          <p className="text-xs text-amber-800/80">La más antigua: {atencionesAntiguas[0].cita.paciente}, {textoAtencionAbierta(atencionesAntiguas[0].dias).toLowerCase()}.</p>
+          <button type="button" onClick={() => { setEstadoFiltro("enAtencion"); setFiltro("todas") }} className="ml-auto rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Revisar</button>
+        </div>
+      )}
+
       {/* ─── INDICADORES (en Semana y Mes van en la fila de control) ─── */}
       {vistaActiva === "lista" && indicadores}
 
@@ -2191,6 +2214,16 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
         document.body
       )}
 
+      {dejarCita && (
+        <ConfirmarDejarDeAtender
+          cita={dejarCita}
+          usuario={usuario}
+          setCitas={setCitas}
+          onCancelar={() => setDejarCita(null)}
+          onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
+        />
+      )}
+
       {/* ─── DETALLE DE LA CITA (clic en una cita de la lista o del modal "Citas del día") ─── */}
       {(() => {
         const cita = detalleCitaId ? citas.find((c) => c.id === detalleCitaId) : null
@@ -2206,6 +2239,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
             onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
             onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
             onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
+            onDejarDeAtender={(c) => { setDetalleCitaId(null); setDejarCita(c) }}
           />
         )
       })()}
@@ -2237,6 +2271,15 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
                 </button>
                 <div className="my-1 border-t border-slate-100" />
               </>
+            )}
+            {cita.estado === "En Atención" && (
+              <button
+                type="button"
+                onClick={() => { setMenuAccionesId(null); setDejarCita(cita) }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+              >
+                <LogOut size={15} /> Dejar de atender
+              </button>
             )}
             <button
               type="button"
