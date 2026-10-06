@@ -5,6 +5,7 @@ import { hoyISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
+import { mapOrden, EVENTO_ORDEN } from './utilidades/ordenesLaboratorio';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import { registrarLog } from './utilidades/logs';
 
@@ -369,6 +370,13 @@ function App() {
   const [equipo, setEquipo] = useState([]);
   // Pacientes pasados a la óptica (cola de "Listo para venta").
   const [pasesVenta, setPasesVenta] = useState([]);
+  const [ordenesLab, setOrdenesLab] = useState([]);
+  // Una orden creada o corregida desde cualquier pantalla entra a la lista sin recargar.
+  useEffect(() => {
+    const alGuardar = (e) => setOrdenesLab((prev) => [e.detail, ...prev.filter((o) => o.id !== e.detail.id)])
+    window.addEventListener(EVENTO_ORDEN, alGuardar)
+    return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
+  }, []);
   const [parametrizacion, setParametrizacionState] = useState(PARAMETRIZACION_SEED);
   const [motivosConsulta, setMotivosConsultaState] = useState(MOTIVOS_SEED);
   const [diagnosticosRapidos, setDiagnosticosRapidosState] = useState(DIAGNOSTICOS_SEED);
@@ -522,6 +530,8 @@ function App() {
         const iso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`
         const { data: pasesData } = await supabase.from('pases_a_venta').select('*').eq('optica_id', usuario.opticaId)
         if (pasesData) setPasesVenta(pasesData.map(mapPase))
+        const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*').eq('optica_id', usuario.opticaId)
+        if (ordenesData) setOrdenesLab(ordenesData.map(mapOrden))
         const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
         if (data) {
           setCitas((prev) => {
@@ -620,6 +630,11 @@ function App() {
       supabase.from('pases_a_venta').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
         if (data) setPasesVenta(data.map(mapPase))
         else if (error) registrarErrorCarga('pacientes listos para venta')
+      })
+
+      supabase.from('ordenes_laboratorio').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+        if (data) setOrdenesLab(data.map(mapOrden))
+        else if (error) registrarErrorCarga('órdenes de laboratorio')
       })
 
       supabase.rpc('equipo_optica').then(({ data, error }) => {
@@ -1055,6 +1070,8 @@ function App() {
           equipo={equipo}
           pases={pasesVenta}
           setPases={setPasesVenta}
+          ordenesLab={ordenesLab}
+          setOrdenesLab={setOrdenesLab}
           parametrizacion={parametrizacion}
           setParametrizacion={setParametrizacion}
           motivosConsulta={motivosConsulta}

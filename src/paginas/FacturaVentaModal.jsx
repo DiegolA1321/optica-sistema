@@ -13,6 +13,8 @@ import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
+import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
+import { esLineaDeLente } from "../utilidades/ordenesLaboratorio"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 
 // ─── Paleta de firma (paleta de venta/dinero) ───
@@ -78,6 +80,10 @@ export default function FacturaVentaModal({
 }) {
   const opticaId = usuario?.opticaId
   const [vincular, setVincular] = useState(true)
+  // R36: una venta con lentes genera su orden de laboratorio. El check se sugiere
+  // solo cuando hay una línea que parece lente, pero se puede marcar a mano.
+  const [crearOrden, setCrearOrden] = useState(null)
+  const [ordenPara, setOrdenPara] = useState(null) // factura recién guardada, a la espera de su orden
   const [incluirMedidas, setIncluirMedidas] = useState(false)
   const [verMedidas, setVerMedidas] = useState(false)
   const consultaIdEfectivo = consultaId ?? (vinculoSugerido && vincular ? vinculoSugerido.consultaId : null)
@@ -252,6 +258,8 @@ export default function FacturaVentaModal({
   }
 
   const cambiarMetodoPago = (m) => setMetodoPago(m)
+  const hayLente = lineas.some(esLineaDeLente)
+  const incluyeLentes = crearOrden ?? hayLente
 
   const imprimirProforma = () => {
     if (lineas.length === 0) { setError("Agrega al menos una línea para armar la proforma."); return }
@@ -309,12 +317,18 @@ export default function FacturaVentaModal({
         }))
       }
       registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
-      onGuardado?.({
+      const facturaGuardada = {
         id: data.id, pacienteId: paciente.id, citaId: citaIdEfectivo, consultaId: consultaIdEfectivo,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
         estado: data.estado, creadoEn: data.created_at,
         lineas,
-      })
+      }
+      onGuardado?.(facturaGuardada)
+      if (incluyeLentes) {
+        setGuardando(false)
+        setOrdenPara(facturaGuardada)
+        return
+      }
     }
 
     setGuardando(false)
@@ -323,6 +337,21 @@ export default function FacturaVentaModal({
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
   const refModal = useModalAccesible(true, onCerrar)
+
+  // Venta guardada con lentes: sigue la orden de laboratorio (cerrarla o crearla después termina el flujo).
+  if (ordenPara) {
+    return (
+      <OrdenLaboratorioModal
+        paciente={paciente}
+        facturaId={ordenPara.id}
+        consultaId={ordenPara.consultaId}
+        consulta={diagnostico}
+        monturaInicial={ordenPara.lineas.find((l) => l.tipo === "producto")?.descripcion || ""}
+        usuario={usuario}
+        onCerrar={() => onCerrar?.()}
+      />
+    )
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
@@ -605,6 +634,11 @@ export default function FacturaVentaModal({
                   <span className="text-sm font-semibold text-slate-600">Total</span>
                   <span className="font-mono text-xl font-bold text-slate-800">${total.toFixed(2)}</span>
                 </div>
+
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3 text-sm text-slate-700">
+                  <input type="checkbox" checked={incluyeLentes} onChange={(e) => setCrearOrden(e.target.checked)} className="mt-0.5 accent-blue-600" />
+                  <span><span className="font-semibold">Esta venta incluye lentes</span><br /><span className="text-xs text-slate-500">Al guardarla se abre la orden de laboratorio, con la receta ya cargada.</span></span>
+                </label>
 
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Método de pago</label>

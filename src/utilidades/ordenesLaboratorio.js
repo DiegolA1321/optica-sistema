@@ -158,3 +158,32 @@ ${incluirGraduacion ? `<h2>Graduación</h2><p>${[ojo("OD", orden.recetaOd), ojo(
 <div class="caja">Presenta este comprobante para retirar tus lentes. Te avisaremos cuando estén listos${opticaDatos.telefono ? `; para consultas llama al ${escapar(opticaDatos.telefono)}` : ""}.</div>
 </body></html>`
 }
+
+// Fila de ordenes_laboratorio → objeto de la app.
+export function mapOrden(o) {
+  return {
+    id: o.id, numero: o.numero, facturaId: o.factura_id, consultaId: o.consulta_id, pacienteId: o.paciente_id, citaId: o.cita_id,
+    recetaOd: { esfera: "", cilindro: "", eje: "", adicion: "", ...(o.receta_od || {}) }, recetaOi: { esfera: "", cilindro: "", eje: "", adicion: "", ...(o.receta_oi || {}) },
+    dpLejos: o.dp_lejos || "", dpCerca: o.dp_cerca || "", alturaMontaje: o.altura_montaje || "",
+    tipoLente: o.tipo_lente, material: o.material || "",
+    antirreflejo: !!o.antirreflejo, filtroAzul: !!o.filtro_azul, fotocromatico: !!o.fotocromatico, otrosTratamientos: o.otros_tratamientos || "",
+    montura: o.montura || "", monturaMedidas: o.montura_medidas || "", laboratorio: o.laboratorio || "",
+    fechaPrometida: o.fecha_prometida, observaciones: o.observaciones || "",
+    estado: o.estado, creadaPor: o.creada_por, creadaEn: o.creada_en,
+    pacienteAvisadoEn: o.paciente_avisado_en || null, pacienteAvisadoPor: o.paciente_avisado_por || null,
+  }
+}
+
+// Las dos copias en un solo documento, cada una en su hoja (una sola ventana de impresión).
+export function armarHtmlOrdenDosCopias(args) {
+  const cuerpo = (h) => h.slice(h.indexOf("<body>") + 6, h.lastIndexOf("</body>"))
+  const lab = armarHtmlOrdenLaboratorio(args)
+  const pac = armarHtmlOrdenPaciente(args)
+  return lab.replace("</body>", "").replace(/<title>.*?<\/title>/, `<title>Orden ${numeroOrden(args.orden.numero)}</title>`)
+    .replace("<body>", `<body><div style="page-break-after:always">`) + `</div>${cuerpo(pac)}</body></html>`
+}
+
+// Cualquier pantalla puede abrir el modal de la orden; la lista (App.jsx) se entera por este evento.
+export const EVENTO_ORDEN = "orden-laboratorio:guardada"
+// ¿Esta línea de la venta parece un lente? (la luna es texto libre, así que solo sirve para sugerir el check)
+export const esLineaDeLente = (l) => l?.tipo === "servicio" && /^(luna|lente|cristal)/i.test((l.descripcion || "").trim())
