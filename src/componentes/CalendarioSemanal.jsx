@@ -22,6 +22,7 @@ const ESTILO_FRANJA = {
   almuerzo: { backgroundImage: "repeating-linear-gradient(135deg, rgba(148,163,184,0.16) 0 6px, transparent 6px 12px)", backgroundColor: "rgba(248,250,252,0.9)" },
   ausencia: { backgroundImage: "repeating-linear-gradient(135deg, rgba(148,163,184,0.28) 0 4px, transparent 4px 9px)", backgroundColor: "rgba(241,245,249,0.9)" },
 }
+const ETIQUETA_FRANJA = { cerrado: "Cerrado", almuerzo: "Almuerzo", ausencia: "Ausencia" }
 const TITULO_FRANJA = { cerrado: "Fuera del horario de atención", almuerzo: "Almuerzo / pausa", ausencia: "Ausencia" }
 
 export function LeyendaEstados() {
@@ -309,7 +310,15 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     title={f.tipo === "ausencia" && f.motivo ? `Ausencia: ${f.motivo}` : TITULO_FRANJA[f.tipo]}
                     className="absolute inset-x-0"
                     style={{ top: (f.inicio - rango.inicio) * PX_POR_MIN, height: (f.fin - f.inicio) * PX_POR_MIN, ...ESTILO_FRANJA[f.tipo] }}
-                  />
+                  >
+                    {/* Por qué está bloqueado: etiqueta discreta que se queda
+                        pegada bajo el encabezado mientras la franja está a la vista. */}
+                    {(f.fin - f.inicio) * PX_POR_MIN >= 18 && (
+                      <span className="pointer-events-none sticky ml-1.5 inline-block max-w-[calc(100%-12px)] truncate rounded px-1 text-[10px] font-semibold uppercase leading-4 tracking-wide text-slate-400" style={{ top: ALTO_ENCABEZADO + 4 }}>
+                        {ETIQUETA_FRANJA[f.tipo]}{f.tipo === "ausencia" && f.motivo ? ` · ${f.motivo}` : ""}
+                      </span>
+                    )}
+                  </div>
                 ))}
 
                 {arrastre && destino && destino.iso === iso && (
