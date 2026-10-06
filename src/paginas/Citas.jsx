@@ -1034,16 +1034,18 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // un historial, así que va de la más reciente a la más antigua.
   const { grupos, gruposAnteriores } = useMemo(() => {
     const hoy = hoyISO()
+    // Las canceladas no estorban: solo se ven al elegir el estado "Canceladas".
+    const base = estadoFiltro === "cancelada" ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada")
     if (hayRango) {
-      const enRango = filtradasBase.filter((c) => (!rangoDesde || c.fecha >= rangoDesde) && (!rangoHasta || c.fecha <= rangoHasta))
+      const enRango = base.filter((c) => (!rangoDesde || c.fecha >= rangoDesde) && (!rangoHasta || c.fecha <= rangoHasta))
       return { grupos: agruparPorDia(ordenarCitas(enRango)), gruposAnteriores: [] }
     }
     // Atendidas, canceladas y No asistió son historial: de la más reciente a la
     // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
     if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
-      return { grupos: agruparPorDia(ordenarCitas(filtradasBase, true)), gruposAnteriores: [] }
+      return { grupos: agruparPorDia(ordenarCitas(base, true)), gruposAnteriores: [] }
     }
-    const { proximas, anteriores } = particionarAgenda(filtradasBase, hoy)
+    const { proximas, anteriores } = particionarAgenda(base, hoy)
     return { grupos: agruparPorDia(proximas), gruposAnteriores: agruparPorDia(anteriores) }
   }, [filtradasBase, estadoFiltro, hayRango, rangoDesde, rangoHasta])
 
@@ -1059,19 +1061,10 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
   // Cuántas citas hay de cada estado, para el selector de estado.
   const conteosEstado = useMemo(
-    () => Object.fromEntries(ESTADOS_FILTRO.map((e) => [e.id, e.id === "todas" ? citas.length : citas.filter((c) => coincideEstado(c, e.id)).length])),
+    () => Object.fromEntries(ESTADOS_FILTRO.map((e) => [e.id, e.id === "todas" ? citas.filter((c) => c.estado !== "Cancelada").length : citas.filter((c) => coincideEstado(c, e.id)).length])),
     [citas],
   )
-  // Lo que vive dentro del botón "Filtros" (el estado y el buscador siempre se ven).
-  const filtrosEnPanel = (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
-  const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
-  const etiquetasActivas = [
-    origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
-    seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
-    asignadoFiltro !== "todos" && { id: "asignado", texto: `Asignada a: ${nombreResponsableFiltro(asignadoFiltro)}`, quitar: () => setAsignadoFiltro("todos") },
-    atendidoFiltro !== "todos" && { id: "atendido", texto: `Atendida por: ${nombreResponsableFiltro(atendidoFiltro)}`, quitar: () => setAtendidoFiltro("todos") },
-  ].filter(Boolean)
-  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda("") }
+  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda(""); setSoloPorRegistrar(false); setRangoDesde(""); setRangoHasta("") }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1139,7 +1132,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
     setRangoHasta(r.hasta)
   }
 
-  const gruposPorFecha = useMemo(() => new Map(agruparPorDia(filtradasBase)), [filtradasBase])
+  const gruposPorFecha = useMemo(() => new Map(agruparPorDia(estadoFiltro === "cancelada" ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))), [filtradasBase, estadoFiltro])
 
   // Semana y Mes son para planificar: una cita cancelada libera su horario, así
   // que por defecto no ocupa el calendario (ni lo apaga con citas en gris). Se
@@ -1176,6 +1169,27 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // Los KPIs son también los filtros de estado. En Lista van en su propia fila;
   // en Semana y Mes, que necesitan toda la altura, se compactan dentro de la
   // fila de control.
+  // Lo que vive dentro del botón "Filtros" (el estado y el buscador siempre se ven).
+  const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
+  const corta = (iso) => (iso ? iso.split("-").reverse().slice(0, 2).join("/") : "")
+  const textoRango = rangoDesde && rangoHasta ? `${corta(rangoDesde)} – ${corta(rangoHasta)}` : rangoDesde ? `desde ${corta(rangoDesde)}` : `hasta ${corta(rangoHasta)}`
+  const etiquetasPanel = [
+    vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${textoRango}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
+    origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
+    seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
+    asignadoFiltro !== "todos" && { id: "asignado", texto: `Asignada a: ${nombreResponsableFiltro(asignadoFiltro)}`, quitar: () => setAsignadoFiltro("todos") },
+    atendidoFiltro !== "todos" && { id: "atendido", texto: `Atendida por: ${nombreResponsableFiltro(atendidoFiltro)}`, quitar: () => setAtendidoFiltro("todos") },
+  ].filter(Boolean)
+  // El contador de "Filtros" es exactamente la cantidad de etiquetas del panel; las
+  // etiquetas de abajo suman además el estado, el buscador y "por registrar".
+  const filtrosEnPanel = etiquetasPanel.length
+  const etiquetasActivas = [
+    estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
+    busqueda.trim() && { id: "busqueda", texto: `Búsqueda: ${busqueda.trim()}`, quitar: () => setBusqueda("") },
+    soloPorRegistrar && { id: "porRegistrar", texto: "Solo por registrar", quitar: () => setSoloPorRegistrar(false) },
+    ...etiquetasPanel,
+  ].filter(Boolean)
+
   const indicadores = (
     <div role="group" aria-label="Ver citas de" className="flex flex-wrap items-center gap-2">
       <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ver</span>
@@ -1185,7 +1199,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
       <ChipFiltro grande={vistaActiva === "lista"} conteo={totalProximas} activo={filtro === "proximas"} onClick={() => setFiltro("proximas")}>
         <CalendarClock size={14} aria-hidden="true" /> Próximas
       </ChipFiltro>
-      <ChipFiltro grande={vistaActiva === "lista"} conteo={citas.length} activo={filtro === "todas"} onClick={() => setFiltro("todas")}>
+      <ChipFiltro grande={vistaActiva === "lista"} conteo={citas.filter((c) => c.estado !== "Cancelada").length} activo={filtro === "todas"} onClick={() => setFiltro("todas")}>
         <CalendarDays size={14} aria-hidden="true" /> Total agendadas
       </ChipFiltro>
     </div>
@@ -1311,6 +1325,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
 
       {/* ─── UNA SOLA FILA DE CONTROL: Hoy · Día|Mes · rango · por registrar ─── */}
       <div className="flex flex-wrap items-center gap-2">
+        {vistaActiva !== "lista" && (
         <button
           type="button"
           onClick={irAHoy}
@@ -1318,6 +1333,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
         >
           Hoy
         </button>
+        )}
         {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
             Cobrar) y la semana/el mes para planificar. Conviven sobre los
             mismos datos. La semana no se ofrece donde no cabe. */}
@@ -1364,50 +1380,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
             </button>
           </div>
         )}
-        {/* Rango de fechas (pedido del 29 sept.) con flechas para ir a la
-            semana anterior o siguiente sin escribir fechas. Hacia atrás y
-            hacia adelante. Solo aplica a la vista Día. */}
-        {vistaActiva === "lista" && (
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            <button type="button" onClick={() => moverRango(-1)} aria-label="Semana anterior" title="Semana anterior" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-              <ChevronLeft size={16} />
-            </button>
-            <CalendarRange size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
-            <label htmlFor="rango-desde" className="sr-only">Desde</label>
-            <input
-              id="rango-desde"
-              type="date"
-              value={rangoDesde}
-              onChange={(e) => setRangoDesde(e.target.value)}
-              max={rangoHasta || undefined}
-              className="rounded-lg bg-transparent px-1.5 py-1 text-xs font-semibold text-slate-600 outline-none"
-            />
-            <span className="text-xs text-slate-400">–</span>
-            <label htmlFor="rango-hasta" className="sr-only">Hasta</label>
-            <input
-              id="rango-hasta"
-              type="date"
-              value={rangoHasta}
-              onChange={(e) => setRangoHasta(e.target.value)}
-              min={rangoDesde || undefined}
-              className="rounded-lg bg-transparent px-1.5 py-1 text-xs font-semibold text-slate-600 outline-none"
-            />
-            {hayRango && (
-              <button
-                type="button"
-                onClick={() => { setRangoDesde(""); setRangoHasta("") }}
-                aria-label="Limpiar rango de fechas"
-                title="Limpiar rango de fechas"
-                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-              >
-                <X size={13} />
-              </button>
-            )}
-            <button type="button" onClick={() => moverRango(1)} aria-label="Semana siguiente" title="Semana siguiente" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
+        {/* El rango de fechas personalizado (R8) vive dentro de "Filtros", solo en la Lista. */}
         {/* Buscador y estado siempre a la vista; lo demás, dentro de "Filtros". */}
         <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
         <SelectorEstado valor={estadoFiltro} onChange={setEstadoFiltro} conteos={conteosEstado} />
@@ -1418,6 +1391,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
           esAdmin={usuario?.rol === "admin"} equipo={equipo}
           asignado={asignadoFiltro} onAsignado={setAsignadoFiltro}
           atendido={atendidoFiltro} onAtendido={setAtendidoFiltro}
+          rango={vistaActiva === "lista" ? { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango } : null}
         />
         {totalPorRegistrar > 0 && (
           <button
@@ -1450,7 +1424,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
       {/* ─── FILTROS ACTIVOS: etiquetas con su "x" y "Limpiar filtros" ─── */}
       <EtiquetasActivas
         etiquetas={etiquetasActivas}
-        hayAlgo={etiquetasActivas.length > 0 || estadoFiltro !== "todas" || busqueda !== ""}
+        hayAlgo={etiquetasActivas.length > 0}
         onLimpiar={limpiarFiltros}
       />
 
