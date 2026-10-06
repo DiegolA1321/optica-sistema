@@ -2,16 +2,20 @@ import { useLayoutEffect, useState } from "react"
 
 // Piezas que comparten las vistas Semana y Mes de Citas.
 
-// Mismos colores de estado que la lista de citas: línea a la izquierda y
-// fondo suave. Cualquier estado desconocido se trata como pendiente.
+// Mismos estados que la lista de citas, con colores de relleno más firmes para
+// que el calendario se lea por color de un vistazo: línea sólida a la izquierda,
+// fondo pastel y texto oscuro del mismo tono. Un estado desconocido cuenta como
+// pendiente.
 const COLOR_ESTADO = {
-  "En Atención": { linea: "#2563eb", fondo: "#eff6ff" },
-  Atendida: { linea: "#10b981", fondo: "#ecfdf5" },
-  "No Asistió": { linea: "#ef4444", fondo: "#fef2f2" },
-  Cancelada: { linea: "#94a3b8", fondo: "#f8fafc" },
+  "En Atención": { linea: "#2563eb", fondo: "#dbeafe", texto: "#1e3a8a", etiqueta: "En atención" },
+  Atendida: { linea: "#059669", fondo: "#bbf7d0", texto: "#064e3b", etiqueta: "Atendida" },
+  "No Asistió": { linea: "#dc2626", fondo: "#fecaca", texto: "#7f1d1d", etiqueta: "No asistió" },
+  Cancelada: { linea: "#94a3b8", fondo: "#e2e8f0", texto: "#475569", etiqueta: "Cancelada" },
 }
-const COLOR_PENDIENTE = { linea: "#f59e0b", fondo: "#fffbeb" }
+const COLOR_PENDIENTE = { linea: "#d97706", fondo: "#fde68a", texto: "#78350f", etiqueta: "Pendiente" }
 export const colorDe = (estado) => COLOR_ESTADO[estado] || COLOR_PENDIENTE
+// Leyenda que se muestra en el encabezado de Semana y Mes.
+export const LEYENDA_ESTADOS = [COLOR_PENDIENTE, COLOR_ESTADO["En Atención"], COLOR_ESTADO.Atendida, COLOR_ESTADO["No Asistió"]]
 
 // Alto que le queda al calendario: desde donde empieza hasta el borde inferior
 // del área con scroll de la página (menos su relleno), con un mínimo para que

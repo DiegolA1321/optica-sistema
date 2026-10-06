@@ -4,7 +4,7 @@ import { Receipt, Stethoscope, CalendarClock, X, Plus } from "lucide-react"
 import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
-import { colorDe, useAlturaDisponible } from "./calendarioComun"
+import { colorDe, useAlturaDisponible, LEYENDA_ESTADOS } from "./calendarioComun"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
 // las citas y la disponibilidad ya cargadas y avisa por callbacks; no consulta
@@ -23,6 +23,19 @@ const ESTILO_FRANJA = {
   ausencia: { backgroundImage: "repeating-linear-gradient(135deg, rgba(148,163,184,0.28) 0 4px, transparent 4px 9px)", backgroundColor: "rgba(241,245,249,0.9)" },
 }
 const TITULO_FRANJA = { cerrado: "Fuera del horario de atención", almuerzo: "Almuerzo / pausa", ausencia: "Ausencia" }
+
+export function LeyendaEstados() {
+  return (
+    <ul className="hidden items-center gap-3 text-[11px] font-medium text-slate-500 xl:flex" aria-label="Leyenda de estados">
+      {LEYENDA_ESTADOS.map((e) => (
+        <li key={e.etiqueta} className="flex items-center gap-1.5">
+          <span className="h-3 w-3.5 rounded-[3px] border-l-[3px]" style={{ backgroundColor: e.fondo, borderLeftColor: e.linea }} aria-hidden="true" />
+          {e.etiqueta}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 export function tituloSemana(dias) {
   const a = isoAFechaLocal(dias[0])
@@ -186,7 +199,10 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
   return (
     <section ref={refSeccion} aria-label="Calendario semanal" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3">
-        <h2 className="text-sm font-bold" style={{ color: INK }}>{tituloSemana(dias)}</h2>
+        <div className="flex min-w-0 items-center gap-4">
+          <h2 className="shrink-0 text-sm font-bold" style={{ color: INK }}>{tituloSemana(dias)}</h2>
+          <LeyendaEstados />
+        </div>
         {aviso && (
           <p role="status" className="flex min-w-0 items-center gap-2 text-xs text-slate-600">
             <span className="truncate">{aviso.texto}</span>
@@ -251,7 +267,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 style={{ height: alto, ...fondoLineas }}
                 onMouseMove={(e) => {
                   const min = minutoBajoPuntero(e)
-                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, new Date())
+                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, new Date()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)
                   setHover((h) => (libre ? (h && h.iso === iso && h.min === min ? h : { iso, min }) : h ? null : h))
                 }}
                 onMouseLeave={() => setHover(null)}
@@ -275,7 +291,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 }}
                 onClick={(e) => {
                   const min = minutoBajoPuntero(e)
-                  if (min != null && celdaLibre(iso, min, disponibilidad, citas, new Date())) onHuecoLibre?.(iso, min)
+                  if (min != null && celdaLibre(iso, min, disponibilidad, citas, new Date()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)) onHuecoLibre?.(iso, min)
                 }}
               >
                 {hover && hover.iso === iso && (
@@ -335,7 +351,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                       }}
                       onDragEnd={terminarArrastre}
                       title={`${b.cita.paciente} · ${b.cita.hora}${b.cita.estado === "Pendiente" ? " — arrastra para reagendar" : ""}`}
-                      className={"absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-left transition-shadow hover:shadow-md cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
+                      className={"absolute overflow-hidden rounded-md border-l-4 px-2 py-1 text-left transition-shadow hover:shadow-lg hover:brightness-[0.97] cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
                       style={{
                         top: (b.inicio - rango.inicio) * PX_POR_MIN + 1,
                         height: altoBloque,
@@ -348,11 +364,11 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                       }}
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">{b.cita.paciente}</p>
+                        <p className="min-w-0 flex-1 truncate text-xs font-bold" style={{ color: color.texto }}>{b.cita.paciente}</p>
                         {cobro && <Receipt size={12} className="mt-px shrink-0 text-amber-600" aria-label="Cobro pendiente" />}
                       </div>
                       {altoBloque >= 38 && (
-                        <p className="truncate text-[11px] text-slate-500">{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
+                        <p className="truncate text-[11px] font-medium" style={{ color: color.texto, opacity: 0.8 }}>{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
                       )}
                     </button>
                   )

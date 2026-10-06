@@ -1137,6 +1137,17 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const gruposPorFecha = useMemo(() => new Map(agruparPorDia(filtradasBase)), [filtradasBase])
 
+  // Semana y Mes son para planificar: una cita cancelada libera su horario, así
+  // que por defecto no ocupa el calendario (ni lo apaga con citas en gris). Se
+  // pueden mostrar con el interruptor "Canceladas".
+  const [verCanceladas, setVerCanceladas] = useState(false)
+  const totalCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
+  const citasCalendario = useMemo(() => (verCanceladas ? filtradasPorEstado : filtradasPorEstado.filter((c) => c.estado !== "Cancelada")), [filtradasPorEstado, verCanceladas])
+  const gruposCalendario = useMemo(
+    () => new Map(agruparPorDia(verCanceladas ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))),
+    [filtradasBase, verCanceladas],
+  )
+
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
@@ -1401,7 +1412,23 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             </button>
           </div>
         )}
-        {vistaActiva !== "lista" && <div className="ml-auto flex flex-wrap items-center gap-2">{kpiBotones}</div>}
+        {vistaActiva !== "lista" && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {totalCanceladas > 0 && (
+              <button
+                type="button"
+                onClick={() => setVerCanceladas((v) => !v)}
+                aria-pressed={verCanceladas}
+                title={verCanceladas ? "Ocultar las citas canceladas" : "Mostrar las citas canceladas"}
+                className={"flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors cursor-pointer " + (verCanceladas ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200/60 bg-white text-slate-500 hover:bg-slate-50")}
+              >
+                <Eye size={13} aria-hidden="true" />
+                Canceladas ({totalCanceladas})
+              </button>
+            )}
+            {kpiBotones}
+          </div>
+        )}
         {totalPorRegistrar > 0 && (
           <button
             type="button"
@@ -1440,7 +1467,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           citas={citas}
           disponibilidad={disponibilidad}
           cobroPendienteIds={pendientesPorCita}
-          citasVisibles={filtradasPorEstado}
+          citasVisibles={citasCalendario}
           coincide={textoBusqueda ? coincideBusqueda : null}
           aviso={avisoBusquedaSemana}
           onDiaClick={(iso) => {
@@ -1462,7 +1489,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       ) : vistaActiva === "mes" ? (
         <CalendarioMes
           mes={mesVista}
-          citasPorFecha={gruposPorFecha}
+          citasPorFecha={gruposCalendario}
           cobroPendienteIds={pendientesPorCita}
           coincide={textoBusqueda ? coincideBusqueda : null}
           onDiaClick={(iso) => {
