@@ -65,6 +65,7 @@ import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 }
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
+import { fechaLegible } from "../utilidades/formatoFecha"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
@@ -1987,7 +1988,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
                           <Calendar size={13} className="text-slate-500" aria-hidden="true" />
-                          Próximo control: {proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                          Próximo control: {fechaLegible(proximoControl)}
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
                       ))}
@@ -2005,7 +2006,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
                       <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                         <Receipt size={16} className="shrink-0" />
-                        Cobro pendiente de la consulta del {consulta.fecha}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
+                        Cobro pendiente de la consulta del {fechaLegible(consulta.fecha)}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
                       </p>
                       <button
                         type="button"
@@ -2022,7 +2023,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
-                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{consultasPaciente[0]?.fecha || "—"}</p>
+                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(consultasPaciente[0]?.fecha) || "—"}</p>
                     </div>
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
@@ -2138,7 +2139,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
                                   <div>
                                     <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{ultima.estadoCorreccion || "Sin evaluación"}</p>
-                                    <p className="text-xs text-slate-500">Estado de corrección más reciente · {ultima.fecha}</p>
+                                    <p className="text-xs text-slate-500">Estado de corrección más reciente · {fechaLegible(ultima.fecha)}</p>
                                   </div>
                                 </div>
                                 <div className={"rounded-2xl border p-4 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
@@ -2146,7 +2147,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                   {proximoControl ? (
                                     <>
                                       <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
-                                        {proximoControl.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                                        {fechaLegible(proximoControl)}
                                       </p>
                                       <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
                                         {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
@@ -2207,7 +2208,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                     <p className="text-[11px] text-slate-500">
                                       {fila.cantidad} u. · ${fila.montoTotal.toFixed(2)} · {METODOS_PAGO[fila.metodoPago] || fila.metodoPago}
                                       {fila.metodoPago === "cuotas" && fila.cuotasTotales ? ` (${fila.cuotasPagadas || 0}/${fila.cuotasTotales})` : ""}
-                                      {" · "}{new Date(fila.fecha).toLocaleDateString("es-ES")}
+                                      {" · "}{fechaLegible(fila.fecha)}
                                     </p>
                                   </div>
                                   {v.estado === "completado" ? (
@@ -2246,7 +2247,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                   <p className="text-[11px] text-slate-500">
                                     ${fila.montoTotal.toFixed(2)} · {METODOS_PAGO[fila.metodoPago] || fila.metodoPago}
                                     {fila.metodoPago === "cuotas" && fila.cuotasTotales ? ` (${fila.cuotasPagadas || 0}/${fila.cuotasTotales})` : ""}
-                                    {" · "}{new Date(fila.fecha).toLocaleDateString("es-ES")}
+                                    {" · "}{fechaLegible(fila.fecha)}
                                   </p>
                                 </div>
                                 {anulada ? (
@@ -2375,7 +2376,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           setCategorias={setCategoriasInventario}
           pacienteFijo={pacienteHistorial}
           titulo={`Cobrar la atención de ${pacienteHistorial.nombre}`}
-          subtitulo={`Consulta del ${cobrandoPendiente.consulta.fecha}${cobrandoPendiente.consulta.motivo ? ` · ${cobrandoPendiente.consulta.motivo}` : ""}`}
+          subtitulo={`Consulta del ${fechaLegible(cobrandoPendiente.consulta.fecha)}${cobrandoPendiente.consulta.motivo ? ` · ${cobrandoPendiente.consulta.motivo}` : ""}`}
           etiquetaGuardar="Cobrar y finalizar"
           lineasIniciales={lineasCobroConsulta(cobrandoPendiente.consulta, parametrizacion)}
           consultaId={cobrandoPendiente.consulta.id}
@@ -2588,7 +2589,7 @@ function PanelCitasPaciente({ citas, onIngresar, onAgendar }) {
   const fila = (c, conIngresar) => (
     <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
       <div className="w-40 shrink-0">
-        <p className="text-sm font-semibold capitalize text-slate-800">{c.fecha ? etiquetaFecha(c.fecha) : "Sin fecha"}</p>
+        <p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p>
         <p className="text-xs text-slate-500">{c.hora}</p>
       </div>
       <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
@@ -2607,7 +2608,7 @@ function PanelCitasPaciente({ citas, onIngresar, onAgendar }) {
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Calendar size={22} aria-hidden="true" /></div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
-            <p className="text-lg font-bold capitalize" style={{ color: INK }}>{proxima.fecha ? etiquetaFecha(proxima.fecha) : "Sin fecha"} · {proxima.hora}</p>
+            <p className="text-lg font-bold" style={{ color: INK }}>{fechaLegible(proxima.fecha) || "Sin fecha"} · {proxima.hora}</p>
             <p className="truncate text-sm text-slate-600">{proxima.motivo || "Consulta general"}</p>
           </div>
           <BadgeEstadoCita estado={proxima.estado} />
@@ -2743,7 +2744,7 @@ function ListaDiagnosticos({ consultas, abiertos = {}, alternarAbierto }) {
                 className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/70 cursor-pointer"
               >
                 <div className="w-28 shrink-0">
-                  <p className="text-sm font-semibold text-slate-800">{c.fecha ? c.fecha.split("-").reverse().join("/") : "Sin fecha"}</p>
+                  <p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p>
                   {c.profesionalNombre && <p className="truncate text-xs text-slate-500">{c.profesionalNombre}</p>}
                 </div>
                 <div className="min-w-0 flex-1">
