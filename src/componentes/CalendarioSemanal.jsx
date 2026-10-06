@@ -124,7 +124,7 @@ function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onE
   )
 }
 
-export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre, onMover }) {
+export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAtender, onEditar, onCancelar, onCobrar, onHuecoLibre, onMover, onAgendar }) {
   // Cita con la tarjeta abierta y dónde anclarla (rect del bloque clicado).
   const [abierta, setAbierta] = useState(null) // { id, ancla } | null
   const cerrarTarjeta = useRef(() => setAbierta(null)).current
@@ -158,6 +158,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
   // La vista se abre desplazada en la hora actual (si la semana es la de hoy
   // y la hora cae en el rango); en otra semana, desde el inicio.
   const refScroll = useRef(null)
+  const sinCitas = !dias.some((iso) => (citasVisibles || citas).some((c) => c.fecha === iso))
   useEffect(() => {
     const el = refScroll.current
     if (!el) return
@@ -369,6 +370,23 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
           })}
         </div>
       </div>
+
+      {sinCitas && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex items-center justify-center" style={{ top: ALTO_ENCABEZADO + 48 }}>
+          <div role="status" className="pointer-events-auto flex flex-col items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/95 px-8 py-6 text-center shadow-lg">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-slate-50 text-slate-400"><CalendarClock size={22} aria-hidden="true" /></span>
+            <div>
+              <p className="text-sm font-bold" style={{ color: INK }}>No hay citas esta semana</p>
+              <p className="mt-0.5 text-xs text-slate-500">{coincide ? "Ninguna coincide con la búsqueda." : "Agenda una o haz clic en un hueco libre del calendario."}</p>
+            </div>
+            {onAgendar && (
+              <button type="button" onClick={() => onAgendar()} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
+                <Plus size={14} aria-hidden="true" /> Agendar cita
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {citaAbierta && (
         <TarjetaFlotante

@@ -1471,6 +1471,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           onCobrar={cobrarCita}
           onHuecoLibre={abrirModalEn}
           onMover={pedirMovimiento}
+          onAgendar={() => abrirModal()}
         />
       ) : vistaActiva === "mes" ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
