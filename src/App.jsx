@@ -663,8 +663,8 @@ function App() {
         else if (error) registrarErrorCarga('equipo de la óptica')
       })
 
-      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol, es_optometra, cedula').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
-        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '', esOptometra: !!a.es_optometra, cedula: a.cedula || '' })))
+      supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol, es_optometra, cedula, activo').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
+        if (data) setAsistentes(data.map((a) => ({ id: a.id, nombre: a.nombre, correo: a.email, permisos: a.permisos || {}, etiquetaRol: a.etiqueta_rol || '', esOptometra: !!a.es_optometra, cedula: a.cedula || '', activo: a.activo !== false })))
         else if (error) registrarErrorCarga('usuarios y permisos')
       })
     }
