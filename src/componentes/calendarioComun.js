@@ -17,6 +17,16 @@ export const colorDe = (estado) => COLOR_ESTADO[estado] || COLOR_PENDIENTE
 // Leyenda que se muestra en el encabezado de Semana y Mes.
 export const LEYENDA_ESTADOS = [COLOR_PENDIENTE, COLOR_ESTADO["En Atención"], COLOR_ESTADO.Atendida, COLOR_ESTADO["No Asistió"]]
 
+// Enlace al perfil del paciente para abrirlo en otra pestaña: así no se pierde
+// el lugar del calendario. Conserva los parámetros de la URL actual (óptica o
+// sitio) y la sección Pacientes la abre con el historial del paciente.
+export function urlPerfilPaciente(pacienteId) {
+  const params = new URLSearchParams(window.location.search)
+  params.set("seccion", "pacientes")
+  params.set("paciente", String(pacienteId))
+  return `${window.location.pathname}?${params}`
+}
+
 // Alto que le queda al calendario: desde donde empieza hasta el borde inferior
 // del área con scroll de la página (menos su relleno), con un mínimo para que
 // siga siendo usable en pantallas bajas. Devuelve [refDelContenedor, alto]; el

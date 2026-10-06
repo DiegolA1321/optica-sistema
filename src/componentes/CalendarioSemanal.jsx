@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Receipt, Stethoscope, CalendarClock, X, Plus } from "lucide-react"
+import { Receipt, Stethoscope, CalendarClock, X, Plus, Globe, Building2, ExternalLink } from "lucide-react"
 import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
-import { colorDe, useAlturaDisponible, LEYENDA_ESTADOS } from "./calendarioComun"
+import { colorDe, useAlturaDisponible, urlPerfilPaciente, LEYENDA_ESTADOS } from "./calendarioComun"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
 // las citas y la disponibilidad ya cargadas y avisa por callbacks; no consulta
@@ -52,7 +52,7 @@ const BADGE_ESTADO = {
   Cancelada: "border-slate-200/60 bg-slate-50 text-slate-600",
 }
 const BADGE_PENDIENTE = "border-amber-200/60 bg-amber-50 text-amber-700"
-const ANCHO_TARJETA = 288
+const ANCHO_TARJETA = 312
 
 // Tarjeta flotante con los datos de la cita y las mismas acciones que tiene en
 // la lista. Se ancla junto al bloque (a su derecha, o a su izquierda si no
@@ -76,7 +76,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
 
   const cabeDerecha = ancla.right + 8 + ANCHO_TARJETA <= window.innerWidth - 8
   const left = cabeDerecha ? ancla.right + 8 : Math.max(8, ancla.left - 8 - ANCHO_TARJETA)
-  const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 300))
+  const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 340))
 
   const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
   return createPortal(
@@ -101,8 +101,15 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
       </div>
 
       <dl className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 text-xs">
-        <div className="flex justify-between gap-3"><dt className="text-slate-500">Motivo</dt><dd className="truncate font-semibold text-slate-700">{cita.motivo || "Consulta general"}</dd></div>
-        <div className="flex justify-between gap-3"><dt className="text-slate-500">Fecha y hora</dt><dd className="font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Motivo</dt><dd className="truncate font-semibold text-slate-700">{cita.motivo || "Consulta general"}</dd></div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="shrink-0 whitespace-nowrap text-slate-500">Origen</dt>
+          <dd className="flex items-center gap-1.5 font-semibold text-slate-700">
+            {cita.origen === "paciente" ? <Globe size={12} className="text-cyan-600" aria-hidden="true" /> : <Building2 size={12} className="text-slate-500" aria-hidden="true" />}
+            {cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Fecha y hora</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
       </dl>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -123,6 +130,16 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
           <button type="button" onClick={() => onAtender(cita)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
             <Stethoscope size={14} /> Atender
           </button>
+        )}
+        {cita.pacienteId && (
+          <a
+            href={urlPerfilPaciente(cita.pacienteId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+          >
+            <ExternalLink size={14} aria-hidden="true" /> Ver perfil
+          </a>
         )}
         <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
           <CalendarClock size={14} /> Editar cita
