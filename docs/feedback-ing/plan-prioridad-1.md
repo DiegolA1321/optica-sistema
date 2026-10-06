@@ -4,7 +4,7 @@ Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo an�
 
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
 
-**Avance (tras los pasos 1 a 9):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+**Avance (tras los pasos 1 a 10):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
 
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
@@ -14,9 +14,9 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 19 | 16 | 5 | **40** |
+| Hecho | 19 | 18 | 5 | **42** |
 | Parcial | 0 | 2 | 0 | **2** |
-| Pendiente | 0 | 2 | 0 | **2** |
+| Pendiente | 0 | 0 | 0 | **0** |
 | Hecho distinto | 0 | 1 | 0 | **1** |
 | Total | 19 | 21 | 5 | **45** |
 
@@ -73,8 +73,8 @@ Lo que más pesa:
 | R33 "Terminar atención" genera la receta, no la factura | **Hecho** (paso 8) | Guardar la ficha abre el panel de cobro "Cobrar y finalizar" (`ConsultaMedica.jsx:2328-2344`). La receta se imprime después de guardar. El optómetra cierra con cobro, no con receta y paso a ventas. **Diferencia 2 confirmada.** | **Resuelto:** el botón final de la ficha es "Terminar atención": guarda la ficha, genera la receta (lista para imprimir) y deja la cita atendida. Ya no abre el cobro solo; el bloque "Atención terminada" ofrece "Pasar a la óptica" y "Cobrar ahora".
 | R34 "Pasar a la óptica" → "Listo para venta" | **Hecho** (paso 8) | No existe el botón, ni el estado (búsqueda de "Listo para venta" sin resultados en `src/` y `supabase/`). | **Resuelto:** "Pasar a la óptica" llama a `pasar_a_optica()` (migración 0085) y crea un pase en `pases_a_venta` con estado "listo"; el perfil del paciente muestra "Listo para venta · desde 6 oct 2026". La cola para quien vende es el paso 9.
 | R35 La vendedora toma los datos del diagnóstico y arma la proforma | **Hecho** (paso 9) | No hay cola de pacientes listos. Lo más cercano es "Cobro pendiente" (`Citas.jsx:285-289`) con las líneas precargadas desde la consulta (`lineasCobroConsulta`), que ve quien abre Citas o el perfil. No es una cola de ventas ni una proforma. | **Resuelto:** en Pacientes, la insignia "Listos para venta (N)" muestra la cola (con un contador verde en el ítem Pacientes del menú). "Tomar datos del diagnóstico" abre el panel de venta con los datos de la consulta (motivo, diagnóstico, lente recomendado, indicaciones y las medidas bajo "Ver medidas"), la consulta y la luna en texto libre con su precio, y la montura se elige del inventario. "Imprimir proforma" genera un presupuesto que no es factura, no toca el stock y anota en el pase la fecha y el monto (`registrar_proforma`). "Registrar venta" queda siempre vinculada a la consulta y a la cita del pase y lo cierra como "vendido". "No compró" pide el motivo (precio, lo pensará, otro lugar u otro con texto) y deja el pase "descartado"; "Volver a la lista de espera" lo reabre y el motivo anterior queda en Actividad. Migración 0086.
-| R36 Orden de laboratorio con factura y receta, dos copias | **Pendiente** | No existe el concepto: ninguna tabla, pantalla ni impresión de orden de laboratorio. |
-| R37 Laboratorio marca "Completada", aviso al administrador | **Pendiente** | Depende de R36. |
+| R36 Orden de laboratorio con factura y receta, dos copias | **Hecho** (paso 10) | No existía el concepto. **Resuelto:** al registrar una venta con lentes (el check "Esta venta incluye lentes" se marca solo si hay una línea de luna) se abre la orden, precargada con la receta, adición, DP, altura y lente recomendado de la consulta; quien vende completa laboratorio, fecha prometida, tipo de lente, material, tratamientos, montura y medidas, y observaciones. Número consecutivo por óptica (OL-0001), vinculada a la venta, la consulta y el paciente. Una venta puede tener varias órdenes ("Otra orden", para un segundo par). Se imprimen dos copias en una sola impresión: laboratorio (receta completa, sin precios ni contacto del paciente) y paciente (comprobante sin graduación). Migración 0087. |
+| R37 Laboratorio marca "Completada", aviso al administrador | **Hecho** (paso 10) | **Resuelto:** estados enviada → lista → entregada (y cancelada si se anula la venta), cada cambio con fecha y responsable en el historial; "atrasada" se calcula (enviada con fecha prometida vencida). Al quedar lista, el Inicio del administrador muestra la alerta "N órdenes listas sin avisar" y los atrasos por laboratorio, y el menú Pacientes suma el contador. El botón "Avisar por WhatsApp" (en la orden y en la pestaña Órdenes del perfil) abre el mensaje y deja anotado quién avisó y cuándo. El aviso por correo queda fuera por ahora (ver decisión 14). |
 | R38 Pagos al contado, cuotas o abonos | **Parcial** | `FacturaVentaModal.jsx:550-562`: directo, tarjeta y cuotas (con cuotas pagadas). No encontré abonos libres de monto variable; confirmar si "cuotas" cubre lo que el ingeniero llama abono. |
 | R39 Cita "Atendida" al generar la factura total | **Hecho distinto (justificado)** | `marcarCitaAtendida` solo corre tras el cobro exitoso (`ConsultaMedica.jsx:313-326`) y lo mismo desde Citas (`alCobrarCita`). Es coherente con lo que pidió. La nota del documento (cobra el optómetra frente a la vendedora) se atiende en R33-R35. | **Decisión de Diego (6 oct.):** la cita pasa a "Atendida" al terminar la atención, no al facturar. Se separan el hecho clínico (atendida) y el comercial (vendido o descartado, que sigue `pases_a_venta`): así un paciente que consulta y no compra también cuenta como atendido, la cita no queda abierta, y el embudo de R40 (consultaron, pasaron a venta, compraron) sale de datos reales.
 | R40 Quién consultó y no compró; embudo | **Parcial** | `Reportes.jsx` mide conversión consulta → venta (`:184`) y pacientes nuevos (`:116`), pero no hay vista "primera vez → se volvió cliente" ni separación entre paciente accesible y dato estadístico. | **Avance (paso 9):** el pase ya guarda lo que el embudo necesita (quién pasó a venta, proforma entregada con fecha y monto, vendido o descartado con su motivo); falta la pantalla de Reportes (paso 11).
@@ -176,6 +176,13 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
 10. **Proforma (paso 9).** No se guarda como documento, pero el pase registra que se entregó una (`proforma_entregada_en` y `proforma_total`); si se vuelve a generar, se actualizan. Sirve para dar seguimiento a "lo pensará" y para medir en R40 cuántas proformas terminan en venta.
 11. **Reabrir un pase descartado (paso 9).** "Volver a la lista de espera" lo pasa de "descartado" a "listo" con las mismas validaciones de permisos; el motivo anterior queda en el historial de actividad.
 12. **Contador y cola en Pacientes, por ahora.** El contador del menú y la cola viven en Pacientes. **Se moverán al módulo de Ventas y al Inicio de quien vende en los Bloques D y E.**
+
+13. **Varias órdenes por venta (paso 10).** Una venta puede tener más de una orden (dos pares, o lentes y gafas de sol graduadas); cada una con su número, receta, montura y fecha prometida. Si la venta se anula, todas las órdenes no entregadas pasan a "cancelada"; las entregadas no se tocan.
+14. **Aviso por correo al administrador: fuera por ahora.** El aviso de R37 es la alerta del Inicio y el contador del menú. El correo queda pendiente junto con el **dominio propio en Resend** (sin él no se puede enviar a terceros desde una dirección de la óptica).
+15. **Campo "Laboratorio" (paso 10).** Texto libre con sugerencias de los laboratorios ya usados en la óptica; permite ver los atrasos por laboratorio (Inicio y filtro en la lista de órdenes).
+
+### Notas para el paso 11 (abonos, R38)
+- **Entregar con saldo:** al marcar una orden como "entregada", mostrar el saldo pendiente del paciente (si lo tiene) para cobrarlo antes de entregar.
 
 ### Notas para el paso 9 (cola de "Listo para venta") — cumplidas
 
