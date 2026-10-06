@@ -19,6 +19,7 @@ import {
   Users,
   X,
   Cake,
+  ShoppingBag,
   AlertTriangle,
   TrendingUp,
   TrendingDown,
@@ -156,7 +157,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, onAviso, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, onAviso, pases = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1974,6 +1975,7 @@ export default function Pacientes({ usuario, onAviso, setVista, cargaInicial = f
               // al lado para que se entienda de un vistazo cómo se compone.
               const puntajeFidelidad = totalConsultasFidelizacion * 10 + referidosPorEste * 15
               const abiertasPaciente = atencionesAbiertasAntiguas(citasPaciente)
+              const paseListo = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
 
               return (
@@ -1981,8 +1983,13 @@ export default function Pacientes({ usuario, onAviso, setVista, cargaInicial = f
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(abiertasPaciente.length > 0 || proximoControl || (diasCumple != null && diasCumple <= 30)) && (
+                  {(paseListo || abiertasPaciente.length > 0 || proximoControl || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
+                      {paseListo && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
+                          <ShoppingBag size={13} aria-hidden="true" /> Listo para venta · desde {fechaLegible(paseListo.pasadaEn)}
+                        </span>
+                      )}
                       {abiertasPaciente.map(({ cita, dias }) => (
                         <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
                           <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
