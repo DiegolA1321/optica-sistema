@@ -2,7 +2,7 @@
 
 Rama: `bloque-d` (creada desde `prioridad-1`). Fuentes: secciones 4 y 5 de `requisitos-reunion-29sep.md` (R46 a R56), secciones 3.6, 3.7 y 6.4 de `docs/vision-sistema.md` y los pendientes anotados en `plan-prioridad-1.md`.
 
-**Estado:** análisis y diseño listos; la migración 0090 está escrita y validada en simulación, **sin aplicar**. Espera aprobación.
+**Estado (6 oct.):** D1 y D3 aplicadas (migraciones 0090 y 0091, con 59 y 48 verificaciones contra la base real); D2, D5, D6 y D7 hechas en el código; la 0092 (hora de las citas y proceso "No asistió") y la 0093 (alcance) están escritas y validadas en simulación, **a la espera de aprobación**.
 
 ---
 
@@ -131,7 +131,8 @@ Cualquier nivel implica "ver". La matriz de la pantalla de Roles es módulos por
 | **D1** | Modelo de roles, permisos efectivos, desactivar, traslado de lo existente | **0090** (propuesta abajo) |
 | **D2** | Pantallas: Roles (matriz con vista previa y "Ver como este rol") y Usuarios (elegir roles, desactivar); la interfaz lee `mis_permisos()` y oculta o desactiva botones por nivel; "Asignado a" sin desactivados; regla de contraseña única; `anonimizar_paciente` pasa al permiso "eliminar" de Pacientes | `anonimizar_paciente` y la regla de contraseña del portal (parte de 0091) |
 | **D3** | Endurecer la base por nivel: políticas separadas por ver / crear / editar / eliminar; ventas con su propio módulo; cerrar las lecturas que no comprueban "óptica activa" | **0091** |
-| **D4** | Alcance "propio": `consultas.profesional_id`, políticas de lectura de citas y consultas, Reportes acotado | **0092** |
+| **D3b** | Proceso "No asistió" que no se detiene por una hora mal escrita (la salta y avisa) y restricción "hh:mm AM/PM" en las citas | **0092** |
+| **D4** | Alcance "propio": `consultas.profesional_id`, políticas de lectura de citas y consultas y de la encuesta, Reportes acotado | **0093** |
 | **D5** | Selector de vista en el menú de usuario | — |
 | **D6** | Inicio por rol (administrador, optómetra, recepción, ventas, rol propio) | — |
 | **D7** | Cola de ventas y órdenes al Inicio de quien vende | — |
@@ -169,6 +170,13 @@ Cada migración lleva su respaldo, su SQL completo y su aprobación antes de apl
 
 ---
 
-## 6. SQL propuesto (migración 0090)
+## 6. Migraciones del bloque
 
-Archivo: `supabase/migrations/0090_roles_y_permisos.sql` (sin aplicar). Respaldo previo: `optica-sistema_pre-0090_completo_20261006_151900.dump`.
+| Migración | Qué hace | Estado |
+|---|---|---|
+| 0090 | Modelo de roles, permisos efectivos, desactivar, traslado | Aplicada |
+| 0091 | Permisos por nivel en la base, cuentas desactivadas sin acceso | Aplicada (junto con la 0090) |
+| 0092 | Hora de las citas y proceso "No asistió" | Propuesta |
+| 0093 | Alcance "propio" de citas, consultas y encuestas | Propuesta |
+
+**Pendiente fuera del bloque:** contraseña mínima en las funciones de la base del portal del paciente y en los requisitos de contraseña de Supabase Auth (hoy la regla vive en la pantalla); verificación de correo (depende del dominio en Resend).
