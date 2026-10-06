@@ -6,7 +6,7 @@ import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible } from "./calendarioComun"
 import { TarjetaFlotante, LeyendaEstados } from "./CalendarioSemanal"
-import { nivelCarga, citasQueCuentan, NIVELES_CARGA } from "../utilidades/cargaCitas"
+import { nivelCarga, citasQueCuentan } from "../utilidades/cargaCitas"
 
 // Calendario mensual (vista Mes de Citas). Presentacional, como la vista
 // Semana: cada día muestra sus citas como etiquetas con la hora y el paciente,

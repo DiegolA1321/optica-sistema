@@ -32,7 +32,6 @@ import {
   Globe,
   Building2,
   Zap,
-  CalendarRange,
   Receipt,
   List,
 } from "lucide-react"
@@ -1057,7 +1056,6 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
-  const totalEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención").length, [citas])
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
   // Cuántas citas hay de cada estado, para el selector de estado.
   const conteosEstado = useMemo(
