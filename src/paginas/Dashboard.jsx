@@ -58,6 +58,8 @@ import SeccionMfa from "./SeccionMfa"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
+import { useVistas } from "../utilidades/useVistas"
+import { modulosVisibles } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
 // Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
@@ -141,8 +143,15 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
     ordenesPendientes > 0 && `${ordenesPendientes} orden${ordenesPendientes === 1 ? "" : "es"} de laboratorio por atender`,
   ].filter(Boolean).join(" · ")
+  // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
+  // menú de usuario con qué vista trabajar. La vista enfoca el menú y el Inicio; la base sigue aplicando
+  // la suma de los permisos de todos sus roles.
+  const { vistas, vista, cambiarVista } = useVistas(usuario)
+  const menuDeRol = vista && vista.tipo === "rol" ? modulosVisibles(vista.permisos) : null
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
+      if (o.id === "inicio") return true
+      if (menuDeRol) return menuDeRol[o.id] === true && !(o.soloAdmin && !o.delegable)
       if (o.soloAdmin) {
         if (esAdmin) return true
         if (esAsistente && o.delegable) return usuario?.permisos?.[o.id] === true
@@ -151,7 +160,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       if (esAsistente) return usuario?.permisos?.[o.id] !== false
       return true
     }),
-    [esAsistente, esAdmin, usuario],
+    [esAsistente, esAdmin, usuario, vista], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // Recuerda la sección del sidebar en la que estaba — recargar la página ya no
@@ -162,6 +171,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const guardada = localStorage.getItem('optica_seccion_activa')
     return opcionesVisibles.some((o) => o.id === guardada) ? guardada : "inicio"
   })
+  useEffect(() => {
+    if (!opcionesVisibles.some((o) => o.id === seccionActiva)) setSeccionActiva("inicio")
+  }, [opcionesVisibles]) // eslint-disable-line react-hooks/exhaustive-deps
   // Ref (no state): navegar() solo necesita leer el valor actual en el
   // momento del click, no re-renderizar cuando cambia. Lo actualiza
   // ConsultaMedica.jsx vía onCambiosSinGuardarChange cada vez que su propio
@@ -466,7 +478,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const hoyFecha = new Date().toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
 
   const nombreUsuario = usuario?.nombre || (esAsistente ? "Asistente" : "Administrador")
-  const rolUsuario = esAsistente ? "Asistente" : "Administrador"
+  const rolUsuario = vistas.length > 1 && vista ? vista.nombre : esAsistente ? (vista?.nombre || "Asistente") : "Administrador"
   const inicialUsuario = nombreUsuario.charAt(0).toUpperCase()
 
   const renderSeccion = () => {
@@ -998,6 +1010,24 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                       </p>
                     </div>
                   </div>
+                  {vistas.length > 1 && (
+                    <div className="border-b border-slate-100 p-2" role="group" aria-label="Vista">
+                      <p className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Vista</p>
+                      {vistas.map((v) => (
+                        <button
+                          key={v.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={vista?.id === v.id}
+                          onClick={() => { cambiarVista(v.id); setUserMenuAbierto(false) }}
+                          className={"flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors cursor-pointer " + (vista?.id === v.id ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50")}
+                        >
+                          <span className={"grid h-4 w-4 shrink-0 place-items-center rounded-full border " + (vista?.id === v.id ? "border-blue-600 bg-blue-600" : "border-slate-300")}>{vista?.id === v.id && <span className="h-1.5 w-1.5 rounded-full bg-white" />}</span>
+                          {v.nombre}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="p-2">
                     <button
                       type="button"
