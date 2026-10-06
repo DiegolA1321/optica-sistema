@@ -52,6 +52,7 @@ import {
   Building2,
   HelpCircle,
   MessageCircle,
+  FlaskConical,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -70,6 +71,8 @@ import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta }
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
+import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
+import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 import NoComproModal from "../componentes/NoComproModal"
 import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta, datosOpticaProforma } from "../utilidades/proforma"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
@@ -161,7 +164,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, onAviso, pases = [], setPases, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -202,6 +205,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
   // entre sí y con la tarjeta de corrección activa, para no combinar dos
   // filtros a la vez sin que quede claro cuál está aplicado.
   const [filtroRapido, setFiltroRapido] = useState("Todos")
+  const [filtroOrdenesInicial, setFiltroOrdenesInicial] = useState("abiertas")
 
   // Atajos de teclado: "/" o Ctrl+K enfocan la búsqueda al instante — pedido
   // explícito, mismo patrón que la paleta de comandos del resto del sistema.
@@ -589,7 +593,12 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
   // modal que se usaría si el optómetra hiciera clic aquí mismo, en vez de tener una copia aparte.
   useEffect(() => {
     if (!accionInicial) return
-    if (accionInicial.accion === "crear") {
+    if (accionInicial.accion === "ordenes") {
+      // Alerta del Inicio: abre la lista de órdenes con el filtro pedido
+      setFiltroCorreccion("Todos")
+      setFiltroOrdenesInicial(accionInicial.filtro || "abiertas")
+      setFiltroRapido("Ordenes")
+    } else if (accionInicial.accion === "crear") {
       // Atajo "Gestionar pacientes" del Dashboard — no referencia a ningún
       // paciente existente, así que no pasa por la búsqueda por id de abajo.
       abrirCrear()
@@ -1017,9 +1026,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
     { key: "RecetasActivas", label: "Recetas activas" },
     { key: "PagosPendientes", label: "Pagos pendientes" },
     { key: "ListosVenta", label: `Listos para venta${colaListos.length > 0 ? ` (${colaListos.length})` : ""}` },
+    { key: "Ordenes", label: `Órdenes de laboratorio${ordenesAbiertas(ordenesLab).length > 0 ? ` (${ordenesAbiertas(ordenesLab).length})` : ""}` },
     ...(colaDescartados.length > 0 || filtroRapido === "NoCompraron" ? [{ key: "NoCompraron", label: `No compraron (${colaDescartados.length})` }] : []),
   ]
   const colaActiva = filtroRapido === "ListosVenta" || filtroRapido === "NoCompraron"
+  const ordenesActivas = filtroRapido === "Ordenes"
   const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
   const activarBadgeRapido = (key) => {
     if (key === "RecetasActivas") {
@@ -1221,7 +1232,18 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
       </div>
 
       {/* ─── TABLA (o la cola de ventas cuando está activo "Listos para venta" / "No compraron") ─── */}
-      {colaActiva ? (
+      {ordenesActivas ? (
+        <OrdenesLaboratorio
+          ordenes={ordenesLab}
+          setOrdenes={setOrdenesLab}
+          pacientes={pacientes}
+          equipo={equipo}
+          usuario={usuario}
+          filtroInicial={filtroOrdenesInicial}
+          onAviso={mostrarNotif}
+          onVerPerfil={(p) => { setPacienteHistorial(p); setTabHistorial("ordenes") }}
+        />
+      ) : colaActiva ? (
         <ColaVentas
           modo={filtroRapido === "ListosVenta" ? "listos" : "descartados"}
           items={filtroRapido === "ListosVenta" ? colaListos : colaDescartados}
@@ -1983,6 +2005,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
                 .sort(ordenarPorFechaYCreacion)
+              const ordenesPaciente = ordenesLab.filter((o) => o.pacienteId === pacienteHistorial.id)
               const citasPaciente = citas
                 .filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                 .slice()
@@ -2187,6 +2210,20 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
                       <Wallet size={14} /> Productos y servicios
                       {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
                       {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      id="tab-ordenes"
+                      aria-selected={tabHistorial === "ordenes"}
+                      aria-controls="panel-paciente"
+                      onClick={() => setTabHistorial("ordenes")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
+                      style={tabHistorial === "ordenes" ? { background: GRAD } : undefined}
+                    >
+                      <FlaskConical size={14} /> Órdenes
+                      {ordenesPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{ordenesPaciente.length}</span>}
+                      {ordenesPaciente.some((o) => o.estado === "lista" && !o.pacienteAvisadoEn) && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>Avisar</span>}
                     </button>
                     <button
                       type="button"
@@ -2396,6 +2433,17 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
                           )
                         })()}
                       </div>
+                    ) : tabHistorial === "ordenes" ? (
+                      <OrdenesLaboratorio
+                        ordenes={ordenesLab}
+                        setOrdenes={setOrdenesLab}
+                        pacientes={pacientes}
+                        equipo={equipo}
+                        usuario={usuario}
+                        pacienteFijo={pacienteHistorial}
+                        filtroInicial="todas"
+                        onAviso={mostrarNotif}
+                      />
                     ) : tabHistorial === "fidelizacion" ? (
                       <div className="space-y-4">
                         {/* El bloque clínico (estado de corrección, tendencia y próximo control) vive
