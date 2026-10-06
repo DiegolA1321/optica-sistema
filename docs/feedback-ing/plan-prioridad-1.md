@@ -4,6 +4,8 @@ Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo an�
 
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
 
+**Avance (tras los pasos 1 y 2):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
 Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden moverse.
@@ -12,10 +14,10 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 6 | 12 | 1 | **19** |
-| Parcial | 6 | 4 | 2 | **12** |
-| Pendiente | 5 | 4 | 0 | **9** |
-| Hecho distinto | 2 | 1 | 2 | **5** |
+| Hecho | 15 | 12 | 1 | **28** |
+| Parcial | 2 | 4 | 2 | **8** |
+| Pendiente | 1 | 4 | 0 | **5** |
+| Hecho distinto | 1 | 1 | 2 | **4** |
 | Total | 19 | 21 | 5 | **45** |
 
 Lo que más pesa:
@@ -40,10 +42,10 @@ Lo que más pesa:
 | R9 Calendario "por color" según carga | **Distinto** | Semana y Mes colorean por estado de la cita (`componentes/calendarioComun.js:7-17`). No hay mapa de calor por cantidad de citas por día para ver qué días tuvieron más o menos atención. |
 | R10 Lo más próximo primero | **Hecho** | `Citas.jsx:1049-1063`: hoy en adelante, cronológico, y lo pasado queda plegado en "Anteriores". |
 | R11 Clic en un día del mes abre modal con sus citas en una columna | **Hecho** | `diaModalMes`, `Citas.jsx:1543-1595`, tarjetas en `grid-cols-1`, agrupadas por estado. |
-| R12 Modal con paciente, fecha de agendado, motivo, origen y responsable | **Parcial** | La tarjeta flotante de Semana (`componentes/CalendarioSemanal.jsx:90-124`) muestra paciente, contacto, motivo, origen y fecha/hora de la cita. **Falta la fecha en que se agendó**: `created_at` existe en la base, pero `mapCita` no lo trae (`App.jsx:162-176`). **Falta el responsable**: no existe el dato (ver sección de base de datos). En Lista y Mes no hay modal de detalle: las acciones están en la tarjeta. |
-| R13 Botones "Ingresar" y "Cerrar" en ese modal | **Parcial** | Existen en el resumen previo a Atender (`ConfirmarCitaModal` desde `Citas.jsx:1885-1894`: "Cerrar" y "Ingresar a la ficha clínica"/"Atender hoy"). Ese resumen solo trae paciente, motivo, fecha y hora, y se abre al pulsar Atender, no al hacer clic en la cita. Falta unir los dos: clic en la cita muestra el detalle completo con Ingresar y Cerrar. |
-| R14 "Ver perfil" sin perder el lugar | **Parcial** | En Semana abre pestaña nueva (`CalendarioSemanal.jsx:134-141`, `calendarioComun.js:24-30`, y `?paciente=` lo recibe `Pacientes.jsx`/`Dashboard.jsx`, commit `387d8e9`). En Lista y en el modal "Citas del día" sigue navegando dentro de la app (`Citas.jsx:210`, `Citas.jsx:1224`), que es lo que el ingeniero reportó como "te pierdes". |
-| R15 Quitar "Crear paciente" del menú de la cita | **Pendiente** | Sigue en el menú Más acciones cuando la cita no tiene paciente (`Citas.jsx:2220-2230`) y también en el modal "Completar registro" (`Citas.jsx:1930`). Ojo: las citas web sin paciente vinculado todavía existen (`porRegistrar`); quitar la opción obliga a resolver cómo se enlazan (ver decisiones). |
+| R12 Modal con paciente, fecha de agendado, motivo, origen y responsable | **Parcial** | La tarjeta flotante de Semana (`componentes/CalendarioSemanal.jsx:90-124`) muestra paciente, contacto, motivo, origen y fecha/hora de la cita. **Falta la fecha en que se agendó**: `created_at` existe en la base, pero `mapCita` no lo trae (`App.jsx:162-176`). **Falta el responsable**: no existe el dato (ver sección de base de datos). En Lista y Mes no hay modal de detalle: las acciones están en la tarjeta. | **Avance (paso 2):** el detalle de la cita muestra paciente, motivo, fecha y hora, fecha en que se agendó, origen y estado; sigue pendiente el responsable (paso 3).
+| R13 Botones "Ingresar" y "Cerrar" en ese modal | **Hecho** (paso 2) | Existen en el resumen previo a Atender (`ConfirmarCitaModal` desde `Citas.jsx:1885-1894`: "Cerrar" y "Ingresar a la ficha clínica"/"Atender hoy"). Ese resumen solo trae paciente, motivo, fecha y hora, y se abre al pulsar Atender, no al hacer clic en la cita. Falta unir los dos: clic en la cita muestra el detalle completo con Ingresar y Cerrar. | **Resuelto:** Hacer clic en una cita (el nombre o el cuerpo de la tarjeta) abre el detalle con "Ingresar" (a la ficha de esa cita, pasando por el resumen) y "Cerrar" (`componentes/DetalleCitaModal.jsx`).
+| R14 "Ver perfil" sin perder el lugar | **Hecho** (paso 2) | En Semana abre pestaña nueva (`CalendarioSemanal.jsx:134-141`, `calendarioComun.js:24-30`, y `?paciente=` lo recibe `Pacientes.jsx`/`Dashboard.jsx`, commit `387d8e9`). En Lista y en el modal "Citas del día" sigue navegando dentro de la app (`Citas.jsx:210`, `Citas.jsx:1224`), que es lo que el ingeniero reportó como "te pierdes". | **Resuelto:** "Ver perfil" es un enlace que abre una pestaña nueva en la tarjeta de la Lista, en el modal "Citas del día" y en el detalle.
+| R15 Quitar "Crear paciente" del menú de la cita | **Hecho** (paso 2) | Sigue en el menú Más acciones cuando la cita no tiene paciente (`Citas.jsx:2220-2230`) y también en el modal "Completar registro" (`Citas.jsx:1930`). Ojo: las citas web sin paciente vinculado todavía existen (`porRegistrar`); quitar la opción obliga a resolver cómo se enlazan (ver decisiones). | **Resuelto:** Se quitó "Crear paciente" del menú de la cita. La reserva web ya crea o vincula al paciente (migración 0067). "Completar registro" queda solo al pulsar Atender sobre una cita antigua sin paciente.
 | R16 Estados automáticos; "No asistió" manual | **Hecho** | En atención al abrir la ficha (`ConsultaMedica.jsx:554-566`), Atendida al cobrar (`ConsultaMedica.jsx:313-320`), No asistió automático a los 10 min (migración 0076) y manual solo si ya pasó la hora (`Citas.jsx:2214`). Queda "Corregir estado (excepción)" dentro de Editar cita (`Citas.jsx:2140-2154`), que es una puerta de rescate, no un flujo normal. |
 | R17 No eliminar: reagendar o cancelar conservando registro | **Hecho** | "Cancelar cita" conserva el registro (`Citas.jsx:2042`, 0078 guarda quién canceló). Reagendar desde Editar cita y arrastrando (`Citas.jsx:860-992`). El paciente reagenda desde su portal si la óptica lo habilita (`paginas/PortalPaciente.jsx:76-102`). Salvedad: eliminar un **paciente** borra sus citas (`Pacientes.jsx:625`); es otro caso (derecho de eliminación) y conviene confirmarlo con el ingeniero. |
 | R18 Administrador filtra no atendidas y ve responsable | **Pendiente** | No hay responsable por cita (ver base de datos), ni filtro por persona. Tampoco existe "No atendidas" como filtro. |
