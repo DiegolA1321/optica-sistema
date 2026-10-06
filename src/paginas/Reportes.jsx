@@ -20,6 +20,8 @@ import {
 import { esInactivo } from "../utilidades/fidelizacion"
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { useAnchoElemento } from "../utilidades/graficos"
+import { calcularEmbudo } from "../utilidades/embudo"
+import { totalAbonado } from "../utilidades/abonos"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -83,7 +85,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [] }) {
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [] }) {
   // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
   // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
   // atención — las métricas financieras (ingresos, conversión a venta,
@@ -168,19 +170,21 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // / cuotas_totales), no el total — mismo bug que se encontró y se decidió
   // no repetir (ver Punto 09): 1 de 6 cuotas pagadas no es el ingreso
   // completo. Una factura 'anulada' no aporta nada.
+  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, enRango }), [consultas, pases, rango]) // eslint-disable-line react-hooks/exhaustive-deps
   const consultasEsteMesArr = useMemo(() => consultas.filter((c) => enRango(c.fecha)), [consultas, rango])
   const ventasVinculadasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
   const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
   const facturasVentaEsteMes = useMemo(() => facturasVenta.filter((f) => enRango(f.creadoEn)), [facturasVenta, rango])
   const ingresoFacturaVenta = (f) => {
     if (f.estado === "pagada") return f.montoTotal
-    if (f.estado === "pendiente_pago") return f.cuotasTotales ? f.montoTotal * (f.cuotasPagadas / f.cuotasTotales) : 0
+    // Lo efectivamente cobrado hasta ahora: la suma de sus abonos (las cuotas pagadas también son abonos).
+    if (f.estado === "pendiente_pago") return totalAbonado(f.id, abonos)
     return 0
   }
   const ingresosEsteMes = useMemo(
     () => ventasRealesEsteMes.reduce((sum, v) => sum + (Number(v.montoTotal) || 0), 0)
       + facturasVentaEsteMes.reduce((sum, f) => sum + ingresoFacturaVenta(f), 0),
-    [ventasRealesEsteMes, facturasVentaEsteMes],
+    [ventasRealesEsteMes, facturasVentaEsteMes, abonos],
   )
   const conversionVenta = useMemo(() => {
     if (consultasEsteMesArr.length === 0) return null
@@ -699,6 +703,60 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
             </>
           )}
         </div>
+
+        {/* ─── EMBUDO DE VENTAS (R40): consultaron → pasaron a venta → compraron. Financiero: oculto para un optómetra que no es admin. ─── */}
+        {!esOptometraNoAdmin && (
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "240ms" }}>
+          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Embudo de ventas</h3>
+          <p className="mb-5 text-xs text-slate-500">De las consultas del período, cuántos pasaron a venta, compraron o no compraron · período seleccionado arriba</p>
+          {embudo.consultaron === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">Aún no hay consultas en este período.</p>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="space-y-3">
+                {[
+                  { etiqueta: "Consultaron", valor: embudo.consultaron, nota: "" },
+                  { etiqueta: "Pasaron a venta", valor: embudo.pasaron, nota: embudo.pasaronSobreConsultaron != null ? `${embudo.pasaronSobreConsultaron}% de las consultas` : "" },
+                  { etiqueta: "Compraron", valor: embudo.compraron, nota: embudo.compraronSobrePasaron != null ? `${embudo.compraronSobrePasaron}% de los que pasaron` : "" },
+                ].map((paso) => (
+                  <div key={paso.etiqueta}>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold text-slate-700">{paso.etiqueta}{paso.nota && <span className="ml-2 font-normal text-slate-500">{paso.nota}</span>}</span>
+                      <span className="font-mono font-bold text-slate-600">{paso.valor}</span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.max(paso.valor > 0 ? 3 : 0, (paso.valor / embudo.consultaron) * 100)}%`, background: GRAD }} />
+                    </div>
+                  </div>
+                ))}
+                <p className="pt-1 text-xs text-slate-500">{embudo.enEspera > 0 ? `${embudo.enEspera} más siguen en la lista de espera. ` : ""}Los pacientes anonimizados se siguen contando.</p>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">No compraron ({embudo.noCompraron}) · por motivo</p>
+                  {embudo.noCompraron === 0 ? (
+                    <p className="text-xs text-slate-500">Nadie se ha marcado como "No compró" en este período.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {embudo.motivos.map((m) => (
+                        <li key={m.id} className="flex items-center gap-3 text-xs">
+                          <span className="w-32 shrink-0 font-semibold text-slate-600">{m.etiqueta}</span>
+                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-slate-400" style={{ width: `${(m.cantidad / embudo.noCompraron) * 100}%` }} /></span>
+                          <span className="w-6 shrink-0 text-right font-mono font-bold text-slate-600">{m.cantidad}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3 text-sm text-blue-900">
+                  <span className="font-bold">{embudo.proformas}</span> proforma{embudo.proformas === 1 ? "" : "s"} entregada{embudo.proformas === 1 ? "" : "s"}
+                  {embudo.proformas > 0 && <> · <span className="font-bold">{embudo.proformasEnVenta}</span> terminaron en venta{embudo.proformasSobreVenta != null ? ` (${embudo.proformasSobreVenta}%)` : ""}</>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        )}
 
         {/* ─── SATISFACCIÓN DE PACIENTES (CSAT) ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "320ms" }}>

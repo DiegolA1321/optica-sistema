@@ -594,7 +594,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes usuario={usuario} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} />
+        return <Reportes usuario={usuario} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} pases={pases} abonos={abonos} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
