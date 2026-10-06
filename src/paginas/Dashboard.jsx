@@ -60,6 +60,7 @@ import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
+import { citasPropias } from "../utilidades/inicio"
 import { modulosVisibles } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
@@ -151,6 +152,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // la suma de los permisos de todos sus roles.
   const { vistas, vista, cambiarVista } = useVistas(usuario)
   const menuDeRol = vista && vista.tipo === "rol" ? modulosVisibles(vista.permisos) : null
+  // Alcance de los datos (R49) según la vista: en una vista de rol manda el alcance de ese rol; si no, el que da la base.
+  // La base ya acota lo que llega a quien solo tiene un rol "propio"; esto además enfoca a quien cambia de vista.
+  const alcanceDeVista = (modulo) => (vista?.tipo === "rol" ? (vista.alcance?.[modulo] === "propio" ? "propio" : "todo") : usuario?.alcance?.[modulo] === "propio" ? "propio" : "todo")
+  const citasReportes = useMemo(() => (alcanceDeVista("citas") === "propio" || alcanceDeVista("reportes") === "propio" ? citasPropias(citas, usuario?.id) : citas), [citas, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
+  const consultasReportes = useMemo(() => (alcanceDeVista("consultas") === "propio" || alcanceDeVista("reportes") === "propio" ? consultas.filter((c) => !c.profesionalId || c.profesionalId === usuario?.id) : consultas), [consultas, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
       if (o.id === "inicio") return true
@@ -594,6 +600,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             disponibilidad={disponibilidad}
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
+            vistaPropia={alcanceDeVista("citas") === "propio"}
             estadoInicial={estadoCitasInicial}
             onEstadoInicialConsumido={() => setEstadoCitasInicial(null)}
             motivosConsulta={motivosConsulta}
@@ -613,7 +620,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes usuario={usuario} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} pases={pases} abonos={abonos} />
+        return <Reportes usuario={usuario} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultasReportes} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} pases={pases} abonos={abonos} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":

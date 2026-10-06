@@ -85,7 +85,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [] }) {
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], soloLoPropio = false }) {
   // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
   // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
   // atención — las métricas financieras (ingresos, conversión a venta,
@@ -93,7 +93,8 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // No cambia qué tan permiso tiene para ENTRAR a Reportes (eso lo sigue
   // decidiendo Dashboard.jsx vía usuario.permisos.reportes) — solo lo que
   // ve una vez adentro.
-  const esOptometraNoAdmin = !!usuario?.esOptometra && usuario?.rol !== "admin"
+  // Vista acotada a lo propio (R49): por el alcance del rol o por ser optómetra sin ser administrador.
+  const esOptometraNoAdmin = soloLoPropio || (!!usuario?.esOptometra && usuario?.rol !== "admin")
   const [periodo, setPeriodo] = useState("mes")
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")
   const [finPersonalizado, setFinPersonalizado] = useState("")

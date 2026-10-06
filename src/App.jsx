@@ -219,6 +219,8 @@ function mapConsulta(c) {
     // el cual Citas.jsx no puede mostrar la fecha real de atención cuando
     // difiere de la fecha agendada (punto 3, reunión 29 sept.).
     citaId: c.cita_id,
+    // profesional_id (0093): quién registró la consulta; sirve para el alcance "solo lo propio".
+    profesionalId: c.profesional_id || null,
   }
 }
 function mapVenta(v) {

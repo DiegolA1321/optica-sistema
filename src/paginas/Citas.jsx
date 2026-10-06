@@ -310,7 +310,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -368,7 +368,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
   // — su agenda del día — en vez de "todas". El admin (sea o no también
   // optómetra) sigue viendo "todas" por defecto, como hoy.
-  const [filtro, setFiltro] = useState(() => (usuario?.rol !== "admin" && usuario?.esOptometra ? "hoy" : "todas")) // todas | hoy | proximas
+  const [filtro, setFiltro] = useState(() => (vistaPropia || (usuario?.rol !== "admin" && usuario?.esOptometra) ? "hoy" : "todas")) // todas | hoy | proximas
   // Bloque de filtros (R3): estado, origen y primera vez/seguimiento. Se
   // combinan entre sí y con el indicador de arriba.
   const [estadoFiltro, setEstadoFiltro] = useState("todas")
