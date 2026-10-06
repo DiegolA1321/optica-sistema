@@ -4,7 +4,7 @@ Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo an�
 
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
 
-**Avance (tras los pasos 1, 2 y 3):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+**Avance (tras los pasos 1 a 5):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
 
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
@@ -14,10 +14,10 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 18 | 12 | 1 | **31** |
-| Parcial | 0 | 4 | 2 | **6** |
+| Hecho | 19 | 14 | 1 | **34** |
+| Parcial | 0 | 2 | 2 | **4** |
 | Pendiente | 0 | 4 | 0 | **4** |
-| Hecho distinto | 1 | 1 | 2 | **4** |
+| Hecho distinto | 0 | 1 | 2 | **3** |
 | Total | 19 | 21 | 5 | **45** |
 
 Lo que más pesa:
@@ -39,7 +39,7 @@ Lo que más pesa:
 | R6 Redefinir "primera vez" | **Hecho** (paso 1) | Se quitó el filtro y se agregó "N por registrar" (`Citas.jsx:1432`, `porRegistrar` en `Citas.jsx:95`: cita sin paciente vinculado). La tarjeta aún muestra la etiqueta "Primera vez" cuando `!cita.pacienteId` (`Citas.jsx:181-183`). Eso no significa "primera vez del paciente", así que sigue siendo ambiguo. Falta definir primera vez como "paciente sin consultas previas". | **Resuelto:** "Primera vez" pasó a significar "el paciente no tenía atenciones anteriores" (`esPrimeraVez`, con tests); la etiqueta de la tarjeta ya no desaparece al atender o agendar otra cita, y la cita sin paciente vinculado dice "Por registrar".
 | R7 Vista por día y mes, hoy marcado y botón Hoy | **Hecho** | Selector Lista/Semana/Mes (`Citas.jsx:1325-1345`), botón "Hoy" (`Citas.jsx:1318-1324`) y día actual resaltado en Mes (commit `e7865a1`). La Semana es extra y queda opcional. |
 | R8 Filtro por rango de fechas | **Hecho** | Desde/Hasta con flechas semana anterior/siguiente (`Citas.jsx:1371-1412`, lógica en `Citas.jsx:1054-1058`). |
-| R9 Calendario "por color" según carga | **Distinto** | Semana y Mes colorean por estado de la cita (`componentes/calendarioComun.js:7-17`). No hay mapa de calor por cantidad de citas por día para ver qué días tuvieron más o menos atención. |
+| R9 Calendario "por color" según carga | **Hecho** (paso 4) | Semana y Mes colorean por estado de la cita (`componentes/calendarioComun.js:7-17`). No hay mapa de calor por cantidad de citas por día para ver qué días tuvieron más o menos atención. | **Resuelto:** La vista Mes tiene un modo "Carga" (junto a "Citas") que sombrea cada día según cuántas citas tiene, con el número, una escala de 4 niveles relativa al día más cargado del mes y el día actual marcado; las canceladas no cuentan (`componentes/CalendarioMes.jsx`, `utilidades/cargaCitas.js`).
 | R10 Lo más próximo primero | **Hecho** | `Citas.jsx:1049-1063`: hoy en adelante, cronológico, y lo pasado queda plegado en "Anteriores". |
 | R11 Clic en un día del mes abre modal con sus citas en una columna | **Hecho** | `diaModalMes`, `Citas.jsx:1543-1595`, tarjetas en `grid-cols-1`, agrupadas por estado. |
 | R12 Modal con paciente, fecha de agendado, motivo, origen y responsable | **Hecho** (paso 3) | La tarjeta flotante de Semana (`componentes/CalendarioSemanal.jsx:90-124`) muestra paciente, contacto, motivo, origen y fecha/hora de la cita. **Falta la fecha en que se agendó**: `created_at` existe en la base, pero `mapCita` no lo trae (`App.jsx:162-176`). **Falta el responsable**: no existe el dato (ver sección de base de datos). En Lista y Mes no hay modal de detalle: las acciones están en la tarjeta. | **Resuelto:** El detalle muestra también "Asignado a" y "Atendido por" (migración 0083); la tarjeta de la lista dice quién atiende o atendió.
@@ -58,7 +58,7 @@ Lo que más pesa:
 | Req | Estado | Evidencia y detalle |
 |---|---|---|
 | R20 Atender: resumen y luego ficha vinculada a la cita | **Hecho** | `atenderCita` (`Citas.jsx:748-773`) abre el resumen y entra a la ficha con `citaId`. La consulta guarda `cita_id` (migración 0079, `ConsultaMedica.jsx:694`). |
-| R21 En atención automático y el administrador ve cuántas | **Parcial** | Automático: sí (`ConsultaMedica.jsx:554-566`). El contador "N en atención" existe solo en la tarjeta "Mi agenda" del optómetra (`paginas/Inicio.jsx:163,604`). No hay conteo para el administrador, ni actualización en tiempo real (no hay suscripciones Realtime en el proyecto). |
+| R21 En atención automático y el administrador ve cuántas | **Hecho** (paso 5) | Automático: sí (`ConsultaMedica.jsx:554-566`). El contador "N en atención" existe solo en la tarjeta "Mi agenda" del optómetra (`paginas/Inicio.jsx:163,604`). No hay conteo para el administrador, ni actualización en tiempo real (no hay suscripciones Realtime en el proyecto). | **Resuelto:** Inicio muestra al administrador "En atención ahora" con el número y quién atiende cada cita, y el chip "En atención" de Citas lleva su cuenta. Se actualiza solo: la app vuelve a leer las citas cada 20 segundos y al volver a la pestaña (comprobado: un cambio hecho en la base apareció en 4 segundos). Se eligió leer periódicamente en vez de Realtime para no cambiar la base; Realtime sería una mejora futura.
 | R22 Confirmar o completar datos del paciente web | **Hecho** | `Citas.jsx:765-773` abre `ConfirmarDatosPacienteModal` cuando el origen es web y no se ha confirmado (`confirmadoRecepcion`, migración 0077). |
 | R23 Atender hoy una cita de otro día, con fecha real | **Hecho** | `Citas.jsx:165` permite Atender en cualquier cita no cerrada; el botón dice "Atender hoy" (`Citas.jsx:1893`); la tarjeta muestra "Atendida el…" cuando la fecha real difiere (`Citas.jsx:170-175`, `fechaRealPorCitaId`). |
 | R24 Paciente sin cita: atender desde Pacientes | **Hecho** | "Atenderlo ahora" al crear (`Pacientes.jsx:1566`) y botón "Ficha clínica" en el perfil (`Pacientes.jsx:1846`). |
@@ -69,7 +69,7 @@ Lo que más pesa:
 | R29 Exámenes opcionales | **Hecho** | Refracción abre vacía, con las secciones "Opcional"/"Todo opcional · vacío significa no medido" y etiquetas Registrado/No registrado (`ConsultaMedica.jsx:1531-1710`, `:2458`). |
 | R30 Motivo por categorías configurables + Otros con detalle | **Hecho** | Categorías en Configuración (`Configuracion.jsx:483`), "Otros" exige detalle (`ConsultaMedica.jsx:860`), y si la cita ya trae motivo no se vuelve a pedir (`ConsultaMedica.jsx:1459`). |
 | R31 Diagnóstico por categoría + detalle, lente, imágenes, indicaciones, control | **Hecho** | `diagnosticoCategorias` (migración 0049), "Otro" exige detalle (`ConsultaMedica.jsx:877-880`), imágenes (0044). |
-| R32 No "posponer": guardar y seguir, o "dejar de atender" | **Parcial** | No existe un botón "Dejar de atender" que descarte lo no guardado y deje la cita como estaba. Hay aviso de cambios sin guardar al cerrar pestaña (`ConsultaMedica.jsx:395-401`) y al cambiar de sección (vía `Dashboard.jsx`). La cita queda "En atención" si se abandona; no vuelve a Pendiente. |
+| R32 No "posponer": guardar y seguir, o "dejar de atender" | **Hecho** (paso 5) | No existe un botón "Dejar de atender" que descarte lo no guardado y deje la cita como estaba. Hay aviso de cambios sin guardar al cerrar pestaña (`ConsultaMedica.jsx:395-401`) y al cambiar de sección (vía `Dashboard.jsx`). La cita queda "En atención" si se abandona; no vuelve a Pendiente. | **Resuelto:** La ficha tiene "Dejar de atender" (con confirmación): descarta lo no guardado, devuelve la cita a su estado anterior (una cita creada con "Atender ahora" queda pendiente), quita a quien atendía y avisa "La cita sigue agendada". Al guardar la ficha, "Atendido por" queda con quien la guardó.
 | R33 "Terminar atención" genera la receta, no la factura | **Distinto** | Guardar la ficha abre el panel de cobro "Cobrar y finalizar" (`ConsultaMedica.jsx:2328-2344`). La receta se imprime después de guardar. El optómetra cierra con cobro, no con receta y paso a ventas. **Diferencia 2 confirmada.** |
 | R34 "Pasar a la óptica" → "Listo para venta" | **Pendiente** | No existe el botón, ni el estado (búsqueda de "Listo para venta" sin resultados en `src/` y `supabase/`). |
 | R35 La vendedora toma los datos del diagnóstico y arma la proforma | **Pendiente** | No hay cola de pacientes listos. Lo más cercano es "Cobro pendiente" (`Citas.jsx:285-289`) con las líneas precargadas desde la consulta (`lineasCobroConsulta`), que ve quien abre Citas o el perfil. No es una cola de ventas ni una proforma. |
