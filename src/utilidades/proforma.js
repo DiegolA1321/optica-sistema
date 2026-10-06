@@ -4,6 +4,7 @@
 // el pase. Lógica pura que arma el HTML; imprimirHtml lo manda a la impresora.
 import { fechaLegible } from "./formatoFecha"
 import { costoBaseMotivo } from "./costosConsulta"
+import { textoDiagnostico } from "./pasesVenta"
 
 // Líneas con las que arranca la proforma de una consulta: la consulta (costo base
 // del motivo, editable) y la luna como texto libre con su precio por llenar (R57-R59:
@@ -27,12 +28,11 @@ export function armarHtmlProforma({ opticaNombre = "Óptica", paciente = {}, dia
     .map((l) => `<tr><td>${escapar(l.descripcion)}</td><td class="n">${escapar(l.cantidad)}</td><td class="n">${dinero(l.precioUnitario)}</td><td class="n">${dinero((Number(l.cantidad) || 0) * (Number(l.precioUnitario) || 0))}</td></tr>`)
     .join("")
   const d = diagnostico
-  const categorias = d?.diagnosticoCategorias?.length ? d.diagnosticoCategorias.join(", ") : ""
-  const textoDiagnostico = [categorias, d?.diagnostico].filter(Boolean).join(" · ")
+  const resumenDiagnostico = textoDiagnostico(d)
   const bloqueDiagnostico = d
     ? `<h2>Datos del diagnóstico</h2>
        <p><b>Consulta del:</b> ${escapar(fechaLegible(d.fecha))}${d.motivo ? ` · ${escapar(d.motivo)}` : ""}</p>
-       ${textoDiagnostico ? `<p><b>Diagnóstico:</b> ${escapar(textoDiagnostico)}</p>` : ""}
+       ${resumenDiagnostico ? `<p><b>Diagnóstico:</b> ${escapar(resumenDiagnostico)}</p>` : ""}
        ${d.lenteRecomendado ? `<p><b>Lente recomendado:</b> ${escapar(d.lenteRecomendado)}</p>` : ""}
        ${d.indicaciones ? `<p><b>Indicaciones:</b> ${escapar(d.indicaciones)}</p>` : ""}
        ${incluirMedidas ? `<p><b>OD:</b> ${escapar(medida(d.od))} &nbsp; <b>OI:</b> ${escapar(medida(d.oi))}</p>` : ""}`

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { MOTIVOS_NO_COMPRO, etiquetaMotivo, pasesListos, pasesDescartados, diasEnEspera, textoEspera } from "./pasesVenta"
+import { MOTIVOS_NO_COMPRO, etiquetaMotivo, pasesListos, pasesDescartados, diasEnEspera, textoEspera, textoDiagnostico } from "./pasesVenta"
 
 describe("pasesVenta", () => {
   it("los motivos son los cuatro que acepta la base", () => {
@@ -25,5 +25,18 @@ describe("pasesVenta", () => {
     expect(textoEspera(0)).toBe("Pasó hoy")
     expect(textoEspera(1)).toBe("Espera desde hace 1 día")
     expect(textoEspera(4)).toBe("Espera desde hace 4 días")
+  })
+})
+
+describe("textoDiagnostico", () => {
+  it("une categorías y detalle", () => {
+    expect(textoDiagnostico({ diagnosticoCategorias: ["Miopía"], diagnostico: "Leve, ambos ojos" })).toBe("Miopía · Leve, ambos ojos")
+  })
+  it("no repite lo que ya dice la categoría", () => {
+    expect(textoDiagnostico({ diagnosticoCategorias: ["Miopía"], diagnostico: "miopía" })).toBe("Miopía")
+  })
+  it("sin datos queda vacío", () => {
+    expect(textoDiagnostico({})).toBe("")
+    expect(textoDiagnostico(null)).toBe("")
   })
 })

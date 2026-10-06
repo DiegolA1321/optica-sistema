@@ -29,3 +29,10 @@ export function textoEspera(dias) {
   if (dias === 0) return "Pasó hoy"
   return `Espera desde hace ${dias} día${dias === 1 ? "" : "s"}`
 }
+
+// Diagnóstico de una consulta en una línea: categorías y detalle, sin repetir lo
+// que ya dice la categoría ("Miopía" y "Miopía" es "Miopía").
+export function textoDiagnostico(consulta) {
+  const partes = [consulta?.diagnosticoCategorias?.join(", "), consulta?.diagnostico].map((x) => (x || "").trim()).filter(Boolean)
+  return partes.filter((p, i) => partes.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i).join(" · ")
+}
