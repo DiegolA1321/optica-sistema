@@ -48,7 +48,7 @@ export const puedeNivel = (permisos, modulo, nivel = "ver") => Array.isArray(per
 export function normalizarPermisosRol(permisos = {}) {
   const limpio = {}
   for (const m of MODULOS_PERMISO) {
-    const dados = new Set(Array.isArray(permisos[m.id]) ? permisos[m.id] : [])
+    const dados = new Set((Array.isArray(permisos[m.id]) ? permisos[m.id] : []).filter((n) => m.niveles.includes(n)))
     if (dados.size === 0) continue
     const niveles = ORDEN_NIVELES.filter((n) => m.niveles.includes(n) && (dados.has(n) || n === "ver"))
     if (niveles.length > 0) limpio[m.id] = niveles
