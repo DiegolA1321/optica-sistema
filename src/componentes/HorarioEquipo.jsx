@@ -7,6 +7,7 @@ import { INK } from "@/lib/tema"
 import { hoyISO, etiquetaFecha, ETIQUETAS_DIA, DIAS_SEMANA } from "../utilidades/disponibilidad"
 import { lunesDeSemana, sumarDiasISO } from "../utilidades/calendarioSemana"
 import { citasDePersona, resumenSemana, resumenDia, estadoAhora } from "../utilidades/horarioPersonal"
+import { miembrosActivos } from "../utilidades/equipo"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -47,7 +48,7 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
   // El horario propio viene de la app (siempre al día); el de los demás, de la lectura del administrador.
   // Un día que la persona no configuró se completa con el horario general de la óptica.
   const horarioDe = (id) => (id === usuario?.id ? horarioPersonal?.horarioSemanal : horarios?.[id]) || {}
-  const miembros = esAdmin ? equipo : equipo.filter((m) => m.id === usuario?.id)
+  const miembros = esAdmin ? miembrosActivos(equipo) : equipo.filter((m) => m.id === usuario?.id)
   const nombreVisto = miembros.find((m) => m.id === verId)?.nombre || usuario?.nombre
   const ahora = new Date()
 
