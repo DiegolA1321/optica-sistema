@@ -1,6 +1,5 @@
 // Filtros de la agenda de Citas (reunión 29 sept., R3-R6): estado, origen y
 // primera vez/seguimiento. Lógica pura, sin React, para probarla aparte.
-import { yaPasoLaHora } from "./agendaCitas"
 
 export const ESTADOS_FILTRO = [
   { id: "todas", etiqueta: "Todas" },
@@ -8,7 +7,7 @@ export const ESTADOS_FILTRO = [
   { id: "enAtencion", etiqueta: "En atención" },
   { id: "atendida", etiqueta: "Atendidas" },
   { id: "cancelada", etiqueta: "Canceladas" },
-  { id: "vencida", etiqueta: "Vencidas", ayuda: "Su hora ya pasó sin atenderse: pendientes que no llegaron y citas marcadas No asistió" },
+  { id: "noAsistio", etiqueta: "No asistió" },
 ]
 
 export const ORIGENES_FILTRO = [
@@ -25,7 +24,7 @@ export const SEGUIMIENTO_FILTRO = [
 
 // Estados cuyo historial interesa de la más reciente a la más antigua, sin
 // esconder lo pasado en "Anteriores".
-export const ESTADOS_DE_HISTORIAL = ["atendida", "cancelada", "vencida"]
+export const ESTADOS_DE_HISTORIAL = ["atendida", "cancelada", "noAsistio"]
 
 // Primera vez = el paciente no tenía ninguna atención registrada antes de esta
 // cita. La consulta de la propia cita no cuenta, así que la etiqueta no
@@ -38,13 +37,13 @@ export function esPrimeraVez(cita, consultas = []) {
   )
 }
 
-export function coincideEstado(cita, estado, ahora = new Date()) {
+export function coincideEstado(cita, estado) {
   switch (estado) {
     case "pendiente": return cita.estado === "Pendiente" || cita.estado === "En Espera"
     case "enAtencion": return cita.estado === "En Atención"
     case "atendida": return cita.estado === "Atendida"
     case "cancelada": return cita.estado === "Cancelada"
-    case "vencida": return cita.estado === "No Asistió" || ((cita.estado === "Pendiente" || cita.estado === "En Espera") && yaPasoLaHora(cita, ahora))
+    case "noAsistio": return cita.estado === "No Asistió"
     default: return true
   }
 }

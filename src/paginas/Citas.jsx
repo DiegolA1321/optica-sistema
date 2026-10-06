@@ -1024,7 +1024,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       const enRango = filtradasBase.filter((c) => (!rangoDesde || c.fecha >= rangoDesde) && (!rangoHasta || c.fecha <= rangoHasta))
       return { grupos: agruparPorDia(ordenarCitas(enRango)), gruposAnteriores: [] }
     }
-    // Atendidas, canceladas y vencidas son historial: de la más reciente a la
+    // Atendidas, canceladas y No asistió son historial: de la más reciente a la
     // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
     if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
       return { grupos: agruparPorDia(ordenarCitas(filtradasBase, true)), gruposAnteriores: [] }
