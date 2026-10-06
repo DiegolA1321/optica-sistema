@@ -74,3 +74,11 @@ export function esEmailValido(valor, opcional = true) {
 export function esClaveSegura(valor) {
   return typeof valor === "string" && valor.length >= 8 && /[a-zA-Z]/.test(valor) && /[0-9]/.test(valor)
 }
+
+// Una sola regla de contraseña para TODA forma de crear o cambiar una cuenta
+// (usuarios de la óptica, superadmin, administradores, portal del paciente).
+// Devuelve el mensaje de error, o "" si la contraseña sirve.
+export const MENSAJE_CLAVE_SEGURA = "La contraseña debe tener al menos 8 caracteres, con al menos una letra y un número."
+export function validarClaveNueva(valor) {
+  return esClaveSegura(valor) ? "" : MENSAJE_CLAVE_SEGURA
+}
