@@ -10,7 +10,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // Lista de pacientes esperando a quien vende ("Listos para venta") o que no
 // compraron ("No compraron"). Cada tarjeta trae lo necesario para atender sin
 // abrir el perfil: la consulta, el diagnóstico y el lente recomendado.
-export default function ColaVentas({ modo = "listos", items, saldoDe, reabriendoId, onTomarDatos, onNoCompro, onReabrir, onVerPerfil }) {
+export default function ColaVentas({ modo = "listos", items, saldoDe, puedeActuar = true, reabriendoId, onTomarDatos, onNoCompro, onReabrir, onVerPerfil }) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-14 text-center">
@@ -54,7 +54,7 @@ export default function ColaVentas({ modo = "listos", items, saldoDe, reabriendo
                   )}
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {puedeActuar && <div className="flex shrink-0 flex-wrap items-center gap-2">
                 {modo === "listos" ? (
                   <>
                     <button type="button" onClick={() => onNoCompro({ pase, paciente, consulta })} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
@@ -69,7 +69,7 @@ export default function ColaVentas({ modo = "listos", items, saldoDe, reabriendo
                     <Undo2 size={14} aria-hidden="true" /> {reabriendoId === pase.id ? "Volviendo…" : "Volver a la lista de espera"}
                   </button>
                 )}
-              </div>
+              </div>}
             </div>
           </li>
         )

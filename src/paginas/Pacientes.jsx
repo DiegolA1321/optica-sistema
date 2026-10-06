@@ -73,6 +73,7 @@ import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import AbonoModal from "../componentes/AbonoModal"
+import { puede } from "../utilidades/permisosUi"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
 import AnularVentaModal from "../componentes/AnularVentaModal"
@@ -185,8 +186,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const [modalAbierto, setModalAbierto] = useState(false)
   const [idEditando, setIdEditando] = useState(null)
   const [pacienteAEliminar, setPacienteAEliminar] = useState(null)
-  // Solo el administrador puede eliminar (anonimizar) pacientes. En el Bloque D pasará a ser el permiso "eliminar" de Pacientes.
-  const esAdmin = usuario?.rol === "admin"
+  // Qué puede hacer quien tiene la sesión (la base lo exige de todos modos; aquí solo se muestran u ocultan los botones).
+  const puedeCrearPaciente = puede(usuario, "pacientes", "crear")
+  const puedeEditarPaciente = puede(usuario, "pacientes", "editar")
+  const puedeEliminar = puede(usuario, "pacientes", "eliminar")
+  const puedeAgendar = puede(usuario, "citas", "crear")
+  const puedeVender = puede(usuario, "ventas", "crear")
+  const puedeEditarVentas = puede(usuario, "ventas", "editar")
+  const puedeAnular = puede(usuario, "ventas", "eliminar")
   const [eliminandoPaciente, setEliminandoPaciente] = useState(false)
 
   // Filtros
@@ -637,7 +644,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       if (paciente) {
         if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("citas") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
-        else if (accionInicial.accion === "eliminar" && esAdmin) setPacienteAEliminar(paciente)
+        else if (accionInicial.accion === "eliminar" && puedeEliminar) setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
       }
     }
@@ -729,7 +736,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     if (supabase && opticaId) {
       const { error } = await supabase.rpc("anonimizar_paciente", { p_paciente_id: paciente.id })
       if (error) {
-        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message?.includes("Solo el administrador") ? "Solo el administrador puede eliminar pacientes." : "No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo.")
+        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : /permiso para eliminar/i.test(error.message || "") ? "No tienes permiso para eliminar pacientes." : "No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo.")
         setEliminandoPaciente(false)
         return
       }
@@ -1093,7 +1100,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           </div>
         </div>
 
-        <button
+        {puedeCrearPaciente && <button
           type="button"
           onClick={abrirCrear}
           className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
@@ -1101,7 +1108,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         >
           <UserPlus size={18} />
           Crear paciente
-        </button>
+        </button>}
       </div>
 
       {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}
@@ -1269,6 +1276,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         <ColaVentas
           modo={filtroRapido === "ListosVenta" ? "listos" : "descartados"}
           items={filtroRapido === "ListosVenta" ? colaListos : colaDescartados}
+          puedeActuar={puedeVender}
           saldoDe={(pacienteId) => saldoPacienteFacturas(pacienteId, facturasVenta, abonos) + ventasPendientesPaciente(ventas, pacienteId).reduce((a, v) => a + saldoVenta(v), 0)}
           reabriendoId={reabriendoId}
           onTomarDatos={setVentaCola}
@@ -1461,12 +1469,12 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                             <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("citas") }} title="Ver perfil 360°" aria-label="Ver perfil 360°" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
                               <Eye size={16} />
                             </button>
-                            <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
+                            {puedeAgendar && <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
                               <CalendarPlus size={16} />
-                            </button>
-                            <button type="button" onClick={() => abrirVentaRapida(paciente)} title="Nueva venta" aria-label="Nueva venta" className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer">
+                            </button>}
+                            {puedeVender && <button type="button" onClick={() => abrirVentaRapida(paciente)} title="Nueva venta" aria-label="Nueva venta" className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer">
                               <ShoppingCart size={16} />
-                            </button>
+                            </button>}
                           </div>
                           <div className="relative">
                             <button
@@ -1732,13 +1740,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             >
               <Stethoscope size={15} /> Nueva ficha clínica
             </button>
-            <button
+            {puedeVender && <button
               type="button"
               onClick={() => { setMenuAccionesId(null); abrirVentaRapida(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
             >
               <ShoppingCart size={15} /> Nueva venta
-            </button>
+            </button>}
             <div className="my-1 border-t border-slate-100" />
             <button
               type="button"
@@ -1747,14 +1755,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             >
               <KeyRound size={15} /> {paciente.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
             </button>
-            <button
+            {puedeEditarPaciente && <button
               type="button"
               onClick={() => { setMenuAccionesId(null); abrirEdicion(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
             >
               <Pencil size={15} /> Editar datos
-            </button>
-            {esAdmin && (
+            </button>}
+            {puedeEliminar && (
               <button
                 type="button"
                 onClick={() => { setMenuAccionesId(null); setPacienteAEliminar(paciente) }}
@@ -1769,7 +1777,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       })()}
 
       {/* ─── MODAL ELIMINAR (anonimiza; solo el administrador) ─── */}
-      {pacienteAEliminar && esAdmin && (
+      {pacienteAEliminar && puedeEliminar && (
         <EliminarPacienteModal
           paciente={pacienteAEliminar}
           nCitas={citas.filter((c) => perteneceAPaciente(c, pacienteAEliminar)).length}
@@ -2343,13 +2351,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                       ) : (
                                         <>
                                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} /> Saldo ${saldoF.toFixed(2)}</span>
-                                          <button type="button" onClick={() => setAbonoPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Abonar</button>
+                                          {puedeEditarVentas && <button type="button" onClick={() => setAbonoPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Abonar</button>}
                                         </>
                                       )}
-                                      {f.estado !== "anulada" && (
+                                      {f.estado !== "anulada" && puedeVender && (
                                         <button type="button" onClick={() => setOrdenParaVenta({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">{ordenesF.length > 0 ? "Otra orden" : "Crear orden"}</button>
                                       )}
-                                      {f.estado !== "anulada" && (
+                                      {f.estado !== "anulada" && puedeAnular && (
                                         <button type="button" onClick={() => setAnularPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 cursor-pointer">Anular</button>
                                       )}
                                     </div>
@@ -2359,7 +2367,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                             </ul>
                           </div>
                         )}
-                        <button
+                        {puedeVender && <button
                           type="button"
                           onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
                           className="flex w-full flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer"
@@ -2367,7 +2375,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         >
                           <span className="flex items-center gap-2"><Receipt size={16} /> Nueva venta</span>
                           <span className="text-[11px] font-medium opacity-90">Productos y servicios, con pago directo, tarjeta o cuotas</span>
-                        </button>
+                        </button>}
                         {(() => {
                           // Fila compartida entre "Productos" y "Servicios" —
                           // mismo diseño y jerarquía de badges que ya existían

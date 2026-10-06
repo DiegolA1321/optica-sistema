@@ -28,6 +28,7 @@ import { useModalAccesible } from "../utilidades/useModalAccesible"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { leerContactadosHoy, marcarContactadoHoy as marcarContactadoHoyGuardado } from "../utilidades/contactosCrm"
+import { puede } from "../utilidades/permisosUi"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -478,7 +479,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, podés pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
               className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
             />
-            <button
+            {puede(usuario, "crm", "crear") && <button
               type="button"
               onClick={publicarAviso}
               disabled={!nuevoAviso.trim() || publicandoAviso}
@@ -487,7 +488,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
             >
               {publicandoAviso ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
               {publicandoAviso ? "Publicando..." : avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
-            </button>
+            </button>}
             <p className="text-[11px] text-slate-500">
               El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o enviaselo directo al paciente si elegiste uno puntual.
             </p>
@@ -528,9 +529,9 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
                       <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" aria-label="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
                         {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                       </button>
-                      <button type="button" onClick={() => setPorEliminarAvisoId(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+                      {puede(usuario, "crm", "eliminar") && <button type="button" onClick={() => setPorEliminarAvisoId(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
                         {eliminandoAvisoId === a.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 ))}

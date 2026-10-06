@@ -32,6 +32,7 @@ import FacturaVentaModal from "./FacturaVentaModal"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
+import { puede } from "../utilidades/permisosUi"
 import { INK, ACCION_VER, ACCION_CONFIRMAR, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -413,7 +414,7 @@ export default function Inventario({
           </div>
         </div>
 
-        <button
+        {puede(usuario, "inventario", "crear") && <button
           type="button"
           onClick={abrirModal}
           className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
@@ -421,7 +422,7 @@ export default function Inventario({
         >
           <Plus size={18} />
           Agregar producto
-        </button>
+        </button>}
       </div>
 
       {/* ─── ÉXITO ─── */}
@@ -620,21 +621,21 @@ export default function Inventario({
                             </>
                           ) : (
                           <>
-                          <button type="button" onClick={() => abrirEditar(prod)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar / añadir stock" aria-label="Editar o añadir stock">
+                          {puede(usuario, "inventario", "editar") && <button type="button" onClick={() => abrirEditar(prod)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar / añadir stock" aria-label="Editar o añadir stock">
                             <Pencil size={16} />
-                          </button>
-                          <button type="button" onClick={() => setVendiendo(prod)} disabled={(Number(prod.stock) || 0) <= 0}
+                          </button>}
+                          {puede(usuario, "ventas", "crear") && <button type="button" onClick={() => setVendiendo(prod)} disabled={(Number(prod.stock) || 0) <= 0}
                             className={"rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer " + ACCION_CONFIRMAR}
                             title={(Number(prod.stock) || 0) <= 0 ? "Sin stock disponible" : "Vender a un paciente"} aria-label="Vender a un paciente">
                             <ShoppingCart size={16} />
-                          </button>
+                          </button>}
                           <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
                             <BarChart3 size={16} />
                           </button>
-                          <button type="button" onClick={() => setPorEliminar(prod.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}
+                          {puede(usuario, "inventario", "eliminar") && <button type="button" onClick={() => setPorEliminar(prod.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}
                             title={tieneVentasAsociadas(prod.id) ? "Desactivar producto (tiene ventas registradas)" : "Eliminar producto"} aria-label="Eliminar o desactivar producto">
                             <Trash2 size={16} />
-                          </button>
+                          </button>}
                           </>
                           )}
                         </div>

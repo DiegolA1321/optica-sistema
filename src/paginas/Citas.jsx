@@ -45,6 +45,7 @@ import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { ChipFiltro, BuscadorCitas, SelectorEstado, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro, opcionesAsignables } from "../utilidades/equipo"
+import { puede } from "../utilidades/permisosUi"
 import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
@@ -1302,7 +1303,7 @@ export default function Citas({ usuario, onAviso, equipo = [], cargaInicial = fa
               blanco, y sin forma de crear un paciente nuevo si no había
               ninguno todavía) — "Gestionar" ya cubre ese caso y más, así que
               se quedó como el único punto de entrada (feedback de Diego). */}
-          <button
+          {puede(usuario, "citas", "crear") && <button
             type="button"
             onClick={() => abrirModal()}
             className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
@@ -1310,7 +1311,7 @@ export default function Citas({ usuario, onAviso, equipo = [], cargaInicial = fa
           >
             <UserPlus size={18} />
             Gestionar cita
-          </button>
+          </button>}
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import { linkWhatsApp } from "../utilidades/whatsapp"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { registrarLog } from "../utilidades/logs"
+import { puede } from "../utilidades/permisosUi"
 import OrdenLaboratorioModal from "./OrdenLaboratorioModal"
 import EntregaConSaldoModal from "./EntregaConSaldoModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
@@ -44,6 +45,8 @@ const aplicarFiltro = (ordenes, filtro) => {
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio, cambio de
 // estado con responsable, copias impresas y aviso al paciente por WhatsApp (R36-R37).
 export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", facturas = [], abonos = [], onAbonar, onAviso, onVerPerfil }) {
+  const puedeEditar = puede(usuario, "ventas", "editar")
+  const puedeCrear = puede(usuario, "ventas", "crear")
   const propias = useMemo(() => (pacienteFijo ? ordenes.filter((o) => o.pacienteId === pacienteFijo.id) : ordenes), [ordenes, pacienteFijo])
   const [filtro, setFiltro] = useState(filtroInicial)
   const [laboratorio, setLaboratorio] = useState("")
@@ -188,12 +191,12 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    {o.estado === "lista" && (
+                    {puedeEditar && o.estado === "lista" && (
                       <button type="button" onClick={() => avisarPaciente(o)} disabled={ocupado || !p?.telefono} title={p?.telefono ? "Abre WhatsApp con el mensaje de que sus lentes están listos" : "El paciente no tiene teléfono registrado"} className="flex items-center gap-1.5 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
                         <MessageCircle size={14} aria-hidden="true" /> {o.pacienteAvisadoEn ? "Avisar de nuevo" : "Avisar por WhatsApp"}
                       </button>
                     )}
-                    {sig && (
+                    {puedeEditar && sig && (
                       <button type="button" onClick={() => pedirEstado(o, sig.estado)} disabled={ocupado} className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
                         {sig.texto} <ArrowRight size={14} aria-hidden="true" />
                       </button>
@@ -202,13 +205,13 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-slate-100 pt-2 text-xs font-semibold text-slate-500">
                   <button type="button" onClick={() => imprimir(o)} className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer"><Printer size={13} aria-hidden="true" /> Imprimir copias</button>
-                  {(o.estado === "enviada" || o.estado === "lista") && (
+                  {puedeEditar && (o.estado === "enviada" || o.estado === "lista") && (
                     <button type="button" onClick={() => setEditando(o)} className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer"><Pencil size={13} aria-hidden="true" /> Editar</button>
                   )}
-                  {o.estado !== "cancelada" && (
+                  {puedeCrear && o.estado !== "cancelada" && (
                     <button type="button" onClick={() => setOtraDe(o)} title="Crear otra orden para la misma venta (por ejemplo, un segundo par)" className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer"><Plus size={13} aria-hidden="true" /> Otra orden</button>
                   )}
-                  {ANTERIOR[o.estado] && (
+                  {puedeEditar && ANTERIOR[o.estado] && (
                     <button type="button" onClick={() => cambiarEstado(o, ANTERIOR[o.estado])} disabled={ocupado} className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer disabled:opacity-60"><Undo2 size={13} aria-hidden="true" /> Volver a "{ETIQUETA_ESTADO[ANTERIOR[o.estado]].toLowerCase()}"</button>
                   )}
                   <button type="button" onClick={() => alternarHistorial(o)} aria-expanded={abierta === o.id} className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer">
