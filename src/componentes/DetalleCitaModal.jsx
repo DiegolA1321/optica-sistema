@@ -1,11 +1,12 @@
 "use client"
 
 import { createPortal } from "react-dom"
-import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare } from "lucide-react"
+import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { etiquetaFecha } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
+import { etiquetaMiembro } from "../utilidades/equipo"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -40,7 +41,7 @@ function Fila({ icono: Icono, etiqueta, children }) {
 // en la lista y en el modal "Citas del día". "Ingresar" lleva a la ficha
 // clínica de esa cita (o al cobro si ya quedó pendiente) y "Ver perfil" abre
 // el paciente en otra pestaña para no perder el lugar en la agenda.
-export default function DetalleCitaModal({ cita, fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar }) {
+export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar }) {
   const refModal = useModalAccesible(true, onCerrar)
   const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
   const agendada = fechaHoraAgendada(cita.creadoEn)
@@ -94,6 +95,12 @@ export default function DetalleCitaModal({ cita, fechaAtencionReal, cobroPendien
             <Fila icono={CalendarPlus} etiqueta="Agendada el">{agendada || "Sin registro"}</Fila>
             <Fila icono={cita.origen === "paciente" ? Globe : Building2} etiqueta="Origen">
               {cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}
+            </Fila>
+            <Fila icono={UserCog} etiqueta="Asignado a">
+              {etiquetaMiembro(equipo, cita.asignadoA) || <span className="font-normal text-slate-500">Sin asignar</span>}
+            </Fila>
+            <Fila icono={UserCheck} etiqueta="Atendido por">
+              {etiquetaMiembro(equipo, cita.atendidoPor) || <span className="font-normal text-slate-500">{cita.estado === "Atendida" || cita.estado === "En Atención" ? "Sin registro" : "Aún no la atiende nadie"}</span>}
             </Fila>
             {cita.cedula && <Fila icono={IdCard} etiqueta="Cédula"><span className="font-mono">{cita.cedula}</span></Fila>}
             {cita.telefono && <Fila icono={Phone} etiqueta="Teléfono">{cita.telefono}</Fila>}

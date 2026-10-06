@@ -44,6 +44,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
+import { etiquetaMiembro } from "../utilidades/equipo"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
@@ -135,10 +136,32 @@ function GrupoFiltro({ etiqueta, children }) {
   )
 }
 
+// "Asignado a": quién debería atender la cita. Es opcional.
+function SelectorAsignado({ id, valor, onChange, equipo }) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700">
+        Asignado a <span className="font-normal text-slate-500">(opcional)</span>
+      </label>
+      <select
+        id={id}
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+      >
+        <option value="">Sin asignar</option>
+        {equipo.map((m) => (
+          <option key={m.id} value={m.id}>{m.nombre}{m.esOptometra ? " · Optómetra" : ""}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 // Tarjeta de cita — extraída de la lista agrupada por día para poder
 // reutilizarla tal cual (mismo diseño, ya aprobado por el ing) dentro del
 // modal de "Citas del día" de la vista por mes, sin mantener dos copias.
-function TarjetaCita({ cita, primeraVez, onAbrirDetalle, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onAtender, onCobrar, onAbrirMenuAcciones }) {
+function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onAtender, onCobrar, onAbrirMenuAcciones }) {
   const info = motivoInfo(cita.motivo, motivosConsulta)
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
@@ -222,6 +245,11 @@ function TarjetaCita({ cita, primeraVez, onAbrirDetalle, motivosConsulta, fechaR
             {cita.motivoPublico && (
               <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Motivo indicado en línea: {cita.motivoPublico}</span>
             )}
+            {(cita.asignadoA || cita.atendidoPor) && (
+              <span className="mt-0.5 block truncate text-xs text-slate-500">
+                {cita.atendidoPor ? `Atendió: ${etiquetaMiembro(equipo, cita.atendidoPor)}` : `Asignada a: ${etiquetaMiembro(equipo, cita.asignadoA)}`}
+              </span>
+            )}
             {cita.codigo && (
               <span className="mt-0.5 block font-mono text-xs text-slate-400" title="Código que el paciente recibió al reservar en línea">{cita.codigo}</span>
             )}
@@ -303,7 +331,7 @@ function TarjetaCita({ cita, primeraVez, onAbrirDetalle, motivosConsulta, fechaR
   )
 }
 
-export default function Citas({ usuario, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -317,6 +345,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [fecha, setFecha] = useState("")
   const [hora, setHora] = useState("")
   const [motivo, setMotivo] = useState("")
+  const [asignadoA, setAsignadoA] = useState("")
   // Horario personalizado — el ing probó en vivo el caso de un paciente que
   // llega fuera de la grilla de horarios fijos ("¿qué pasa si te atiendo a
   // las 3:40?") y pidió una manera de registrar la hora real + cuánto va a
@@ -559,6 +588,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       hora: horaFinal,
       duracionMinutos: horaPersonalizada ? (Number(duracionCustom) || disponibilidad?.duracionCita || 40) : null,
       motivo,
+      asignadoA: asignadoA || null,
+      atendidoPor: null,
       iniciales: iniciales || "P",
       estado: atenderInmediato ? "En Atención" : "Pendiente",
     }
@@ -576,6 +607,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           paciente_id: typeof paciente.id === "string" ? paciente.id : null,
           paciente: nuevaCita.paciente, cedula: nuevaCita.cedula, telefono: nuevaCita.telefono,
           fecha: nuevaCita.fecha, hora: nuevaCita.hora, duracion_minutos: nuevaCita.duracionMinutos, motivo: nuevaCita.motivo, estado: nuevaCita.estado,
+          asignado_a: nuevaCita.asignadoA,
         })
         .select()
         .single()
@@ -641,6 +673,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setFecha("")
     setHora("")
     setMotivo("")
+    setAsignadoA("")
     setError("")
     setHoraPersonalizada(false)
     setHoraCustom("")
@@ -829,6 +862,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const [nuevaFecha, setNuevaFecha] = useState("")
   const [nuevaHora, setNuevaHora] = useState("")
   const [nuevoMotivo, setNuevoMotivo] = useState("")
+  const [nuevoAsignado, setNuevoAsignado] = useState("")
   const [errorReagendar, setErrorReagendar] = useState("")
   const [estadoCorregido, setEstadoCorregido] = useState("")
   const [reagendada, setReagendada] = useState(null) // cita ya guardada, para ofrecer avisar por WhatsApp
@@ -838,6 +872,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setNuevaFecha("")
     setNuevaHora("")
     setNuevoMotivo(cita.motivo || "")
+    setNuevoAsignado(cita.asignadoA || "")
     setEstadoCorregido(cita.estado)
     setErrorReagendar("")
   }
@@ -862,8 +897,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     // motivo), no hace falta elegir una fecha nueva.
     const estadoCambiado = estadoCorregido && estadoCorregido !== reagendando.estado
     const sinNuevoHorario = !nuevaFecha && !nuevaHora
-    if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo)) {
-      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}) }
+    const asignadoCambiado = (nuevoAsignado || null) !== (reagendando.asignadoA || null)
+    if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo || asignadoCambiado)) {
+      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}), ...(asignadoCambiado ? { asignado_a: nuevoAsignado || null } : {}) }
       if (supabase && opticaId) {
         const { data: actualizadas, error: errorUpdate } = await supabase.from("citas").update(cambios).eq("id", reagendando.id).select()
         if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizadas })) {
@@ -875,7 +911,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           return
         }
       }
-      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambios } : c)))
+      const { asignado_a: asignadoNuevo, ...cambiosLocales } = cambios
+      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}) } : c)))
       registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${reagendando.fecha}`)
       cerrarReagendar()
       setMensajeExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
@@ -892,9 +929,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     // estado sigue siendo una acción aparte y explícita ("Cambiar estado").
     const resueltaAlEditar = ["Atendida", "No Asistió", "Cancelada"].includes(reagendando.estado)
     const nuevoEstado = estadoCambiado ? estadoCorregido : resueltaAlEditar ? reagendando.estado : "Pendiente"
-    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }
+    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignadoA: nuevoAsignado || null }
     if (supabase && opticaId) {
-      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }).eq("id", reagendando.id).select()
+      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignado_a: nuevoAsignado || null }).eq("id", reagendando.id).select()
       if (fueBloqueadoPorPermiso({ error: errorUpdate, data: reagendadas })) {
         setErrorReagendar(MENSAJE_SIN_PERMISO)
         return
@@ -1201,6 +1238,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       key={cita.id}
                       cita={cita}
                       primeraVez={idsPrimeraVez.has(cita.id)}
+                      equipo={equipo}
                       motivosConsulta={motivosConsulta}
                       fechaRealPorCitaId={fechaRealPorCitaId}
                       marcandoEstadoId={marcandoEstadoId}
@@ -1597,6 +1635,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             key={cita.id}
                             cita={cita}
                             primeraVez={idsPrimeraVez.has(cita.id)}
+                      equipo={equipo}
                             motivosConsulta={motivosConsulta}
                             fechaRealPorCitaId={fechaRealPorCitaId}
                             marcandoEstadoId={marcandoEstadoId}
@@ -1791,6 +1830,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     ))}
                   </select>
                 </div>
+
+                <SelectorAsignado id="citas-asignado" valor={asignadoA} onChange={setAsignadoA} equipo={equipo} />
 
                 {/* Atajo para un paciente que ya está en el local ahora mismo
                     (walk-in o llegó antes/después de su turno) — precarga la
@@ -2154,6 +2195,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   </select>
                 </div>
 
+                <SelectorAsignado id="citas-editar-asignado" valor={nuevoAsignado} onChange={setNuevoAsignado} equipo={equipo} />
+
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
                   citas={citas.filter((c) => c.id !== reagendando.id)}
@@ -2236,6 +2279,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         return (
           <DetalleCitaModal
             cita={cita}
+            equipo={equipo}
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}
             onCerrar={() => setDetalleCitaId(null)}
