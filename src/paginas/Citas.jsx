@@ -310,7 +310,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -354,6 +354,15 @@ export default function Citas({ usuario, onAviso, equipo = [], cargaInicial = fa
       onModalAlEntrarConsumido?.()
     }
   }, [abrirModalAlEntrar])
+
+  // Desde una tarjeta del Inicio ("Atendidas", "No asistieron"...): abre la lista ya filtrada por ese estado.
+  useEffect(() => {
+    if (estadoInicial) {
+      setEstadoFiltro(estadoInicial)
+      setFiltro("todas")
+      onEstadoInicialConsumido?.()
+    }
+  }, [estadoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [busqueda, setBusqueda] = useState("")
   // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"

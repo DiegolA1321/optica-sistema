@@ -59,6 +59,7 @@ import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { useVistas } from "../utilidades/useVistas"
+import { puede } from "../utilidades/permisosUi"
 import { modulosVisibles } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
@@ -138,7 +139,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
   // Órdenes de laboratorio que piden acción: lentes listos sin avisar y órdenes atrasadas (R37).
   const ordenesPendientes = useMemo(() => ordenesListasSinAvisar(ordenesLab).length + ordenesAtrasadas(ordenesLab).length, [ordenesLab])
-  const avisosPacientes = listosParaVenta + ordenesPendientes
+  // El contador del menú es de quien vende (Inicio de ventas y, más adelante, el módulo de Ventas).
+  const vendeAqui = puede(usuario, "ventas", "ver")
+  const avisosPacientes = vendeAqui ? listosParaVenta + ordenesPendientes : 0
   const textoAvisosPacientes = [
     listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
     ordenesPendientes > 0 && `${ordenesPendientes} orden${ordenesPendientes === 1 ? "" : "es"} de laboratorio por atender`,
@@ -208,6 +211,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     return id && opcionesVisibles.some((o) => o.id === 'pacientes') ? { pacienteId: id, accion: 'historial' } : null
   })
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
+  // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
+  const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
@@ -589,6 +594,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             disponibilidad={disponibilidad}
             abrirModalAlEntrar={abrirAgendarAlEntrar}
             onModalAlEntrarConsumido={() => setAbrirAgendarAlEntrar(false)}
+            estadoInicial={estadoCitasInicial}
+            onEstadoInicialConsumido={() => setEstadoCitasInicial(null)}
             motivosConsulta={motivosConsulta}
             inventario={inventario}
             setInventario={setInventario}
@@ -648,6 +655,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             inventario={inventario}
             consultas={consultas}
             ordenesLab={ordenesLab}
+            vista={vista}
+            pases={pases}
+            facturasVenta={facturasVenta}
+            abonos={abonos}
+            onVerCola={() => { setAccionPacienteInicio({ accion: "cola" }); navegar("pacientes") }}
+            onVerCitas={(estado) => { setEstadoCitasInicial(estado); navegar("citas") }}
             onVerOrdenes={(filtro) => { setAccionPacienteInicio({ accion: "ordenes", filtro }); navegar("pacientes") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => {

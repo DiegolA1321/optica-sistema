@@ -627,7 +627,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // modal que se usaría si el optómetra hiciera clic aquí mismo, en vez de tener una copia aparte.
   useEffect(() => {
     if (!accionInicial) return
-    if (accionInicial.accion === "ordenes") {
+    if (accionInicial.accion === "cola") {
+      // Inicio de quien vende: abre la lista de "Listos para venta"
+      setFiltroCorreccion("Todos")
+      setFiltroRapido("ListosVenta")
+    } else if (accionInicial.accion === "ordenes") {
       // Alerta del Inicio: abre la lista de órdenes con el filtro pedido
       setFiltroCorreccion("Todos")
       setFiltroOrdenesInicial(accionInicial.filtro || "abiertas")

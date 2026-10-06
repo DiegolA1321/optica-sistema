@@ -15,6 +15,12 @@ import {
   Stethoscope,
   Activity,
   FlaskConical,
+  ShoppingBag,
+  FileText,
+  Wallet,
+  CheckCircle2,
+  UserX,
+  Ban,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades/disponibilidad"
@@ -23,8 +29,13 @@ import { supabase } from "../lib/supabaseClient"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
+import FilaTarjetas from "../componentes/FilaTarjetas"
+import { puede } from "../utilidades/permisosUi"
+import { fechaLegible } from "../utilidades/formatoFecha"
+import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
+import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenMes, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO } from "../utilidades/logs"
-import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
+import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio, ordenesAbiertas, estaAtrasada, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { INK, GOLD, ACCION_CONFIRMAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
@@ -50,6 +61,12 @@ export default function Inicio({
   onVerPerfilPaciente,
   ordenesLab = [],
   onVerOrdenes,
+  vista = null,
+  pases = [],
+  facturasVenta = [],
+  abonos = [],
+  onVerCola,
+  onVerCitas,
   nombreUsuario = "Diego",
   opticaNombre,
 }) {
@@ -212,60 +229,6 @@ export default function Inicio({
     }).length
   }, [pacientes])
 
-  // Top bar de acción: un solo bloque uniforme por módulo (Pacientes, Citas,
-  // Inventario). El título de cada tarjeta es "Gestionar X" — pedido
-  // explícito: el botón debe llevar al panel/directorio de ese módulo, no
-  // a un formulario de alta (antes el click de toda la tarjeta abría
-  // directamente "crear nuevo", lo cual no calzaba con lo que decía el
-  // título). El atajo de alta rápida sigue existiendo — pedido original del
-  // ing ("vamos a registrar un nuevo paciente... ingresa aquí
-  // directamente") — pero ahora vive en su propio botón (la línea de abajo
-  // con la flecha), separado del click principal de la tarjeta.
-  const accionesRapidas = [
-    {
-      id: "pacientes",
-      icono: Users,
-      titulo: "Gestionar pacientes",
-      valor: pacientes.length,
-      desc: "Registrados en la base de datos",
-      tendencia: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : null,
-      ctaLabel: "Registrar paciente",
-      color: "slate",
-      onClick: () => setVista?.("pacientes"),
-      alCrearRapido: onCrearPacienteRapido,
-    },
-    {
-      id: "citas",
-      icono: Calendar,
-      titulo: "Gestionar citas",
-      valor: citasHoy.length,
-      desc: citasHoy.length === 1 ? "cita para hoy" : "citas para hoy",
-      ctaLabel: "Agendar cita",
-      color: "blue",
-      onClick: () => setVista?.("citas"),
-      alCrearRapido: onAgendarRapido,
-    },
-    {
-      id: "inventario",
-      icono: productosBajoStock.length > 0 ? AlertTriangle : Package,
-      titulo: "Gestionar inventario",
-      valor: productosBajoStock.length,
-      desc: productosBajoStock.length === 1 ? "alerta de stock bajo" : "alertas de stock bajo",
-      ctaLabel: "Añadir producto",
-      color: productosBajoStock.length > 0 ? "amber" : "slate",
-      onClick: () => setVista?.("inventario"),
-      alCrearRapido: onCrearProductoRapido,
-    },
-  ]
-
-  // Estilo por tarjeta (tile del icono + acento) — mismo mapeo que antes
-  // usaban los KPIs, ahora compartido por la única fila que queda.
-  const kpi = {
-    slate: { tile: "#F1F5F9", tileText: "#475569", hoverBorder: "hover:border-slate-300", valor: INK },
-    blue: { tile: GRAD, tileText: "#fff", hoverBorder: "hover:border-blue-200/60", valor: INK },
-    amber: { tile: "#FEF3C7", tileText: "#D97706", hoverBorder: "hover:border-amber-200/60", valor: INK },
-  }
-
   // Fila de una cita — compartida entre "Últimas citas / Agenda cercana" (que
   // puede mostrar historial cuando no hay nada hoy) y "Mi agenda" (siempre
   // hoy, así que mostrarFecha va fijo en false).
@@ -311,6 +274,165 @@ export default function Inicio({
     </button>
   )
 
+
+  // ─── Inicio por rol (R52-R56) ───
+  // La vista activa decide qué Inicio se ve; cada fila de tarjetas habla de una sola cosa y lo dice en su título.
+  const plantilla = plantillaInicio(vista, usuario)
+  const veCitas = puede(usuario, "citas", "ver")
+  const veVentas = puede(usuario, "ventas", "ver")
+  const veInventario = puede(usuario, "inventario", "ver")
+  const veCrm = puede(usuario, "crm", "ver")
+  const esVistaOptometra = plantilla === "optometra"
+  const citasVista = useMemo(() => (esVistaOptometra ? citasPropias(citas, usuario?.id) : citas), [citas, esVistaOptometra, usuario?.id])
+  const hoyVista = useMemo(() => resumenHoy(citasVista), [citasVista])
+  const citasDelDia = hoyVista.citas
+  const mes = useMemo(() => resumenMes(citas), [citas])
+  const sinAtender = useMemo(() => pacientesSinAtender(pacientes, consultas).length, [pacientes, consultas])
+  const saldos = useMemo(() => saldosPorCobrar(facturasVenta, abonos), [facturasVenta, abonos])
+  const listos = useMemo(() => pasesListos(pases), [pases])
+  const proformas = useMemo(() => proformasEnSeguimiento(pases), [pases])
+  const atencionesVista = esVistaOptometra ? atencionesAntiguas.filter(({ cita }) => esCitaPropia(cita, usuario?.id)) : atencionesAntiguas
+  const dinero = (n) => "$" + (Number(n) || 0).toFixed(2)
+  const ordenesAbiertasLista = useMemo(() => ordenesAbiertas(ordenesLab).sort((a, b) => (estaAtrasada(b) - estaAtrasada(a)) || (a.fechaPrometida < b.fechaPrometida ? -1 : 1)).slice(0, 5), [ordenesLab])
+
+  const filaTotales = (
+    <FilaTarjetas
+      titulo="Totales"
+      descripcion="Todo lo registrado hasta hoy"
+      tarjetas={[
+        { id: "pacientes", titulo: "Pacientes registrados", valor: pacientes.length, desc: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : "En la base de datos", icono: Users, color: "slate", onClick: () => setVista?.("pacientes"), cta: puede(usuario, "pacientes", "crear") ? "Registrar paciente" : null, onCta: onCrearPacienteRapido },
+        { id: "citas", titulo: "Citas registradas", valor: citas.length, desc: "Desde el inicio", icono: Calendar, color: "blue", onClick: () => setVista?.("citas"), cta: puede(usuario, "citas", "crear") ? "Agendar cita" : null, onCta: onAgendarRapido },
+        { id: "productos", titulo: "Productos en inventario", valor: inventario.length, desc: "Registrados", icono: Package, color: "slate", onClick: () => setVista?.("inventario"), cta: puede(usuario, "inventario", "crear") ? "Añadir producto" : null, onCta: onCrearProductoRapido },
+      ]}
+    />
+  )
+  const filaMes = (
+    <FilaTarjetas
+      titulo="Citas de este mes"
+      descripcion={`${mes.registradas} ${mes.registradas === 1 ? "cita" : "citas"} en el mes`}
+      tarjetas={[
+        { id: "atendidas", titulo: "Atendidas", valor: mes.atendidas, desc: "Ver en Citas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
+        { id: "noAtendidas", titulo: "No atendidas", valor: mes.noAtendidas, desc: "No asistieron", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio") },
+        { id: "canceladas", titulo: "Canceladas", valor: mes.canceladas, desc: "Ver en Citas", icono: Ban, color: "slate", onClick: () => onVerCitas?.("cancelada") },
+        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Todavía sin ninguna consulta", icono: Users, color: "amber", onClick: () => setVista?.("pacientes") },
+      ]}
+    />
+  )
+  const filaHoyOptometra = (
+    <FilaTarjetas
+      titulo="Hoy"
+      descripcion="Tu agenda del día"
+      tarjetas={[
+        { id: "mias", titulo: "Mis citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
+        { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: hoyVista.siguiente ? () => onAtenderCita?.(hoyVista.siguiente) : undefined },
+        { id: "enAtencion", titulo: "En atención ahora", valor: hoyVista.enAtencion, desc: "Pacientes con la ficha abierta", icono: Activity, color: "amber", onClick: () => setVista?.("citas") },
+        { id: "atendidos", titulo: "Atendidos hoy", valor: hoyVista.atendidas, desc: "Fichas terminadas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
+      ]}
+    />
+  )
+  const filaHoyRecepcion = (
+    <FilaTarjetas
+      titulo="Hoy"
+      descripcion="El movimiento del día"
+      tarjetas={[
+        { id: "hoy", titulo: "Citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
+        { id: "porLlegar", titulo: "Por llegar", valor: hoyVista.pendientes, desc: "Pendientes", icono: Clock, color: "slate", onClick: () => onVerCitas?.("pendiente") },
+        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: "Ya llegaron", icono: Users, color: "amber", onClick: () => setVista?.("citas") },
+        { id: "noAsistieron", titulo: "No asistieron", valor: hoyVista.noAsistieron, desc: "Hoy", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio") },
+      ]}
+    />
+  )
+  const filaVender = (
+    <FilaTarjetas
+      titulo="Para vender"
+      descripcion="Lo que espera a quien vende"
+      tarjetas={[
+        { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", onClick: () => onVerCola?.() },
+        { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "blue", onClick: () => onVerCola?.() },
+        { id: "atrasadas", titulo: "Órdenes atrasadas", valor: atrasadas.length, desc: "Pasó la fecha prometida", icono: FlaskConical, color: atrasadas.length > 0 ? "red" : "slate", onClick: () => onVerOrdenes?.("atrasadas") },
+        { id: "sinAvisar", titulo: "Lentes listos sin avisar", valor: listasSinAvisar.length, desc: "Avisa al paciente", icono: MessageCircle, color: listasSinAvisar.length > 0 ? "amber" : "slate", onClick: () => onVerOrdenes?.("listas") },
+        { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.cantidad === 0 ? "Nada pendiente" : `en ${saldos.cantidad} ${saldos.cantidad === 1 ? "venta" : "ventas"}`, icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", onClick: () => setVista?.("pacientes") },
+      ]}
+    />
+  )
+  const atajosRecepcion = (
+    <div className="flex flex-wrap gap-3" role="group" aria-label="Atajos">
+      {puede(usuario, "pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Users size={16} aria-hidden="true" /> Registrar paciente</button>}
+      {puede(usuario, "citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}><Calendar size={16} aria-hidden="true" /> Agendar cita</button>}
+    </div>
+  )
+  const bColaVender = (
+    <section aria-label="Pacientes por vender" className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
+      <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><ShoppingBag size={18} aria-hidden="true" /></div>
+          <div>
+            <h4 className="text-sm font-bold" style={{ color: INK }}>Listos para venta</h4>
+            <p className="text-[11px] text-slate-500">{listos.length === 0 ? "Nadie espera por ahora" : `${listos.length} ${listos.length === 1 ? "paciente espera" : "pacientes esperan"}, el más antiguo primero`}</p>
+          </div>
+        </div>
+        <button type="button" onClick={() => onVerCola?.()} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver la cola <ArrowRight size={14} aria-hidden="true" /></button>
+      </div>
+      {listos.length === 0 ? (
+        <EstadoVacio icon={ShoppingBag} texto="Cuando el optómetra pase a un paciente a la óptica, aparece aquí." />
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {listos.slice().sort((a, b) => (a.pasadaEn < b.pasadaEn ? -1 : 1)).slice(0, 5).map((pase) => {
+            const paciente = pacientes.find((x) => x.id === pase.pacienteId)
+            const consulta = consultas.find((x) => x.id === pase.consultaId)
+            const diagnostico = textoDiagnostico(consulta)
+            return (
+              <li key={pase.id}>
+                <button type="button" onClick={() => onVerCola?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-slate-800">{paciente?.nombre || "Paciente"}</span>
+                    <span className="block truncate text-[11px] text-slate-500">{diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">{textoEspera(diasEnEspera(pase))}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+  const bOrdenes = (
+    <section aria-label="Órdenes de laboratorio" className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
+      <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600"><FlaskConical size={18} aria-hidden="true" /></div>
+          <div>
+            <h4 className="text-sm font-bold" style={{ color: INK }}>Órdenes de laboratorio</h4>
+            <p className="text-[11px] text-slate-500">{ordenesAbiertas(ordenesLab).length === 0 ? "No hay órdenes abiertas" : `${ordenesAbiertas(ordenesLab).length} abiertas${atrasadas.length > 0 ? ` · ${atrasadas.length} atrasadas` : ""}`}</p>
+          </div>
+        </div>
+        <button type="button" onClick={() => onVerOrdenes?.("abiertas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver órdenes <ArrowRight size={14} aria-hidden="true" /></button>
+      </div>
+      {ordenesAbiertasLista.length === 0 ? (
+        <EstadoVacio icon={FlaskConical} texto="Las órdenes se crean al vender lentes." />
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {ordenesAbiertasLista.map((o) => {
+            const paciente = pacientes.find((x) => x.id === o.pacienteId)
+            const atrasada = estaAtrasada(o)
+            return (
+              <li key={o.id}>
+                <button type="button" onClick={() => onVerOrdenes?.(o.estado === "lista" ? "listas" : atrasada ? "atrasadas" : "abiertas")} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-slate-800"><span className="font-mono">{numeroOrden(o.numero)}</span> · {paciente?.nombre || "Paciente"}</span>
+                    <span className="block truncate text-[11px] text-slate-500">{o.laboratorio ? o.laboratorio + " · " : ""}Entrega {fechaLegible(o.fechaPrometida)}</span>
+                  </span>
+                  <span className={"shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold " + (atrasada ? "border-red-200/60 bg-red-50 text-red-700" : o.estado === "lista" ? "border-emerald-200/60 bg-emerald-50 text-emerald-700" : "border-blue-200/60 bg-blue-50 text-blue-700")}>{atrasada ? "Atrasada" : o.estado === "lista" ? (o.pacienteAvisadoEn ? "Lista · avisado" : "Lista · avisar") : "En el laboratorio"}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+
   const hoyFecha = new Date().toLocaleDateString("es-ES", {
     weekday: "long",
     year: "numeric",
@@ -328,14 +450,8 @@ export default function Inicio({
     return <InicioSkeleton />
   }
 
-  return (
-    <div className="w-full space-y-6 text-left">
-      <style>{`
-        @keyframes inRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        .in-rise { animation: inRise .5s ease-out both; }
-        @media (prefers-reduced-motion: reduce) { .in-rise { animation: none !important; } }
-      `}</style>
-
+  const bHero = (
+    <>
       {/* ─── HERO / BIENVENIDA (claro) ─── */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6">
         <svg aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 text-blue-600" viewBox="0 0 400 400" fill="none" stroke="currentColor" style={{ opacity: 0.05 }}>
@@ -353,7 +469,7 @@ export default function Inicio({
               ¡Bienvenido, {nombreUsuario}!
             </h1>
             <p className="mt-1 max-w-xl text-sm text-slate-500">
-              {`Tienes ${citasHoy.length} ${citasHoy.length === 1 ? "cita" : "citas"} para hoy${cumpleaneros.length > 0 ? ` y ${cumpleaneros.length} de cumpleaños por saludar` : ""}. Aquí está tu resumen del día.`}
+              {`Tienes ${citasDelDia.length} ${citasDelDia.length === 1 ? "cita" : "citas"} para hoy${cumpleaneros.length > 0 ? ` y ${cumpleaneros.length} de cumpleaños por saludar` : ""}. Aquí está tu resumen del día.`}
             </p>
           </div>
 
@@ -380,15 +496,21 @@ export default function Inicio({
         </div>
       </div>
 
+
+    </>
+  )
+
+  const bAtenciones = (
+    <>
       {/* ─── ATENCIONES ABIERTAS DE DÍAS ANTERIORES: se pueden retomar o cerrar ─── */}
-      {(esAdmin || esOptometra) && atencionesAntiguas.length > 0 && (
+      {atencionesVista.length > 0 && (
         <section aria-label="Atenciones abiertas de días anteriores" className="space-y-2 rounded-2xl border border-amber-300/70 bg-amber-50 p-4">
           <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
             <AlertTriangle size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
-            {atencionesAntiguas.length === 1 ? "Hay 1 atención abierta de un día anterior" : `Hay ${atencionesAntiguas.length} atenciones abiertas de días anteriores`}
+            {atencionesVista.length === 1 ? "Hay 1 atención abierta de un día anterior" : `Hay ${atencionesVista.length} atenciones abiertas de días anteriores`}
           </p>
           <ul className="divide-y divide-amber-200/70">
-            {atencionesAntiguas.map(({ cita, dias }) => (
+            {atencionesVista.map(({ cita, dias }) => (
               <li key={cita.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-amber-950">{cita.paciente}</p>
@@ -401,8 +523,14 @@ export default function Inicio({
           </ul>
         </section>
       )}
+
+    </>
+  )
+
+  const bOrdenesAlerta = (
+    <>
       {/* ─── ÓRDENES DE LABORATORIO (R37): lentes listos sin avisar y órdenes atrasadas ─── */}
-      {esAdmin && (listasSinAvisar.length > 0 || atrasadas.length > 0) && (
+      {(listasSinAvisar.length > 0 || atrasadas.length > 0) && (
         <section aria-label="Órdenes de laboratorio que necesitan atención" className="space-y-2 rounded-2xl border border-blue-200/70 bg-blue-50 p-4">
           <p className="flex items-center gap-2 text-sm font-bold text-blue-900">
             <FlaskConical size={16} className="shrink-0 text-blue-600" aria-hidden="true" />
@@ -430,6 +558,12 @@ export default function Inicio({
           </ul>
         </section>
       )}
+
+    </>
+  )
+
+  const bDejarCita = (
+    <>
       {dejarCita && (
         <ConfirmarDejarDeAtender
           cita={dejarCita}
@@ -440,71 +574,15 @@ export default function Inicio({
         />
       )}
 
-      {/* D4: el optómetra que no es admin no ve la vista global del equipo
-          (top bar de gestión, cumpleaños, controles vencidos, agenda +
-          inventario) — solo "Mi agenda", más abajo. El admin (sea o no
-          también optómetra) sigue viendo todo este bloque igual que hoy. */}
-      {!esOptometraNoAdmin && (
-      <>
-      {/* ─── TOP BAR DE ACCIÓN — un solo bloque uniforme por módulo. El click
-          principal de la tarjeta ("Gestionar X") lleva al panel/directorio
-          de ese módulo — el título dice "gestionar", así que el click debe
-          gestionar (ver la lista), no abrir un formulario de alta a secas.
-          El atajo de alta rápida sigue existiendo (pedido original del ing:
-          "vamos a registrar un nuevo paciente... ingresa aquí
-          directamente"), pero ahora es su propio botón anidado (la línea
-          con la flecha) para no mezclar dos acciones distintas en un solo
-          click. ─── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {accionesRapidas.map((acc) => {
-          const Icono = acc.icono
-          const c = kpi[acc.color]
-          return (
-            <div
-              key={acc.id}
-              role="button"
-              tabIndex={0}
-              onClick={acc.onClick}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); acc.onClick() } }}
-              title={acc.titulo}
-              className={"group flex w-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 cursor-pointer " + c.hoverBorder}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{acc.titulo}</p>
-                  <h4 className="text-3xl font-serif font-semibold" style={{ color: c.valor }}>{acc.valor}</h4>
-                  <p className="text-xs text-slate-500">{acc.desc}</p>
-                  {acc.tendencia && (
-                    <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-                      <TrendingUp size={11} /> {acc.tendencia}
-                    </p>
-                  )}
-                </div>
-                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl transition-transform group-hover:scale-110" style={{ background: c.tile, color: c.tileText }}>
-                  <Icono size={26} />
-                </div>
-              </div>
-              {acc.alCrearRapido ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); acc.alCrearRapido() }}
-                  className="mt-4 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 hover:underline cursor-pointer"
-                >
-                  {acc.ctaLabel} <ArrowRight size={13} />
-                </button>
-              ) : (
-                <p className="mt-4 flex items-center gap-1 border-t border-slate-100 pt-3 text-xs font-bold text-blue-600 transition-colors group-hover:text-blue-700">
-                  {acc.ctaLabel} <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
-                </p>
-              )}
-            </div>
-          )
-        })}
-      </div>
 
+    </>
+  )
+
+  const bEnAtencion = (
+    <>
       {/* ─── EN ATENCIÓN AHORA (R21): el administrador ve cuántas citas se están
           atendiendo y quién las atiende; se actualiza solo. ─── */}
-      {esAdmin && (
+      {(
         <section aria-label="En atención ahora" className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-slate-200/60 bg-white px-5 py-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl border border-blue-200/60 bg-blue-50 text-blue-600"><Activity size={20} aria-hidden="true" /></div>
@@ -531,6 +609,12 @@ export default function Inicio({
         </section>
       )}
 
+
+    </>
+  )
+
+  const bCumple = (
+    <>
       {/* ─── CUMPLEAÑEROS ─── */}
       {cumpleaneros.length > 0 && (
         <div className="rounded-2xl border p-5" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
@@ -573,6 +657,12 @@ export default function Inicio({
         </div>
       )}
 
+
+    </>
+  )
+
+  const bInactivos = (
+    <>
       {/* ─── PACIENTES POR RECONECTAR ─── */}
       {inactivos.length > 0 && (
         <div className="rounded-2xl border border-red-100 bg-red-50/60 p-5">
@@ -600,8 +690,12 @@ export default function Inicio({
         </div>
       )}
 
-      {/* ─── CITAS DE HOY | INVENTARIO (mitad y mitad, mismo patrón de botón) ─── */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+
+    </>
+  )
+
+  const bCitasCercanas = (
+    <>
         {/* Citas de hoy */}
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
@@ -628,6 +722,44 @@ export default function Inicio({
           </div>
         </section>
 
+
+    </>
+  )
+
+  const bAgendaHoy = (
+    <>
+        {/* Citas de hoy */}
+        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
+                <Calendar size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold" style={{ color: INK }}>Agenda de hoy</h4>
+                <p className="text-[11px] text-slate-500">En orden de hora</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+              Ver agenda completa <ArrowRight size={14} />
+            </button>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {hoyVista.citas.length === 0 ? (
+              <EstadoVacio icon={Calendar} texto="No hay citas agendadas para hoy." />
+            ) : (
+              hoyVista.citas.map((cita, idx) => renderFilaCita(cita, idx, false))
+            )}
+          </div>
+        </section>
+
+
+    </>
+  )
+
+  const bStock = (
+    <>
         {/* Inventario: prioridad automática de reabastecimiento — sin
             toggle, siempre primero lo crítico (pedido explícito de Diego).
             Cada fila es un botón: un clic manda directo al modal de
@@ -641,7 +773,7 @@ export default function Inicio({
               <div>
                 <h4 className="text-sm font-bold" style={{ color: INK }}>Reabastecimiento</h4>
                 <p className="text-[11px] text-slate-500">
-                  {productosBajoStock.length} {productosBajoStock.length === 1 ? "alerta" : "alertas"} de stock bajo
+                  {productosBajoStock.length === 0 ? "Ningún producto con stock bajo" : `${productosBajoStock.length} ${productosBajoStock.length === 1 ? "producto con stock bajo" : "productos con stock bajo"}`}
                 </p>
               </div>
             </div>
@@ -685,10 +817,12 @@ export default function Inicio({
             )}
           </div>
         </section>
-      </div>
-      </>
-      )}
 
+    </>
+  )
+
+  const bMiAgenda = (
+    <>
       {/* ─── MI AGENDA (D4, reunión 29 sept.): para quien esté marcado
           es_optometra=true — su agenda de hoy, con "en atención" ya
           visible en el badge de cada fila. Para un asistente-optómetra es
@@ -696,7 +830,7 @@ export default function Inicio({
           suma a la vista global de arriba, no la reemplaza. La agenda es
           compartida entre todos los optómetras de la óptica (no hay hoy
           una columna que asigne cada cita a una persona en particular). ─── */}
-      {esOptometra && (
+      {(
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
@@ -706,8 +840,8 @@ export default function Inicio({
               <div>
                 <h4 className="text-sm font-bold" style={{ color: INK }}>Mi agenda</h4>
                 <p className="text-[11px] text-slate-500">
-                  {citasPendientesHoy.length} {citasPendientesHoy.length === 1 ? "cita pendiente" : "citas pendientes"} hoy
-                  {pacientesEnAtencion.length > 0 ? ` · ${pacientesEnAtencion.length} en atención` : ""}
+                  {hoyVista.pendientes + hoyVista.enEspera} {hoyVista.pendientes + hoyVista.enEspera === 1 ? "cita por atender" : "citas por atender"} hoy
+                  {hoyVista.enAtencion > 0 ? ` · ${hoyVista.enAtencion} en atención` : ""}
                 </p>
               </div>
             </div>
@@ -716,15 +850,21 @@ export default function Inicio({
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {citasHoy.length === 0 ? (
+            {citasDelDia.length === 0 ? (
               <EstadoVacio icon={Stethoscope} texto="No tienes citas agendadas para hoy." />
             ) : (
-              citasHoy.map((cita, idx) => renderFilaCita(cita, idx, false))
+              citasDelDia.map((cita, idx) => renderFilaCita(cita, idx, false))
             )}
           </div>
         </section>
       )}
 
+
+    </>
+  )
+
+  const bActividad = (
+    <>
       {/* ─── REGISTRO DE ACTIVIDAD (solo admin principal, misma fuente que
           Usuarios.jsx — responde "qué cambió", que el resto del panel no
           contestaba). Título/copy ajustados para que se lea como registro
@@ -732,7 +872,7 @@ export default function Inicio({
           widget que ING1 pidió quitar (aquella "búsqueda rápida de
           paciente" ya no existe); esta sección viene de un pedido distinto
           (exponer "Actividad" también al admin de la óptica). ─── */}
-      {esAdmin && actividadReciente.length > 0 && (
+      {actividadReciente.length > 0 && (
         <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
@@ -763,6 +903,80 @@ export default function Inicio({
             ))}
           </div>
         </section>
+      )}
+
+    </>
+  )
+
+  return (
+    <div className="w-full space-y-6 text-left">
+      <style>{`
+        @keyframes inRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .in-rise { animation: inRise .5s ease-out both; }
+        @media (prefers-reduced-motion: reduce) { .in-rise { animation: none !important; } }
+      `}</style>
+
+      {bHero}
+      {bDejarCita}
+
+      {plantilla === "administrador" && (
+        <>
+          {bAtenciones}
+          {bOrdenesAlerta}
+          {filaTotales}
+          {filaMes}
+          {bEnAtencion}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{bCitasCercanas}{bStock}</div>
+          {bCumple}
+          {bInactivos}
+          {bActividad}
+        </>
+      )}
+
+      {plantilla === "optometra" && (
+        <>
+          {bAtenciones}
+          {filaHoyOptometra}
+          {bMiAgenda}
+          {bInactivos}
+        </>
+      )}
+
+      {plantilla === "recepcion" && (
+        <>
+          {bAtenciones}
+          {filaHoyRecepcion}
+          {atajosRecepcion}
+          {bAgendaHoy}
+          {bCumple}
+          {bInactivos}
+        </>
+      )}
+
+      {plantilla === "ventas" && (
+        <>
+          {bOrdenesAlerta}
+          {filaVender}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{bColaVender}{bOrdenes}</div>
+          {veInventario && bStock}
+        </>
+      )}
+
+      {plantilla === "general" && (
+        <>
+          {veCitas && bAtenciones}
+          {veVentas && bOrdenesAlerta}
+          {veCitas && filaHoyRecepcion}
+          {veVentas && filaVender}
+          {veCitas && bAgendaHoy}
+          {veVentas && <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{bColaVender}{bOrdenes}</div>}
+          {veInventario && bStock}
+          {veCrm && bCumple}
+          {veCrm && bInactivos}
+          {!veCitas && !veVentas && !veInventario && !veCrm && (
+            <EstadoVacio icon={Users} texto="Tu rol no tiene un resumen propio: usa el menú para entrar a tus módulos." />
+          )}
+        </>
       )}
 
     </div>
