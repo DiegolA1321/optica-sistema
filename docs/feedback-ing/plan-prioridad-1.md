@@ -4,7 +4,7 @@ Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo an�
 
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
 
-**Avance (tras los pasos 1 a 6):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+**Avance (tras los pasos 1 a 7):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
 
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
@@ -14,10 +14,10 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 19 | 14 | 4 | **37** |
+| Hecho | 19 | 14 | 5 | **38** |
 | Parcial | 0 | 2 | 0 | **2** |
 | Pendiente | 0 | 4 | 0 | **4** |
-| Hecho distinto | 0 | 1 | 1 | **2** |
+| Hecho distinto | 0 | 1 | 0 | **1** |
 | Total | 19 | 21 | 5 | **45** |
 
 Lo que más pesa:
@@ -89,7 +89,7 @@ Lo que más pesa:
 | R42 Separar controles clínicos de fidelización | **Hecho** (paso 6) | El estado de corrección y la tendencia viven en Historial (`Pacientes.jsx:2095-2130`). El **próximo control sigue repetido** en Fidelización (`Pacientes.jsx:2301-2318`), por decisión de Diego del 30 sept. y contra lo que dice R43. | **Resuelto:** La pestaña se llama ahora "Fidelización" y el próximo control salió de ella: queda en el historial clínico y en la cabecera del perfil, junto a las alertas (decisión de Diego).
 | R43 Fidelización: última visita, frecuente, referidos, cumpleaños con días | **Hecho** (paso 6) | Última visita, Cliente frecuente y Referidos existen (`Pacientes.jsx:2320-2340`). **Falta el cumpleaños con días restantes** (existe la lógica en `CRM.jsx:36`, no se muestra en el perfil). El próximo control repetido contradice la última frase de R43. | **Resuelto:** Fidelización muestra última visita, cliente frecuente, referidos, puntaje y el cumpleaños con los días que faltan ("165 días para su cumpleaños", `diasParaCumpleanos` con tests). Si el cumpleaños está a 30 días o menos, también sale como alerta en la cabecera.
 | R44 "Enviar mensaje por CRM" aunque el automático esté apagado | **Hecho** (paso 6) | "Enviar mensaje" abre WhatsApp con un texto (`Pacientes.jsx:368-382`, `:1861`). No pasa por el CRM, así que no queda registrado en `mensajes` ni en el historial de contactos. | **Resuelto:** "Enviar mensaje por CRM" desde el perfil: plantillas (saludo, recordar control, cumpleaños), funciona aunque los envíos automáticos estén apagados, marca al paciente como contactado hoy en el CRM (utilidad compartida `contactosCrm.js`) y deja el envío en Actividad. Es un envío manual por WhatsApp, como el del resto del CRM; el límite de contactos hoy sigue siendo por navegador.
-| R45 Secciones Citas del paciente y Diagnósticos | **Distinto** | Existe una sola pestaña "Historial" con línea de tiempo que mezcla citas, consultas, facturas y ventas (`Pacientes.jsx:2548-2598`), y cada consulta se expande con la ficha completa (`:2644-2672`). El ingeniero propuso dos secciones: Citas (pendientes, próxima, historial, botón a la cita actual) y Diagnósticos (lista con motivo y diagnóstico, clic = ficha del día), con la tendencia arriba. **Diferencia 5 confirmada.** |
+| R45 Secciones Citas del paciente y Diagnósticos | **Hecho** (paso 7) | Existe una sola pestaña "Historial" con línea de tiempo que mezcla citas, consultas, facturas y ventas (`Pacientes.jsx:2548-2598`), y cada consulta se expande con la ficha completa (`:2644-2672`). El ingeniero propuso dos secciones: Citas (pendientes, próxima, historial, botón a la cita actual) y Diagnósticos (lista con motivo y diagnóstico, clic = ficha del día), con la tendencia arriba. **Diferencia 5 confirmada.** | **Resuelto:** El perfil tiene dos pestañas en lugar del historial único. **Citas**: próxima cita (o la que está en atención) con "Ingresar" a su ficha, otras pendientes con "Ingresar" e historial de citas; sin citas pendientes ofrece "Agendar cita". **Diagnósticos**: arriba el estado de corrección, el próximo control y la tendencia de graduación; debajo una fila por atención con fecha, profesional, motivo y diagnóstico, y al abrirla se ve la ficha clínica completa de ese día. Se retiró la línea de tiempo mixta (compras y ventas siguen en "Productos y servicios").
 
 ---
 
