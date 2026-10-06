@@ -4,6 +4,7 @@ import { Receipt, Stethoscope, CalendarClock, X, Plus } from "lucide-react"
 import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
+import { colorDe, useAlturaDisponible } from "./calendarioComun"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
 // las citas y la disponibilidad ya cargadas y avisa por callbacks; no consulta
@@ -15,17 +16,6 @@ const ANCHO_HORAS = 56
 const ALTO_ENCABEZADO = 52
 const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-
-// Mismos colores de estado que la lista de citas: línea a la izquierda y
-// fondo suave. Cualquier estado desconocido se trata como pendiente.
-const COLOR_ESTADO = {
-  "En Atención": { linea: "#2563eb", fondo: "#eff6ff" },
-  Atendida: { linea: "#10b981", fondo: "#ecfdf5" },
-  "No Asistió": { linea: "#ef4444", fondo: "#fef2f2" },
-  Cancelada: { linea: "#94a3b8", fondo: "#f8fafc" },
-}
-const COLOR_PENDIENTE = { linea: "#f59e0b", fondo: "#fffbeb" }
-const colorDe = (estado) => COLOR_ESTADO[estado] || COLOR_PENDIENTE
 
 const ESTILO_FRANJA = {
   cerrado: { backgroundColor: "rgba(241,245,249,0.85)" },
@@ -149,6 +139,8 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
   // Las acciones cierran la tarjeta y delegan en las funciones reales de Citas.
   const conCierre = (fn) => (cita) => { setAbierta(null); fn?.(cita) }
 
+  const refSeccion = useRef(null)
+  const altoSeccion = useAlturaDisponible(refSeccion)
   const dias = useMemo(() => diasDeSemana(lunes, disponibilidad, citas), [lunes, disponibilidad, citas])
   const rango = useMemo(() => rangoHoras(dias, disponibilidad, citas), [dias, disponibilidad, citas])
   const duracionDefault = disponibilidad?.duracionCita || 40
@@ -176,9 +168,10 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
     } else {
       el.scrollTop = 0
     }
-    // Solo al abrir o cambiar de semana, no en cada minuto del reloj.
+    // Al abrir, al cambiar de semana y cuando llega el horario o cambia el alto
+    // disponible; no en cada minuto del reloj.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lunes])
+  }, [lunes, rango.inicio, rango.fin, altoSeccion])
 
   const filasHora = []
   for (let t = rango.inicio; t < rango.fin; t += PASO_MINUTOS) filasHora.push(t)
@@ -190,8 +183,8 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
   }
 
   return (
-    <section aria-label="Calendario semanal" className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+    <section ref={refSeccion} aria-label="Calendario semanal" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3">
         <h2 className="text-sm font-bold" style={{ color: INK }}>{tituloSemana(dias)}</h2>
         {aviso && (
           <p role="status" className="flex min-w-0 items-center gap-2 text-xs text-slate-600">
@@ -205,7 +198,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
         )}
       </div>
 
-      <div ref={refScroll} className="relative overflow-y-auto" style={{ maxHeight: "min(70vh, 720px)" }}>
+      <div ref={refScroll} className="relative min-h-0 flex-1 overflow-y-auto">
         {/* Encabezado de días (queda fijo al desplazar las horas) */}
         <div className="sticky top-0 z-20 grid border-b border-slate-200/70 bg-white" style={{ gridTemplateColumns: columnas, height: ALTO_ENCABEZADO }}>
           <div />
@@ -229,7 +222,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
 
         <div className="grid" style={{ gridTemplateColumns: columnas }}>
           {/* Eje de horas */}
-          <div className="relative" style={{ height: alto }}>
+          <div className="sticky left-0 z-10 bg-white" style={{ height: alto }}>
             {filasHora.map((t) => (
               <span
                 key={t}
@@ -357,7 +350,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">{b.cita.paciente}</p>
                         {cobro && <Receipt size={12} className="mt-px shrink-0 text-amber-600" aria-label="Cobro pendiente" />}
                       </div>
-                      {altoBloque >= 46 && (
+                      {altoBloque >= 38 && (
                         <p className="truncate text-[11px] text-slate-500">{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
                       )}
                     </button>

@@ -73,11 +73,12 @@ const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200/60", p
 // Orden de los grupos por estado dentro del modal "Citas del día" (vista por
 // mes) — lo más urgente de revisar primero.
 const ORDEN_ESTADOS_MODAL = ["En Atención", "Pendiente", "Atendida", "No Asistió", "Cancelada"]
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 
 // La última vista elegida se recuerda en este navegador (solo una comodidad
 // por persona: si el almacenamiento no está disponible, se abre en Lista).
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
+
 const CLAVE_VISTA = "citas_vista"
 const VISTAS = ["lista", "semana", "mes"]
 const leerVistaGuardada = () => {
@@ -100,7 +101,7 @@ const motivoInfo = (motivo = "", catalogo = []) => {
   return idx === -1 ? SIN_MOTIVO : PALETA_MOTIVOS[idx % PALETA_MOTIVOS.length]
 }
 
-function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
+function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick, compacto }) {
   const map = {
     blue: { tile: GRAD, tileText: "#fff", ring: "#2563EB" },
     emerald: { tile: "#ecfdf5", tileText: "#059669", ring: "#059669" },
@@ -108,6 +109,29 @@ function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick }) {
     slate: { tile: "#f1f5f9", tileText: "#64748b", ring: "#475569" },
   }
   const c = map[tono] || map.slate
+
+  // Compacto (vistas Semana y Mes): una sola línea — icono, cifra y etiqueta —
+  // para que quepa en la fila de control y el calendario gane altura.
+  if (compacto) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={activo}
+        className="group flex items-center gap-2 rounded-xl border bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5 cursor-pointer"
+        style={{
+          borderColor: activo ? c.ring : "rgba(14,43,51,0.08)",
+          boxShadow: activo ? `0 0 0 2px ${c.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
+        }}
+      >
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg" style={{ background: c.tile, color: c.tileText }}>
+          <Icono size={13} />
+        </span>
+        <span className="font-serif text-base font-semibold leading-none" style={{ color: INK }}>{valor}</span>
+        <span className="truncate text-xs font-semibold text-slate-500">{etiqueta}</span>
+      </button>
+    )
+  }
 
   return (
     <button
@@ -1146,6 +1170,18 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
+  // Los KPIs son también los filtros de estado. En Lista van en su propia fila;
+  // en Semana y Mes, que necesitan toda la altura, se compactan dentro de la
+  // fila de control.
+  const kpiBotones = (
+    <>
+          <KpiBoton icono={CalendarDays} valor={citas.length} etiqueta={vistaActiva === "lista" ? "Total agendadas" : "Total"} tono="slate" activo={filtro === "todas"} compacto={vistaActiva !== "lista"} onClick={() => setFiltro("todas")} />
+          <KpiBoton icono={Sun} valor={totalHoy} etiqueta={vistaActiva === "lista" ? "Citas de hoy" : "Hoy"} tono="blue" activo={filtro === "hoy"} compacto={vistaActiva !== "lista"} onClick={() => { setFiltro("hoy"); setMesVista(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) }} />
+          <KpiBoton icono={CalendarClock} valor={totalProximas} etiqueta={vistaActiva === "lista" ? "Próximas (futuras)" : "Próximas"} tono="amber" activo={filtro === "proximas"} compacto={vistaActiva !== "lista"} onClick={() => setFiltro("proximas")} />
+          <KpiBoton icono={CalendarCheck} valor={totalAtendidas} etiqueta={vistaActiva === "lista" ? "Ya atendidas" : "Atendidas"} tono="emerald" activo={filtro === "atendidas"} compacto={vistaActiva !== "lista"} onClick={() => setFiltro("atendidas")} />
+    </>
+  )
+
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
   const renderDia = ([dia, citasDia]) => {
           const t = tituloDia(dia)
@@ -1258,12 +1294,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       </div>
 
       {/* ─── KPIs / FILTROS ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiBoton icono={CalendarDays} valor={citas.length} etiqueta="Total agendadas" tono="slate" activo={filtro === "todas"} onClick={() => setFiltro("todas")} />
-        <KpiBoton icono={Sun} valor={totalHoy} etiqueta="Citas de hoy" tono="blue" activo={filtro === "hoy"} onClick={() => { setFiltro("hoy"); setMesVista(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) }} />
-        <KpiBoton icono={CalendarClock} valor={totalProximas} etiqueta="Próximas (futuras)" tono="amber" activo={filtro === "proximas"} onClick={() => setFiltro("proximas")} />
-        <KpiBoton icono={CalendarCheck} valor={totalAtendidas} etiqueta="Ya atendidas" tono="emerald" activo={filtro === "atendidas"} onClick={() => setFiltro("atendidas")} />
-      </div>
+      {vistaActiva === "lista" && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {kpiBotones}
+        </div>
+      )}
 
       {/* ─── ÉXITO ─── */}
       {mensajeExito && (
@@ -1380,6 +1415,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             </button>
           </div>
         )}
+        {vistaActiva !== "lista" && <div className="ml-auto flex flex-wrap items-center gap-2">{kpiBotones}</div>}
         {totalPorRegistrar > 0 && (
           <button
             type="button"
