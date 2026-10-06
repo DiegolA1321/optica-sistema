@@ -19,6 +19,8 @@ const ESTADO_AHORA = {
 
 const diaDe = (iso) => ETIQUETAS_DIA[DIAS_SEMANA[new Date(`${iso}T12:00:00`).getDay()]]
 const diaNumero = (iso) => iso.split("-")[2]
+// "5 oct – 11 oct" (sin "Ayer", "Hoy" ni "Mañana", que no sirven para un rango)
+const corta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-EC", { day: "numeric", month: "short" }).replace(".", "")
 
 // Horarios ocupados y disponibles (R19). Cada persona ve su semana; el
 // administrador además ve a todo el equipo: quién está ocupado ahora, cuántos
@@ -68,7 +70,7 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
           <div className="min-w-0 flex-1">
             <h4 className="text-sm font-bold" style={{ color: INK }}>Ocupados y disponibles</h4>
             <p className="truncate text-xs text-slate-500">
-              {verId === usuario?.id ? "Tu semana" : nombreVisto} · {etiquetaFecha(lunes)} al {etiquetaFecha(sumarDiasISO(lunes, 6))}
+              {verId === usuario?.id ? "Tu semana" : nombreVisto} · {corta(lunes)} – {corta(sumarDiasISO(lunes, 6))}
             </p>
           </div>
           <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1">
