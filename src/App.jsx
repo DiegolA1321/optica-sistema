@@ -173,6 +173,8 @@ function mapCita(c) {
     // esto en el whitelist, el badge de "Cancelada" solo distinguía quién
     // canceló en el registro recién creado en memoria, nunca al recargar.
     canceladaPor: c.cancelada_por,
+    // created_at: "Agendada el" en el detalle de la cita (R12).
+    creadoEn: c.created_at,
   }
 }
 function mapConsulta(c) {

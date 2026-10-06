@@ -109,6 +109,9 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
             {cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}
           </dd>
         </div>
+        {cita.creadoEn && (
+          <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Agendada el</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{new Date(cita.creadoEn).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" })}</dd></div>
+        )}
         <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Fecha y hora</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
       </dl>
 
