@@ -10,6 +10,8 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { registrarLog } from "../utilidades/logs"
 import OrdenLaboratorioModal from "./OrdenLaboratorioModal"
+import EntregaConSaldoModal from "./EntregaConSaldoModal"
+import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import {
   ETIQUETA_ESTADO, numeroOrden, estadoVisible, diasDeAtraso, tratamientos, atrasosPorLaboratorio, laboratoriosUsados,
   ordenesAbiertas, ordenesAtrasadas, armarHtmlOrdenDosCopias, mensajeLentesListos, TIPOS_LENTE,
@@ -41,11 +43,12 @@ const aplicarFiltro = (ordenes, filtro) => {
 
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio, cambio de
 // estado con responsable, copias impresas y aviso al paciente por WhatsApp (R36-R37).
-export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", onAviso, onVerPerfil }) {
+export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", facturas = [], abonos = [], onAbonar, onAviso, onVerPerfil }) {
   const propias = useMemo(() => (pacienteFijo ? ordenes.filter((o) => o.pacienteId === pacienteFijo.id) : ordenes), [ordenes, pacienteFijo])
   const [filtro, setFiltro] = useState(filtroInicial)
   const [laboratorio, setLaboratorio] = useState("")
   const [editando, setEditando] = useState(null)
+  const [entregaConSaldo, setEntregaConSaldo] = useState(null) // orden que se quiere entregar con saldo pendiente
   const [otraDe, setOtraDe] = useState(null) // orden de cuya venta se crea otra (segundo par)
   const [trabajando, setTrabajando] = useState(null)
   const [abierta, setAbierta] = useState(null)
@@ -70,6 +73,15 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
   const pacienteDe = (o) => pacienteFijo || pacientes.find((p) => p.id === o.pacienteId) || null
   const reemplazar = (id, cambios) => setOrdenes?.((prev) => prev.map((o) => (o.id === id ? { ...o, ...cambios } : o)))
   const falla = (error, texto) => onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : texto, "error")
+
+  const facturaDe = (o) => facturas.find((f) => f.id === o.facturaId) || null
+  const saldoDe = (o) => saldoFactura(facturaDe(o), abonos)
+
+  // Entregar con saldo pendiente: antes de marcarla entregada se muestra lo que falta por cobrar.
+  const pedirEstado = (o, estado) => {
+    if (estado === "entregada" && saldoDe(o) > 0) { setEntregaConSaldo(o); return }
+    cambiarEstado(o, estado)
+  }
 
   const cambiarEstado = async (o, estado) => {
     setTrabajando(o.id)
@@ -160,6 +172,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                       <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + CLASE_ESTADO[visible]}>
                         {visible === "atrasada" ? `Atrasada ${diasDeAtraso(o)} d` : ETIQUETA_ESTADO[visible]}
                       </span>
+                      {saldoDe(o) > 0 && o.estado !== "cancelada" && <span className="rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Saldo ${saldoDe(o).toFixed(2)}</span>}
                       {o.estado === "lista" && (o.pacienteAvisadoEn
                         ? <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/60 bg-white px-2.5 py-0.5 text-xs font-semibold text-emerald-700"><CheckCircle2 size={12} aria-hidden="true" /> Paciente avisado {fechaLegible(o.pacienteAvisadoEn)}</span>
                         : <span className="rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Falta avisar al paciente</span>)}
@@ -181,7 +194,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                       </button>
                     )}
                     {sig && (
-                      <button type="button" onClick={() => cambiarEstado(o, sig.estado)} disabled={ocupado} className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
+                      <button type="button" onClick={() => pedirEstado(o, sig.estado)} disabled={ocupado} className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
                         {sig.texto} <ArrowRight size={14} aria-hidden="true" />
                       </button>
                     )}
@@ -215,6 +228,18 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
         </ul>
       )}
 
+      {entregaConSaldo && (
+        <EntregaConSaldoModal
+          orden={entregaConSaldo}
+          paciente={pacienteDe(entregaConSaldo)}
+          saldo={saldoDe(entregaConSaldo)}
+          saldoTotal={saldoPacienteFacturas(entregaConSaldo.pacienteId, facturas, abonos)}
+          puedeCobrar={!!onAbonar && !!facturaDe(entregaConSaldo)}
+          onCobrar={() => { const o = entregaConSaldo; setEntregaConSaldo(null); onAbonar(facturaDe(o), pacienteDe(o)) }}
+          onEntregar={() => { const o = entregaConSaldo; setEntregaConSaldo(null); cambiarEstado(o, "entregada") }}
+          onCancelar={() => setEntregaConSaldo(null)}
+        />
+      )}
       {otraDe && (
         <OrdenLaboratorioModal
           facturaId={otraDe.facturaId}

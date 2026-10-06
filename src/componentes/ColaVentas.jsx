@@ -1,6 +1,6 @@
 "use client"
 
-import { ShoppingBag, FileText, UserX, Undo2, Stethoscope } from "lucide-react"
+import { ShoppingBag, FileText, UserX, Undo2, Stethoscope, Wallet } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { diasEnEspera, textoEspera, etiquetaMotivo, textoDiagnostico } from "../utilidades/pasesVenta"
@@ -10,7 +10,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // Lista de pacientes esperando a quien vende ("Listos para venta") o que no
 // compraron ("No compraron"). Cada tarjeta trae lo necesario para atender sin
 // abrir el perfil: la consulta, el diagnóstico y el lente recomendado.
-export default function ColaVentas({ modo = "listos", items, reabriendoId, onTomarDatos, onNoCompro, onReabrir, onVerPerfil }) {
+export default function ColaVentas({ modo = "listos", items, saldoDe, reabriendoId, onTomarDatos, onNoCompro, onReabrir, onVerPerfil }) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-14 text-center">
@@ -41,6 +41,11 @@ export default function ColaVentas({ modo = "listos", items, reabriendoId, onTom
                     <span className="rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 font-semibold text-emerald-700">{textoEspera(diasEnEspera(pase))}</span>
                   ) : (
                     <span className="rounded-full border border-slate-200/60 bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">{etiquetaMotivo(pase.motivoDescarte, pase.detalleDescarte)}</span>
+                  )}
+                  {saldoDe && paciente && saldoDe(paciente.id) > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-700" title="El paciente tiene ventas anteriores sin pagar por completo">
+                      <Wallet size={11} aria-hidden="true" /> Saldo pendiente ${saldoDe(paciente.id).toFixed(2)}
+                    </span>
                   )}
                   {pase.proformaEntregadaEn && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-blue-200/60 bg-blue-50 px-2.5 py-0.5 font-semibold text-blue-700">

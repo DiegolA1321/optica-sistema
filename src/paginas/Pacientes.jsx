@@ -1261,6 +1261,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           pacientes={pacientes}
           equipo={equipo}
           usuario={usuario}
+          facturas={facturasVenta}
+          abonos={abonos}
+          onAbonar={(factura, paciente) => setAbonoPara({ factura, paciente })}
           filtroInicial={filtroOrdenesInicial}
           onAviso={mostrarNotif}
           onVerPerfil={(p) => { setPacienteHistorial(p); setTabHistorial("ordenes") }}
@@ -1269,6 +1272,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         <ColaVentas
           modo={filtroRapido === "ListosVenta" ? "listos" : "descartados"}
           items={filtroRapido === "ListosVenta" ? colaListos : colaDescartados}
+          saldoDe={(pacienteId) => saldoPacienteFacturas(pacienteId, facturasVenta, abonos) + ventasPendientesPaciente(ventas, pacienteId).reduce((a, v) => a + saldoVenta(v), 0)}
           reabriendoId={reabriendoId}
           onTomarDatos={setVentaCola}
           onNoCompro={setNoComproPara}
@@ -2502,6 +2506,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         equipo={equipo}
                         usuario={usuario}
                         pacienteFijo={pacienteHistorial}
+                        facturas={facturasVenta}
+                        abonos={abonos}
+                        onAbonar={(factura, paciente) => setAbonoPara({ factura, paciente })}
                         filtroInicial="todas"
                         onAviso={mostrarNotif}
                       />
