@@ -26,7 +26,7 @@ const corta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-EC", {
 // administrador además ve a todo el equipo: quién está ocupado ahora, cuántos
 // espacios le quedan hoy y el detalle de la semana de cada uno. Lo ocupado son
 // las citas asignadas a esa persona; una cita sin asignar no ocupa a nadie.
-export default function HorarioEquipo({ usuario, equipo = [], citas = [], duracion = 40, horarioPersonal }) {
+export default function HorarioEquipo({ usuario, equipo = [], citas = [], duracion = 40, horarioPersonal, disponibilidad }) {
   const esAdmin = usuario?.rol === "admin"
   const [lunes, setLunes] = useState(() => lunesDeSemana(hoyISO()))
   const [verId, setVerId] = useState(usuario?.id)
@@ -45,15 +45,16 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
   }, [esAdmin])
 
   // El horario propio viene de la app (siempre al día); el de los demás, de la lectura del administrador.
-  const horarioDe = (id) => (id === usuario?.id ? horarioPersonal?.horarioSemanal : horarios?.[id]) || null
+  // Un día que la persona no configuró se completa con el horario general de la óptica.
+  const horarioDe = (id) => (id === usuario?.id ? horarioPersonal?.horarioSemanal : horarios?.[id]) || {}
   const miembros = esAdmin ? equipo : equipo.filter((m) => m.id === usuario?.id)
   const nombreVisto = miembros.find((m) => m.id === verId)?.nombre || usuario?.nombre
   const ahora = new Date()
 
   const semana = useMemo(
-    () => resumenSemana({ lunes, horarioSemanal: horarioDe(verId), citas: citasDePersona(citas, verId), duracion }),
+    () => resumenSemana({ lunes, horarioSemanal: horarioDe(verId), disponibilidad, citas: citasDePersona(citas, verId), duracion }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lunes, verId, citas, duracion, horarios, horarioPersonal],
+    [lunes, verId, citas, duracion, horarios, horarioPersonal, disponibilidad],
   )
   const totalOcupados = semana.reduce((n, d) => n + d.ocupados, 0)
   const totalLibres = semana.reduce((n, d) => n + d.libres, 0)
@@ -98,14 +99,10 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
 
         {cargando ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Cargando horarios…</div>
-        ) : !horarioDe(verId) ? (
-          <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-sm text-slate-500">
-            {verId === usuario?.id ? "Todavía no configuraste tu horario personal." : `${nombreVisto} todavía no configuró su horario personal.`}
-          </p>
         ) : (
           <>
             <p className="mb-2 text-xs text-slate-500">
-              <span className="font-bold text-slate-700">{totalOcupados}</span> ocupados · <span className="font-bold text-slate-700">{totalLibres}</span> disponibles esta semana
+              <span className="font-bold text-slate-700">{totalOcupados}</span> ocupados · <span className="font-bold text-slate-700">{totalLibres}</span> turnos libres esta semana
             </p>
             <ul className="divide-y divide-slate-100">
               {semana.map((d) => (
@@ -115,14 +112,15 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
                     {d.fecha === hoy && <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Hoy</p>}
                   </div>
                   {d.cerrado ? (
-                    <p className="text-xs text-slate-400">Sin horario</p>
+                    <p className="text-xs text-slate-400">{d.segunGeneral ? "Cerrado · según el horario general" : "Sin horario"}</p>
                   ) : (
                     <>
                       <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-emerald-100" role="img" aria-label={`${d.ocupados} de ${d.total} espacios ocupados`}>
                         <div className="h-full rounded-full" style={{ width: `${d.total ? (d.ocupados / d.total) * 100 : 0}%`, backgroundColor: INK }} />
                       </div>
-                      <p className="w-36 shrink-0 text-right text-xs text-slate-600">
-                        <span className="font-bold">{d.ocupados}</span> ocupados · <span className="font-bold">{d.libres}</span> libres
+                      <p className="w-44 shrink-0 text-right text-xs text-slate-600">
+                        <span className="font-bold">{d.ocupados}</span> ocupados · <span className="font-bold">{d.libres}</span> turnos libres
+                        {d.segunGeneral && <span className="block text-[10px] text-slate-400">Según el horario general</span>}
                       </p>
                     </>
                   )}
@@ -151,14 +149,14 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
               {miembros.map((m) => {
                 const horarioSemanal = horarioDe(m.id)
                 const suyas = citasDePersona(citas, m.id)
-                const hoyResumen = resumenDia({ fecha: hoy, horarioSemanal, citas: suyas, duracion, ahora })
-                const estado = ESTADO_AHORA[horarioSemanal ? estadoAhora({ horarioSemanal, citas: suyas, duracion, ahora }) : "sinHorario"]
+                const hoyResumen = resumenDia({ fecha: hoy, horarioSemanal, disponibilidad, citas: suyas, duracion, ahora })
+                const estado = ESTADO_AHORA[estadoAhora({ horarioSemanal, disponibilidad, citas: suyas, duracion, ahora })]
                 return (
                   <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-800">{m.nombre}{m.id === usuario?.id ? " (yo)" : ""}</p>
                       <p className="text-xs text-slate-500">
-                        {!horarioSemanal ? "Sin horario personal" : hoyResumen.cerrado ? "No atiende hoy" : `${hoyResumen.ocupados} ocupados · ${hoyResumen.libres} libres`}
+                        {hoyResumen.cerrado ? "No atiende hoy" : `${hoyResumen.ocupados} ocupados · ${hoyResumen.libres} turnos libres`}{hoyResumen.segunGeneral ? " · según el horario general" : ""}
                         {m.esOptometra ? " · Optómetra" : ""}
                       </p>
                     </div>

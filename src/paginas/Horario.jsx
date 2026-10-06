@@ -470,7 +470,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
 
       {tab === "personal" ? (
         <div className="space-y-6">
-          <HorarioEquipo usuario={usuario} equipo={equipo} citas={citas} duracion={disponibilidad?.duracionCita || 40} horarioPersonal={horarioPersonal} />
+          <HorarioEquipo usuario={usuario} equipo={equipo} citas={citas} duracion={disponibilidad?.duracionCita || 40} horarioPersonal={horarioPersonal} disponibilidad={disponibilidad} />
           <MiHorarioPersonal
             horarioPersonal={horarioPersonal}
             setHorarioPersonal={setHorarioPersonal}
