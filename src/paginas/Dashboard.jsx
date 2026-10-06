@@ -58,6 +58,7 @@ import SeccionMfa from "./SeccionMfa"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
+import { ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
 // Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
 // atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se muestra un
@@ -121,7 +122,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -133,6 +134,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // pidió el ing para cuando el optómetra contrata a alguien que le
   // administre el sistema completo.
   const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
+  // Órdenes de laboratorio que piden acción: lentes listos sin avisar y órdenes atrasadas (R37).
+  const ordenesPendientes = useMemo(() => ordenesListasSinAvisar(ordenesLab).length + ordenesAtrasadas(ordenesLab).length, [ordenesLab])
+  const avisosPacientes = listosParaVenta + ordenesPendientes
+  const textoAvisosPacientes = [
+    listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
+    ordenesPendientes > 0 && `${ordenesPendientes} orden${ordenesPendientes === 1 ? "" : "es"} de laboratorio por atender`,
+  ].filter(Boolean).join(" · ")
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
       if (o.soloAdmin) {
@@ -481,6 +489,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onAviso={mostrarAviso}
             pases={pases}
             setPases={setPases}
+            ordenesLab={ordenesLab}
+            setOrdenesLab={setOrdenesLab}
+            equipo={equipo}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
             marcarMedidasAtendidas={marcarMedidasAtendidas}
@@ -612,6 +623,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             citas={citas}
             inventario={inventario}
             consultas={consultas}
+            ordenesLab={ordenesLab}
+            onVerOrdenes={(filtro) => { setAccionPacienteInicio({ accion: "ordenes", filtro }); navegar("pacientes") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => {
               setAbrirAgendarAlEntrar(true)
@@ -701,16 +714,16 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
                   {/* Pacientes listos para venta (R35): se ve en el menú de quien ve Pacientes.
                       Pasará al módulo de Ventas y al Inicio de quien vende (Bloques D y E). */}
-                  {opcion.id === "pacientes" && listosParaVenta > 0 && (
+                  {opcion.id === "pacientes" && avisosPacientes > 0 && (
                     <span
-                      title={`${listosParaVenta} paciente${listosParaVenta === 1 ? "" : "s"} listo${listosParaVenta === 1 ? "" : "s"} para venta`}
-                      aria-label={`${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`}
+                      title={textoAvisosPacientes}
+                      aria-label={textoAvisosPacientes}
                       className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]" : "")}
                     >
-                      {listosParaVenta}
+                      {avisosPacientes}
                     </span>
                   )}
-                  {activo && <span className={(opcion.id === "pacientes" && listosParaVenta > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
+                  {activo && <span className={(opcion.id === "pacientes" && avisosPacientes > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
               )
             })}

@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Stethoscope,
   Activity,
+  FlaskConical,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades/disponibilidad"
@@ -23,6 +24,7 @@ import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { NOMBRE_MODULO } from "../utilidades/logs"
+import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
 import { INK, GOLD, ACCION_CONFIRMAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
@@ -46,6 +48,8 @@ export default function Inicio({
   onCrearProductoRapido,
   onReabastecerProducto,
   onVerPerfilPaciente,
+  ordenesLab = [],
+  onVerOrdenes,
   nombreUsuario = "Diego",
   opticaNombre,
 }) {
@@ -58,6 +62,8 @@ export default function Inicio({
   // RLS es la red de seguridad real si algún día cambia el gate del lado
   // del cliente.
   const esAdmin = usuario?.rol === "admin"
+  const listasSinAvisar = useMemo(() => ordenesListasSinAvisar(ordenesLab), [ordenesLab])
+  const atrasadas = useMemo(() => ordenesAtrasadas(ordenesLab), [ordenesLab])
   // D4 (reunión 29 sept.): "optómetra" es un flag (perfiles.es_optometra) que
   // puede tener tanto un admin como un asistente — no un tercer rol. Un
   // asistente marcado como tal ve su agenda del día en vez de la vista
@@ -392,6 +398,35 @@ export default function Inicio({
                 <button type="button" onClick={() => setDejarCita(cita)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+      {/* ─── ÓRDENES DE LABORATORIO (R37): lentes listos sin avisar y órdenes atrasadas ─── */}
+      {esAdmin && (listasSinAvisar.length > 0 || atrasadas.length > 0) && (
+        <section aria-label="Órdenes de laboratorio que necesitan atención" className="space-y-2 rounded-2xl border border-blue-200/70 bg-blue-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-blue-900">
+            <FlaskConical size={16} className="shrink-0 text-blue-600" aria-hidden="true" />
+            Órdenes de laboratorio que necesitan atención
+          </p>
+          <ul className="divide-y divide-blue-200/70">
+            {listasSinAvisar.length > 0 && (
+              <li className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
+                <p className="min-w-0 flex-1 text-sm text-blue-950">
+                  <span className="font-semibold">{listasSinAvisar.length === 1 ? "1 orden lista" : `${listasSinAvisar.length} órdenes listas`}</span> sin avisar al paciente
+                  <span className="block text-xs text-blue-800">{listasSinAvisar.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ")}{listasSinAvisar.length > 3 ? ` y ${listasSinAvisar.length - 3} más` : ""}</span>
+                </p>
+                <button type="button" onClick={() => onVerOrdenes?.("listas")} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 cursor-pointer">Avisar</button>
+              </li>
+            )}
+            {atrasadas.length > 0 && (
+              <li className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
+                <p className="min-w-0 flex-1 text-sm text-blue-950">
+                  <span className="font-semibold">{atrasadas.length === 1 ? "1 orden atrasada" : `${atrasadas.length} órdenes atrasadas`}</span>
+                  <span className="block text-xs text-blue-800">{atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · ")}</span>
+                </p>
+                <button type="button" onClick={() => onVerOrdenes?.("atrasadas")} className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-100 cursor-pointer">Ver atrasadas</button>
+              </li>
+            )}
           </ul>
         </section>
       )}
