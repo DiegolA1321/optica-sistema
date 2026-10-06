@@ -6,6 +6,7 @@ import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { mapOrden, EVENTO_ORDEN } from './utilidades/ordenesLaboratorio';
+import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from './utilidades/sesionPermisos';
 import { mapAbono, EVENTO_ABONO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import { registrarLog } from './utilidades/logs';
@@ -507,22 +508,27 @@ function App() {
     return () => clearInterval(id)
   }, [usuario?.opticaId, usuario?.rol])
 
-  // Revisa cada 2.5 min si los permisos de módulo del asistente cambiaron —
-  // si el admin le revoca un módulo mientras tiene sesión abierta, el menú
-  // (Dashboard.jsx: opcionesVisibles depende de usuario.permisos) se
-  // actualiza solo, sin esperar a que cierre sesión. El admin no necesita
-  // esto: su acceso no depende de `permisos`, siempre ve todo.
+  // Revisa cada 2.5 min los permisos de quien tiene la sesión abierta (roles, niveles
+  // y alcance): si el administrador se los cambia, el menú y los botones se actualizan
+  // solos; si desactiva la cuenta, la sesión se cierra. No aplica a la impersonación
+  // (ahí la sesión real es la del superadmin).
   useEffect(() => {
-    if (!supabase || usuario?.rol !== 'asistente' || !usuario?.id) return
+    if (!supabase || !usuario?.id || usuario?.impersonadoPor) return
+    if (usuario.rol !== 'asistente' && usuario.rol !== 'admin') return
     const INTERVALO_MS = 150000
-    const revisar = () => {
-      supabase.from('perfiles').select('permisos').eq('id', usuario.id).maybeSingle().then(({ data }) => {
-        if (data) setUsuario((prev) => (prev ? { ...prev, permisos: data.permisos || {} } : prev))
+    const revisar = async () => {
+      const extras = await cargarMisPermisos(supabase)
+      if (!extras) return
+      if (extras.activo === false) { cerrarSesion(MENSAJE_CUENTA_DESACTIVADA); return }
+      setUsuario((prev) => {
+        if (!prev) return prev
+        const igual = JSON.stringify([prev.permisosNivel, prev.roles, prev.alcance]) === JSON.stringify([extras.permisosNivel, extras.roles, extras.alcance])
+        return igual ? prev : { ...prev, ...extras }
       })
     }
     const id = setInterval(revisar, INTERVALO_MS)
     return () => clearInterval(id)
-  }, [usuario?.id, usuario?.rol])
+  }, [usuario?.id, usuario?.rol, usuario?.impersonadoPor])
 
   // Las citas se refrescan solas cada 20 segundos (y al volver a la pestaña)
   // para que "en atención ahora" y las citas nuevas del portal aparezcan sin
@@ -653,7 +659,7 @@ function App() {
       })
 
       supabase.rpc('equipo_optica').then(({ data, error }) => {
-        if (data) setEquipo(data.map((m) => ({ id: m.id, nombre: m.nombre, rol: m.rol, esOptometra: !!m.es_optometra })))
+        if (data) setEquipo(data.map((m) => ({ id: m.id, nombre: m.nombre, rol: m.rol, esOptometra: !!m.es_optometra, activo: m.activo !== false })))
         else if (error) registrarErrorCarga('equipo de la óptica')
       })
 
@@ -837,6 +843,12 @@ function App() {
         if (!session) return;
         const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
         if (!perfil) return;
+        // Una cuenta desactivada no entra, ni siquiera con una sesión que ya estaba abierta.
+        if (perfil.activo === false) {
+          await supabase.auth.signOut();
+          setAvisoSesion({ texto: MENSAJE_CUENTA_DESACTIVADA, id: Date.now() });
+          return;
+        }
         if (perfil.rol === 'superadmin') {
           // El superadmin no pertenece a ninguna óptica en particular — si su
           // sesión de Supabase sigue activa en este navegador (ej. login previo
@@ -855,12 +867,14 @@ function App() {
           // solo se sigue la sesión en el sitio de su propia óptica (o en el
           // genérico sin slug, que es el caso normal en desarrollo).
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, esOptometra: !!perfil.es_optometra });
+          const extras = await cargarMisPermisos(supabase);
+          setUsuario({ ...(extras || {}), rol: 'admin', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, esOptometra: !!perfil.es_optometra });
           setPantallaActual('dashboard');
         } else if (perfil.rol === 'asistente') {
           const { data: optica } = await supabase.from('opticas').select('*').eq('id', perfil.optica_id).single();
           if (sitio.modo !== 'optica' || (sitio.slug && sitio.slug !== optica?.slug)) return;
-          setUsuario({ rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, permisos: perfil.permisos || {}, esOptometra: !!perfil.es_optometra });
+          const extras = await cargarMisPermisos(supabase);
+          setUsuario({ ...(extras || {}), rol: 'asistente', nombre: perfil.nombre, id: perfil.id, opticaId: perfil.optica_id, opticaNombre: optica?.nombre, opticaMarca: optica?.marca || null, opticaLogoUrl: optica?.logo_url || null, registroProfesional: perfil.registro_profesional || null, permisos: extras?.permisos || perfil.permisos || {}, esOptometra: !!perfil.es_optometra });
           setPantallaActual('dashboard');
         }
       } finally {

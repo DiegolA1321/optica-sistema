@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
+import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from "../utilidades/sesionPermisos"
 
 // ─── Paleta de firma (inline para no depender de config de Tailwind) ───
 const CYAN = "#22D3EE"      // cian — resplandor de "claridad" del iris
@@ -431,6 +432,11 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   // genérico de "usuario o contraseña incorrectos".
   const completarLoginConPerfil = async (userId) => {
     const { data: perfil } = await supabase.from("perfiles").select("*").eq("id", userId).single()
+    if (perfil && perfil.activo === false) {
+      await supabase.auth.signOut()
+      setErrorLogin(MENSAJE_CUENTA_DESACTIVADA)
+      return true
+    }
     if (perfil?.rol === "superadmin") {
       // Modo anteproyecto: MODO_SAAS_VISIBLE solo oculta, dentro del panel,
       // los widgets que revelan el lado comercial multi-óptica — el acceso
@@ -460,7 +466,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
         return true
       }
+      const extrasAdmin = await cargarMisPermisos(supabase)
       AlTenerExito({
+        ...(extrasAdmin || {}),
         rol: "admin",
         nombre: perfil.nombre,
         id: perfil.id,
@@ -480,7 +488,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         setErrorLogin("Esta óptica fue suspendida. Contacta al administrador del sistema para reactivarla.")
         return true
       }
+      const extrasAsistente = await cargarMisPermisos(supabase)
       AlTenerExito({
+        ...(extrasAsistente || {}),
         rol: "asistente",
         nombre: perfil.nombre,
         id: perfil.id,
@@ -489,7 +499,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
         opticaMarca: optica?.marca || null,
         opticaLogoUrl: optica?.logo_url || null,
         registroProfesional: perfil.registro_profesional || null,
-        permisos: perfil.permisos || {},
+        permisos: extrasAsistente?.permisos || perfil.permisos || {},
         esOptometra: !!perfil.es_optometra,
       })
       return true
