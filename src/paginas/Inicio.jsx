@@ -20,6 +20,8 @@ import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades
 import { esStockBajo } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
 import { etiquetaMiembro } from "../utilidades/equipo"
+import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
+import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { INK, GOLD, ACCION_CONFIRMAR } from "@/lib/tema"
 
@@ -28,6 +30,9 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function Inicio({
   setVista,
+  setCitas,
+  onAviso,
+  onAtenderCita,
   equipo = [],
   usuario,
   opticaActiva = true,
@@ -163,7 +168,10 @@ export default function Inicio({
   // Para "Mi agenda" (vista del optómetra, D4): pacientes en atención ahora
   // mismo (no acotado a hoy, mismo criterio sin fecha que ya usa el badge de
   // Citas.jsx) y lo que todavía le falta atender de la agenda de hoy.
-  const pacientesEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención"), [citas])
+  const pacientesEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención" && diasAtencionAbierta(c) === null), [citas])
+  // Atenciones que se abrieron un día anterior y nadie cerró.
+  const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
+  const [dejarCita, setDejarCita] = useState(null)
   const citasPendientesHoy = useMemo(
     () => citasHoy.filter((c) => !["Atendida", "No Asistió", "Cancelada"].includes(c.estado)),
     [citasHoy]
@@ -365,6 +373,37 @@ export default function Inicio({
           </div>
         </div>
       </div>
+
+      {/* ─── ATENCIONES ABIERTAS DE DÍAS ANTERIORES: se pueden retomar o cerrar ─── */}
+      {(esAdmin || esOptometra) && atencionesAntiguas.length > 0 && (
+        <section aria-label="Atenciones abiertas de días anteriores" className="space-y-2 rounded-2xl border border-amber-300/70 bg-amber-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
+            <AlertTriangle size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
+            {atencionesAntiguas.length === 1 ? "Hay 1 atención abierta de un día anterior" : `Hay ${atencionesAntiguas.length} atenciones abiertas de días anteriores`}
+          </p>
+          <ul className="divide-y divide-amber-200/70">
+            {atencionesAntiguas.map(({ cita, dias }) => (
+              <li key={cita.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-amber-950">{cita.paciente}</p>
+                  <p className="text-xs text-amber-800">{textoAtencionAbierta(dias)}{cita.atendidoPor ? ` · ${etiquetaMiembro(equipo, cita.atendidoPor)}` : ""}</p>
+                </div>
+                <button type="button" onClick={() => onAtenderCita?.(cita)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>
+                <button type="button" onClick={() => setDejarCita(cita)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {dejarCita && (
+        <ConfirmarDejarDeAtender
+          cita={dejarCita}
+          usuario={usuario}
+          setCitas={setCitas}
+          onCancelar={() => setDejarCita(null)}
+          onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
+        />
+      )}
 
       {/* D4: el optómetra que no es admin no ve la vista global del equipo
           (top bar de gestión, cumpleaños, controles vencidos, agenda +
