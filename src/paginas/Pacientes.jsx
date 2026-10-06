@@ -47,7 +47,6 @@ import {
   ChevronDown,
   ArrowUpDown,
   Globe,
-  History,
   Clock,
   Star,
   Building2,
@@ -292,7 +291,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     if (delPaciente.length === 0) return null
     return delPaciente.slice().sort(ordenarPorFechaYCreacion)[0]
   }, [pacienteHistorial, consultas])
-  const [tabHistorial, setTabHistorial] = useState("timeline")
+  const [tabHistorial, setTabHistorial] = useState("citas")
   // Escape cierra la vista de perfil del paciente (atajo de teclado).
   useEffect(() => {
     if (!pacienteHistorial) return
@@ -542,7 +541,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       // espera en vez de descartar la acción.
       if (!paciente && cargaInicial) return
       if (paciente) {
-        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("timeline") }
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("citas") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
         else if (accionInicial.accion === "eliminar") setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
@@ -908,7 +907,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         if (enCampo && document.activeElement !== inputBusquedaRef.current) return
         const p = pacientesVisibles[filaActiva]
         setPacienteHistorial(p)
-        setTabHistorial("timeline")
+        setTabHistorial("citas")
       } else if (e.key === "Escape") {
         setFilaActiva(-1)
       }
@@ -1242,7 +1241,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       key={paciente.id}
                       onMouseEnter={() => setFilaActiva(indiceFila)}
                       className={"group cursor-pointer transition-colors " + (activa ? "bg-blue-50/70 ring-1 ring-inset ring-blue-200" : "hover:bg-slate-50/70")}
-                      onClick={() => { setPacienteHistorial(paciente); setTabHistorial("timeline") }}
+                      onClick={() => { setPacienteHistorial(paciente); setTabHistorial("citas") }}
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -1342,7 +1341,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                               siempre visible aparte, como respaldo en
                               pantallas táctiles donde no existe hover. */}
                           <div className={"flex items-center gap-1 transition-opacity " + (activa ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100")}>
-                            <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("timeline") }} title="Ver perfil 360°" aria-label="Ver perfil 360°" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
+                            <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("citas") }} title="Ver perfil 360°" aria-label="Ver perfil 360°" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
                               <Eye size={16} />
                             </button>
                             <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
@@ -2059,27 +2058,28 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       lector de pantalla las anuncie como pestañas, no como
                       4 botones sueltos. */}
                   <div role="tablist" aria-label="Secciones del paciente" className="mt-6 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-timeline"
-                      aria-selected={tabHistorial === "timeline"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("timeline")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "timeline" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "timeline" ? { background: GRAD } : undefined}
-                    >
-                      {/* El ing notó que "Historial" y "Ficha clínica" se
-                          repetían (reunión 29 sept., punto 3) — eran dos
-                          pestañas mostrando la misma consulta, una resumida
-                          (OD/OI) y otra con el detalle completo. Se
-                          fusionan: cada evento de consulta en esta línea de
-                          tiempo ahora se expande a la ficha clínica
-                          completa (ver EventoConsultaTimeline), así que el
-                          badge de "cuántas consultas tiene" se muda acá. */}
-                      <History size={14} /> Historial
-                      {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "timeline" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
-                    </button>
+                    {[
+                      { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
+                      { id: "diagnosticos", etiqueta: "Diagnósticos", Icono: Stethoscope, cuenta: consultasPaciente.length },
+                    ].map(({ id, etiqueta, Icono, cuenta }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        id={"tab-" + id}
+                        aria-selected={tabHistorial === id}
+                        aria-controls="panel-paciente"
+                        onClick={() => setTabHistorial(id)}
+                        className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                        style={tabHistorial === id ? { background: GRAD } : undefined}
+                      >
+                        {/* El ing pidió dos secciones en vez de un historial único (29 sept.,
+                            R45): Citas (pendientes, próxima e historial) y Diagnósticos
+                            (cada atención con su motivo y diagnóstico, con la tendencia arriba). */}
+                        <Icono size={14} /> {etiqueta}
+                        {cuenta > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
+                      </button>
+                    ))}
                     <button
                       type="button"
                       role="tab"
@@ -2121,13 +2121,14 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       sistema, 320ms) se dispare de nuevo — antes el
                       contenido cambiaba de golpe sin ninguna transición. */}
                   <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
-                    {tabHistorial === "timeline" ? (
+                    {tabHistorial === "citas" ? (
+                      <PanelCitasPaciente
+                        citas={citasPaciente}
+                        onIngresar={(cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }}
+                        onAgendar={() => abrirAgendar(pacienteHistorial)}
+                      />
+                    ) : tabHistorial === "diagnosticos" ? (
                       <div className="space-y-4">
-                        {/* Resumen clínico (reunión 29 sept., punto 2): vivía
-                            en "Controles/Fidelización" — se mueve acá porque
-                            es seguimiento clínico, no fidelización. Próximo
-                            control se mantiene también como recordatorio en
-                            la pestaña Fidelización (Diego, 30 sept.). */}
                         {consultasPaciente.length > 0 && (() => {
                           const ultima = consultasPaciente[0]
                           const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
@@ -2182,11 +2183,8 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             </>
                           )
                         })()}
-                        <TimelinePaciente
-                          citas={citasPaciente}
+                        <ListaDiagnosticos
                           consultas={consultasPaciente}
-                          facturas={facturasPaciente}
-                          ventas={ventasPaciente}
                           abiertos={timelineAbiertos}
                           alternarAbierto={(id) => setTimelineAbiertos((prev) => ({ ...prev, [id]: !prev[id] }))}
                         />
@@ -2570,126 +2568,95 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   )
 }
 
-// ─── Timeline clínico-comercial: en vez de citas/consultas/compras aisladas
-// en pestañas separadas, un solo feed cronológico de todo lo que pasó con
-// el paciente. Cada tipo de evento tiene su propio color/ícono; la consulta
-// es el único expandible (ver refracción OD/OI sin saltar a Ficha clínica).
-function TimelinePaciente({ citas = [], consultas = [], facturas = [], ventas = [], abiertos = {}, alternarAbierto }) {
-  const eventos = useMemo(() => {
-    const horaISO = (horaTxt) => {
-      const min = minutosDesdeMedianoche(horaTxt || "")
-      if (isNaN(min)) return "12:00:00"
-      const h = String(Math.floor(min / 60)).padStart(2, "0")
-      const m = String(min % 60).padStart(2, "0")
-      return `${h}:${m}:00`
-    }
-    const lista = []
-    citas.forEach((c) => lista.push({ tipo: "cita", clave: `${c.fecha}T${horaISO(c.hora)}`, data: c }))
-    consultas.forEach((c) => lista.push({ tipo: "consulta", clave: c.creadoEn || `${c.fecha}T12:00:00`, data: c }))
-    facturas.forEach((f) => lista.push({ tipo: "factura", clave: f.creadoEn || "1970-01-01T00:00:00", data: f }))
-    ventas.forEach((v) => lista.push({ tipo: "venta", clave: v.creadoEn || "1970-01-01T00:00:00", data: v }))
-    return lista.sort((a, b) => (a.clave < b.clave ? 1 : a.clave > b.clave ? -1 : 0))
-  }, [citas, consultas, facturas, ventas])
-
-  if (eventos.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-12 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={24} /></div>
-        <p className="text-sm font-medium text-slate-500">Todavía no hay actividad registrada para este paciente.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      {eventos.map((ev, i) => {
-        const esUltimo = i === eventos.length - 1
-        if (ev.tipo === "cita") return <EventoCitaTimeline key={"cita-" + ev.data.id} cita={ev.data} esUltimo={esUltimo} />
-        if (ev.tipo === "consulta") return <EventoConsultaTimeline key={"consulta-" + ev.data.id} consulta={ev.data} esUltimo={esUltimo} abierto={!!abiertos[ev.data.id]} onToggle={() => alternarAbierto(ev.data.id)} />
-        if (ev.tipo === "factura") return <EventoCompraTimeline key={"factura-" + ev.data.id} compra={ev.data} esUltimo={esUltimo} tipoCompra="factura" />
-        return <EventoCompraTimeline key={"venta-" + ev.data.id} compra={ev.data} esUltimo={esUltimo} tipoCompra="venta" />
-      })}
-    </div>
-  )
+// ─── Perfil del paciente: sección Citas ───
+// Pendientes y próxima cita arriba (con "Ingresar" a la ficha de esa cita) y el
+// historial de citas debajo.
+const BADGE_ESTADO_CITA = {
+  "En Atención": "border-blue-200/60 bg-blue-50 text-blue-700",
+  Atendida: "border-emerald-200/60 bg-emerald-50 text-emerald-700",
+  "No Asistió": "border-red-200/60 bg-red-50 text-red-700",
+  Cancelada: "border-slate-200/60 bg-slate-100 text-slate-500",
 }
+const ETIQUETA_ESTADO_CITA = { "En Atención": "En atención", "No Asistió": "No asistió" }
+const ESTADOS_PENDIENTES = ["Pendiente", "En Espera", "En Atención"]
 
-// Fila común del timeline: rail izquierdo (ícono + línea conectora) + contenido
-function FilaTimeline({ icono: Icono, color, bg, titulo, subtitulo, badge, esUltimo, children }) {
+function BadgeEstadoCita({ estado }) {
   return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ backgroundColor: bg, color }}>
-          <Icono size={16} />
-        </div>
-        {!esUltimo && <div className="mt-1 w-px flex-1 bg-slate-200" />}
-      </div>
-      <div className={"flex-1 " + (esUltimo ? "pb-1" : "pb-5")}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-slate-800">{titulo}</p>
-          {badge}
-        </div>
-        {subtitulo && <p className="text-xs text-slate-500">{subtitulo}</p>}
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function EventoCitaTimeline({ cita: c, esUltimo }) {
-  const atendida = c.estado === "Atendida"
-  const enEspera = c.estado === "En Espera"
-  const noAsistio = c.estado === "No Asistió"
-  const enAtencion = c.estado === "En Atención"
-  const cancelada = c.estado === "Cancelada"
-  const badge = (
-    <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (atendida ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700" : noAsistio ? "border border-red-200/60 bg-red-50 text-red-700" : enAtencion ? "border border-blue-200/60 bg-blue-50 text-blue-700" : cancelada ? "border border-slate-200/60 bg-slate-100 text-slate-500" : "border border-amber-200/60 bg-amber-50 text-amber-700")}>
-      {c.estado || "Pendiente"}
+    <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[estado] || "border-amber-200/60 bg-amber-50 text-amber-700")}>
+      {ETIQUETA_ESTADO_CITA[estado] || estado || "Pendiente"}
     </span>
   )
+}
+
+function PanelCitasPaciente({ citas, onIngresar, onAgendar }) {
+  const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
+  const pendientes = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.estado === "En Atención" ? -1 : b.estado === "En Atención" ? 1 : porFechaHora(a, b)))
+  const historial = citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => porFechaHora(b, a))
+  const proxima = pendientes[0]
+  const otras = pendientes.slice(1)
+  const fila = (c, conIngresar) => (
+    <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
+      <div className="w-40 shrink-0">
+        <p className="text-sm font-semibold capitalize text-slate-800">{c.fecha ? etiquetaFecha(c.fecha) : "Sin fecha"}</p>
+        <p className="text-xs text-slate-500">{c.hora}</p>
+      </div>
+      <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
+      <BadgeEstadoCita estado={c.estado} />
+      {conIngresar && (
+        <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+          <Stethoscope size={13} aria-hidden="true" /> Ingresar
+        </button>
+      )}
+    </li>
+  )
   return (
-    <FilaTimeline
-      icono={Calendar}
-      color={enAtencion ? "#2563eb" : atendida ? "#059669" : noAsistio ? "#dc2626" : "#d97706"}
-      bg={enAtencion ? "#eff6ff" : atendida ? "#ecfdf5" : noAsistio ? "#fef2f2" : "#fffbeb"}
-      titulo={`Cita agendada — ${c.motivo || "Consulta general"}`}
-      subtitulo={`${c.fecha || "Sin fecha"} · ${c.hora || "—"}`}
-      badge={badge}
-      esUltimo={esUltimo}
-    />
+    <div className="space-y-5">
+      {proxima ? (
+        <section aria-label="Próxima cita" className="flex flex-wrap items-center gap-4 rounded-2xl border border-blue-200/60 bg-blue-50/50 p-5">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Calendar size={22} aria-hidden="true" /></div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
+            <p className="text-lg font-bold capitalize" style={{ color: INK }}>{proxima.fecha ? etiquetaFecha(proxima.fecha) : "Sin fecha"} · {proxima.hora}</p>
+            <p className="truncate text-sm text-slate-600">{proxima.motivo || "Consulta general"}</p>
+          </div>
+          <BadgeEstadoCita estado={proxima.estado} />
+          <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+            <Stethoscope size={15} aria-hidden="true" /> Ingresar
+          </button>
+        </section>
+      ) : (
+        <section aria-label="Próxima cita" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
+          <p className="text-sm text-slate-500">Este paciente no tiene citas pendientes.</p>
+          <button type="button" onClick={onAgendar} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+            <CalendarPlus size={15} aria-hidden="true" /> Agendar cita
+          </button>
+        </section>
+      )}
+
+      {otras.length > 0 && (
+        <section aria-label="Otras citas pendientes">
+          <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Otras citas pendientes · {otras.length}</h3>
+          <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{otras.map((c) => fila(c, true))}</ul>
+        </section>
+      )}
+
+      <section aria-label="Historial de citas">
+        <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Historial de citas · {historial.length}</h3>
+        {historial.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center text-sm text-slate-500">Todavía no hay citas pasadas.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{historial.map((c) => fila(c, false))}</ul>
+        )}
+      </section>
+    </div>
   )
 }
 
-function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
-  const correccion = CORRECCION[c.estadoCorreccion] || CORRECCION["Sin evaluación"]
-  const IconoCorreccion = correccion.icon
+// ─── Perfil del paciente: sección Diagnósticos ───
+// Una fila por atención con su motivo y su diagnóstico; al abrirla se ve la
+// ficha clínica completa de ese día.
+function DetalleFichaConsulta({ c }) {
   return (
-    <FilaTimeline
-      icono={Stethoscope}
-      color="#2563eb"
-      bg="#eff6ff"
-      titulo={`Consulta atendida${c.profesionalNombre ? " · " + c.profesionalNombre : ""}`}
-      subtitulo={c.fecha}
-      badge={
-        <span className={"inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold " + correccion.clase}>
-          <IconoCorreccion size={11} /> {correccion.label}
-        </span>
-      }
-      esUltimo={esUltimo}
-    >
-      {c.diagnostico && <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico:</span> {c.diagnostico}</p>}
-      {c.lenteRecomendado && (
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-          <Glasses size={13} style={{ color: "#C8A24E" }} /> <span className="font-semibold text-slate-700">Receta generada:</span> {c.lenteRecomendado}
-        </p>
-      )}
-      {/* Reunión 29 sept., punto 3: acá vivía antes solo OD/OI — al
-          fusionar "Historial" y "Ficha clínica" (que mostraba todo esto
-          aparte, en su propia pestaña) este desplegable pasa a ser la
-          ficha clínica completa de la consulta, no solo la refracción. */}
-      <button type="button" onClick={onToggle} className="mt-2 flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-        {abierto ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {abierto ? "Ocultar ficha clínica completa" : "Ver ficha clínica completa"}
-      </button>
-      {abierto && (
         <div className="mt-2 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-sm" style={{ animation: "rise-in 200ms ease-out both" }}>
           {c.motivo && (
             <p className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Motivo:</span> {c.motivo}</p>
@@ -2756,32 +2723,62 @@ function EventoConsultaTimeline({ consulta: c, esUltimo, abierto, onToggle }) {
             </div>
           )}
         </div>
-      )}
-    </FilaTimeline>
   )
 }
 
-function EventoCompraTimeline({ compra: c, esUltimo, tipoCompra }) {
-  const anulada = c.estado === "anulada"
-  const pagada = c.estado === "pagada" || c.estado === "completado"
-  const titulo = c.lineas?.length ? c.lineas.map((l) => l.descripcion).join(", ") : c.productoNombre || (tipoCompra === "factura" ? "Factura" : "Venta")
-  const badge = anulada ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">Anulada</span>
-  ) : pagada ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><CheckCircle size={12} /> Pagada</span>
-  ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} /> Pendiente</span>
-  )
+function ListaDiagnosticos({ consultas, abiertos = {}, alternarAbierto }) {
+  if (consultas.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-white py-12 text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Stethoscope size={24} /></div>
+        <p className="text-sm font-medium text-slate-500">Todavía no hay atenciones registradas para este paciente.</p>
+      </div>
+    )
+  }
   return (
-    <FilaTimeline
-      icono={tipoCompra === "factura" ? Receipt : ShoppingCart}
-      color={anulada ? "#64748b" : "#059669"}
-      bg={anulada ? "#f1f5f9" : "#ecfdf5"}
-      titulo={titulo}
-      subtitulo={`$${Number(c.montoTotal).toFixed(2)} · ${METODOS_PAGO[c.metodoPago] || c.metodoPago}${c.creadoEn ? " · " + new Date(c.creadoEn).toLocaleDateString("es-ES") : ""}`}
-      badge={badge}
-      esUltimo={esUltimo}
-    />
+    <section aria-label="Diagnósticos del paciente">
+      <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Diagnósticos · {consultas.length}</h3>
+      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white">
+        {consultas.map((c) => {
+          const abierto = !!abiertos[c.id]
+          const correccion = CORRECCION[c.estadoCorreccion] || CORRECCION["Sin evaluación"]
+          const IconoCorreccion = correccion.icon
+          return (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => alternarAbierto(c.id)}
+                aria-expanded={abierto}
+                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/70 cursor-pointer"
+              >
+                <div className="w-28 shrink-0">
+                  <p className="text-sm font-semibold text-slate-800">{c.fecha ? c.fecha.split("-").reverse().join("/") : "Sin fecha"}</p>
+                  {c.profesionalNombre && <p className="truncate text-xs text-slate-500">{c.profesionalNombre}</p>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-500"><span className="font-semibold text-slate-600">Motivo:</span> {c.motivo || "Sin motivo registrado"}</p>
+                  <p className="mt-0.5 text-sm font-semibold" style={{ color: INK }}>{c.diagnostico || "Sin diagnóstico registrado"}</p>
+                </div>
+                <span className={"hidden shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold sm:inline-flex " + correccion.clase}>
+                  <IconoCorreccion size={11} aria-hidden="true" /> {correccion.label}
+                </span>
+                <ChevronDown size={16} className={"mt-0.5 shrink-0 text-slate-400 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+              </button>
+              {abierto && (
+                <div className="space-y-2 px-4 pb-4" style={{ animation: "rise-in 200ms ease-out both" }}>
+                  {c.lenteRecomendado && (
+                    <p className="flex items-center gap-1.5 text-sm text-slate-600">
+                      <Glasses size={13} style={{ color: "#C8A24E" }} aria-hidden="true" /> <span className="font-semibold text-slate-700">Receta generada:</span> {c.lenteRecomendado}
+                    </p>
+                  )}
+                  <DetalleFichaConsulta c={c} />
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
