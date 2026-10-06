@@ -73,6 +73,7 @@ import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import AbonoModal from "../componentes/AbonoModal"
+import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
 import AnularVentaModal from "../componentes/AnularVentaModal"
 import { saldoFactura, saldoPacienteFacturas, totalAbonado } from "../utilidades/abonos"
@@ -184,6 +185,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const [modalAbierto, setModalAbierto] = useState(false)
   const [idEditando, setIdEditando] = useState(null)
   const [pacienteAEliminar, setPacienteAEliminar] = useState(null)
+  // Solo el administrador puede eliminar (anonimizar) pacientes. En el Bloque D pasará a ser el permiso "eliminar" de Pacientes.
+  const esAdmin = usuario?.rol === "admin"
   const [eliminandoPaciente, setEliminandoPaciente] = useState(false)
 
   // Filtros
@@ -634,7 +637,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       if (paciente) {
         if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("citas") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
-        else if (accionInicial.accion === "eliminar") setPacienteAEliminar(paciente)
+        else if (accionInicial.accion === "eliminar" && esAdmin) setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
       }
     }
@@ -717,36 +720,28 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const perteneceAPaciente = (registro, paciente) =>
     (paciente.id != null && registro.pacienteId === paciente.id) || registro.paciente === paciente.nombre
 
+  // Eliminar = anonimizar (migración 0089): la base borra sus datos personales y conserva las
+  // visitas, ventas y datos clínicos sin nombre. Solo el administrador; una sola transacción en la base.
   const confirmarEliminar = async () => {
     if (!pacienteAEliminar) return
+    const paciente = pacienteAEliminar
     setEliminandoPaciente(true)
-    const citasAEliminar = citas.filter((c) => perteneceAPaciente(c, pacienteAEliminar))
-    const consultasAEliminar = consultas.filter((c) => perteneceAPaciente(c, pacienteAEliminar))
     if (supabase && opticaId) {
-      // El FK de citas/consultas hacia pacientes es "on delete set null" (para no
-      // perder historial si un paciente se borra sin querer desde otro flujo) —
-      // acá el borrado en cascada es intencional, así que se hace explícito.
-      const idsCitas = citasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
-      const idsConsultas = consultasAEliminar.map((c) => c.id).filter((id) => typeof id === "string")
-      if (idsCitas.length) {
-        const { data: citasBorradas, error: errorCitas } = await supabase.from("citas").delete().in("id", idsCitas).select()
-        if (fueBloqueadoPorPermiso({ error: errorCitas, data: citasBorradas })) { mostrarError(MENSAJE_SIN_PERMISO); setEliminandoPaciente(false); return }
-        if (errorCitas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
+      const { error } = await supabase.rpc("anonimizar_paciente", { p_paciente_id: paciente.id })
+      if (error) {
+        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message?.includes("Solo el administrador") ? "Solo el administrador puede eliminar pacientes." : "No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo.")
+        setEliminandoPaciente(false)
+        return
       }
-      if (idsConsultas.length) {
-        const { data: consultasBorradas, error: errorConsultas } = await supabase.from("consultas").delete().in("id", idsConsultas).select()
-        if (fueBloqueadoPorPermiso({ error: errorConsultas, data: consultasBorradas })) { mostrarError(MENSAJE_SIN_PERMISO); setEliminandoPaciente(false); return }
-        if (errorConsultas) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
-      }
-      const { data: pacienteBorrado, error: errorPaciente } = await supabase.from("pacientes").delete().eq("id", pacienteAEliminar.id).select()
-      if (fueBloqueadoPorPermiso({ error: errorPaciente, data: pacienteBorrado })) { mostrarError(MENSAJE_SIN_PERMISO); setEliminandoPaciente(false); return }
-      if (errorPaciente) { mostrarError("No se pudo eliminar al paciente. Revisa tu conexión e intenta de nuevo."); setEliminandoPaciente(false); return }
     }
-    setPacientes(pacientes.filter((p) => p.id !== pacienteAEliminar.id))
-    setCitas?.(citas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
-    setConsultas?.(consultas.filter((c) => !perteneceAPaciente(c, pacienteAEliminar)))
-    registrarLog(usuario, "pacientes", "Eliminó a un paciente", pacienteAEliminar.nombre)
-    mostrarNotif("Paciente removido de la base de datos, junto con sus citas y consultas asociadas.")
+    const ANON = "Paciente anonimizado"
+    setPacientes(pacientes.filter((p) => p.id !== paciente.id))
+    setCitas?.(citas.map((c) => (perteneceAPaciente(c, paciente) ? { ...c, paciente: ANON, cedula: null, telefono: null, correo: null } : c)))
+    setConsultas?.(consultas.map((c) => (perteneceAPaciente(c, paciente) ? { ...c, paciente: ANON } : c)))
+    solicitudesEliminacion.filter((x) => x.pacienteId === paciente.id).forEach((x) => marcarSolicitudEliminacionAtendida?.(x.id))
+    // El registro de actividad no guarda el nombre: la persona ya no es identificable.
+    registrarLog(usuario, "pacientes", "Eliminó (anonimizó) a un paciente", "Paciente #" + String(paciente.id).slice(0, 8))
+    mostrarNotif("Paciente eliminado. Sus datos personales se borraron y su historial quedó anonimizado.")
     setEliminandoPaciente(false)
     setPacienteAEliminar(null)
   }
@@ -1759,50 +1754,31 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             >
               <Pencil size={15} /> Editar datos
             </button>
-            <button
-              type="button"
-              onClick={() => { setMenuAccionesId(null); setPacienteAEliminar(paciente) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-            >
-              <Trash2 size={15} /> Eliminar
-            </button>
+            {esAdmin && (
+              <button
+                type="button"
+                onClick={() => { setMenuAccionesId(null); setPacienteAEliminar(paciente) }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+              >
+                <Trash2 size={15} /> Eliminar
+              </button>
+            )}
           </div>,
           document.body,
         )
       })()}
 
-      {/* ─── MODAL ELIMINAR ─── */}
-      {pacienteAEliminar && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !eliminandoPaciente && setPacienteAEliminar(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
-              <Trash2 size={22} />
-            </div>
-            <h2 className="text-lg font-bold" style={{ color: INK }}>Eliminar paciente</h2>
-            <p className="mt-1.5 text-sm text-slate-500">
-              ¿Seguro que deseas eliminar a <span className="font-semibold text-slate-700">{pacienteAEliminar.nombre}</span>? Esta acción no se puede deshacer.
-            </p>
-            {(() => {
-              const nCitas = citas.filter((c) => perteneceAPaciente(c, pacienteAEliminar)).length
-              const nConsultas = consultas.filter((c) => perteneceAPaciente(c, pacienteAEliminar)).length
-              if (nCitas === 0 && nConsultas === 0) return null
-              return (
-                <p className="mt-3 rounded-lg border border-amber-200/60 bg-amber-50 p-2.5 text-xs font-medium text-amber-800">
-                  También se eliminarán {nCitas > 0 ? `${nCitas} cita${nCitas === 1 ? "" : "s"}` : ""}{nCitas > 0 && nConsultas > 0 ? " y " : ""}{nConsultas > 0 ? `${nConsultas} consulta${nConsultas === 1 ? "" : "s"} clínica${nConsultas === 1 ? "" : "s"}` : ""} asociadas a este paciente.
-                </p>
-              )
-            })()}
-            <div className="mt-5 flex gap-3">
-              <button type="button" disabled={eliminandoPaciente} onClick={() => setPacienteAEliminar(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                Cancelar
-              </button>
-              <button type="button" disabled={eliminandoPaciente} onClick={confirmarEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
-                {eliminandoPaciente ? "Eliminando..." : "Eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {/* ─── MODAL ELIMINAR (anonimiza; solo el administrador) ─── */}
+      {pacienteAEliminar && esAdmin && (
+        <EliminarPacienteModal
+          paciente={pacienteAEliminar}
+          nCitas={citas.filter((c) => perteneceAPaciente(c, pacienteAEliminar)).length}
+          nConsultas={consultas.filter((c) => perteneceAPaciente(c, pacienteAEliminar)).length}
+          nVentas={facturasVenta.filter((f) => f.pacienteId === pacienteAEliminar.id).length + ventas.filter((v) => v.pacienteId === pacienteAEliminar.id).length}
+          eliminando={eliminandoPaciente}
+          onConfirmar={confirmarEliminar}
+          onCancelar={() => setPacienteAEliminar(null)}
+        />
       )}
       {/* ─── MODAL CUENTA DE ACCESO (clave temporal) ─── */}
       {cuentaPaciente && createPortal(
