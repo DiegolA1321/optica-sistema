@@ -266,7 +266,10 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
             )}
             {(cita.asignadoA || cita.atendidoPor) && (
               <span className="mt-0.5 block truncate text-xs text-slate-500">
-                {cita.atendidoPor ? `Atendió: ${etiquetaMiembro(equipo, cita.atendidoPor)}` : `Asignada a: ${etiquetaMiembro(equipo, cita.asignadoA)}`}
+                {[
+                  cita.atendidoPor ? `${cita.estado === "En Atención" ? "Atiende" : "Atendió"}: ${etiquetaMiembro(equipo, cita.atendidoPor)}` : null,
+                  cita.asignadoA && cita.asignadoA !== cita.atendidoPor ? `Asignada a: ${etiquetaMiembro(equipo, cita.asignadoA)}` : null,
+                ].filter(Boolean).join(" · ")}
               </span>
             )}
             {cita.codigo && (
