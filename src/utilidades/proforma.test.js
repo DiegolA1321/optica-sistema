@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { armarHtmlProforma } from "./proforma"
+import { armarHtmlProforma, lineasProformaDeConsulta } from "./proforma"
 
 const base = {
   opticaNombre: "Óptica Solna Vision",
@@ -11,6 +11,19 @@ const base = {
   ],
   fecha: new Date(2026, 9, 6),
 }
+
+describe("lineasProformaDeConsulta", () => {
+  it("trae la consulta con su costo y la luna como texto libre sin precio", () => {
+    const l = lineasProformaDeConsulta({ motivo: "Consulta General", lenteRecomendado: "Monofocal antirreflejo" }, { costosMotivo: { "Consulta General": 15 } })
+    expect(l).toEqual([
+      { tipo: "servicio", descripcion: "Consulta — Consulta General", cantidad: 1, precioUnitario: 15 },
+      { tipo: "servicio", descripcion: "Luna: Monofocal antirreflejo", cantidad: 1, precioUnitario: 0 },
+    ])
+  })
+  it("sin lente recomendado la luna queda en blanco para escribirla", () => {
+    expect(lineasProformaDeConsulta({ motivo: "Control" }, {})[1].descripcion).toBe("Luna")
+  })
+})
 
 describe("armarHtmlProforma", () => {
   it("lista las líneas, el total y avisa que no es una factura", () => {

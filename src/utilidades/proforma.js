@@ -3,6 +3,18 @@
 // factura: no descuenta stock, no tiene forma de pago ni numeración y no cierra
 // el pase. Lógica pura que arma el HTML; imprimirHtml lo manda a la impresora.
 import { fechaLegible } from "./formatoFecha"
+import { costoBaseMotivo } from "./costosConsulta"
+
+// Líneas con las que arranca la proforma de una consulta: la consulta (costo base
+// del motivo, editable) y la luna como texto libre con su precio por llenar (R57-R59:
+// las lunas no son productos con stock). La montura se elige del inventario.
+export function lineasProformaDeConsulta(consulta, parametrizacion) {
+  const lente = (consulta?.lenteRecomendado || "").trim()
+  return [
+    { tipo: "servicio", descripcion: `Consulta${consulta?.motivo ? ` — ${consulta.motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, consulta?.motivo) },
+    { tipo: "servicio", descripcion: lente ? `Luna: ${lente}` : "Luna", cantidad: 1, precioUnitario: 0 },
+  ]
+}
 
 const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
