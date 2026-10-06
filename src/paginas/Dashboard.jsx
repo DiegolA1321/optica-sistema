@@ -587,6 +587,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inicio":
         return (
           <Inicio
+            equipo={equipo}
             setVista={navegar}
             usuario={usuario}
             opticaActiva={opticaActiva}

@@ -13,11 +13,13 @@ import {
   History,
   TrendingUp,
   Stethoscope,
+  Activity,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
+import { etiquetaMiembro } from "../utilidades/equipo"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { INK, GOLD, ACCION_CONFIRMAR } from "@/lib/tema"
 
@@ -26,6 +28,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function Inicio({
   setVista,
+  equipo = [],
   usuario,
   opticaActiva = true,
   cargaInicial = false,
@@ -424,6 +427,35 @@ export default function Inicio({
           )
         })}
       </div>
+
+      {/* ─── EN ATENCIÓN AHORA (R21): el administrador ve cuántas citas se están
+          atendiendo y quién las atiende; se actualiza solo. ─── */}
+      {esAdmin && (
+        <section aria-label="En atención ahora" className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-slate-200/60 bg-white px-5 py-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl border border-blue-200/60 bg-blue-50 text-blue-600"><Activity size={20} aria-hidden="true" /></div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">En atención ahora</p>
+              <p className="font-serif text-2xl font-semibold leading-none" style={{ color: INK }} aria-live="polite">{pacientesEnAtencion.length}</p>
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            {pacientesEnAtencion.length === 0 ? (
+              <p className="text-sm text-slate-500">Nadie está en atención en este momento.</p>
+            ) : (
+              pacientesEnAtencion.map((c) => (
+                <span key={c.id} className="flex max-w-full items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                  <span className="truncate">{c.paciente}</span>
+                  <span className="shrink-0 font-normal text-blue-600/80">· {etiquetaMiembro(equipo, c.atendidoPor) || "Sin registro"}</span>
+                </span>
+              ))
+            )}
+          </div>
+          <button type="button" onClick={() => setVista?.("citas")} className="flex shrink-0 items-center gap-1 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+            Ver en Citas <ArrowRight size={13} aria-hidden="true" />
+          </button>
+        </section>
+      )}
 
       {/* ─── CUMPLEAÑEROS ─── */}
       {cumpleaneros.length > 0 && (
