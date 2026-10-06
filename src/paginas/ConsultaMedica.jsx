@@ -2125,11 +2125,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                               <ShoppingBag size={14} /> {pasandoAOptica ? "Pasando…" : "Pasar a la óptica"}
                             </button>
                           )}
-                          {!paseDeEstaConsulta && (
-                            <button type="button" onClick={() => setMostrarPanelCobro(true)} className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 cursor-pointer">
-                              <Receipt size={14} /> Cobrar ahora
-                            </button>
-                          )}
+                          <button type="button" onClick={() => setMostrarPanelCobro(true)} className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 cursor-pointer">
+                            <Receipt size={14} /> Cobrar ahora
+                          </button>
                           {(onVolver || onCerrar) && (
                             <button type="button" onClick={onVolver || onCerrar} className="rounded-lg border border-slate-200/60 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
                               Volver a {origenNombre}
