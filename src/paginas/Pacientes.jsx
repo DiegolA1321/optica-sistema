@@ -2111,7 +2111,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                       className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
                       style={tabHistorial === "fidelizacion" ? { background: GRAD } : undefined}
                     >
-                      <Heart size={14} /> Controles/Fidelización
+                      <Heart size={14} /> Fidelización
                       {inactivo && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "fidelizacion" ? "bg-white/25 text-white" : "bg-red-100 text-red-700")}>Vencido</span>}
                     </button>
                   </div>
