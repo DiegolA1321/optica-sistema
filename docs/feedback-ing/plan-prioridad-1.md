@@ -1,10 +1,10 @@
 # Plan de prioridad 1: análisis de brechas (R1 a R45) y plan de implementación
-
+ **Resuelto (paso 12):** "Eliminar paciente" ya no borra: anonimiza. Se borran nombre, cédula, teléfono, correo y acceso al portal, y se limpian las copias en citas, consultas, textos libres, avisos, notificaciones, actividad y mensajes; se conservan citas, consultas, ventas, abonos, órdenes y pases sin identificar a la persona. Solo el administrador, con un modal que explica que es irreversible y pide escribir el nombre exacto. Migración 0089. **Límite conocido:** un dato personal escrito de otra forma en un texto libre (solo el apellido, un teléfono con espacios) no se detecta.
 Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo análisis: no se modificó código ni datos.
-
+ **Resuelto:** tabla de abonos con monto y fecha libres y saldo calculado; método de pago "Abonos" (con abono inicial opcional) además de directo, tarjeta y cuotas; las cuotas son abonos iguales (la última toma el saldo exacto). En el perfil, bloque "Ventas" con saldo, "Abonar" y "Anular" (con advertencia del total recibido); el saldo también se ve en la cola, en las órdenes y al marcar una orden como "entregada". Migración 0088. Antes la interfaz no podía pagar ni anular una venta pendiente.
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
-
-**Avance (tras los pasos 1 a 10):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+ **Resuelto (paso 11):** en Reportes, "Embudo de ventas": consultaron, pasaron a venta, compraron, no compraron por motivo, proformas entregadas y cuántas terminaron en venta; los pacientes anonimizados se siguen contando.
+**Avance (tras los pasos 1 a 12):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
 
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
@@ -14,8 +14,8 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 19 | 18 | 5 | **42** |
-| Parcial | 0 | 2 | 0 | **2** |
+| Hecho | 19 | 20 | 5 | **44** |
+| Parcial | 0 | 0 | 0 | **0** |
 | Pendiente | 0 | 0 | 0 | **0** |
 | Hecho distinto | 0 | 1 | 0 | **1** |
 | Total | 19 | 21 | 5 | **45** |
@@ -183,8 +183,12 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
 14. **Aviso por correo al administrador: fuera por ahora.** El aviso de R37 es la alerta del Inicio y el contador del menú. El correo queda pendiente junto con el **dominio propio en Resend** (sin él no se puede enviar a terceros desde una dirección de la óptica).
 15. **Campo "Laboratorio" (paso 10).** Texto libre con sugerencias de los laboratorios ya usados en la óptica; permite ver los atrasos por laboratorio (Inicio y filtro en la lista de órdenes).
 
-### Notas para el paso 11 (abonos, R38)
-- **Entregar con saldo:** al marcar una orden como "entregada", mostrar el saldo pendiente del paciente (si lo tiene) para cobrarlo antes de entregar.
+### Notas para el paso 11 (abonos, R38) — cumplidas
+- **Entregar con saldo:** al marcar una orden como "entregada", se muestra el saldo pendiente de la venta (y el total del paciente) para cobrarlo antes de entregar, o entregar de todos modos.
+
+### Límite conocido del paso 12 (anonimización)
+- La función busca en los textos libres el nombre completo, la cédula, el teléfono y el correo **exactos** del paciente (sin importar mayúsculas). Un dato personal escrito de otra forma —solo el apellido, un teléfono con espacios o guiones, un apodo— **no se detecta**. Quien eliminó al paciente puede revisar a mano esos casos.
+- No se buscan datos de menos de 6 caracteres, para no alterar otras palabras.
 
 ### Notas para el paso 9 (cola de "Listo para venta") — cumplidas
 
