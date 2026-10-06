@@ -4,7 +4,7 @@ Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo an�
 
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
 
-**Avance (tras los pasos 1 a 8):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+**Avance (tras los pasos 1 a 9):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
 
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
@@ -14,9 +14,9 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 19 | 15 | 5 | **39** |
+| Hecho | 19 | 16 | 5 | **40** |
 | Parcial | 0 | 2 | 0 | **2** |
-| Pendiente | 0 | 3 | 0 | **3** |
+| Pendiente | 0 | 2 | 0 | **2** |
 | Hecho distinto | 0 | 1 | 0 | **1** |
 | Total | 19 | 21 | 5 | **45** |
 
@@ -72,12 +72,12 @@ Lo que más pesa:
 | R32 No "posponer": guardar y seguir, o "dejar de atender" | **Hecho** (paso 5) | No existe un botón "Dejar de atender" que descarte lo no guardado y deje la cita como estaba. Hay aviso de cambios sin guardar al cerrar pestaña (`ConsultaMedica.jsx:395-401`) y al cambiar de sección (vía `Dashboard.jsx`). La cita queda "En atención" si se abandona; no vuelve a Pendiente. | **Resuelto:** La ficha tiene "Dejar de atender" (con confirmación): descarta lo no guardado, devuelve la cita a su estado anterior (una cita creada con "Atender ahora" queda pendiente), quita a quien atendía y avisa "La cita sigue agendada". Al guardar la ficha, "Atendido por" queda con quien la guardó.
 | R33 "Terminar atención" genera la receta, no la factura | **Hecho** (paso 8) | Guardar la ficha abre el panel de cobro "Cobrar y finalizar" (`ConsultaMedica.jsx:2328-2344`). La receta se imprime después de guardar. El optómetra cierra con cobro, no con receta y paso a ventas. **Diferencia 2 confirmada.** | **Resuelto:** el botón final de la ficha es "Terminar atención": guarda la ficha, genera la receta (lista para imprimir) y deja la cita atendida. Ya no abre el cobro solo; el bloque "Atención terminada" ofrece "Pasar a la óptica" y "Cobrar ahora".
 | R34 "Pasar a la óptica" → "Listo para venta" | **Hecho** (paso 8) | No existe el botón, ni el estado (búsqueda de "Listo para venta" sin resultados en `src/` y `supabase/`). | **Resuelto:** "Pasar a la óptica" llama a `pasar_a_optica()` (migración 0085) y crea un pase en `pases_a_venta` con estado "listo"; el perfil del paciente muestra "Listo para venta · desde 6 oct 2026". La cola para quien vende es el paso 9.
-| R35 La vendedora toma los datos del diagnóstico y arma la proforma | **Pendiente** | No hay cola de pacientes listos. Lo más cercano es "Cobro pendiente" (`Citas.jsx:285-289`) con las líneas precargadas desde la consulta (`lineasCobroConsulta`), que ve quien abre Citas o el perfil. No es una cola de ventas ni una proforma. |
+| R35 La vendedora toma los datos del diagnóstico y arma la proforma | **Hecho** (paso 9) | No hay cola de pacientes listos. Lo más cercano es "Cobro pendiente" (`Citas.jsx:285-289`) con las líneas precargadas desde la consulta (`lineasCobroConsulta`), que ve quien abre Citas o el perfil. No es una cola de ventas ni una proforma. | **Resuelto:** en Pacientes, la insignia "Listos para venta (N)" muestra la cola (con un contador verde en el ítem Pacientes del menú). "Tomar datos del diagnóstico" abre el panel de venta con los datos de la consulta (motivo, diagnóstico, lente recomendado, indicaciones y las medidas bajo "Ver medidas"), la consulta y la luna en texto libre con su precio, y la montura se elige del inventario. "Imprimir proforma" genera un presupuesto que no es factura, no toca el stock y anota en el pase la fecha y el monto (`registrar_proforma`). "Registrar venta" queda siempre vinculada a la consulta y a la cita del pase y lo cierra como "vendido". "No compró" pide el motivo (precio, lo pensará, otro lugar u otro con texto) y deja el pase "descartado"; "Volver a la lista de espera" lo reabre y el motivo anterior queda en Actividad. Migración 0086.
 | R36 Orden de laboratorio con factura y receta, dos copias | **Pendiente** | No existe el concepto: ninguna tabla, pantalla ni impresión de orden de laboratorio. |
 | R37 Laboratorio marca "Completada", aviso al administrador | **Pendiente** | Depende de R36. |
 | R38 Pagos al contado, cuotas o abonos | **Parcial** | `FacturaVentaModal.jsx:550-562`: directo, tarjeta y cuotas (con cuotas pagadas). No encontré abonos libres de monto variable; confirmar si "cuotas" cubre lo que el ingeniero llama abono. |
 | R39 Cita "Atendida" al generar la factura total | **Hecho distinto (justificado)** | `marcarCitaAtendida` solo corre tras el cobro exitoso (`ConsultaMedica.jsx:313-326`) y lo mismo desde Citas (`alCobrarCita`). Es coherente con lo que pidió. La nota del documento (cobra el optómetra frente a la vendedora) se atiende en R33-R35. | **Decisión de Diego (6 oct.):** la cita pasa a "Atendida" al terminar la atención, no al facturar. Se separan el hecho clínico (atendida) y el comercial (vendido o descartado, que sigue `pases_a_venta`): así un paciente que consulta y no compra también cuenta como atendido, la cita no queda abierta, y el embudo de R40 (consultaron, pasaron a venta, compraron) sale de datos reales.
-| R40 Quién consultó y no compró; embudo | **Parcial** | `Reportes.jsx` mide conversión consulta → venta (`:184`) y pacientes nuevos (`:116`), pero no hay vista "primera vez → se volvió cliente" ni separación entre paciente accesible y dato estadístico. |
+| R40 Quién consultó y no compró; embudo | **Parcial** | `Reportes.jsx` mide conversión consulta → venta (`:184`) y pacientes nuevos (`:116`), pero no hay vista "primera vez → se volvió cliente" ni separación entre paciente accesible y dato estadístico. | **Avance (paso 9):** el pase ya guarda lo que el embudo necesita (quién pasó a venta, proforma entregada con fecha y monto, vendido o descartado con su motivo); falta la pantalla de Reportes (paso 11).
 
 ---
 
@@ -173,7 +173,11 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
 
 9. **La cita pasa a "Atendida" al terminar la atención (R39, hecho distinto justificado).** La venta se sigue por separado en `pases_a_venta` (listo, vendido o descartado). Ver la fila de R39.
 
-### Notas para el paso 9 (cola de "Listo para venta")
+10. **Proforma (paso 9).** No se guarda como documento, pero el pase registra que se entregó una (`proforma_entregada_en` y `proforma_total`); si se vuelve a generar, se actualizan. Sirve para dar seguimiento a "lo pensará" y para medir en R40 cuántas proformas terminan en venta.
+11. **Reabrir un pase descartado (paso 9).** "Volver a la lista de espera" lo pasa de "descartado" a "listo" con las mismas validaciones de permisos; el motivo anterior queda en el historial de actividad.
+12. **Contador y cola en Pacientes, por ahora.** El contador del menú y la cola viven en Pacientes. **Se moverán al módulo de Ventas y al Inicio de quien vende en los Bloques D y E.**
+
+### Notas para el paso 9 (cola de "Listo para venta") — cumplidas
 
 - **Toda venta hecha desde la cola debe quedar vinculada a su consulta** (`consulta_id` de la factura), para que el pase se cierre solo: el trigger de la migración 0085 pasa el pase a "vendido" al facturar esa consulta.
 - **Una venta desde "Nueva venta" sin vínculo no debe dejar pases abiertos sin explicación.** Si el paciente tiene un pase "listo" y se le factura sin consulta, hay que preguntar o sugerir vincularla ("Este paciente está listo para venta de la consulta del 6 oct: ¿es esta venta?"), o permitir cerrar el pase como "descartado" con motivo.
