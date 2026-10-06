@@ -29,6 +29,7 @@ import {
   haySolapamiento, finCitaMinutos, slotsDisponibles,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
+import HorarioEquipo from "../componentes/HorarioEquipo"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
 
@@ -63,7 +64,7 @@ const resumenHorario = (horario) => {
 const DIA_PERSONAL_VACIO = () => ({ manana: { activo: false, inicio: "09:00", fin: "13:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } })
 const SEMANA_PERSONAL_VACIA = () => Object.fromEntries(ORDEN_LV.map((d) => [d, DIA_PERSONAL_VACIO()]))
 
-export default function Horario({ usuario, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, citas = [] }) {
+export default function Horario({ usuario, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, citas = [], equipo = [] }) {
   const hoy = hoyISO()
   const esAdmin = usuario?.rol === "admin"
   const [tab, setTab] = useState("general")
@@ -426,7 +427,9 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           <p className="text-sm text-slate-500">
             {tab === "general"
               ? "El horario de atención de la óptica: pacientes y portal solo verán espacios reales, sincronizados con esto."
-              : "Tu horario personal — separado del horario general de la óptica, solo lo ves y lo editas tú."}
+              : esAdmin
+                ? "Tu horario personal, separado del horario general de la óptica, y los horarios ocupados y disponibles de todo el equipo."
+                : "Tu horario personal — separado del horario general de la óptica, solo lo ves y lo editas tú."}
           </p>
         </div>
       </div>
@@ -466,13 +469,16 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       )}
 
       {tab === "personal" ? (
-        <MiHorarioPersonal
-          horarioPersonal={horarioPersonal}
-          setHorarioPersonal={setHorarioPersonal}
-          ausenciasOrdenadas={ausenciasOrdenadas}
-          quitarAusencia={quitarAusencia}
-          abrirModalAusencia={abrirModalAusencia}
-        />
+        <div className="space-y-6">
+          <HorarioEquipo usuario={usuario} equipo={equipo} citas={citas} duracion={disponibilidad?.duracionCita || 40} horarioPersonal={horarioPersonal} />
+          <MiHorarioPersonal
+            horarioPersonal={horarioPersonal}
+            setHorarioPersonal={setHorarioPersonal}
+            ausenciasOrdenadas={ausenciasOrdenadas}
+            quitarAusencia={quitarAusencia}
+            abrirModalAusencia={abrirModalAusencia}
+          />
+        </div>
       ) : !esAdmin ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
