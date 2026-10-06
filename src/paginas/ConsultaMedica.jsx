@@ -1148,9 +1148,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                 <LogOut size={14} aria-hidden="true" /> Dejar de atender
               </button>
             )}
-            <button type="button" onClick={onCerrar || onVolver} aria-label="Cerrar ficha clínica" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-              <X size={20} />
-            </button>
           </div>
         </div>
       )}
