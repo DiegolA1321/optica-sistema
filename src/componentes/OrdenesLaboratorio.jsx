@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, ArrowRight, Undo2, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, Plus, ArrowRight, Undo2, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
@@ -46,6 +46,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
   const [filtro, setFiltro] = useState(filtroInicial)
   const [laboratorio, setLaboratorio] = useState("")
   const [editando, setEditando] = useState(null)
+  const [otraDe, setOtraDe] = useState(null) // orden de cuya venta se crea otra (segundo par)
   const [trabajando, setTrabajando] = useState(null)
   const [abierta, setAbierta] = useState(null)
   const [historial, setHistorial] = useState({})
@@ -191,6 +192,9 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                   {(o.estado === "enviada" || o.estado === "lista") && (
                     <button type="button" onClick={() => setEditando(o)} className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer"><Pencil size={13} aria-hidden="true" /> Editar</button>
                   )}
+                  {o.estado !== "cancelada" && (
+                    <button type="button" onClick={() => setOtraDe(o)} title="Crear otra orden para la misma venta (por ejemplo, un segundo par)" className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer"><Plus size={13} aria-hidden="true" /> Otra orden</button>
+                  )}
                   {ANTERIOR[o.estado] && (
                     <button type="button" onClick={() => cambiarEstado(o, ANTERIOR[o.estado])} disabled={ocupado} className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-slate-100 cursor-pointer disabled:opacity-60"><Undo2 size={13} aria-hidden="true" /> Volver a "{ETIQUETA_ESTADO[ANTERIOR[o.estado]].toLowerCase()}"</button>
                   )}
@@ -211,6 +215,16 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
         </ul>
       )}
 
+      {otraDe && (
+        <OrdenLaboratorioModal
+          facturaId={otraDe.facturaId}
+          consultaId={otraDe.consultaId}
+          paciente={pacienteDe(otraDe)}
+          usuario={usuario}
+          opticaDatos={datosOptica}
+          onCerrar={() => setOtraDe(null)}
+        />
+      )}
       {editando && (
         <OrdenLaboratorioModal
           orden={editando}
@@ -218,7 +232,6 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
           usuario={usuario}
           opticaDatos={datosOptica}
           onCerrar={() => setEditando(null)}
-          onActualizada={() => onAviso?.(`${numeroOrden(editando.numero)} actualizada.`)}
         />
       )}
     </section>

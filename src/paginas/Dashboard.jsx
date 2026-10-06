@@ -58,7 +58,7 @@ import SeccionMfa from "./SeccionMfa"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
-import { ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
+import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
 // Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
 // atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se muestra un
@@ -171,6 +171,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // pantalla, como "Dejar de atender". Se apaga solo.
   const [aviso, setAviso] = useState(null)
   const timeoutAviso = useRef(null)
+  // Una orden de laboratorio creada o corregida desde cualquier pantalla avisa aquí (micro-feedback).
+  useEffect(() => {
+    const alGuardar = (e) => mostrarAviso(`Orden ${numeroOrden(e.detail.numero)} guardada.`)
+    window.addEventListener(EVENTO_ORDEN, alGuardar)
+    return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
+  }, [])
   const mostrarAviso = (mensaje) => {
     setAviso(mensaje)
     clearTimeout(timeoutAviso.current)
