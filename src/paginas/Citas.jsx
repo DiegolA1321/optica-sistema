@@ -48,7 +48,7 @@ import { etiquetaMiembro } from "../utilidades/equipo"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -133,6 +133,25 @@ function GrupoFiltro({ etiqueta, children }) {
       <span className="mr-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">{etiqueta}</span>
       {children}
     </div>
+  )
+}
+
+// Filtro por responsable (administrador): Todos, nadie, o una persona.
+function SelectorResponsable({ etiqueta, valor, onChange, equipo }) {
+  return (
+    <select
+      aria-label={etiqueta}
+      value={valor}
+      onChange={(e) => onChange(e.target.value)}
+      className={"rounded-full border px-3 py-1.5 text-xs font-semibold outline-none transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-100 " + (valor === "todos" ? "border-slate-200/60 bg-white text-slate-600" : "border-transparent text-white")}
+      style={valor === "todos" ? undefined : { backgroundColor: INK }}
+    >
+      <option value="todos">Todos</option>
+      <option value="ninguno">Nadie</option>
+      {equipo.map((m) => (
+        <option key={m.id} value={m.id}>{m.nombre}</option>
+      ))}
+    </select>
   )
 }
 
@@ -386,6 +405,9 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   const [estadoFiltro, setEstadoFiltro] = useState("todas")
   const [origenFiltro, setOrigenFiltro] = useState("todos")
   const [seguimientoFiltro, setSeguimientoFiltro] = useState("todos")
+  // Solo el administrador: filtrar por quién estaba a cargo (R18).
+  const [asignadoFiltro, setAsignadoFiltro] = useState("todos") // todos | ninguno | id
+  const [atendidoFiltro, setAtendidoFiltro] = useState("todos")
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(null) // null = según la vista
   // Rango de fechas propio (reunión 29 sept.: "todas las de la siguiente
   // semana"), independiente de los KPIs. Sin rango, la lista abre en hoy y lo
@@ -1018,10 +1040,12 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
     if (!coincideEstado(c, estadoFiltro)) return false
     if (!coincideOrigen(c, origenFiltro)) return false
     if (!coincideSeguimiento(c, seguimientoFiltro, consultas)) return false
+    if (!coincideResponsable(c, "asignadoA", asignadoFiltro)) return false
+    if (!coincideResponsable(c, "atendidoPor", atendidoFiltro)) return false
     if (filtro === "hoy") return esHoy(c.fecha)
     if (filtro === "proximas") return esFutura(c.fecha)
     return true
-  }), [citas, consultas, filtro, estadoFiltro, origenFiltro, seguimientoFiltro, soloPorRegistrar])
+  }), [citas, consultas, filtro, estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, soloPorRegistrar])
 
   const filtradasBase = useMemo(
     () => (textoBusqueda ? filtradasPorEstado.filter(coincideBusqueda) : filtradasPorEstado),
@@ -1078,8 +1102,8 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
-  const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos")
-  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setBusqueda("") }
+  const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
+  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda("") }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1500,6 +1524,16 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
                       <ChipFiltro key={o.id} activo={seguimientoFiltro === o.id} titulo={o.id === "primera" ? "El paciente no tenía atenciones anteriores" : undefined} onClick={() => setSeguimientoFiltro(o.id)}>{o.etiqueta}</ChipFiltro>
                     ))}
                   </GrupoFiltro>
+                  {usuario?.rol === "admin" && (
+                    <>
+                      <GrupoFiltro etiqueta="Asignada a">
+                        <SelectorResponsable etiqueta="Asignada a" valor={asignadoFiltro} onChange={setAsignadoFiltro} equipo={equipo} />
+                      </GrupoFiltro>
+                      <GrupoFiltro etiqueta="Atendida por">
+                        <SelectorResponsable etiqueta="Atendida por" valor={atendidoFiltro} onChange={setAtendidoFiltro} equipo={equipo} />
+                      </GrupoFiltro>
+                    </>
+                  )}
                 </div>
               </div>
             )}
