@@ -4,7 +4,7 @@ Rama: `prioridad-1` (desde `main`, commit `b003a2d`). Este documento es solo an�
 
 Fuentes: `requisitos-reunion-29sep.md` (secciones 1, 2 y 3), `../vision-sistema.md` y las transcripciones en `docs/reunion-29sep/` (1.txt a 4.txt).
 
-**Avance (tras los pasos 1 a 7):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
+**Avance (tras los pasos 1 a 8):** los totales de abajo ya descuentan lo construido; los requisitos resueltos llevan la nota "Resuelto" en su fila.
 
 Leyenda: **Hecho** = cumple lo pedido. **Parcial** = existe una parte, falta otra. **Pendiente** = no existe. **Distinto** = existe, pero resuelve otra cosa de la que pidió el ingeniero.
 
@@ -14,9 +14,9 @@ Las rutas son relativas a `src/`. Las líneas corresponden a `b003a2d` y pueden 
 
 | Estado | Sección 1 Citas (R1-R19) | Sección 2 Atención (R20-R40) | Sección 3 Perfil (R41-R45) | Total |
 |---|---|---|---|---|
-| Hecho | 19 | 14 | 5 | **38** |
+| Hecho | 19 | 15 | 5 | **39** |
 | Parcial | 0 | 2 | 0 | **2** |
-| Pendiente | 0 | 4 | 0 | **4** |
+| Pendiente | 0 | 3 | 0 | **3** |
 | Hecho distinto | 0 | 1 | 0 | **1** |
 | Total | 19 | 21 | 5 | **45** |
 
@@ -70,13 +70,13 @@ Lo que más pesa:
 | R30 Motivo por categorías configurables + Otros con detalle | **Hecho** | Categorías en Configuración (`Configuracion.jsx:483`), "Otros" exige detalle (`ConsultaMedica.jsx:860`), y si la cita ya trae motivo no se vuelve a pedir (`ConsultaMedica.jsx:1459`). |
 | R31 Diagnóstico por categoría + detalle, lente, imágenes, indicaciones, control | **Hecho** | `diagnosticoCategorias` (migración 0049), "Otro" exige detalle (`ConsultaMedica.jsx:877-880`), imágenes (0044). |
 | R32 No "posponer": guardar y seguir, o "dejar de atender" | **Hecho** (paso 5) | No existe un botón "Dejar de atender" que descarte lo no guardado y deje la cita como estaba. Hay aviso de cambios sin guardar al cerrar pestaña (`ConsultaMedica.jsx:395-401`) y al cambiar de sección (vía `Dashboard.jsx`). La cita queda "En atención" si se abandona; no vuelve a Pendiente. | **Resuelto:** La ficha tiene "Dejar de atender" (con confirmación): descarta lo no guardado, devuelve la cita a su estado anterior (una cita creada con "Atender ahora" queda pendiente), quita a quien atendía y avisa "La cita sigue agendada". Al guardar la ficha, "Atendido por" queda con quien la guardó.
-| R33 "Terminar atención" genera la receta, no la factura | **Distinto** | Guardar la ficha abre el panel de cobro "Cobrar y finalizar" (`ConsultaMedica.jsx:2328-2344`). La receta se imprime después de guardar. El optómetra cierra con cobro, no con receta y paso a ventas. **Diferencia 2 confirmada.** |
-| R34 "Pasar a la óptica" → "Listo para venta" | **Pendiente** | No existe el botón, ni el estado (búsqueda de "Listo para venta" sin resultados en `src/` y `supabase/`). |
+| R33 "Terminar atención" genera la receta, no la factura | **Hecho** (paso 8) | Guardar la ficha abre el panel de cobro "Cobrar y finalizar" (`ConsultaMedica.jsx:2328-2344`). La receta se imprime después de guardar. El optómetra cierra con cobro, no con receta y paso a ventas. **Diferencia 2 confirmada.** | **Resuelto:** el botón final de la ficha es "Terminar atención": guarda la ficha, genera la receta (lista para imprimir) y deja la cita atendida. Ya no abre el cobro solo; el bloque "Atención terminada" ofrece "Pasar a la óptica" y "Cobrar ahora".
+| R34 "Pasar a la óptica" → "Listo para venta" | **Hecho** (paso 8) | No existe el botón, ni el estado (búsqueda de "Listo para venta" sin resultados en `src/` y `supabase/`). | **Resuelto:** "Pasar a la óptica" llama a `pasar_a_optica()` (migración 0085) y crea un pase en `pases_a_venta` con estado "listo"; el perfil del paciente muestra "Listo para venta · desde 6 oct 2026". La cola para quien vende es el paso 9.
 | R35 La vendedora toma los datos del diagnóstico y arma la proforma | **Pendiente** | No hay cola de pacientes listos. Lo más cercano es "Cobro pendiente" (`Citas.jsx:285-289`) con las líneas precargadas desde la consulta (`lineasCobroConsulta`), que ve quien abre Citas o el perfil. No es una cola de ventas ni una proforma. |
 | R36 Orden de laboratorio con factura y receta, dos copias | **Pendiente** | No existe el concepto: ninguna tabla, pantalla ni impresión de orden de laboratorio. |
 | R37 Laboratorio marca "Completada", aviso al administrador | **Pendiente** | Depende de R36. |
 | R38 Pagos al contado, cuotas o abonos | **Parcial** | `FacturaVentaModal.jsx:550-562`: directo, tarjeta y cuotas (con cuotas pagadas). No encontré abonos libres de monto variable; confirmar si "cuotas" cubre lo que el ingeniero llama abono. |
-| R39 Cita "Atendida" al generar la factura total | **Hecho** | `marcarCitaAtendida` solo corre tras el cobro exitoso (`ConsultaMedica.jsx:313-326`) y lo mismo desde Citas (`alCobrarCita`). Es coherente con lo que pidió. La nota del documento (cobra el optómetra frente a la vendedora) se atiende en R33-R35. |
+| R39 Cita "Atendida" al generar la factura total | **Hecho distinto (justificado)** | `marcarCitaAtendida` solo corre tras el cobro exitoso (`ConsultaMedica.jsx:313-326`) y lo mismo desde Citas (`alCobrarCita`). Es coherente con lo que pidió. La nota del documento (cobra el optómetra frente a la vendedora) se atiende en R33-R35. | **Decisión de Diego (6 oct.):** la cita pasa a "Atendida" al terminar la atención, no al facturar. Se separan el hecho clínico (atendida) y el comercial (vendido o descartado, que sigue `pases_a_venta`): así un paciente que consulta y no compra también cuenta como atendido, la cita no queda abierta, y el embudo de R40 (consultaron, pasaron a venta, compraron) sale de datos reales.
 | R40 Quién consultó y no compró; embudo | **Parcial** | `Reportes.jsx` mide conversión consulta → venta (`:184`) y pacientes nuevos (`:116`), pero no hay vista "primera vez → se volvió cliente" ni separación entre paciente accesible y dato estadístico. |
 
 ---
@@ -170,6 +170,15 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
 
 7. **Usuarios del personal: se desactivan, no se eliminan (para el Bloque D).** Para no perder el historial de "Asignado a" y "Atendido por". Hoy eliminar un usuario borraría ese dato de sus citas (`on delete set null` en 0083), y además cascada con `auth.users`. Cuando el personal se desactive: el selector "Asignado a" **no debe mostrar a los desactivados**, pero el nombre de quien atendió o estaba asignado **debe seguir visible en las citas antiguas** (por eso `equipo_optica()` deberá devolver también a los desactivados, con una marca, para resolver nombres, y el selector los filtra). En el Bloque D: reemplazar "Eliminar usuario" por "Desactivar" (sin acceso, con su nombre conservado en las citas y en los reportes) y reactivar.
 8. **Filtro de estado.** "Vencidas" se reemplaza por "No asistió" (hecho, R4).
+
+9. **La cita pasa a "Atendida" al terminar la atención (R39, hecho distinto justificado).** La venta se sigue por separado en `pases_a_venta` (listo, vendido o descartado). Ver la fila de R39.
+
+### Notas para el paso 9 (cola de "Listo para venta")
+
+- **Toda venta hecha desde la cola debe quedar vinculada a su consulta** (`consulta_id` de la factura), para que el pase se cierre solo: el trigger de la migración 0085 pasa el pase a "vendido" al facturar esa consulta.
+- **Una venta desde "Nueva venta" sin vínculo no debe dejar pases abiertos sin explicación.** Si el paciente tiene un pase "listo" y se le factura sin consulta, hay que preguntar o sugerir vincularla ("Este paciente está listo para venta de la consulta del 6 oct: ¿es esta venta?"), o permitir cerrar el pase como "descartado" con motivo.
+- "Descartado" (el paciente no compró) lo marca quien vende con una función en la base (pendiente de crear en el paso 9) y alimenta R40. Hay que probar que un pase descartado no se reabre por una factura nueva ni por `pasar_a_optica()`.
+- Si se anula una factura y existe otra vigente de la misma consulta, el pase sigue "vendido" y apunta a esa; si era la única, vuelve a "listo" (verificado en la migración 0085).
 
 ## Pendientes fuera de este bloque
 
