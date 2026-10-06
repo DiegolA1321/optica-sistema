@@ -68,6 +68,9 @@ import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
+import ColaVentas from "../componentes/ColaVentas"
+import NoComproModal from "../componentes/NoComproModal"
+import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta } from "../utilidades/proforma"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
@@ -157,7 +160,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, onAviso, pases = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, onAviso, pases = [], setPases, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -316,6 +319,58 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
 
   const registrarFactura = (factura) => {
     setFacturasVenta?.((prev) => [factura, ...prev])
+    if (factura.consultaId) {
+      setPases?.((prev) => prev.map((p) => (p.consultaId === factura.consultaId && p.pacienteId === factura.pacienteId && (p.estado === "listo" || p.estado === "descartado") ? { ...p, estado: "vendido", facturaId: factura.id } : p)))
+    }
+  }
+
+  // ── Cola de "Listo para venta" (R35): tomar datos y armar la proforma, registrar
+  // la venta (siempre vinculada a su consulta) o marcar "No compró".
+  const [ventaCola, setVentaCola] = useState(null) // { pase, paciente, consulta }
+  const [noComproPara, setNoComproPara] = useState(null)
+  const [reabriendoId, setReabriendoId] = useState(null)
+  const construirCola = (estado) => pases
+    .filter((p) => p.estado === estado)
+    .map((pase) => ({ pase, paciente: pacientes.find((x) => x.id === pase.pacienteId) || null, consulta: consultas.find((c) => c.id === pase.consultaId) || null }))
+    .sort((a, b) => (estado === "listo" ? (a.pase.pasadaEn < b.pase.pasadaEn ? -1 : 1) : (a.pase.pasadaEn < b.pase.pasadaEn ? 1 : -1)))
+  const colaListos = useMemo(() => construirCola("listo"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
+  const colaDescartados = useMemo(() => construirCola("descartado"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La proforma no se guarda como documento: el pase solo anota cuándo se entregó y por cuánto.
+  const imprimirProformaCola = async ({ lineas, total, incluirMedidas }) => {
+    const item = ventaCola
+    if (!item) return
+    if (supabase) {
+      const { data, error } = await supabase.rpc("registrar_proforma", { p_pase_id: item.pase.id, p_total: total })
+      if (error) {
+        setBannerError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo registrar la proforma. Revisa tu conexión e intenta de nuevo.")
+        return
+      }
+      setPases?.((prev) => prev.map((p) => (p.id === item.pase.id ? { ...p, proformaEntregadaEn: data, proformaTotal: total } : p)))
+    }
+    imprimirHtml(armarHtmlProforma({
+      opticaNombre: usuario?.opticaNombre,
+      paciente: item.paciente,
+      diagnostico: item.consulta,
+      lineas: lineas.map((l) => ({ descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),
+      incluirMedidas,
+    }))
+    mostrarNotif("Proforma registrada e impresa.")
+  }
+  const alVenderDesdeCola = (factura) => {
+    registrarFactura(factura)
+    mostrarNotif(`Venta registrada: ${ventaCola?.paciente?.nombre || "el paciente"} salió de la lista de espera.`)
+  }
+  const reabrirPase = async ({ pase, paciente }) => {
+    setReabriendoId(pase.id)
+    const { error } = supabase ? await supabase.rpc("reabrir_pase", { p_pase_id: pase.id }) : { error: null }
+    setReabriendoId(null)
+    if (error) {
+      setBannerError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo volver a la lista de espera. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    setPases?.((prev) => prev.map((p) => (p.id === pase.id ? { ...p, estado: "listo", motivoDescarte: null, detalleDescarte: null } : p)))
+    mostrarNotif(`${paciente?.nombre || "El paciente"} volvió a la lista de espera.`)
   }
 
   // Cobro pendiente (Ronda 4): ficha guardada con "Más tarde" en el panel de
@@ -959,7 +1014,10 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
     { key: "Recientes", label: "Visitas recientes" },
     { key: "RecetasActivas", label: "Recetas activas" },
     { key: "PagosPendientes", label: "Pagos pendientes" },
+    { key: "ListosVenta", label: `Listos para venta${colaListos.length > 0 ? ` (${colaListos.length})` : ""}` },
+    ...(colaDescartados.length > 0 || filtroRapido === "NoCompraron" ? [{ key: "NoCompraron", label: `No compraron (${colaDescartados.length})` }] : []),
   ]
+  const colaActiva = filtroRapido === "ListosVenta" || filtroRapido === "NoCompraron"
   const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
   const activarBadgeRapido = (key) => {
     if (key === "RecetasActivas") {
@@ -1160,7 +1218,18 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
         })}
       </div>
 
-      {/* ─── TABLA ─── */}
+      {/* ─── TABLA (o la cola de ventas cuando está activo "Listos para venta" / "No compraron") ─── */}
+      {colaActiva ? (
+        <ColaVentas
+          modo={filtroRapido === "ListosVenta" ? "listos" : "descartados"}
+          items={filtroRapido === "ListosVenta" ? colaListos : colaDescartados}
+          reabriendoId={reabriendoId}
+          onTomarDatos={setVentaCola}
+          onNoCompro={setNoComproPara}
+          onReabrir={reabrirPase}
+          onVerPerfil={(p) => { setPacienteHistorial(p); setTabHistorial("citas") }}
+        />
+      ) : (
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -1418,6 +1487,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
           </div>
         )}
       </div>
+      )}
 
       </>
       )}
@@ -1988,6 +2058,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
                           <ShoppingBag size={13} aria-hidden="true" /> Listo para venta · desde {fechaLegible(paseListo.pasadaEn)}
+                          <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="ml-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-white transition-colors hover:bg-emerald-700 cursor-pointer">Tomar datos</button>
                         </span>
                       )}
                       {abiertasPaciente.map(({ cita, dias }) => (
@@ -2392,6 +2463,42 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
         />
       )}
 
+      {/* ─── VENTA DESDE LA COLA: datos del diagnóstico, proforma y venta vinculada a su consulta ─── */}
+      {ventaCola && ventaCola.paciente && (
+        <FacturaVentaModal
+          usuario={usuario}
+          inventario={inventario}
+          setInventario={setInventario}
+          categorias={categoriasInventario}
+          setCategorias={setCategoriasInventario}
+          pacienteFijo={ventaCola.paciente}
+          titulo={`Venta de ${ventaCola.paciente.nombre}`}
+          subtitulo="Listo para venta: toma los datos, arma la proforma o registra la venta."
+          etiquetaGuardar="Registrar venta"
+          lineasIniciales={lineasProformaDeConsulta(ventaCola.consulta, parametrizacion)}
+          consultaId={ventaCola.pase.consultaId}
+          citaId={ventaCola.pase.citaId}
+          diagnostico={ventaCola.consulta}
+          onProforma={imprimirProformaCola}
+          onNoCompro={() => { const item = ventaCola; setVentaCola(null); setNoComproPara(item) }}
+          onGuardado={alVenderDesdeCola}
+          onCerrar={() => setVentaCola(null)}
+        />
+      )}
+      {noComproPara && (
+        <NoComproModal
+          nombrePaciente={noComproPara.paciente?.nombre || "Paciente"}
+          paseId={noComproPara.pase.id}
+          onCancelar={() => setNoComproPara(null)}
+          onHecho={({ motivo, detalle }) => {
+            const item = noComproPara
+            setPases?.((prev) => prev.map((p) => (p.id === item.pase.id ? { ...p, estado: "descartado", motivoDescarte: motivo, detalleDescarte: detalle } : p)))
+            setNoComproPara(null)
+            mostrarNotif("Quedó registrado: el paciente no compró.")
+          }}
+        />
+      )}
+
       {/* ─── PANEL DE COBRO / NUEVA VENTA (desde el perfil del paciente) ─── */}
       {mostrarFactura && pacienteHistorial && (
         <FacturaVentaModal
@@ -2402,6 +2509,12 @@ export default function Pacientes({ usuario, onAviso, pases = [], setVista, carg
           setCategorias={setCategoriasInventario}
           pacienteFijo={pacienteHistorial}
           lineaInicial={facturaLineaInicial}
+          vinculoSugerido={(() => {
+            const p = pases.find((x) => x.pacienteId === pacienteHistorial.id && x.estado === "listo")
+            if (!p) return null
+            const c = consultas.find((k) => k.id === p.consultaId)
+            return { consultaId: p.consultaId, citaId: p.citaId, etiqueta: `¿Esta venta es de la consulta del ${fechaLegible(c?.fecha) || "paciente"}? (listo para venta)` }
+          })()}
           onGuardado={registrarFactura}
           onCerrar={() => setMostrarFactura(false)}
         />
