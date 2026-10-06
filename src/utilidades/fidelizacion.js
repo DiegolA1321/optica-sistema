@@ -127,3 +127,21 @@ export function contarReferidos(paciente, pacientes = []) {
 }
 
 export { UMBRAL_INACTIVO_DIAS, MINIMO_CLIENTE_FRECUENTE }
+
+// Días que faltan para el próximo cumpleaños (0 = hoy), o null si no hay fecha
+// de nacimiento válida. Quien nació un 29 de febrero celebra el 28 en los años
+// que no son bisiestos. `fechaNacimiento` es "AAAA-MM-DD" (o con hora).
+export function diasParaCumpleanos(fechaNacimiento, hoy = new Date()) {
+  if (!fechaNacimiento) return null
+  const [, mes, dia] = String(fechaNacimiento).split(/[-/T]/).map(Number)
+  if (!mes || !dia) return null
+  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+  const proximo = (anio) => {
+    const bisiesto = (anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0
+    const d = mes === 2 && dia === 29 && !bisiesto ? 28 : dia
+    return new Date(anio, mes - 1, d)
+  }
+  let objetivo = proximo(hoy.getFullYear())
+  if (objetivo < inicioHoy) objetivo = proximo(hoy.getFullYear() + 1)
+  return Math.round((objetivo - inicioHoy) / 86400000)
+}

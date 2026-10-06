@@ -8,6 +8,7 @@ import {
   contarConsultas,
   esClienteFrecuente,
   UMBRAL_INACTIVO_DIAS,
+  diasParaCumpleanos,
 } from "./fidelizacion"
 
 describe("fidelizacion (con fecha fija: 10 de marzo de 2026)", () => {
@@ -106,5 +107,26 @@ describe("fidelizacion (con fecha fija: 10 de marzo de 2026)", () => {
     const paciente = { id: 1, nombre: "Ana", fechaRegistro: "2026-01-01" }
     const consultas = [{ pacienteId: 1, fecha: "fecha-invalida" }]
     expect(ultimaVisita(paciente, consultas).getTime()).toBe(new Date(2026, 0, 1).getTime())
+  })
+})
+
+describe("diasParaCumpleanos", () => {
+  const hoy = new Date(2026, 9, 6) // 6 oct 2026
+  it("cuenta los días hasta el próximo cumpleaños", () => {
+    expect(diasParaCumpleanos("1990-10-26", hoy)).toBe(20)
+  })
+  it("hoy es 0", () => {
+    expect(diasParaCumpleanos("1985-10-06", hoy)).toBe(0)
+  })
+  it("si ya pasó este año, cuenta hasta el del año siguiente", () => {
+    expect(diasParaCumpleanos("1990-10-05", hoy)).toBe(364)
+  })
+  it("el 29 de febrero celebra el 28 en años no bisiestos", () => {
+    expect(diasParaCumpleanos("2000-02-29", new Date(2027, 1, 20))).toBe(8)
+  })
+  it("sin fecha o con una fecha inválida devuelve null", () => {
+    expect(diasParaCumpleanos("", hoy)).toBeNull()
+    expect(diasParaCumpleanos(null, hoy)).toBeNull()
+    expect(diasParaCumpleanos("sin fecha", hoy)).toBeNull()
   })
 })
