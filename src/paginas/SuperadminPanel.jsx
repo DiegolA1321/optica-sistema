@@ -1570,8 +1570,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // ¿Es también el optómetra/licenciado? — caso "Usuarios y permisos" de la
   // reunión con el ing, punto 1: solo un dato informativo para saber si ese
   // admin va a administrar el sistema él mismo o va a delegarlo.
+  // Con roles (migración 0090) "también atiende" es tener el rol Optómetra: se asigna o se quita ese rol
+  // y la base recalcula es_optometra sola.
   const guardarEsOptometra = async (adminId, valor) => {
-    const { error } = await supabase.from("perfiles").update({ es_optometra: valor }).eq("id", adminId)
+    const admin = admins.find((x) => x.id === adminId)
+    if (!admin?.optica_id) return
+    const { data: rol } = await supabase.from("roles").select("id").eq("optica_id", admin.optica_id).eq("clave", "optometra").maybeSingle()
+    if (!rol) return
+    const { error } = valor
+      ? await supabase.from("perfil_roles").upsert({ perfil_id: adminId, rol_id: rol.id }, { onConflict: "perfil_id,rol_id", ignoreDuplicates: true })
+      : await supabase.from("perfil_roles").delete().eq("perfil_id", adminId).eq("rol_id", rol.id)
     if (!error) setAdmins((prev) => prev.map((a) => (a.id === adminId ? { ...a, es_optometra: valor } : a)))
   }
 
