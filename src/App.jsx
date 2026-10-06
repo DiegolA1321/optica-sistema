@@ -495,6 +495,39 @@ function App() {
     return () => clearInterval(id)
   }, [usuario?.id, usuario?.rol])
 
+  // Las citas se refrescan solas cada 20 segundos (y al volver a la pestaña)
+  // para que "en atención ahora" y las citas nuevas del portal aparezcan sin
+  // recargar. Solo trae las de los últimos días en adelante y las mezcla por id.
+  useEffect(() => {
+    if (!supabase || !usuario?.opticaId || (usuario.rol !== 'admin' && usuario.rol !== 'asistente')) return
+    let enCurso = false
+    const refrescar = async () => {
+      if (enCurso || document.hidden) return
+      enCurso = true
+      try {
+        const desde = new Date(Date.now() - 3 * 86400000)
+        const iso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`
+        const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
+        if (data) {
+          setCitas((prev) => {
+            const mapa = new Map(prev.map((c) => [c.id, c]))
+            for (const fila of data) {
+              const nueva = mapCita(fila)
+              mapa.set(nueva.id, { ...(mapa.get(nueva.id) || {}), ...nueva })
+            }
+            return [...mapa.values()]
+          })
+        }
+      } finally {
+        enCurso = false
+      }
+    }
+    const id = setInterval(refrescar, 20000)
+    const alVolver = () => { if (!document.hidden) refrescar() }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', alVolver) }
+  }, [usuario?.opticaId, usuario?.rol])
+
   // Horario personal — aparte de la hidratación de arriba a propósito: es
   // personal de quien esté logueado (admin o asistente por igual), no un
   // dato público ni un dato exclusivo del admin como pacientes/inventario.
