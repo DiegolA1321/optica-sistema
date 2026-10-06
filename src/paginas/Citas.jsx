@@ -1106,6 +1106,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
+  const totalEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención").length, [citas])
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
   const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda("") }
 
@@ -1514,7 +1515,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
               <div id="citas-filtros-panel" className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
                 <GrupoFiltro etiqueta="Estado">
                   {ESTADOS_FILTRO.map((e) => (
-                    <ChipFiltro key={e.id} activo={estadoFiltro === e.id} titulo={e.ayuda} onClick={() => setEstadoFiltro(e.id)}>{e.etiqueta}</ChipFiltro>
+                    <ChipFiltro key={e.id} activo={estadoFiltro === e.id} titulo={e.ayuda} conteo={e.id === "enAtencion" && totalEnAtencion > 0 ? totalEnAtencion : undefined} onClick={() => setEstadoFiltro(e.id)}>{e.etiqueta}</ChipFiltro>
                   ))}
                 </GrupoFiltro>
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-2.5">
