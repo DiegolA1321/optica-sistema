@@ -190,7 +190,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                 >
                   <div className="mb-0.5 flex h-5 items-center justify-between gap-1">
                     <span
-                      className={"grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold " + (esHoy ? "text-white" : delMes ? "text-slate-700" : "text-slate-400")}
+                      className={"grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold " + (esHoy ? "text-white" : delMes ? (modo === "carga" && nivel >= 4 ? "text-white" : "text-slate-700") : "text-slate-400")}
                       style={esHoy ? { background: "linear-gradient(135deg,#22D3EE,#2563EB)" } : undefined}
                     >
                       {numero}
