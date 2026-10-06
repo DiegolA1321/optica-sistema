@@ -168,6 +168,8 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
    - La solicitud de eliminación del portal y el borrado manual deben llevar al mismo procedimiento, que conviene hacer como función en la base (una sola transacción) y no desde el navegador.
 6. **Abonos libres (R38).** Se implementan abonos con monto y fecha libres hasta completar el total, con el saldo pendiente visible. Las cuotas pasan a ser un caso de abonos (un plan de N abonos iguales). Paso 11 del plan; requiere tabla de abonos.
 
+**Nota para el Bloque D (anonimizar pacientes).** Hoy solo el administrador (rol admin) puede eliminar —anonimizar— a un paciente. Cuando existan los roles del Bloque D, pasará a ser un permiso propio, **"eliminar" de Pacientes**, separado de "editar", y la función `anonimizar_paciente` lo comprobará en lugar del rol.
+
 7. **Usuarios del personal: se desactivan, no se eliminan (para el Bloque D).** Para no perder el historial de "Asignado a" y "Atendido por". Hoy eliminar un usuario borraría ese dato de sus citas (`on delete set null` en 0083), y además cascada con `auth.users`. Cuando el personal se desactive: el selector "Asignado a" **no debe mostrar a los desactivados**, pero el nombre de quien atendió o estaba asignado **debe seguir visible en las citas antiguas** (por eso `equipo_optica()` deberá devolver también a los desactivados, con una marca, para resolver nombres, y el selector los filtra). En el Bloque D: reemplazar "Eliminar usuario" por "Desactivar" (sin acceso, con su nombre conservado en las citas y en los reportes) y reactivar.
 8. **Filtro de estado.** "Vencidas" se reemplaza por "No asistió" (hecho, R4).
 
