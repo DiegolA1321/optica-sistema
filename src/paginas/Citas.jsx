@@ -645,6 +645,7 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
         return
       }
       nuevaCita.id = data.id
+      nuevaCita.creadoEn = data.created_at
     } else {
       nuevaCita.id = Date.now()
     }
