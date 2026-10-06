@@ -564,6 +564,15 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           if (!error) setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, estado: "En Atención" } : c)))
         })
       }
+      // "Atendido por" (R12, R18): quien abre la ficha de la cita queda
+      // registrado solo, sin pedirlo. Va en una llamada aparte para que un
+      // fallo aquí nunca impida el cambio de estado de arriba.
+      if (citaActual && usuario?.id && usuario.rol !== "superadmin" && !["Atendida", "Cancelada"].includes(citaActual.estado) && citaActual.atendidoPor !== usuario.id) {
+        supabase?.from("citas").update({ atendido_por: usuario.id }).eq("id", citaIdInicial).then(({ error }) => {
+          if (error) console.warn("No se pudo registrar quién atiende la cita:", error.message)
+          else setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, atendidoPor: usuario.id } : c)))
+        })
+      }
     }
     // El motivo ya se eligió al agendar la cita (categoría fija) — el ing
     // probó "Atender" y esperaba verlo ya puesto acá, no volver a escribirlo:
