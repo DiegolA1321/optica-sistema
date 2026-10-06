@@ -3,7 +3,7 @@
 import { ShoppingBag, FileText, UserX, Undo2, Stethoscope } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
-import { diasEnEspera, textoEspera, etiquetaMotivo } from "../utilidades/pasesVenta"
+import { diasEnEspera, textoEspera, etiquetaMotivo, textoDiagnostico } from "../utilidades/pasesVenta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -23,7 +23,7 @@ export default function ColaVentas({ modo = "listos", items, reabriendoId, onTom
   return (
     <ul className="space-y-3" aria-label={modo === "listos" ? "Pacientes listos para venta" : "Pacientes que no compraron"}>
       {items.map(({ pase, paciente, consulta }) => {
-        const diagnostico = [consulta?.diagnosticoCategorias?.join(", "), consulta?.diagnostico].filter(Boolean).join(" · ")
+        const diagnostico = textoDiagnostico(consulta)
         return (
           <li key={pase.id} className="rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-start gap-x-6 gap-y-3">

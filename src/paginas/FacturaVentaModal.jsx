@@ -13,6 +13,7 @@ import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
+import { textoDiagnostico } from "../utilidades/pasesVenta"
 
 // ─── Paleta de firma (paleta de venta/dinero) ───
 const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción de venta/dinero
@@ -397,8 +398,8 @@ export default function FacturaVentaModal({
               <section aria-label="Datos del diagnóstico" className="space-y-1.5 rounded-xl border border-blue-200/60 bg-blue-50/40 p-3 text-sm">
                 <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-blue-700"><Stethoscope size={13} aria-hidden="true" /> Datos del diagnóstico · {fechaLegible(diagnostico.fecha)}</p>
                 {diagnostico.motivo && <p className="text-slate-600"><span className="font-semibold text-slate-700">Motivo:</span> {diagnostico.motivo}</p>}
-                {(diagnostico.diagnosticoCategorias?.length > 0 || diagnostico.diagnostico) && (
-                  <p className="text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico:</span> {[diagnostico.diagnosticoCategorias?.join(", "), diagnostico.diagnostico].filter(Boolean).join(" · ")}</p>
+                {textoDiagnostico(diagnostico) && (
+                  <p className="text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico:</span> {textoDiagnostico(diagnostico)}</p>
                 )}
                 {diagnostico.lenteRecomendado && <p className="text-slate-600"><span className="font-semibold text-slate-700">Lente recomendado:</span> {diagnostico.lenteRecomendado}</p>}
                 {diagnostico.indicaciones && <p className="text-slate-600"><span className="font-semibold text-slate-700">Indicaciones:</span> {diagnostico.indicaciones}</p>}
