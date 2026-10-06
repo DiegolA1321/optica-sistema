@@ -175,6 +175,8 @@ function mapCita(c) {
     canceladaPor: c.cancelada_por,
     // created_at: "Agendada el" en el detalle de la cita (R12).
     creadoEn: c.created_at,
+    // Responsable (0083): quién debería atender y quién atendió de verdad.
+    asignadoA: c.asignado_a || null, atendidoPor: c.atendido_por || null,
   }
 }
 function mapConsulta(c) {
@@ -350,6 +352,10 @@ function App() {
   // público). null mientras no se sabe todavía si existe una fila propia.
   const [horarioPersonal, setHorarioPersonalState] = useState(null);
   const [asistentes, setAsistentes] = useState([]);
+  // Equipo de la óptica (admin y asistentes) para "Asignado a" y para mostrar
+  // quién atendió: perfiles solo deja leer el propio, así que viene de la
+  // función equipo_optica() (0084).
+  const [equipo, setEquipo] = useState([]);
   const [parametrizacion, setParametrizacionState] = useState(PARAMETRIZACION_SEED);
   const [motivosConsulta, setMotivosConsultaState] = useState(MOTIVOS_SEED);
   const [diagnosticosRapidos, setDiagnosticosRapidosState] = useState(DIAGNOSTICOS_SEED);
@@ -561,6 +567,11 @@ function App() {
       supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data, error }) => {
         if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
         else if (error) registrarErrorCarga('solicitudes de eliminación')
+      })
+
+      supabase.rpc('equipo_optica').then(({ data, error }) => {
+        if (data) setEquipo(data.map((m) => ({ id: m.id, nombre: m.nombre, rol: m.rol, esOptometra: !!m.es_optometra })))
+        else if (error) registrarErrorCarga('equipo de la óptica')
       })
 
       supabase.from('perfiles').select('id, nombre, email, permisos, etiqueta_rol, es_optometra, cedula').eq('optica_id', opticaId).eq('rol', 'asistente').then(({ data, error }) => {
@@ -988,6 +999,7 @@ function App() {
           setHorarioPersonal={setHorarioPersonal}
           asistentes={asistentes}
           setAsistentes={setAsistentes}
+          equipo={equipo}
           parametrizacion={parametrizacion}
           setParametrizacion={setParametrizacion}
           motivosConsulta={motivosConsulta}
