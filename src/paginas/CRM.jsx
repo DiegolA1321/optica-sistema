@@ -28,6 +28,7 @@ import { hoyISO } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
+import { leerContactadosHoy, marcarContactadoHoy as marcarContactadoHoyGuardado } from "../utilidades/contactosCrm"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -168,26 +169,8 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   // "de buena fe" en localStorage (por navegador, no por servidor) — coherente
   // con que enviarRecordatorio() ya solo abre wa.me, sin backend real de
   // mensajería que pudiera imponerlo del lado del servidor.
-  const CLAVE_CONTACTOS_HOY = "optica_crm_contactos_hoy"
-  const [contactadosHoy, setContactadosHoy] = useState(() => {
-    try {
-      // hoyISO() usa los componentes LOCALES del Date — toISOString()
-      // convierte a UTC primero, así que en Ecuador (UTC-5) el límite
-      // "de hoy" se reseteaba 5 horas antes de la medianoche real.
-      const hoy = hoyISO()
-      const raw = JSON.parse(localStorage.getItem(CLAVE_CONTACTOS_HOY) || "{}")
-      return raw[hoy] || {}
-    } catch { return {} }
-  })
-  const marcarContactadoHoy = (id) => {
-    if (id == null) return
-    const hoy = hoyISO()
-    setContactadosHoy((prev) => {
-      const siguiente = { ...prev, [id]: true }
-      try { localStorage.setItem(CLAVE_CONTACTOS_HOY, JSON.stringify({ [hoy]: siguiente })) } catch { /* localStorage lleno o bloqueado — el límite solo se pierde, no rompe nada */ }
-      return siguiente
-    })
-  }
+  const [contactadosHoy, setContactadosHoy] = useState(leerContactadosHoy)
+  const marcarContactadoHoy = (id) => setContactadosHoy(marcarContactadoHoyGuardado(id))
 
   // Avisos globales (anuncios para todos los pacientes: cierres, promociones,
   // etc.) — antes vivían solo en localStorage (CRM.jsx no llamaba nunca a
