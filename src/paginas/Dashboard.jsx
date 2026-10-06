@@ -132,6 +132,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // operativos que son default true) — es la "administración delegada" que
   // pidió el ing para cuando el optómetra contrata a alguien que le
   // administre el sistema completo.
+  const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
       if (o.soloAdmin) {
@@ -479,6 +480,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
             onAviso={mostrarAviso}
             pases={pases}
+            setPases={setPases}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
             marcarMedidasAtendidas={marcarMedidasAtendidas}
@@ -692,12 +694,23 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                   onClick={() => navegar(opcion.id)}
                   title={colapsado ? opcion.nombre : undefined}
                   aria-label={opcion.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white shadow-md shadow-blue-500/20" : "bg-transparent text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm")}
+                  className={"group relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white shadow-md shadow-blue-500/20" : "bg-transparent text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm")}
                   style={activo ? { background: GRAD } : undefined}
                 >
                   <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
-                  {activo && <span className={"ml-auto h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
+                  {/* Pacientes listos para venta (R35): se ve en el menú de quien ve Pacientes.
+                      Pasará al módulo de Ventas y al Inicio de quien vende (Bloques D y E). */}
+                  {opcion.id === "pacientes" && listosParaVenta > 0 && (
+                    <span
+                      title={`${listosParaVenta} paciente${listosParaVenta === 1 ? "" : "s"} listo${listosParaVenta === 1 ? "" : "s"} para venta`}
+                      aria-label={`${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`}
+                      className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]" : "")}
+                    >
+                      {listosParaVenta}
+                    </span>
+                  )}
+                  {activo && <span className={(opcion.id === "pacientes" && listosParaVenta > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
               )
             })}

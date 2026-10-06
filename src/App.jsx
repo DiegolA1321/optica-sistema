@@ -185,6 +185,9 @@ function mapPase(p) {
   return {
     id: p.id, consultaId: p.consulta_id, pacienteId: p.paciente_id, citaId: p.cita_id,
     estado: p.estado, pasadaPor: p.pasada_por, pasadaEn: p.pasada_en, facturaId: p.factura_id,
+    // 0086: motivo de "No compró" y proforma entregada (fecha y monto).
+    motivoDescarte: p.motivo_descarte || null, detalleDescarte: p.detalle_descarte || null,
+    proformaEntregadaEn: p.proforma_entregada_en || null, proformaTotal: p.proforma_total != null ? Number(p.proforma_total) : null,
   }
 }
 function mapConsulta(c) {
@@ -517,6 +520,8 @@ function App() {
       try {
         const desde = new Date(Date.now() - 3 * 86400000)
         const iso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`
+        const { data: pasesData } = await supabase.from('pases_a_venta').select('*').eq('optica_id', usuario.opticaId)
+        if (pasesData) setPasesVenta(pasesData.map(mapPase))
         const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
         if (data) {
           setCitas((prev) => {
