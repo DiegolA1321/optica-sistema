@@ -14,10 +14,15 @@ import { TarjetaFlotante, LeyendaEstados } from "./CalendarioSemanal"
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-const ALTO_TITULO = 49
-const ALTO_DIAS = 30
-const ALTO_FILA_MIN = 76
-const ALTO_ETIQUETA = 20
+const ALTO_TITULO = 40
+const ALTO_DIAS = 26
+// Cada día muestra al menos 3 etiquetas: relleno (6) + cabecera con el número y "+N más" (22) + 3 etiquetas de 16 con 2 de separación (52).
+const ALTO_ETIQUETA = 16
+const SEPARACION = 2
+const MIN_ETIQUETAS = 3
+const ALTO_CABECERA = 22
+const RELLENO_VERTICAL = 6
+const ALTO_FILA_MIN = RELLENO_VERTICAL + ALTO_CABECERA + MIN_ETIQUETAS * ALTO_ETIQUETA + (MIN_ETIQUETAS - 1) * SEPARACION
 
 const ANCHO_LISTA = 288
 
@@ -113,7 +118,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
 
   const citasDelMes = semanas.flat().reduce((n, d) => n + (d.delMes ? (citasPorFecha.get(d.iso)?.length || 0) : 0), 0)
   const altoFila = Math.max(ALTO_FILA_MIN, Math.floor((altoSeccion - ALTO_TITULO - ALTO_DIAS) / semanas.length))
-  const maxEtiquetas = Math.max(1, Math.floor((altoFila - 28) / ALTO_ETIQUETA))
+  const maxEtiquetas = Math.max(MIN_ETIQUETAS, Math.floor((altoFila - RELLENO_VERTICAL - ALTO_CABECERA + SEPARACION) / (ALTO_ETIQUETA + SEPARACION)))
   const citaAbierta = abierta ? [...citasPorFecha.values()].flat().find((c) => c.id === abierta.id) : null
 
   return (
@@ -135,22 +140,37 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
             {semana.map(({ iso, numero, delMes }) => {
               const citas = citasPorFecha.get(iso) || []
               const ordenadas = [...citas].sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
-              const caben = ordenadas.length > maxEtiquetas ? maxEtiquetas - 1 : ordenadas.length
+              const caben = Math.min(ordenadas.length, maxEtiquetas)
               const resto = ordenadas.length - caben
               const esHoy = iso === hoy
               return (
                 <div
                   key={iso}
                   onClick={() => onDiaClick?.(iso)}
-                  className={"min-w-0 overflow-hidden border-l border-slate-100 p-1 transition-colors first:border-l-0 cursor-pointer hover:bg-slate-50/80 " + (esHoy ? "bg-blue-50/40" : !delMes ? "bg-slate-50/60" : "")}
+                  className={"min-w-0 overflow-hidden border-l border-slate-100 px-1 py-[3px] transition-colors first:border-l-0 cursor-pointer hover:bg-slate-50/80 " + (esHoy ? "bg-blue-50/40" : !delMes ? "bg-slate-50/60" : "")}
                 >
-                  <div className="mb-0.5 flex h-6 items-center justify-between px-0.5">
+                  <div className="mb-0.5 flex h-5 items-center justify-between gap-1">
                     <span
-                      className={"grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-bold " + (esHoy ? "text-white" : delMes ? "text-slate-700" : "text-slate-400")}
+                      className={"grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold " + (esHoy ? "text-white" : delMes ? "text-slate-700" : "text-slate-400")}
                       style={esHoy ? { background: "linear-gradient(135deg,#22D3EE,#2563EB)" } : undefined}
                     >
                       {numero}
                     </span>
+                    {resto > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const r = e.currentTarget.getBoundingClientRect()
+                          setAbierta(null)
+                          setLista({ iso, ancla: { top: r.top, left: r.left, right: r.right } })
+                        }}
+                        title="Ver todas las citas del día"
+                        className="rounded px-1 text-[11px] font-bold leading-4 text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
+                      >
+                        +{resto} más
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-0.5">
                     {ordenadas.slice(0, caben).map((c) => {
@@ -166,29 +186,14 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                             setAbierta({ id: c.id, ancla: { top: r.top, left: r.left, right: r.right } })
                           }}
                           title={`${c.paciente} · ${c.hora}${c.estado ? ` · ${c.estado}` : ""}`}
-                          className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-[11px] leading-[18px] transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (abierta?.id === c.id ? "ring-2 ring-blue-300 " : esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
-                          style={{ height: 18, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
+                          className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-[10.5px] leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (abierta?.id === c.id ? "ring-2 ring-blue-300 " : esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
+                          style={{ height: ALTO_ETIQUETA, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
                         >
                           <span className="shrink-0 font-bold tabular-nums">{minutosAHHMM(minutosDesdeMedianoche(c.hora))}</span>
                           <span className="min-w-0 flex-1 truncate font-semibold">{c.paciente}</span>
                         </button>
                       )
                     })}
-                    {resto > 0 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const r = e.currentTarget.getBoundingClientRect()
-                          setAbierta(null)
-                          setLista({ iso, ancla: { top: r.top, left: r.left, right: r.right } })
-                        }}
-                        title="Ver todas las citas del día"
-                        className="w-full rounded px-1.5 text-left text-[11px] font-bold leading-[18px] text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
-                      >
-                        +{resto} más
-                      </button>
-                    )}
                   </div>
                 </div>
               )
