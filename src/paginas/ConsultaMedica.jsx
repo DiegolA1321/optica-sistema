@@ -35,11 +35,13 @@ import {
   Image as ImageIcon,
   Receipt,
   Wrench,
+  LogOut,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import { hoyISO } from "../utilidades/disponibilidad"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
+import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import FacturaVentaModal from "./FacturaVentaModal"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { registrarLog } from "../utilidades/logs"
@@ -124,13 +126,19 @@ const variacionEntre = (a, b) => {
 
 const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
   // pacienteInicial porque debe seguir disponible al guardar, no solo al
   // momento de precargar el paciente.
   const [citaEnAtencionId, setCitaEnAtencionId] = useState(null)
+  // Lo que cambió al abrir la ficha de una cita: el estado anterior (si pasó a
+  // "En atención") y si se registró quién atiende. Sirve para "Dejar de atender".
+  const aperturaCita = useRef({ estado: null, atendido: false })
+  const [mostrarDejarDeAtender, setMostrarDejarDeAtender] = useState(false)
+  const [dejandoDeAtender, setDejandoDeAtender] = useState(false)
+  const [errorDejarDeAtender, setErrorDejarDeAtender] = useState("")
   // Si la óptica no ofrece progresión, no tiene sentido pedir ese dato (configurable en Configuración)
   const manejaProgresion = parametrizacion?.manejaProgresion !== false
   // Política de la óptica (Configuración > Políticas hacia el paciente) — debe
@@ -326,6 +334,35 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setCobroTotal(Number(factura.montoTotal) || 0)
     setCobroEstado("cobrado")
     registrarLog(usuario, "consultas", "Cobró la atención desde la ficha clínica", `$${(Number(factura.montoTotal) || 0).toFixed(2)}`)
+  }
+
+  // "Dejar de atender" (R32): no se pospone. Lo que no se guardó se pierde y la
+  // cita queda como estaba: si pasó a "En atención" al abrir la ficha, vuelve a
+  // su estado anterior (una cita creada al vuelo con "Atender ahora" queda
+  // pendiente), y deja de figurar quien atendía.
+  const dejarDeAtender = async () => {
+    setDejandoDeAtender(true)
+    setErrorDejarDeAtender("")
+    const cita = citaDeLaVisita
+    const estadoDestino = aperturaCita.current.estado || (cita?.estado === "En Atención" ? "Pendiente" : null)
+    const cambios = {}
+    if (estadoDestino && cita?.estado !== estadoDestino) cambios.estado = estadoDestino
+    if (cita?.atendidoPor && cita.atendidoPor === usuario?.id) cambios.atendido_por = null
+    if (supabase && citaEnAtencionId && Object.keys(cambios).length > 0) {
+      const { error } = await supabase.from("citas").update(cambios).eq("id", citaEnAtencionId)
+      if (error) {
+        setErrorDejarDeAtender("No se pudo devolver la cita a su estado anterior. Revisa tu conexión e intenta de nuevo.")
+        setDejandoDeAtender(false)
+        return
+      }
+    }
+    setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, ...(cambios.estado ? { estado: cambios.estado } : {}), ...("atendido_por" in cambios ? { atendidoPor: null } : {}) } : c)))
+    registrarLog(usuario, "consultas", "Dejó de atender a un paciente", pacienteSeleccionado)
+    onCambiosSinGuardarChange?.(false)
+    onAviso?.(`Dejaste de atender a ${pacienteSeleccionado}. La cita sigue agendada.`)
+    setDejandoDeAtender(false)
+    setMostrarDejarDeAtender(false)
+    ;(onCerrar || onVolver)?.()
   }
 
   const lenteProductosFiltrados = useMemo(() => {
@@ -559,15 +596,19 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // paciente la cita se quedaba en "Pendiente" hasta guardar la ficha,
       // saltándose el estado intermedio sin que nadie lo pidiera así.
       const citaActual = citas.find((c) => c.id === citaIdInicial)
+      aperturaCita.current = { estado: null, atendido: false }
       if (citaActual && !["Atendida", "Cancelada", "No Asistió", "En Atención"].includes(citaActual.estado)) {
+        aperturaCita.current.estado = citaActual.estado
         supabase?.from("citas").update({ estado: "En Atención" }).eq("id", citaIdInicial).then(({ error }) => {
           if (!error) setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, estado: "En Atención" } : c)))
         })
       }
       // "Atendido por" (R12, R18): quien abre la ficha de la cita queda
-      // registrado solo, sin pedirlo. Va en una llamada aparte para que un
-      // fallo aquí nunca impida el cambio de estado de arriba.
-      if (citaActual && usuario?.id && usuario.rol !== "superadmin" && !["Atendida", "Cancelada"].includes(citaActual.estado) && citaActual.atendidoPor !== usuario.id) {
+      // registrado solo, sin pedirlo, si la cita aún no tiene a nadie. Al
+      // guardar la ficha se confirma con quien la guardó. Va en una llamada
+      // aparte para que un fallo aquí nunca impida el cambio de estado de arriba.
+      if (citaActual && usuario?.id && usuario.rol !== "superadmin" && !["Atendida", "Cancelada"].includes(citaActual.estado) && !citaActual.atendidoPor) {
+        aperturaCita.current.atendido = true
         supabase?.from("citas").update({ atendido_por: usuario.id }).eq("id", citaIdInicial).then(({ error }) => {
           if (error) console.warn("No se pudo registrar quién atiende la cita:", error.message)
           else setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, atendidoPor: usuario.id } : c)))
@@ -840,6 +881,13 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       setPacientes(pacientesActualizados)
     }
 
+    if (citaEnAtencionId && supabase && usuario?.id && usuario.rol !== "superadmin" && citaDeLaVisita?.atendidoPor !== usuario.id) {
+      supabase.from("citas").update({ atendido_por: usuario.id }).eq("id", citaEnAtencionId).then(({ error }) => {
+        if (error) console.warn("No se pudo registrar quién guardó la ficha:", error.message)
+        else setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, atendidoPor: usuario.id } : c)))
+      })
+    }
+
     setGuardandoFicha(false)
     setMostrarConfirmarGuardar(false)
     setNotificacion(true)
@@ -1089,9 +1137,21 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           <button type="button" onClick={onVolver || onCerrar} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
             <ArrowLeft size={18} /> {origenNombre}
           </button>
-          <button type="button" onClick={onCerrar || onVolver} aria-label="Cerrar ficha clínica" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-1">
+            {citaEnAtencionId && !fichaGuardada && (
+              <button
+                type="button"
+                onClick={() => { setErrorDejarDeAtender(""); setMostrarDejarDeAtender(true) }}
+                title="Salir sin guardar: la cita se mantiene agendada"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700 cursor-pointer"
+              >
+                <LogOut size={14} aria-hidden="true" /> Dejar de atender
+              </button>
+            )}
+            <button type="button" onClick={onCerrar || onVolver} aria-label="Cerrar ficha clínica" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+              <X size={20} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -2259,6 +2319,17 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           </form>
         </div>
       </div>
+
+      {mostrarDejarDeAtender && (
+        <ConfirmarEliminarModal
+          titulo="¿Dejar de atender?"
+          mensaje={`Lo que no guardaste de la ficha se perderá y la cita de ${pacienteSeleccionado || "este paciente"} se mantiene agendada.${errorDejarDeAtender ? " " + errorDejarDeAtender : ""}`}
+          etiquetaConfirmar="Sí, dejar de atender"
+          eliminando={dejandoDeAtender}
+          onCancelar={() => setMostrarDejarDeAtender(false)}
+          onConfirmar={dejarDeAtender}
+        />
+      )}
 
       {mostrarConfirmarGuardar && (
         <ConfirmarFichaModal

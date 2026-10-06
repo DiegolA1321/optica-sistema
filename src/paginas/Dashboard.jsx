@@ -158,6 +158,15 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // ConsultaMedica.jsx vía onCambiosSinGuardarChange cada vez que su propio
   // dirty-tracking cambia (ver audit UX, Lote 1, punto 1b).
   const fichaClinicaCambiosSinGuardar = useRef(false)
+  // Aviso breve (abajo, al centro) para confirmar una acción que cambia de
+  // pantalla, como "Dejar de atender". Se apaga solo.
+  const [aviso, setAviso] = useState(null)
+  const timeoutAviso = useRef(null)
+  const mostrarAviso = (mensaje) => {
+    setAviso(mensaje)
+    clearTimeout(timeoutAviso.current)
+    timeoutAviso.current = setTimeout(() => setAviso(null), 4000)
+  }
   // Destino pendiente cuando navegar() necesita confirmar que se van a
   // perder cambios sin guardar de la ficha clínica (antes: window.confirm
   // nativo del navegador, sin el estilo del resto del sistema).
@@ -502,6 +511,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             }}
             origenNombre={fichaClinicaOrigen === "citas" ? "Citas médicas" : "Pacientes"}
             onCambiosSinGuardarChange={(v) => { fichaClinicaCambiosSinGuardar.current = v }}
+            onAviso={mostrarAviso}
           />
         )
       case "inventario":
@@ -1006,6 +1016,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
             {renderSeccion()}
           </Suspense>
+          {aviso && (
+            <div role="status" className="fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold shadow-xl" style={{ color: INK, animation: "rise-in 240ms ease-out both" }}>
+              {aviso}
+            </div>
+          )}
         </div>
       </main>
 
