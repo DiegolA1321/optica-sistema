@@ -6,6 +6,7 @@ import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible } from "./calendarioComun"
 import { TarjetaFlotante, LeyendaEstados } from "./CalendarioSemanal"
+import { nivelCarga, citasQueCuentan, NIVELES_CARGA } from "../utilidades/cargaCitas"
 
 // Calendario mensual (vista Mes de Citas). Presentacional, como la vista
 // Semana: cada día muestra sus citas como etiquetas con la hora y el paciente,
@@ -25,6 +26,12 @@ const RELLENO_VERTICAL = 6
 const ALTO_FILA_MIN = RELLENO_VERTICAL + ALTO_CABECERA + MIN_ETIQUETAS * ALTO_ETIQUETA + (MIN_ETIQUETAS - 1) * SEPARACION
 
 const ANCHO_LISTA = 288
+const CLAVE_MODO = "citas_mes_modo"
+
+// Fondo de cada nivel de carga: el mismo tono de la marca, de más claro a más
+// oscuro. El color queda para los estados; aquí solo cuenta la intensidad.
+const FONDO_CARGA = ["transparent", "rgba(14,43,51,0.07)", "rgba(14,43,51,0.16)", "rgba(14,43,51,0.30)", "rgba(14,43,51,0.52)"]
+const leerModo = () => { try { return localStorage.getItem(CLAVE_MODO) === "carga" ? "carga" : "citas" } catch { return "citas" } }
 
 // "+N más": en vez de saltar a otra vista, se abre aquí mismo la lista completa
 // del día, con cada cita a un clic. Se cierra con Escape, clic fuera o scroll.
@@ -100,6 +107,11 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
   const cerrarTarjeta = useRef(() => setAbierta(null)).current
   const conCierre = (fn) => (cita) => { setAbierta(null); fn?.(cita) }
   const hoy = hoyISO()
+  // "citas": cada cita como etiqueta de su estado. "carga": cada día sombreado
+  // según cuántas citas tiene, para ver de un vistazo qué días hay más o menos
+  // atención y planificar los siguientes.
+  const [modo, setModoEstado] = useState(leerModo)
+  const setModo = (m) => { setModoEstado(m); try { localStorage.setItem(CLAVE_MODO, m) } catch { /* sin almacenamiento: no se recuerda */ } }
 
   // Semanas completas (lunes a domingo) que cubren el mes; los días de los
   // meses vecinos se muestran atenuados.
@@ -116,6 +128,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
     )
   }, [mes])
 
+  const cargaMaxima = Math.max(0, ...semanas.flat().filter((d) => d.delMes).map((d) => citasQueCuentan(citasPorFecha.get(d.iso)).length))
   const citasDelMes = semanas.flat().reduce((n, d) => n + (d.delMes ? (citasPorFecha.get(d.iso)?.length || 0) : 0), 0)
   const altoFila = Math.max(ALTO_FILA_MIN, Math.floor((altoSeccion - ALTO_TITULO - ALTO_DIAS) / semanas.length))
   const maxEtiquetas = Math.max(MIN_ETIQUETAS, Math.floor((altoFila - RELLENO_VERTICAL - ALTO_CABECERA + SEPARACION) / (ALTO_ETIQUETA + SEPARACION)))
@@ -124,8 +137,30 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
   return (
     <section ref={refSeccion} aria-label="Calendario mensual" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5" style={{ height: ALTO_TITULO }}>
-        <div className="flex items-center gap-4"><h2 className="text-sm font-bold" style={{ color: INK }}>{MESES[mes.getMonth()].replace(/^./, (l) => l.toUpperCase())} de {mes.getFullYear()}</h2><LeyendaEstados /></div>
+        <div className="flex items-center gap-4"><h2 className="text-sm font-bold" style={{ color: INK }}>{MESES[mes.getMonth()].replace(/^./, (l) => l.toUpperCase())} de {mes.getFullYear()}</h2>{modo === "citas" ? <LeyendaEstados /> : (
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500" aria-label="Escala de carga">
+            <span>Menos</span>
+            {[1, 2, 3, 4].map((n) => <span key={n} className="h-3 w-5 rounded-sm border border-slate-200/60" style={{ backgroundColor: FONDO_CARGA[n] }} aria-hidden="true" />)}
+            <span>Más{cargaMaxima > 0 ? ` (hasta ${cargaMaxima} al día)` : ""}</span>
+          </div>
+        )}</div>
+        <div className="flex items-center gap-3">
+          <div role="group" aria-label="Qué mostrar en el calendario" className="flex items-center gap-0.5 rounded-lg border border-slate-200/60 bg-white p-0.5">
+            {[["citas", "Citas"], ["carga", "Carga"]].map(([id, etiqueta]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setModo(id)}
+                aria-pressed={modo === id}
+                className={"rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (modo === id ? "text-white" : "text-slate-500 hover:bg-slate-100")}
+                style={modo === id ? { backgroundColor: INK } : undefined}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
         <span className="text-xs text-slate-500">{citasDelMes === 0 ? "Sin citas este mes" : `${citasDelMes} ${citasDelMes === 1 ? "cita" : "citas"}`}</span>
+        </div>
       </div>
 
       <div className="grid shrink-0 grid-cols-7 border-b border-slate-200/70 bg-white" style={{ height: ALTO_DIAS }}>
@@ -143,11 +178,15 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
               const caben = Math.min(ordenadas.length, maxEtiquetas)
               const resto = ordenadas.length - caben
               const esHoy = iso === hoy
+              const cuentan = citasQueCuentan(citas).length
+              const nivel = nivelCarga(cuentan, cargaMaxima)
               return (
                 <div
                   key={iso}
                   onClick={() => onDiaClick?.(iso)}
-                  className={"min-w-0 overflow-hidden border-l border-slate-100 px-1 py-[3px] transition-colors first:border-l-0 cursor-pointer hover:bg-slate-50/80 " + (esHoy ? "bg-blue-50/40" : !delMes ? "bg-slate-50/60" : "")}
+                  className={"min-w-0 overflow-hidden border-l border-slate-100 px-1 py-[3px] transition-colors first:border-l-0 cursor-pointer hover:bg-slate-50/80 " + (modo === "carga" ? "" : esHoy ? "bg-blue-50/40" : !delMes ? "bg-slate-50/60" : "")}
+                  style={modo === "carga" ? { backgroundColor: delMes ? FONDO_CARGA[nivel] : undefined, boxShadow: esHoy ? "inset 0 0 0 2px #2563EB" : undefined } : undefined}
+                  title={modo === "carga" ? `${cuentan} ${cuentan === 1 ? "cita" : "citas"}` : undefined}
                 >
                   <div className="mb-0.5 flex h-5 items-center justify-between gap-1">
                     <span
@@ -156,7 +195,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                     >
                       {numero}
                     </span>
-                    {resto > 0 && (
+                    {modo === "citas" && resto > 0 && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -172,8 +211,14 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                       </button>
                     )}
                   </div>
+                  {modo === "carga" && (
+                    <p className={"mt-1 text-center font-serif text-2xl font-semibold leading-none " + (!delMes ? "text-slate-300" : nivel >= 3 ? "text-white" : "text-slate-700")}>
+                      {cuentan > 0 ? cuentan : ""}
+                      {cuentan > 0 && <span className={"mt-0.5 block text-[10px] font-sans font-semibold " + (nivel >= 3 ? "text-white/80" : "text-slate-500")}>{cuentan === 1 ? "cita" : "citas"}</span>}
+                    </p>
+                  )}
                   <div className="space-y-0.5">
-                    {ordenadas.slice(0, caben).map((c) => {
+                    {modo === "citas" && ordenadas.slice(0, caben).map((c) => {
                       const color = colorDe(c.estado)
                       const esCoincidencia = !!coincide && coincide(c)
                       return (
