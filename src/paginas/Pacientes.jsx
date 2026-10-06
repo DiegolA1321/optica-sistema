@@ -32,7 +32,6 @@ import {
   Heart,
   Stethoscope,
   ChevronRight,
-  Activity,
   Lock,
   MoreVertical,
   RefreshCw,
@@ -2024,6 +2023,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
                       <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(consultasPaciente[0]?.fecha) || "—"}</p>
+                      {diasDesdeUltimaVisita(pacienteHistorial, consultas) !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita(pacienteHistorial, consultas)} día{diasDesdeUltimaVisita(pacienteHistorial, consultas) === 1 ? "" : "s"}</p>}
                     </div>
                     <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
@@ -2311,13 +2311,6 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                             en "Historial"; el próximo control también se ve en la cabecera del perfil.
                             Acá queda solo lo que habla de la relación con el paciente. */}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Activity size={13} /> Última visita</p>
-                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>
-                              {diasDesdeUltimaVisita(pacienteHistorial, consultas) === null ? "—" : `Hace ${diasDesdeUltimaVisita(pacienteHistorial, consultas)} día${diasDesdeUltimaVisita(pacienteHistorial, consultas) === 1 ? "" : "s"}`}
-                            </p>
-                            <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} registrada{totalConsultasFidelizacion === 1 ? "" : "s"} en total</p>
-                          </div>
 
                           <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Award size={13} /> Cliente frecuente</p>
@@ -2340,11 +2333,6 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                               {diasCumple == null ? "—" : diasCumple === 0 ? "Hoy" : `${diasCumple} día${diasCumple === 1 ? "" : "s"} para su cumpleaños`}
                             </p>
                             <p className="text-xs text-slate-500">{diasCumple == null ? "Sin fecha de nacimiento registrada." : edadPaciente != null ? `Cumple ${edadPaciente + (diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
-                          </div>
-                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
-                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
-                            <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
                           </div>
                         </div>
 
