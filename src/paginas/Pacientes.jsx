@@ -68,6 +68,7 @@ import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
+import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import NoComproModal from "../componentes/NoComproModal"
 import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta } from "../utilidades/proforma"
@@ -122,8 +123,8 @@ const claseBadgeEstadoClinico = (estado) =>
 const CORRECCION = {
   "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200/60" },
   "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200/60" },
-  "Sin evaluar": { label: "Sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
-  "Sin evaluación": { label: "Sin evaluación", icon: HelpCircle, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
+  "Sin evaluar": { label: "AV sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
+  "Sin evaluación": { label: "Sin consulta", icon: HelpCircle, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
 }
 
 // Colores (hex) para las tarjetas-resumen de corrección
@@ -987,8 +988,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
     { key: "Todos", icon: Users, valor: pacientes.length, label: "Total pacientes", filled: true, fg: "#fff", bg: GRAD, ring: "#2563EB" },
     { key: "Bien corregido", icon: CORRECCION["Bien corregido"].icon, valor: conteoCorreccion["Bien corregido"], label: "Bien corregidos", fg: CORRECCION_COLOR["Bien corregido"].fg, bg: CORRECCION_COLOR["Bien corregido"].bg, ring: CORRECCION_COLOR["Bien corregido"].fg },
     { key: "Requiere ajuste", icon: CORRECCION["Requiere ajuste"].icon, valor: conteoCorreccion["Requiere ajuste"], label: "Requieren ajuste", fg: CORRECCION_COLOR["Requiere ajuste"].fg, bg: CORRECCION_COLOR["Requiere ajuste"].bg, ring: CORRECCION_COLOR["Requiere ajuste"].fg },
-    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "Sin evaluar", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
-    { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin evaluación", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
+    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "AV sin evaluar", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
+    { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin consulta", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
   ]
 
   const hayFiltrosActivos =
@@ -1172,8 +1173,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
               <option value="Todos">Todas</option>
               <option value="Bien corregido">Bien corregido</option>
               <option value="Requiere ajuste">Requiere ajuste</option>
-              <option value="Sin evaluar">Sin evaluar</option>
-              <option value="Sin evaluación">Sin evaluación</option>
+              <option value="Sin evaluar">AV sin evaluar</option>
+              <option value="Sin evaluación">Sin consulta</option>
             </select>
           </div>
 
@@ -2227,7 +2228,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
                                 <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
                                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
                                   <div>
-                                    <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{ultima.estadoCorreccion || "Sin evaluación"}</p>
+                                    <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{etiquetaCorreccion(ultima.estadoCorreccion)}</p>
                                     <p className="text-xs text-slate-500">Estado de corrección más reciente · {fechaLegible(ultima.fecha)}</p>
                                   </div>
                                 </div>

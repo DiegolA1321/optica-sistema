@@ -34,5 +34,7 @@ export function textoEspera(dias) {
 // que ya dice la categoría ("Miopía" y "Miopía" es "Miopía").
 export function textoDiagnostico(consulta) {
   const partes = [consulta?.diagnosticoCategorias?.join(", "), consulta?.diagnostico].map((x) => (x || "").trim()).filter(Boolean)
-  return partes.filter((p, i) => partes.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i).join(" · ")
+  // Sin repetir: se descarta una parte si otra la contiene (sin importar mayúsculas ni tildes)
+  const norm = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  return partes.filter((p, i) => !partes.some((q, j) => j !== i && (norm(q).includes(norm(p)) && (norm(q) !== norm(p) || j < i)))).join(" · ")
 }

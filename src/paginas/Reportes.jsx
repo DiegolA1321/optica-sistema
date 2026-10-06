@@ -1,5 +1,6 @@
 "use client"
 
+import { etiquetaCorreccion } from "../utilidades/correccion"
 import { useMemo, useState } from "react"
 import {
   BarChart3,
@@ -335,7 +336,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
     { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length + facturasVentaEsteMes.length} venta${(ventasRealesEsteMes.length + facturasVentaEsteMes.length) === 1 ? "" : "s"} · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta}`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
-    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin evaluar`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
+    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} con AV sin evaluar`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
     { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
     { key: "vencidos", label: "Controles atrasados", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — excluye a los pacientes de alta. No cambia con el período seleccionado arriba." },
     { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
@@ -612,7 +613,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 </div>
                 {hoverCorreccion && (
                   <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg" style={{ background: INK }}>
-                    {hoverCorreccion}: {distCorreccion[hoverCorreccion]}
+                    {etiquetaCorreccion(hoverCorreccion)}: {distCorreccion[hoverCorreccion]}
                   </div>
                 )}
               </div>
@@ -620,7 +621,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 {Object.entries(distCorreccion).map(([estado, valor]) => (
                   <span key={estado} className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLOR_CORRECCION[estado] }} />
-                    {estado} <span className="text-slate-500">({valor})</span>
+                    {etiquetaCorreccion(estado)} <span className="text-slate-500">({valor})</span>
                   </span>
                 ))}
               </div>

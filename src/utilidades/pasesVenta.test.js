@@ -35,6 +35,10 @@ describe("textoDiagnostico", () => {
   it("no repite lo que ya dice la categoría", () => {
     expect(textoDiagnostico({ diagnosticoCategorias: ["Miopía"], diagnostico: "miopía" })).toBe("Miopía")
   })
+  it("ignora tildes y también cuando el detalle ya incluye la categoría", () => {
+    expect(textoDiagnostico({ diagnosticoCategorias: ["Miopía"], diagnostico: "MIOPIA" })).toBe("Miopía")
+    expect(textoDiagnostico({ diagnosticoCategorias: ["Miopía"], diagnostico: "Miopía leve en ambos ojos" })).toBe("Miopía leve en ambos ojos")
+  })
   it("sin datos queda vacío", () => {
     expect(textoDiagnostico({})).toBe("")
     expect(textoDiagnostico(null)).toBe("")
