@@ -30,7 +30,7 @@ const CLAVE_MODO = "citas_mes_modo"
 
 // Fondo de cada nivel de carga: el mismo tono de la marca, de más claro a más
 // oscuro. El color queda para los estados; aquí solo cuenta la intensidad.
-const FONDO_CARGA = ["transparent", "rgba(14,43,51,0.07)", "rgba(14,43,51,0.16)", "rgba(14,43,51,0.30)", "rgba(14,43,51,0.52)"]
+const FONDO_CARGA = ["transparent", "rgba(14,43,51,0.07)", "rgba(14,43,51,0.16)", "rgba(14,43,51,0.30)", "rgba(14,43,51,0.62)"]
 const leerModo = () => { try { return localStorage.getItem(CLAVE_MODO) === "carga" ? "carga" : "citas" } catch { return "citas" } }
 
 // "+N más": en vez de saltar a otra vista, se abre aquí mismo la lista completa
@@ -212,9 +212,9 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                     )}
                   </div>
                   {modo === "carga" && (
-                    <p className={"mt-1 text-center font-serif text-2xl font-semibold leading-none " + (!delMes ? "text-slate-300" : nivel >= 3 ? "text-white" : "text-slate-700")}>
+                    <p className={"mt-1 text-center font-serif text-2xl font-semibold leading-none " + (!delMes ? "text-slate-300" : nivel >= 4 ? "text-white" : "text-slate-700")}>
                       {cuentan > 0 ? cuentan : ""}
-                      {cuentan > 0 && <span className={"mt-0.5 block text-[10px] font-sans font-semibold " + (nivel >= 3 ? "text-white/80" : "text-slate-500")}>{cuentan === 1 ? "cita" : "citas"}</span>}
+                      {cuentan > 0 && <span className={"mt-0.5 block text-[10px] font-sans font-semibold " + (nivel >= 4 ? "text-white/80" : "text-slate-500")}>{cuentan === 1 ? "cita" : "citas"}</span>}
                     </p>
                   )}
                   <div className="space-y-0.5">
