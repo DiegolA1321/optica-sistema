@@ -35,6 +35,24 @@ describe("resumenDia", () => {
   })
 })
 
+describe("horario general como respaldo", () => {
+  const general = { horarioSemanal: { miercoles: dia("09:00", "11:00") }, excepciones: {} }
+  it("un día sin horario personal usa el general y lo marca", () => {
+    // miércoles 7: la persona no configuró nada; el general abre 09:00-11:00
+    expect(resumenDia({ fecha: "2026-10-07", horarioSemanal: horario, disponibilidad: general, citas: [], ahora })).toMatchObject({ cerrado: false, segunGeneral: true, total: 3, libres: 3 })
+  })
+  it("un día con horario personal no usa el general", () => {
+    expect(resumenDia({ fecha: "2026-10-06", horarioSemanal: horario, disponibilidad: general, citas: [], ahora }).segunGeneral).toBe(false)
+  })
+  it("si el general también está cerrado, el día queda cerrado según el general", () => {
+    expect(resumenDia({ fecha: "2026-10-10", horarioSemanal: horario, disponibilidad: general, citas: [], ahora })).toMatchObject({ cerrado: true, segunGeneral: true })
+  })
+  it("respeta un cierre puntual del horario general", () => {
+    const conCierre = { ...general, excepciones: { "2026-10-07": { manana: { activo: false }, tarde: { activo: false } } } }
+    expect(resumenDia({ fecha: "2026-10-07", horarioSemanal: horario, disponibilidad: conCierre, citas: [], ahora }).cerrado).toBe(true)
+  })
+})
+
 describe("resumenSemana", () => {
   it("devuelve siete días desde el lunes", () => {
     const sem = resumenSemana({ lunes: "2026-10-05", horarioSemanal: horario, citas: [], ahora })
