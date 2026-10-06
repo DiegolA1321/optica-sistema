@@ -477,6 +477,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
             onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
+            onAviso={mostrarAviso}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
             marcarMedidasAtendidas={marcarMedidasAtendidas}
@@ -555,6 +556,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setFacturasVenta={setFacturasVenta}
             parametrizacion={parametrizacion}
             equipo={equipo}
+            onAviso={mostrarAviso}
             onAtender={(paciente, citaId, motivo) => irAFichaClinica(paciente, { citaId, origen: "citas", motivo })}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
           />
@@ -588,6 +590,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <Inicio
             equipo={equipo}
+            setCitas={setCitas}
+            onAviso={mostrarAviso}
+            onAtenderCita={(cita) => {
+              const paciente = pacientes.find((p) => p.id === cita.pacienteId)
+              if (paciente) irAFichaClinica(paciente, { citaId: cita.id, origen: "citas", motivo: cita.motivo })
+              else navegar("citas")
+            }}
             setVista={navegar}
             usuario={usuario}
             opticaActiva={opticaActiva}

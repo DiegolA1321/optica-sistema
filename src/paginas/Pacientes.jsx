@@ -65,6 +65,8 @@ import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { fechaLegible } from "../utilidades/formatoFecha"
+import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
+import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
@@ -154,7 +156,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, onAviso, setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -367,6 +369,8 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
   // abre wa.me con el texto precargado), ahora compartido vía
   // utilidades/whatsapp.js en vez de estar reimplementado ahí y en
   // Citas.jsx.
+  // Atención abierta de un día anterior que se quiere dejar de atender (desde el perfil).
+  const [dejarCita, setDejarCita] = useState(null)
   const [mensajePara, setMensajePara] = useState(null)
   const [textoMensaje, setTextoMensaje] = useState("")
   // Desde aquí se escribe al paciente aunque los envíos automáticos del CRM
@@ -1969,6 +1973,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
               // cada paciente que refirió, mostrado siempre con su desglose
               // al lado para que se entienda de un vistazo cómo se compone.
               const puntajeFidelidad = totalConsultasFidelizacion * 10 + referidosPorEste * 15
+              const abiertasPaciente = atencionesAbiertasAntiguas(citasPaciente)
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
 
               return (
@@ -1976,8 +1981,15 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(proximoControl || (diasCumple != null && diasCumple <= 30)) && (
+                  {(abiertasPaciente.length > 0 || proximoControl || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
+                      {abiertasPaciente.map(({ cita, dias }) => (
+                        <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
+                          <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
+                          <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>
+                          <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
+                        </span>
+                      ))}
                       {proximoControl && (inactivo ? (
                         <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} title="Agendar su próximo control" className="inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer">
                           <AlertTriangle size={13} aria-hidden="true" /> Control vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} · Agendar
@@ -2119,6 +2131,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     {tabHistorial === "citas" ? (
                       <PanelCitasPaciente
                         citas={citasPaciente}
+                        onDejarDeAtender={setDejarCita}
                         onIngresar={(cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }}
                         onAgendar={() => abrirAgendar(pacienteHistorial)}
                       />
@@ -2492,6 +2505,16 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
         />
       )}
 
+      {dejarCita && (
+        <ConfirmarDejarDeAtender
+          cita={dejarCita}
+          usuario={usuario}
+          setCitas={setCitas}
+          onCancelar={() => setDejarCita(null)}
+          onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
+        />
+      )}
+
       {/* ─── MODAL ENVIAR MENSAJE (desde el perfil del paciente) ─── */}
       {mensajePara && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMensajePara(null)}>
@@ -2603,7 +2626,7 @@ function BadgeEstadoCita({ estado }) {
   )
 }
 
-function PanelCitasPaciente({ citas, onIngresar, onAgendar }) {
+function PanelCitasPaciente({ citas, onIngresar, onAgendar, onDejarDeAtender }) {
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   const pendientes = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.estado === "En Atención" ? -1 : b.estado === "En Atención" ? 1 : porFechaHora(a, b)))
   const historial = citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => porFechaHora(b, a))
@@ -2631,10 +2654,14 @@ function PanelCitasPaciente({ citas, onIngresar, onAgendar }) {
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Calendar size={22} aria-hidden="true" /></div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
+            {diasAtencionAbierta(proxima) !== null && <p className="text-xs font-bold text-amber-700">{textoAtencionAbierta(diasAtencionAbierta(proxima))}</p>}
             <p className="text-lg font-bold" style={{ color: INK }}>{fechaLegible(proxima.fecha) || "Sin fecha"} · {proxima.hora}</p>
             <p className="truncate text-sm text-slate-600">{proxima.motivo || "Consulta general"}</p>
           </div>
           <BadgeEstadoCita estado={proxima.estado} />
+          {diasAtencionAbierta(proxima) !== null && (
+            <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
+          )}
           <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
             <Stethoscope size={15} aria-hidden="true" /> Ingresar
           </button>
