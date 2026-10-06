@@ -4,6 +4,8 @@
 // guardado: es una orden enviada cuya fecha prometida ya pasó.
 import { fechaLegible } from "./formatoFecha"
 
+export const MATERIALES_LENTE = ["CR-39", "Policarbonato", "Alto índice 1.67", "Trivex", "Vidrio"]
+
 export const TIPOS_LENTE = [
   { id: "monofocal", label: "Monofocal" },
   { id: "bifocal", label: "Bifocal" },
@@ -112,6 +114,8 @@ export function mensajeLentesListos({ paciente, opticaNombre, orden }) {
 
 const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 const v = (t) => (t && String(t).trim() ? escapar(t) : "—")
+// Medida en milímetros (DP y altura): "62" → "62 mm"; si ya trae la unidad, se deja igual.
+const mm = (t) => (t && String(t).trim() ? (/mms*$/i.test(String(t).trim()) ? escapar(t) : `${escapar(String(t).trim())} mm`) : "—")
 const ojoFila = (nombre, r = {}) => `<tr><th>${nombre}</th><td>${v(r.esfera)}</td><td>${v(r.cilindro)}</td><td>${v(r.eje)}</td><td>${v(r.adicion)}</td></tr>`
 
 const ESTILO = `body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0E2B33;margin:28px;font-size:13px}
@@ -131,7 +135,7 @@ export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDato
 <p><b>Laboratorio:</b> ${v(orden.laboratorio)} &nbsp; <b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Entrega prometida:</b> ${escapar(fechaLegible(orden.fechaPrometida))}</p>
 <h2>Receta</h2>
 <table><thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>Adición</th></tr></thead><tbody>${ojoFila("OD", orden.recetaOd)}${ojoFila("OI", orden.recetaOi)}</tbody></table>
-<p style="margin-top:8px"><b>DP lejos:</b> ${v(orden.dpLejos)} &nbsp; <b>DP cerca:</b> ${v(orden.dpCerca)} &nbsp; <b>Altura de montaje:</b> ${v(orden.alturaMontaje)}</p>
+<p style="margin-top:8px"><b>DP lejos:</b> ${mm(orden.dpLejos)} &nbsp; <b>DP cerca:</b> ${mm(orden.dpCerca)} &nbsp; <b>Altura de montaje:</b> ${mm(orden.alturaMontaje)}</p>
 <h2>Lente</h2>
 <p><b>Tipo:</b> ${escapar(tipoLabel(orden.tipoLente))} &nbsp; <b>Material:</b> ${v(orden.material)}</p>
 <p><b>Tratamientos:</b> ${trat.length ? trat.map(escapar).join(", ") : "Ninguno"}</p>

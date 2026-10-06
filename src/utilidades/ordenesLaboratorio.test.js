@@ -75,6 +75,8 @@ describe("ordenesLaboratorio", () => {
     expect(h).toContain("Antirreflejo")
     expect(h).toContain("52-18-140")
     expect(h).toContain("Lab Norte")
+    expect(h).toContain("62 mm")
+    expect(h).toContain("18 mm")
     expect(h).not.toContain("$")
   })
 

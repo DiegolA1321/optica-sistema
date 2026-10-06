@@ -10,11 +10,10 @@ import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { registrarLog } from "../utilidades/logs"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import {
-  EVENTO_ORDEN, TIPOS_LENTE, laboratoriosUsados, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias,
+  EVENTO_ORDEN, MATERIALES_LENTE, TIPOS_LENTE, laboratoriosUsados, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias,
 } from "../utilidades/ordenesLaboratorio"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
-const MATERIALES = ["CR-39", "Policarbonato", "Alto índice 1.60", "Alto índice 1.67", "Trivex", "Cristal"]
 const CAMPO = "w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white"
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 
@@ -34,6 +33,7 @@ export default function OrdenLaboratorioModal({
   const [laboratoriosSugeridos, setLaboratoriosSugeridos] = useState(sugeridosIniciales)
   const [opticaDatos, setOpticaDatos] = useState(datosIniciales)
   const [d, setD] = useState(null)
+  const [materialOtro, setMaterialOtro] = useState(!!orden?.material && !MATERIALES_LENTE.includes(orden.material))
   const [cargandoConsulta, setCargandoConsulta] = useState(!orden && !consulta && !!consultaId && !!supabase)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
@@ -42,8 +42,15 @@ export default function OrdenLaboratorioModal({
 
   useEffect(() => {
     if (orden) { setD({ ...orden }); return }
-    const armar = (c) => {
-      const base = datosInicialesOrden(c, { montura: monturaInicial })
+    const armar = async (c) => {
+      // La montura se precarga de la que se vendió en la venta (un producto de categoría de armazones, o el primero)
+      let montura = monturaInicial
+      if (!montura && supabase && facturaId) {
+        const { data: lineas } = await supabase.from("facturas_venta_lineas").select("descripcion, producto_id, inventario(categoria)").eq("factura_id", facturaId).eq("tipo", "producto")
+        const armazon = (lineas || []).find((l) => /armaz|montura|marco/i.test(l.inventario?.categoria || "")) || (lineas || [])[0]
+        montura = armazon?.descripcion || ""
+      }
+      const base = datosInicialesOrden(c, { montura })
       const entrega = new Date(); entrega.setDate(entrega.getDate() + 7)
       setD({ ...base, fechaPrometida: iso(entrega) })
     }
@@ -172,10 +179,15 @@ export default function OrdenLaboratorioModal({
               <fieldset>
                 <legend className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Lente</legend>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Material</span>
-                    <input list="materiales-lente" value={d.material} onChange={(e) => set("material", e.target.value)} maxLength={60} className={CAMPO} />
-                    <datalist id="materiales-lente">{MATERIALES.map((m) => <option key={m} value={m} />)}</datalist>
-                  </label>
+                  <div>
+                    <label htmlFor="orden-material" className="mb-1 block text-xs font-semibold text-slate-600">Material</label>
+                    <select id="orden-material" value={materialOtro ? "__otro" : d.material} onChange={(e) => { if (e.target.value === "__otro") { setMaterialOtro(true); set("material", "") } else { setMaterialOtro(false); set("material", e.target.value) } }} className={CAMPO}>
+                      <option value="">Sin especificar</option>
+                      {MATERIALES_LENTE.map((m) => <option key={m} value={m}>{m}</option>)}
+                      <option value="__otro">Otro…</option>
+                    </select>
+                    {materialOtro && <input aria-label="Material (otro)" value={d.material} onChange={(e) => set("material", e.target.value)} maxLength={60} placeholder="Escribe el material" className={CAMPO + " mt-2"} />}
+                  </div>
                   <div className="flex flex-wrap items-end gap-x-4 gap-y-1.5 pb-1.5 text-sm text-slate-700">
                     {[["antirreflejo", "Antirreflejo"], ["filtroAzul", "Filtro azul"], ["fotocromatico", "Fotocromático"]].map(([k, l]) => (
                       <label key={k} className="flex cursor-pointer items-center gap-1.5"><input type="checkbox" checked={d[k]} onChange={(e) => set(k, e.target.checked)} className="accent-blue-600" />{l}</label>
