@@ -2577,10 +2577,12 @@ function MenuMasPerfil({ elementos }) {
   useEffect(() => {
     if (!abierto) return
     const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false) }
-    const tecla = (e) => { if (e.key === "Escape") setAbierto(false) }
+    // Escape cierra solo el menú: el perfil también se cierra con Escape, así que
+    // este aviso se atiende primero (fase de captura) y no llega al perfil.
+    const tecla = (e) => { if (e.key === "Escape") { e.stopPropagation(); setAbierto(false) } }
     document.addEventListener("mousedown", fuera)
-    document.addEventListener("keydown", tecla)
-    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) }
+    document.addEventListener("keydown", tecla, true)
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla, true) }
   }, [abierto])
   return (
     <div ref={ref} className="relative">
