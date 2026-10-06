@@ -44,8 +44,8 @@ export default function ConfirmarFichaModal({ paciente, diagnostico, lenteRecome
           <div className="mb-4 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: GRAD }}>
             <ClipboardCheck size={22} />
           </div>
-          <h2 id="confirmar-ficha-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Guardar esta ficha clínica?</h2>
-          <p className="mt-1.5 text-sm text-slate-500">Revisa los datos antes de guardar. Quedará registrada en el historial del paciente.</p>
+          <h2 id="confirmar-ficha-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Terminar la atención?</h2>
+          <p className="mt-1.5 text-sm text-slate-500">Revisa los datos antes de terminar. Se guarda la ficha en el historial, se genera la receta y la cita queda atendida.</p>
 
           <div className="mt-4 space-y-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
             {paciente && <FilaDato icon={User} label="Paciente" valor={paciente} />}
@@ -75,7 +75,7 @@ export default function ConfirmarFichaModal({ paciente, diagnostico, lenteRecome
             className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
             style={{ background: GRAD }}
           >
-            {guardando ? "Guardando..." : "Confirmar"}
+            {guardando ? "Guardando..." : "Terminar atención"}
           </button>
         </div>
       </div>

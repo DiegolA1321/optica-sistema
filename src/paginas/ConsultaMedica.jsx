@@ -36,6 +36,7 @@ import {
   Receipt,
   Wrench,
   LogOut,
+  ShoppingBag,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
 import { hoyISO } from "../utilidades/disponibilidad"
@@ -126,7 +127,7 @@ const variacionEntre = (a, b) => {
 
 const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso }) {
+export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -304,6 +305,23 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   const [mostrarPanelCobro, setMostrarPanelCobro] = useState(false)
   const [cobroEstado, setCobroEstado] = useState(null) // null | 'pendiente' | 'cobrado'
   const [cobroTotal, setCobroTotal] = useState(0)
+  // "Pasar a la óptica" (R34): deja al paciente "Listo para venta" para quien vende.
+  const [pasandoAOptica, setPasandoAOptica] = useState(false)
+  const [errorPase, setErrorPase] = useState("")
+  const paseDeEstaConsulta = consultaGuardadaId ? pases.find((p) => p.consultaId === consultaGuardadaId) : null
+  const pasarAOptica = async () => {
+    if (!consultaGuardadaId || !supabase) return
+    setPasandoAOptica(true)
+    setErrorPase("")
+    const { data, error } = await supabase.rpc("pasar_a_optica", { p_consulta_id: consultaGuardadaId })
+    setPasandoAOptica(false)
+    if (error) {
+      setErrorPase(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo pasar al paciente a la óptica. Revisa tu conexión e intenta de nuevo.")
+      return
+    }
+    setPases?.((prev) => (prev.some((p) => p.id === data) ? prev : [{ id: data, consultaId: consultaGuardadaId, pacienteId, citaId: citaEnAtencionId || null, estado: "listo", pasadaPor: usuario?.id || null, pasadaEn: new Date().toISOString(), facturaId: null }, ...prev]))
+    registrarLog(usuario, "consultas", "Pasó un paciente a la óptica (listo para venta)", pacienteSeleccionado)
+  }
 
   // Mantiene en sincronía el campo legado consultas.producto_id (lo lee
   // Reportes.jsx para "Conversión a venta", ver Punto 06) cuando la venta se
@@ -318,12 +336,12 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setHistorialConsultas((prev) => prev.map((c) => (c.id === consultaGuardadaId ? { ...c, productoId: linea.productoId, productoNombre: linea.descripcion, montoVenta } : c)))
   }
 
-  // La cita solo pasa a "Atendida" cuando el cobro tuvo éxito ("Cobrar y
-  // finalizar"), nunca al guardar la ficha sola.
+  // La cita pasa a "Atendida" al terminar la atención: el hecho clínico (atendida)
+  // se separa del comercial (vendido o descartado, que sigue el pase a venta).
   const marcarCitaAtendida = async () => {
     if (!citaEnAtencionId || !supabase) return
     const { error: errorCita } = await supabase.from("citas").update({ estado: "Atendida" }).eq("id", citaEnAtencionId)
-    if (errorCita) console.error("El cobro se registró, pero no se pudo marcar la cita como atendida:", errorCita.message)
+    if (errorCita) console.error("No se pudo marcar la cita como atendida:", errorCita.message)
     else setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, estado: "Atendida" } : c)))
   }
 
@@ -888,6 +906,8 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       })
     }
 
+    await marcarCitaAtendida()
+
     setGuardandoFicha(false)
     setMostrarConfirmarGuardar(false)
     setNotificacion(true)
@@ -895,10 +915,10 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
     setSubTab("diagnostico")
-    // La ficha clínica ya quedó guardada: ahora aparece el panel de cobro. Si
-    // se elige "Más tarde", queda como cobro pendiente (cita En atención).
-    setCobroEstado("pendiente")
-    setMostrarPanelCobro(true)
+    // La atención terminó: la receta queda lista y el paciente se pasa a la óptica
+    // (o se cobra ahí mismo) desde el bloque de "Atención terminada".
+    setCobroEstado("terminada")
+    setErrorPase("")
   }
 
   // ── Validación por paso ──
@@ -2083,18 +2103,39 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                       </div>
                     )}
 
-                    {/* Estado del cobro (Ronda 4): la ficha ya se guardó y el
-                        panel de cobro se abrió solo. "Más tarde" lo deja
-                        pendiente y la cita en "En atención". */}
-                    {fichaGuardada && cobroEstado === "pendiente" && (
-                      <div role="status" className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/60 bg-amber-50 p-3">
-                        <p className="flex items-start gap-1.5 text-xs font-semibold text-amber-800">
-                          <Receipt size={14} className="mt-0.5 shrink-0" />
-                          Cobro pendiente — la ficha ya está guardada{citaEnAtencionId ? "; la cita sigue \"En atención\" hasta que se cobre" : ""}.
+                    {/* Atención terminada (R33-R34): la receta está lista; el paciente se
+                        pasa a la óptica (queda "Listo para venta") o se cobra ahí mismo. */}
+                    {fichaGuardada && cobroEstado === "terminada" && (
+                      <div role="status" className="no-print space-y-2.5 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3.5">
+                        <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-900">
+                          <CheckCircle size={16} className="shrink-0 text-emerald-600" />
+                          Atención terminada{citaEnAtencionId ? " · la cita quedó atendida" : ""}. La receta está lista.
                         </p>
-                        <button type="button" onClick={() => setMostrarPanelCobro(true)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">
-                          Cobrar ahora
-                        </button>
+                        {paseDeEstaConsulta ? (
+                          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+                            <ShoppingBag size={14} className="shrink-0" /> Listo para venta: quien venda verá a este paciente en su lista.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-emerald-800">Si el paciente va a comprar, pásalo a la óptica o cóbralo ahora.</p>
+                        )}
+                        {errorPase && <p role="alert" className="text-xs font-medium text-red-700">{errorPase}</p>}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {!paseDeEstaConsulta && (
+                            <button type="button" onClick={pasarAOptica} disabled={pasandoAOptica || !consultaGuardadaId} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold text-white transition hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+                              <ShoppingBag size={14} /> {pasandoAOptica ? "Pasando…" : "Pasar a la óptica"}
+                            </button>
+                          )}
+                          {!paseDeEstaConsulta && (
+                            <button type="button" onClick={() => setMostrarPanelCobro(true)} className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 cursor-pointer">
+                              <Receipt size={14} /> Cobrar ahora
+                            </button>
+                          )}
+                          {(onVolver || onCerrar) && (
+                            <button type="button" onClick={onVolver || onCerrar} className="rounded-lg border border-slate-200/60 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+                              Volver a {origenNombre}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                     {fichaGuardada && cobroEstado === "cobrado" && (
@@ -2298,7 +2339,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                     className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
                     style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}
                   >
-                    <Save size={15} /> Guardar ficha clínica
+                    <Save size={15} /> Terminar atención
                   </button>
                 ) : (
                   <button
