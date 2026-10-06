@@ -100,7 +100,7 @@ function GraficoPequeno({ puntos }) {
             </g>
           ))}
           {puntos.map((q, i) => (
-            <text key={i} x={x(i)} y={ALTO - 6} textAnchor="middle" className="fill-slate-400" style={{ fontSize: 11, fontFamily: "inherit" }}>{etiquetaX(q.fecha)}</text>
+            <text key={i} x={i === puntos.length - 1 && puntos.length > 1 ? x(i) + 6 : x(i)} y={ALTO - 6} textAnchor={i === puntos.length - 1 && puntos.length > 1 ? "end" : "middle"} className="fill-slate-400" style={{ fontSize: 11, fontFamily: "inherit" }}>{etiquetaX(q.fecha)}</text>
           ))}
           {activo !== null && <line x1={x(activo)} x2={x(activo)} y1={MARGEN.arriba} y2={ALTO - MARGEN.abajo} stroke="#94a3b8" strokeWidth="1" />}
           <path d={trazo("od")} fill="none" stroke={OD_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
