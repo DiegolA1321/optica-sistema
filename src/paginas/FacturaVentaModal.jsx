@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench } from "lucide-react"
+import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
@@ -12,6 +12,7 @@ import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
+import { fechaLegible } from "../utilidades/formatoFecha"
 
 // ─── Paleta de firma (paleta de venta/dinero) ───
 const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción de venta/dinero
@@ -60,10 +61,26 @@ export default function FacturaVentaModal({
   // editor embebido (ver crear_factura_venta, migración 0072).
   consultaId = null,
   citaId = null,
+  // Venta desde la cola de "Listo para venta" (R35): datos de la consulta que se
+  // muestran de solo lectura, y las acciones de proforma y "No compró".
+  // diagnostico es la consulta ({ fecha, motivo, diagnostico, diagnosticoCategorias,
+  // lenteRecomendado, indicaciones, od, oi }). onProforma({ lineas, total, incluirMedidas })
+  // imprime el presupuesto; no guarda nada ni toca el stock.
+  diagnostico = null,
+  onProforma,
+  onNoCompro,
+  // "Nueva venta" de un paciente con un pase abierto: ofrece vincular la venta
+  // a esa consulta para que cierre el pase ({ consultaId, citaId, etiqueta }).
+  vinculoSugerido = null,
   onGuardado,
   onCerrar,
 }) {
   const opticaId = usuario?.opticaId
+  const [vincular, setVincular] = useState(true)
+  const [incluirMedidas, setIncluirMedidas] = useState(false)
+  const [verMedidas, setVerMedidas] = useState(false)
+  const consultaIdEfectivo = consultaId ?? (vinculoSugerido && vincular ? vinculoSugerido.consultaId : null)
+  const citaIdEfectivo = citaId ?? (vinculoSugerido && vincular ? vinculoSugerido.citaId : null)
 
   const [lineas, setLineas] = useState(() => {
     const iniciales = lineasIniciales || (lineaInicial?.productoId ? [{ tipo: "producto", ...lineaInicial }] : [])
@@ -235,6 +252,15 @@ export default function FacturaVentaModal({
 
   const cambiarMetodoPago = (m) => setMetodoPago(m)
 
+  const imprimirProforma = () => {
+    if (lineas.length === 0) { setError("Agrega al menos una línea para armar la proforma."); return }
+    if (lineas.some((l) => l.precioTexto !== undefined && (l.precioTexto.trim() === "" || Number.isNaN(parseFloat(l.precioTexto)) || parseFloat(l.precioTexto) < 0))) {
+      setError("Revisa los precios: cada uno debe ser un número de 0 en adelante."); return
+    }
+    setError("")
+    onProforma?.({ lineas, total, incluirMedidas })
+  }
+
   const confirmarFactura = async (e) => {
     e.preventDefault()
     if (!paciente) { setError("Selecciona el paciente de esta venta."); return }
@@ -261,8 +287,8 @@ export default function FacturaVentaModal({
             cantidad: l.cantidad,
             precio_unitario: l.precioUnitario,
           })),
-          p_cita_id: citaId,
-          p_consulta_id: consultaId,
+          p_cita_id: citaIdEfectivo,
+          p_consulta_id: consultaIdEfectivo,
           p_cuotas_totales: cuotasNum,
           p_registrado_por: usuario?.id || null,
         })
@@ -283,7 +309,7 @@ export default function FacturaVentaModal({
       }
       registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
       onGuardado?.({
-        id: data.id, pacienteId: paciente.id, citaId, consultaId,
+        id: data.id, pacienteId: paciente.id, citaId: citaIdEfectivo, consultaId: consultaIdEfectivo,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
         estado: data.estado, creadoEn: data.created_at,
         lineas,
@@ -359,6 +385,41 @@ export default function FacturaVentaModal({
                 </>
               )}
             </div>
+
+            {vinculoSugerido && !consultaId && (
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3 text-xs text-emerald-900">
+                <input type="checkbox" checked={vincular} onChange={(e) => setVincular(e.target.checked)} className="mt-0.5 accent-emerald-600" />
+                <span><span className="font-bold">{vinculoSugerido.etiqueta}</span><br />Si es esta venta, queda vinculada a la consulta y el paciente sale de la lista de espera. Desmárcalo si es otra compra.</span>
+              </label>
+            )}
+
+            {diagnostico && (
+              <section aria-label="Datos del diagnóstico" className="space-y-1.5 rounded-xl border border-blue-200/60 bg-blue-50/40 p-3 text-sm">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-blue-700"><Stethoscope size={13} aria-hidden="true" /> Datos del diagnóstico · {fechaLegible(diagnostico.fecha)}</p>
+                {diagnostico.motivo && <p className="text-slate-600"><span className="font-semibold text-slate-700">Motivo:</span> {diagnostico.motivo}</p>}
+                {(diagnostico.diagnosticoCategorias?.length > 0 || diagnostico.diagnostico) && (
+                  <p className="text-slate-600"><span className="font-semibold text-slate-700">Diagnóstico:</span> {[diagnostico.diagnosticoCategorias?.join(", "), diagnostico.diagnostico].filter(Boolean).join(" · ")}</p>
+                )}
+                {diagnostico.lenteRecomendado && <p className="text-slate-600"><span className="font-semibold text-slate-700">Lente recomendado:</span> {diagnostico.lenteRecomendado}</p>}
+                {diagnostico.indicaciones && <p className="text-slate-600"><span className="font-semibold text-slate-700">Indicaciones:</span> {diagnostico.indicaciones}</p>}
+                <button type="button" onClick={() => setVerMedidas((v) => !v)} aria-expanded={verMedidas} className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800 cursor-pointer">
+                  <ChevronDown size={13} className={"transition-transform " + (verMedidas ? "rotate-180" : "")} aria-hidden="true" /> {verMedidas ? "Ocultar medidas" : "Ver medidas"}
+                </button>
+                {verMedidas && (
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2 font-mono text-xs">
+                    {[["OD", diagnostico.od], ["OI", diagnostico.oi]].map(([ojo, o]) => (
+                      <p key={ojo}><span className="font-bold text-blue-700">{ojo}:</span> {o?.esfera || o?.cilindro || o?.eje ? `${o?.esfera || "—"} | ${o?.cilindro || "—"} | ${o?.eje || "—"}°` : "No registrada"}</p>
+                    ))}
+                  </div>
+                )}
+                {onProforma && (
+                  <label className="flex cursor-pointer items-center gap-2 pt-0.5 text-xs text-slate-600">
+                    <input type="checkbox" checked={incluirMedidas} onChange={(e) => setIncluirMedidas(e.target.checked)} className="accent-blue-600" />
+                    Incluir las medidas en la proforma impresa
+                  </label>
+                )}
+              </section>
+            )}
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Líneas</label>
@@ -575,7 +636,22 @@ export default function FacturaVentaModal({
           </div>
 
           {!agregandoProducto && (
-            <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
+            <div className="space-y-3 border-t border-slate-100 p-6 pt-4">
+              {(onProforma || onNoCompro) && (
+                <div className="flex items-center justify-between gap-3">
+                  {onProforma ? (
+                    <button type="button" onClick={imprimirProforma} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                      <Printer size={14} aria-hidden="true" /> Imprimir proforma
+                    </button>
+                  ) : <span />}
+                  {onNoCompro && (
+                    <button type="button" onClick={onNoCompro} className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-red-700 cursor-pointer">
+                      <UserX size={14} aria-hidden="true" /> No compró
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="flex gap-3">
               <button type="button" onClick={onMasTarde || onCerrar} disabled={guardando} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
                 {onMasTarde ? "Más tarde" : "Cancelar"}
               </button>
@@ -583,6 +659,7 @@ export default function FacturaVentaModal({
                 style={{ background: GRAD_VENTA, boxShadow: "0 12px 24px -12px rgba(5,150,105,0.5)" }}>
                 {guardando ? "Guardando..." : etiquetaGuardar}
               </button>
+              </div>
             </div>
           )}
         </form>
