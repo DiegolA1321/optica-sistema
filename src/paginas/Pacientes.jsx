@@ -1804,7 +1804,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
-              <div className="flex flex-col flex-wrap gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
@@ -1841,7 +1841,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap shrink-0 gap-2.5 sm:flex-col sm:w-48">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                   {/* Acción primaria primero — antes quedaba al final de la
                       pila, después de hasta 3 botones secundarios (outline),
                       obligando a escanear toda la columna para llegar a la
@@ -1856,7 +1856,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <button
                     type="button"
                     onClick={() => abrirFichaClinica(pacienteHistorial)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
+                    className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
                     style={{ background: GRAD }}
                   >
                     <Stethoscope size={16} /> Ficha clínica
@@ -1864,7 +1864,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                   <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer sm:flex-none"
+                    className="flex items-center justify-center gap-2 rounded-xl px-4 border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
                     <CalendarPlus size={16} /> Agendar cita
                   </button>
@@ -1873,16 +1873,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     onClick={() => abrirMensaje(pacienteHistorial)}
                     disabled={!pacienteHistorial.telefono}
                     title={pacienteHistorial.telefono ? undefined : "Este paciente no tiene teléfono registrado"}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+                    className="flex items-center justify-center gap-2 rounded-xl px-4 border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <MessageCircle size={16} /> Enviar mensaje
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => abrirCuenta(pacienteHistorial)}
-                    className={"flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:flex-none " + (pacienteHistorial.tieneCuenta ? "border-slate-200/60 text-slate-700 hover:bg-slate-50" : "border-blue-200/60 text-blue-600 hover:bg-blue-50")}
-                  >
-                    <KeyRound size={16} /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
                   </button>
                   {/* Flujo consulta→venta sin fricción: solo aparece cuando la
                       última consulta dejó un lente recomendado, para no
@@ -1894,12 +1887,17 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                     <button
                       type="button"
                       onClick={() => abrirFacturaConReceta(ultimaConsultaPerfil)}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:flex-none"
+                      className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
                       style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
                     >
                       <Receipt size={16} /> Facturar receta
                     </button>
                   )}
+                  <MenuMasPerfil
+                    elementos={[
+                      { id: "cuenta", Icono: KeyRound, texto: pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso", onClick: () => abrirCuenta(pacienteHistorial) },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -2543,6 +2541,43 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
           </div>
         </div>,
         document.body
+      )}
+    </div>
+  )
+}
+
+// Menú "Más" de la cabecera del perfil: las acciones poco frecuentes. Se cierra
+// con Escape o al hacer clic fuera.
+function MenuMasPerfil({ elementos }) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!abierto) return
+    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false) }
+    const tecla = (e) => { if (e.key === "Escape") setAbierto(false) }
+    document.addEventListener("mousedown", fuera)
+    document.addEventListener("keydown", tecla)
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) }
+  }, [abierto])
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        aria-haspopup="menu"
+        className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+      >
+        Más <ChevronDown size={14} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+      </button>
+      {abierto && (
+        <div role="menu" className="absolute left-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+          {elementos.map(({ id, Icono, texto, onClick }) => (
+            <button key={id} type="button" role="menuitem" onClick={() => { setAbierto(false); onClick() }} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+              <Icono size={15} aria-hidden="true" /> {texto}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )
