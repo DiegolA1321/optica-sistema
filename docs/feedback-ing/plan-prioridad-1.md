@@ -110,7 +110,7 @@ Todas las tablas que se tocan (`citas`, `consultas`) son vistas sobre `citas_bas
 
 | Cambio | Requisitos | Detalle |
 |---|---|---|
-| **Responsable de la cita** | R12, R18 | Columna en `citas_base`, por ejemplo `responsable_id uuid references perfiles(id)` más el nombre a la vista (o un join de lectura). Se asigna al agendar (quien agenda o el profesional elegido) y se confirma o reemplaza al Atender. Con índice para filtrar por persona. Los datos antiguos quedan sin responsable (mostrar "Sin asignar"). |
+| **Responsable de la cita** | R12, R18 | Dos columnas en `citas_base`: `asignado_a` (opcional al agendar) y `atendido_por` (automático al atender), ambas `uuid references perfiles(id)`. Con índice para filtrar por persona. Los datos antiguos quedan sin responsable (mostrar "Sin asignar"). |
 | **Estado "Listo para venta"** | R34, R35, R39 | Mejor en `consultas_base` que en `citas`: la cita sigue su ciclo (Atendida al facturar, R39), y es la receta la que pasa a ventas. Por ejemplo `estado_venta text check (in ('sin_pasar','listo','vendido'))` y `pasada_a_optica_en timestamptz`. Evita ampliar el `check` de estados de cita (0059). |
 | **Orden de laboratorio** | R36, R37 | Tabla nueva `ordenes_laboratorio`: `optica_id`, `consulta_id`, `factura_id`, número, detalle (montura, tipo de lente, filtros, receta en jsonb), `estado` (enviada / completada), `completada_en`. RLS por óptica y permiso. El aviso al administrador puede usar la tabla de notificaciones/mensajes que ya existe (0005), o un indicador en Inicio. |
 | **Abonos libres** | R38 | Solo si "cuotas" no cubre lo que pide. Tabla de pagos de una venta (monto, fecha). Confirmar antes de diseñar. |
@@ -143,10 +143,21 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
 
 ---
 
-## Decisiones que necesitan la confirmación de Diego antes de construir
+## Decisiones tomadas (Diego, tras revisar el plan)
 
-1. **Citas web sin paciente vinculado (R15).** El ingeniero cree que el paciente ya se crea al agendar, pero hoy una cita web puede quedar sin paciente hasta que recepción lo confirma. Opción recomendada: al reservar en el portal se crea o enlaza el paciente (la deduplicación por cédula + fecha de nacimiento ya existe); así "Crear paciente" desaparece sin perder nada.
-2. **Quién cobra (R33-R39).** Recomendado: el optómetra termina con la receta y pasa a la óptica; quien tenga permiso de ventas puede cobrar en el mismo momento, para la óptica de una sola persona.
-3. **Próximo control en Fidelización (R42-R43).** Diego pidió conservarlo (30 sept.); el ingeniero pidió no repetirlo. Recomendado: quitarlo de Fidelización y dejarlo solo en el Historial clínico, salvo que Diego decida otra cosa.
-4. **Eliminar un paciente borra sus citas (R17).** Confirmar si ese borrado debe pasar a una anonimización que conserve las citas (útil para estadísticas, pero hay que revisarlo contra la solicitud de eliminación de datos).
-5. **"Cuotas" frente a "abonos" (R38).** Confirmar si lo actual cubre el pedido antes de agregar una tabla de pagos.
+1. **R15, el paciente se crea al agendar.** Al reservar por la web se crea la ficha del paciente, o se vincula la existente si la cédula ya está registrada; queda pendiente de confirmar (`confirmado_recepcion = false`) y recepción la confirma al atender (R22). Se quita "Crear paciente" del menú de la cita.
+   - **Verificado en código y en la base: la función de reserva pública ya hace esto, no requiere SQL nuevo.** `crear_cita_publica` (migración 0067) busca por `(optica_id, cedula)`, reutiliza al paciente o lo crea con `origen = 'paciente'`, y la cita siempre queda con `paciente_id`. El paciente nuevo nace con `confirmado_recepcion = false` (columna de 0077; el trigger solo lo pone en `true` para `origen = 'staff'`). Hay una sola firma de la función en la base (sin sobrecargas duplicadas).
+   - Solo existen 3 citas sin paciente vinculado, todas antiguas (agendadas antes de 0067) y ya cerradas (2 Atendida, 1 No asistió), así que "N por registrar" hoy vale 0.
+   - Matiz: si la cédula ya existe, la función reutiliza al paciente sin tocar `confirmado_recepcion`; un paciente ya confirmado sigue confirmado. Es lo razonable, porque de lo contrario recepción reconfirmaría a cada paciente conocido en cada reserva. Si se prefiere marcarlo otra vez, es un cambio de una línea en la función y se mostraría su SQL antes de aplicar.
+   - Lo que sí se hace es solo código: quitar la opción del menú (paso 2). Se conserva el modal "Completar registro" al pulsar Atender como red de seguridad para las citas antiguas sin paciente.
+2. **Quién cobra.** El optómetra cierra la atención con la receta y "Pasar a la óptica". Quien tenga permiso de ventas cobra; si es la misma persona, puede cobrar de inmediato en el mismo momento (pasos 8 y 9).
+3. **Próximo control.** Se quita de la pestaña Fidelización, porque ya está en el historial clínico, y se muestra en la **cabecera del perfil del paciente, junto a sus alertas** (paso 6; hoy está en la tira de resumen del perfil).
+4. **Responsable de la cita (paso 3): dos datos.**
+   - **Asignado a**: opcional al agendar (quién debería atender).
+   - **Atendido por**: se registra automáticamente al atender (quien abre la ficha de esa cita).
+   - El administrador puede filtrar por ambos (R18). Migración: dos columnas en `citas_base` (`asignado_a`, `atendido_por`, ambas `uuid references perfiles(id)`), expuestas por la vista `citas` y por `mapCita`.
+
+## Decisiones que siguen abiertas
+
+4. **Eliminar un paciente borra sus citas (R17).** `Pacientes.jsx:625` borra las citas al eliminar al paciente. Confirmar si debe pasar a una anonimización que conserve las citas para estadísticas (hay que revisarlo contra la solicitud de eliminación de datos de la LOPDP).
+5. **"Cuotas" frente a "abonos" (R38).** El modal de cobro ofrece directo, tarjeta y cuotas. Confirmar si cuotas cubre lo que el ingeniero llama abono (monto libre en varias fechas) antes de agregar una tabla de pagos.
