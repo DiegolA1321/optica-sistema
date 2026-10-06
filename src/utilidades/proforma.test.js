@@ -1,5 +1,6 @@
+import { fechaLegible } from "./formatoFecha"
 import { describe, it, expect } from "vitest"
-import { armarHtmlProforma, lineasProformaDeConsulta } from "./proforma"
+import { armarHtmlProforma, lineasProformaDeConsulta, datosOpticaProforma } from "./proforma"
 
 const base = {
   opticaNombre: "Óptica Solna Vision",
@@ -50,5 +51,19 @@ describe("armarHtmlProforma", () => {
   })
   it("sin diagnóstico no pone esa sección", () => {
     expect(armarHtmlProforma({ ...base, diagnostico: null })).not.toContain("Datos del diagnóstico")
+  })
+})
+
+describe("datos de la óptica y vigencia", () => {
+  it("la vigencia es de 15 días si no se configuró", () => {
+    expect(datosOpticaProforma({}).vigenciaDias).toBe(15)
+    expect(datosOpticaProforma({ vigenciaProformaDias: 30 }).vigenciaDias).toBe(30)
+    expect(datosOpticaProforma({ vigenciaProformaDias: "x" }).vigenciaDias).toBe(15)
+  })
+  it("imprime dirección, teléfono y 'Válida hasta' sin los datos vacíos", () => {
+    const html = armarHtmlProforma({ opticaNombre: "Visión", opticaDatos: { direccion: "Calle 1", telefono: "0999", ruc: "", vigenciaDias: 15 }, paciente: { nombre: "Ana" }, lineas: [], fecha: new Date(2026, 8, 1, 12) })
+    expect(html).toContain("Calle 1 · Tel. 0999")
+    expect(html).not.toContain("RUC")
+    expect(html).toContain("Válida hasta " + fechaLegible(new Date(2026, 8, 16, 12)))
   })
 })

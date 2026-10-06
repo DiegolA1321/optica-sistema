@@ -8,6 +8,7 @@ import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { costoBaseMotivo, renombrarCostoMotivo } from "../utilidades/costosConsulta"
+import { datosOpticaProforma } from "../utilidades/proforma"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -186,6 +187,61 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
               style={{ background: GRAD }}
             >
               <Plus size={14} /> Agregar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Datos que salen en la proforma impresa: contacto de la óptica y vigencia.
+function DatosProforma({ parametrizacion, setParametrizacion, onExito, onError }) {
+  const g = datosOpticaProforma(parametrizacion)
+  const [borrador, setBorrador] = useState({})
+  const [guardando, setGuardando] = useState(false)
+  const valor = (k, base) => (k in borrador ? borrador[k] : base)
+  const dias = parseInt(valor("dias", String(g.vigenciaDias)), 10)
+  const diasInvalido = !(dias >= 1 && dias <= 365)
+  const hayCambios = Object.keys(borrador).length > 0
+
+  const guardar = async () => {
+    if (diasInvalido) { onError?.("La vigencia debe ser un número de días entre 1 y 365."); return }
+    setGuardando(true)
+    const { error } = (await setParametrizacion((prev) => ({
+      ...prev,
+      opticaDireccion: valor("direccion", g.direccion).trim(),
+      opticaTelefono: valor("telefono", g.telefono).trim(),
+      opticaRuc: valor("ruc", g.ruc).trim(),
+      vigenciaProformaDias: dias,
+    }))) || {}
+    setGuardando(false)
+    if (error) { onError?.("No se pudieron guardar los datos de la proforma. Revisa tu conexión e intenta de nuevo."); return }
+    setBorrador({})
+    onExito?.("Datos de la proforma guardados correctamente.")
+  }
+  const campo = (k, etiqueta, base, extra = {}) => (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold text-slate-600">{etiqueta}</span>
+      <input value={valor(k, base)} onChange={(e) => setBorrador((b) => ({ ...b, [k]: e.target.value }))} className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white" {...extra} />
+    </label>
+  )
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200/60 bg-white p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Receipt size={18} /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold" style={{ color: INK }}>Datos de la proforma impresa</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Salen debajo del nombre de la óptica. Los que dejes en blanco no se imprimen. La proforma indica hasta cuándo es válida.</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {campo("direccion", "Dirección", g.direccion, { maxLength: 160 })}
+            {campo("telefono", "Teléfono", g.telefono, { maxLength: 40, inputMode: "tel" })}
+            {campo("ruc", "RUC", g.ruc, { maxLength: 20 })}
+            {campo("dias", "Vigencia (días)", String(g.vigenciaDias), { inputMode: "numeric", "aria-invalid": diasInvalido })}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <button type="button" onClick={guardar} disabled={!hayCambios || guardando} className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
+              {guardando ? "Guardando…" : "Guardar datos"}
             </button>
           </div>
         </div>
@@ -526,6 +582,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           />
         </div>
         <CostosPorMotivo motivos={motivosConsulta} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
+        <DatosProforma parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
       </div>
       </div>
       )}

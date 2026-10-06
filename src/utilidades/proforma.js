@@ -17,12 +17,29 @@ export function lineasProformaDeConsulta(consulta, parametrizacion) {
   ]
 }
 
+export const VIGENCIA_PROFORMA_DIAS = 15
+
+// Datos de la óptica que salen en la proforma (viven en la parametrización).
+export function datosOpticaProforma(parametrizacion) {
+  const texto = (v) => (typeof v === "string" ? v.trim() : "")
+  const dias = Math.round(Number(parametrizacion?.vigenciaProformaDias))
+  return {
+    direccion: texto(parametrizacion?.opticaDireccion),
+    telefono: texto(parametrizacion?.opticaTelefono),
+    ruc: texto(parametrizacion?.opticaRuc),
+    vigenciaDias: Number.isFinite(dias) && dias > 0 ? dias : VIGENCIA_PROFORMA_DIAS,
+  }
+}
+
 const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 const medida = (o) => (o && (o.esfera || o.cilindro || o.eje) ? `${o.esfera || "—"} | ${o.cilindro || "—"} | ${o.eje || "—"}°` : "No registrada")
 
 // datos: { opticaNombre, paciente: { nombre, cedula }, diagnostico: {...consulta}, lineas: [{ descripcion, cantidad, precioUnitario }], incluirMedidas, fecha }
-export function armarHtmlProforma({ opticaNombre = "Óptica", paciente = {}, diagnostico = null, lineas = [], incluirMedidas = false, fecha = new Date() }) {
+export function armarHtmlProforma({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, diagnostico = null, lineas = [], incluirMedidas = false, fecha = new Date() }) {
+  const vigenciaDias = opticaDatos.vigenciaDias || VIGENCIA_PROFORMA_DIAS
+  const validaHasta = new Date(new Date(fecha).getTime() + vigenciaDias * 86400000)
+  const contacto = [opticaDatos.direccion, opticaDatos.telefono && `Tel. ${opticaDatos.telefono}`, opticaDatos.ruc && `RUC ${opticaDatos.ruc}`].filter(Boolean).map(escapar).join(" · ")
   const total = lineas.reduce((s, l) => s + (Number(l.cantidad) || 0) * (Number(l.precioUnitario) || 0), 0)
   const filas = lineas
     .map((l) => `<tr><td>${escapar(l.descripcion)}</td><td class="n">${escapar(l.cantidad)}</td><td class="n">${dinero(l.precioUnitario)}</td><td class="n">${dinero((Number(l.cantidad) || 0) * (Number(l.precioUnitario) || 0))}</td></tr>`)
@@ -44,10 +61,11 @@ export function armarHtmlProforma({ opticaNombre = "Óptica", paciente = {}, dia
   .aviso{margin:6px 0 18px;padding:8px 10px;border:1px dashed #94a3b8;border-radius:6px;font-size:11px;color:#475569}
   table{width:100%;border-collapse:collapse}th,td{padding:7px 6px;border-bottom:1px solid #e2e8f0;text-align:left}
   th{font-size:11px;text-transform:uppercase;color:#64748b}.n{text-align:right;font-variant-numeric:tabular-nums}
-  .total{margin-top:12px;text-align:right;font-size:16px;font-weight:700}p{margin:3px 0}
+  .contacto{color:#475569;font-size:12px}.total{margin-top:12px;text-align:right;font-size:16px;font-weight:700}p{margin:3px 0}
 </style></head><body>
 <h1>${escapar(opticaNombre)}</h1>
-<p>Proforma · ${escapar(fechaLegible(fecha))}</p>
+${contacto ? `<p class="contacto">${contacto}</p>` : ""}
+<p>Proforma · ${escapar(fechaLegible(fecha))} · <b>Válida hasta ${escapar(fechaLegible(validaHasta))}</b></p>
 <div class="aviso">Esto es un presupuesto. No es una factura ni un comprobante de venta, y no reserva productos ni inventario.</div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}${paciente.cedula ? ` · ${escapar(paciente.cedula)}` : ""}</p>
 ${bloqueDiagnostico}

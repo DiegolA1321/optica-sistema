@@ -71,7 +71,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import NoComproModal from "../componentes/NoComproModal"
-import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta } from "../utilidades/proforma"
+import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta, datosOpticaProforma } from "../utilidades/proforma"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
@@ -351,6 +351,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, setV
     }
     imprimirHtml(armarHtmlProforma({
       opticaNombre: usuario?.opticaNombre,
+      opticaDatos: datosOpticaProforma(parametrizacion),
       paciente: item.paciente,
       diagnostico: item.consulta,
       lineas: lineas.map((l) => ({ descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),
