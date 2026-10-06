@@ -35,7 +35,6 @@ import {
   CalendarRange,
   Receipt,
   List,
-  SlidersHorizontal,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
@@ -43,6 +42,7 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
+import { ChipFiltro, BuscadorCitas, SelectorEstado, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
@@ -101,58 +101,6 @@ const porRegistrar = (c) => !c.pacienteId && !["Atendida", "No Asistió", "Cance
 const motivoInfo = (motivo = "", catalogo = []) => {
   const idx = catalogo.indexOf(motivo)
   return idx === -1 ? SIN_MOTIVO : PALETA_MOTIVOS[idx % PALETA_MOTIVOS.length]
-}
-
-// Chip de filtro: seleccionado = relleno oscuro (el color queda para los estados).
-// "grande" es el de los indicadores de arriba; el normal, el de los filtros.
-function ChipFiltro({ activo, onClick, conteo, grande = false, titulo, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={activo}
-      title={titulo}
-      className={
-        "inline-flex items-center gap-2 rounded-full border font-semibold transition-colors cursor-pointer " +
-        (grande ? "px-4 py-2 text-sm " : "px-3 py-1.5 text-xs ") +
-        (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")
-      }
-      style={activo ? { backgroundColor: INK } : undefined}
-    >
-      {children}
-      {conteo != null && (
-        <span className={"rounded-full px-1.5 text-xs font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{conteo}</span>
-      )}
-    </button>
-  )
-}
-
-function GrupoFiltro({ etiqueta, children }) {
-  return (
-    <div role="group" aria-label={etiqueta} className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">{etiqueta}</span>
-      {children}
-    </div>
-  )
-}
-
-// Filtro por responsable (administrador): Todos, nadie, o una persona.
-function SelectorResponsable({ etiqueta, valor, onChange, equipo }) {
-  return (
-    <select
-      aria-label={etiqueta}
-      value={valor}
-      onChange={(e) => onChange(e.target.value)}
-      className={"rounded-full border px-3 py-1.5 text-xs font-semibold outline-none transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-100 " + (valor === "todos" ? "border-slate-200/60 bg-white text-slate-600" : "border-transparent text-white")}
-      style={valor === "todos" ? undefined : { backgroundColor: INK }}
-    >
-      <option value="todos">Todos</option>
-      <option value="ninguno">Nadie</option>
-      {equipo.map((m) => (
-        <option key={m.id} value={m.id}>{m.nombre}</option>
-      ))}
-    </select>
-  )
 }
 
 // "Asignado a": quién debería atender la cita. Es opcional.
@@ -411,7 +359,6 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   // Solo el administrador: filtrar por quién estaba a cargo (R18).
   const [asignadoFiltro, setAsignadoFiltro] = useState("todos") // todos | ninguno | id
   const [atendidoFiltro, setAtendidoFiltro] = useState("todos")
-  const [filtrosAbiertos, setFiltrosAbiertos] = useState(null) // null = según la vista
   // Rango de fechas propio (reunión 29 sept.: "todas las de la siguiente
   // semana"), independiente de los KPIs. Sin rango, la lista abre en hoy y lo
   // próximo, y lo pasado queda plegado en "Anteriores". Con rango, se muestra
@@ -1108,6 +1055,20 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
   const totalEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención").length, [citas])
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
+  // Cuántas citas hay de cada estado, para el selector de estado.
+  const conteosEstado = useMemo(
+    () => Object.fromEntries(ESTADOS_FILTRO.map((e) => [e.id, e.id === "todas" ? citas.length : citas.filter((c) => coincideEstado(c, e.id)).length])),
+    [citas],
+  )
+  // Lo que vive dentro del botón "Filtros" (el estado y el buscador siempre se ven).
+  const filtrosEnPanel = (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
+  const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
+  const etiquetasActivas = [
+    origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
+    seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
+    asignadoFiltro !== "todos" && { id: "asignado", texto: `Asignada a: ${nombreResponsableFiltro(asignadoFiltro)}`, quitar: () => setAsignadoFiltro("todos") },
+    atendidoFiltro !== "todos" && { id: "atendido", texto: `Atendida por: ${nombreResponsableFiltro(atendidoFiltro)}`, quitar: () => setAtendidoFiltro("todos") },
+  ].filter(Boolean)
   const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda("") }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
@@ -1445,23 +1406,17 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
             </button>
           </div>
         )}
-        {vistaActiva !== "lista" && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {totalCanceladas > 0 && (
-              <button
-                type="button"
-                onClick={() => setVerCanceladas((v) => !v)}
-                aria-pressed={verCanceladas}
-                title={verCanceladas ? "Ocultar las citas canceladas" : "Mostrar las citas canceladas"}
-                className={"flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors cursor-pointer " + (verCanceladas ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200/60 bg-white text-slate-500 hover:bg-slate-50")}
-              >
-                <Eye size={13} aria-hidden="true" />
-                Canceladas ({totalCanceladas})
-              </button>
-            )}
-            {indicadores}
-          </div>
-        )}
+        {/* Buscador y estado siempre a la vista; lo demás, dentro de "Filtros". */}
+        <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
+        <SelectorEstado valor={estadoFiltro} onChange={setEstadoFiltro} conteos={conteosEstado} />
+        <BotonFiltros
+          cantidad={filtrosEnPanel}
+          origen={origenFiltro} onOrigen={setOrigenFiltro}
+          seguimiento={seguimientoFiltro} onSeguimiento={setSeguimientoFiltro}
+          esAdmin={usuario?.rol === "admin"} equipo={equipo}
+          asignado={asignadoFiltro} onAsignado={setAsignadoFiltro}
+          atendido={atendidoFiltro} onAtendido={setAtendidoFiltro}
+        />
         {totalPorRegistrar > 0 && (
           <button
             type="button"
@@ -1474,77 +1429,28 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
             {totalPorRegistrar} por registrar
           </button>
         )}
-      </div>
-
-      {/* ─── BLOQUE DE FILTROS (R3-R5): buscador junto a los filtros ─── */}
-      {(() => {
-        const abierto = filtrosAbiertos ?? vistaActiva === "lista"
-        return (
-          <section aria-label="Filtros de citas" className="rounded-2xl border border-slate-200/60 bg-white p-3 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-full sm:w-80">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-                <label htmlFor="citas-busqueda" className="sr-only">Buscar paciente o código de cita</label>
-                <input
-                  id="citas-busqueda"
-                  type="text"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Buscar paciente o código..."
-                  className="w-full rounded-xl border border-slate-200/60 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                />
-              </div>
+        {vistaActiva !== "lista" && totalCanceladas > 0 && (
+          <div className="ml-auto">
               <button
                 type="button"
-                onClick={() => setFiltrosAbiertos(!abierto)}
-                aria-expanded={abierto}
-                aria-controls="citas-filtros-panel"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+                onClick={() => setVerCanceladas((v) => !v)}
+                aria-pressed={verCanceladas}
+                title={verCanceladas ? "Ocultar las citas canceladas" : "Mostrar las citas canceladas"}
+                className={"flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors cursor-pointer " + (verCanceladas ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200/60 bg-white text-slate-500 hover:bg-slate-50")}
               >
-                <SlidersHorizontal size={14} aria-hidden="true" /> Filtros
-                {filtrosActivos > 0 && <span className="rounded-full px-1.5 text-xs font-bold text-white" style={{ backgroundColor: INK }}>{filtrosActivos}</span>}
-                <ChevronDown size={14} className={"transition-transform " + (abierto ? "" : "-rotate-90")} aria-hidden="true" />
+                <Eye size={13} aria-hidden="true" />
+                Canceladas ({totalCanceladas})
               </button>
-              {(filtrosActivos > 0 || busqueda) && (
-                <button type="button" onClick={limpiarFiltros} className="inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-                  <X size={13} aria-hidden="true" /> Limpiar
-                </button>
-              )}
-            </div>
-            {abierto && (
-              <div id="citas-filtros-panel" className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
-                <GrupoFiltro etiqueta="Estado">
-                  {ESTADOS_FILTRO.map((e) => (
-                    <ChipFiltro key={e.id} activo={estadoFiltro === e.id} titulo={e.ayuda} conteo={e.id === "enAtencion" && totalEnAtencion > 0 ? totalEnAtencion : undefined} onClick={() => setEstadoFiltro(e.id)}>{e.etiqueta}</ChipFiltro>
-                  ))}
-                </GrupoFiltro>
-                <div className="flex flex-wrap items-center gap-x-8 gap-y-2.5">
-                  <GrupoFiltro etiqueta="Origen">
-                    {ORIGENES_FILTRO.map((o) => (
-                      <ChipFiltro key={o.id} activo={origenFiltro === o.id} onClick={() => setOrigenFiltro(o.id)}>{o.etiqueta}</ChipFiltro>
-                    ))}
-                  </GrupoFiltro>
-                  <GrupoFiltro etiqueta="Visita">
-                    {SEGUIMIENTO_FILTRO.map((o) => (
-                      <ChipFiltro key={o.id} activo={seguimientoFiltro === o.id} titulo={o.id === "primera" ? "El paciente no tenía atenciones anteriores" : undefined} onClick={() => setSeguimientoFiltro(o.id)}>{o.etiqueta}</ChipFiltro>
-                    ))}
-                  </GrupoFiltro>
-                  {usuario?.rol === "admin" && (
-                    <>
-                      <GrupoFiltro etiqueta="Asignada a">
-                        <SelectorResponsable etiqueta="Asignada a" valor={asignadoFiltro} onChange={setAsignadoFiltro} equipo={equipo} />
-                      </GrupoFiltro>
-                      <GrupoFiltro etiqueta="Atendida por">
-                        <SelectorResponsable etiqueta="Atendida por" valor={atendidoFiltro} onChange={setAtendidoFiltro} equipo={equipo} />
-                      </GrupoFiltro>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-        )
-      })()}
+          </div>
+        )}
+      </div>
+
+      {/* ─── FILTROS ACTIVOS: etiquetas con su "x" y "Limpiar filtros" ─── */}
+      <EtiquetasActivas
+        etiquetas={etiquetasActivas}
+        hayAlgo={etiquetasActivas.length > 0 || estadoFiltro !== "todas" || busqueda !== ""}
+        onLimpiar={limpiarFiltros}
+      />
 
       {/* ─── LISTADO ─── */}
       {cargaInicial && citas.length === 0 ? (
