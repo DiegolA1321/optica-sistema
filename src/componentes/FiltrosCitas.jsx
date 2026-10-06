@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Search, SlidersHorizontal, ChevronDown, X } from "lucide-react"
+import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO } from "../utilidades/filtrosCitas"
 
@@ -105,7 +105,7 @@ export function SelectorEstado({ valor, onChange, conteos }) {
 // Botón "Filtros" con el contador y, debajo, el panel con lo menos usado:
 // origen, visita y (solo administrador) los responsables. Se cierra con
 // Escape o al hacer clic fuera.
-export function BotonFiltros({ cantidad, origen, onOrigen, seguimiento, onSeguimiento, esAdmin, equipo, asignado, onAsignado, atendido, onAtendido }) {
+export function BotonFiltros({ cantidad, origen, onOrigen, seguimiento, onSeguimiento, esAdmin, equipo, asignado, onAsignado, atendido, onAtendido, rango }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
   useEffect(() => {
@@ -132,6 +132,19 @@ export function BotonFiltros({ cantidad, origen, onOrigen, seguimiento, onSeguim
       </button>
       {abierto && (
         <div id="citas-filtros-panel" className="absolute right-0 top-full z-30 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+          {rango && (
+            <GrupoFiltro etiqueta="Rango de fechas">
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1">
+                <button type="button" onClick={() => rango.onMover(-1)} aria-label="Semana anterior" title="Semana anterior" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={15} /></button>
+                <label htmlFor="rango-desde" className="sr-only">Desde</label>
+                <input id="rango-desde" type="date" value={rango.desde} onChange={(e) => rango.onDesde(e.target.value)} max={rango.hasta || undefined} className="w-[7.4rem] rounded-lg bg-transparent px-1 py-1 text-xs font-semibold text-slate-600 outline-none" />
+                <span className="text-xs text-slate-400">–</span>
+                <label htmlFor="rango-hasta" className="sr-only">Hasta</label>
+                <input id="rango-hasta" type="date" value={rango.hasta} onChange={(e) => rango.onHasta(e.target.value)} min={rango.desde || undefined} className="w-[7.4rem] rounded-lg bg-transparent px-1 py-1 text-xs font-semibold text-slate-600 outline-none" />
+                <button type="button" onClick={() => rango.onMover(1)} aria-label="Semana siguiente" title="Semana siguiente" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={15} /></button>
+              </div>
+            </GrupoFiltro>
+          )}
           <GrupoFiltro etiqueta="Origen">
             {ORIGENES_FILTRO.map((o) => (
               <ChipFiltro key={o.id} activo={origen === o.id} onClick={() => onOrigen(o.id)}>{o.etiqueta}</ChipFiltro>
