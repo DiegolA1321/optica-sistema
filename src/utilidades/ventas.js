@@ -2,7 +2,7 @@
 // por producto) y Pacientes.jsx (pagos pendientes en la ficha del paciente).
 // Ver migración 0047_ventas_productos.sql para el esquema de la tabla.
 
-export const METODOS_PAGO = { directo: "Pago directo", tarjeta: "Tarjeta", cuotas: "Cuotas" }
+export const METODOS_PAGO = { directo: "Pago directo", tarjeta: "Tarjeta", cuotas: "Cuotas", abonos: "Abonos" }
 
 // Saldo pendiente de una venta puntual. En "cuotas" se prorratea el monto
 // total entre las cuotas pactadas; en directo/tarjeta el saldo es todo o nada.

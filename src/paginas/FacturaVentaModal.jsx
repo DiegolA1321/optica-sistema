@@ -15,6 +15,7 @@ import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
 import { esLineaDeLente } from "../utilidades/ordenesLaboratorio"
+import { mapAbono, EVENTO_ABONO } from "../utilidades/abonos"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 
 // ─── Paleta de firma (paleta de venta/dinero) ───
@@ -141,6 +142,7 @@ export default function FacturaVentaModal({
 
   const [metodoPago, setMetodoPago] = useState("directo")
   const [cuotasTotales, setCuotasTotales] = useState("3")
+  const [abonoInicial, setAbonoInicial] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
@@ -279,6 +281,8 @@ export default function FacturaVentaModal({
     }
     const cuotasNum = metodoPago === "cuotas" ? parseInt(cuotasTotales, 10) : null
     if (metodoPago === "cuotas" && (!cuotasNum || cuotasNum < 1)) { setError("Ingresa un número de cuotas válido."); return }
+    const abonoNum = metodoPago === "abonos" && abonoInicial.trim() !== "" ? Math.round(parseFloat(abonoInicial) * 100) / 100 : 0
+    if (metodoPago === "abonos" && abonoInicial.trim() !== "" && (!(abonoNum > 0) || abonoNum > total)) { setError("El abono inicial debe ser mayor que cero y no superar el total."); return }
 
     setGuardando(true)
     setError("")
@@ -317,12 +321,26 @@ export default function FacturaVentaModal({
         }))
       }
       registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
+      let estadoFinal = data.estado
+      let avisoAbono = ""
+      if (abonoNum > 0) {
+        // El abono inicial se registra justo después de crear la venta (misma función que cualquier otro abono).
+        const { data: ab, error: errorAbono } = await supabase.rpc("registrar_abono", { p_factura_id: data.id, p_monto: abonoNum, p_nota: "Abono inicial" }).single()
+        if (errorAbono) {
+          avisoAbono = "La venta se guardó, pero el abono inicial no se pudo registrar: regístralo desde el perfil del paciente."
+        } else {
+          estadoFinal = ab.estado
+          const { data: filas } = await supabase.from("abonos_factura").select("*").eq("factura_id", data.id)
+          ;(filas || []).forEach((f) => window.dispatchEvent(new CustomEvent(EVENTO_ABONO, { detail: mapAbono(f) })))
+        }
+      }
       const facturaGuardada = {
         id: data.id, pacienteId: paciente.id, citaId: citaIdEfectivo, consultaId: consultaIdEfectivo,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
-        estado: data.estado, creadoEn: data.created_at,
+        estado: estadoFinal, creadoEn: data.created_at,
         lineas,
       }
+      if (avisoAbono) window.dispatchEvent(new CustomEvent("aviso-global", { detail: avisoAbono }))
       onGuardado?.(facturaGuardada)
       if (incluyeLentes) {
         setGuardando(false)
@@ -643,7 +661,7 @@ export default function FacturaVentaModal({
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Método de pago</label>
                   <div className="flex gap-2">
-                    {[{ v: "directo", t: "Directo" }, { v: "tarjeta", t: "Tarjeta" }, { v: "cuotas", t: "Cuotas" }].map((m) => (
+                    {[{ v: "directo", t: "Directo" }, { v: "tarjeta", t: "Tarjeta" }, { v: "cuotas", t: "Cuotas" }, { v: "abonos", t: "Abonos" }].map((m) => (
                       <button key={m.v} type="button" onClick={() => cambiarMetodoPago(m.v)}
                         className="flex-1 rounded-xl border py-2 text-sm font-semibold transition cursor-pointer"
                         style={metodoPago === m.v ? { background: GRAD_VENTA, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
@@ -658,6 +676,15 @@ export default function FacturaVentaModal({
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Número de cuotas</label>
                     <input type="number" min="1" step="1" value={cuotasTotales} onChange={(e) => setCuotasTotales(e.target.value)}
                       className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+                  </div>
+                )}
+
+                {metodoPago === "abonos" && (
+                  <div>
+                    <label htmlFor="abono-inicial" className="mb-1.5 block text-sm font-semibold text-slate-700">Abono inicial (opcional)</label>
+                    <input id="abono-inicial" type="number" min="0" step="0.01" max={total} value={abonoInicial} onChange={(e) => setAbonoInicial(e.target.value)} placeholder="0.00"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+                    <p className="mt-1 text-xs text-slate-500">El resto queda como saldo y se cobra con abonos de monto y fecha libres.</p>
                   </div>
                 )}
 

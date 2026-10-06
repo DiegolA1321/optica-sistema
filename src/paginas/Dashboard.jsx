@@ -177,6 +177,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     window.addEventListener(EVENTO_ORDEN, alGuardar)
     return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
   }, [])
+  useEffect(() => {
+    const alAviso = (e) => mostrarAviso(e.detail)
+    window.addEventListener("aviso-global", alAviso)
+    return () => window.removeEventListener("aviso-global", alAviso)
+  }, [])
   const mostrarAviso = (mensaje) => {
     setAviso(mensaje)
     clearTimeout(timeoutAviso.current)

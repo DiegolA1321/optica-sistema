@@ -72,6 +72,9 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
+import AbonoModal from "../componentes/AbonoModal"
+import AnularVentaModal from "../componentes/AnularVentaModal"
+import { saldoFactura, saldoPacienteFacturas, totalAbonado } from "../utilidades/abonos"
 import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 import NoComproModal from "../componentes/NoComproModal"
 import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta, datosOpticaProforma } from "../utilidades/proforma"
@@ -164,7 +167,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -333,6 +336,25 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // la venta (siempre vinculada a su consulta) o marcar "No compró".
   const [ventaCola, setVentaCola] = useState(null) // { pase, paciente, consulta }
   const [noComproPara, setNoComproPara] = useState(null)
+  // Abonos y anulación de ventas (R38)
+  const [abonoPara, setAbonoPara] = useState(null) // { factura, paciente }
+  const [anularPara, setAnularPara] = useState(null)
+  const alAbonar = ({ monto, estado, cuotasPagadas }) => {
+    const { factura, paciente } = abonoPara
+    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado, cuotasPagadas } : f)))
+    mostrarNotif(estado === "pagada" ? `Abono de $${monto.toFixed(2)} registrado: la venta de ${paciente?.nombre || "el paciente"} quedó pagada.` : `Abono de $${monto.toFixed(2)} registrado.`)
+  }
+  const alAnular = () => {
+    const { factura } = anularPara
+    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado: "anulada" } : f)))
+    // La base repone el stock y cancela las órdenes sin entregar; se refleja aquí sin recargar.
+    setInventario?.((prev) => prev.map((p) => {
+      const linea = (factura.lineas || []).find((l) => l.tipo === "producto" && l.productoId === p.id)
+      return linea ? { ...p, stock: (Number(p.stock) || 0) + linea.cantidad } : p
+    }))
+    setOrdenesLab?.((prev) => prev.map((o) => (o.facturaId === factura.id && (o.estado === "enviada" || o.estado === "lista") ? { ...o, estado: "cancelada" } : o)))
+    mostrarNotif("Venta anulada.")
+  }
   const [reabriendoId, setReabriendoId] = useState(null)
   const construirCola = (estado) => pases
     .filter((p) => p.estado === estado)
@@ -2051,7 +2073,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               }
               lineasProductos.sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
               lineasServicios.sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
-              const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0)
+              const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0) + saldoPacienteFacturas(pacienteHistorial.id, facturasVenta, abonos)
               const diasControl = diasVencido(pacienteHistorial, consultas)
               const proximoControl = fechaProximoControl(pacienteHistorial, consultas)
               const inactivo = esInactivo(pacienteHistorial, consultas)
@@ -2311,6 +2333,47 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
+                        {facturasPaciente.length > 0 && (
+                          <div>
+                            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Receipt size={13} /> Ventas <span className="font-normal normal-case text-slate-400">· {facturasPaciente.length}</span></h3>
+                            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60" aria-label="Ventas del paciente">
+                              {facturasPaciente.map((f) => {
+                                const saldoF = saldoFactura(f, abonos)
+                                const abonadoF = totalAbonado(f.id, abonos)
+                                const ordenesF = ordenesLab.filter((o) => o.facturaId === f.id)
+                                return (
+                                  <li key={f.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0">
+                                      <p className={"text-sm font-semibold " + (f.estado === "anulada" ? "text-slate-400 line-through" : "text-slate-800")}>
+                                        ${f.montoTotal.toFixed(2)} · {METODOS_PAGO[f.metodoPago] || f.metodoPago}{f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales})` : ""} · {fechaLegible(f.creadoEn)}
+                                      </p>
+                                      <p className="text-[11px] text-slate-500">
+                                        {(f.lineas || []).map((l) => l.descripcion).join(", ") || "Sin líneas"}
+                                        {f.estado === "pendiente_pago" && ` · abonado $${abonadoF.toFixed(2)}`}
+                                        {ordenesF.length > 0 && ` · ${ordenesF.length} orden${ordenesF.length === 1 ? "" : "es"} de laboratorio`}
+                                      </p>
+                                    </div>
+                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                      {f.estado === "anulada" ? (
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">Anulada</span>
+                                      ) : f.estado === "pagada" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><CheckCircle size={12} /> Pagada</span>
+                                      ) : (
+                                        <>
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} /> Saldo ${saldoF.toFixed(2)}</span>
+                                          <button type="button" onClick={() => setAbonoPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Abonar</button>
+                                        </>
+                                      )}
+                                      {f.estado !== "anulada" && (
+                                        <button type="button" onClick={() => setAnularPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 cursor-pointer">Anular</button>
+                                      )}
+                                    </div>
+                                  </li>
+                                )
+                              })}
+                            </ul>
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
@@ -2363,9 +2426,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                             }
                             const f = fila.factura
                             const anulada = f.estado === "anulada"
-                            const saldoFactura = f.estado === "pendiente_pago" && f.cuotasTotales
-                              ? f.montoTotal * Math.max(0, f.cuotasTotales - (f.cuotasPagadas || 0)) / f.cuotasTotales
-                              : 0
+                            const saldoDeFactura = saldoFactura(f, abonos)
                             return (
                               <div key={fila.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
@@ -2388,7 +2449,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                   </span>
                                 ) : (
                                   <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                                    <CreditCard size={12} /> Debe ${saldoFactura.toFixed(2)} (factura completa)
+                                    <CreditCard size={12} /> Debe ${saldoDeFactura.toFixed(2)} (de la venta completa)
                                   </span>
                                 )}
                               </div>
@@ -2533,6 +2594,20 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           onNoCompro={() => { const item = ventaCola; setVentaCola(null); setNoComproPara(item) }}
           onGuardado={alVenderDesdeCola}
           onCerrar={() => setVentaCola(null)}
+        />
+      )}
+      {abonoPara && (
+        <AbonoModal factura={abonoPara.factura} paciente={abonoPara.paciente} abonos={abonos} usuario={usuario} onRegistrado={alAbonar} onCerrar={() => setAbonoPara(null)} />
+      )}
+      {anularPara && (
+        <AnularVentaModal
+          factura={anularPara.factura}
+          paciente={anularPara.paciente}
+          abonos={abonos}
+          ordenesAbiertas={ordenesLab.filter((o) => o.facturaId === anularPara.factura.id && (o.estado === "enviada" || o.estado === "lista")).length}
+          usuario={usuario}
+          onAnulada={alAnular}
+          onCerrar={() => setAnularPara(null)}
         />
       )}
       {noComproPara && (
