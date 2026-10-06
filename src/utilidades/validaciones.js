@@ -82,3 +82,13 @@ export const MENSAJE_CLAVE_SEGURA = "La contraseña debe tener al menos 8 caract
 export function validarClaveNueva(valor) {
   return esClaveSegura(valor) ? "" : MENSAJE_CLAVE_SEGURA
 }
+
+// Clave temporal para la cuenta del portal del paciente: cumple la misma regla (8 o más, con letra y número).
+export function generarClaveTemporal() {
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+  const bytes = new Uint8Array(6)
+  globalThis.crypto.getRandomValues(bytes)
+  const letras = Array.from(bytes.slice(0, 4), (b) => alfabeto[b % alfabeto.length]).join("")
+  const digitos = String(bytes[4] % 10) + String(bytes[5] % 10)
+  return `Opt-${letras}${digitos}`
+}

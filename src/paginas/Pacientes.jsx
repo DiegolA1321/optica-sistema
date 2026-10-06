@@ -61,7 +61,7 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import FacturaVentaModal from "./FacturaVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
-import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
+import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
@@ -501,7 +501,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   }
 
   // ── Cuenta de acceso del paciente ──
-  const generarClave = () => "Opt-" + Math.random().toString(36).slice(2, 7).toUpperCase()
+  const generarClave = () => generarClaveTemporal()
 
   const abrirCuenta = (paciente) => {
     setCuentaPaciente(paciente)

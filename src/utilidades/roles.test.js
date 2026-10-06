@@ -49,3 +49,10 @@ describe("regla de contraseña única", () => {
     expect(validarClaveNueva("Segura123")).toBe("")
   })
 })
+
+describe("clave temporal del portal", () => {
+  it("siempre cumple la regla de contraseña", async () => {
+    const { generarClaveTemporal } = await import("./validaciones")
+    for (let i = 0; i < 300; i++) expect(validarClaveNueva(generarClaveTemporal())).toBe("")
+  })
+})

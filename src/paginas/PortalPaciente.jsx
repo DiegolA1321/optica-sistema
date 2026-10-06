@@ -39,6 +39,7 @@ import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
+import { validarClaveNueva } from "../utilidades/validaciones"
 
 // ─── Paleta de firma (consistente con todo el sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -346,7 +347,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const handleCambiarClave = async (e) => {
     e.preventDefault()
     if (!claveActual) { setErrorClave("Ingresa tu contraseña actual."); return }
-    if (nuevaClave.length < 6) { setErrorClave("La nueva contraseña debe tener al menos 6 caracteres."); return }
+    const errorClaveSegura = validarClaveNueva(nuevaClave)
+    if (errorClaveSegura) { setErrorClave(errorClaveSegura); return }
     if (nuevaClave === usuario?.cedula) { setErrorClave("La nueva contraseña no puede ser tu número de cédula."); return }
     if (nuevaClave !== confirmarClave) { setErrorClave("Las contraseñas no coinciden."); return }
 
@@ -976,7 +978,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
+                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="8 o más, con letra y número" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-600">Confirmar contraseña</label>

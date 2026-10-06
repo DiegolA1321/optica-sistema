@@ -64,7 +64,7 @@ import { esHoy, etiquetaFecha, fechaAISO } from "../utilidades/disponibilidad"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
-import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
@@ -577,7 +577,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const actualizarMiClave = async (e) => {
     e.preventDefault()
     setErrorClaveNueva("")
-    if (claveNueva.length < 6) { setErrorClaveNueva("La contraseña debe tener al menos 6 caracteres."); return }
+    const errorClaveSegura = validarClaveNueva(claveNueva)
+    if (errorClaveSegura) { setErrorClaveNueva(errorClaveSegura); return }
     if (claveNueva !== confirmarClaveNueva) { setErrorClaveNueva("Las contraseñas no coinciden."); return }
     setGuardandoClaveNueva(true)
     const { error: errorClave } = await supabase.auth.updateUser({ password: claveNueva })
@@ -1229,8 +1230,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!cedulaAdminLimpia) { setError("Completa la cédula del administrador."); return }
     if (!esCedulaValida(cedulaAdminLimpia)) { setError("La cédula del administrador no es válida."); return }
     if (!esEmailValido(emailAdmin, false)) { setError("Ingresa un correo válido para el administrador (ej. nombre@dominio.com)."); return }
-    if (clave.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.")
+    const errorClaveSegura = validarClaveNueva(clave)
+    if (errorClaveSegura) {
+      setError(errorClaveSegura)
       return
     }
     if (clave !== confirmarClave) {
@@ -1616,7 +1618,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!esCedulaValida(cedulaExtraLimpia)) { setErrorAdminExtra("La cédula ingresada no es válida."); return }
     if (!esEmailValido(email, false)) { setErrorAdminExtra("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
     if (!clave) { setErrorAdminExtra("Completa la contraseña."); return }
-    if (clave.length < 6) { setErrorAdminExtra("La contraseña debe tener al menos 6 caracteres."); return }
+    if (validarClaveNueva(clave)) { setErrorAdminExtra(validarClaveNueva(clave)); return }
     if (clave !== confirmarClave) { setErrorAdminExtra("Las contraseñas no coinciden."); return }
     setGuardandoAdminExtra(true)
     const temp = crearClienteTemporal()
@@ -1688,7 +1690,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!esNombreValido(nombre)) { setErrorSuperadmin("Ingresa un nombre válido (solo letras)."); return }
     if (!esEmailValido(email, false)) { setErrorSuperadmin("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
     if (!clave) { setErrorSuperadmin("Completa la contraseña."); return }
-    if (clave.length < 6) { setErrorSuperadmin("La contraseña debe tener al menos 6 caracteres."); return }
+    if (validarClaveNueva(clave)) { setErrorSuperadmin(validarClaveNueva(clave)); return }
     if (clave !== confirmarClave) { setErrorSuperadmin("Las contraseñas no coinciden."); return }
     setGuardandoSuperadmin(true)
     const temp = crearClienteTemporal()
@@ -4065,7 +4067,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                           <input
                             type={verClave ? "text" : "password"} value={campos.clave} onChange={(e) => actualizarCampo("clave", e.target.value)}
-                            placeholder="Mínimo 6 caracteres"
+                            placeholder="8 o más, con letra y número"
                             className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                           />
                           <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
@@ -4087,9 +4089,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     </div>
                     {(campos.clave || campos.confirmarClave) && (
                       <div className="flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
-                        <span className={"flex items-center gap-1.5 text-xs font-medium " + (campos.clave.length >= 6 ? "text-emerald-600" : "text-slate-400")}>
-                          {campos.clave.length >= 6 ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                          Mínimo 6 caracteres
+                        <span className={"flex items-center gap-1.5 text-xs font-medium " + (esClaveSegura(campos.clave) ? "text-emerald-600" : "text-slate-400")}>
+                          {esClaveSegura(campos.clave) ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                          8 o más caracteres, con letra y número
                         </span>
                         <span className={"flex items-center gap-1.5 text-xs font-medium " + (campos.confirmarClave && campos.clave === campos.confirmarClave ? "text-emerald-600" : "text-slate-400")}>
                           {campos.confirmarClave && campos.clave === campos.confirmarClave ? <CheckCircle2 size={13} /> : <Circle size={13} />}
@@ -4190,7 +4192,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
                         type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.clave} onChange={(e) => actualizarCampoSuperadmin("clave", e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder="8 o más, con letra y número"
                         className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                       <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} aria-label={verClaveSuperadmin ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
