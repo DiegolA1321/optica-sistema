@@ -24,7 +24,6 @@ import {
   Loader2,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
-import { hoyISO } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
