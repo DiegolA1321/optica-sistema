@@ -115,7 +115,8 @@ Todas las tablas que se tocan (`citas`, `consultas`) son vistas sobre `citas_bas
 | **Responsable de la cita** | R12, R18 | Dos columnas en `citas_base`: `asignado_a` (opcional al agendar) y `atendido_por` (automático al atender), ambas `uuid references perfiles(id)`. Con índice para filtrar por persona. Los datos antiguos quedan sin responsable (mostrar "Sin asignar"). |
 | **Estado "Listo para venta"** | R34, R35, R39 | Mejor en `consultas_base` que en `citas`: la cita sigue su ciclo (Atendida al facturar, R39), y es la receta la que pasa a ventas. Por ejemplo `estado_venta text check (in ('sin_pasar','listo','vendido'))` y `pasada_a_optica_en timestamptz`. Evita ampliar el `check` de estados de cita (0059). |
 | **Orden de laboratorio** | R36, R37 | Tabla nueva `ordenes_laboratorio`: `optica_id`, `consulta_id`, `factura_id`, número, detalle (montura, tipo de lente, filtros, receta en jsonb), `estado` (enviada / completada), `completada_en`. RLS por óptica y permiso. El aviso al administrador puede usar la tabla de notificaciones/mensajes que ya existe (0005), o un indicador en Inicio. |
-| **Abonos libres** | R38 | Solo si "cuotas" no cubre lo que pide. Tabla de pagos de una venta (monto, fecha). Confirmar antes de diseñar. |
+| **Abonos libres** | R38 | Tabla de abonos de una venta o factura (monto, fecha, nota) y saldo derivado; las cuotas existentes se migran como abonos. |
+| **Anonimización de pacientes** | R17, R40 | Función `anonimizar_paciente(id)` que limpia las copias de nombre, cédula, teléfono y correo en `pacientes`, `citas`, `consultas` y ventas, y conserva los registros. Posible columna `anonimizado_en`. Requiere revisar el cifrado de `pacientes_base`/`citas_base` (0043, 0055). |
 | **Horario del personal visible al administrador** | R19 | Probablemente una política de lectura (RLS) para que el admin lea el horario personal de cada miembro. No verifiqué dónde se guarda `horarioPersonal`; revisar antes de decidir. |
 | **Tiempo real de "en atención"** | R21 | Sin cambio de esquema: habilitar Realtime para `citas` y suscribirse en Inicio. Si no se quiere Realtime, bastaría con refrescar cada cierto tiempo. |
 
@@ -139,7 +140,8 @@ Orden: primero lo que el ingeniero verá al abrir Citas, luego lo que rompe el f
 | 8 | **Terminar atención con receta y "Pasar a la óptica"** | R33, R34 | Migración de estado de venta. El botón final de la ficha es "Terminar atención": genera la receta y deja al paciente "Listo para venta". El cobro inmediato queda como opción para quien tenga permiso de ventas (ver decisiones). |
 | 9 | **Cola de ventas y proforma** | R35, R39 | La vendedora ve la lista "Listo para venta", busca al paciente, pulsa "Tomar datos del diagnóstico" y obtiene la proforma con lo recetado. Al facturar, la cita pasa a "Atendida". |
 | 10 | **Orden de laboratorio** | R36, R37 | Migración de órdenes. Al registrar la venta se genera la orden con número de factura, montura, tipo de lente, filtros y receta, con dos impresiones (paciente y laboratorio). El laboratorio la marca "Completada" y el administrador recibe el aviso para llamar al paciente. |
-| 11 | **Abonos y embudo** | R38, R40 | Si hace falta, abonos de monto libre con saldo visible. En Reportes, el embudo consultaron → compraron → volvieron, con separación entre pacientes accesibles y datos estadísticos. |
+| 11 | **Abonos libres y embudo** | R38, R40 | Abonos con monto y fecha libres hasta completar el total, con el saldo pendiente visible en la venta y en el perfil; las cuotas son un caso de abonos. En Reportes, el embudo consultaron → compraron → volvieron, separando pacientes identificables de datos estadísticos. |
+| 12 | **Anonimizar al eliminar un paciente** | R17, R40 | Eliminar un paciente borra sus datos personales (nombre, cédula, teléfono, correo) y deja sus citas, consultas y ventas sin identificarlo; los reportes y el embudo siguen contando esas visitas. Una sola función en la base, usada también por la solicitud de eliminación del portal. |
 
 Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → venta → laboratorio) y se pueden mostrar como un recorrido completo al terminar el 10.
 
@@ -150,7 +152,7 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
 1. **R15, el paciente se crea al agendar.** Al reservar por la web se crea la ficha del paciente, o se vincula la existente si la cédula ya está registrada; queda pendiente de confirmar (`confirmado_recepcion = false`) y recepción la confirma al atender (R22). Se quita "Crear paciente" del menú de la cita.
    - **Verificado en código y en la base: la función de reserva pública ya hace esto, no requiere SQL nuevo.** `crear_cita_publica` (migración 0067) busca por `(optica_id, cedula)`, reutiliza al paciente o lo crea con `origen = 'paciente'`, y la cita siempre queda con `paciente_id`. El paciente nuevo nace con `confirmado_recepcion = false` (columna de 0077; el trigger solo lo pone en `true` para `origen = 'staff'`). Hay una sola firma de la función en la base (sin sobrecargas duplicadas).
    - Solo existen 3 citas sin paciente vinculado, todas antiguas (agendadas antes de 0067) y ya cerradas (2 Atendida, 1 No asistió), así que "N por registrar" hoy vale 0.
-   - Matiz: si la cédula ya existe, la función reutiliza al paciente sin tocar `confirmado_recepcion`; un paciente ya confirmado sigue confirmado. Es lo razonable, porque de lo contrario recepción reconfirmaría a cada paciente conocido en cada reserva. Si se prefiere marcarlo otra vez, es un cambio de una línea en la función y se mostraría su SQL antes de aplicar.
+   - Decisión sobre un paciente conocido: **no se reconfirma**, mantiene su estado. La función actual ya se comporta así; no hay cambio que hacer.
    - Lo que sí se hace es solo código: quitar la opción del menú (paso 2). Se conserva el modal "Completar registro" al pulsar Atender como red de seguridad para las citas antiguas sin paciente.
 2. **Quién cobra.** El optómetra cierra la atención con la receta y "Pasar a la óptica". Quien tenga permiso de ventas cobra; si es la misma persona, puede cobrar de inmediato en el mismo momento (pasos 8 y 9).
 3. **Próximo control.** Se quita de la pestaña Fidelización, porque ya está en el historial clínico, y se muestra en la **cabecera del perfil del paciente, junto a sus alertas** (paso 6; hoy está en la tira de resumen del perfil).
@@ -159,7 +161,13 @@ Los pasos 8 a 10 forman el flujo grande que pidió el ingeniero (receta → vent
    - **Atendido por**: se registra automáticamente al atender (quien abre la ficha de esa cita).
    - El administrador puede filtrar por ambos (R18). Migración: dos columnas en `citas_base` (`asignado_a`, `atendido_por`, ambas `uuid references perfiles(id)`), expuestas por la vista `citas` y por `mapCita`.
 
-## Decisiones que siguen abiertas
+5. **Eliminar un paciente anonimiza, no borra (R17, R40).** Se eliminan sus datos personales (nombre, cédula, teléfono, correo y dirección) y se conservan sus citas, consultas y ventas sin identificarlo, para las estadísticas. Paso propio, el 12 del plan. Hallazgos para ese paso:
+   - Hoy `Pacientes.jsx:625` borra las citas del paciente.
+   - **No existe un campo de dirección** en `pacientes`; no hay nada que borrar ahí.
+   - Los datos personales están **copiados** en otras tablas: `citas` (paciente, cédula, teléfono, correo) y `consultas` / ventas / facturas (nombre del paciente). La anonimización debe limpiar también esas copias, no solo `pacientes`.
+   - La solicitud de eliminación del portal y el borrado manual deben llevar al mismo procedimiento, que conviene hacer como función en la base (una sola transacción) y no desde el navegador.
+6. **Abonos libres (R38).** Se implementan abonos con monto y fecha libres hasta completar el total, con el saldo pendiente visible. Las cuotas pasan a ser un caso de abonos (un plan de N abonos iguales). Paso 11 del plan; requiere tabla de abonos.
 
-4. **Eliminar un paciente borra sus citas (R17).** `Pacientes.jsx:625` borra las citas al eliminar al paciente. Confirmar si debe pasar a una anonimización que conserve las citas para estadísticas (hay que revisarlo contra la solicitud de eliminación de datos de la LOPDP).
-5. **"Cuotas" frente a "abonos" (R38).** El modal de cobro ofrece directo, tarjeta y cuotas. Confirmar si cuotas cubre lo que el ingeniero llama abono (monto libre en varias fechas) antes de agregar una tabla de pagos.
+## Pendientes fuera de este bloque
+
+- **Error 401 de `opticas_publicas` al abrir la app.** La consola muestra `GET /rest/v1/opticas_publicas?...&id=eq.<id>` con 401 al cargar, incluso con la sesión iniciada. Ya aparecía antes de los pasos 1 y 2. No bloquea nada visible, pero hay que revisar los permisos de esa vista/tabla para la sesión autenticada antes de la presentación. (Detectado el 6 de octubre; no se trabaja en el bloque de prioridad 1.)
