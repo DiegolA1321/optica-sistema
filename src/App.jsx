@@ -6,6 +6,7 @@ import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { mapOrden, EVENTO_ORDEN } from './utilidades/ordenesLaboratorio';
+import { mapAbono, EVENTO_ABONO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import { registrarLog } from './utilidades/logs';
 
@@ -371,6 +372,13 @@ function App() {
   // Pacientes pasados a la óptica (cola de "Listo para venta").
   const [pasesVenta, setPasesVenta] = useState([]);
   const [ordenesLab, setOrdenesLab] = useState([]);
+  const [abonos, setAbonos] = useState([]);
+  // Un abono registrado desde cualquier pantalla entra a la lista sin recargar.
+  useEffect(() => {
+    const alAbonar = (e) => setAbonos((prev) => [e.detail, ...prev.filter((a) => a.id !== e.detail.id)])
+    window.addEventListener(EVENTO_ABONO, alAbonar)
+    return () => window.removeEventListener(EVENTO_ABONO, alAbonar)
+  }, []);
   // Una orden creada o corregida desde cualquier pantalla entra a la lista sin recargar.
   useEffect(() => {
     const alGuardar = (e) => setOrdenesLab((prev) => [e.detail, ...prev.filter((o) => o.id !== e.detail.id)])
@@ -532,6 +540,8 @@ function App() {
         if (pasesData) setPasesVenta(pasesData.map(mapPase))
         const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*').eq('optica_id', usuario.opticaId)
         if (ordenesData) setOrdenesLab(ordenesData.map(mapOrden))
+        const { data: abonosData } = await supabase.from('abonos_factura').select('*').eq('optica_id', usuario.opticaId)
+        if (abonosData) setAbonos(abonosData.map(mapAbono))
         const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
         if (data) {
           setCitas((prev) => {
@@ -635,6 +645,11 @@ function App() {
       supabase.from('ordenes_laboratorio').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
         if (data) setOrdenesLab(data.map(mapOrden))
         else if (error) registrarErrorCarga('órdenes de laboratorio')
+      })
+
+      supabase.from('abonos_factura').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+        if (data) setAbonos(data.map(mapAbono))
+        else if (error) registrarErrorCarga('abonos')
       })
 
       supabase.rpc('equipo_optica').then(({ data, error }) => {
@@ -1072,6 +1087,7 @@ function App() {
           setPases={setPasesVenta}
           ordenesLab={ordenesLab}
           setOrdenesLab={setOrdenesLab}
+          abonos={abonos}
           parametrizacion={parametrizacion}
           setParametrizacion={setParametrizacion}
           motivosConsulta={motivosConsulta}
