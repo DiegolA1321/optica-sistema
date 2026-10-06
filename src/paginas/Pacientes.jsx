@@ -73,6 +73,7 @@ import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import AbonoModal from "../componentes/AbonoModal"
+import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
 import AnularVentaModal from "../componentes/AnularVentaModal"
 import { saldoFactura, saldoPacienteFacturas, totalAbonado } from "../utilidades/abonos"
 import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
@@ -339,6 +340,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Abonos y anulación de ventas (R38)
   const [abonoPara, setAbonoPara] = useState(null) // { factura, paciente }
   const [anularPara, setAnularPara] = useState(null)
+  const [ordenParaVenta, setOrdenParaVenta] = useState(null) // venta a la que se le crea una orden de laboratorio
   const alAbonar = ({ monto, estado, cuotasPagadas }) => {
     const { factura, paciente } = abonoPara
     setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado, cuotasPagadas } : f)))
@@ -2369,6 +2371,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                         </>
                                       )}
                                       {f.estado !== "anulada" && (
+                                        <button type="button" onClick={() => setOrdenParaVenta({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">{ordenesF.length > 0 ? "Otra orden" : "Crear orden"}</button>
+                                      )}
+                                      {f.estado !== "anulada" && (
                                         <button type="button" onClick={() => setAnularPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 cursor-pointer">Anular</button>
                                       )}
                                     </div>
@@ -2601,6 +2606,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           onNoCompro={() => { const item = ventaCola; setVentaCola(null); setNoComproPara(item) }}
           onGuardado={alVenderDesdeCola}
           onCerrar={() => setVentaCola(null)}
+        />
+      )}
+      {ordenParaVenta && (
+        <OrdenLaboratorioModal
+          paciente={ordenParaVenta.paciente}
+          facturaId={ordenParaVenta.factura.id}
+          consultaId={ordenParaVenta.factura.consultaId}
+          usuario={usuario}
+          onCerrar={() => setOrdenParaVenta(null)}
         />
       )}
       {abonoPara && (
