@@ -43,7 +43,7 @@ const ANCHO_TARJETA = 288
 // Tarjeta flotante con los datos de la cita y las mismas acciones que tiene en
 // la lista. Se ancla junto al bloque (a su derecha, o a su izquierda si no
 // cabe) y se cierra con Escape, con un clic fuera o al desplazar.
-function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onEditar, onCancelar, onCobrar }) {
+export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onEditar, onCancelar, onCobrar }) {
   const ref = useRef(null)
   useEffect(() => {
     const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) onCerrar() }

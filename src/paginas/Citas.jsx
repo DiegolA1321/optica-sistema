@@ -39,9 +39,10 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
+import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, fechaAISO, slotsDisponibles } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
@@ -76,9 +77,6 @@ const ORDEN_ESTADOS_MODAL = ["En Atención", "Pendiente", "Atendida", "No Asisti
 
 // La última vista elegida se recuerda en este navegador (solo una comodidad
 // por persona: si el almacenamiento no está disponible, se abre en Lista).
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
-
 const CLAVE_VISTA = "citas_vista"
 const VISTAS = ["lista", "semana", "mes"]
 const leerVistaGuardada = () => {
@@ -1139,18 +1137,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
   const gruposPorFecha = useMemo(() => new Map(agruparPorDia(filtradasBase)), [filtradasBase])
 
-  const diasDelMes = useMemo(() => {
-    const primerDia = new Date(mesVista.getFullYear(), mesVista.getMonth(), 1)
-    const ultimoDia = new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)
-    const offset = (primerDia.getDay() + 6) % 7 // semana empieza en lunes
-    const arr = []
-    for (let i = 0; i < offset; i++) arr.push(null)
-    for (let n = 1; n <= ultimoDia.getDate(); n++) {
-      arr.push(fechaAISO(new Date(mesVista.getFullYear(), mesVista.getMonth(), n)))
-    }
-    return arr
-  }, [mesVista])
-
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
@@ -1474,46 +1460,22 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           onAgendar={() => abrirModal()}
         />
       ) : vistaActiva === "mes" ? (
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <span className="text-sm font-bold capitalize" style={{ color: INK }}>{MESES[mesVista.getMonth()]} {mesVista.getFullYear()}</span>
-          </div>
-          <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
-            {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
-          </div>
-          <div className="grid grid-cols-7 gap-1.5">
-            {diasDelMes.map((iso, i) => {
-              if (!iso) return <span key={`vacio-${i}`} />
-              const citasDia = gruposPorFecha.get(iso) || []
-              const hoyDia = iso === hoyISO()
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  onClick={() => {
-                    // Un día del mes → esa semana en la vista Semana (si la
-                    // pantalla es angosta y no cabe, se conserva el detalle
-                    // del día en el modal de siempre).
-                    if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
-                  }}
-                  title={citasDia.length > 0 ? `${citasDia.length} ${citasDia.length === 1 ? "cita" : "citas"}` : "Sin citas"}
-                  className={
-                    "relative flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-sm font-bold transition-all cursor-pointer " +
-                    (citasDia.length > 0
-                      ? "border-blue-200/60 bg-blue-50/50 text-slate-700 hover:border-blue-400"
-                      : "border-slate-200/60 bg-white text-slate-400 hover:border-slate-300") +
-                    (hoyDia ? " ring-2 ring-blue-500 ring-offset-1" : "")
-                  }
-                >
-                  <span>{Number(iso.slice(-2))}</span>
-                  {citasDia.length > 0 && (
-                    <span className="rounded-full px-1.5 py-px text-[10px] font-bold text-white" style={{ background: GRAD }}>{citasDia.length}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <CalendarioMes
+          mes={mesVista}
+          citasPorFecha={gruposPorFecha}
+          cobroPendienteIds={pendientesPorCita}
+          coincide={textoBusqueda ? coincideBusqueda : null}
+          onDiaClick={(iso) => {
+            // Un día del mes → esa semana en la vista Semana (si la pantalla
+            // es angosta y no cabe, se conserva el detalle del día en el modal).
+            if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
+          }}
+          onAtender={atenderCita}
+          onEditar={abrirReagendar}
+          onCancelar={(cita) => setPorCancelar(cita.id)}
+          onCobrar={cobrarCita}
+          onAgendar={() => abrirModal()}
+        />
       ) : grupos.length === 0 && totalAnteriores === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
