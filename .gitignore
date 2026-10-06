@@ -43,3 +43,7 @@ supabase/.temp
 
 # Auditoría de reunión con citas textuales del ingeniero (no se versiona)
 /docs/feedback-ing/reunion-zoom-29sep.md
+
+# Material de reuniones y capturas de QA (no se versiona)
+docs/feedback-ing/reunion-29sep/
+docs/feedback-ing/capturas-prioridad-1/
