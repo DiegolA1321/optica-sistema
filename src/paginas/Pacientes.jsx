@@ -19,6 +19,7 @@ import {
   Users,
   X,
   Cake,
+  AlertTriangle,
   TrendingUp,
   TrendingDown,
   Minus,
