@@ -64,6 +64,7 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
+import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
@@ -74,11 +75,6 @@ import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
-const OD_COLOR = "#2563EB"
-const OI_COLOR = "#06b6d4"
-
-// Equivalente esférico (dioptrías) — solo para uso interno del optómetra, nunca expuesto al paciente
-const ee = (o) => parseFloat(o?.esfera || 0) + parseFloat(o?.cilindro || 0) / 2
 
 // Búsqueda insensible a tildes/mayúsculas — "jose" debe encontrar "José" sin
 // que recepción tenga que escribir el acento exacto.
@@ -2171,12 +2167,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
                                     </span>
                                   )}
                                 </div>
-                                <div className="mb-3 flex items-center gap-4">
-                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OD_COLOR }} /> Ojo derecho</span>
-                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OI_COLOR }} /> Ojo izquierdo</span>
-                                  <span className="ml-auto text-[11px] text-slate-500">Equivalente esférico (dioptrías)</span>
-                                </div>
-                                <GraficoEvolucion consultas={[...consultasPaciente].reverse()} />
+                                <TendenciaGraduacion consultas={[...consultasPaciente].reverse()} />
                               </div>
 
                               <p className="flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
@@ -2782,50 +2773,3 @@ function ListaDiagnosticos({ consultas, abiertos = {}, alternarAbierto }) {
   )
 }
 
-// Gráfico de tendencia de graduación — solo visible para el optómetra (nunca en el portal del paciente,
-// para no facilitar que se lleve sus medidas a otra óptica sin costo).
-function GraficoEvolucion({ consultas }) {
-  // consultas: más antigua → más reciente
-  if (!consultas || consultas.length < 2) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-10 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Activity size={24} /></div>
-        <p className="text-sm font-medium text-slate-500">Se necesitan al menos dos consultas para ver la tendencia.</p>
-      </div>
-    )
-  }
-  const pts = consultas.map((c) => ({ fecha: c.fecha, od: ee(c.od), oi: ee(c.oi) }))
-  const vals = pts.flatMap((p) => [p.od, p.oi])
-  let min = Math.min(...vals), max = Math.max(...vals)
-  if (min === max) { min -= 1; max += 1 }
-  const pad = (max - min) * 0.25 || 0.5
-  min -= pad; max += pad
-  const W = 560, H = 220, pX = 44, pY = 24
-  const x = (i) => pX + (i * (W - 2 * pX)) / (pts.length - 1)
-  const y = (v) => pY + ((max - v) * (H - 2 * pY)) / (max - min)
-  const path = (key) => pts.map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(" ")
-  const ticks = 4
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full min-w-[460px]">
-        {Array.from({ length: ticks + 1 }).map((_, i) => {
-          const v = max - (i * (max - min)) / ticks
-          const yy = y(v)
-          return (
-            <g key={i}>
-              <line x1={pX} y1={yy} x2={W - pX} y2={yy} stroke="#e2e8f0" strokeWidth="1" strokeDasharray={v === 0 ? "0" : "3 4"} />
-              <text x={pX - 8} y={yy + 4} textAnchor="end" fontSize="11" fill="#94a3b8" fontFamily="monospace">{v.toFixed(1)}</text>
-            </g>
-          )
-        })}
-        {pts.map((p, i) => (
-          <text key={i} x={x(i)} y={H - 4} textAnchor="middle" fontSize="10" fill="#94a3b8">{p.fecha?.slice(5)}</text>
-        ))}
-        <path d={path("od")} fill="none" stroke={OD_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d={path("oi")} fill="none" stroke={OI_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {pts.map((p, i) => (<circle key={"od" + i} cx={x(i)} cy={y(p.od)} r="4" fill="#fff" stroke={OD_COLOR} strokeWidth="2.5" />))}
-        {pts.map((p, i) => (<circle key={"oi" + i} cx={x(i)} cy={y(p.oi)} r="4" fill="#fff" stroke={OI_COLOR} strokeWidth="2.5" />))}
-      </svg>
-    </div>
-  )
-}
