@@ -148,6 +148,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Recuerda la sección del sidebar en la que estaba — recargar la página ya no
   // manda de vuelta a Inicio si estaba, por ejemplo, en Citas médicas.
   const [seccionActiva, setSeccionActiva] = useState(() => {
+    // Enlace "Ver perfil" abierto en otra pestaña (?paciente=<id>): entra directo a Pacientes.
+    if (new URLSearchParams(window.location.search).get('paciente') && opcionesVisibles.some((o) => o.id === 'pacientes')) return 'pacientes'
     const guardada = localStorage.getItem('optica_seccion_activa')
     return opcionesVisibles.some((o) => o.id === guardada) ? guardada : "inicio"
   })
@@ -160,7 +162,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // perder cambios sin guardar de la ficha clínica (antes: window.confirm
   // nativo del navegador, sin el estilo del resto del sistema).
   const [confirmSalirFicha, setConfirmSalirFicha] = useState(null)
-  const [accionPacienteInicio, setAccionPacienteInicio] = useState(null)
+  const [accionPacienteInicio, setAccionPacienteInicio] = useState(() => {
+    const id = new URLSearchParams(window.location.search).get('paciente')
+    return id && opcionesVisibles.some((o) => o.id === 'pacientes') ? { pacienteId: id, accion: 'historial' } : null
+  })
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
@@ -297,7 +302,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // volver a resolver la óptica (?optica=/?sitio= se preservan intactos).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get("seccion") !== seccionActiva) {
+    // El id del paciente ya se leyó al iniciar: se quita para que recargar no lo reabra.
+    const traiaPaciente = params.has("paciente")
+    params.delete("paciente")
+    if (traiaPaciente || params.get("seccion") !== seccionActiva) {
       params.set("seccion", seccionActiva)
       window.history.replaceState({ seccion: seccionActiva }, "", `${window.location.pathname}?${params}`)
     }

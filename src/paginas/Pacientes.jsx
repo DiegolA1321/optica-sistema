@@ -521,6 +521,9 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
       abrirCrear()
     } else {
       const paciente = pacientes.find((p) => p.id === accionInicial.pacienteId)
+      // Si la lista aún se está cargando (enlace abierto en otra pestaña), se
+      // espera en vez de descartar la acción.
+      if (!paciente && cargaInicial) return
       if (paciente) {
         if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("timeline") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
@@ -530,7 +533,7 @@ export default function Pacientes({ usuario, setVista, cargaInicial = false, pac
     }
     onAccionInicialConsumida?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accionInicial])
+  }, [accionInicial, cargaInicial])
 
   const manejarEnvio = async (e) => {
     e.preventDefault()
