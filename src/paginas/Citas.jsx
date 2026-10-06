@@ -42,6 +42,8 @@ import CalendarioSemanal from "../componentes/CalendarioSemanal"
 import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
+import DetalleCitaModal from "../componentes/DetalleCitaModal"
+import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
@@ -136,7 +138,7 @@ function GrupoFiltro({ etiqueta, children }) {
 // Tarjeta de cita — extraída de la lista agrupada por día para poder
 // reutilizarla tal cual (mismo diseño, ya aprobado por el ing) dentro del
 // modal de "Citas del día" de la vista por mes, sin mantener dos copias.
-function TarjetaCita({ cita, primeraVez, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onVerPerfil, onAtender, onCobrar, onAbrirMenuAcciones }) {
+function TarjetaCita({ cita, primeraVez, onAbrirDetalle, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onAtender, onCobrar, onAbrirMenuAcciones }) {
   const info = motivoInfo(cita.motivo, motivosConsulta)
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
@@ -155,7 +157,10 @@ function TarjetaCita({ cita, primeraVez, motivosConsulta, fechaRealPorCitaId, ma
     >
       <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: info.punto }} aria-hidden="true" />
 
-      <div className="p-5 pl-6">
+      <div
+        className="p-5 pl-6 cursor-pointer"
+        onClick={(e) => { if (!e.target.closest("button, a")) onAbrirDetalle?.(cita) }}
+      >
         <div className="mb-4 flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={"rounded-md border px-2.5 py-1 text-xs font-semibold " + info.badge}>{cita.motivo}</span>
@@ -190,9 +195,9 @@ function TarjetaCita({ cita, primeraVez, motivosConsulta, fechaRealPorCitaId, ma
                 pasar por alto (ING6: "está como que muy chiquito... tengo
                 que revisar cada cosita"). Misma condición, mismo handler. */}
             {cita.pacienteId && (
-              <button type="button" onClick={() => onVerPerfil?.(cita.pacienteId)} className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Ver perfil del paciente" aria-label="Ver perfil del paciente">
+              <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Ver perfil del paciente (se abre en otra pestaña)" aria-label="Ver perfil del paciente (se abre en otra pestaña)">
                 <Eye size={16} />
-              </button>
+              </a>
             )}
             <button
               type="button"
@@ -212,7 +217,7 @@ function TarjetaCita({ cita, primeraVez, motivosConsulta, fechaRealPorCitaId, ma
           </div>
           <div className="min-w-0">
             <span className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-slate-800">
-              <span className="min-w-0 truncate">{cita.paciente}</span>
+              <button type="button" onClick={() => onAbrirDetalle?.(cita)} title="Ver el detalle de la cita" className="min-w-0 truncate text-left transition-colors hover:text-blue-700 cursor-pointer">{cita.paciente}</button>
             </span>
             {cita.motivoPublico && (
               <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Motivo indicado en línea: {cita.motivoPublico}</span>
@@ -391,6 +396,11 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   }, [consultas, facturasVenta, citas])
   const [cobrandoCita, setCobrandoCita] = useState(null) // la cita, o null
   const cobrarCita = (cita) => setCobrandoCita(cita)
+
+  // Detalle de la cita (R12-R13): se abre al hacer clic en la cita. Se guarda
+  // el id y no la cita, para que el modal refleje los cambios de estado.
+  const [detalleCitaId, setDetalleCitaId] = useState(null)
+  const abrirDetalle = (cita) => setDetalleCitaId(cita.id)
   const alCobrarCita = async (factura) => {
     const cita = cobrandoCita
     setFacturasVenta?.((prev) => [factura, ...prev])
@@ -421,12 +431,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // Pacientes.jsx al elegir una cita desde el perfil del paciente) en vez de
   // duplicar el formulario acá.
   const [confirmarDatosPara, setConfirmarDatosPara] = useState(null)
-  // true cuando el registro se abrió desde "Crear paciente" (una cita futura
-  // sin paciente vinculado, agendada en línea) en vez de "Atender ahora" —
-  // en ese caso solo se crea y vincula al paciente, sin forzar la cita a
-  // "En Atención" ni saltar a la ficha clínica (Diego: no había ninguna forma
-  // de registrar a alguien con cita futura antes del día de su consulta).
-  const [cpSoloRegistro, setCpSoloRegistro] = useState(false)
 
   // Inserta un paciente nuevo con el mismo shape que usa Pacientes.jsx —
   // reutilizado tanto por "+ Añadir nuevo paciente" (Gestionar) como por
@@ -769,23 +773,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setCpCorreo(cita.correo || "")
     setCpFechaNacimiento("")
     setCpErrores({})
-    setCpSoloRegistro(false)
-  }
-
-  // ── Crear paciente sin atender — para una cita sin paciente vinculado que
-  // todavía no ocurre (agendada en línea para más adelante). Mismo formulario
-  // y misma vinculación que "Atender ahora", solo que no fuerza el estado a
-  // "En Atención" ni salta a la ficha clínica. ──
-  const registrarPacienteParaCita = (cita) => {
-    setCompletarPara(cita)
-    setCpConfirmarPacienteId(null)
-    setCpNombre(cita.paciente || "")
-    setCpCedula(cita.cedula || "")
-    setCpTelefono(cita.telefono || "")
-    setCpCorreo(cita.correo || "")
-    setCpFechaNacimiento("")
-    setCpErrores({})
-    setCpSoloRegistro(true)
   }
 
   const cerrarCompletarRegistro = () => {
@@ -796,7 +783,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setCpCorreo("")
     setCpFechaNacimiento("")
     setCpErrores({})
-    setCpSoloRegistro(false)
   }
 
   const guardarCompletarRegistro = async (e) => {
@@ -818,10 +804,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
 
     const citaId = completarPara.id
     const motivoCita = completarPara.motivo
-    const soloRegistro = cpSoloRegistro
-    const cambiosCita = soloRegistro
-      ? { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula }
-      : { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }
+    const cambiosCita = { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }
     if (supabase && opticaId) {
       const { data: citaVinculada, error: errorCita } = await supabase.from("citas").update(cambiosCita).eq("id", citaId).select()
       if (fueBloqueadoPorPermiso({ error: errorCita, data: citaVinculada })) {
@@ -835,15 +818,10 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         return
       }
     }
-    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, ...(soloRegistro ? {} : { estado: "En Atención" }) } : c)))
+    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" } : c)))
     setCpGuardando(false)
     cerrarCompletarRegistro()
-    if (soloRegistro) {
-      setMensajeExito("Paciente registrado y vinculado a su cita.")
-      setTimeout(() => setMensajeExito(null), 3000)
-    } else {
-      onAtender?.(nuevoPaciente, citaId, motivoCita)
-    }
+    onAtender?.(nuevoPaciente, citaId, motivoCita)
   }
 
   // ── Reagendar cita (solo el optómetra, desde aquí — no hay autoservicio del paciente) ──
@@ -1227,7 +1205,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                       fechaRealPorCitaId={fechaRealPorCitaId}
                       marcandoEstadoId={marcandoEstadoId}
                       menuAccionesId={menuAccionesId}
-                      onVerPerfil={onVerPerfil}
+                      onAbrirDetalle={abrirDetalle}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
                         onAtender={atenderCita}
@@ -1623,7 +1601,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                             fechaRealPorCitaId={fechaRealPorCitaId}
                             marcandoEstadoId={marcandoEstadoId}
                             menuAccionesId={menuAccionesId}
-                            onVerPerfil={onVerPerfil}
+                            onAbrirDetalle={abrirDetalle}
                             cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
                         onAtender={atenderCita}
@@ -1976,9 +1954,9 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpSoloRegistro ? "Crear paciente" : "Completar registro"}</h4>
+                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>Completar registro</h4>
                   <p className="text-xs text-slate-500">
-                    {cpSoloRegistro ? "Regístralo con los datos de su cita para dejarlo vinculado." : "Antes de abrir la ficha clínica, confirma sus datos."}
+                    Antes de abrir la ficha clínica, confirma sus datos.
                   </p>
                 </div>
               </div>
@@ -2053,7 +2031,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                   Cancelar
                 </button>
                 <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {cpGuardando ? "Guardando…" : cpSoloRegistro ? "Crear paciente" : "Registrar y atender"}
+                  {cpGuardando ? "Guardando…" : "Registrar y atender"}
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -2251,6 +2229,24 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         document.body
       )}
 
+      {/* ─── DETALLE DE LA CITA (clic en una cita de la lista o del modal "Citas del día") ─── */}
+      {(() => {
+        const cita = detalleCitaId ? citas.find((c) => c.id === detalleCitaId) : null
+        if (!cita) return null
+        return (
+          <DetalleCitaModal
+            cita={cita}
+            fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
+            cobroPendiente={pendientesPorCita.has(cita.id)}
+            onCerrar={() => setDetalleCitaId(null)}
+            onIngresar={(c) => { setDetalleCitaId(null); atenderCita(c) }}
+            onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
+            onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
+            onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
+          />
+        )
+      })()}
+
       {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) — va al
           final del árbol a propósito: puede abrirse desde una tarjeta dentro del modal
           "Citas del día" (vista por mes), y como ambos son portales a document.body, el que
@@ -2267,18 +2263,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
           >
-            {!cita.pacienteId && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => { setMenuAccionesId(null); registrarPacienteParaCita(cita) }}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
-                >
-                  <UserPlus size={15} /> Crear paciente
-                </button>
-                <div className="my-1 border-t border-slate-100" />
-              </>
-            )}
             {puedeMarcarNoAsistio && (
               <>
                 <button
