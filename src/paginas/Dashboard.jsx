@@ -121,7 +121,7 @@ const diasACumple = (fn) => {
   return mejor
 }
 
-export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -478,6 +478,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
             onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
             onAviso={mostrarAviso}
+            pases={pases}
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
             marcarMedidasAtendidas={marcarMedidasAtendidas}
@@ -513,6 +514,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             origenNombre={fichaClinicaOrigen === "citas" ? "Citas médicas" : "Pacientes"}
             onCambiosSinGuardarChange={(v) => { fichaClinicaCambiosSinGuardar.current = v }}
             onAviso={mostrarAviso}
+            pases={pases}
+            setPases={setPases}
           />
         )
       case "inventario":

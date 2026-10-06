@@ -179,6 +179,14 @@ function mapCita(c) {
     asignadoA: c.asignado_a || null, atendidoPor: c.atendido_por || null,
   }
 }
+// Pase a venta ("Listo para venta", 0085): el paciente que el optómetra dejó
+// esperando a quien vende. estado: listo | vendido | descartado.
+function mapPase(p) {
+  return {
+    id: p.id, consultaId: p.consulta_id, pacienteId: p.paciente_id, citaId: p.cita_id,
+    estado: p.estado, pasadaPor: p.pasada_por, pasadaEn: p.pasada_en, facturaId: p.factura_id,
+  }
+}
 function mapConsulta(c) {
   return {
     id: c.id, fecha: c.fecha, pacienteId: c.paciente_id, paciente: c.paciente, motivo: c.motivo,
@@ -356,6 +364,8 @@ function App() {
   // quién atendió: perfiles solo deja leer el propio, así que viene de la
   // función equipo_optica() (0084).
   const [equipo, setEquipo] = useState([]);
+  // Pacientes pasados a la óptica (cola de "Listo para venta").
+  const [pasesVenta, setPasesVenta] = useState([]);
   const [parametrizacion, setParametrizacionState] = useState(PARAMETRIZACION_SEED);
   const [motivosConsulta, setMotivosConsultaState] = useState(MOTIVOS_SEED);
   const [diagnosticosRapidos, setDiagnosticosRapidosState] = useState(DIAGNOSTICOS_SEED);
@@ -600,6 +610,11 @@ function App() {
       supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data, error }) => {
         if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
         else if (error) registrarErrorCarga('solicitudes de eliminación')
+      })
+
+      supabase.from('pases_a_venta').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+        if (data) setPasesVenta(data.map(mapPase))
+        else if (error) registrarErrorCarga('pacientes listos para venta')
       })
 
       supabase.rpc('equipo_optica').then(({ data, error }) => {
@@ -1033,6 +1048,8 @@ function App() {
           asistentes={asistentes}
           setAsistentes={setAsistentes}
           equipo={equipo}
+          pases={pasesVenta}
+          setPases={setPasesVenta}
           parametrizacion={parametrizacion}
           setParametrizacion={setParametrizacion}
           motivosConsulta={motivosConsulta}
