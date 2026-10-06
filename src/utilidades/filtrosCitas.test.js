@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento } from "./filtrosCitas"
+import { esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -52,5 +52,21 @@ describe("origen y seguimiento", () => {
     expect(coincideSeguimiento(cita, "seguimiento", consultas)).toBe(true)
     expect(coincideSeguimiento(cita, "primera", consultas)).toBe(false)
     expect(coincideSeguimiento(cita, "todos", consultas)).toBe(true)
+  })
+})
+
+describe("coincideResponsable", () => {
+  it("todos deja pasar todo", () => {
+    expect(coincideResponsable({ asignadoA: null }, "asignadoA", "todos")).toBe(true)
+  })
+  it("ninguno solo deja las citas sin esa persona", () => {
+    expect(coincideResponsable({ asignadoA: null }, "asignadoA", "ninguno")).toBe(true)
+    expect(coincideResponsable({ asignadoA: "u1" }, "asignadoA", "ninguno")).toBe(false)
+  })
+  it("un id deja las citas de esa persona, por separado para asignado y atendido", () => {
+    const cita = { asignadoA: "u1", atendidoPor: "u2" }
+    expect(coincideResponsable(cita, "asignadoA", "u1")).toBe(true)
+    expect(coincideResponsable(cita, "asignadoA", "u2")).toBe(false)
+    expect(coincideResponsable(cita, "atendidoPor", "u2")).toBe(true)
   })
 })

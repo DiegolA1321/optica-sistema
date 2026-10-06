@@ -54,3 +54,11 @@ export function coincideSeguimiento(cita, seguimiento, consultas = []) {
   if (seguimiento === "todos") return true
   return esPrimeraVez(cita, consultas) === (seguimiento === "primera")
 }
+
+// Filtro por responsable (solo el administrador lo usa): "todos", "ninguno"
+// (la cita no tiene a nadie) o el id de una persona del equipo.
+export function coincideResponsable(cita, campo, valor) {
+  if (valor === "todos") return true
+  const actual = cita[campo] || null
+  return valor === "ninguno" ? actual === null : actual === valor
+}
