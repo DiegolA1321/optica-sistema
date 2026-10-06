@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   Stethoscope,
   CalendarClock,
-  CalendarCheck,
   Sun,
   ChevronLeft,
   ChevronRight,
@@ -36,6 +35,7 @@ import {
   CalendarRange,
   Receipt,
   List,
+  SlidersHorizontal,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
@@ -45,6 +45,7 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
+import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -99,63 +100,43 @@ const motivoInfo = (motivo = "", catalogo = []) => {
   return idx === -1 ? SIN_MOTIVO : PALETA_MOTIVOS[idx % PALETA_MOTIVOS.length]
 }
 
-function KpiBoton({ icono: Icono, valor, etiqueta, tono, activo, onClick, compacto }) {
-  const map = {
-    blue: { tile: GRAD, tileText: "#fff", ring: "#2563EB" },
-    emerald: { tile: "#ecfdf5", tileText: "#059669", ring: "#059669" },
-    amber: { tile: "#fffbeb", tileText: "#d97706", ring: "#d97706" },
-    slate: { tile: "#f1f5f9", tileText: "#64748b", ring: "#475569" },
-  }
-  const c = map[tono] || map.slate
-
-  // Compacto (vistas Semana y Mes): una sola línea — icono, cifra y etiqueta —
-  // para que quepa en la fila de control y el calendario gane altura.
-  if (compacto) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        aria-pressed={activo}
-        className="group flex items-center gap-2 rounded-xl border bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5 cursor-pointer"
-        style={{
-          borderColor: activo ? c.ring : "rgba(14,43,51,0.08)",
-          boxShadow: activo ? `0 0 0 2px ${c.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
-        }}
-      >
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg" style={{ background: c.tile, color: c.tileText }}>
-          <Icono size={13} />
-        </span>
-        <span className="font-serif text-base font-semibold leading-none" style={{ color: INK }}>{valor}</span>
-        <span className="truncate text-xs font-semibold text-slate-500">{etiqueta}</span>
-      </button>
-    )
-  }
-
+// Chip de filtro: seleccionado = relleno oscuro (el color queda para los estados).
+// "grande" es el de los indicadores de arriba; el normal, el de los filtros.
+function ChipFiltro({ activo, onClick, conteo, grande = false, titulo, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 cursor-pointer"
-      style={{
-        borderColor: activo ? c.ring : "rgba(14,43,51,0.08)",
-        boxShadow: activo ? `0 0 0 3px ${c.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
-      }}
+      aria-pressed={activo}
+      title={titulo}
+      className={
+        "inline-flex items-center gap-2 rounded-full border font-semibold transition-colors cursor-pointer " +
+        (grande ? "px-4 py-2 text-sm " : "px-3 py-1.5 text-xs ") +
+        (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")
+      }
+      style={activo ? { backgroundColor: INK } : undefined}
     >
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-transform group-hover:scale-105" style={{ background: c.tile, color: c.tileText }}>
-        <Icono size={20} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{valor}</p>
-        <p className="mt-1 truncate text-xs font-semibold text-slate-500">{etiqueta}</p>
-      </div>
+      {children}
+      {conteo != null && (
+        <span className={"rounded-full px-1.5 text-xs font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{conteo}</span>
+      )}
     </button>
+  )
+}
+
+function GrupoFiltro({ etiqueta, children }) {
+  return (
+    <div role="group" aria-label={etiqueta} className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">{etiqueta}</span>
+      {children}
+    </div>
   )
 }
 
 // Tarjeta de cita — extraída de la lista agrupada por día para poder
 // reutilizarla tal cual (mismo diseño, ya aprobado por el ing) dentro del
 // modal de "Citas del día" de la vista por mes, sin mantener dos copias.
-function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onVerPerfil, onAtender, onCobrar, onAbrirMenuAcciones }) {
+function TarjetaCita({ cita, primeraVez, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onVerPerfil, onAtender, onCobrar, onAbrirMenuAcciones }) {
   const info = motivoInfo(cita.motivo, motivosConsulta)
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
@@ -178,8 +159,10 @@ function TarjetaCita({ cita, motivosConsulta, fechaRealPorCitaId, marcandoEstado
         <div className="mb-4 flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={"rounded-md border px-2.5 py-1 text-xs font-semibold " + info.badge}>{cita.motivo}</span>
-            {!cita.pacienteId && (
-              <span className="rounded-md border border-amber-200/60 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Primera vez</span>
+            {!cita.pacienteId ? (
+              <span className="rounded-md border border-amber-200/60 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700" title="Cita sin paciente vinculado todavía">Por registrar</span>
+            ) : primeraVez && (
+              <span className="rounded-md border border-sky-200/60 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700" title="El paciente no tenía atenciones anteriores">Primera vez</span>
             )}
             {/* Ícono compacto con tooltip en vez de texto siempre visible
                 (ING9: "aunque sea un ícono ahí y ya cuando yo pase el mouse
@@ -363,7 +346,13 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
   // — su agenda del día — en vez de "todas". El admin (sea o no también
   // optómetra) sigue viendo "todas" por defecto, como hoy.
-  const [filtro, setFiltro] = useState(() => (usuario?.rol !== "admin" && usuario?.esOptometra ? "hoy" : "todas")) // todas | hoy | proximas | atendidas
+  const [filtro, setFiltro] = useState(() => (usuario?.rol !== "admin" && usuario?.esOptometra ? "hoy" : "todas")) // todas | hoy | proximas
+  // Bloque de filtros (R3): estado, origen y primera vez/seguimiento. Se
+  // combinan entre sí y con el indicador de arriba.
+  const [estadoFiltro, setEstadoFiltro] = useState("todas")
+  const [origenFiltro, setOrigenFiltro] = useState("todos")
+  const [seguimientoFiltro, setSeguimientoFiltro] = useState("todos")
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(null) // null = según la vista
   // Rango de fechas propio (reunión 29 sept.: "todas las de la siguiente
   // semana"), independiente de los KPIs. Sin rango, la lista abre en hoy y lo
   // próximo, y lo pasado queda plegado en "Anteriores". Con rango, se muestra
@@ -1011,11 +1000,13 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // vista Semana parte de aquí: la búsqueda no oculta citas, las resalta.
   const filtradasPorEstado = useMemo(() => citas.filter((c) => {
     if (soloPorRegistrar && !(porRegistrar(c))) return false
+    if (!coincideEstado(c, estadoFiltro)) return false
+    if (!coincideOrigen(c, origenFiltro)) return false
+    if (!coincideSeguimiento(c, seguimientoFiltro, consultas)) return false
     if (filtro === "hoy") return esHoy(c.fecha)
     if (filtro === "proximas") return esFutura(c.fecha)
-    if (filtro === "atendidas") return c.estado === "Atendida"
     return true
-  }), [citas, filtro, soloPorRegistrar])
+  }), [citas, consultas, filtro, estadoFiltro, origenFiltro, seguimientoFiltro, soloPorRegistrar])
 
   const filtradasBase = useMemo(
     () => (textoBusqueda ? filtradasPorEstado.filter(coincideBusqueda) : filtradasPorEstado),
@@ -1055,19 +1046,25 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
       const enRango = filtradasBase.filter((c) => (!rangoDesde || c.fecha >= rangoDesde) && (!rangoHasta || c.fecha <= rangoHasta))
       return { grupos: agruparPorDia(ordenarCitas(enRango)), gruposAnteriores: [] }
     }
-    if (filtro === "atendidas") {
+    // Atendidas, canceladas y vencidas son historial: de la más reciente a la
+    // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
+    if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
       return { grupos: agruparPorDia(ordenarCitas(filtradasBase, true)), gruposAnteriores: [] }
     }
     const { proximas, anteriores } = particionarAgenda(filtradasBase, hoy)
     return { grupos: agruparPorDia(proximas), gruposAnteriores: agruparPorDia(anteriores) }
-  }, [filtradasBase, filtro, hayRango, rangoDesde, rangoHasta])
+  }, [filtradasBase, estadoFiltro, hayRango, rangoDesde, rangoHasta])
 
   const totalAnteriores = gruposAnteriores.reduce((n, [, cs]) => n + cs.length, 0)
   const totalPorRegistrar = useMemo(() => citas.filter(porRegistrar).length, [citas])
 
   const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
   const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
-  const totalAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
+  // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
+  // vez para todas las citas y las tarjetas solo consultan el conjunto.
+  const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
+  const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos")
+  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setBusqueda("") }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1124,7 +1121,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
     setRangoHasta("")
     setFiltro("todas")
     setSoloPorRegistrar(false)
-    setBusqueda("")
+    limpiarFiltros()
     const h = new Date()
     setMesVista(new Date(h.getFullYear(), h.getMonth(), 1))
     setSemanaLunes(lunesDeSemana(hoyISO()))
@@ -1142,10 +1139,12 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // pueden mostrar con el interruptor "Canceladas".
   const [verCanceladas, setVerCanceladas] = useState(false)
   const totalCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
-  const citasCalendario = useMemo(() => (verCanceladas ? filtradasPorEstado : filtradasPorEstado.filter((c) => c.estado !== "Cancelada")), [filtradasPorEstado, verCanceladas])
+  // Si el filtro de estado pide las canceladas, se muestran aunque el interruptor esté apagado.
+  const mostrarCanceladas = verCanceladas || estadoFiltro === "cancelada"
+  const citasCalendario = useMemo(() => (mostrarCanceladas ? filtradasPorEstado : filtradasPorEstado.filter((c) => c.estado !== "Cancelada")), [filtradasPorEstado, mostrarCanceladas])
   const gruposCalendario = useMemo(
-    () => new Map(agruparPorDia(verCanceladas ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))),
-    [filtradasBase, verCanceladas],
+    () => new Map(agruparPorDia(mostrarCanceladas ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))),
+    [filtradasBase, mostrarCanceladas],
   )
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -1170,13 +1169,19 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // Los KPIs son también los filtros de estado. En Lista van en su propia fila;
   // en Semana y Mes, que necesitan toda la altura, se compactan dentro de la
   // fila de control.
-  const kpiBotones = (
-    <>
-          <KpiBoton icono={CalendarDays} valor={citas.length} etiqueta={vistaActiva === "lista" ? "Total agendadas" : "Total"} tono="slate" activo={filtro === "todas"} compacto={vistaActiva !== "lista"} onClick={() => setFiltro("todas")} />
-          <KpiBoton icono={Sun} valor={totalHoy} etiqueta={vistaActiva === "lista" ? "Citas de hoy" : "Hoy"} tono="blue" activo={filtro === "hoy"} compacto={vistaActiva !== "lista"} onClick={() => { setFiltro("hoy"); setMesVista(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) }} />
-          <KpiBoton icono={CalendarClock} valor={totalProximas} etiqueta={vistaActiva === "lista" ? "Próximas (futuras)" : "Próximas"} tono="amber" activo={filtro === "proximas"} compacto={vistaActiva !== "lista"} onClick={() => setFiltro("proximas")} />
-          <KpiBoton icono={CalendarCheck} valor={totalAtendidas} etiqueta={vistaActiva === "lista" ? "Ya atendidas" : "Atendidas"} tono="emerald" activo={filtro === "atendidas"} compacto={vistaActiva !== "lista"} onClick={() => setFiltro("atendidas")} />
-    </>
+  const indicadores = (
+    <div role="group" aria-label="Ver citas de" className="flex flex-wrap items-center gap-2">
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ver</span>
+      <ChipFiltro grande={vistaActiva === "lista"} conteo={totalHoy} activo={filtro === "hoy"} onClick={() => { setFiltro("hoy"); setMesVista(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) }}>
+        <Sun size={14} aria-hidden="true" /> Citas de hoy
+      </ChipFiltro>
+      <ChipFiltro grande={vistaActiva === "lista"} conteo={totalProximas} activo={filtro === "proximas"} onClick={() => setFiltro("proximas")}>
+        <CalendarClock size={14} aria-hidden="true" /> Próximas
+      </ChipFiltro>
+      <ChipFiltro grande={vistaActiva === "lista"} conteo={citas.length} activo={filtro === "todas"} onClick={() => setFiltro("todas")}>
+        <CalendarDays size={14} aria-hidden="true" /> Total agendadas
+      </ChipFiltro>
+    </div>
   )
 
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
@@ -1217,6 +1222,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                     <TarjetaCita
                       key={cita.id}
                       cita={cita}
+                      primeraVez={idsPrimeraVez.has(cita.id)}
                       motivosConsulta={motivosConsulta}
                       fechaRealPorCitaId={fechaRealPorCitaId}
                       marcandoEstadoId={marcandoEstadoId}
@@ -1238,7 +1244,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
   // Hoy sin citas nunca deja la pantalla en blanco: se avisa y se muestra lo
   // más cercano (criterio 1 del ingeniero).
   const anterioresVisibles = anterioresAbierto || (grupos.length === 0 && totalAnteriores > 0)
-  const avisoSinCitasHoy = hayRango || filtro !== "todas" || soloPorRegistrar || busqueda
+  const avisoSinCitasHoy = hayRango || filtro !== "todas" || filtrosActivos > 0 || soloPorRegistrar || busqueda
     ? null
     : grupos.length === 0
       ? "No hay citas próximas. Debajo está lo último atendido."
@@ -1260,20 +1266,6 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           </div>
         </div>
         <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
-          {/* Buscar y crear son las dos entradas de la pantalla — juntas, en el
-              encabezado (propuesta de flujo de atención, Ronda 1). */}
-          <div className="relative w-full sm:w-72">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-            <label htmlFor="citas-busqueda" className="sr-only">Buscar paciente o código de cita</label>
-            <input
-              id="citas-busqueda"
-              type="text"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar paciente o código..."
-              className="w-full rounded-xl border border-slate-200/60 bg-white py-3 pl-9 pr-3 text-sm text-slate-800 shadow-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-            />
-          </div>
           {/* "Agendar cita" existía como botón aparte, más limitado (fecha en
               blanco, y sin forma de crear un paciente nuevo si no había
               ninguno todavía) — "Gestionar" ya cubre ese caso y más, así que
@@ -1290,12 +1282,8 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
         </div>
       </div>
 
-      {/* ─── KPIs / FILTROS ─── */}
-      {vistaActiva === "lista" && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {kpiBotones}
-        </div>
-      )}
+      {/* ─── INDICADORES (en Semana y Mes van en la fila de control) ─── */}
+      {vistaActiva === "lista" && indicadores}
 
       {/* ─── ÉXITO ─── */}
       {mensajeExito && (
@@ -1426,7 +1414,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                 Canceladas ({totalCanceladas})
               </button>
             )}
-            {kpiBotones}
+            {indicadores}
           </div>
         )}
         {totalPorRegistrar > 0 && (
@@ -1442,6 +1430,66 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           </button>
         )}
       </div>
+
+      {/* ─── BLOQUE DE FILTROS (R3-R5): buscador junto a los filtros ─── */}
+      {(() => {
+        const abierto = filtrosAbiertos ?? vistaActiva === "lista"
+        return (
+          <section aria-label="Filtros de citas" className="rounded-2xl border border-slate-200/60 bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-full sm:w-80">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                <label htmlFor="citas-busqueda" className="sr-only">Buscar paciente o código de cita</label>
+                <input
+                  id="citas-busqueda"
+                  type="text"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Buscar paciente o código..."
+                  className="w-full rounded-xl border border-slate-200/60 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setFiltrosAbiertos(!abierto)}
+                aria-expanded={abierto}
+                aria-controls="citas-filtros-panel"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+              >
+                <SlidersHorizontal size={14} aria-hidden="true" /> Filtros
+                {filtrosActivos > 0 && <span className="rounded-full px-1.5 text-xs font-bold text-white" style={{ backgroundColor: INK }}>{filtrosActivos}</span>}
+                <ChevronDown size={14} className={"transition-transform " + (abierto ? "" : "-rotate-90")} aria-hidden="true" />
+              </button>
+              {(filtrosActivos > 0 || busqueda) && (
+                <button type="button" onClick={limpiarFiltros} className="inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+                  <X size={13} aria-hidden="true" /> Limpiar
+                </button>
+              )}
+            </div>
+            {abierto && (
+              <div id="citas-filtros-panel" className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
+                <GrupoFiltro etiqueta="Estado">
+                  {ESTADOS_FILTRO.map((e) => (
+                    <ChipFiltro key={e.id} activo={estadoFiltro === e.id} titulo={e.ayuda} onClick={() => setEstadoFiltro(e.id)}>{e.etiqueta}</ChipFiltro>
+                  ))}
+                </GrupoFiltro>
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-2.5">
+                  <GrupoFiltro etiqueta="Origen">
+                    {ORIGENES_FILTRO.map((o) => (
+                      <ChipFiltro key={o.id} activo={origenFiltro === o.id} onClick={() => setOrigenFiltro(o.id)}>{o.etiqueta}</ChipFiltro>
+                    ))}
+                  </GrupoFiltro>
+                  <GrupoFiltro etiqueta="Visita">
+                    {SEGUIMIENTO_FILTRO.map((o) => (
+                      <ChipFiltro key={o.id} activo={seguimientoFiltro === o.id} titulo={o.id === "primera" ? "El paciente no tenía atenciones anteriores" : undefined} onClick={() => setSeguimientoFiltro(o.id)}>{o.etiqueta}</ChipFiltro>
+                    ))}
+                  </GrupoFiltro>
+                </div>
+              </div>
+            )}
+          </section>
+        )
+      })()}
 
       {/* ─── LISTADO ─── */}
       {cargaInicial && citas.length === 0 ? (
@@ -1510,7 +1558,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
           </div>
           <p className="mt-4 text-base font-semibold text-slate-600">No hay citas bajo este filtro</p>
           <p className="mt-1 text-sm text-slate-500">
-            {busqueda ? "Ningún paciente coincide con la búsqueda." : "Selecciona otra tarjeta o agenda una nueva cita."}
+            {busqueda ? "Ningún paciente coincide con la búsqueda." : "Prueba con otros filtros o agenda una nueva cita."}
           </p>
         </div>
       ) : (
@@ -1570,6 +1618,7 @@ export default function Citas({ usuario, cargaInicial = false, citas = [], setCi
                           <TarjetaCita
                             key={cita.id}
                             cita={cita}
+                            primeraVez={idsPrimeraVez.has(cita.id)}
                             motivosConsulta={motivosConsulta}
                             fechaRealPorCitaId={fechaRealPorCitaId}
                             marcandoEstadoId={marcandoEstadoId}
