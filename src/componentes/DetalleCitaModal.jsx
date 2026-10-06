@@ -105,7 +105,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
             {cita.cedula && <Fila icono={IdCard} etiqueta="Cédula"><span className="font-mono">{cita.cedula}</span></Fila>}
             {cita.telefono && <Fila icono={Phone} etiqueta="Teléfono">{cita.telefono}</Fila>}
             {cita.codigo && <Fila icono={Hash} etiqueta="Código"><span className="font-mono">{cita.codigo}</span></Fila>}
-            {cita.estado === "Cancelada" && (
+            {cita.estado === "Cancelada" && cita.canceladaPor && (
               <Fila icono={MessageSquare} etiqueta="Cancelada por">{cita.canceladaPor === "recepcion" ? "Recepción" : "El paciente"}</Fila>
             )}
           </dl>

@@ -257,7 +257,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
             </span>
           ) : cita.estado === "Cancelada" ? (
             <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-              <X size={12} /> {cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : "Cancelada por el paciente"}
+              <X size={12} /> {cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : cita.canceladaPor === "paciente" ? "Cancelada por el paciente" : "Cancelada"}
             </span>
           ) : (
             <span className={"flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
@@ -872,7 +872,8 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
     const sinNuevoHorario = !nuevaFecha && !nuevaHora
     const asignadoCambiado = (nuevoAsignado || null) !== (reagendando.asignadoA || null)
     if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo || asignadoCambiado)) {
-      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}), ...(asignadoCambiado ? { asignado_a: nuevoAsignado || null } : {}) }
+      const cancelaAhora = estadoCambiado && estadoCorregido === "Cancelada"
+      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}), ...(asignadoCambiado ? { asignado_a: nuevoAsignado || null } : {}), ...(cancelaAhora ? { cancelada_por: "recepcion" } : {}) }
       if (supabase && opticaId) {
         const { data: actualizadas, error: errorUpdate } = await supabase.from("citas").update(cambios).eq("id", reagendando.id).select()
         if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizadas })) {
@@ -884,8 +885,8 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
           return
         }
       }
-      const { asignado_a: asignadoNuevo, ...cambiosLocales } = cambios
-      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}) } : c)))
+      const { asignado_a: asignadoNuevo, cancelada_por: canceladaPorNuevo, ...cambiosLocales } = cambios
+      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}), ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
       registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${reagendando.fecha}`)
       cerrarReagendar()
       setMensajeExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
@@ -902,9 +903,10 @@ export default function Citas({ usuario, equipo = [], cargaInicial = false, cita
     // estado sigue siendo una acción aparte y explícita ("Cambiar estado").
     const resueltaAlEditar = ["Atendida", "No Asistió", "Cancelada"].includes(reagendando.estado)
     const nuevoEstado = estadoCambiado ? estadoCorregido : resueltaAlEditar ? reagendando.estado : "Pendiente"
-    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignadoA: nuevoAsignado || null }
+    const seCancela = nuevoEstado === "Cancelada" && reagendando.estado !== "Cancelada"
+    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignadoA: nuevoAsignado || null, ...(seCancela ? { canceladaPor: "recepcion" } : {}) }
     if (supabase && opticaId) {
-      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignado_a: nuevoAsignado || null }).eq("id", reagendando.id).select()
+      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignado_a: nuevoAsignado || null, ...(seCancela ? { cancelada_por: "recepcion" } : {}) }).eq("id", reagendando.id).select()
       if (fueBloqueadoPorPermiso({ error: errorUpdate, data: reagendadas })) {
         setErrorReagendar(MENSAJE_SIN_PERMISO)
         return
