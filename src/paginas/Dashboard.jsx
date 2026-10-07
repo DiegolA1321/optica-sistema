@@ -236,6 +236,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
+  // Cita que el Inicio manda a atender: Citas abre su resumen y de ahí la ficha (el mismo flujo de "Atender" de Citas).
+  const [citaParaAtender, setCitaParaAtender] = useState(null)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
@@ -655,6 +657,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             vistaPropia={alcanceDeVista("citas") === "propio"}
             estadoInicial={estadoCitasInicial}
             onEstadoInicialConsumido={() => setEstadoCitasInicial(null)}
+            atenderCitaId={citaParaAtender}
+            onAtenderCitaConsumido={() => setCitaParaAtender(null)}
             motivosConsulta={motivosConsulta}
             inventario={inventario}
             setInventario={setInventario}
@@ -719,6 +723,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             facturasVenta={facturasVenta}
             abonos={abonos}
             onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
+            onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}

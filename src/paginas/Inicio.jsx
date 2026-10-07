@@ -41,6 +41,7 @@ export default function Inicio({
   setCitas,
   onAviso,
   onAtenderCita,
+  onAtenderEnCitas,
   equipo = [],
   usuario,
   opticaActiva = true,
@@ -272,7 +273,7 @@ export default function Inicio({
       descripcion="Tu agenda del día"
       tarjetas={[
         { id: "mias", titulo: "Mis citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
-        { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: hoyVista.siguiente ? () => onAtenderCita?.(hoyVista.siguiente) : undefined },
+        { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: () => setVista?.("citas"), cta: hoyVista.siguiente && puede(usuario, "consultas", "crear") ? "Atender" : null, onCta: () => onAtenderEnCitas?.(hoyVista.siguiente) },
         { id: "enAtencion", titulo: "En atención ahora", valor: hoyVista.enAtencion, desc: "Pacientes con la ficha abierta", icono: Activity, color: "amber", onClick: () => setVista?.("citas") },
         { id: "atendidos", titulo: "Atendidos hoy", valor: hoyVista.atendidas, desc: "Fichas terminadas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
       ]}

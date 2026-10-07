@@ -313,7 +313,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -372,6 +372,14 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       onEstadoInicialConsumido?.()
     }
   }, [estadoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Desde "Atender" del Inicio (Siguiente paciente): abre el mismo resumen de la cita que el botón "Atender" de esta pantalla.
+  useEffect(() => {
+    if (!atenderCitaId) return
+    const cita = citas.find((c) => c.id === atenderCitaId)
+    if (cita) atenderCita(cita)
+    onAtenderCitaConsumido?.()
+  }, [atenderCitaId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [busqueda, setBusqueda] = useState("")
   // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
