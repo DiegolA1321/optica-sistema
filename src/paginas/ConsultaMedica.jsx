@@ -47,7 +47,7 @@ import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { fechaLegible } from "../utilidades/formatoFecha"
-import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
+import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -94,7 +94,8 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
 // anteriores) viven en utilidades/tendenciaGraduacion.js, compartidos con el perfil del paciente.
 
 
-const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
+// Misma escritura que el perfil: coma decimal ("+0,25 D").
+const textoVariacion = textoDioptrias
 
 export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
   const [subTab, setSubTab] = useState("anamnesis")
