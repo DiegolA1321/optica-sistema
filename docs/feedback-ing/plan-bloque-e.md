@@ -2,7 +2,7 @@
 
 Rama `bloque-e`. Fuentes: sección 6 de `requisitos-reunion-29sep.md` (R57 a R59), secciones 3.4 y 3.8 y el ajuste 6.2 de `vision-sistema.md`, y los pendientes anotados para este bloque en `plan-bloque-d.md` (línea 123) y `plan-prioridad-1.md` (decisión 12).
 
-Estado de este documento: **análisis y diseño. No se modificó código ni datos.** El SQL está escrito en `supabase/migrations/0094_comprobantes_venta_internos.sql`, **sin aplicar**, esperando aprobación.
+**Estado (7 oct.): Bloque E terminado.** Migración 0094 aplicada y verificada contra la base real; módulo de Ventas, comprobantes internos, luna como texto e inventario simplificado construidos y recorridos en el navegador. El resto del documento conserva el análisis y el diseño originales; la sección 8 resume lo que se hizo y en qué se apartó del diseño.
 
 Backup previo: `C:\Users\diego\backups-optica\pre-bloque-e-2026-10-06.dump` (`pg_dump -Fc` del esquema `public`, 356 KB, fuera del repositorio porque contiene datos de pacientes). El esquema `auth` no está incluido; esta migración no lo toca.
 
@@ -215,3 +215,33 @@ Cada paso es un commit con archivos concretos, con tests y revisión en el naveg
 - Limpieza del camino legado `ventas` / `registrar_venta_producto` / `consultas.producto_id` (0 filas hoy).
 - Integración con el SRI (trabajo futuro declarado en la tesis).
 - Aviso al paciente por WhatsApp de "tus lentes están listos" y su estado en el portal (3.4, "más allá"): se evalúa al cerrar el módulo, porque depende de que las órdenes ya estén en su sitio.
+
+---
+
+## 8. Cierre del bloque (7 oct.)
+
+### Decisiones de Diego
+Línea de tipo `luna` con `detalle` (sí). Total como suma de líneas, sin campo de descuento por ahora (sí). Descontinuar el producto de luna de prueba de Óptica Solna Vision (sí, ejecutado en la 0094; fue `activo = false`, la fila se conserva). Las demás (6.1 a 6.10), según las recomendaciones: el "Lentes" de Optica Karla V no se tocó.
+
+### Compatibilidad con el sitio publicado (main)
+El sitio de Vercel llama a `crear_factura_venta` con 8 parámetros con nombre. La nueva versión conserva esos 8 con el mismo nombre y orden; el parámetro nuevo (`p_factura_electronica`) va al final con valor por defecto, y la columna nueva del resultado (`numero`) va al final. Verificado dentro de una transacción revertida, antes y después de aplicar la 0094, llamando con los nombres exactos de main: la venta se crea, recibe su número y descuenta el stock; además `registrar_abono`, `crear_orden_laboratorio`, `anular_factura_venta` (el trigger cancela la orden abierta y la anulación repone el stock) y la lectura `select *` con líneas, todo con los nombres de main. Las tablas ganaron columnas y un tipo de línea, sin quitar nada.
+
+### Hecho
+- **Base:** 0094 aplicada. Las 2 ventas existentes quedaron numeradas CV-0001 y CV-0002.
+- **Comprobante:** número `CV-0001` visible en Ventas, el perfil del paciente y las dos copias de la orden de laboratorio; campo opcional de factura electrónica (en la venta y después, con "Registrar factura electrónica" / "Corregir"), con aviso sin bloqueo si no tiene el formato del SRI; leyenda "Documento interno. No es una factura electrónica autorizada por el SRI."
+- **Luna:** bloque de luna en el modal de venta (tipo, material, tratamientos, precio) que precarga la orden de laboratorio, también cuando la orden se crea después desde la lista. La ficha clínica ya no vincula el lente a un producto; la venta y la proforma arrancan con la luna como línea de texto.
+- **Inventario:** "Monturas y accesorios", con ejemplo genérico y el aviso de que las lunas se escriben en la venta. Los productos descontinuados ya no aparecen en el buscador de la venta.
+- **Módulo de Ventas:** ítem de menú con su contador, pestañas Por vender, Ventas, Órdenes de laboratorio y Saldos por cobrar; búsqueda por paciente, cédula, CV o factura electrónica; "Nueva venta" sugiere vincular la venta al pase abierto del paciente. El Inicio y el buscador global (Ctrl+K) llevan al módulo. Los manejadores salieron de Pacientes a `useVentas.js`, `ModalesVentas.jsx` y `FilaComprobante.jsx`.
+- **Textos:** "factura" pasa a "comprobante de venta" en lo visible (la lista de la sección 3.3), sin renombrar tablas ni funciones. `FacturaVentaModal` ahora es `ComprobanteVentaModal`.
+
+### Apartes del diseño
+- **"Pagos pendientes" se queda en la lista de Pacientes** como filtro de pacientes (además del nuevo Saldos en Ventas). Solo se movieron "Listos para venta", "Órdenes de laboratorio" y "No compraron".
+- Los pacientes con rol sin permiso `ventas` ya no ven el contador en Pacientes ni la cola allí; el contador está en Ventas.
+- Las facturas de suscripción SaaS (`Mensajes.jsx`, `SuperadminPanel.jsx`) no se tocaron (6.9).
+- El texto "Descontinuar un producto" de la sección 7 de la migración se ejecutó solo para el de QA.
+
+### Venta de prueba autorizada
+Se registró CV-0003 (luna progresiva, $60, factura electrónica 001-001-000000555, luego corregida a ...556) para Walkin Prueba QA, y se anuló al terminar con el motivo "Venta de prueba del Bloque E". Queda en el historial como anulada, con su número consumido. No se creó ninguna orden de laboratorio. El resto de las pruebas se hicieron en transacciones revertidas.
+
+### Pendiente fuera del bloque
+Limpieza del camino legado `ventas` / `registrar_venta_producto` / `consultas.producto_id` (0 filas); aviso de "lentes listos" por WhatsApp y su estado en el portal; reportes que cuenten lunas por tipo a partir de `detalle`.

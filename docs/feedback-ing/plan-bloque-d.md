@@ -120,7 +120,7 @@ Cualquier nivel implica "ver". La matriz de la pantalla de Roles es módulos por
 - **Recepción (hoy):** Citas de hoy · Por confirmar · En sala de espera · No asistieron; la agenda del día; atajos Registrar paciente y Agendar cita; cumpleaños y controles vencidos.
 - **Ventas (para vender):** Listos para venta · Proformas en seguimiento · Órdenes atrasadas · Lentes listos sin avisar · Saldos por cobrar; la cola y las órdenes en lista compacta con su acción directa; "N productos con stock bajo"; atajo Nueva venta.
 - **Rol propio:** el Inicio se arma con los bloques de los módulos que ese rol puede ver (citas de hoy si ve citas, pendientes de venta si ve ventas, stock si ve inventario).
-- **Mover la cola y las órdenes:** pasan al Inicio de quien vende; el contador del menú sale de Pacientes y queda esperando el módulo de Ventas (Bloque E). Pacientes conserva el acceso mientras tanto.
+- **Mover la cola y las órdenes:** pasan al Inicio de quien vende; el contador del menú sale de Pacientes y queda esperando el módulo de Ventas (Bloque E). Pacientes conserva el acceso mientras tanto. *(Cerrado en el Bloque E, 7 oct.: la cola, las órdenes y el contador viven ahora en el módulo de Ventas.)*
 
 ---
 
