@@ -30,12 +30,12 @@ const CLASE_ESTADO = {
 const SIGUIENTE = { enviada: { estado: "lista", texto: "Marcar lista" }, lista: { estado: "entregada", texto: "Marcar entregada" } }
 const ANTERIOR = { lista: "enviada", entregada: "lista" }
 const FILTROS = [
+  { id: "todas", label: "Todas" },
   { id: "abiertas", label: "Abiertas" },
   { id: "atrasadas", label: "Atrasadas" },
   { id: "enviadas", label: "Enviadas al laboratorio" },
   { id: "listas", label: "Listas para entrega" },
   { id: "entregadas", label: "Entregadas" },
-  { id: "todas", label: "Todas" },
 ]
 const aplicarFiltro = (ordenes, filtro) => {
   if (filtro === "abiertas") return ordenesAbiertas(ordenes)
@@ -168,7 +168,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
       {visibles.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400"><FlaskConical size={24} aria-hidden="true" /></div>
-          <p className="text-sm font-semibold text-slate-600">{propias.length === 0 ? "Aún no hay órdenes de laboratorio." : texto ? "Ninguna orden coincide con la búsqueda." : "No hay órdenes con este filtro."}</p>
+          <p className="text-sm font-semibold text-slate-600">{propias.length === 0 ? "Aún no hay órdenes de laboratorio (los pedidos de lentes que se mandan al laboratorio)." : texto ? "Ninguna orden coincide con la búsqueda." : "No hay órdenes con este filtro."}</p>
           {propias.length === 0 && <p className="max-w-sm text-xs text-slate-500">Se crean al registrar una venta que incluye lentes.</p>}
         </div>
       ) : (

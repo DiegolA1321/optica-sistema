@@ -69,7 +69,7 @@ import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
-import { pacientesQueNoCompraron } from "../utilidades/pasesVenta"
+import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
@@ -2164,7 +2164,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
                       style={tabHistorial === "ordenes" ? { background: GRAD } : undefined}
                     >
-                      <FlaskConical size={14} /> Órdenes
+                      <FlaskConical size={14} /> Órdenes de laboratorio
                       {ordenesPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{ordenesPaciente.length}</span>}
                       {ordenesPaciente.some((o) => o.estado === "lista" && !o.pacienteAvisadoEn) && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>Avisar</span>}
                     </button>
@@ -2191,6 +2191,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     {tabHistorial === "citas" ? (
                       <PanelCitasPaciente
                         citas={citasPaciente}
+                        consultas={consultasPaciente}
                         onDejarDeAtender={setDejarCita}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
                         onAgendar={() => abrirAgendar(pacienteHistorial)}
@@ -2399,6 +2400,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         equipo={equipo}
                         usuario={usuario}
                         pacienteFijo={pacienteHistorial}
+                        filtroInicial="todas"
                         facturas={facturasVenta}
                         abonos={abonos}
                         onAbonar={(factura, paciente) => setAbonoPara({ factura, paciente })}
@@ -2728,7 +2730,10 @@ function BadgeEstadoCita({ estado }) {
   )
 }
 
-function PanelCitasPaciente({ citas, onIngresar, onAgendar, onDejarDeAtender }) {
+function PanelCitasPaciente({ citas, consultas = [], onIngresar, onAgendar, onDejarDeAtender }) {
+  // Una cita atendida se abre aquí mismo para ver qué se diagnosticó, sin ir a la pestaña Diagnósticos.
+  const [abiertas, setAbiertas] = useState({})
+  const consultaDe = (cita) => consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   const pendientes = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.estado === "En Atención" ? -1 : b.estado === "En Atención" ? 1 : porFechaHora(a, b)))
   const historial = citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => porFechaHora(b, a))
@@ -2742,6 +2747,18 @@ function PanelCitasPaciente({ citas, onIngresar, onAgendar, onDejarDeAtender }) 
       </div>
       <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
       <BadgeEstadoCita estado={c.estado} />
+      {!conIngresar && consultaDe(c) && (
+        <button type="button" onClick={() => setAbiertas((a) => ({ ...a, [c.id]: !a[c.id] }))} aria-expanded={!!abiertas[c.id]} aria-label={abiertas[c.id] ? "Ocultar el diagnóstico de esta cita" : "Ver el diagnóstico de esta cita"} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
+          Diagnóstico <ChevronDown size={14} aria-hidden="true" className={"transition-transform " + (abiertas[c.id] ? "rotate-180" : "")} />
+        </button>
+      )}
+      {!conIngresar && abiertas[c.id] && consultaDe(c) && (
+        <div className="w-full pb-2">
+          <p className="text-sm font-semibold text-slate-800">{textoDiagnostico(consultaDe(c)) || "Sin diagnóstico registrado"}</p>
+          {consultaDe(c).lenteRecomendado && <p className="text-xs text-slate-600">Lente recomendado: <span className="font-semibold">{consultaDe(c).lenteRecomendado}</span></p>}
+          <DetalleFichaConsulta c={consultaDe(c)} />
+        </div>
+      )}
       {conIngresar && onIngresar && (
         <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
           <Stethoscope size={13} aria-hidden="true" /> Ingresar
