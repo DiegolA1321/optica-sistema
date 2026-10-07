@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
-import { hoyISO } from "./disponibilidad"
+import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, rangoDelMes, agendaHoyOProximas, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
+import { hoyISO, fechaAISO } from "./disponibilidad"
 
 const hoy = hoyISO()
 const cita = (extra) => ({ id: Math.random(), fecha: hoy, hora: "09:00 AM", estado: "Pendiente", ...extra })
@@ -67,5 +67,40 @@ describe("lo de quien vende", () => {
     const pases = [{ estado: "listo", proformaEntregadaEn: "2026-10-01" }, { estado: "listo" }, { estado: "vendido", proformaEntregadaEn: "2026-10-01" }]
     expect(pasesListos(pases)).toHaveLength(2)
     expect(proformasEnSeguimiento(pases)).toHaveLength(1)
+  })
+})
+
+describe("desenlace por período", () => {
+  const citas = [
+    cita({ estado: "Atendida" }), cita({ estado: "No Asistió" }), cita({ estado: "Cancelada" }),
+    cita({ estado: "Atendida", fecha: "2020-01-15" }), cita({ estado: "Cancelada", fecha: "2020-01-16" }),
+  ]
+  it("'mes' cuenta solo el mes en curso y 'siempre' todo lo registrado", () => {
+    expect(resumenPeriodo(citas, "mes")).toEqual({ registradas: 3, atendidas: 1, noAtendidas: 1, canceladas: 1 })
+    expect(resumenPeriodo(citas, "siempre")).toEqual({ registradas: 5, atendidas: 2, noAtendidas: 1, canceladas: 2 })
+    expect(resumenMes(citas).registradas).toBe(3)
+  })
+  it("el rango del mes va del primer al último día", () => {
+    expect(rangoDelMes(new Date(2026, 1, 10))).toEqual({ desde: "2026-02-01", hasta: "2026-02-28" })
+    expect(rangoDelMes(new Date(2026, 9, 7))).toEqual({ desde: "2026-10-01", hasta: "2026-10-31" })
+  })
+})
+
+describe("agenda de hoy o próximas", () => {
+  const manana = fechaAISO(new Date(Date.now() + 86400000))
+  const ayer = fechaAISO(new Date(Date.now() - 86400000))
+  it("con citas hoy muestra solo las de hoy, sin canceladas", () => {
+    const r = agendaHoyOProximas([cita({ hora: "10:00 AM" }), cita({ estado: "Cancelada" }), cita({ fecha: manana })])
+    expect(r.modo).toBe("hoy")
+    expect(r.citas).toHaveLength(1)
+  })
+  it("sin citas hoy muestra las próximas en orden y nunca las pasadas", () => {
+    const r = agendaHoyOProximas([cita({ fecha: ayer }), cita({ fecha: manana, hora: "11:00 AM" }), cita({ fecha: manana, hora: "09:00 AM" }), cita({ fecha: manana, estado: "Cancelada" })])
+    expect(r.modo).toBe("proximas")
+    expect(r.citas.map((c) => c.hora)).toEqual(["09:00 AM", "11:00 AM"])
+  })
+  it("respeta el límite", () => {
+    const muchas = Array.from({ length: 9 }, (_, i) => cita({ fecha: manana, hora: `${String(i + 1).padStart(2, "0")}:00 AM` }))
+    expect(agendaHoyOProximas(muchas, 5).citas).toHaveLength(5)
   })
 })
