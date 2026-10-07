@@ -27,7 +27,8 @@ export async function iniciarSesion(page, prefijo) {
   await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), clave)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   // No se aserta sobre el campo de contraseña: el registro de Playwright volcaría su HTML con el valor.
-  await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeHidden({ timeout: 20_000 })
+  // Sesión iniciada = desaparece la página pública (y su botón "Iniciar sesión"); si falla, se muestra el alert.
+  await expect(page.getByRole("button", { name: "Iniciar sesión" })).toHaveCount(0, { timeout: 25_000 })
 }
 
 // Agrega o reemplaza claves en .env.test sin imprimirlas.
