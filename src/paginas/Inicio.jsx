@@ -516,7 +516,7 @@ export default function Inicio({
                   <p className="truncate text-sm font-semibold text-amber-950">{cita.paciente}</p>
                   <p className="text-xs text-amber-800">{textoAtencionAbierta(dias)}{cita.atendidoPor ? ` · ${etiquetaMiembro(equipo, cita.atendidoPor)}` : ""}</p>
                 </div>
-                <button type="button" onClick={() => onAtenderCita?.(cita)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>
+                {puede(usuario, "consultas", "crear") && <button type="button" onClick={() => onAtenderCita?.(cita)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>}
                 <button type="button" onClick={() => setDejarCita(cita)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
               </li>
             ))}

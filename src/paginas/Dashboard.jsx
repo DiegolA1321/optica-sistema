@@ -432,6 +432,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // sale a la lista de origen) pueda reabrir el perfil del paciente en vez
   // de aterrizar en la lista pelada.
   const irAFichaClinica = (paciente, { citaId = null, origen = "pacientes", motivo = null } = {}) => {
+    // Red de seguridad: atender exige poder crear fichas clínicas. Los botones ya no se muestran sin ese
+    // permiso, pero si alguien llega por otro camino ve el motivo en vez de un clic que no hace nada.
+    if (!puede(usuario, "consultas", "crear")) { mostrarAviso("No tienes permiso para atender pacientes."); return }
     setFichaClinicaPacienteInicial(paciente)
     setFichaClinicaCitaId(citaId)
     setFichaClinicaOrigen(origen)
