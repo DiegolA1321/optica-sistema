@@ -117,8 +117,8 @@ Prioridad que él mismo fijó (archivo 4): primero la integración de Citas con 
 
 ## 7. Reportes (prioridad 3)
 
-- R60. Gráficas de diagnósticos: cuántos pacientes tuvieron miopía, astigmatismo, etc., en el año y por mes, para ver tendencias. (archivo 3)
-- R61. Filtrar reportes por motivo de consulta (por eso el motivo debe ser una categoría). (archivo 3)
+- R60. Gráficas de diagnósticos: cuántos pacientes tuvieron miopía, astigmatismo, etc., en el año y por mes, para ver tendencias. (archivo 3) **✔ Bloque F**
+- R61. Filtrar reportes por motivo de consulta (por eso el motivo debe ser una categoría). (archivo 3) **✔ Bloque F**
 
 ---
 
