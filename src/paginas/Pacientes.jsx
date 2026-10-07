@@ -2021,13 +2021,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               const abiertasPaciente = atencionesAbiertasAntiguas(citasPaciente)
               const paseListo = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
+              // Sin cita pendiente: basta una etiqueta pequeña arriba; el botón Agendar cita de la cabecera ya está a la vista.
+              const sinCitaPendiente = !citasPaciente.some((c) => ESTADOS_PENDIENTES.includes(c.estado))
 
               return (
                 <>
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(paseListo || abiertasPaciente.length > 0 || proximoControl || (diasCumple != null && diasCumple <= 30)) && (
+                  {(paseListo || abiertasPaciente.length > 0 || proximoControl || sinCitaPendiente || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
@@ -2053,6 +2055,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
                       ))}
+                      {sinCitaPendiente && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
+                          <Calendar size={13} aria-hidden="true" /> Sin cita
+                        </span>
+                      )}
                       {diasCumple != null && diasCumple <= 30 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "rgba(200,162,78,0.4)", backgroundColor: "rgba(200,162,78,0.1)", color: "#7c5e14" }}>
                           <Cake size={13} aria-hidden="true" /> {diasCumple === 0 ? "Hoy cumple años" : `Cumple años en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`}
@@ -2249,7 +2256,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         consultas={consultasPaciente}
                         onDejarDeAtender={setDejarCita}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
-                        onAgendar={() => abrirAgendar(pacienteHistorial)}
                       />
                       </div>
                     ) : tabHistorial === "pagos" ? (
@@ -2729,7 +2735,7 @@ function BadgeEstadoCita({ estado }) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], onIngresar, onAgendar, onDejarDeAtender }) {
+function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender }) {
   // Una cita atendida se abre aquí mismo para ver qué se diagnosticó, sin ir a la pestaña Diagnósticos.
   const [abiertas, setAbiertas] = useState({})
   const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
@@ -2788,14 +2794,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onAgendar, onDe
           </button>
           )}
         </section>
-      ) : (
-        <section aria-label="Próxima cita" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-          <p className="text-sm text-slate-500">Este paciente no tiene citas pendientes.</p>
-          <button type="button" onClick={onAgendar} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-            <CalendarPlus size={15} aria-hidden="true" /> Agendar cita
-          </button>
-        </section>
-      )}
+      ) : null}
 
       {otras.length > 0 && (
         <section aria-label="Otras citas pendientes">
