@@ -1870,7 +1870,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
               <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-                <div className="flex min-w-0 items-start gap-4 lg:flex-1">
+                <div className="flex min-w-0 items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
                   </div>
@@ -1903,10 +1903,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         {pacienteHistorial.origen === "paciente" ? <Globe size={12} /> : <Building2 size={12} />}
                         Origen: {pacienteHistorial.origen === "paciente" ? "Web" : "Recepción"}
                       </span>
+                      {!citas.some((c) => (c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre) && ESTADOS_PENDIENTES.includes(c.estado)) && (
+                        <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                          <Calendar size={12} aria-hidden="true" /> Sin cita
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:w-[26rem] lg:shrink-0 lg:grid-cols-2 lg:border-t-0 lg:pt-0 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:min-w-[22rem] lg:max-w-[40rem] lg:flex-1 lg:grid-cols-2 lg:border-t-0 lg:pt-0 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
                   {/* Acción primaria primero — antes quedaba al final de la
                       pila, después de hasta 3 botones secundarios (outline),
                       obligando a escanear toda la columna para llegar a la
@@ -1963,9 +1968,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   <button
                     type="button"
                     onClick={() => abrirCuenta(pacienteHistorial)}
-                    className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
-                    <KeyRound size={16} /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
+                    <KeyRound size={15} className="shrink-0" /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear acceso"}
                   </button>
                 </div>
               </div>
@@ -2042,8 +2047,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               const abiertasPaciente = atencionesAbiertasAntiguas(citasPaciente)
               const paseListo = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
-              // Sin cita pendiente: basta una etiqueta pequeña arriba; el botón Agendar cita de la cabecera ya está a la vista.
-              const sinCitaPendiente = !citasPaciente.some((c) => ESTADOS_PENDIENTES.includes(c.estado))
               const controlPorAgendar = sinAgendarPorPaciente.get(pacienteHistorial.id)
 
               return (
@@ -2129,7 +2132,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(paseListo || abiertasPaciente.length > 0 || (proximoControl && consultasPaciente.length === 0) || sinCitaPendiente || (diasCumple != null && diasCumple <= 30)) && (
+                  {(paseListo || abiertasPaciente.length > 0 || (proximoControl && consultasPaciente.length === 0) || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
@@ -2155,11 +2158,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
                       ))}
-                      {sinCitaPendiente && !controlPorAgendar && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
-                          <Calendar size={13} aria-hidden="true" /> Sin cita
-                        </span>
-                      )}
                       {diasCumple != null && diasCumple <= 30 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "rgba(200,162,78,0.4)", backgroundColor: "rgba(200,162,78,0.1)", color: "#7c5e14" }}>
                           <Cake size={13} aria-hidden="true" /> {diasCumple === 0 ? "Hoy cumple años" : `Cumple años en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`}
