@@ -21,7 +21,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CalendarClock,
-  Command,
   BarChart3,
   ShieldCheck,
   ShieldAlert,
@@ -901,23 +900,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Paleta de comandos — Ctrl/Cmd+K abre desde cualquier lado, este
-                botón es solo para que se descubra con el mouse. Ícono + texto
-                (no solo el atajo) para que no se vea como una insignia
-                flotante sin contexto; el kbd va sin borde propio para no
-                anidar dos recuadros dentro del botón. */}
-            <button
-              type="button"
-              onClick={() => setPaletaAbierta(true)}
-              className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 cursor-pointer md:flex"
-              title="Ir a una sección (Ctrl+K)"
-              aria-label="Abrir paleta de comandos"
-            >
-              <Command size={15} />
-              <span className="text-sm font-medium">Comandos</span>
-              <kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">Ctrl K</kbd>
-            </button>
-
             {/* Buscador global de pacientes — accesible desde cualquier
                 sección, no solo desde adentro de Pacientes. */}
             <div className="relative" ref={busquedaGlobalRef}>
