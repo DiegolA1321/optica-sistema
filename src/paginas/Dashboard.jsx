@@ -545,6 +545,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const rolUsuario = vistas.length > 1 && vista ? vista.nombre : esAsistente ? (vista?.nombre || "Asistente") : "Administrador"
   const inicialUsuario = nombreUsuario.charAt(0).toUpperCase()
 
+  // Desde el Inicio se bajan en segundo plano los módulos que abren sus atajos, para que el formulario aparezca al instante.
+  useEffect(() => {
+    if (seccionActiva !== "inicio") return
+    const id = setTimeout(() => { import("./Pacientes").catch(() => {}); import("./Citas").catch(() => {}); import("./Inventario").catch(() => {}) }, 300)
+    return () => clearTimeout(id)
+  }, [seccionActiva])
+
   // `extra` solo lo usan los atajos de Inicio: montan el formulario de Pacientes/Citas/Inventario encima del Inicio.
   const renderSeccion = (seccion = seccionActiva, extra = {}) => {
     switch (seccion) {
@@ -1198,6 +1205,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           )}
           <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
             {renderSeccion()}
+          </Suspense>
+          {/* Con su propio Suspense (sin cargador): si el módulo aún se está bajando, el Inicio se queda tal cual en vez de taparse con un spinner. */}
+          <Suspense fallback={null}>
             {seccionActiva === "inicio" && atajoInicio && renderSeccion(atajoInicio, {
               overlaySolo: true,
               onOverlayCerrado: () => { setAtajoInicio(null); setControlParaAgendar(null) },

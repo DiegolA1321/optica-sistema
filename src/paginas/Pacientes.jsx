@@ -1906,7 +1906,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:w-[22rem] lg:shrink-0 lg:grid-cols-2 lg:border-t-0 lg:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:w-[26rem] lg:shrink-0 lg:grid-cols-2 lg:border-t-0 lg:pt-0 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
                   {/* Acción primaria primero — antes quedaba al final de la
                       pila, después de hasta 3 botones secundarios (outline),
                       obligando a escanear toda la columna para llegar a la
@@ -1960,11 +1960,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <Receipt size={16} /> Vender receta
                     </button>
                   )}
-                  <MenuMasPerfil
-                    elementos={[
-                      { id: "cuenta", Icono: KeyRound, texto: pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso", onClick: () => abrirCuenta(pacienteHistorial) },
-                    ]}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => abrirCuenta(pacienteHistorial)}
+                    className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                  >
+                    <KeyRound size={16} /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
+                  </button>
                 </div>
               </div>
 
@@ -2699,45 +2701,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           </div>
         </div>,
         document.body
-      )}
-    </div>
-  )
-}
-
-// Menú "Más" de la cabecera del perfil: las acciones poco frecuentes. Se cierra
-// con Escape o al hacer clic fuera.
-function MenuMasPerfil({ elementos }) {
-  const [abierto, setAbierto] = useState(false)
-  const ref = useRef(null)
-  useEffect(() => {
-    if (!abierto) return
-    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false) }
-    // Escape cierra solo el menú: el perfil también se cierra con Escape, así que
-    // este aviso se atiende primero (fase de captura) y no llega al perfil.
-    const tecla = (e) => { if (e.key === "Escape") { e.stopPropagation(); setAbierto(false) } }
-    document.addEventListener("mousedown", fuera)
-    document.addEventListener("keydown", tecla, true)
-    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla, true) }
-  }, [abierto])
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        aria-expanded={abierto}
-        aria-haspopup="menu"
-        className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-      >
-        Más <ChevronDown size={14} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
-      </button>
-      {abierto && (
-        <div role="menu" className="absolute left-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
-          {elementos.map(({ id, Icono, texto, onClick }) => (
-            <button key={id} type="button" role="menuitem" onClick={() => { setAbierto(false); onClick() }} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-              <Icono size={15} aria-hidden="true" /> {texto}
-            </button>
-          ))}
-        </div>
       )}
     </div>
   )
