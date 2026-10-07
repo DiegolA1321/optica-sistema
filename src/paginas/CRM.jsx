@@ -590,15 +590,17 @@ function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, cont
 function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar, onVerPerfil }) {
   return (
     <div className="flex items-center justify-between gap-2 p-3">
-      <div className="min-w-0">
+      {/* El nombre ocupa lo que sobra y se parte en dos líneas si hace falta: en las columnas angostas del
+          CRM el botón de WhatsApp lo tapaba. */}
+      <div className="min-w-0 flex-1">
         {onVerPerfil ? (
-          <button type="button" onClick={() => onVerPerfil(p.id)} className="truncate text-sm font-bold text-slate-800 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+          <button type="button" onClick={() => onVerPerfil(p.id)} className="block max-w-full text-left text-sm font-bold leading-tight text-slate-800 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer [overflow-wrap:anywhere]">
             {p.paciente}
           </button>
         ) : (
-          <p className="truncate text-sm font-bold text-slate-800">{p.paciente}</p>
+          <p className="text-sm font-bold leading-tight text-slate-800 [overflow-wrap:anywhere]">{p.paciente}</p>
         )}
-        <p className="truncate text-[11px] text-slate-500">{p.estado}</p>
+        <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{p.estado}</p>
       </div>
       {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
         <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
