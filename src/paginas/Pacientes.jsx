@@ -64,7 +64,7 @@ import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPend
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { lineaLunaDeTexto } from "../utilidades/comprobantes"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
-import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
@@ -710,7 +710,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     if (citasSinTerminar.length > 0) {
       setSeleccionCitaPara({
         paciente,
-        citas: citasSinTerminar.map((c) => ({ id: c.id, estado: c.estado, motivo: c.motivo, fechaEtiqueta: etiquetaFecha(c.fecha), horaEtiqueta: horaA12(c.hora) })),
+        citas: citasSinTerminar.map((c) => ({ id: c.id, estado: c.estado, motivo: c.motivo, fechaEtiqueta: etiquetaFecha(c.fecha), horaEtiqueta: c.hora })),
       })
       return
     }
