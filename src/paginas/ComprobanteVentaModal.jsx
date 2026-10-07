@@ -83,6 +83,9 @@ export default function ComprobanteVentaModal({
   // "Nueva venta" de un paciente con un pase abierto: ofrece vincular la venta
   // a esa consulta para que cierre el pase ({ consultaId, citaId, etiqueta }).
   vinculoSugerido = null,
+  // Sin paciente fijo (venta desde el módulo de Ventas) la sugerencia depende del paciente elegido:
+  // recibe el paciente y devuelve { consultaId, citaId, etiqueta } o null.
+  vinculoParaPaciente = null,
   onGuardado,
   onCerrar,
 }) {
@@ -94,8 +97,6 @@ export default function ComprobanteVentaModal({
   const [ordenPara, setOrdenPara] = useState(null) // factura recién guardada, a la espera de su orden
   const [incluirMedidas, setIncluirMedidas] = useState(false)
   const [verMedidas, setVerMedidas] = useState(false)
-  const consultaIdEfectivo = consultaId ?? (vinculoSugerido && vincular ? vinculoSugerido.consultaId : null)
-  const citaIdEfectivo = citaId ?? (vinculoSugerido && vincular ? vinculoSugerido.citaId : null)
 
   const [lineas, setLineas] = useState(() => {
     const iniciales = lineasIniciales || (lineaInicial?.productoId ? [{ tipo: "producto", ...lineaInicial }] : [])
@@ -150,6 +151,9 @@ export default function ComprobanteVentaModal({
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdownPaciente, setMostrarDropdownPaciente] = useState(false)
   const paciente = pacienteFijo || pacienteSel
+  const vinculo = vinculoSugerido || (paciente && vinculoParaPaciente ? vinculoParaPaciente(paciente) : null)
+  const consultaIdEfectivo = consultaId ?? (vinculo && vincular ? vinculo.consultaId : null)
+  const citaIdEfectivo = citaId ?? (vinculo && vincular ? vinculo.citaId : null)
   const pacientesFiltrados = useMemo(() => {
     const q = busquedaPaciente.trim().toLowerCase()
     const base = q ? pacientes.filter((p) => p.nombre.toLowerCase().includes(q) || (p.cedula || "").includes(q)) : pacientes
@@ -468,10 +472,10 @@ export default function ComprobanteVentaModal({
               )}
             </div>
 
-            {vinculoSugerido && !consultaId && (
+            {vinculo && !consultaId && (
               <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3 text-xs text-emerald-900">
                 <input type="checkbox" checked={vincular} onChange={(e) => setVincular(e.target.checked)} className="mt-0.5 accent-emerald-600" />
-                <span><span className="font-bold">{vinculoSugerido.etiqueta}</span><br />Si es esta venta, queda vinculada a la consulta y el paciente sale de la lista de espera. Desmárcalo si es otra compra.</span>
+                <span><span className="font-bold">{vinculo.etiqueta}</span><br />Si es esta venta, queda vinculada a la consulta y el paciente sale de la lista de espera. Desmárcalo si es otra compra.</span>
               </label>
             )}
 
