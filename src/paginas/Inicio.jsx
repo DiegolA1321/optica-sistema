@@ -240,6 +240,7 @@ export default function Inicio({
       descripcion="Todo lo registrado hasta hoy"
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes registrados", valor: pacientes.length, desc: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : "En la base de datos", icono: Users, color: "slate", onClick: () => setVista?.("pacientes"), cta: puede(usuario, "pacientes", "crear") ? "Registrar paciente" : null, onCta: onCrearPacienteRapido },
+        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Sin ninguna consulta", icono: Users, color: "amber", onClick: () => setVista?.("pacientes") },
         { id: "citas", titulo: "Citas registradas", valor: citas.length, desc: "Desde el inicio", icono: Calendar, color: "blue", onClick: () => setVista?.("citas"), cta: puede(usuario, "citas", "crear") ? "Agendar cita" : null, onCta: onAgendarRapido },
         { id: "productos", titulo: "Productos en inventario", valor: inventario.length, desc: "Registrados", icono: Package, color: "slate", onClick: () => setVista?.("inventario"), cta: puede(usuario, "inventario", "crear") ? "Añadir producto" : null, onCta: onCrearProductoRapido },
       ]}
@@ -262,7 +263,6 @@ export default function Inicio({
         { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: "Ver en Citas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida", periodo) },
         { id: "noAtendidas", titulo: "No atendidas", valor: desenlace.noAtendidas, desc: "No asistieron", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio", periodo) },
         { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Ver en Citas", icono: Ban, color: "slate", onClick: () => onVerCitas?.("cancelada", periodo) },
-        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Sin ninguna consulta, en total", icono: Users, color: "amber", onClick: () => setVista?.("pacientes") },
       ]}
     />
   )
