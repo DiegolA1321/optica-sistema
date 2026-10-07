@@ -66,7 +66,7 @@ export default function Mensajes({ usuario }) {
     setError("")
     setEnviado(false)
     if (!asunto.trim() || !cuerpo.trim()) { setError("Completa el asunto y el mensaje."); return }
-    if (!usuario?.opticaId) { setError("No se encontró tu óptica — recargá la página e intentá de nuevo."); return }
+    if (!usuario?.opticaId) { setError("No se encontró tu óptica — recarga la página e inténtalo de nuevo."); return }
     setEnviando(true)
     const { data, error: errorInsert } = await supabase
       .from("mensajes")
@@ -102,7 +102,7 @@ export default function Mensajes({ usuario }) {
         </div>
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mensajes</h1>
-          <p className="text-sm text-slate-500">Escribile al equipo de {NOMBRE_EQUIPO} y mirá los avisos generales.</p>
+          <p className="text-sm text-slate-500">Escribe al equipo de {NOMBRE_EQUIPO} y mira los avisos generales.</p>
         </div>
       </div>
 
@@ -167,7 +167,7 @@ export default function Mensajes({ usuario }) {
               {estadoPago === "vencido" ? "Pago vencido" : "Pago pendiente"}
             </p>
             <p className="mt-1 text-[13px] font-semibold text-slate-500">
-              {optica?.proximo_vencimiento ? <>Vencimiento: {formatearFecha(optica.proximo_vencimiento)}</> : "Escribinos si ya lo hiciste para confirmarlo."}
+              {optica?.proximo_vencimiento ? <>Vencimiento: {formatearFecha(optica.proximo_vencimiento)}</> : "Escríbenos si ya lo hiciste para confirmarlo."}
             </p>
           </div>
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: estadoPago === "vencido" ? "#FEE2E2" : "#FFF7E6", color: estadoPago === "vencido" ? "#BE123C" : "#B45309" }}>
@@ -242,7 +242,7 @@ export default function Mensajes({ usuario }) {
           />
           <textarea
             rows={3} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)}
-            placeholder="Contanos qué necesitás…"
+            placeholder="Cuéntanos qué necesitas…"
             className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
           />
           <div className="flex justify-end">

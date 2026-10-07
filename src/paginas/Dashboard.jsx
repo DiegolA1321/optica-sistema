@@ -1162,7 +1162,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-600" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-red-900">Esta óptica fue suspendida por el administrador del sistema.</p>
-                <p className="text-xs text-red-700">Ya no podés ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contactá a soporte si esto es un error.</p>
+                <p className="text-xs text-red-700">Ya no puedes ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contacta a soporte si esto es un error.</p>
               </div>
               <button type="button" onClick={() => alSalir()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-800 transition hover:bg-red-50 cursor-pointer">
                 <LogOut size={13} /> Cerrar sesión
@@ -1235,7 +1235,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
                   Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
                 </label>
-                <p className="text-xs text-slate-500">Si atiendes pacientes vos mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
+                <p className="text-xs text-slate-500">Si atiendes pacientes tú mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
                 <div className="flex items-center gap-2">
                   <input
                     id="registroProfesional"

@@ -1056,10 +1056,10 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
           </div>
           <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
             {[
-              { p: "¿Necesito agendar cita o puedo llegar directamente?", r: "Podés reservar en línea en menos de un minuto, sin crear una cuenta — o escribinos si preferís coordinar por teléfono." },
+              { p: "¿Necesito agendar cita o puedo llegar directamente?", r: "Puedes reservar en línea en menos de un minuto, sin crear una cuenta — o escríbenos si prefieres coordinar por teléfono." },
               { p: "¿Cuánto dura un examen visual completo?", r: "Entre 20 y 30 minutos, según si es tu primera consulta o un control de seguimiento." },
-              { p: "¿Puedo ver mi receta después de la consulta?", r: "Sí — activá tu cuenta del portal y accedé a tu historial y receta desde cualquier dispositivo, cuando quieras." },
-              { p: "¿Qué debo llevar a mi cita?", r: "Si usás lentes o lentillas actualmente, traelos, junto con tu receta anterior si la tenés a mano." },
+              { p: "¿Puedo ver mi receta después de la consulta?", r: "Sí — activa tu cuenta del portal y accede a tu historial y receta desde cualquier dispositivo, cuando quieras." },
+              { p: "¿Qué debo llevar a mi cita?", r: "Si usas lentes o lentillas actualmente, tráelos, junto con tu receta anterior si la tienes a mano." },
             ].map((f) => (
               <div key={f.p} className="rounded-2xl border border-white/15 bg-white/[0.06] p-5">
                 <p className="text-sm font-bold text-white">{f.p}</p>

@@ -798,7 +798,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setErrorAviso("")
     if (!avisoAsunto.trim() || !avisoCuerpo.trim()) { setErrorAviso("Completa el asunto y el mensaje."); return }
     const opticaDestino = avisoDestino === "todos" ? null : avisoDestino
-    if (avisoDestino !== "todos" && !opticaDestino) { setErrorAviso("Elegí a qué óptica va dirigido el aviso."); return }
+    if (avisoDestino !== "todos" && !opticaDestino) { setErrorAviso("Elige a qué óptica va dirigido el aviso."); return }
     setPublicandoAviso(true)
     const { data, error } = await supabase
       .from("mensajes")
@@ -1297,7 +1297,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     })
 
     if (errorAlta || !alta?.user) {
-      setError((errorAlta?.message || "No se pudo crear la cuenta del administrador") + " — la óptica ya quedó creada, podés reintentar la cuenta de admin más tarde.")
+      setError((errorAlta?.message || "No se pudo crear la cuenta del administrador") + " — la óptica ya quedó creada, puedes reintentar la cuenta de admin más tarde.")
       setGuardando(false)
       cargarDatos()
       return
@@ -1319,7 +1319,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
     if (errorPerfil) {
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas, revisá en Supabase.")
+      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas, revisa en Supabase.")
       setGuardando(false)
       cargarDatos()
       return
@@ -1456,7 +1456,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         remitente_id: usuario?.id || null,
         remitente_nombre: usuario?.nombre || "Superadmin",
         asunto: "Estado de tu suscripción",
-        cuerpo: `El pago de tu suscripción ${textoEstado}. Si ya lo hiciste, escribinos desde acá para confirmarlo.`,
+        cuerpo: `El pago de tu suscripción ${textoEstado}. Si ya lo hiciste, escríbenos desde aquí para confirmarlo.`,
         estado: "resuelto",
       })
       await registrarAuditoria("actualizar_pago", { opticaId: o.id, opticaNombre: o.nombre, detalle: `${nuevoEstado} (automático)` })
@@ -1488,7 +1488,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           remitente_id: usuario?.id || null,
           remitente_nombre: usuario?.nombre || "Superadmin",
           asunto: "Estado de tu suscripción",
-          cuerpo: `El pago de tu suscripción ${textoEstado}. Si ya lo hiciste, escribinos desde acá para confirmarlo.`,
+          cuerpo: `El pago de tu suscripción ${textoEstado}. Si ya lo hiciste, escríbenos desde aquí para confirmarlo.`,
           estado: "resuelto",
         })
         cargarMensajes()
@@ -1651,7 +1651,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     await temp.auth.signOut()
     if (errorPerfil) {
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada, revisá en Supabase.")
+      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada, revisa en Supabase.")
       setGuardandoAdminExtra(false)
       return
     }
@@ -1718,7 +1718,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     // perfiles vía la policy perfiles_superadmin_all/es_superadmin().
     const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, rol: "superadmin", nombre: nombre.trim(), email: email.trim() })
     if (errorPerfil) {
-      setErrorSuperadmin(errorPerfil.message + " — la cuenta de correo ya quedó creada, revisá en Supabase.")
+      setErrorSuperadmin(errorPerfil.message + " — la cuenta de correo ya quedó creada, revisa en Supabase.")
       setGuardandoSuperadmin(false)
       return
     }
@@ -2487,7 +2487,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Ópticas</h1>
-          <p className="text-sm text-slate-500">Creá y administrá las ópticas que usan el sistema.</p>
+          <p className="text-sm text-slate-500">Crea y administra las ópticas que usan el sistema.</p>
         </div>
         <button
           type="button"
@@ -2867,7 +2867,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
-          <p className="text-sm text-slate-500">Cuentas con acceso total al sistema — creá una de respaldo, no dependas de una sola.</p>
+          <p className="text-sm text-slate-500">Cuentas con acceso total al sistema — crea una de respaldo, no dependas de una sola.</p>
         </div>
         <button
           type="button"
@@ -2931,8 +2931,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   type="button"
                   onClick={() => { setSuperadminAEliminar(s); setErrorEliminarSuperadmin("") }}
                   disabled={s.id === usuario?.id || superadmins.length <= 1}
-                  title={s.id === usuario?.id ? "No podés quitarte a vos mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
-                  aria-label={s.id === usuario?.id ? "No podés quitarte a vos mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
+                  title={s.id === usuario?.id ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
+                  aria-label={s.id === usuario?.id ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
                   className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 cursor-pointer"
                 >
                   <Trash2 size={16} />
@@ -3718,7 +3718,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tu respuesta</label>
                   <textarea
                     rows={4} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value)}
-                    placeholder="Escribí tu respuesta para el administrador…"
+                    placeholder="Escribe tu respuesta para el administrador…"
                     className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                   />
                   {mensajeAbierto.respondido_at && (
@@ -3827,7 +3827,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
                   <textarea
                     rows={5} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
-                    placeholder="Escribí el aviso…"
+                    placeholder="Escribe el aviso…"
                     className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                   />
                 </div>
@@ -3935,7 +3935,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       </div>
                       <p className={"mt-1.5 text-xs " + (slugEstado === "ocupado" ? "font-medium text-rose-600" : "text-slate-500")}>
                         {slugEstado === "ocupado"
-                          ? "Ese código ya está en uso — generá otro."
+                          ? "Ese código ya está en uso — genera otro."
                           : "Código genérico, independiente del nombre — así no queda atado si la óptica se renombra después."}
                       </p>
                     </div>
@@ -3995,7 +3995,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           </label>
                         </div>
                         {errorLogoCreacion && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogoCreacion}</p>}
-                        <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También podés pegar una URL ya alojada:</p>
+                        <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
                         <input
                           type="text" value={campos.logoUrl} onChange={(e) => actualizarCampo("logoUrl", e.target.value)}
                           placeholder="https://…"
@@ -4156,7 +4156,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
                 <div>
                   <h4 id="superadmin-modal-agregar-superadmin-titulo" className="text-lg font-bold" style={{ color: INK }}>Agregar superadmin</h4>
-                  <p className="text-xs text-slate-500">Tendrá el mismo acceso total que vos.</p>
+                  <p className="text-xs text-slate-500">Tendrá el mismo acceso total que tú.</p>
                 </div>
               </div>
               <button type="button" onClick={() => setModalSuperadminAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
@@ -4309,7 +4309,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 )}
                 {avisoEmailPendiente && (
                   <div className="flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50 p-2.5 text-xs font-medium text-blue-700">
-                    <Info size={14} className="shrink-0" /> Te enviamos un enlace a {camposMiCuenta.email} para confirmar el cambio de correo — hasta que lo confirmes, seguís entrando con el anterior.
+                    <Info size={14} className="shrink-0" /> Te enviamos un enlace a {camposMiCuenta.email} para confirmar el cambio de correo — hasta que lo confirmes, sigues entrando con el anterior.
                   </div>
                 )}
                 <div>

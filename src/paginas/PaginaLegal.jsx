@@ -97,15 +97,15 @@ function ContenidoPrivacidad() {
       </Seccion>
 
       <Seccion icon={ShieldCheck} titulo="Tus derechos">
-        <p>Podés pedirle a la óptica donde eres paciente que te muestre, corrija o elimine tus datos personales, de acuerdo con la Ley Orgánica de Protección de Datos Personales del Ecuador (LOPDP). Como este sistema es usado por cada óptica de forma independiente, esas solicitudes se atienden directamente con la óptica, que es quien administra tu información.</p>
+        <p>Puedes pedirle a la óptica donde eres paciente que te muestre, corrija o elimine tus datos personales, de acuerdo con la Ley Orgánica de Protección de Datos Personales del Ecuador (LOPDP). Como este sistema es usado por cada óptica de forma independiente, esas solicitudes se atienden directamente con la óptica, que es quien administra tu información.</p>
       </Seccion>
 
       <Seccion titulo="Almacenamiento en tu navegador">
-        <p>Usamos almacenamiento local del navegador (localStorage) para mantener tu sesión iniciada mientras usás el sistema. No usamos cookies de rastreo publicitario ni compartimos esta información con redes de publicidad.</p>
+        <p>Usamos almacenamiento local del navegador (localStorage) para mantener tu sesión iniciada mientras usas el sistema. No usamos cookies de rastreo publicitario ni compartimos esta información con redes de publicidad.</p>
       </Seccion>
 
       <Seccion titulo="Contacto">
-        <p>Para cualquier consulta sobre tus datos, comunicate directamente con la óptica donde te atendés.</p>
+        <p>Para cualquier consulta sobre tus datos, comunícate directamente con la óptica donde te atiendes.</p>
       </Seccion>
     </>
   )
@@ -117,7 +117,7 @@ function ContenidoTerminos() {
       <p className="mb-6 text-xs text-slate-400">Última actualización: septiembre de 2026.</p>
 
       <Seccion titulo="Aceptación">
-        <p>Al usar este sistema — como paciente, administrador o asistente de una óptica — aceptás estos términos. Si no estás de acuerdo, no debés usar la plataforma.</p>
+        <p>Al usar este sistema — como paciente, administrador o asistente de una óptica — aceptas estos términos. Si no estás de acuerdo, no debes usar la plataforma.</p>
       </Seccion>
 
       <Seccion titulo="Qué es este sistema">
@@ -125,7 +125,7 @@ function ContenidoTerminos() {
       </Seccion>
 
       <Seccion titulo="Tu cuenta">
-        <p>Sos responsable de mantener tu contraseña en privado y de toda actividad que ocurra desde tu cuenta. Avisá de inmediato a la óptica si sospechás que alguien más accedió a tu cuenta sin permiso.</p>
+        <p>Eres responsable de mantener tu contraseña en privado y de toda actividad que ocurra desde tu cuenta. Avisa de inmediato a la óptica si sospechas que alguien más accedió a tu cuenta sin permiso.</p>
       </Seccion>
 
       <Seccion titulo="Uso apropiado">

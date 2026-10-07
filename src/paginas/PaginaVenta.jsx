@@ -159,7 +159,7 @@ const MODULOS = [
   },
   {
     icon: BarChart3,
-    titulo: "Sabés exactamente qué tenés y qué vendés",
+    titulo: "Sabes exactamente qué tienes y qué vendes",
     texto: "Stock de armazones y lentes con alertas de reabastecimiento, y reportes claros de ingresos y consultas para decidir con datos reales.",
     dark: false,
     mock: MockInventario,
@@ -189,7 +189,7 @@ const PASOS = [
   {
     numero: "01",
     icon: ClipboardList,
-    titulo: "Contanos sobre tu óptica",
+    titulo: "Cuéntanos sobre tu óptica",
     texto: "Completás un formulario breve con los datos de tu óptica y los tuyos. No es una compra automática — es el primer contacto.",
   },
   {
@@ -202,7 +202,7 @@ const PASOS = [
     numero: "03",
     icon: Rocket,
     titulo: "Empezás a usarlo con tu marca",
-    texto: "Recibís tu propio link, con tu logo y tus colores, listo para que tus pacientes agenden y vos gestiones todo.",
+    texto: "Recibes tu propio link, con tu logo y tus colores, listo para que tus pacientes agenden y tú gestiones todo.",
   },
 ]
 
@@ -689,7 +689,7 @@ export default function PaginaVenta() {
                 </div>
                 <div>
                   <h4 className="text-lg font-bold" style={{ color: INK }}>Obtener sistema</h4>
-                  <p className="text-xs text-slate-500">Contanos de tu óptica y te contactamos.</p>
+                  <p className="text-xs text-slate-500">Cuéntanos de tu óptica y te contactamos.</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">

@@ -476,7 +476,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               value={nuevoAviso}
               onChange={(e) => setNuevoAviso(e.target.value)}
               rows={2}
-              placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, podés pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
+              placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, puedes pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
               className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
             />
             {puede(usuario, "crm", "crear") && <button
@@ -490,7 +490,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               {publicandoAviso ? "Publicando..." : avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
             </button>}
             <p className="text-[11px] text-slate-500">
-              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o enviaselo directo al paciente si elegiste uno puntual.
+              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o envíaselo directo al paciente si elegiste uno puntual.
             </p>
             {avisoError && <p role="alert" className="text-[11px] font-semibold text-red-600">{avisoError}</p>}
 
