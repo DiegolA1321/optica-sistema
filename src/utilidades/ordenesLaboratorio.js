@@ -61,13 +61,15 @@ export function laboratoriosUsados(ordenes) {
 
 // Datos con los que arranca la orden: lo que existe en la consulta; la vendedora completa el resto.
 // La ficha guarda un solo DP, que se precarga como DP de lejos.
-export function datosInicialesOrden(consulta, { montura = "" } = {}) {
+export function datosInicialesOrden(consulta, { montura = "", luna = null } = {}) {
   const vacio = { esfera: "", cilindro: "", eje: "", adicion: "" }
   const ojo = (o) => ({ ...vacio, esfera: o?.esfera || "", cilindro: o?.cilindro || "", eje: o?.eje || "" })
   const m = consulta?.medidas || {}
   const adicion = m.adicion || ""
   const lente = (consulta?.lenteRecomendado || "").toLowerCase()
   const tipo = /progres/.test(lente) ? "progresivo" : /bifocal/.test(lente) ? "bifocal" : "monofocal"
+  // La luna de la venta (tipo, material, tratamientos) manda sobre lo que se deduce de la ficha.
+  const deLuna = Object.fromEntries(Object.entries(luna || {}).filter(([, v]) => v !== undefined))
   return {
     recetaOd: { ...ojo(consulta?.od), adicion },
     recetaOi: { ...ojo(consulta?.oi), adicion },
@@ -85,6 +87,7 @@ export function datosInicialesOrden(consulta, { montura = "" } = {}) {
     laboratorio: "",
     fechaPrometida: "",
     observaciones: consulta?.lenteRecomendado ? `Lente recomendado: ${consulta.lenteRecomendado}` : "",
+    ...deLuna,
   }
 }
 
@@ -189,5 +192,6 @@ export function armarHtmlOrdenDosCopias(args) {
 
 // Cualquier pantalla puede abrir el modal de la orden; la lista (App.jsx) se entera por este evento.
 export const EVENTO_ORDEN = "orden-laboratorio:guardada"
-// ¿Esta línea de la venta parece un lente? (la luna es texto libre, así que solo sirve para sugerir el check)
-export const esLineaDeLente = (l) => l?.tipo === "servicio" && /^(luna|lente|cristal)/i.test((l.descripcion || "").trim())
+// ¿Esta línea de la venta es una luna? Las lunas son líneas de tipo "luna" (migración 0094); las ventas
+// anteriores las escribían como servicio de texto libre, y eso se sigue reconociendo.
+export const esLineaDeLente = (l) => l?.tipo === "luna" || (l?.tipo === "servicio" && /^(luna|lente|cristal)/i.test((l.descripcion || "").trim()))

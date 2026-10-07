@@ -236,6 +236,8 @@ function mapFacturaVenta(f) {
     id: f.id, pacienteId: f.paciente_id, citaId: f.cita_id, consultaId: f.consulta_id,
     metodoPago: f.metodo_pago, cuotasTotales: f.cuotas_totales, cuotasPagadas: f.cuotas_pagadas,
     montoTotal: Number(f.monto_total), estado: f.estado, creadoEn: f.created_at,
+    // Nombre técnico facturas_venta; en pantalla es un "comprobante de venta interno" (migración 0094).
+    numero: f.numero ?? null, facturaElectronica: f.factura_electronica || "",
     // facturas_venta_lineas llega embebida por el select de abajo (join por
     // factura_id) — sin esto, `lineas` solo existía para una factura recién
     // creada en la misma sesión (FacturaVentaModal arma el objeto local con
@@ -243,7 +245,7 @@ function mapFacturaVenta(f) {
     // porque este mapper nunca la incluía.
     lineas: (f.facturas_venta_lineas || []).map((l) => ({
       id: l.id, productoId: l.producto_id, tipo: l.tipo, descripcion: l.descripcion,
-      cantidad: l.cantidad, precioUnitario: Number(l.precio_unitario),
+      cantidad: l.cantidad, precioUnitario: Number(l.precio_unitario), detalle: l.detalle || null,
     })),
   }
 }
