@@ -73,3 +73,20 @@ revoke all on function public.perfil_roles_cambio_propio() from public, anon, au
 drop trigger if exists perfil_roles_cambio_propio_trigger on public.perfil_roles;
 create trigger perfil_roles_cambio_propio_trigger before insert or delete on public.perfil_roles
   for each row execute function public.perfil_roles_cambio_propio();
+
+-- La pantalla de Usuarios pregunta si quien la mira es el administrador principal, para ofrecer (o no) "Mis roles".
+create or replace function public.soy_administrador_principal()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from perfiles p
+     where p.id = auth.uid() and p.rol = 'admin'
+       and p.id = (select id from perfiles where optica_id = p.optica_id and rol = 'admin' order by created_at, id limit 1)
+  );
+$$;
+revoke all on function public.soy_administrador_principal() from public, anon;
+grant execute on function public.soy_administrador_principal() to authenticated;

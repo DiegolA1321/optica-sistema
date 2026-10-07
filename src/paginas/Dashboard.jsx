@@ -701,7 +701,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
-        return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} />
+        return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} alActualizarUsuario={alActualizarUsuario} />
       case "configuracion":
         return (
           <Configuracion
