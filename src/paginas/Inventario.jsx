@@ -1,7 +1,7 @@
 "use client"
 
 import { fechaLegible } from "../utilidades/formatoFecha"
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import {
   Package,
@@ -61,6 +61,9 @@ export default function Inventario({
   setFacturasVenta,
   abrirModalAlEntrar = false,
   onModalAlEntrarConsumido,
+  overlaySolo = false,
+  onOverlayCerrado,
+  onAviso,
   productoIdParaReabastecer = null,
   onProductoParaReabastecerConsumido,
   onVerPerfil,
@@ -146,6 +149,14 @@ export default function Inventario({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abrirModalAlEntrar])
 
+  // Abierto sobre Inicio: al cerrarse el formulario se avisa para desmontar esta vista oculta.
+  const abrioSobreInicio = useRef(false)
+  useEffect(() => {
+    if (!overlaySolo) return
+    if (modalAbierto) abrioSobreInicio.current = true
+    else if (abrioSobreInicio.current) onOverlayCerrado?.()
+  }, [modalAbierto]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const registrarProducto = async (e) => {
     e.preventDefault()
     const stockNum = parseInt(stock, 10)
@@ -190,8 +201,11 @@ export default function Inventario({
 
     setProductos([nuevo, ...productos])
     registrarLog(usuario, "inventario", "Agregó un producto al inventario", nuevo.nombre)
-    setGuardadoExitoso("Producto añadido al inventario.")
-    setTimeout(() => setGuardadoExitoso(""), 3000)
+    if (overlaySolo) onAviso?.("Producto añadido al inventario.")
+    else {
+      setGuardadoExitoso("Producto añadido al inventario.")
+      setTimeout(() => setGuardadoExitoso(""), 3000)
+    }
 
     setModalAbierto(false)
     limpiarFormulario()
@@ -403,7 +417,7 @@ export default function Inventario({
   const refModalReporte = useModalAccesible(!!(verReporte && reporteProducto), () => setVerReporte(null))
 
   return (
-    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
+    <div className={"w-full space-y-6 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3.5">

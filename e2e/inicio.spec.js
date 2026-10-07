@@ -85,6 +85,21 @@ test.describe('Inicio del administrador', () => {
     await expect(hoy).toBeVisible({ timeout: 20_000 })
     await expect(hoy.getByText(/Anteriores|Últimas citas/)).toHaveCount(0)
   })
+
+  test("los atajos abren su formulario encima del Inicio, sin cambiar de módulo", async ({ page }) => {
+    await iniciarSesion(page, "ADMIN")
+    const atajos = page.getByRole("group", { name: "Atajos" })
+    await expect(atajos).toBeVisible({ timeout: 20_000 })
+    for (const [boton, dialogo] of [["Registrar paciente", "Crear paciente"], ["Agendar cita", "Gestionar cita"], ["Añadir producto", "Ingresar montura o accesorio"]]) {
+      await atajos.getByRole("button", { name: boton }).click()
+      await expect(page.getByRole("heading", { name: dialogo })).toBeVisible({ timeout: 10_000 })
+      // Sigue en Inicio: el resumen del día y los atajos siguen en la página
+      await expect(page.getByLabel("Resumen del día")).toBeAttached()
+      await page.getByRole("button", { name: "Cancelar" }).last().click()
+      await expect(page.getByRole("heading", { name: dialogo })).toHaveCount(0)
+      await expect(atajos).toBeVisible()
+    }
+  })
 })
 
 test('Inicio de Paula (optómetra): un solo bloque Requiere tu atención', async ({ page }) => {

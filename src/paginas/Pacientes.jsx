@@ -171,7 +171,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -429,6 +429,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const [pacienteRecienCreado, setPacienteRecienCreado] = useState(null)
 
   const mostrarNotif = (texto) => {
+    if (overlaySolo) { onAviso?.(texto); return }
     setNotificacion(texto)
     setTimeout(() => setNotificacion(""), 3500)
   }
@@ -922,6 +923,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // pantalla — se apaga sola si se abre cualquier modal encima.
   const [filaActiva, setFilaActiva] = useState(-1)
   useEffect(() => { setFilaActiva(-1) }, [pacientesVisibles])
+  // Abierto sobre Inicio: cuando ya no queda ningún formulario abierto se avisa para desmontar esta vista oculta.
+  const abrioSobreInicio = useRef(false)
+  useEffect(() => {
+    if (!overlaySolo) return
+    const hayModal = modalAbierto || pacienteRecienCreado || pacienteHistorial || pacienteAEliminar || cuentaPaciente || agendarPara
+    if (hayModal) abrioSobreInicio.current = true
+    else if (abrioSobreInicio.current) onOverlayCerrado?.()
+  }, [modalAbierto, pacienteRecienCreado, pacienteHistorial, pacienteAEliminar, cuentaPaciente, agendarPara]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (overlaySolo) return
     const hayModalEncima = modalAbierto || pacienteHistorial || pacienteAEliminar || cuentaPaciente || agendarPara

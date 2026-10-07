@@ -43,6 +43,8 @@ const Pacientes = lazyConReintento(() => import("./Pacientes"), "Pacientes")
 const ConsultaMedica = lazyConReintento(() => import("./ConsultaMedica"), "ConsultaMedica")
 const Inventario = lazyConReintento(() => import("./Inventario"), "Inventario")
 const Ventas = lazyConReintento(() => import("./Ventas"), "Ventas")
+// Atajo "Registrar paciente" de Inicio: Pacientes abre su formulario de crear sin mostrar su lista.
+const ACCION_CREAR_PACIENTE = { accion: "crear" }
 const Citas = lazyConReintento(() => import("./Citas"), "Citas")
 const Horario = lazyConReintento(() => import("./Horario"), "Horario")
 const CRM = lazyConReintento(() => import("./CRM"), "CRM")
@@ -254,6 +256,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Destino pedido al módulo de Ventas: { tab: "cola" | "ventas" | "ordenes" | "saldos", filtro?, texto? }
   const [accionVentasInicio, setAccionVentasInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
+  // Atajos de Inicio (Registrar paciente, Agendar cita, Añadir producto): el formulario se abre encima del Inicio.
+  const [atajoInicio, setAtajoInicio] = useState(null)
   // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
   // Cita que el Inicio manda a atender: Citas abre su resumen y de ahí la ficha (el mismo flujo de "Atender" de Citas).
@@ -539,8 +543,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const rolUsuario = vistas.length > 1 && vista ? vista.nombre : esAsistente ? (vista?.nombre || "Asistente") : "Administrador"
   const inicialUsuario = nombreUsuario.charAt(0).toUpperCase()
 
-  const renderSeccion = () => {
-    switch (seccionActiva) {
+  // `extra` solo lo usan los atajos de Inicio: montan el formulario de Pacientes/Citas/Inventario encima del Inicio.
+  const renderSeccion = (seccion = seccionActiva, extra = {}) => {
+    switch (seccion) {
       case "pacientes":
         return (
           <Pacientes
@@ -577,6 +582,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             solicitudesEliminacion={solicitudesEliminacion}
             marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
             marcarMedidasAtendidas={marcarMedidasAtendidas}
+            {...extra}
           />
         )
       case "consultas":
@@ -660,6 +666,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             productoIdParaReabastecer={productoIdParaReabastecer}
             onProductoParaReabastecerConsumido={() => setProductoIdParaReabastecer(null)}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
+            onAviso={mostrarAviso}
+            {...extra}
           />
         )
       case "citas":
@@ -690,6 +698,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onAviso={mostrarAviso}
             onAtender={(paciente, citaId, motivo) => irAFichaClinica(paciente, { citaId, origen: "citas", motivo })}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
+            {...extra}
           />
         )
       case "horario":
@@ -750,18 +759,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
-            onAgendarRapido={() => {
-              setAbrirAgendarAlEntrar(true)
-              navegar("citas")
-            }}
-            onCrearPacienteRapido={() => {
-              setAccionPacienteInicio({ accion: "crear" })
-              navegar("pacientes")
-            }}
-            onCrearProductoRapido={() => {
-              setAbrirCrearProductoAlEntrar(true)
-              navegar("inventario")
-            }}
+            onAgendarRapido={() => setAtajoInicio("citas")}
+            onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
+            onCrearProductoRapido={() => setAtajoInicio("inventario")}
             onReabastecerProducto={(productoId) => {
               setProductoIdParaReabastecer(productoId)
               navegar("inventario")
@@ -1194,6 +1194,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           )}
           <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
             {renderSeccion()}
+            {seccionActiva === "inicio" && atajoInicio && renderSeccion(atajoInicio, {
+              overlaySolo: true,
+              onOverlayCerrado: () => setAtajoInicio(null),
+              ...(atajoInicio === "pacientes" ? { accionInicial: ACCION_CREAR_PACIENTE, onAccionInicialConsumida: () => {} } : { abrirModalAlEntrar: true, onModalAlEntrarConsumido: () => {} }),
+            })}
           </Suspense>
           {aviso && (
             <div role="status" className="fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold shadow-xl" style={{ color: INK, animation: "rise-in 240ms ease-out both" }}>

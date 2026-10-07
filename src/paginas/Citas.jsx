@@ -324,7 +324,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -354,6 +354,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // quedar "Pendiente" esperando que alguien la atienda después.
   const [atenderInmediato, setAtenderInmediato] = useState(false)
   const [mensajeExito, setMensajeExito] = useState(null)
+  // Con overlaySolo (formulario abierto sobre Inicio) el aviso sale como toast del panel: esta vista queda oculta.
+  const mostrarExito = (mensaje) => {
+    if (overlaySolo) { onAviso?.(mensaje); return }
+    setMensajeExito(mensaje)
+    setTimeout(() => setMensajeExito(null), 3000)
+  }
   const [error, setError] = useState("")
   const [bannerError, setBannerError] = useState("")
   const [marcandoEstadoId, setMarcandoEstadoId] = useState(null)
@@ -368,6 +374,14 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       onModalAlEntrarConsumido?.()
     }
   }, [abrirModalAlEntrar])
+
+  // Abierto sobre Inicio: al cerrarse el formulario se avisa para desmontar esta vista oculta.
+  const abrioSobreInicio = useRef(false)
+  useEffect(() => {
+    if (!overlaySolo) return
+    if (modalAbierto) abrioSobreInicio.current = true
+    else if (abrioSobreInicio.current) onOverlayCerrado?.()
+  }, [modalAbierto]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Desde una tarjeta del Inicio ("Atendidas", "No asistieron"...): abre la lista ya filtrada por ese estado.
   // estadoInicial es el estado ("atendida"...) o { estado, periodo }: con periodo "mes" la lista se acota a este mes
@@ -459,8 +473,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       if (errorAtendida) setBannerError("El cobro se registró, pero no se pudo marcar la cita como atendida.")
       else setCitas((prev) => prev.map((c) => (c.id === cita.id ? { ...c, estado: "Atendida" } : c)))
     }
-    setMensajeExito("Cobro registrado · cita atendida.")
-    setTimeout(() => setMensajeExito(null), 3000)
+    mostrarExito("Cobro registrado · cita atendida.")
   }
 
   // ── "Atender" sobre una cita sin paciente vinculado todavía (primera cita
@@ -660,8 +673,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     if (irADeUnaALaFicha) {
       onAtender?.(paciente, nuevaCita.id, nuevaCita.motivo)
     } else {
-      setMensajeExito("Cita registrada y guardada correctamente.")
-      setTimeout(() => setMensajeExito(null), 3000)
+      mostrarExito("Cita registrada y guardada correctamente.")
     }
   }
 
@@ -953,8 +965,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}), ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
       registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${fechaLegible(reagendando.fecha)}`)
       cerrarReagendar()
-      setMensajeExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
-      setTimeout(() => setMensajeExito(null), 3000)
+      mostrarExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
       return
     }
     if (!nuevaFecha || !nuevaHora) {
@@ -1338,7 +1349,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         : null
 
   return (
-    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
+    <div className={"w-full space-y-6 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3.5">
