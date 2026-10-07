@@ -10,12 +10,12 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // Lista de pacientes esperando a quien vende ("Listos para venta") o que no
 // compraron ("No compraron"). Cada tarjeta trae lo necesario para atender sin
 // abrir el perfil: la consulta, el diagnóstico y el lente recomendado.
-export default function ColaVentas({ modo = "listos", items, saldoDe, puedeActuar = true, reabriendoId, onTomarDatos, onNoCompro, onReabrir, onVerPerfil }) {
+export default function ColaVentas({ modo = "listos", busqueda = "", items, saldoDe, puedeActuar = true, reabriendoId, onTomarDatos, onNoCompro, onReabrir, onVerPerfil }) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-14 text-center">
         <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400"><ShoppingBag size={24} aria-hidden="true" /></div>
-        <p className="text-sm font-semibold text-slate-600">{modo === "listos" ? "No hay pacientes esperando para venta." : "Nadie ha dejado de comprar."}</p>
+        <p className="text-sm font-semibold text-slate-600">{busqueda ? "Ningún paciente coincide con la búsqueda." : modo === "listos" ? "No hay pacientes esperando para venta." : "Nadie ha dejado de comprar."}</p>
         <p className="max-w-sm text-xs text-slate-500">{modo === "listos" ? "Cuando el optómetra termine una atención y pulse \"Pasar a la óptica\", el paciente aparece aquí." : "Aquí quedan quienes consultaron y no compraron, con su motivo."}</p>
       </div>
     )

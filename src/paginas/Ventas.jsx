@@ -15,6 +15,7 @@ import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar } from "../ut
 import { saldosPorPaciente, totalPorCobrar, filtrarComprobantes } from "../utilidades/saldosVentas"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { numeroComprobante, LEYENDA_INTERNO } from "../utilidades/comprobantes"
+import { coincideTexto } from "../utilidades/busqueda"
 
 const GRAD = "linear-gradient(135deg,#34d399,#059669)" // verde de venta/dinero, como el modal de venta
 const POR_PAGINA = 40
@@ -38,6 +39,7 @@ export default function Ventas({
   const [verNoCompraron, setVerNoCompraron] = useState(false)
   const [filtroOrdenes, setFiltroOrdenes] = useState("abiertas")
   const [texto, setTexto] = useState("")
+  const [textoCola, setTextoCola] = useState("")
   const [estado, setEstado] = useState("todas")
   const [sinFE, setSinFE] = useState(false)
   const [visibles, setVisibles] = useState(POR_PAGINA)
@@ -134,9 +136,15 @@ export default function Ventas({
                     <UserX size={12} aria-hidden="true" /> No compraron ({v.colaDescartados.length})
                   </button>
                 </div>
+                <div className="relative">
+                  <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                  <input type="search" aria-label="Buscar paciente en la cola" placeholder="Buscar paciente por nombre o cédula…" value={textoCola} onChange={(e) => setTextoCola(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50" />
+                </div>
                 <ColaVentas
                   modo={verNoCompraron ? "descartados" : "listos"}
-                  items={verNoCompraron ? v.colaDescartados : v.colaListos}
+                  items={(verNoCompraron ? v.colaDescartados : v.colaListos).filter(({ paciente }) => coincideTexto(textoCola, paciente?.nombre, paciente?.cedula))}
+                  busqueda={textoCola}
                   puedeActuar={puedeVender}
                   saldoDe={v.saldoDe}
                   reabriendoId={v.reabriendoId}

@@ -53,4 +53,36 @@ describe("Ventas — módulo propio (Bloque E)", () => {
     render(<Ventas {...base} accionInicial={{ tab: "ordenes", filtro: "atrasadas" }} onAccionInicialConsumida={() => {}} />)
     expect(screen.getByRole("tab", { name: /Órdenes de laboratorio/i })).toHaveAttribute("aria-selected", "true")
   })
+
+  it("la cola de pacientes se puede buscar por nombre o cédula", () => {
+    const pases = [{ id: "ps1", pacienteId: "p1", consultaId: "c1", estado: "listo", pasadaEn: "2026-10-05T10:00:00Z" }, { id: "ps2", pacienteId: "p2", consultaId: "c2", estado: "listo", pasadaEn: "2026-10-05T10:00:00Z" }]
+    const consultas = [{ id: "c1", fecha: "2026-10-05", pacienteId: "p1" }, { id: "c2", fecha: "2026-10-05", pacienteId: "p2" }]
+    render(<Ventas {...base} pases={pases} consultas={consultas} />)
+    expect(screen.getByText("Ana Prueba")).toBeInTheDocument()
+    expect(screen.getByText("Luis Mora")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Buscar paciente en la cola"), { target: { value: "0202" } })
+    expect(screen.queryByText("Ana Prueba")).not.toBeInTheDocument()
+    expect(screen.getByText("Luis Mora")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Buscar paciente en la cola"), { target: { value: "zzz" } })
+    expect(screen.getByText(/Ningún paciente coincide con la búsqueda/i)).toBeInTheDocument()
+  })
+
+  it("las órdenes se filtran por Enviadas, Listas para entrega y Entregadas, y se buscan por paciente", () => {
+    const ordenes = [
+      { id: "o1", numero: 1, pacienteId: "p1", estado: "enviada", fechaPrometida: "2099-01-01", laboratorio: "Lab" },
+      { id: "o2", numero: 2, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", laboratorio: "Lab" },
+      { id: "o3", numero: 3, pacienteId: "p1", estado: "entregada", fechaPrometida: "2099-01-01", laboratorio: "Lab" },
+    ]
+    render(<Ventas {...base} ordenesLab={ordenes} accionInicial={{ tab: "ordenes", filtro: "todas" }} onAccionInicialConsumida={() => {}} />)
+    const filtro = (n) => screen.getByRole("button", { name: new RegExp(n) })
+    fireEvent.click(filtro("Enviadas al laboratorio"))
+    expect(screen.getByText("OL-0001")).toBeInTheDocument()
+    expect(screen.queryByText("OL-0002")).not.toBeInTheDocument()
+    fireEvent.click(filtro("Listas para entrega"))
+    expect(screen.getByText("OL-0002")).toBeInTheDocument()
+    fireEvent.click(filtro("Todas"))
+    fireEvent.change(screen.getByLabelText("Buscar orden de laboratorio"), { target: { value: "luis" } })
+    expect(screen.getByText("OL-0002")).toBeInTheDocument()
+    expect(screen.queryByText("OL-0001")).not.toBeInTheDocument()
+  })
 })
