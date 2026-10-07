@@ -18,7 +18,7 @@ describe("lineasProformaDeConsulta", () => {
     const l = lineasProformaDeConsulta({ motivo: "Consulta General", lenteRecomendado: "Monofocal antirreflejo" }, { costosMotivo: { "Consulta General": 15 } })
     expect(l).toEqual([
       { tipo: "servicio", descripcion: "Consulta — Consulta General", cantidad: 1, precioUnitario: 15 },
-      { tipo: "servicio", descripcion: "Luna: Monofocal antirreflejo", cantidad: 1, precioUnitario: 0 },
+      { tipo: "luna", productoId: null, descripcion: "Luna: Monofocal antirreflejo", cantidad: 1, precioUnitario: 0, detalle: null },
     ])
   })
   it("sin lente recomendado la luna queda en blanco para escribirla", () => {

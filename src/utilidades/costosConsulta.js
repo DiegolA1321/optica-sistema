@@ -1,3 +1,4 @@
+import { lineaLunaDeTexto } from "./comprobantes"
 // Costo base de la consulta por motivo (Ronda 4 del flujo de atención).
 // Vive en parametrizacion.costosMotivo ({ "Consulta General": 15, ... }), dentro
 // de opticas.settings (jsonb) — sin columna nueva. Un motivo sin costo
@@ -14,14 +15,14 @@ export function renombrarCostoMotivo(costos = {}, viejo, nuevo) {
   return { ...resto, [nuevo]: valor }
 }
 
-// Líneas con las que arranca el panel de cobro de una consulta: la consulta
-// (costo base del motivo, editable, puede ser 0) y el lente recomendado si
-// quedó vinculado a un producto de inventario (consultas.datos_clinicos
-// .lente_producto_id). Compartido por la ficha, Citas y el perfil, para que
-// cobrar "más tarde" no pierda el lente.
-export function lineasCobroConsulta({ motivo, lenteProductoId }, parametrizacion) {
+// Líneas con las que arranca el panel de venta de una consulta: la consulta
+// (costo base del motivo, editable, puede ser 0) y, si el optómetra recomendó un
+// lente, la luna como texto con precio por llenar (R57: las lunas no son productos
+// de inventario). Compartido por la ficha, Citas y el perfil, para que vender
+// "más tarde" no pierda el lente.
+export function lineasCobroConsulta({ motivo, lenteRecomendado }, parametrizacion) {
   return [
     { tipo: "servicio", descripcion: `Consulta${motivo ? ` — ${motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, motivo) },
-    ...(lenteProductoId ? [{ tipo: "producto", productoId: lenteProductoId, cantidad: 1 }] : []),
+    ...(String(lenteRecomendado ?? "").trim() ? [lineaLunaDeTexto(lenteRecomendado)] : []),
   ]
 }

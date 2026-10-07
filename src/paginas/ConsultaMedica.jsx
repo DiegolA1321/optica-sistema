@@ -44,7 +44,6 @@ import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
-import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
@@ -172,9 +171,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setMostrarDropdown(false)
       }
-      if (lenteDropdownRef.current && !lenteDropdownRef.current.contains(event.target)) {
-        setLenteMostrarDropdown(false)
-      }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
@@ -275,10 +271,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // aparte del panel de cobro (que se abre al guardar la ficha):
   // esto es específicamente "¿qué lente recomendó el optómetra?", no una
   // factura ya armada — la venta recién se decide después de guardar.
-  const [lenteRecomendadoProductoId, setLenteRecomendadoProductoId] = useState(null)
-  const [lenteBusquedaProducto, setLenteBusquedaProducto] = useState("")
-  const [lenteMostrarDropdown, setLenteMostrarDropdown] = useState(false)
-  const lenteDropdownRef = useRef(null)
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
   // Punto 2.1 (plan 29 sept.): arranca en false en CADA ficha nueva, incluso
@@ -383,13 +375,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     ;(onCerrar || onVolver)?.()
   }
 
-  const lenteProductosFiltrados = useMemo(() => {
-    const q = lenteBusquedaProducto.trim().toLowerCase()
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
-    if (!q) return disponibles
-    return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
-  }, [inventario, lenteBusquedaProducto])
-  const lenteProductoVinculado = useMemo(() => inventario.find((p) => p.id === lenteRecomendadoProductoId) || null, [inventario, lenteRecomendadoProductoId])
 
   // --- Imágenes adjuntas (opcional) — se suben a Storage recién al
   // confirmar guardado, no antes, para no dejar archivos huérfanos si el
@@ -781,7 +766,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // esas pantallas.
       diagnostico: [diagnosticoCategorias.join(", "), diagnostico.trim()].filter(Boolean).join(" — "),
       lenteRecomendado,
-      lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null,
       indicaciones,
       proximoControlDias,
       evolucionCalculada: tendenciaGraduacion,
@@ -830,7 +814,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, lente_producto_id: nuevaFicha.lenteProductoId },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -2038,67 +2022,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             className="w-full bg-transparent text-sm font-semibold outline-none focus-visible:underline"
                             style={{ color: INK }}
                           />
-
-                          {/* Vincular a un producto real de inventario — lo que
-                              permite después ofrecer "procesar la venta ahora"
-                              con el precio y el stock reales, en vez de un
-                              texto suelto sin nada detrás. Opcional: si el
-                              lente no está en bodega (ej. se manda a hacer),
-                              el texto de arriba alcanza para la receta. */}
-                          {!fichaGuardada && (
-                            <div className="no-print relative" ref={lenteDropdownRef}>
-                              {lenteProductoVinculado ? (
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 px-3 py-1.5">
-                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
-                                    <MiniaturaProducto url={lenteProductoVinculado.imagen_url} alt={lenteProductoVinculado.nombre} size={20} />
-                                    <CheckCircle size={12} /> Vinculado a inventario · {lenteProductoVinculado.stock} u. · ${Number(lenteProductoVinculado.precio).toFixed(2)}
-                                  </span>
-                                  <button type="button" onClick={() => { setLenteRecomendadoProductoId(null); setLenteBusquedaProducto("") }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">
-                                    Desvincular
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="relative">
-                                    <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                                    <input
-                                      type="text"
-                                      placeholder="Vincular a un producto de inventario (opcional, para venta rápida)…"
-                                      value={lenteBusquedaProducto}
-                                      onFocus={() => setLenteMostrarDropdown(true)}
-                                      onChange={(e) => { setLenteBusquedaProducto(e.target.value); setLenteMostrarDropdown(true) }}
-                                      className="w-full rounded-lg border border-amber-200/60 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
-                                    />
-                                  </div>
-                                  {lenteMostrarDropdown && lenteProductosFiltrados.length > 0 && (
-                                    <ul className="absolute z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
-                                      {lenteProductosFiltrados.map((p) => (
-                                        <li
-                                          key={p.id}
-                                          onClick={() => {
-                                            setLenteRecomendadoProductoId(p.id)
-                                            setLenteBusquedaProducto(p.nombre)
-                                            if (!lenteRecomendado.trim()) setLenteRecomendado(p.nombre)
-                                            setLenteMostrarDropdown(false)
-                                          }}
-                                          className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                                        >
-                                          <span className="flex min-w-0 items-center gap-2">
-                                            <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
-                                            <span className="truncate font-semibold">{p.nombre}</span>
-                                          </span>
-                                          <span className="shrink-0 font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                  {lenteMostrarDropdown && lenteBusquedaProducto && lenteProductosFiltrados.length === 0 && (
-                                    <p className="mt-1 text-[11px] text-slate-500">Ningún producto con stock coincide — puede seguir como descripción libre para la receta.</p>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          )}
+                          <p className="no-print text-[11px] text-slate-500">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
                         </div>
                       </div>
                     )}
@@ -2449,7 +2373,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           titulo={`Cobrar la atención de ${pacienteInfo.nombre}`}
           subtitulo={`Consulta${motivo ? ` · ${motivo}` : ""}`}
           etiquetaGuardar="Cobrar y finalizar"
-          lineasIniciales={lineasCobroConsulta({ motivo, lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null }, parametrizacion)}
+          lineasIniciales={lineasCobroConsulta({ motivo, lenteRecomendado: recomendarLente ? lenteRecomendado : "" }, parametrizacion)}
           consultaId={consultaGuardadaId}
           citaId={citaEnAtencionId}
           onGuardado={alCobrar}

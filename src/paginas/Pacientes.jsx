@@ -61,6 +61,7 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
+import { lineaLunaDeTexto } from "../utilidades/comprobantes"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
 import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
@@ -332,9 +333,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // (tabla `ventas`) se siguen mostrando y cobrando en cuotas como siempre.
   const [mostrarFactura, setMostrarFactura] = useState(false)
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
-  // Línea a precargar en ComprobanteVentaModal cuando se factura la receta
+  // Líneas a precargar en ComprobanteVentaModal cuando se vende la receta
   // directo desde el encabezado del perfil (undefined = abre vacía, como el
-  // botón manual "Nueva factura" de la pestaña Lentes/Productos).
+  // botón manual "Nueva venta" de la pestaña Productos y servicios).
   const [facturaLineaInicial, setFacturaLineaInicial] = useState(undefined)
 
   const registrarFactura = (factura) => {
@@ -810,23 +811,16 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     mostrarNotif(`Nueva venta lista para ${paciente.nombre}.`)
   }
 
-  // Facturar directo desde el encabezado del perfil, con la receta de la
-  // última consulta ya cargada — si esa consulta vinculó un lente real de
-  // inventario (consulta.productoId), ComprobanteVentaModal abre con esa línea
-  // puesta; si solo hay un nombre de lente en texto libre (sin vincular a
-  // bodega), abre igual pero sin línea precargada porque no hay producto
-  // real que agregar. Mismo patrón que ya usa ConsultaMedica.jsx al ofrecer
-  // la venta justo después de guardar una ficha.
+  // Vender directo desde el encabezado del perfil, con la receta de la última
+  // consulta ya cargada: si el optómetra recomendó un lente, la venta abre con la
+  // luna como texto (R57: las lunas no son productos de inventario) y el precio por
+  // llenar; la montura se elige del inventario. Mismo patrón que ConsultaMedica.jsx.
   const abrirFacturaConReceta = (consulta) => {
     setTabHistorial("pagos")
-    const productoReceta = consulta?.productoId || consulta?.lenteProductoId
-    setFacturaLineaInicial(productoReceta ? { productoId: productoReceta, cantidad: 1 } : undefined)
+    const lente = (consulta?.lenteRecomendado || "").trim()
+    setFacturaLineaInicial(lente ? [lineaLunaDeTexto(lente)] : undefined)
     setMostrarFactura(true)
-    mostrarNotif(
-      consulta?.productoId || consulta?.lenteProductoId
-        ? `Venta precargada con "${consulta.productoNombre || consulta.lenteRecomendado}".`
-        : `Abriendo la venta de ${pacienteHistorial?.nombre}.`,
-    )
+    mostrarNotif(lente ? `Venta precargada con "${lente}".` : `Abriendo la venta de ${pacienteHistorial?.nombre}.`)
   }
 
   // ── Agendar cita desde el perfil del paciente ──
@@ -2643,7 +2637,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           categorias={categoriasInventario}
           setCategorias={setCategoriasInventario}
           pacienteFijo={pacienteHistorial}
-          lineaInicial={facturaLineaInicial}
+          lineasIniciales={facturaLineaInicial}
           vinculoSugerido={(() => {
             const p = pases.find((x) => x.pacienteId === pacienteHistorial.id && x.estado === "listo")
             if (!p) return null
