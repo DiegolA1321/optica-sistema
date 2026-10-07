@@ -27,6 +27,7 @@ describe("Tarjeta flotante de la cita — acciones según el estado", () => {
     expect(screen.getByText("No Asistió")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Agendar otra cita/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /^Atender/ })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Editar cita/ })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Editar cita/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Cancelar cita/ })).not.toBeInTheDocument()
   })
 })

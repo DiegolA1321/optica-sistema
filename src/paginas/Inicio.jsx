@@ -250,10 +250,10 @@ export default function Inicio({
       ]}
     />
   )
-  const etiquetaPeriodo = periodo === "mes" ? "este mes" : "desde siempre"
+  const etiquetaPeriodo = periodo === "mes" ? "este mes" : "todas"
   const selectorPeriodo = (
     <div role="group" aria-label="Período del desenlace" className="flex rounded-lg border border-slate-200/60 bg-white p-0.5">
-      {[["mes", "Este mes"], ["siempre", "Desde siempre"]].map(([id, etiqueta]) => (
+      {[["mes", "Este mes"], ["siempre", "Todas"]].map(([id, etiqueta]) => (
         <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === id ? { background: INK } : undefined}>{etiqueta}</button>
       ))}
     </div>

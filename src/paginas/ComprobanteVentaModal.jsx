@@ -306,6 +306,8 @@ export default function ComprobanteVentaModal({
     e.preventDefault()
     if (!paciente) { setError("Selecciona el paciente de esta venta."); return }
     if (lineas.length === 0) { setError("Agrega al menos una línea antes de guardar."); return }
+    // Marcó "incluye lentes" pero no registró la luna: sin tipo ni material no hay orden de laboratorio que armar.
+    if (incluyeLentes && !hayLente) { setTipoLinea("luna"); setError("Registra la luna (tipo, material y filtros) para armar la orden de laboratorio, o desmarca \"Esta venta incluye lentes\" si es solo un servicio o una montura."); return }
     if (lineas.some((l) => l.precioTexto !== undefined && (l.precioTexto.trim() === "" || Number.isNaN(parseFloat(l.precioTexto)) || parseFloat(l.precioTexto) < 0))) {
       setError("Revisa los precios: cada uno debe ser un número de 0 en adelante."); return
     }
@@ -751,8 +753,8 @@ export default function ComprobanteVentaModal({
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3 text-sm text-slate-700">
-                  <input type="checkbox" checked={incluyeLentes} onChange={(e) => setCrearOrden(e.target.checked)} className="mt-0.5 accent-blue-600" />
-                  <span><span className="font-semibold">Esta venta incluye lentes</span><br /><span className="text-xs text-slate-500">Al guardarla se abre la orden de laboratorio, con la receta ya cargada.</span></span>
+                  <input type="checkbox" checked={incluyeLentes} onChange={(e) => { setCrearOrden(e.target.checked); if (e.target.checked && !hayLente) setTipoLinea("luna") }} className="mt-0.5 accent-blue-600" />
+                  <span><span className="font-semibold">Esta venta incluye lentes</span><br /><span className="text-xs text-slate-500">Al guardarla se abre la orden de laboratorio, con la receta ya cargada. Si es solo un servicio (por ejemplo una extracción de cuerpo extraño) déjalo sin marcar.</span>{incluyeLentes && !hayLente && <span className="mt-1 block text-xs font-semibold text-amber-700">Falta registrar la luna: elige «Luna» arriba y agrega su tipo, material y filtros.</span>}</span>
                 </label>
 
                 <div>

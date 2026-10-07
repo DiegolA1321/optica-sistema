@@ -89,16 +89,16 @@ describe("Inicio por rol", () => {
 
   it("el desenlace cambia de período con el selector y lo dice en el título", () => {
     render(<Inicio {...base} />)
-    fireEvent.click(screen.getByRole("button", { name: "Desde siempre" }))
-    expect(screen.getByRole("region", { name: "Desenlace de las citas · desde siempre" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Desde siempre" })).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(screen.getByRole("button", { name: "Todas" }))
+    expect(screen.getByRole("region", { name: "Desenlace de las citas · todas" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Todas" })).toHaveAttribute("aria-pressed", "true")
   })
 
   it("cada tarjeta del desenlace manda su estado y su período a Citas", () => {
     const llamadas = []
     render(<Inicio {...base} onVerCitas={(...a) => llamadas.push(a)} />)
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ }))
-    fireEvent.click(screen.getByRole("button", { name: "Desde siempre" }))
+    fireEvent.click(screen.getByRole("button", { name: "Todas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
     expect(llamadas).toEqual([["atendida", "mes"], ["cancelada", "siempre"]])
   })

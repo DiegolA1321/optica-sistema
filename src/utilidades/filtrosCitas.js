@@ -42,10 +42,9 @@ export function esPrimeraVez(cita, consultas = []) {
 export const puedeCancelarCita = (cita) => ["Pendiente", "En Espera"].includes(cita.estado)
 
 // Qué acciones ofrece cada estado. Atender solo tiene sentido en lo que sigue abierto; una cita ya atendida o
-// cancelada no se edita; una que no asistió muestra su estado y ofrece agendar otra (corregir el estado, por
-// ejemplo si llegó tarde, sigue siendo posible con "Editar cita").
+// cancelada no se edita; una que no asistió solo muestra su estado y ofrece agendar otra.
 export const puedeAtenderCita = (cita) => ["Pendiente", "En Espera", "En Atención"].includes(cita.estado)
-export const puedeEditarCita = (cita) => cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+export const puedeEditarCita = (cita) => !["Atendida", "Cancelada", "No Asistió"].includes(cita.estado)
 export const puedeAgendarOtraCita = (cita) => cita.estado === "No Asistió"
 
 export function coincideEstado(cita, estado) {
