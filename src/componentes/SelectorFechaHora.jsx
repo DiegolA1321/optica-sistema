@@ -13,11 +13,13 @@ const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "
 
 // Calendario + horarios reutilizable: solo deja elegir fechas con cupo real
 // (según el horario del optómetra) y horas que aún no están ocupadas.
-export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2 }) {
+// mesInicial (ISO): mes que se muestra mientras todavía no hay fecha elegida (por ejemplo el de una fecha recomendada).
+export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2, mesInicial = "" }) {
   const hoy = hoyISO()
   const mesHoy = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-  const mesInicial = fecha ? new Date(Number(fecha.slice(0, 4)), Number(fecha.slice(5, 7)) - 1, 1) : mesHoy
-  const [mesVista, setMesVista] = useState(mesInicial)
+  const referencia = fecha || mesInicial
+  const mesArranque = referencia ? new Date(Number(referencia.slice(0, 4)), Number(referencia.slice(5, 7)) - 1, 1) : mesHoy
+  const [mesVista, setMesVista] = useState(mesArranque)
   const mesMax = new Date(mesHoy.getFullYear(), mesHoy.getMonth() + mesesAdelante, 1)
 
   const dias = useMemo(() => {

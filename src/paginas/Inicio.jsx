@@ -1,6 +1,6 @@
 "use client"
 
-import { fechaHoraLegible, fechaCorta } from "../utilidades/formatoFecha"
+import { fechaHoraLegible, fechaCorta, fechaLegible } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
   Users,
@@ -19,6 +19,8 @@ import {
   Ban,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
+import { controlesSinAgendar } from "../utilidades/controles"
+import { fechaAISO } from "../utilidades/disponibilidad"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
@@ -54,6 +56,7 @@ export default function Inicio({
   inventario = [],
   consultas = [],
   onAgendarRapido,
+  onAgendarControl,
   onCrearPacienteRapido,
   onCrearProductoRapido,
   onReabastecerProducto,
@@ -144,6 +147,9 @@ export default function Inicio({
 
     setCumpleaneros(obtenerCumpleaneros())
   }, [pacientes])
+
+  // Controles que el optómetra dejó "para agendar después" (o cuya cita se canceló) y siguen sin cita.
+  const sinAgendar = useMemo(() => controlesSinAgendar(pacientes, consultas, citas), [pacientes, consultas, citas])
 
   // Pacientes que no visitan hace tiempo (adherencia a controles visuales)
   const inactivos = useMemo(() => {
@@ -380,6 +386,7 @@ export default function Inicio({
   const incAtenciones = ["administrador", "optometra", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incOrdenes = ["administrador", "ventas"].includes(plantilla) || (plantilla === "general" && veVentas)
   const incControles = (["administrador", "optometra", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
+  const incControlesPorAgendar = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incStock = veInventario // quien puede ver el inventario ve el aviso; "Reabastecer" solo con inventario: editar
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
@@ -411,6 +418,23 @@ export default function Inicio({
     detalle: atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · "),
     acciones: [{ etiqueta: "Ver atrasadas", onClick: () => onVerOrdenes?.("atrasadas") }],
   })
+  if (incControlesPorAgendar) {
+    sinAgendar.slice(0, 3).forEach(({ paciente, fechaControl }) => filasAtencion.push({
+      id: "control-sin-agendar-" + paciente.id,
+      icono: Calendar,
+      titulo: `Control sin agendar: ${paciente.nombre}`,
+      detalle: `Control recomendado para el ${fechaLegible(fechaAISO(fechaControl))}, todavía sin cita`,
+      acciones: [
+        ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Agendar", principal: true, onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl)) }] : []),
+        { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(paciente.id) },
+      ],
+    }))
+    if (sinAgendar.length > 3) filasAtencion.push({
+      id: "controles-sin-agendar-mas", icono: Calendar,
+      titulo: `Y ${plural(sinAgendar.length - 3, "control sin agendar más", "controles sin agendar más")}`,
+      acciones: [{ etiqueta: "Ver pacientes", onClick: () => onVerPacientes ? onVerPacientes({ rapido: "ControlSinAgendar" }) : setVista?.("pacientes") }],
+    })
+  }
   if (incControles && hayInactivos) filasAtencion.push({
     id: "controles", icono: Clock,
     titulo: plural(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),

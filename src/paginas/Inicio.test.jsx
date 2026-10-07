@@ -37,6 +37,27 @@ describe("Inicio por rol", () => {
     expect(screen.queryByText(/alertas? de stock bajo/i)).not.toBeInTheDocument()
   })
 
+  it("administrador y recepción: aviso de \"Control sin agendar\" con su botón Agendar; la cita del control lo quita", () => {
+    const consultas = [{ id: "k1", pacienteId: "p1", paciente: "Paciente Uno", fecha: hoy, motivo: "Control", proximoControlDias: 30, controlAgenda: "despues" }]
+    const citasSinControl = base.citas.filter((c) => c.pacienteId !== "p1")
+    const agendados = []
+    const { unmount } = render(<Inicio {...base} consultas={consultas} citas={citasSinControl} onAgendarControl={(p, f) => agendados.push([p.id, f])} />)
+    const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(within(atencion).getByText("Control sin agendar: Paciente Uno")).toBeInTheDocument()
+    fireEvent.click(within(atencion).getByRole("button", { name: "Agendar" }))
+    expect(agendados).toHaveLength(1)
+    expect(agendados[0][0]).toBe("p1")
+    unmount()
+    // Recepción también lo ve
+    const { unmount: u2 } = render(<Inicio {...base} consultas={consultas} citas={citasSinControl} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], pacientes: ["ver"] } }} vista={vistaRol("recepcion")} />)
+    expect(screen.getByText("Control sin agendar: Paciente Uno")).toBeInTheDocument()
+    u2()
+    // Con una cita pendiente posterior a la ficha, el aviso desaparece
+    const futura = { id: "c9", fecha: "2099-01-01", hora: "09:00 AM", estado: "Pendiente", paciente: "Paciente Uno", pacienteId: "p1" }
+    render(<Inicio {...base} consultas={consultas} citas={[...citasSinControl, futura]} />)
+    expect(screen.queryByText(/Control sin agendar:/)).not.toBeInTheDocument()
+  })
+
   it("optómetra: solo lo de hoy y sus citas (sin las asignadas a otra persona), sin totales ni stock", () => {
     render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
     expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument()

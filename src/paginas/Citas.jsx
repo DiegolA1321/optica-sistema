@@ -39,6 +39,7 @@ import {
   LogOut,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
+import { diaHabilMasCercano } from "../utilidades/controles"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
 import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -324,7 +325,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -370,6 +371,13 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // exige dos clics extra ya no es rápida).
   useEffect(() => {
     if (abrirModalAlEntrar) {
+      if (controlParaAgendar) {
+        // Desde el aviso "Control sin agendar": paciente y motivo puestos, y la fecha recomendada (o el día hábil más cercano).
+        const paciente = pacientes.find((p) => p.id === controlParaAgendar.pacienteId)
+        if (paciente) seleccionarPaciente(paciente)
+        setFecha(diaHabilMasCercano(controlParaAgendar.fecha, disponibilidad, citas) || hoyISO())
+        setMotivo(motivosConsulta.find((m) => /control/i.test(m)) || "")
+      }
       setModalAbierto(true)
       onModalAlEntrarConsumido?.()
     }
@@ -1880,6 +1888,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                   hora={horaPersonalizada ? "" : hora}
                   onCambiarFecha={setFecha}
                   onCambiarHora={(h) => { setHora(h); setAtenderInmediato(false) }}
+                  mesesAdelante={14}
                 />
 
                 {/* Horario personalizado — para un paciente que llega fuera de

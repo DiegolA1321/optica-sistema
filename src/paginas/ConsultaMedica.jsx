@@ -39,7 +39,10 @@ import {
   ShoppingBag,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
-import { hoyISO } from "../utilidades/disponibilidad"
+import { hoyISO, isoAFechaLocal, diaTieneCupo } from "../utilidades/disponibilidad"
+import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
+import { MENSAJE_HORA_INVALIDA, esErrorHoraInvalida } from "../utilidades/erroresCitas"
+import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
@@ -97,7 +100,7 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
 // Misma escritura que el perfil: coma decimal ("+0,25 D").
 const textoVariacion = textoDioptrias
 
-export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
+export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
   const [subTab, setSubTab] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
@@ -244,6 +247,11 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // factura ya armada — la venta recién se decide después de guardar.
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
+  // Qué se hace con el control: ninguna opción viene marcada, el optómetra elige. "ahora" crea la cita al guardar la ficha
+  // (con la fecha y la hora que el paciente aceptó); "despues" no crea nada y deja el aviso "Control sin agendar".
+  const [controlModo, setControlModo] = useState("")
+  const [controlFecha, setControlFecha] = useState("")
+  const [controlHora, setControlHora] = useState("")
   // Punto 2.1 (plan 29 sept.): arranca en false en CADA ficha nueva, incluso
   // si el paciente ya está "De alta" — así, si vuelve a consulta y se guarda
   // sin marcarla, su estado_clinico vuelve a "Activo" (pedido explícito de
@@ -398,7 +406,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
-    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, tratamientoFinalizado, archivosImagenes,
+    recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, controlModo, controlFecha, controlHora, tratamientoFinalizado, archivosImagenes,
   ])
   // Cierre de pestaña/recarga — el aviso in-app (navegar a otra sección) lo
   // maneja Dashboard.jsx vía onCambiosSinGuardarChange, no acá.
@@ -657,6 +665,9 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     setLenteMostrarDropdown(false)
     setIndicaciones("")
     setProximoControlDias(180)
+    setControlModo("")
+    setControlFecha("")
+    setControlHora("")
     setTratamientoFinalizado(false)
     setIncluirMedidasReceta(true)
     setMostrarPanelCobro(false)
@@ -684,7 +695,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       const errs = validarPaso(paso)
       if (Object.keys(errs).length > 0) {
         setErrores(errs)
-        setBannerError(mensajeBanner(paso))
+        setBannerError(mensajeBanner(paso, errs))
         setSubTab(paso)
         return
       }
@@ -733,6 +744,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       lenteRecomendado,
       indicaciones,
       proximoControlDias,
+      controlAgenda: tratamientoFinalizado ? null : controlModo || null,
       evolucionCalculada: tendenciaGraduacion,
       estadoCorreccion,
       // Se llenan al cobrar (sincronizarProductoConsulta) si se vende un producto.
@@ -779,7 +791,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, control_agenda: nuevaFicha.controlAgenda },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -837,6 +849,47 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (nuevaFicha.id == null) nuevaFicha.id = Date.now()
 
     setHistorialConsultas([nuevaFicha, ...historialConsultas])
+
+    // "Agendar ahora": la cita del control se crea recién con la ficha guardada. Si no se pudo crear, la ficha ya está a salvo:
+    // el control queda como "sin agendar" (aviso en Inicio y en el perfil) y se le dice al optómetra.
+    if (controlModo === "ahora" && !tratamientoFinalizado && controlFecha && controlHora) {
+      const paciente = pacientesLista.find((p) => p.id === pacienteId)
+      const motivoControl = motivosConsulta.find((m) => /control/i.test(m)) || "Examen de Control"
+      const citaControl = {
+        pacienteId, paciente: nuevaFicha.paciente, cedula: paciente?.cedula, telefono: paciente?.telefono,
+        fecha: controlFecha, hora: controlHora, duracionMinutos: null, motivo: motivoControl, asignadoA: usuario?.id || null, atendidoPor: null,
+        iniciales: (nuevaFicha.paciente || "P").split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase() || "P",
+        estado: "Pendiente",
+      }
+      let errorControl = ""
+      if (supabase && usuario?.opticaId) {
+        const { data: citaGuardada, error: errorInsert } = await supabase
+          .from("citas")
+          .insert({
+            optica_id: usuario.opticaId,
+            paciente_id: typeof pacienteId === "string" ? pacienteId : null,
+            paciente: citaControl.paciente, cedula: citaControl.cedula, telefono: citaControl.telefono,
+            fecha: citaControl.fecha, hora: citaControl.hora, motivo: citaControl.motivo, estado: "Pendiente",
+            asignado_a: citaControl.asignadoA,
+          })
+          .select()
+          .single()
+        if (errorInsert) {
+          errorControl = errorInsert.code === "23505" ? "ese horario ya lo tomó otra persona" : esErrorHoraInvalida(errorInsert) ? MENSAJE_HORA_INVALIDA.toLowerCase().replace(/\.$/, "") : esErrorSinPermiso(errorInsert) ? "no tienes permiso para agendar citas" : "revisa tu conexión"
+        } else {
+          citaControl.id = citaGuardada.id
+          citaControl.creadoEn = citaGuardada.created_at
+        }
+      } else {
+        citaControl.id = Date.now()
+      }
+      if (errorControl) onAviso?.(`La ficha se guardó, pero no se pudo agendar el control (${errorControl}). Agéndalo desde el perfil del paciente.`)
+      else {
+        setCitas?.((prev) => [...prev, citaControl])
+        registrarLog(usuario, "citas", "Agendó el control desde la ficha clínica", `${citaControl.paciente} · ${fechaLegible(citaControl.fecha)}`)
+        onAviso?.(`Control agendado para el ${fechaLegible(citaControl.fecha)} a las ${citaControl.hora}.`)
+      }
+    }
 
     if (pacientesLista.length > 0 && setPacientes) {
       const pacientesActualizados = pacientesLista.map((p) => {
@@ -904,13 +957,19 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // en ese caso, así que el detalle deja de ser opcional (mismo criterio
       // que "Otros" en motivo de consulta, línea ~1056).
       if (diagnosticoCategorias.includes("Otro") && !diagnostico.trim()) errs.diagnosticoDetalle = "Describe el diagnóstico en el detalle — con \"Otro\" no puede quedar vacío."
+      // El control no se decide solo: hay que elegir si se agenda ahora (con fecha y hora) o después.
+      if (!tratamientoFinalizado) {
+        if (!controlModo) errs.control = "Elige si el próximo control se agenda ahora o después."
+        else if (controlModo === "ahora" && (!controlFecha || !controlHora)) errs.control = "Elige la fecha y la hora del control, o marca \"Agendar después\"."
+      }
     }
     return errs
   }
 
-  const mensajeBanner = (paso) => {
+  const mensajeBanner = (paso, errs = {}) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado y el motivo de la consulta (si es \"Otros\", descríbelo) antes de continuar."
     if (paso === "refraccion") return "Revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
+    if (paso === "diagnostico" && errs.control && !errs.diagnostico && !errs.diagnosticoDetalle) return errs.control
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) antes de guardar la ficha."
     return "Hay campos por completar."
   }
@@ -943,7 +1002,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
         const errs = validarPaso(paso)
         if (Object.keys(errs).length > 0) {
           setErrores(errs)
-          setBannerError(mensajeBanner(paso))
+          setBannerError(mensajeBanner(paso, errs))
           setSubTab(paso)
           return
         }
@@ -1068,6 +1127,16 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     return { fecha: ultimaConsultaPaciente.fecha, od, oi }
   }, [ultimaConsultaPaciente])
   const fechaCorta = (iso) => (iso ? fechaLegible(iso) : "")
+
+  // Fecha recomendada del control = día de la consulta + el plazo elegido. Si ese día no hay atención, se propone el día hábil más
+  // cercano, pero solo se propone: la fecha la elige el optómetra con el paciente.
+  const fechaControlRecomendada = useMemo(() => sumarDiasISO(fechaConsulta, proximoControlDias), [fechaConsulta, proximoControlDias])
+  const diaControlSugerido = useMemo(() => {
+    if (controlModo !== "ahora") return null
+    if (diaTieneCupo(fechaControlRecomendada, disponibilidad, citas)) return fechaControlRecomendada
+    return diaHabilMasCercano(fechaControlRecomendada, disponibilidad, citas)
+  }, [controlModo, fechaControlRecomendada, disponibilidad, citas])
+  const textoDia = (iso) => isoAFechaLocal(iso).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
   const fechaLarga = useMemo(() => {
     try {
@@ -2157,7 +2226,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                           id="proximoControl"
                           value={proximoControlDias}
                           disabled={fichaGuardada}
-                          onChange={(e) => setProximoControlDias(Number(e.target.value))}
+                          onChange={(e) => { setProximoControlDias(Number(e.target.value)); setControlFecha(""); setControlHora("") }}
                           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
                         >
                           <option value={30}>1 mes</option>
@@ -2167,6 +2236,55 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                         </select>
                       )}
                     </div>
+
+                    {!tratamientoFinalizado && (
+                      <fieldset disabled={fichaGuardada} className="no-print mt-3 rounded-xl border border-slate-200/60 bg-white p-4">
+                        <legend className="px-1 text-sm font-bold" style={{ color: INK }}>¿Cuándo se agenda ese control?</legend>
+                        <p className="mb-3 text-xs text-slate-500">El paciente tiene que aceptar la fecha y la hora, así que la cita solo se crea si eliges "Agendar ahora" y al guardar la ficha.</p>
+                        <div role="radiogroup" aria-label="Cuándo se agenda el control" className="grid gap-2 sm:grid-cols-2">
+                          {[
+                            ["ahora", "Agendar ahora", "Elige fecha y hora con los horarios libres."],
+                            ["despues", "Agendar después", "No se crea la cita: queda como aviso para Recepción y el administrador."],
+                          ].map(([valor, titulo, ayuda]) => (
+                            <label key={valor} className={"flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors " + (controlModo === valor ? "border-blue-300 bg-blue-50/50" : "border-slate-200/60 bg-slate-50 hover:border-blue-200") + (fichaGuardada ? " cursor-not-allowed opacity-70" : "")}>
+                              <input type="radio" name="control-agenda" value={valor} checked={controlModo === valor} onChange={() => { setControlModo(valor); limpiarError("control") }} className="mt-0.5 h-4 w-4 accent-blue-600" />
+                              <span className="min-w-0 text-sm">
+                                <span className="block font-semibold text-slate-700">{titulo}</span>
+                                <span className="block text-xs leading-relaxed text-slate-500">{ayuda}</span>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {controlModo === "ahora" && (
+                          <div className="mt-3 space-y-3">
+                            {diaControlSugerido ? (
+                              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                <span>
+                                  Fecha recomendada: <span className="font-semibold">{textoDia(fechaControlRecomendada)}</span>
+                                  {diaControlSugerido !== fechaControlRecomendada && <> · ese día no hay atención; el día hábil más cercano es el <span className="font-semibold">{textoDia(diaControlSugerido)}</span></>}
+                                </span>
+                                <button type="button" onClick={() => { setControlFecha(diaControlSugerido); setControlHora("") }} className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
+                                  Elegir {diaControlSugerido === fechaControlRecomendada ? "esa fecha" : "ese día"}
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">No hay un día con cupo cerca de la fecha recomendada ({textoDia(fechaControlRecomendada)}). Elige otro en el calendario.</p>
+                            )}
+                            <SelectorFechaHora
+                              disponibilidad={disponibilidad}
+                              citas={citas}
+                              fecha={controlFecha}
+                              hora={controlHora}
+                              onCambiarFecha={(f) => { setControlFecha(f); limpiarError("control") }}
+                              onCambiarHora={(h) => { setControlHora(h); limpiarError("control") }}
+                              mesesAdelante={14}
+                              mesInicial={diaControlSugerido || fechaControlRecomendada}
+                            />
+                          </div>
+                        )}
+                        {errores.control && <p role="alert" className="mt-3 text-sm font-semibold text-red-600">{errores.control}</p>}
+                      </fieldset>
+                    )}
                   </div>
 
                   {/* Pie: validez + firma */}

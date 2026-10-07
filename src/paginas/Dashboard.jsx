@@ -258,6 +258,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Atajos de Inicio (Registrar paciente, Agendar cita, Añadir producto): el formulario se abre encima del Inicio.
   const [atajoInicio, setAtajoInicio] = useState(null)
+  // Control a agendar desde el aviso de Inicio: { pacienteId, fecha } (la fecha recomendada del control).
+  const [controlParaAgendar, setControlParaAgendar] = useState(null)
   // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
   // Cita que el Inicio manda a atender: Citas abre su resumen y de ahí la ficha (el mismo flujo de "Atender" de Citas).
@@ -589,6 +591,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <ConsultaMedica
             usuario={usuario}
+            disponibilidad={disponibilidad}
             pacientes={pacientes}
             setPacientes={setPacientes}
             consultas={consultas}
@@ -759,7 +762,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
-            onAgendarRapido={() => setAtajoInicio("citas")}
+            onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
+            onAgendarControl={(paciente, fecha) => { setControlParaAgendar({ pacienteId: paciente.id, fecha }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
             onCrearProductoRapido={() => setAtajoInicio("inventario")}
             onReabastecerProducto={(productoId) => {
@@ -1196,7 +1200,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             {renderSeccion()}
             {seccionActiva === "inicio" && atajoInicio && renderSeccion(atajoInicio, {
               overlaySolo: true,
-              onOverlayCerrado: () => setAtajoInicio(null),
+              onOverlayCerrado: () => { setAtajoInicio(null); setControlParaAgendar(null) },
+              ...(atajoInicio === "citas" && controlParaAgendar ? { controlParaAgendar } : {}),
               ...(atajoInicio === "pacientes" ? { accionInicial: ACCION_CREAR_PACIENTE, onAccionInicialConsumida: () => {} } : { abrirModalAlEntrar: true, onModalAlEntrarConsumido: () => {} }),
             })}
           </Suspense>

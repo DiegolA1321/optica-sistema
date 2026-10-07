@@ -41,6 +41,35 @@ function avanzarHastaRefraccion() {
 }
 
 describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta", () => {
+  // El próximo control no se decide solo: ninguna opción viene marcada y no se puede terminar la atención sin elegir.
+  it("el control no viene marcado y obliga a elegir entre agendar ahora o después", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
+    expect(screen.getByRole("radio", { name: /Agendar ahora/i })).not.toBeChecked()
+    expect(screen.getByRole("radio", { name: /Agendar después/i })).not.toBeChecked()
+    fireEvent.click(screen.getByRole("button", { name: /Terminar atención/i }))
+    expect(screen.getAllByText(/Elige si el próximo control se agenda ahora o después/i).length).toBeGreaterThan(0)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    // "Agendar ahora" sin fecha y hora tampoco deja terminar
+    fireEvent.click(screen.getByRole("radio", { name: /Agendar ahora/i }))
+    fireEvent.click(screen.getByRole("button", { name: /Terminar atención/i }))
+    expect(screen.getAllByText(/Elige la fecha y la hora del control/i).length).toBeGreaterThan(0)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("un tratamiento finalizado no pide agendar ningún control", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
+    fireEvent.click(screen.getByLabelText(/Tratamiento finalizado/i))
+    expect(screen.queryByRole("radio", { name: /Agendar ahora/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /Terminar atención/i }))
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+  })
+
   // Regresión del bug reportado por el ing (29-sept, docs/feedback-ing/bug-diagnostico-receta.md):
   // "Siguiente" y "Terminar atención" compartían el mismo slot de JSX sin
   // key propia. React reutilizaba el mismo nodo <button> al cambiar de paso y
@@ -166,6 +195,7 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
     avanzarHastaRefraccion()
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
     fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
+    fireEvent.click(screen.getByRole("radio", { name: /Agendar después/i }))
     fireEvent.click(screen.getByRole("button", { name: /Terminar atención/i }))
     // Confirmación previa: "Terminar atención" también es el botón del modal
     const modal = screen.getByRole("dialog")

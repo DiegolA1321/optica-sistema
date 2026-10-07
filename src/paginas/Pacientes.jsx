@@ -84,7 +84,8 @@ import ModalesVentas from "../componentes/ModalesVentas"
 import { useVentas } from "../utilidades/useVentas"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
-import { hoyISO } from "../utilidades/disponibilidad"
+import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
+import { controlesSinAgendar, diaHabilMasCercano } from "../utilidades/controles"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
@@ -753,11 +754,12 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   }
 
   // ── Agendar cita desde el perfil del paciente ──
-  const abrirAgendar = (paciente) => {
+  // `fechaSugerida` (opcional): la del control recomendado; se abre en el día hábil más cercano, y la hora la elige quien agenda.
+  const abrirAgendar = (paciente, fechaSugerida = "") => {
     setAgendarPara(paciente)
-    setAgendarFecha("")
+    setAgendarFecha(fechaSugerida ? diaHabilMasCercano(fechaSugerida, disponibilidad, citas) || "" : "")
     setAgendarHora("")
-    setAgendarMotivo("")
+    setAgendarMotivo(fechaSugerida ? motivosConsulta.find((m) => /control/i.test(m)) || "" : "")
     setErrorAgendar("")
     setConfirmandoCita(false)
   }
@@ -830,6 +832,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Pacientes listos para venta (pase "listo", sin vender ni descartar): se marcan en la lista con un enlace a la cola de Ventas.
   // Consultaron y no compraron (N4): su último pase quedó en "No compró", con el motivo.
   const noCompraron = useMemo(() => pacientesQueNoCompraron(pases, facturasVenta), [pases, facturasVenta])
+  // Control que se dejó "para agendar después" (o cuya cita se canceló) y sigue sin cita.
+  const sinAgendarPorPaciente = useMemo(() => new Map(controlesSinAgendar(pacientes, consultas, citas).map((x) => [x.paciente.id, x])), [pacientes, consultas, citas])
   const idsListosParaVenta = useMemo(() => new Set(pases.filter((p) => p.estado === "listo" && p.pacienteId).map((p) => p.pacienteId)), [pases])
   const puedeVerVentas = puede(usuario, "ventas", "ver")
   const tendenciaPorPaciente = useMemo(() => {
@@ -870,10 +874,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         filtroRapido === "Todos" ||
         (filtroRapido === "Recientes" && (() => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS })()) ||
         (filtroRapido === "PagosPendientes" && idsConDeuda.has(p.id)) ||
-        (filtroRapido === "NoCompraron" && noCompraron.has(p.id))
+        (filtroRapido === "NoCompraron" && noCompraron.has(p.id)) ||
+        (filtroRapido === "ControlSinAgendar" && sinAgendarPorPaciente.has(p.id))
       return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha && coincideRapido
     })
-  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido, consultas, idsConDeuda, noCompraron])
+  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido, consultas, idsConDeuda, noCompraron, sinAgendarPorPaciente])
 
   // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
   // usa CRM.jsx en su modal de detalle, para no inventar uno nuevo. Solo la
@@ -1003,6 +1008,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     { key: "RecetasActivas", label: "Recetas activas" },
     { key: "PagosPendientes", label: "Pagos pendientes" },
     { key: "NoCompraron", label: `Consultaron y no compraron (${noCompraron.size})` },
+    { key: "ControlSinAgendar", label: `Control sin agendar (${sinAgendarPorPaciente.size})` },
   ]
   const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
   const activarBadgeRapido = (key) => {
@@ -1336,6 +1342,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                   <ShoppingCart size={11} /> Listo para venta
                                 </span>
                               ))}
+                              {sinAgendarPorPaciente.has(paciente.id) && (
+                                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700" title="Su control recomendado todavía no tiene cita">
+                                  <Calendar size={11} /> Control sin agendar
+                                </span>
+                              )}
                               {noCompraron.has(paciente.id) && (
                                 <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" title="Consultó y no compró">
                                   <UserX size={11} /> No compró: {noCompraron.get(paciente.id).motivo}
@@ -2025,6 +2036,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
               // Sin cita pendiente: basta una etiqueta pequeña arriba; el botón Agendar cita de la cabecera ya está a la vista.
               const sinCitaPendiente = !citasPaciente.some((c) => ESTADOS_PENDIENTES.includes(c.estado))
+              const controlPorAgendar = sinAgendarPorPaciente.get(pacienteHistorial.id)
 
               return (
                 <>
@@ -2135,7 +2147,12 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
                       ))}
-                      {sinCitaPendiente && (
+                      {controlPorAgendar && (
+                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial, fechaAISO(controlPorAgendar.fechaControl))} title="Agendar su control recomendado" className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
+                          <CalendarPlus size={13} aria-hidden="true" /> Control sin agendar · Agendar
+                        </button>
+                      )}
+                      {sinCitaPendiente && !controlPorAgendar && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
                           <Calendar size={13} aria-hidden="true" /> Sin cita
                         </span>
@@ -2556,6 +2573,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   hora={agendarHora}
                   onCambiarFecha={setAgendarFecha}
                   onCambiarHora={setAgendarHora}
+                  mesesAdelante={14}
                 />
               </div>
 
