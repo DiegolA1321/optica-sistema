@@ -240,7 +240,7 @@ function mapFacturaVenta(f) {
     numero: f.numero ?? null, facturaElectronica: f.factura_electronica || "",
     // facturas_venta_lineas llega embebida por el select de abajo (join por
     // factura_id) — sin esto, `lineas` solo existía para una factura recién
-    // creada en la misma sesión (FacturaVentaModal arma el objeto local con
+    // creada en la misma sesión (ComprobanteVentaModal arma el objeto local con
     // sus líneas al guardar) y desaparecía en cualquier recarga de página,
     // porque este mapper nunca la incluía.
     lineas: (f.facturas_venta_lineas || []).map((l) => ({

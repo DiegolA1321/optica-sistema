@@ -28,7 +28,7 @@ import { registrarLog } from "../utilidades/logs"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -854,7 +854,7 @@ export default function Inventario({
 
       {/* ─── MODAL VENDER PRODUCTO ─── */}
       {vendiendo && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           pacientes={pacientes}
           inventario={productos}

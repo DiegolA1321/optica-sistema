@@ -57,7 +57,7 @@ import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "..
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -1924,7 +1924,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         const consulta = pendientesPorCita.get(cobrandoCita.id)
         if (!paciente || !consulta) return null
         return (
-          <FacturaVentaModal
+          <ComprobanteVentaModal
             usuario={usuario}
             inventario={inventario}
             setInventario={setInventario}

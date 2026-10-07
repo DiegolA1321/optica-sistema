@@ -43,7 +43,7 @@ import { hoyISO } from "../utilidades/disponibilidad"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
@@ -298,7 +298,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // Antes la ficha mezclaba tres lugares para el dinero (campo "Costo de la
   // consulta", editor "Factura de esta consulta" y el modal "lente sugerido").
   // Ahora la ficha solo captura lo clínico; al guardarla aparece UN panel de
-  // cobro (FacturaVentaModal, el mismo del perfil del paciente) ya relleno
+  // cobro (ComprobanteVentaModal, el mismo del perfil del paciente) ya relleno
   // con la consulta (costo base del motivo, editable, puede ser 0) y el lente
   // recomendado si está vinculado a inventario.
   const [consultaGuardadaId, setConsultaGuardadaId] = useState(null)
@@ -2441,7 +2441,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
       {/* ─── PANEL DE COBRO (Ronda 4): aparece al guardar la ficha ─── */}
       {mostrarPanelCobro && pacienteInfo && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}

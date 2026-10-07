@@ -35,7 +35,7 @@ const VIOLETA = "#7c3aed" // tipo "servicio"
 // retiró junto con "Vender" de Inventario).
 // Un servicio (examen, ajuste, garantía) no tiene producto_id y no
 // descuenta inventario — ver crear_factura_venta (migración 0072).
-export default function FacturaVentaModal({
+export default function ComprobanteVentaModal({
   usuario,
   inventario = [],
   setInventario,

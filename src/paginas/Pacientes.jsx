@@ -58,7 +58,7 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
@@ -332,7 +332,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // (tabla `ventas`) se siguen mostrando y cobrando en cuotas como siempre.
   const [mostrarFactura, setMostrarFactura] = useState(false)
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
-  // Línea a precargar en FacturaVentaModal cuando se factura la receta
+  // Línea a precargar en ComprobanteVentaModal cuando se factura la receta
   // directo desde el encabezado del perfil (undefined = abre vacía, como el
   // botón manual "Nueva factura" de la pestaña Lentes/Productos).
   const [facturaLineaInicial, setFacturaLineaInicial] = useState(undefined)
@@ -812,7 +812,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
   // Facturar directo desde el encabezado del perfil, con la receta de la
   // última consulta ya cargada — si esa consulta vinculó un lente real de
-  // inventario (consulta.productoId), FacturaVentaModal abre con esa línea
+  // inventario (consulta.productoId), ComprobanteVentaModal abre con esa línea
   // puesta; si solo hay un nombre de lente en texto libre (sin vincular a
   // bodega), abre igual pero sin línea precargada porque no hay producto
   // real que agregar. Mismo patrón que ya usa ConsultaMedica.jsx al ofrecer
@@ -1996,7 +1996,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   {/* Flujo consulta→venta sin fricción: solo aparece cuando la
                       última consulta dejó un lente recomendado, para no
                       ofrecer facturar algo que todavía no existe. Un clic
-                      abre FacturaVentaModal con esa receta ya cargada (ver
+                      abre ComprobanteVentaModal con esa receta ya cargada (ver
                       abrirFacturaConReceta) en vez de mandar a buscar el
                       mismo producto de nuevo en la pestaña Lentes/Productos. */}
                   {ultimaConsultaPerfil?.lenteRecomendado && (
@@ -2557,7 +2557,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       )}
 
       {cobrandoPendiente && pacienteHistorial && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}
@@ -2577,7 +2577,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
       {/* ─── VENTA DESDE LA COLA: datos del diagnóstico, proforma y venta vinculada a su consulta ─── */}
       {ventaCola && ventaCola.paciente && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}
@@ -2636,7 +2636,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
       {/* ─── PANEL DE COBRO / NUEVA VENTA (desde el perfil del paciente) ─── */}
       {mostrarFactura && pacienteHistorial && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}

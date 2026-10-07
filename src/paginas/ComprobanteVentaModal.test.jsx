@@ -1,15 +1,15 @@
 import React from "react"
 import { describe, it, expect } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 
 const PACIENTES = [{ id: "p1", nombre: "Ana Prueba", cedula: "0101010101" }]
 const PRODUCTO = { id: "x1", nombre: "Armazón Test", stock: 3, precio: 40 }
 
-describe("FacturaVentaModal — panel de cobro único", () => {
+describe("ComprobanteVentaModal — panel de cobro único", () => {
   it("sin paciente fijo pide elegir uno, y la línea precargada del producto aparece", () => {
     render(
-      <FacturaVentaModal
+      <ComprobanteVentaModal
         usuario={{}}
         inventario={[PRODUCTO]}
         pacientes={PACIENTES}
@@ -29,7 +29,7 @@ describe("FacturaVentaModal — panel de cobro único", () => {
 
   it("con 'Más tarde' el botón secundario cambia y el precio del servicio es editable", () => {
     render(
-      <FacturaVentaModal
+      <ComprobanteVentaModal
         usuario={{}}
         pacienteFijo={PACIENTES[0]}
         lineasIniciales={[{ tipo: "servicio", descripcion: "Consulta", cantidad: 1, precioUnitario: 15 }]}
