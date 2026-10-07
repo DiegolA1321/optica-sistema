@@ -421,7 +421,8 @@ export default function Inicio({
   const bRequiere = <RequiereAtencion filas={filasAtencion} />
 
   const segmentosDia = []
-  if (["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)) segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"), `${enAtencionAhora.length} en atención ahora`)
+  if (plantilla === "administrador") segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"), `${enAtencionAhora.length} en atención ahora`)
+  else if (plantilla === "recepcion" || (plantilla === "general" && veCitas)) segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"))
   else if (plantilla === "optometra") segmentosDia.push(plural(hoyVista.total, "cita tuya hoy", "citas tuyas hoy"), ...(sinTerminar.length > 0 ? [plural(sinTerminar.length, "ficha sin terminar", "fichas sin terminar")] : []))
   else if (plantilla === "ventas" || (plantilla === "general" && veVentas)) segmentosDia.push(plural(listos.length, "paciente espera su venta", "pacientes esperan su venta"))
   const bResumenDia = (
@@ -544,7 +545,7 @@ export default function Inicio({
           {filaHoyRecepcion}
           {atajosRecepcion}
           {bRequiere}
-          {bHoy(true, true)}
+          {bHoy(false, true)}
         </>
       )}
 
@@ -561,7 +562,7 @@ export default function Inicio({
           {veCitas && filaHoyRecepcion}
           {veVentas && filaVender}
           {bRequiere}
-          {veCitas && bHoy(true, true)}
+          {veCitas && bHoy(false, true)}
           {veVentas && bColaVender}
           {!veCitas && !veVentas && !veInventario && !veCrm && (
             <EstadoVacio icon={Users} texto="Tu rol no tiene un resumen propio: usa el menú para entrar a tus módulos." />
