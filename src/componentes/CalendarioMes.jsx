@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Plus, CalendarClock, CalendarDays, X } from "lucide-react"
-import { fechaAISO, isoAFechaLocal, hoyISO, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
+import { fechaAISO, isoAFechaLocal, hoyISO, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible } from "./calendarioComun"
@@ -81,7 +81,7 @@ function ListaDelDia({ iso, citas, ancla, onCerrar, onElegir, onVerSemana }) {
                 className="flex w-full items-center gap-2 rounded-lg border-l-4 px-2.5 py-1.5 text-left transition-shadow hover:shadow-md cursor-pointer"
                 style={{ backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto }}
               >
-                <span className="shrink-0 text-xs font-bold tabular-nums">{minutosAHHMM(minutosDesdeMedianoche(c.hora))}</span>
+                <span className="shrink-0 text-xs font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold">{c.paciente}</span>
                   <span className="block truncate text-[11px] opacity-80">{[color.etiqueta, c.motivo].filter(Boolean).join(" · ")}</span>
@@ -234,7 +234,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                           className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-[10.5px] leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (abierta?.id === c.id ? "ring-2 ring-blue-300 " : esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
                           style={{ height: ALTO_ETIQUETA, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
                         >
-                          <span className="shrink-0 font-bold tabular-nums">{minutosAHHMM(minutosDesdeMedianoche(c.hora))}</span>
+                          <span className="shrink-0 font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
                           <span className="min-w-0 flex-1 truncate font-semibold">{c.paciente}</span>
                         </button>
                       )

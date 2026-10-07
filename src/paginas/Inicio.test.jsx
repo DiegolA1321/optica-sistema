@@ -1,6 +1,6 @@
 import React from "react"
 import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, fireEvent } from "@testing-library/react"
 import Inicio from "./Inicio"
 import { hoyISO } from "../utilidades/disponibilidad"
 
@@ -24,10 +24,13 @@ const base = {
 const vistaRol = (inicio) => ({ id: "r", nombre: "Rol", tipo: "rol", inicio, permisos: {}, alcance: {} })
 
 describe("Inicio por rol", () => {
-  it("administrador: totales y citas del mes con su título, y el stock bajo dicho como productos, una sola vez", () => {
+  it("administrador: totales y desenlace con su período en el título, y el stock bajo dicho como productos, una sola vez", () => {
     render(<Inicio {...base} />)
     expect(screen.getByRole("region", { name: "Totales" })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Citas de este mes" })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Desenlace de las citas · este mes" })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Requiere tu atención" })).toBeInTheDocument()
+    expect(screen.queryByText(/¡Bienvenido/)).not.toBeInTheDocument()
+    expect(screen.queryByText("Módulo clínico activo")).not.toBeInTheDocument()
     expect(screen.getByText("Pacientes registrados")).toBeInTheDocument()
     expect(screen.getByText("Pacientes sin atender")).toBeInTheDocument()
     expect(screen.getAllByText(/1 producto con stock bajo/i)).toHaveLength(1)
@@ -35,13 +38,16 @@ describe("Inicio por rol", () => {
   })
 
   it("optómetra: solo lo de hoy y sus citas (sin las asignadas a otra persona), sin totales ni stock", () => {
-    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente" }} vista={vistaRol("optometra")} />)
+    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
     expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Agenda de hoy" })).toBeInTheDocument()
     expect(screen.getByText("Mis citas de hoy")).toBeInTheDocument()
     expect(screen.getByText("Siguiente paciente")).toBeInTheDocument()
+    expect(screen.queryByText("En atención ahora")).not.toBeInTheDocument() // quien atiende está en la ficha: esa tarjeta es del administrador
+    expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
-    expect(screen.getByText(/Tienes 2 citas para hoy/)).toBeInTheDocument()
+    expect(screen.getByLabelText("Resumen del día")).toHaveTextContent(/2 citas tuyas hoy/)
   })
 
   it("recepción: el movimiento del día y atajos para agendar y registrar", () => {
@@ -53,14 +59,16 @@ describe("Inicio por rol", () => {
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
   })
 
-  it("ventas: lo que espera a quien vende, con la cola, las órdenes y los saldos por cobrar", () => {
+  it("ventas: lo que espera a quien vende, con la cola y las órdenes y el stock en un solo bloque de atención", () => {
     render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { ventas: ["ver", "crear"], inventario: ["ver"] } }} vista={vistaRol("ventas")} />)
     expect(screen.getByRole("region", { name: "Para vender" })).toBeInTheDocument()
     expect(screen.getByText("Listos para venta", { selector: "span" })).toBeInTheDocument()
     expect(screen.getByText("Saldos por cobrar")).toBeInTheDocument()
     expect(screen.getByText("$60.00")).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Pacientes por vender" })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Órdenes de laboratorio" })).toBeInTheDocument()
+    const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(atencion).toHaveTextContent(/1 orden atrasada/)
+    expect(screen.queryByRole("region", { name: "Órdenes de laboratorio" })).not.toBeInTheDocument()
     expect(screen.getByText("Paciente Uno", { selector: "span" })).toBeInTheDocument()
     expect(screen.getAllByText(/1 producto con stock bajo/i)).toHaveLength(1)
   })
@@ -70,5 +78,50 @@ describe("Inicio por rol", () => {
     expect(screen.getByRole("region", { name: "Para vender" })).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Hoy" })).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
+  })
+
+  it("sin nada pendiente: una línea \"Todo en orden\" en el bloque y en el resumen", () => {
+    render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} />)
+    const bloque = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(bloque).toHaveTextContent("Todo en orden")
+    expect(screen.getByLabelText("Resumen del día")).toHaveTextContent("Todo en orden")
+  })
+
+  it("el desenlace cambia de período con el selector y lo dice en el título", () => {
+    render(<Inicio {...base} />)
+    fireEvent.click(screen.getByRole("button", { name: "Desde siempre" }))
+    expect(screen.getByRole("region", { name: "Desenlace de las citas · desde siempre" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Desde siempre" })).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("cada tarjeta del desenlace manda su estado y su período a Citas", () => {
+    const llamadas = []
+    render(<Inicio {...base} onVerCitas={(...a) => llamadas.push(a)} />)
+    fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Desde siempre" }))
+    fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
+    expect(llamadas).toEqual([["atendida", "mes"], ["cancelada", "siempre"]])
+  })
+
+  it("optómetra: 'Siguiente paciente' trae Atender y las fichas sin terminar traen Retomar", () => {
+    const atender = []
+    const retomar = []
+    const citas = [
+      { id: "c1", fecha: hoy, hora: "09:00 AM", estado: "Pendiente", paciente: "Paciente Uno", pacienteId: "p1" },
+      { id: "c9", fecha: "2020-01-01", hora: "09:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" },
+    ]
+    render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} onAtenderEnCitas={(c) => atender.push(c.id)} onAtenderCita={(c) => retomar.push(c.id)} />)
+    fireEvent.click(screen.getByRole("button", { name: /^Atender/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Retomar/ }))
+    expect(atender).toEqual(["c1"])
+    expect(retomar).toEqual(["c9"])
+  })
+
+  it("quien solo puede mirar el inventario ve '1 producto con stock bajo' y 'Ver inventario', sin 'Reabastecer'", () => {
+    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], inventario: ["ver"] } }} vista={vistaRol("optometra")} />)
+    const bloque = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(bloque).toHaveTextContent(/1 producto con stock bajo/)
+    expect(screen.getByRole("button", { name: "Ver inventario" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
 })

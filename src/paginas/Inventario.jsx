@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -28,7 +29,7 @@ import { registrarLog } from "../utilidades/logs"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -409,8 +410,8 @@ export default function Inventario({
             <Package size={24} />
           </div>
           <div>
-            <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Control de inventario y bodega</h1>
-            <p className="text-sm text-slate-500">Gestión de existencias de armazones y accesorios ópticos.</p>
+            <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Monturas y accesorios</h1>
+            <p className="text-sm text-slate-500">Existencias de armazones y accesorios. Las lunas no se registran aquí: se escriben en la venta.</p>
           </div>
         </div>
 
@@ -669,8 +670,8 @@ export default function Inventario({
                   <Plus size={20} />
                 </div>
                 <div>
-                  <h2 id="inventario-modal-agregar-titulo" className="text-lg font-bold" style={{ color: INK }}>Ingresar producto</h2>
-                  <p className="text-xs text-slate-500">Agrega un producto nuevo a la bodega.</p>
+                  <h2 id="inventario-modal-agregar-titulo" className="text-lg font-bold" style={{ color: INK }}>Ingresar montura o accesorio</h2>
+                  <p className="text-xs text-slate-500">Descríbela de forma genérica. Las lunas no van en el inventario: se escriben al vender.</p>
                 </div>
               </div>
               <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -685,8 +686,8 @@ export default function Inventario({
                   <CampoCategoria valor={categoria} onChange={setCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
-                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción de la montura o accesorio</label>
+                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X"
                     className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                   {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
                 </div>
@@ -854,7 +855,7 @@ export default function Inventario({
 
       {/* ─── MODAL VENDER PRODUCTO ─── */}
       {vendiendo && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           pacientes={pacientes}
           inventario={productos}
@@ -921,7 +922,7 @@ export default function Inventario({
                         ) : (
                           <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
                         )}
-                        <p className="text-[11px] text-slate-500">{v.cantidad} u. · {new Date(v.creadoEn).toLocaleDateString("es-ES")}</p>
+                        <p className="text-[11px] text-slate-500">{v.cantidad} u. · {fechaLegible(v.creadoEn)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm font-bold text-slate-700">${Number(v.montoTotal).toFixed(2)}</span>

@@ -21,7 +21,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CalendarClock,
-  Command,
   BarChart3,
   ShieldCheck,
   ShieldAlert,
@@ -30,6 +29,7 @@ import {
   Loader2,
   Search,
   UserX,
+  ShoppingBag,
 } from "lucide-react"
 
 // Módulos del sistema — Inicio se queda como import normal porque es lo
@@ -42,6 +42,7 @@ import { lazyConReintento } from "../utilidades/lazyConReintento"
 const Pacientes = lazyConReintento(() => import("./Pacientes"), "Pacientes")
 const ConsultaMedica = lazyConReintento(() => import("./ConsultaMedica"), "ConsultaMedica")
 const Inventario = lazyConReintento(() => import("./Inventario"), "Inventario")
+const Ventas = lazyConReintento(() => import("./Ventas"), "Ventas")
 const Citas = lazyConReintento(() => import("./Citas"), "Citas")
 const Horario = lazyConReintento(() => import("./Horario"), "Horario")
 const CRM = lazyConReintento(() => import("./CRM"), "CRM")
@@ -51,6 +52,8 @@ const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configu
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
+import { filtrarComprobantes } from "../utilidades/saldosVentas"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import { diasVencido } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
@@ -61,7 +64,7 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
 import { citasPropias } from "../utilidades/inicio"
-import { modulosVisibles } from "../utilidades/roles"
+import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
 // Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
@@ -87,6 +90,9 @@ const OPCIONES = [
   // porque el permiso "consultas" en Usuarios y permisos sigue existiendo.
   { id: "consultas", nombre: "Ficha clínica", icono: Eye, oculto: true },
   { id: "pacientes", nombre: "Pacientes", icono: Users },
+  // Ventas (Bloque E): la cola "Listo para venta", los comprobantes, las órdenes de laboratorio y los saldos.
+  // Se ve con el permiso ventas:ver (rol o vista activa); antes vivía dentro de Pacientes.
+  { id: "ventas", nombre: "Ventas", icono: ShoppingBag },
   { id: "inventario", nombre: "Inventario", icono: Package },
   { id: "crm", nombre: "CRM y fidelización", icono: HeartHandshake },
   { id: "horario", nombre: "Mi horario", icono: CalendarClock },
@@ -140,10 +146,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
   // Órdenes de laboratorio que piden acción: lentes listos sin avisar y órdenes atrasadas (R37).
   const ordenesPendientes = useMemo(() => ordenesListasSinAvisar(ordenesLab).length + ordenesAtrasadas(ordenesLab).length, [ordenesLab])
-  // El contador del menú es de quien vende (Inicio de ventas y, más adelante, el módulo de Ventas).
-  const vendeAqui = puede(usuario, "ventas", "ver")
-  const avisosPacientes = vendeAqui ? listosParaVenta + ordenesPendientes : 0
-  const textoAvisosPacientes = [
+  // El contador del menú es de quien vende (ventas: crear), no de quien solo puede mirar Ventas: aparece sobre "Ventas".
+  const vendeAqui = puede(usuario, "ventas", "crear")
+  const avisosVentas = vendeAqui ? listosParaVenta + ordenesPendientes : 0
+  const textoAvisosVentas = [
     listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
     ordenesPendientes > 0 && `${ordenesPendientes} orden${ordenesPendientes === 1 ? "" : "es"} de laboratorio por atender`,
   ].filter(Boolean).join(" · ")
@@ -157,9 +163,38 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const alcanceDeVista = (modulo) => (vista?.tipo === "rol" ? (vista.alcance?.[modulo] === "propio" ? "propio" : "todo") : usuario?.alcance?.[modulo] === "propio" ? "propio" : "todo")
   const citasReportes = useMemo(() => (alcanceDeVista("citas") === "propio" || alcanceDeVista("reportes") === "propio" ? citasPropias(citas, usuario?.id) : citas), [citas, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
   const consultasReportes = useMemo(() => (alcanceDeVista("consultas") === "propio" || alcanceDeVista("reportes") === "propio" ? consultas.filter((c) => !c.profesionalId || c.profesionalId === usuario?.id) : consultas), [consultas, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Con alcance "propio" (por el rol o por la vista de optómetra) TODAS las secciones de Reportes se acotan a lo suyo,
+  // no solo las citas: sus pacientes (los de sus citas o consultas), las encuestas de sus citas y los pases de sus
+  // consultas. El historial completo de consultas se pasa aparte para que "controles atrasados" y "primera vez"
+  // se midan contra todo lo que pasó con ese paciente, no solo contra lo que atendió esta persona.
+  const reportesAcotado = alcanceDeVista("citas") === "propio" || alcanceDeVista("reportes") === "propio"
+  const pacientesReportes = useMemo(() => {
+    if (!reportesAcotado) return pacientes
+    const ids = new Set([...citasReportes.map((c) => c.pacienteId), ...consultasReportes.map((c) => c.pacienteId)].filter(Boolean))
+    return pacientes.filter((p) => ids.has(p.id))
+  }, [pacientes, citasReportes, consultasReportes, reportesAcotado])
+  const respuestasReportes = useMemo(() => {
+    if (!reportesAcotado) return respuestasSatisfaccion
+    const ids = new Set(citasReportes.map((c) => c.id))
+    return respuestasSatisfaccion.filter((r) => ids.has(r.citaId))
+  }, [respuestasSatisfaccion, citasReportes, reportesAcotado])
+  const pasesReportes = useMemo(() => {
+    if (!reportesAcotado) return pases
+    const ids = new Set(consultasReportes.map((c) => c.id))
+    return pases.filter((p) => ids.has(p.consultaId))
+  }, [pases, consultasReportes, reportesAcotado])
+  // Reportes: los montos (ingresos, ventas por tipo de luna, etc.) solo los ve quien puede ver Ventas en la vista activa.
+  const verMontosReportes = vista?.tipo === "rol" ? puedeNivel(vista.permisos, "ventas", "ver") : puede(usuario, "ventas", "ver")
+  // Con alcance "propio" en Reportes, las órdenes de laboratorio son solo las que creó la persona o de sus consultas.
+  const ordenesReportes = useMemo(() => {
+    if (alcanceDeVista("reportes") !== "propio") return ordenesLab
+    const propias = new Set(consultasReportes.map((c) => c.id))
+    return ordenesLab.filter((o) => o.creadaPor === usuario?.id || (o.consultaId && propias.has(o.consultaId)))
+  }, [ordenesLab, consultasReportes, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
       if (o.id === "inicio") return true
+      if (o.id === "ventas" && !menuDeRol) return puede(usuario, "ventas", "ver")
       if (menuDeRol) return menuDeRol[o.id] === true && !(o.soloAdmin && !o.delegable)
       if (o.soloAdmin) {
         if (esAdmin) return true
@@ -216,9 +251,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const id = new URLSearchParams(window.location.search).get('paciente')
     return id && opcionesVisibles.some((o) => o.id === 'pacientes') ? { pacienteId: id, accion: 'historial' } : null
   })
+  // Destino pedido al módulo de Ventas: { tab: "cola" | "ventas" | "ordenes" | "saldos", filtro?, texto? }
+  const [accionVentasInicio, setAccionVentasInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
+  // Cita que el Inicio manda a atender: Citas abre su resumen y de ahí la ficha (el mismo flujo de "Atender" de Citas).
+  const [citaParaAtender, setCitaParaAtender] = useState(null)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
@@ -313,6 +352,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     if (!q) return []
     return inventario.filter((p) => (p.nombre || "").toLowerCase().includes(q)).slice(0, 4)
   }, [inventario, busquedaGlobal])
+  // Ventas: comprobantes por paciente, número CV-0001 o número de la factura electrónica (solo si puede ver ventas).
+  const resultadosVentasGlobal = useMemo(() => {
+    if (!busquedaGlobal.trim() || !puede(usuario, "ventas", "ver")) return []
+    return filtrarComprobantes(facturasVenta, { texto: busquedaGlobal, pacientes, abonos }).slice(0, 4)
+  }, [facturasVenta, pacientes, abonos, busquedaGlobal, usuario])
   const irASeccionGlobal = (seccion) => {
     navegar(seccion)
     setMostrarBusquedaGlobal(false)
@@ -409,6 +453,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // sale a la lista de origen) pueda reabrir el perfil del paciente en vez
   // de aterrizar en la lista pelada.
   const irAFichaClinica = (paciente, { citaId = null, origen = "pacientes", motivo = null } = {}) => {
+    // Red de seguridad: atender exige poder crear fichas clínicas. Los botones ya no se muestran sin ese
+    // permiso, pero si alguien llega por otro camino ve el motivo en vez de un clic que no hace nada.
+    if (!puede(usuario, "consultas", "crear")) { mostrarAviso("No tienes permiso para atender pacientes."); return }
     setFichaClinicaPacienteInicial(paciente)
     setFichaClinicaCitaId(citaId)
     setFichaClinicaOrigen(origen)
@@ -566,6 +613,33 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setPases={setPases}
           />
         )
+      case "ventas":
+        return (
+          <Ventas
+            usuario={usuario}
+            cargaInicial={cargaInicialStaff}
+            parametrizacion={parametrizacion}
+            pacientes={pacientes}
+            consultas={consultas}
+            inventario={inventario}
+            setInventario={setInventario}
+            categoriasInventario={categoriasInventario}
+            setCategoriasInventario={setCategoriasInventario}
+            ventas={ventas}
+            facturasVenta={facturasVenta}
+            setFacturasVenta={setFacturasVenta}
+            pases={pases}
+            setPases={setPases}
+            ordenesLab={ordenesLab}
+            setOrdenesLab={setOrdenesLab}
+            abonos={abonos}
+            equipo={equipo}
+            accionInicial={accionVentasInicio}
+            onAccionInicialConsumida={() => setAccionVentasInicio(null)}
+            onVerPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
+            onAviso={mostrarAviso}
+          />
+        )
       case "inventario":
         return (
           <Inventario
@@ -603,6 +677,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             vistaPropia={alcanceDeVista("citas") === "propio"}
             estadoInicial={estadoCitasInicial}
             onEstadoInicialConsumido={() => setEstadoCitasInicial(null)}
+            atenderCitaId={citaParaAtender}
+            onAtenderCitaConsumido={() => setCitaParaAtender(null)}
             motivosConsulta={motivosConsulta}
             inventario={inventario}
             setInventario={setInventario}
@@ -620,7 +696,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes usuario={usuario} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultasReportes} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} pases={pases} abonos={abonos} />
+        return <Reportes usuario={usuario} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasReportes} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
@@ -666,9 +742,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             pases={pases}
             facturasVenta={facturasVenta}
             abonos={abonos}
-            onVerCola={() => { setAccionPacienteInicio({ accion: "cola" }); navegar("pacientes") }}
-            onVerCitas={(estado) => { setEstadoCitasInicial(estado); navegar("citas") }}
-            onVerOrdenes={(filtro) => { setAccionPacienteInicio({ accion: "ordenes", filtro }); navegar("pacientes") }}
+            onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
+            onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
+            onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
+            onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => {
               setAbrirAgendarAlEntrar(true)
@@ -756,18 +833,17 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 >
                   <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
-                  {/* Pacientes listos para venta (R35): se ve en el menú de quien ve Pacientes.
-                      Pasará al módulo de Ventas y al Inicio de quien vende (Bloques D y E). */}
-                  {opcion.id === "pacientes" && avisosPacientes > 0 && (
+                  {/* Pacientes listos para venta (R35) y órdenes por atender: se ven sobre el módulo de Ventas. */}
+                  {opcion.id === "ventas" && avisosVentas > 0 && (
                     <span
-                      title={textoAvisosPacientes}
-                      aria-label={textoAvisosPacientes}
+                      title={textoAvisosVentas}
+                      aria-label={textoAvisosVentas}
                       className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]" : "")}
                     >
-                      {avisosPacientes}
+                      {avisosVentas}
                     </span>
                   )}
-                  {activo && <span className={(opcion.id === "pacientes" && avisosPacientes > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
+                  {activo && <span className={(opcion.id === "ventas" && avisosVentas > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
               )
             })}
@@ -849,23 +925,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Paleta de comandos — Ctrl/Cmd+K abre desde cualquier lado, este
-                botón es solo para que se descubra con el mouse. Ícono + texto
-                (no solo el atajo) para que no se vea como una insignia
-                flotante sin contexto; el kbd va sin borde propio para no
-                anidar dos recuadros dentro del botón. */}
-            <button
-              type="button"
-              onClick={() => setPaletaAbierta(true)}
-              className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 cursor-pointer md:flex"
-              title="Ir a una sección (Ctrl+K)"
-              aria-label="Abrir paleta de comandos"
-            >
-              <Command size={15} />
-              <span className="text-sm font-medium">Comandos</span>
-              <kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">Ctrl K</kbd>
-            </button>
-
             {/* Buscador global de pacientes — accesible desde cualquier
                 sección, no solo desde adentro de Pacientes. */}
             <div className="relative" ref={busquedaGlobalRef}>
@@ -890,14 +949,14 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                         type="text"
                         value={busquedaGlobal}
                         onChange={(e) => setBusquedaGlobal(e.target.value)}
-                        placeholder="Paciente, cita de hoy o producto..."
+                        placeholder="Paciente, cita de hoy, producto o venta..."
                         className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
                       />
                     </div>
                   </div>
                   {busquedaGlobal.trim() && (
                     <div className="max-h-80 overflow-y-auto">
-                      {resultadosBusquedaGlobal.length === 0 && resultadosCitasGlobal.length === 0 && resultadosProductosGlobal.length === 0 ? (
+                      {resultadosBusquedaGlobal.length === 0 && resultadosCitasGlobal.length === 0 && resultadosProductosGlobal.length === 0 && resultadosVentasGlobal.length === 0 ? (
                         <p className="p-4 text-center text-xs text-slate-500">Nada coincide.</p>
                       ) : (
                         <>
@@ -929,6 +988,22 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                                 >
                                   <span className="truncate font-semibold text-slate-700">{c.paciente || "Sin nombre"}</span>
                                   <span className="shrink-0 text-xs text-slate-400">{c.hora || ""}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {resultadosVentasGlobal.length > 0 && (
+                            <div>
+                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Ventas</p>
+                              {resultadosVentasGlobal.map((f) => (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => { setAccionVentasInicio({ tab: "ventas", texto: numeroComprobante(f.numero) }); irASeccionGlobal("ventas") }}
+                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
+                                >
+                                  <span className="truncate font-semibold text-slate-700">{numeroComprobante(f.numero)} · {pacientes.find((p) => p.id === f.pacienteId)?.nombre || "Paciente"}</span>
+                                  <span className="shrink-0 font-mono text-xs text-slate-400">${f.montoTotal.toFixed(2)}</span>
                                 </button>
                               ))}
                             </div>
@@ -1087,7 +1162,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-600" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-red-900">Esta óptica fue suspendida por el administrador del sistema.</p>
-                <p className="text-xs text-red-700">Ya no podés ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contactá a soporte si esto es un error.</p>
+                <p className="text-xs text-red-700">Ya no puedes ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contacta a soporte si esto es un error.</p>
               </div>
               <button type="button" onClick={() => alSalir()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-800 transition hover:bg-red-50 cursor-pointer">
                 <LogOut size={13} /> Cerrar sesión
@@ -1160,7 +1235,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
                   Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
                 </label>
-                <p className="text-xs text-slate-500">Si atiendes pacientes vos mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
+                <p className="text-xs text-slate-500">Si atiendes pacientes tú mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
                 <div className="flex items-center gap-2">
                   <input
                     id="registroProfesional"

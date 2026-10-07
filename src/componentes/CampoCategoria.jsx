@@ -8,7 +8,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 // Selector de categoría con creación rápida inline — caso de la reunión con
 // el ing: poder crear una categoría nueva sin salir del flujo de registrar
 // (o editar) un producto, en vez de obligar a ir antes a Configuración.
-// Compartido entre Inventario.jsx y FacturaVentaModal.jsx (alta rápida de
+// Compartido entre Inventario.jsx y ComprobanteVentaModal.jsx (alta rápida de
 // producto desde el flujo de venta).
 export default function CampoCategoria({ valor, onChange, categorias, setCategorias }) {
   const [creando, setCreando] = useState(false)

@@ -3,6 +3,7 @@
 // factura: no descuenta stock, no tiene forma de pago ni numeración y no cierra
 // el pase. Lógica pura que arma el HTML; imprimirHtml lo manda a la impresora.
 import { fechaLegible } from "./formatoFecha"
+import { lineaLunaDeTexto } from "./comprobantes"
 import { costoBaseMotivo } from "./costosConsulta"
 import { textoDiagnostico } from "./pasesVenta"
 
@@ -13,7 +14,7 @@ export function lineasProformaDeConsulta(consulta, parametrizacion) {
   const lente = (consulta?.lenteRecomendado || "").trim()
   return [
     { tipo: "servicio", descripcion: `Consulta${consulta?.motivo ? ` — ${consulta.motivo}` : ""}`, cantidad: 1, precioUnitario: costoBaseMotivo(parametrizacion, consulta?.motivo) },
-    { tipo: "servicio", descripcion: lente ? `Luna: ${lente}` : "Luna", cantidad: 1, precioUnitario: 0 },
+    lineaLunaDeTexto(lente),
   ]
 }
 
@@ -66,7 +67,7 @@ export function armarHtmlProforma({ opticaNombre = "Óptica", opticaDatos = {}, 
 <h1>${escapar(opticaNombre)}</h1>
 ${contacto ? `<p class="contacto">${contacto}</p>` : ""}
 <p>Proforma · ${escapar(fechaLegible(fecha))} · <b>Válida hasta ${escapar(fechaLegible(validaHasta))}</b></p>
-<div class="aviso">Esto es un presupuesto. No es una factura ni un comprobante de venta, y no reserva productos ni inventario.</div>
+<div class="aviso">Esto es un presupuesto. No es un comprobante de venta ni una factura electrónica, y no reserva productos ni inventario.</div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}${paciente.cedula ? ` · ${escapar(paciente.cedula)}` : ""}</p>
 ${bloqueDiagnostico}
 <h2>Detalle</h2>

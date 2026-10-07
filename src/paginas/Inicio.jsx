@@ -1,18 +1,14 @@
 "use client"
 
+import { fechaHoraLegible, fechaCorta } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
   Users,
-  AlertTriangle,
   Calendar,
   Package,
   ArrowRight,
   Cake,
-  MessageCircle,
   Clock,
-  History,
-  TrendingUp,
-  Stethoscope,
   Activity,
   FlaskConical,
   ShoppingBag,
@@ -23,20 +19,20 @@ import {
   Ban,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
-import { esHoy, minutosDesdeMedianoche, parseFechaFlexible } from "../utilidades/disponibilidad"
+import { parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
+import RequiereAtencion from "../componentes/RequiereAtencion"
 import { puede } from "../utilidades/permisosUi"
-import { fechaLegible } from "../utilidades/formatoFecha"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
-import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenMes, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
+import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO } from "../utilidades/logs"
-import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio, ordenesAbiertas, estaAtrasada, numeroOrden } from "../utilidades/ordenesLaboratorio"
-import { INK, GOLD, ACCION_CONFIRMAR } from "@/lib/tema"
+import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -46,6 +42,7 @@ export default function Inicio({
   setCitas,
   onAviso,
   onAtenderCita,
+  onAtenderEnCitas,
   equipo = [],
   usuario,
   opticaActiva = true,
@@ -71,6 +68,8 @@ export default function Inicio({
   opticaNombre,
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
+  // Período del "Desenlace de las citas": el mes en curso o todo lo registrado.
+  const [periodo, setPeriodo] = useState("mes")
 
   // "Actividad reciente" (sección 6 del pedido de UI: qué cambió, no solo
   // el número actual) — reusa logs_optica, la misma fuente que ya
@@ -87,7 +86,6 @@ export default function Inicio({
   // global del equipo; un admin marcado la ve ADEMÁS de la vista global
   // (nunca pierde su vista de equipo, solo gana la sección "Mi agenda").
   const esOptometra = !!usuario?.esOptometra
-  const esOptometraNoAdmin = esOptometra && !esAdmin
   const [actividadReciente, setActividadReciente] = useState([])
   useEffect(() => {
     if (!esAdmin || !supabase || !usuario?.opticaId) return
@@ -151,42 +149,11 @@ export default function Inicio({
       .filter((p) => esInactivo(p, consultas))
       .map((p) => ({ paciente: p, dias: diasDesdeUltimaVisita(p, consultas) }))
       .sort((a, b) => (b.dias ?? 0) - (a.dias ?? 0))
-      .slice(0, 5)
   }, [pacientes, consultas])
 
-  const enviarFelicitacionWhatsApp = (nombre, celular) => {
-    if (!celular) return
-    const numLimpio = celular.toString().replace(/\D/g, "")
-    const mensaje = encodeURIComponent(
-      `¡Hola, ${nombre}! Te saludamos de parte de ${opticaNombre || "tu óptica"}. Queremos desearte un feliz cumpleaños. Por ser tu mes especial, cuentas con un examen de control visual de cortesía.`
-    )
-    window.open(`https://wa.me/${numLimpio}?text=${mensaje}`, "_blank")
-  }
-
-  // Solo las alertas de inventario REALES (stock por debajo del mínimo), no el total de productos
-  const productosBajoStock = useMemo(() => inventario.filter(esStockBajo), [inventario])
-
-  // Prioridad automática de reabastecimiento (pedido explícito de Diego:
-  // "que ordene automáticamente... muestra primero los ítems en estado
-  // crítico"): primero los que ya están por debajo de su mínimo (esStockBajo,
-  // que compara contra el umbral propio de cada producto, no solo el número
-  // crudo), ordenados de menor a mayor entre ellos; después el resto,
-  // también ascendente. Reemplaza el toggle "mayor/menor stock" — este
-  // widget es una alerta de reabastecimiento, no un explorador del
-  // inventario completo (eso ya lo cubre el módulo Inventario).
-  const productosPrioridadReabastecimiento = useMemo(() => {
-    const bajos = inventario.filter(esStockBajo).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0))
-    const resto = inventario.filter((p) => !esStockBajo(p)).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0))
-    return [...bajos, ...resto].slice(0, 5)
-  }, [inventario])
-
-  // Citas agendadas para la fecha de hoy (antes esto mostraba TODAS las citas
-  // jamás agendadas — el primer número que ve el optómetra al entrar era falso
-  // y crecía para siempre). Se ordenan por hora, más temprano primero.
-  const citasHoy = useMemo(
-    () => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)),
-    [citas]
-  )
+  // Productos con stock bajo (por debajo de su mínimo), el más crítico primero. Se muestran una sola vez en
+  // todo el Inicio, como una fila de "Requiere tu atención", con el reabastecimiento a un clic.
+  const productosBajoStock = useMemo(() => inventario.filter(esStockBajo).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)), [inventario])
 
   // Para "Mi agenda" (vista del optómetra, D4): pacientes en atención ahora
   // mismo (no acotado a hoy, mismo criterio sin fecha que ya usa el badge de
@@ -195,29 +162,6 @@ export default function Inicio({
   // Atenciones que se abrieron un día anterior y nadie cerró.
   const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
   const [dejarCita, setDejarCita] = useState(null)
-  const citasPendientesHoy = useMemo(
-    () => citasHoy.filter((c) => !["Atendida", "No Asistió", "Cancelada"].includes(c.estado)),
-    [citasHoy]
-  )
-
-  // El ing probó este panel con la agenda vacía para el día y vio un hueco
-  // en blanco ("Últimas citas... para evitar que se vea así vacío"). Si no
-  // hay citas hoy, cae a las más recientes ya pasadas (más reciente primero)
-  // como recordatorio de contexto, en vez de un estado vacío.
-  const citasParaMostrar = useMemo(() => {
-    if (citasHoy.length > 0) return citasHoy
-    return [...citas]
-      .filter((c) => c.estado !== "Cancelada")
-      .sort((a, b) => {
-        const fa = parseFechaFlexible(a.fecha)?.getTime() ?? 0
-        const fb = parseFechaFlexible(b.fecha)?.getTime() ?? 0
-        if (fb !== fa) return fb - fa
-        return minutosDesdeMedianoche(b.hora) - minutosDesdeMedianoche(a.hora)
-      })
-      .slice(0, 5)
-  }, [citas, citasHoy])
-  const mostrandoHistorial = citasHoy.length === 0 && citasParaMostrar.length > 0
-
   // Señal de "qué cambió" en el KPI de pacientes (antes solo mostraba el
   // número del momento, sin ningún punto de comparación) — cuántos se
   // registraron este mes calendario, contra fechaRegistro real.
@@ -245,7 +189,7 @@ export default function Inicio({
           <span>{cita.hora || "09:00 AM"}</span>
           {mostrarFecha ? (
             <span className="font-sans text-[10px] font-medium text-slate-500">
-              {(() => { const f = parseFechaFlexible(cita.fecha); return f ? f.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "" })()}
+              {(() => { const f = parseFechaFlexible(cita.fecha); return f ? fechaCorta(f) : "" })()}
             </span>
           ) : (
             cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>
@@ -285,47 +229,54 @@ export default function Inicio({
   const esVistaOptometra = plantilla === "optometra"
   const citasVista = useMemo(() => (esVistaOptometra ? citasPropias(citas, usuario?.id) : citas), [citas, esVistaOptometra, usuario?.id])
   const hoyVista = useMemo(() => resumenHoy(citasVista), [citasVista])
-  const citasDelDia = hoyVista.citas
-  const mes = useMemo(() => resumenMes(citas), [citas])
+  const desenlace = useMemo(() => resumenPeriodo(citas, periodo), [citas, periodo])
   const sinAtender = useMemo(() => pacientesSinAtender(pacientes, consultas).length, [pacientes, consultas])
   const saldos = useMemo(() => saldosPorCobrar(facturasVenta, abonos), [facturasVenta, abonos])
   const listos = useMemo(() => pasesListos(pases), [pases])
   const proformas = useMemo(() => proformasEnSeguimiento(pases), [pases])
   const atencionesVista = esVistaOptometra ? atencionesAntiguas.filter(({ cita }) => esCitaPropia(cita, usuario?.id)) : atencionesAntiguas
   const dinero = (n) => "$" + (Number(n) || 0).toFixed(2)
-  const ordenesAbiertasLista = useMemo(() => ordenesAbiertas(ordenesLab).sort((a, b) => (estaAtrasada(b) - estaAtrasada(a)) || (a.fechaPrometida < b.fechaPrometida ? -1 : 1)).slice(0, 5), [ordenesLab])
-
   const filaTotales = (
     <FilaTarjetas
       titulo="Totales"
       descripcion="Todo lo registrado hasta hoy"
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes registrados", valor: pacientes.length, desc: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : "En la base de datos", icono: Users, color: "slate", onClick: () => setVista?.("pacientes"), cta: puede(usuario, "pacientes", "crear") ? "Registrar paciente" : null, onCta: onCrearPacienteRapido },
+        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Sin ninguna consulta", icono: Users, color: "amber", onClick: () => setVista?.("pacientes") },
         { id: "citas", titulo: "Citas registradas", valor: citas.length, desc: "Desde el inicio", icono: Calendar, color: "blue", onClick: () => setVista?.("citas"), cta: puede(usuario, "citas", "crear") ? "Agendar cita" : null, onCta: onAgendarRapido },
         { id: "productos", titulo: "Productos en inventario", valor: inventario.length, desc: "Registrados", icono: Package, color: "slate", onClick: () => setVista?.("inventario"), cta: puede(usuario, "inventario", "crear") ? "Añadir producto" : null, onCta: onCrearProductoRapido },
       ]}
     />
   )
-  const filaMes = (
+  const etiquetaPeriodo = periodo === "mes" ? "este mes" : "desde siempre"
+  const selectorPeriodo = (
+    <div role="group" aria-label="Período del desenlace" className="flex rounded-lg border border-slate-200/60 bg-white p-0.5">
+      {[["mes", "Este mes"], ["siempre", "Desde siempre"]].map(([id, etiqueta]) => (
+        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === id ? { background: INK } : undefined}>{etiqueta}</button>
+      ))}
+    </div>
+  )
+  const filaDesenlace = (
     <FilaTarjetas
-      titulo="Citas de este mes"
-      descripcion={`${mes.registradas} ${mes.registradas === 1 ? "cita" : "citas"} en el mes`}
+      titulo={`Desenlace de las citas · ${etiquetaPeriodo}`}
+      descripcion={`${desenlace.registradas} ${desenlace.registradas === 1 ? "cita" : "citas"} en el período`}
+      acciones={selectorPeriodo}
       tarjetas={[
-        { id: "atendidas", titulo: "Atendidas", valor: mes.atendidas, desc: "Ver en Citas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
-        { id: "noAtendidas", titulo: "No atendidas", valor: mes.noAtendidas, desc: "No asistieron", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio") },
-        { id: "canceladas", titulo: "Canceladas", valor: mes.canceladas, desc: "Ver en Citas", icono: Ban, color: "slate", onClick: () => onVerCitas?.("cancelada") },
-        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Todavía sin ninguna consulta", icono: Users, color: "amber", onClick: () => setVista?.("pacientes") },
+        { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: "Ver en Citas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida", periodo) },
+        { id: "noAtendidas", titulo: "No atendidas", valor: desenlace.noAtendidas, desc: "No asistieron", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio", periodo) },
+        { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Ver en Citas", icono: Ban, color: "slate", onClick: () => onVerCitas?.("cancelada", periodo) },
       ]}
     />
   )
+  const sinTerminar = useMemo(() => fichasSinTerminar(citas, usuario?.id), [citas, usuario?.id])
   const filaHoyOptometra = (
     <FilaTarjetas
       titulo="Hoy"
       descripcion="Tu agenda del día"
       tarjetas={[
         { id: "mias", titulo: "Mis citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
-        { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: hoyVista.siguiente ? () => onAtenderCita?.(hoyVista.siguiente) : undefined },
-        { id: "enAtencion", titulo: "En atención ahora", valor: hoyVista.enAtencion, desc: "Pacientes con la ficha abierta", icono: Activity, color: "amber", onClick: () => setVista?.("citas") },
+        { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: () => setVista?.("citas"), cta: hoyVista.siguiente && puede(usuario, "consultas", "crear") ? "Atender" : null, onCta: () => onAtenderEnCitas?.(hoyVista.siguiente) },
+        { id: "sinTerminar", titulo: "Fichas sin terminar", valor: sinTerminar.length, desc: sinTerminar.length === 0 ? "Ninguna atención abierta" : sinTerminar.length === 1 ? sinTerminar[0].paciente : `${sinTerminar[0].paciente} y ${sinTerminar.length - 1} más`, icono: Activity, color: sinTerminar.length > 0 ? "amber" : "slate", onClick: () => setVista?.("citas"), cta: sinTerminar.length > 0 && puede(usuario, "consultas", "crear") ? "Retomar" : null, onCta: () => onAtenderCita?.(sinTerminar[0]) },
         { id: "atendidos", titulo: "Atendidos hoy", valor: hoyVista.atendidas, desc: "Fichas terminadas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
       ]}
     />
@@ -349,8 +300,6 @@ export default function Inicio({
       tarjetas={[
         { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", onClick: () => onVerCola?.() },
         { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "blue", onClick: () => onVerCola?.() },
-        { id: "atrasadas", titulo: "Órdenes atrasadas", valor: atrasadas.length, desc: "Pasó la fecha prometida", icono: FlaskConical, color: atrasadas.length > 0 ? "red" : "slate", onClick: () => onVerOrdenes?.("atrasadas") },
-        { id: "sinAvisar", titulo: "Lentes listos sin avisar", valor: listasSinAvisar.length, desc: "Avisa al paciente", icono: MessageCircle, color: listasSinAvisar.length > 0 ? "amber" : "slate", onClick: () => onVerOrdenes?.("listas") },
         { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.cantidad === 0 ? "Nada pendiente" : `en ${saldos.cantidad} ${saldos.cantidad === 1 ? "venta" : "ventas"}`, icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", onClick: () => setVista?.("pacientes") },
       ]}
     />
@@ -397,205 +346,130 @@ export default function Inicio({
       )}
     </section>
   )
-  const bOrdenes = (
-    <section aria-label="Órdenes de laboratorio" className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-      <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600"><FlaskConical size={18} aria-hidden="true" /></div>
-          <div>
-            <h4 className="text-sm font-bold" style={{ color: INK }}>Órdenes de laboratorio</h4>
-            <p className="text-[11px] text-slate-500">{ordenesAbiertas(ordenesLab).length === 0 ? "No hay órdenes abiertas" : `${ordenesAbiertas(ordenesLab).length} abiertas${atrasadas.length > 0 ? ` · ${atrasadas.length} atrasadas` : ""}`}</p>
-          </div>
-        </div>
-        <button type="button" onClick={() => onVerOrdenes?.("abiertas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver órdenes <ArrowRight size={14} aria-hidden="true" /></button>
-      </div>
-      {ordenesAbiertasLista.length === 0 ? (
-        <EstadoVacio icon={FlaskConical} texto="Las órdenes se crean al vender lentes." />
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {ordenesAbiertasLista.map((o) => {
-            const paciente = pacientes.find((x) => x.id === o.pacienteId)
-            const atrasada = estaAtrasada(o)
-            return (
-              <li key={o.id}>
-                <button type="button" onClick={() => onVerOrdenes?.(o.estado === "lista" ? "listas" : atrasada ? "atrasadas" : "abiertas")} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold text-slate-800"><span className="font-mono">{numeroOrden(o.numero)}</span> · {paciente?.nombre || "Paciente"}</span>
-                    <span className="block truncate text-[11px] text-slate-500">{o.laboratorio ? o.laboratorio + " · " : ""}Entrega {fechaLegible(o.fechaPrometida)}</span>
-                  </span>
-                  <span className={"shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold " + (atrasada ? "border-red-200/60 bg-red-50 text-red-700" : o.estado === "lista" ? "border-emerald-200/60 bg-emerald-50 text-emerald-700" : "border-blue-200/60 bg-blue-50 text-blue-700")}>{atrasada ? "Atrasada" : o.estado === "lista" ? (o.pacienteAvisadoEn ? "Lista · avisado" : "Lista · avisar") : "En el laboratorio"}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </section>
-  )
-
-  const hoyFecha = new Date().toLocaleDateString("es-ES", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
-
   // Mismo criterio que Citas/Pacientes/Inventario (cargaInicial && sin datos
   // todavía): antes Inicio no recibía este prop y era el único módulo que
   // podía mostrar "0 pacientes / 0 citas hoy" durante un parpadeo mientras
   // App.jsx aún hidrataba — justo la primera pantalla que ve el usuario al
   // entrar. Estrictamente prohibido por CLAUDE.md ("pantallas vacías o
   // parpadeos durante la petición de datos").
-  if (cargaInicial && pacientes.length === 0 && citas.length === 0 && inventario.length === 0) {
+  // Mientras hidrata no se calcula nada: con las consultas todavía vacías, todos los pacientes salían "sin atender"
+  // y con el control vencido. Los datos en caché de pacientes/citas no bastan para los números del Inicio.
+  if (cargaInicial) {
     return <InicioSkeleton />
   }
 
-  const bHero = (
-    <>
-      {/* ─── HERO / BIENVENIDA (claro) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6">
-        <svg aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 text-blue-600" viewBox="0 0 400 400" fill="none" stroke="currentColor" style={{ opacity: 0.05 }}>
-          {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
-        </svg>
-        <div className="pointer-events-none absolute -right-8 -top-8 h-48 w-48 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.14), transparent 70%)" }} />
+  // ─── 1. Resumen del día: una sola línea ───
+  const enAtencionAhora = (esVistaOptometra ? pacientesEnAtencion.filter((c) => esCitaPropia(c, usuario?.id)) : pacientesEnAtencion)
+  const agenda = agendaHoyOProximas(citasVista)
+  const hayInactivos = inactivos.length > 0
 
-        <div className="relative flex flex-col justify-between gap-5 md:flex-row md:items-center">
-          <div>
-            <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
-              Panel principal
-            </span>
-            <h1 className="mt-2 font-serif text-2xl font-semibold italic tracking-tight sm:text-3xl" style={{ color: INK }}>
-              ¡Bienvenido, {nombreUsuario}!
-            </h1>
-            <p className="mt-1 max-w-xl text-sm text-slate-500">
-              {`Tienes ${citasDelDia.length} ${citasDelDia.length === 1 ? "cita" : "citas"} para hoy${cumpleaneros.length > 0 ? ` y ${cumpleaneros.length} de cumpleaños por saludar` : ""}. Aquí está tu resumen del día.`}
-            </p>
-          </div>
+  // ─── 4. Requiere tu atención: todo lo pendiente, en un solo bloque ───
+  const incAtenciones = ["administrador", "optometra", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
+  const incOrdenes = ["administrador", "ventas"].includes(plantilla) || (plantilla === "general" && veVentas)
+  const incControles = (["administrador", "optometra", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
+  const incStock = veInventario // quien puede ver el inventario ve el aviso; "Reabastecer" solo con inventario: editar
+  const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
+  const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
-          <div className="flex flex-col items-start gap-2.5 md:items-end">
-            <span className="rounded-xl border border-slate-200/60 bg-slate-50 px-3.5 py-2 text-xs font-semibold capitalize text-slate-600">
-              {hoyFecha}
-            </span>
-            {/* Antes era texto fijo, sin relación con opticas.activa — decía
-                "activo" aunque la óptica estuviera suspendida. Ahora refleja
-                el estado real (ver App.jsx: hidratación + polling cada
-                2.5 min contra opticas.activa). */}
-            {opticaActiva ? (
-              <span className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Módulo clínico activo</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-2 rounded-xl border border-red-200/60 bg-red-50 px-3.5 py-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-red-700">Óptica suspendida</span>
-              </span>
-            )}
-          </div>
-        </div>
+  const filasAtencion = []
+  if (incAtenciones) {
+    atencionesVista.slice(0, 4).forEach(({ cita, dias }) => filasAtencion.push({
+      id: "atencion-" + cita.id,
+      icono: Activity,
+      titulo: `Atención abierta de un día anterior: ${cita.paciente}`,
+      detalle: textoAtencionAbierta(dias) + (cita.atendidoPor ? ` · ${etiquetaMiembro(equipo, cita.atendidoPor)}` : ""),
+      acciones: [
+        ...(puede(usuario, "consultas", "crear") ? [{ etiqueta: "Ingresar", principal: true, onClick: () => onAtenderCita?.(cita) }] : []),
+        { etiqueta: "Dejar de atender", onClick: () => setDejarCita(cita) },
+      ],
+    }))
+    if (atencionesVista.length > 4) filasAtencion.push({ id: "atenciones-mas", icono: Activity, titulo: `Y ${plural(atencionesVista.length - 4, "atención abierta más", "atenciones abiertas más")}`, acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("enAtencion", "siempre") }] })
+  }
+  if (incOrdenes && listasSinAvisar.length > 0) filasAtencion.push({
+    id: "ordenes-listas", icono: FlaskConical,
+    titulo: `${plural(listasSinAvisar.length, "orden de laboratorio lista", "órdenes de laboratorio listas")} sin avisar al paciente`,
+    detalle: nombresPaciente(listasSinAvisar),
+    acciones: [{ etiqueta: "Avisar", principal: true, onClick: () => onVerOrdenes?.("listas") }],
+  })
+  if (incOrdenes && atrasadas.length > 0) filasAtencion.push({
+    id: "ordenes-atrasadas", icono: FlaskConical,
+    titulo: plural(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
+    detalle: atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · "),
+    acciones: [{ etiqueta: "Ver atrasadas", onClick: () => onVerOrdenes?.("atrasadas") }],
+  })
+  if (incControles && hayInactivos) filasAtencion.push({
+    id: "controles", icono: Clock,
+    titulo: plural(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
+    detalle: inactivos.slice(0, 3).map(({ paciente, dias }) => `${paciente.nombre} (hace ${dias} días)`).join(", ") + (inactivos.length > 3 ? ` y ${inactivos.length - 3} más` : ""),
+    acciones: [{ etiqueta: "Gestionar en CRM", onClick: () => setVista?.("crm") }],
+  })
+  if (incStock && productosBajoStock.length > 0) filasAtencion.push({
+    id: "stock", icono: Package,
+    titulo: plural(productosBajoStock.length, "producto con stock bajo", "productos con stock bajo"),
+    detalle: productosBajoStock.slice(0, 3).map((p) => `${p.nombre} (${p.stock})`).join(", ") + (productosBajoStock.length > 3 ? ` y ${productosBajoStock.length - 3} más` : ""),
+    acciones: [
+      ...(puede(usuario, "inventario", "editar") ? [{ etiqueta: "Reabastecer", principal: true, onClick: () => (onReabastecerProducto ? onReabastecerProducto(productosBajoStock[0].id) : setVista?.("inventario")) }] : []),
+      { etiqueta: "Ver inventario", onClick: () => setVista?.("inventario") },
+    ],
+  })
+  if (incCumple && cumpleaneros.length > 0) filasAtencion.push({
+    id: "cumple", icono: Cake,
+    titulo: cumpleaneros.some((c) => c.esHoy) ? `${plural(cumpleaneros.filter((c) => c.esHoy).length, "cumpleaños hoy", "cumpleaños hoy")} para saludar` : `${plural(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos")} para saludar`,
+    detalle: cumpleaneros.slice(0, 3).map((c) => c.nombre).join(", ") + (cumpleaneros.length > 3 ? ` y ${cumpleaneros.length - 3} más` : ""),
+    acciones: [{ etiqueta: "Saludar en CRM", onClick: () => setVista?.("crm") }],
+  })
+  const bRequiere = <RequiereAtencion filas={filasAtencion} />
+
+  const segmentosDia = []
+  if (plantilla === "administrador") segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"), `${enAtencionAhora.length} en atención ahora`)
+  else if (plantilla === "recepcion" || (plantilla === "general" && veCitas)) segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"))
+  else if (plantilla === "optometra") segmentosDia.push(plural(hoyVista.total, "cita tuya hoy", "citas tuyas hoy"), ...(sinTerminar.length > 0 ? [plural(sinTerminar.length, "ficha sin terminar", "fichas sin terminar")] : []))
+  else if (plantilla === "ventas" || (plantilla === "general" && veVentas)) segmentosDia.push(plural(listos.length, "paciente espera su venta", "pacientes esperan su venta"))
+  const bResumenDia = (
+    <p aria-label="Resumen del día" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+      {segmentosDia.map((s, i) => (<span key={i} className="font-medium">{s}<span className="ml-2 text-slate-300" aria-hidden="true">·</span></span>))}
+      {filasAtencion.length > 0 ? (
+        <button type="button" onClick={() => document.getElementById("requiere-atencion")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="font-bold text-amber-700 underline-offset-2 hover:underline cursor-pointer">
+          {plural(filasAtencion.length, "pendiente que requiere tu atención", "pendientes que requieren tu atención")}
+        </button>
+      ) : (
+        <span className="font-bold text-emerald-700">Todo en orden</span>
+      )}
+      {!opticaActiva && <span className="rounded-full border border-red-200/60 bg-red-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700">Óptica suspendida</span>}
+    </p>
+  )
+
+  const bDejarCita = dejarCita && (
+    <ConfirmarDejarDeAtender
+      cita={dejarCita}
+      usuario={usuario}
+      setCitas={setCitas}
+      onCancelar={() => setDejarCita(null)}
+      onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
+    />
+  )
+
+  // ─── 5. Hoy: quién está en atención ahora y la agenda del día (o las próximas si hoy no hay) ───
+  // conFilaHoy: el rol ya tiene una fila de tarjetas titulada "Hoy"; así la agenda no repite el título.
+  const bHoy = (conAtencion, conFilaHoy = false) => (
+    <section aria-label={conFilaHoy ? (agenda.modo === "hoy" ? "Agenda de hoy" : "Próximas citas") : "Hoy"} className="space-y-2.5">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{conFilaHoy ? (agenda.modo === "hoy" ? "Agenda de hoy" : "Próximas citas") : "Hoy"}</h2>
+        <p className="text-xs text-slate-400">{agenda.modo === "hoy" ? "En orden de hora" : "Hoy no hay citas: estas son las próximas"}</p>
+        <button type="button" onClick={() => setVista?.("citas")} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver agenda completa <ArrowRight size={14} aria-hidden="true" /></button>
       </div>
-
-
-    </>
-  )
-
-  const bAtenciones = (
-    <>
-      {/* ─── ATENCIONES ABIERTAS DE DÍAS ANTERIORES: se pueden retomar o cerrar ─── */}
-      {atencionesVista.length > 0 && (
-        <section aria-label="Atenciones abiertas de días anteriores" className="space-y-2 rounded-2xl border border-amber-300/70 bg-amber-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
-            <AlertTriangle size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
-            {atencionesVista.length === 1 ? "Hay 1 atención abierta de un día anterior" : `Hay ${atencionesVista.length} atenciones abiertas de días anteriores`}
-          </p>
-          <ul className="divide-y divide-amber-200/70">
-            {atencionesVista.map(({ cita, dias }) => (
-              <li key={cita.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-amber-950">{cita.paciente}</p>
-                  <p className="text-xs text-amber-800">{textoAtencionAbierta(dias)}{cita.atendidoPor ? ` · ${etiquetaMiembro(equipo, cita.atendidoPor)}` : ""}</p>
-                </div>
-                <button type="button" onClick={() => onAtenderCita?.(cita)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>
-                <button type="button" onClick={() => setDejarCita(cita)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-    </>
-  )
-
-  const bOrdenesAlerta = (
-    <>
-      {/* ─── ÓRDENES DE LABORATORIO (R37): lentes listos sin avisar y órdenes atrasadas ─── */}
-      {(listasSinAvisar.length > 0 || atrasadas.length > 0) && (
-        <section aria-label="Órdenes de laboratorio que necesitan atención" className="space-y-2 rounded-2xl border border-blue-200/70 bg-blue-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-bold text-blue-900">
-            <FlaskConical size={16} className="shrink-0 text-blue-600" aria-hidden="true" />
-            Órdenes de laboratorio que necesitan atención
-          </p>
-          <ul className="divide-y divide-blue-200/70">
-            {listasSinAvisar.length > 0 && (
-              <li className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
-                <p className="min-w-0 flex-1 text-sm text-blue-950">
-                  <span className="font-semibold">{listasSinAvisar.length === 1 ? "1 orden lista" : `${listasSinAvisar.length} órdenes listas`}</span> sin avisar al paciente
-                  <span className="block text-xs text-blue-800">{listasSinAvisar.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ")}{listasSinAvisar.length > 3 ? ` y ${listasSinAvisar.length - 3} más` : ""}</span>
-                </p>
-                <button type="button" onClick={() => onVerOrdenes?.("listas")} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 cursor-pointer">Avisar</button>
-              </li>
-            )}
-            {atrasadas.length > 0 && (
-              <li className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2">
-                <p className="min-w-0 flex-1 text-sm text-blue-950">
-                  <span className="font-semibold">{atrasadas.length === 1 ? "1 orden atrasada" : `${atrasadas.length} órdenes atrasadas`}</span>
-                  <span className="block text-xs text-blue-800">{atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · ")}</span>
-                </p>
-                <button type="button" onClick={() => onVerOrdenes?.("atrasadas")} className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-100 cursor-pointer">Ver atrasadas</button>
-              </li>
-            )}
-          </ul>
-        </section>
-      )}
-
-    </>
-  )
-
-  const bDejarCita = (
-    <>
-      {dejarCita && (
-        <ConfirmarDejarDeAtender
-          cita={dejarCita}
-          usuario={usuario}
-          setCitas={setCitas}
-          onCancelar={() => setDejarCita(null)}
-          onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
-        />
-      )}
-
-
-    </>
-  )
-
-  const bEnAtencion = (
-    <>
-      {/* ─── EN ATENCIÓN AHORA (R21): el administrador ve cuántas citas se están
-          atendiendo y quién las atiende; se actualiza solo. ─── */}
-      {(
-        <section aria-label="En atención ahora" className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-slate-200/60 bg-white px-5 py-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl border border-blue-200/60 bg-blue-50 text-blue-600"><Activity size={20} aria-hidden="true" /></div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">En atención ahora</p>
-              <p className="font-serif text-2xl font-semibold leading-none" style={{ color: INK }} aria-live="polite">{pacientesEnAtencion.length}</p>
-            </div>
-          </div>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            {pacientesEnAtencion.length === 0 ? (
-              <p className="text-sm text-slate-500">Nadie está en atención en este momento.</p>
+      <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        {conAtencion && (
+          <div aria-label="En atención ahora" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 px-5 py-3.5">
+            <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: INK }}>
+              <Activity size={17} className="text-blue-600" aria-hidden="true" /> En atención ahora
+              <span className="font-serif text-lg" aria-live="polite">{enAtencionAhora.length}</span>
+            </span>
+            {enAtencionAhora.length === 0 ? (
+              <span className="text-sm text-slate-500">Nadie está en atención en este momento.</span>
             ) : (
-              pacientesEnAtencion.map((c) => (
+              enAtencionAhora.map((c) => (
                 <span key={c.id} className="flex max-w-full items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                   <span className="truncate">{c.paciente}</span>
                   <span className="shrink-0 font-normal text-blue-600/80">· {etiquetaMiembro(equipo, c.atendidoPor) || "Sin registro"}</span>
@@ -603,309 +477,39 @@ export default function Inicio({
               ))
             )}
           </div>
-          <button type="button" onClick={() => setVista?.("citas")} className="flex shrink-0 items-center gap-1 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-            Ver en Citas <ArrowRight size={13} aria-hidden="true" />
-          </button>
-        </section>
-      )}
-
-
-    </>
-  )
-
-  const bCumple = (
-    <>
-      {/* ─── CUMPLEAÑEROS ─── */}
-      {cumpleaneros.length > 0 && (
-        <div className="rounded-2xl border p-5" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
-          <div className="flex items-start gap-4">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: GOLD, boxShadow: "0 10px 20px -8px rgba(200,162,78,0.6)" }}>
-              <Cake size={20} />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold" style={{ color: "#7c5e14" }}>
-                {cumpleaneros.some((c) => c.esHoy)
-                  ? `¡${cumpleaneros.filter((c) => c.esHoy).length > 1 ? "Hoy cumplen años" : "Hoy cumple años"}!`
-                  : "Cumpleaños cercanos"}
-              </h4>
-              <p className="mt-0.5 text-xs" style={{ color: "#96742a" }}>
-                Una excelente oportunidad para saludarlos y fidelizarlos.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {cumpleaneros.map((c, i) => (
-                  <span
-                    key={c.id || i}
-                    className={"flex items-center gap-2 rounded-xl border bg-white px-3 py-1.5 text-xs font-semibold shadow-sm " + (c.esHoy ? "ring-2 ring-offset-1" : "")}
-                    style={{ borderColor: "rgba(200,162,78,0.3)", color: "#7c5e14", ...(c.esHoy ? { "--tw-ring-color": GOLD } : {}) }}
-                  >
-                    {c.esHoy && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-white" style={{ backgroundColor: GOLD }}>Hoy</span>}
-                    {c.nombre} ({c.edad} años)
-                    <button
-                      type="button"
-                      onClick={() => enviarFelicitacionWhatsApp(c.nombre, c.contacto || c.telefono || c.celular)}
-                      className={"flex items-center justify-center rounded-lg p-1 transition-colors cursor-pointer " + ACCION_CONFIRMAR}
-                      title="Enviar felicitación por WhatsApp"
-                      aria-label="Enviar felicitación por WhatsApp"
-                    >
-                      <MessageCircle size={15} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
+        )}
+        <div className="divide-y divide-slate-100 px-5 py-4">
+          {agenda.citas.length === 0 ? (
+            <EstadoVacio icon={Calendar} texto="No hay citas hoy ni próximas." />
+          ) : (
+            agenda.citas.map((cita, idx) => renderFilaCita(cita, idx, agenda.modo === "proximas"))
+          )}
         </div>
-      )}
-
-
-    </>
+      </div>
+    </section>
   )
 
-  const bInactivos = (
-    <>
-      {/* ─── PACIENTES POR RECONECTAR ─── */}
-      {inactivos.length > 0 && (
-        <div className="rounded-2xl border border-red-100 bg-red-50/60 p-5">
-          <div className="flex items-start gap-4">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)", boxShadow: "0 10px 20px -8px rgba(220,38,38,0.5)" }}>
-              <Clock size={20} />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-red-800">Pacientes con el control vencido</h4>
-              <p className="mt-0.5 text-xs text-red-600/80">
-                Ya pasó la fecha de su próximo control recomendado. Un recordatorio ayuda a que no pierdan su seguimiento visual.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {inactivos.map(({ paciente, dias }) => (
-                  <span key={paciente.id} className="rounded-xl border border-red-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm">
-                    {paciente.nombre} · hace {dias} días
-                  </span>
-                ))}
-              </div>
-              <button type="button" onClick={() => setVista?.("crm")} className="mt-3 flex items-center gap-1 text-xs font-semibold text-red-700 hover:text-red-800 cursor-pointer">
-                Gestionar en CRM <ArrowRight size={13} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-    </>
-  )
-
-  const bCitasCercanas = (
-    <>
-        {/* Citas de hoy */}
-        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                <Calendar size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Últimas citas / Agenda cercana</h4>
-                <p className="text-[11px] text-slate-500">{mostrandoHistorial ? "Sin citas hoy — últimas registradas" : "Orden cronológico"}</p>
-              </div>
-            </div>
-            <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-              Ver agenda completa <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {citasParaMostrar.length === 0 ? (
-              <EstadoVacio icon={Calendar} texto="Todavía no hay citas registradas." />
-            ) : (
-              citasParaMostrar.map((cita, idx) => renderFilaCita(cita, idx, mostrandoHistorial))
-            )}
-          </div>
-        </section>
-
-
-    </>
-  )
-
-  const bAgendaHoy = (
-    <>
-        {/* Citas de hoy */}
-        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                <Calendar size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Agenda de hoy</h4>
-                <p className="text-[11px] text-slate-500">En orden de hora</p>
-              </div>
-            </div>
-            <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-              Ver agenda completa <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {hoyVista.citas.length === 0 ? (
-              <EstadoVacio icon={Calendar} texto="No hay citas agendadas para hoy." />
-            ) : (
-              hoyVista.citas.map((cita, idx) => renderFilaCita(cita, idx, false))
-            )}
-          </div>
-        </section>
-
-
-    </>
-  )
-
-  const bStock = (
-    <>
-        {/* Inventario: prioridad automática de reabastecimiento — sin
-            toggle, siempre primero lo crítico (pedido explícito de Diego).
-            Cada fila es un botón: un clic manda directo al modal de
-            editar/sumar stock de ESE producto en Inventario.jsx. */}
-        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600">
-                <AlertTriangle size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Reabastecimiento</h4>
-                <p className="text-[11px] text-slate-500">
-                  {productosBajoStock.length === 0 ? "Ningún producto con stock bajo" : `${productosBajoStock.length} ${productosBajoStock.length === 1 ? "producto con stock bajo" : "productos con stock bajo"}`}
-                </p>
-              </div>
-            </div>
-            <button type="button" onClick={() => setVista?.("inventario")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-              Ver inventario <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="space-y-1">
-            {productosPrioridadReabastecimiento.length === 0 ? (
-              <p className="py-2 text-xs text-slate-500">No hay productos registrados en el inventario.</p>
-            ) : (
-              (() => {
-                const maxVista = Math.max(1, ...productosPrioridadReabastecimiento.map((p) => Number(p.stock) || 0))
-                return productosPrioridadReabastecimiento.map((prod, idx) => {
-                  const stock = Number(prod.stock) || 0
-                  const pct = Math.max(4, Math.round((stock / maxVista) * 100))
-                  const bajo = esStockBajo(prod)
-                  return (
-                    <button
-                      type="button"
-                      key={prod.id || idx}
-                      onClick={() => (onReabastecerProducto ? onReabastecerProducto(prod.id) : setVista?.("inventario"))}
-                      title={`Reabastecer ${prod.nombre}`}
-                      className="group -mx-2 flex w-[calc(100%+1rem)] flex-col rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-amber-50/70 cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-700 transition-colors group-hover:text-amber-700">{prod.nombre}</span>
-                        <span className="flex items-center gap-1.5">
-                          <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-700")}>{prod.stock}</span>
-                          <ArrowRight size={12} className="text-slate-400 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full transition-all" style={{ width: pct + "%", backgroundColor: bajo ? "#F59E0B" : "#2563EB" }} />
-                      </div>
-                    </button>
-                  )
-                })
-              })()
-            )}
-          </div>
-        </section>
-
-    </>
-  )
-
-  const bMiAgenda = (
-    <>
-      {/* ─── MI AGENDA (D4, reunión 29 sept.): para quien esté marcado
-          es_optometra=true — su agenda de hoy, con "en atención" ya
-          visible en el badge de cada fila. Para un asistente-optómetra es
-          la única vista de citas de Inicio; para un admin-optómetra se
-          suma a la vista global de arriba, no la reemplaza. La agenda es
-          compartida entre todos los optómetras de la óptica (no hay hoy
-          una columna que asigne cada cita a una persona en particular). ─── */}
-      {(
-        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                <Stethoscope size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Mi agenda</h4>
-                <p className="text-[11px] text-slate-500">
-                  {hoyVista.pendientes + hoyVista.enEspera} {hoyVista.pendientes + hoyVista.enEspera === 1 ? "cita por atender" : "citas por atender"} hoy
-                  {hoyVista.enAtencion > 0 ? ` · ${hoyVista.enAtencion} en atención` : ""}
-                </p>
-              </div>
-            </div>
-            <button type="button" onClick={() => setVista?.("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-              Ver mis citas <ArrowRight size={14} />
-            </button>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {citasDelDia.length === 0 ? (
-              <EstadoVacio icon={Stethoscope} texto="No tienes citas agendadas para hoy." />
-            ) : (
-              citasDelDia.map((cita, idx) => renderFilaCita(cita, idx, false))
-            )}
-          </div>
-        </section>
-      )}
-
-
-    </>
-  )
-
-  const bActividad = (
-    <>
-      {/* ─── REGISTRO DE ACTIVIDAD (solo admin principal, misma fuente que
-          Usuarios.jsx — responde "qué cambió", que el resto del panel no
-          contestaba). Título/copy ajustados para que se lea como registro
-          de auditoría, no como un atajo de navegación — no es el mismo
-          widget que ING1 pidió quitar (aquella "búsqueda rápida de
-          paciente" ya no existe); esta sección viene de un pedido distinto
-          (exponer "Actividad" también al admin de la óptica). ─── */}
-      {actividadReciente.length > 0 && (
-        <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                <History size={18} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold" style={{ color: INK }}>Registro de actividad</h4>
-                <p className="text-[11px] text-slate-500">Qué cambió y quién lo hizo</p>
-              </div>
-            </div>
-            <button type="button" onClick={() => setVista?.("usuarios")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-              Ver todo <ArrowRight size={14} />
-            </button>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {actividadReciente.map((l) => (
-              <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-sm text-slate-700">
-                    <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
-                    {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo}</p>
-                </div>
-                <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{new Date(l.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-    </>
+  // ─── 6. Registro de actividad, compacto: las últimas 5 acciones (solo el administrador) ───
+  const bActividad = actividadReciente.length > 0 && (
+    <section aria-label="Registro de actividad" className="space-y-2.5">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Registro de actividad</h2>
+        <p className="text-xs text-slate-400">Qué cambió y quién lo hizo</p>
+        <button type="button" onClick={() => setVista?.("usuarios")} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todo <ArrowRight size={14} aria-hidden="true" /></button>
+      </div>
+      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-5 py-1 shadow-sm">
+        {actividadReciente.map((l) => (
+          <li key={l.id} className="flex items-baseline justify-between gap-3 py-2">
+            <p className="min-w-0 truncate text-xs text-slate-600">
+              <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
+              {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
+              <span className="text-slate-400"> · {NOMBRE_MODULO[l.modulo] || l.modulo}</span>
+            </p>
+            <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 
   return (
@@ -916,63 +520,51 @@ export default function Inicio({
         @media (prefers-reduced-motion: reduce) { .in-rise { animation: none !important; } }
       `}</style>
 
-      {bHero}
+      {bResumenDia}
       {bDejarCita}
 
       {plantilla === "administrador" && (
         <>
-          {bAtenciones}
-          {bOrdenesAlerta}
           {filaTotales}
-          {filaMes}
-          {bEnAtencion}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{bCitasCercanas}{bStock}</div>
-          {bCumple}
-          {bInactivos}
+          {filaDesenlace}
+          {bRequiere}
+          {bHoy(true)}
           {bActividad}
         </>
       )}
 
       {plantilla === "optometra" && (
         <>
-          {bAtenciones}
           {filaHoyOptometra}
-          {bMiAgenda}
-          {bInactivos}
+          {bRequiere}
+          {bHoy(false, true)}
         </>
       )}
 
       {plantilla === "recepcion" && (
         <>
-          {bAtenciones}
           {filaHoyRecepcion}
           {atajosRecepcion}
-          {bAgendaHoy}
-          {bCumple}
-          {bInactivos}
+          {bRequiere}
+          {bHoy(false, true)}
         </>
       )}
 
       {plantilla === "ventas" && (
         <>
-          {bOrdenesAlerta}
           {filaVender}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{bColaVender}{bOrdenes}</div>
-          {veInventario && bStock}
+          {bRequiere}
+          {bColaVender}
         </>
       )}
 
       {plantilla === "general" && (
         <>
-          {veCitas && bAtenciones}
-          {veVentas && bOrdenesAlerta}
           {veCitas && filaHoyRecepcion}
           {veVentas && filaVender}
-          {veCitas && bAgendaHoy}
-          {veVentas && <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{bColaVender}{bOrdenes}</div>}
-          {veInventario && bStock}
-          {veCrm && bCumple}
-          {veCrm && bInactivos}
+          {bRequiere}
+          {veCitas && bHoy(false, true)}
+          {veVentas && bColaVender}
           {!veCitas && !veVentas && !veInventario && !veCrm && (
             <EstadoVacio icon={Users} texto="Tu rol no tiene un resumen propio: usa el menú para entrar a tus módulos." />
           )}
@@ -992,7 +584,7 @@ export default function Inicio({
 function InicioSkeleton() {
   return (
     <div className="w-full space-y-6 text-left">
-      <div className="h-36 animate-pulse rounded-3xl border border-slate-200/60 bg-slate-100/70 sm:h-32" />
+      <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200/70" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />

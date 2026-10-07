@@ -24,3 +24,18 @@ export function fechaCorta(valor) {
   const p = partes(valor)
   return p ? `${p.dia} ${MESES[p.mes - 1]}` : ""
 }
+
+// Hora de un instante en el formato único de la app: "08:19 AM" (12 h, con cero a la izquierda).
+export function horaLegible(valor) {
+  const f = valor instanceof Date ? valor : new Date(valor)
+  if (Number.isNaN(f.getTime())) return ""
+  const h = f.getHours()
+  return `${String(h % 12 === 0 ? 12 : h % 12).padStart(2, "0")}:${String(f.getMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
+}
+
+// "7 oct, 08:19 AM" (o "7 oct 2026, 08:19 AM" con anio: true) para registros con fecha y hora.
+export function fechaHoraLegible(valor, { anio = false } = {}) {
+  const f = valor instanceof Date ? valor : new Date(valor)
+  if (Number.isNaN(f.getTime())) return ""
+  return `${anio ? fechaLegible(f) : fechaCorta(f)}, ${horaLegible(f)}`
+}

@@ -61,13 +61,15 @@ export function laboratoriosUsados(ordenes) {
 
 // Datos con los que arranca la orden: lo que existe en la consulta; la vendedora completa el resto.
 // La ficha guarda un solo DP, que se precarga como DP de lejos.
-export function datosInicialesOrden(consulta, { montura = "" } = {}) {
+export function datosInicialesOrden(consulta, { montura = "", luna = null } = {}) {
   const vacio = { esfera: "", cilindro: "", eje: "", adicion: "" }
   const ojo = (o) => ({ ...vacio, esfera: o?.esfera || "", cilindro: o?.cilindro || "", eje: o?.eje || "" })
   const m = consulta?.medidas || {}
   const adicion = m.adicion || ""
   const lente = (consulta?.lenteRecomendado || "").toLowerCase()
   const tipo = /progres/.test(lente) ? "progresivo" : /bifocal/.test(lente) ? "bifocal" : "monofocal"
+  // La luna de la venta (tipo, material, tratamientos) manda sobre lo que se deduce de la ficha.
+  const deLuna = Object.fromEntries(Object.entries(luna || {}).filter(([, v]) => v !== undefined))
   return {
     recetaOd: { ...ojo(consulta?.od), adicion },
     recetaOi: { ...ojo(consulta?.oi), adicion },
@@ -85,6 +87,7 @@ export function datosInicialesOrden(consulta, { montura = "" } = {}) {
     laboratorio: "",
     fechaPrometida: "",
     observaciones: consulta?.lenteRecomendado ? `Lente recomendado: ${consulta.lenteRecomendado}` : "",
+    ...deLuna,
   }
 }
 
@@ -132,7 +135,7 @@ export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDato
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Laboratorio</title><style>${ESTILO}</style></head><body>
 <div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Orden de laboratorio</b> · copia para el laboratorio</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
-<p><b>Laboratorio:</b> ${v(orden.laboratorio)} &nbsp; <b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Entrega prometida:</b> ${escapar(fechaLegible(orden.fechaPrometida))}</p>
+<p><b>Laboratorio:</b> ${v(orden.laboratorio)} &nbsp; <b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Entrega prometida:</b> ${escapar(fechaLegible(orden.fechaPrometida))}${orden.facturaNumero ? ` &nbsp; <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <h2>Receta</h2>
 <table><thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>Adición</th></tr></thead><tbody>${ojoFila("OD", orden.recetaOd)}${ojoFila("OI", orden.recetaOi)}</tbody></table>
 <p style="margin-top:8px"><b>DP lejos:</b> ${mm(orden.dpLejos)} &nbsp; <b>DP cerca:</b> ${mm(orden.dpCerca)} &nbsp; <b>Altura de montaje:</b> ${mm(orden.alturaMontaje)}</p>
@@ -152,7 +155,7 @@ export function armarHtmlOrdenPaciente({ opticaNombre = "Óptica", opticaDatos =
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Paciente</title><style>${ESTILO}</style></head><body>
 <div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Comprobante de orden de lentes</b> · copia para el paciente</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
-<p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))}${orden.facturaNumero ? ` · <b>Venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
+<p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))}${orden.facturaNumero ? ` · <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <p><b>Entrega estimada:</b> ${escapar(fechaLegible(orden.fechaPrometida))}</p>
 <h2>Tu pedido</h2>
 <p><b>Lente:</b> ${escapar(tipoLabel(orden.tipoLente))}${orden.material ? `, ${escapar(orden.material)}` : ""}</p>
@@ -175,6 +178,8 @@ export function mapOrden(o) {
     fechaPrometida: o.fecha_prometida, observaciones: o.observaciones || "",
     estado: o.estado, creadaPor: o.creada_por, creadaEn: o.creada_en,
     pacienteAvisadoEn: o.paciente_avisado_en || null, pacienteAvisadoPor: o.paciente_avisado_por || null,
+    // Cambios de estado con su fecha (solo llegan si la consulta los incluye): alimentan el tiempo de entrega de Reportes.
+    historial: (o.ordenes_laboratorio_historial || []).map((h) => ({ estado: h.estado, cambiadoEn: h.cambiado_en })),
   }
 }
 
@@ -189,5 +194,6 @@ export function armarHtmlOrdenDosCopias(args) {
 
 // Cualquier pantalla puede abrir el modal de la orden; la lista (App.jsx) se entera por este evento.
 export const EVENTO_ORDEN = "orden-laboratorio:guardada"
-// ¿Esta línea de la venta parece un lente? (la luna es texto libre, así que solo sirve para sugerir el check)
-export const esLineaDeLente = (l) => l?.tipo === "servicio" && /^(luna|lente|cristal)/i.test((l.descripcion || "").trim())
+// ¿Esta línea de la venta es una luna? Las lunas son líneas de tipo "luna" (migración 0094); las ventas
+// anteriores las escribían como servicio de texto libre, y eso se sigue reconociendo.
+export const esLineaDeLente = (l) => l?.tipo === "luna" || (l?.tipo === "servicio" && /^(luna|lente|cristal)/i.test((l.descripcion || "").trim()))

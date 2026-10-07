@@ -162,6 +162,11 @@ function mapPaciente(p) {
     medidasSolicitadasEn: p.medidas_solicitadas_en,
   }
 }
+// Un producto del inventario tal como lo usa la pantalla (se usa al cargar y al refrescar cada 20 s).
+function mapProducto(p) {
+  return { id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false }
+}
+
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
@@ -236,14 +241,16 @@ function mapFacturaVenta(f) {
     id: f.id, pacienteId: f.paciente_id, citaId: f.cita_id, consultaId: f.consulta_id,
     metodoPago: f.metodo_pago, cuotasTotales: f.cuotas_totales, cuotasPagadas: f.cuotas_pagadas,
     montoTotal: Number(f.monto_total), estado: f.estado, creadoEn: f.created_at,
+    // Nombre técnico facturas_venta; en pantalla es un "comprobante de venta interno" (migración 0094).
+    numero: f.numero ?? null, facturaElectronica: f.factura_electronica || "",
     // facturas_venta_lineas llega embebida por el select de abajo (join por
     // factura_id) — sin esto, `lineas` solo existía para una factura recién
-    // creada en la misma sesión (FacturaVentaModal arma el objeto local con
+    // creada en la misma sesión (ComprobanteVentaModal arma el objeto local con
     // sus líneas al guardar) y desaparecía en cualquier recarga de página,
     // porque este mapper nunca la incluía.
     lineas: (f.facturas_venta_lineas || []).map((l) => ({
       id: l.id, productoId: l.producto_id, tipo: l.tipo, descripcion: l.descripcion,
-      cantidad: l.cantidad, precioUnitario: Number(l.precio_unitario),
+      cantidad: l.cantidad, precioUnitario: Number(l.precio_unitario), detalle: l.detalle || null,
     })),
   }
 }
@@ -384,7 +391,8 @@ function App() {
   }, []);
   // Una orden creada o corregida desde cualquier pantalla entra a la lista sin recargar.
   useEffect(() => {
-    const alGuardar = (e) => setOrdenesLab((prev) => [e.detail, ...prev.filter((o) => o.id !== e.detail.id)])
+    // El historial (que usan los reportes) no viaja en el evento: se conserva el que ya se tenía.
+    const alGuardar = (e) => setOrdenesLab((prev) => [{ ...e.detail, historial: e.detail.historial ?? prev.find((o) => o.id === e.detail.id)?.historial ?? [] }, ...prev.filter((o) => o.id !== e.detail.id)])
     window.addEventListener(EVENTO_ORDEN, alGuardar)
     return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
   }, []);
@@ -546,10 +554,16 @@ function App() {
         const iso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`
         const { data: pasesData } = await supabase.from('pases_a_venta').select('*').eq('optica_id', usuario.opticaId)
         if (pasesData) setPasesVenta(pasesData.map(mapPase))
-        const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*').eq('optica_id', usuario.opticaId)
+        const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', usuario.opticaId)
         if (ordenesData) setOrdenesLab(ordenesData.map(mapOrden))
         const { data: abonosData } = await supabase.from('abonos_factura').select('*').eq('optica_id', usuario.opticaId)
         if (abonosData) setAbonos(abonosData.map(mapAbono))
+        // El inventario también se refresca: si el administrador cambia un precio o una cantidad, los demás roles lo ven sin cerrar sesión.
+        const { data: productosData } = await supabase.from('inventario').select('*').eq('optica_id', usuario.opticaId).order('created_at', { ascending: false })
+        if (productosData) {
+          const nuevos = productosData.map(mapProducto)
+          setInventario((prev) => (JSON.stringify(prev) === JSON.stringify(nuevos) ? prev : nuevos))
+        }
         const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
         if (data) {
           setCitas((prev) => {
@@ -601,7 +615,7 @@ function App() {
       // skeleton en vez de "no hay datos todavía" mientras tanto.
       Promise.allSettled([
         supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false })))
+          if (data) setInventario(data.map(mapProducto))
           else if (error) registrarErrorCarga('inventario')
         }),
         // pacientes/citas/consultas: hidratan el estado local con lo real de
@@ -618,21 +632,33 @@ function App() {
           if (data) setCitas(data.map(mapCita))
           else if (error) registrarErrorCarga('citas')
         }),
+        // Datos que el Inicio combina entre sí (consultas, ventas, pases, órdenes y abonos): se esperan junto con lo
+        // demás para que el Inicio no calcule con una parte vacía (p. ej. todos los pacientes "sin atender" mientras llegan las consultas).
+        supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (data) setConsultas(data.map(mapConsulta))
+          else if (error) registrarErrorCarga('consultas')
+        }),
+        supabase.from('facturas_venta').select('*, facturas_venta_lineas(*)').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (data) setFacturasVenta(data.map(mapFacturaVenta))
+          else if (error) registrarErrorCarga('facturas')
+        }),
+        supabase.from('pases_a_venta').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setPasesVenta(data.map(mapPase))
+          else if (error) registrarErrorCarga('pacientes listos para venta')
+        }),
+        supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setOrdenesLab(data.map(mapOrden))
+          else if (error) registrarErrorCarga('órdenes de laboratorio')
+        }),
+        supabase.from('abonos_factura').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setAbonos(data.map(mapAbono))
+          else if (error) registrarErrorCarga('abonos')
+        }),
       ]).then(() => setCargaInicialStaff(false))
-
-      supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (data) setConsultas(data.map(mapConsulta))
-        else if (error) registrarErrorCarga('consultas')
-      })
 
       supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setVentas(data.map(mapVenta))
         else if (error) registrarErrorCarga('ventas')
-      })
-
-      supabase.from('facturas_venta').select('*, facturas_venta_lineas(*)').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (data) setFacturasVenta(data.map(mapFacturaVenta))
-        else if (error) registrarErrorCarga('facturas')
       })
 
       supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
@@ -643,21 +669,6 @@ function App() {
       supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data, error }) => {
         if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
         else if (error) registrarErrorCarga('solicitudes de eliminación')
-      })
-
-      supabase.from('pases_a_venta').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setPasesVenta(data.map(mapPase))
-        else if (error) registrarErrorCarga('pacientes listos para venta')
-      })
-
-      supabase.from('ordenes_laboratorio').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setOrdenesLab(data.map(mapOrden))
-        else if (error) registrarErrorCarga('órdenes de laboratorio')
-      })
-
-      supabase.from('abonos_factura').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setAbonos(data.map(mapAbono))
-        else if (error) registrarErrorCarga('abonos')
       })
 
       supabase.rpc('equipo_optica').then(({ data, error }) => {
@@ -1135,6 +1146,7 @@ function App() {
             disponibilidad={disponibilidad}
             avisoInicial={avisoSesion}
             soloModal={sitio.modo === 'admin_sistema'}
+            resolviendoOptica={sitio.modo === 'optica' && !opticaPublica && !!supabase}
             AlTenerExito={manejarExitoLogin}
             AlIrARegistro={() => setPantallaActual('registro_paciente')}
           />

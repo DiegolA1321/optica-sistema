@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
@@ -47,17 +48,18 @@ import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro, opcionesAsignables } from "../utilidades/equipo"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
+import { rangoDelMes } from "../utilidades/inicio"
 import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
-import FacturaVentaModal from "./FacturaVentaModal"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -140,7 +142,8 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   // Cancelada: pendiente, en atención, "No asistió" (la paciente llegó 12
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
-  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
+  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onAtender
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
@@ -242,14 +245,14 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 pl-6">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+        <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-600">
           <Clock size={14} className="text-slate-500" />
           <span>{cita.hora}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {cita.estado === "Atendida" ? (
             <div className="flex flex-col items-end gap-0.5">
-              <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+              <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
                 <CheckCircle2 size={12} /> Atendida
               </span>
               {fechaRealDistinta && (
@@ -257,26 +260,26 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
               )}
             </div>
           ) : cita.estado === "No Asistió" ? (
-            <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
               <UserX size={12} /> No asistió
             </span>
           ) : cita.estado === "Cancelada" ? (
-            <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
               <X size={12} /> {cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : cita.canceladaPor === "paciente" ? "Cancelada por el paciente" : "Cancelada"}
             </span>
           ) : (
-            <span className={"flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
+            <span className={"flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
               {cita.estado === "En Atención" ? <Activity size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
               {cita.estado === "En Atención" ? "En atención" : "Pendiente"}
             </span>
           )}
           {diasAtencionAbierta(cita) !== null && (
-            <span title={textoAtencionAbierta(diasAtencionAbierta(cita))} className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            <span title={textoAtencionAbierta(diasAtencionAbierta(cita))} className="flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
               <AlertTriangle size={11} aria-hidden="true" /> Abierta hace {diasAtencionAbierta(cita)} d
             </span>
           )}
           {cobroPendiente && (
-            <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
               <Receipt size={12} aria-hidden="true" /> Cobro pendiente
             </span>
           )}
@@ -311,7 +314,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -357,13 +360,27 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   }, [abrirModalAlEntrar])
 
   // Desde una tarjeta del Inicio ("Atendidas", "No asistieron"...): abre la lista ya filtrada por ese estado.
+  // estadoInicial es el estado ("atendida"...) o { estado, periodo }: con periodo "mes" la lista se acota a este mes
+  // (igual que la tarjeta del Inicio) y con "siempre" no se acota por fecha.
   useEffect(() => {
     if (estadoInicial) {
-      setEstadoFiltro(estadoInicial)
+      const { estado, periodo } = typeof estadoInicial === "string" ? { estado: estadoInicial, periodo: null } : estadoInicial
+      setEstadoFiltro(estado)
       setFiltro("todas")
+      setVistaState("lista") // la tarjeta promete una lista filtrada; no se pisa la vista guardada
+      if (periodo === "mes") { const r = rangoDelMes(); setRangoDesde(r.desde); setRangoHasta(r.hasta) }
+      else if (periodo === "siempre") { setRangoDesde(""); setRangoHasta("") }
       onEstadoInicialConsumido?.()
     }
   }, [estadoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Desde "Atender" del Inicio (Siguiente paciente): abre el mismo resumen de la cita que el botón "Atender" de esta pantalla.
+  useEffect(() => {
+    if (!atenderCitaId) return
+    const cita = citas.find((c) => c.id === atenderCitaId)
+    if (cita) atenderCita(cita)
+    onAtenderCitaConsumido?.()
+  }, [atenderCitaId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [busqueda, setBusqueda] = useState("")
   // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
@@ -625,7 +642,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
 
     setCitas([...citas, nuevaCita])
-    registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${nuevaCita.fecha}`)
+    registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
 
     const irADeUnaALaFicha = atenderInmediato
     setConfirmando(false)
@@ -739,7 +756,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
     setBannerError("")
     setCitas(citas.map((c) => (c.id === porCancelar ? { ...c, estado: "Cancelada", canceladaPor: "recepcion" } : c)))
-    registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${cancelada.fecha}` : "")
+    registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${fechaLegible(cancelada.fecha)}` : "")
     setPorCancelar(null)
   }
 
@@ -771,7 +788,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // ── "Atender": abre primero el resumen de la cita (punto 1, reunión 29
   // sept.) — la lógica real de entrar a la ficha vive en ingresarAFicha,
   // disparada recién cuando se confirma ese resumen. ──
+  // Atender exige poder crear fichas clínicas (consultas: crear). Los botones ya no se muestran sin ese
+  // permiso; esto es la red de seguridad para que ningún camino quede en un clic mudo.
+  const puedeAtenderPacientes = puede(usuario, "consultas", "crear")
+  const avisarSinPermisoAtender = () => onAviso?.("No tienes permiso para atender pacientes.")
   const atenderCita = (cita) => {
+    if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
     setResumenPara(cita)
   }
 
@@ -781,6 +803,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // el paciente es web y no está confirmado por recepción (D2), pide
   // confirmar/completar sus datos antes de la ficha. ──
   const ingresarAFicha = (cita) => {
+    if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
     if (cita.pacienteId) {
       const paciente = pacientes.find((p) => p.id === cita.pacienteId)
       if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
@@ -911,7 +934,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       }
       const { asignado_a: asignadoNuevo, cancelada_por: canceladaPorNuevo, ...cambiosLocales } = cambios
       setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}), ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
-      registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${reagendando.fecha}`)
+      registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${fechaLegible(reagendando.fecha)}`)
       cerrarReagendar()
       setMensajeExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
       setTimeout(() => setMensajeExito(null), 3000)
@@ -950,7 +973,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     let numeroLimpio = (cita.telefono || "").replace(/\D/g, "")
     if (numeroLimpio.startsWith("0")) numeroLimpio = "593" + numeroLimpio.substring(1)
     if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) numeroLimpio = "593" + numeroLimpio
-    const texto = `Hola ${cita.paciente}, te escribimos de ${usuario?.opticaNombre || "tu óptica"} para avisarte que tu cita fue reagendada. Nueva fecha: ${cita.fecha} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
+    const texto = `Hola ${cita.paciente}, te escribimos de ${usuario?.opticaNombre || "tu óptica"} para avisarte que tu cita fue reagendada. Nueva fecha: ${fechaLegible(cita.fecha)} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
   }
@@ -989,7 +1012,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       }
       const citaActualizada = { ...cita, fecha: nuevaFecha, hora: nuevaHora }
       setCitas((prev) => prev.map((c) => (c.id === cita.id ? citaActualizada : c)))
-      registrarLog(usuario, "citas", "Reagendó una cita (arrastrando en el calendario)", `${cita.paciente} · ${nuevaFecha}`)
+      registrarLog(usuario, "citas", "Reagendó una cita (arrastrando en el calendario)", `${cita.paciente} · ${fechaLegible(nuevaFecha)}`)
       setBannerError("")
       setMoviendo(null)
       setReagendada(citaActualizada)
@@ -1275,7 +1298,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       onAbrirDetalle={abrirDetalle}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
-                        onAtender={atenderCita}
+                        onAtender={puedeAtenderPacientes ? atenderCita : undefined}
                       onAbrirMenuAcciones={abrirMenuAcciones}
                     />
                   ))}
@@ -1335,7 +1358,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             {atencionesAntiguas.length === 1 ? "1 atención abierta de un día anterior" : `${atencionesAntiguas.length} atenciones abiertas de días anteriores`}
           </p>
           <p className="text-xs text-amber-800/80">La más antigua: {atencionesAntiguas[0].cita.paciente}, {textoAtencionAbierta(atencionesAntiguas[0].dias).toLowerCase()}.</p>
-          <button type="button" onClick={() => { setEstadoFiltro("enAtencion"); setFiltro("todas") }} className="ml-auto rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Revisar</button>
+          <button type="button" onClick={() => abrirDetalle(atencionesAntiguas[0].cita)} className="ml-auto rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Revisar</button>
         </div>
       )}
 
@@ -1498,7 +1521,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             setSoloPorRegistrar(false)
             setVista("lista")
           }}
-          onAtender={atenderCita}
+          onAtender={puedeAtenderPacientes ? atenderCita : undefined}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
@@ -1517,7 +1540,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             // es angosta y no cabe, se conserva el detalle del día en el modal).
             if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
           }}
-          onAtender={atenderCita}
+          onAtender={puedeAtenderPacientes ? atenderCita : undefined}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
@@ -1599,7 +1622,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                             onAbrirDetalle={abrirDetalle}
                             cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
-                        onAtender={atenderCita}
+                        onAtender={puedeAtenderPacientes ? atenderCita : undefined}
                             onAbrirMenuAcciones={abrirMenuAcciones}
                           />
                         ))}
@@ -1795,27 +1818,29 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                     Atención" al confirmar, sin forzarlo a elegir un bloque de
                     la grilla de 30/40 min. Pedido explícito: "Atender Ahora /
                     Hora Actual", cero fricción cuando el paciente ya llegó. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const ahora = new Date()
-                    const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
-                    setFecha(hoyISO())
-                    setHoraPersonalizada(true)
-                    setHoraCustom(hhmm)
-                    setAtenderInmediato(true)
-                    setErrorHorarioCustom("")
-                  }}
-                  className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200/60 bg-white hover:border-blue-200/60 hover:bg-blue-50/30")}
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
-                    <Zap size={16} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold" style={{ color: INK }}>Atender ahora (hora actual)</span>
-                    <span className="block text-xs text-slate-500">El paciente ya está aquí — usa la hora de este momento y pasa directo a la ficha clínica al confirmar.</span>
-                  </span>
-                </button>
+                {puedeAtenderPacientes && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ahora = new Date()
+                      const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
+                      setFecha(hoyISO())
+                      setHoraPersonalizada(true)
+                      setHoraCustom(hhmm)
+                      setAtenderInmediato(true)
+                      setErrorHorarioCustom("")
+                    }}
+                    className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200/60 bg-white hover:border-blue-200/60 hover:bg-blue-50/30")}
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
+                      <Zap size={16} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold" style={{ color: INK }}>Atender ahora (hora actual)</span>
+                      <span className="block text-xs text-slate-500">El paciente ya está aquí — usa la hora de este momento y pasa directo a la ficha clínica al confirmar.</span>
+                    </span>
+                  </button>
+                )}
 
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
@@ -1924,7 +1949,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         const consulta = pendientesPorCita.get(cobrandoCita.id)
         if (!paciente || !consulta) return null
         return (
-          <FacturaVentaModal
+          <ComprobanteVentaModal
             usuario={usuario}
             inventario={inventario}
             setInventario={setInventario}
@@ -2249,7 +2274,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}
             onCerrar={() => setDetalleCitaId(null)}
-            onIngresar={(c) => { setDetalleCitaId(null); atenderCita(c) }}
+            onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); atenderCita(c) } : undefined}
             onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
             onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
             onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
@@ -2302,13 +2327,15 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             >
               <CalendarClock size={15} /> Editar cita
             </button>
-            <button
-              type="button"
-              onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-            >
-              <X size={15} /> Cancelar cita
-            </button>
+            {puedeCancelarCita(cita) && (
+              <button
+                type="button"
+                onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+              >
+                <X size={15} /> Cancelar cita
+              </button>
+            )}
           </div>,
           document.body,
         )

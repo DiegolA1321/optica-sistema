@@ -396,7 +396,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
         <ShieldCheck size={17} className="mt-0.5 shrink-0" />
         <p className="text-xs leading-relaxed">
-          El sistema soporta todas estas opciones; aquí decidís cuáles aplican a tu óptica. Estos parámetros solo los ve y edita el administrador.
+          El sistema soporta todas estas opciones; aquí decides cuáles aplican a tu óptica. Estos parámetros solo los ve y edita el administrador.
         </p>
       </div>
 
@@ -436,7 +436,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           <FilaParametro
             icon={parametrizacion.mostrarMedidasPaciente ? Eye : EyeOff}
             titulo="Medidas de la receta en el portal del paciente"
-            descripcion="Esfera, cilindro y eje son datos técnicos de la receta. Podés dejarlos visibles gratis en el portal, o mantenerlos protegidos y ofrecerlos solo bajo solicitud (con costo adicional)."
+            descripcion="Esfera, cilindro y eje son datos técnicos de la receta. Puedes dejarlos visibles gratis en el portal, o mantenerlos protegidos y ofrecerlos solo bajo solicitud (con costo adicional)."
             activo={parametrizacion.mostrarMedidasPaciente}
             onClick={() => alternar(
               "mostrarMedidasPaciente",

@@ -89,3 +89,26 @@ describe("ordenesLaboratorio", () => {
     expect(con).toContain("-1.00")
   })
 })
+
+describe("luna de la venta (Bloque E)", () => {
+  it("la luna de la venta precarga tipo, material y tratamientos de la orden", () => {
+    const d = datosInicialesOrden({ lenteRecomendado: "Progresivo" }, { montura: "M1", luna: { tipoLente: "bifocal", material: "CR-39", filtroAzul: true, otrosTratamientos: undefined } })
+    expect(d).toMatchObject({ tipoLente: "bifocal", material: "CR-39", filtroAzul: true, montura: "M1", otrosTratamientos: "" })
+  })
+  it("reconoce la línea de luna y las lunas viejas escritas como servicio", async () => {
+    const { esLineaDeLente } = await import("./ordenesLaboratorio")
+    expect(esLineaDeLente({ tipo: "luna", descripcion: "x" })).toBe(true)
+    expect(esLineaDeLente({ tipo: "servicio", descripcion: "Luna: monofocal" })).toBe(true)
+    expect(esLineaDeLente({ tipo: "servicio", descripcion: "Consulta" })).toBe(false)
+    expect(esLineaDeLente({ tipo: "producto", descripcion: "Luna" })).toBe(false)
+  })
+})
+
+describe("número del comprobante en las dos copias (R36)", () => {
+  it("aparece en la copia del laboratorio y en la del paciente solo si existe", () => {
+    const con = orden({ facturaNumero: "CV-0007" })
+    expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: con })).toContain("Comprobante de venta:</b> CV-0007")
+    expect(armarHtmlOrdenPaciente({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: con })).toContain("CV-0007")
+    expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: orden() })).not.toContain("Comprobante de venta")
+  })
+})

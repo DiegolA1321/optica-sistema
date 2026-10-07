@@ -18,7 +18,7 @@ describe("lineasProformaDeConsulta", () => {
     const l = lineasProformaDeConsulta({ motivo: "Consulta General", lenteRecomendado: "Monofocal antirreflejo" }, { costosMotivo: { "Consulta General": 15 } })
     expect(l).toEqual([
       { tipo: "servicio", descripcion: "Consulta — Consulta General", cantidad: 1, precioUnitario: 15 },
-      { tipo: "servicio", descripcion: "Luna: Monofocal antirreflejo", cantidad: 1, precioUnitario: 0 },
+      { tipo: "luna", productoId: null, descripcion: "Luna: Monofocal antirreflejo", cantidad: 1, precioUnitario: 0, detalle: null },
     ])
   })
   it("sin lente recomendado la luna queda en blanco para escribirla", () => {
@@ -27,12 +27,12 @@ describe("lineasProformaDeConsulta", () => {
 })
 
 describe("armarHtmlProforma", () => {
-  it("lista las líneas, el total y avisa que no es una factura", () => {
+  it("lista las líneas, el total y avisa que no es un comprobante ni una factura electrónica", () => {
     const html = armarHtmlProforma(base)
     expect(html).toContain("Montura negra")
     expect(html).toContain("Luna: Monofocal antirreflejo")
     expect(html).toContain("Total: $105.50")
-    expect(html).toContain("No es una factura")
+    expect(html).toContain("No es un comprobante de venta ni una factura electrónica")
     expect(html).toContain("6 oct 2026")
   })
   it("incluye el diagnóstico y la receta, pero no las medidas salvo que se pida", () => {

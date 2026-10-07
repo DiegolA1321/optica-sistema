@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaHoraLegible } from "../utilidades/formatoFecha"
 import { createPortal } from "react-dom"
 import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck, LogOut } from "lucide-react"
 import { INK } from "@/lib/tema"
@@ -7,6 +8,7 @@ import { etiquetaFecha } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
+import { puedeCancelarCita } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -20,12 +22,12 @@ const BADGE_ESTADO = {
 const BADGE_PENDIENTE = "border-amber-200/60 bg-amber-50 text-amber-700"
 const ETIQUETA_ESTADO = { "En Atención": "En atención", "No Asistió": "No asistió" }
 
-// "4 oct 2026, 15:20" a partir del created_at de la cita (timestamptz).
+// "4 oct 2026, 03:20 PM" a partir del created_at de la cita (timestamptz).
 function fechaHoraAgendada(iso) {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleString("es-EC", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  return fechaHoraLegible(d, { anio: true })
 }
 
 function Fila({ icono: Icono, etiqueta, children }) {
@@ -44,7 +46,7 @@ function Fila({ icono: Icono, etiqueta, children }) {
 // el paciente en otra pestaña para no perder el lugar en la agenda.
 export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar, onDejarDeAtender }) {
   const refModal = useModalAccesible(true, onCerrar)
-  const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onIngresar
   const agendada = fechaHoraAgendada(cita.creadoEn)
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
     ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")
@@ -157,7 +159,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
                 <LogOut size={13} aria-hidden="true" /> Dejar de atender
               </button>
             )}
-            {cita.estado !== "Cancelada" && (
+            {puedeCancelarCita(cita) && (
               <button type="button" onClick={() => onCancelar(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 transition-colors hover:text-red-700 cursor-pointer">
                 <X size={13} aria-hidden="true" /> Cancelar cita
               </button>

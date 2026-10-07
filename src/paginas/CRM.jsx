@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -196,7 +197,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         return
       }
       setAvisos(data.map((a) => ({
-        id: a.id, texto: a.texto, fecha: new Date(a.created_at).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+        id: a.id, texto: a.texto, fecha: fechaLegible(a.created_at),
         destinatarioId: a.destinatario_id, destinatarioNombre: a.destinatario_nombre, destinatarioTelefono: a.destinatario_telefono,
       })))
     })
@@ -223,7 +224,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
       const aviso = {
         texto: nuevoAviso.trim(),
-        fecha: new Date().toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+        fecha: fechaLegible(new Date()),
         destinatarioId: destinatario?.id || null,
         destinatarioNombre: destinatario?.nombre || null,
         destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",
@@ -476,7 +477,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               value={nuevoAviso}
               onChange={(e) => setNuevoAviso(e.target.value)}
               rows={2}
-              placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, podés pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
+              placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, puedes pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
               className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
             />
             {puede(usuario, "crm", "crear") && <button
@@ -490,7 +491,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               {publicandoAviso ? "Publicando..." : avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
             </button>}
             <p className="text-[11px] text-slate-500">
-              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o enviaselo directo al paciente si elegiste uno puntual.
+              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o envíaselo directo al paciente si elegiste uno puntual.
             </p>
             {avisoError && <p role="alert" className="text-[11px] font-semibold text-red-600">{avisoError}</p>}
 
@@ -590,15 +591,17 @@ function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, cont
 function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar, onVerPerfil }) {
   return (
     <div className="flex items-center justify-between gap-2 p-3">
-      <div className="min-w-0">
+      {/* El nombre ocupa lo que sobra y se parte en dos líneas si hace falta: en las columnas angostas del
+          CRM el botón de WhatsApp lo tapaba. */}
+      <div className="min-w-0 flex-1">
         {onVerPerfil ? (
-          <button type="button" onClick={() => onVerPerfil(p.id)} className="truncate text-sm font-bold text-slate-800 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+          <button type="button" onClick={() => onVerPerfil(p.id)} className="block max-w-full text-left text-sm font-bold leading-tight text-slate-800 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer [overflow-wrap:anywhere]">
             {p.paciente}
           </button>
         ) : (
-          <p className="truncate text-sm font-bold text-slate-800">{p.paciente}</p>
+          <p className="text-sm font-bold leading-tight text-slate-800 [overflow-wrap:anywhere]">{p.paciente}</p>
         )}
-        <p className="truncate text-[11px] text-slate-500">{p.estado}</p>
+        <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{p.estado}</p>
       </div>
       {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
         <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">

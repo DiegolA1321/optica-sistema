@@ -86,5 +86,5 @@ export function resumenPermisos(permisos) {
 }
 
 // Módulos que aparecen en el menú para este conjunto de permisos (en el orden del menú).
-export const NOMBRES_MENU = { citas: "Citas médicas", pacientes: "Pacientes", inventario: "Inventario", crm: "CRM y fidelización", horario: "Mi horario", reportes: "Reportes", mensajes: "Mensajes", configuracion: "Configuración" }
-export const menuDePermisos = (permisos) => ["citas", "pacientes", "inventario", "crm", "horario", "reportes", "mensajes", "configuracion"].filter((m) => puedeNivel(permisos, m, "ver")).map((m) => NOMBRES_MENU[m])
+export const NOMBRES_MENU = { citas: "Citas médicas", pacientes: "Pacientes", ventas: "Ventas", inventario: "Inventario", crm: "CRM y fidelización", horario: "Mi horario", reportes: "Reportes", mensajes: "Mensajes", configuracion: "Configuración" }
+export const menuDePermisos = (permisos) => ["citas", "pacientes", "ventas", "inventario", "crm", "horario", "reportes", "mensajes", "configuracion"].filter((m) => puedeNivel(permisos, m, "ver")).map((m) => NOMBRES_MENU[m])

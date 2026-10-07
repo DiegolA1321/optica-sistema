@@ -226,7 +226,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
               />
             </label>
           </div>
-          <p className="mt-1 text-[10px] text-slate-400">Para la imagen grande del hero (fondo claro). Si no lo subís, se usa el logo de arriba ahí también. También podés pegar una URL:</p>
+          <p className="mt-1 text-[10px] text-slate-400">Para la imagen grande del hero (fondo claro). Si no lo subes, se usa el logo de arriba ahí también. También puedes pegar una URL:</p>
           <input
             type="text" value={campo.logoUrlClaro} onChange={(e) => setCampo((p) => ({ ...p, logoUrlClaro: e.target.value }))}            placeholder="https://…"
             className="mt-1 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
@@ -270,7 +270,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
 
       <div>
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Tarjetas de servicios del login <span className="font-normal normal-case text-slate-400">(completá las 3 para reemplazar las genéricas)</span>
+          Tarjetas de servicios del login <span className="font-normal normal-case text-slate-400">(completa las 3 para reemplazar las genéricas)</span>
         </p>
         <div className="space-y-3">
           {campo.servicios.map((s, i) => (

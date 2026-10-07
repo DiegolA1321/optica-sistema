@@ -11,6 +11,7 @@ import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { registrarLog } from "../utilidades/logs"
 import { puede } from "../utilidades/permisosUi"
 import OrdenLaboratorioModal from "./OrdenLaboratorioModal"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import EntregaConSaldoModal from "./EntregaConSaldoModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import {
@@ -91,7 +92,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
     const { error } = supabase ? await supabase.rpc("cambiar_estado_orden", { p_orden_id: o.id, p_estado: estado }) : { error: null }
     setTrabajando(null)
     if (error) { falla(error, "No se pudo cambiar el estado. Revisa tu conexión e intenta de nuevo."); return }
-    reemplazar(o.id, { estado, ...(estado === "enviada" || estado === "lista" ? { pacienteAvisadoEn: null, pacienteAvisadoPor: null } : {}) })
+    reemplazar(o.id, { estado, historial: [...(o.historial || []), { estado, cambiadoEn: new Date().toISOString() }], ...(estado === "enviada" || estado === "lista" ? { pacienteAvisadoEn: null, pacienteAvisadoPor: null } : {}) })
     setHistorial((h) => { const { [o.id]: _quitar, ...resto } = h; return resto })
     registrarLog(usuario, "pacientes", "Cambió el estado de una orden de laboratorio", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
     onAviso?.(estado === "lista" ? `${numeroOrden(o.numero)} lista para entregar. Avísale al paciente.` : `${numeroOrden(o.numero)}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`)
@@ -110,7 +111,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
     onAviso?.(`Aviso a ${p.nombre} abierto en WhatsApp.`)
   }
 
-  const imprimir = (o) => imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOptica, paciente: pacienteDe(o) || {}, orden: o }))
+  const imprimir = (o) => imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOptica, paciente: pacienteDe(o) || {}, orden: { ...o, facturaNumero: facturaDe(o)?.numero != null ? numeroComprobante(facturaDe(o).numero) : "" } }))
 
   const alternarHistorial = async (o) => {
     if (abierta === o.id) { setAbierta(null); return }

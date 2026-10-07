@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown } from "lucide-react"
+import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown, Glasses } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
@@ -14,7 +14,8 @@ import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
-import { esLineaDeLente } from "../utilidades/ordenesLaboratorio"
+import { esLineaDeLente, TIPOS_LENTE, MATERIALES_LENTE } from "../utilidades/ordenesLaboratorio"
+import { LEYENDA_INTERNO, TRATAMIENTOS_LUNA, descripcionLuna, detalleLuna, datosOrdenDeLinea, lunaDe, normalizarFacturaElectronica } from "../utilidades/comprobantes"
 import { mapAbono, EVENTO_ABONO } from "../utilidades/abonos"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 
@@ -22,20 +23,26 @@ import { textoDiagnostico } from "../utilidades/pasesVenta"
 const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción de venta/dinero
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul, tipo "producto"
 const VIOLETA = "#7c3aed" // tipo "servicio"
+const AZUL_LUNA = "#0e7490" // tipo "luna"
 
-// Panel de cobro ÚNICO (propuesta de flujo de atención, Ronda 4): el mismo
+// Panel de venta ÚNICO (propuesta de flujo de atención, Ronda 4): el mismo
 // panel se usa al guardar la ficha clínica (consulta + lente precargados,
 // "Más tarde" / "Cobrar y finalizar"), desde el perfil del paciente ("Nueva
-// venta", vacío) y para cobrar un cobro pendiente. Una venta de un producto
-// es una factura de una línea.
+// venta", vacío) y para cobrar un cobro pendiente.
 //
-// Punto 06 del Diagnóstico Maestro: factura con líneas múltiples (producto
-// y/o servicio) y un solo método de pago para el total. Desde la Ronda 4 es
+// El documento que genera es un "comprobante de venta interno" (no una factura
+// electrónica del SRI). La tabla y la función conservan su nombre técnico
+// (facturas_venta, crear_factura_venta); en pantalla nunca se llama "factura",
+// salvo el campo opcional con el número de la factura electrónica emitida por fuera.
+//
+// Bloque E (R57-R59): una venta tiene montura y accesorios (productos de inventario,
+// los únicos que descuentan stock), la luna (línea de texto con precio, migración 0094)
+// y servicios, y un solo método de pago para el total. Desde la Ronda 4 es
 // también el único camino de venta (reemplazó a VentaProductoModal, que se
 // retiró junto con "Vender" de Inventario).
 // Un servicio (examen, ajuste, garantía) no tiene producto_id y no
 // descuenta inventario — ver crear_factura_venta (migración 0072).
-export default function FacturaVentaModal({
+export default function ComprobanteVentaModal({
   usuario,
   inventario = [],
   setInventario,
@@ -56,7 +63,7 @@ export default function FacturaVentaModal({
   // productos sin stock (o ya inexistentes) se omiten en silencio.
   lineasIniciales,
   titulo = "Nueva venta",
-  subtitulo = "Varios productos/servicios, un solo pago.",
+  subtitulo = "Montura, lunas y servicios, un solo pago.",
   etiquetaGuardar = "Guardar venta",
   // Si se pasa, el botón secundario es "Más tarde" (en vez de "Cancelar").
   onMasTarde,
@@ -76,6 +83,9 @@ export default function FacturaVentaModal({
   // "Nueva venta" de un paciente con un pase abierto: ofrece vincular la venta
   // a esa consulta para que cierre el pase ({ consultaId, citaId, etiqueta }).
   vinculoSugerido = null,
+  // Sin paciente fijo (venta desde el módulo de Ventas) la sugerencia depende del paciente elegido:
+  // recibe el paciente y devuelve { consultaId, citaId, etiqueta } o null.
+  vinculoParaPaciente = null,
   onGuardado,
   onCerrar,
 }) {
@@ -87,13 +97,15 @@ export default function FacturaVentaModal({
   const [ordenPara, setOrdenPara] = useState(null) // factura recién guardada, a la espera de su orden
   const [incluirMedidas, setIncluirMedidas] = useState(false)
   const [verMedidas, setVerMedidas] = useState(false)
-  const consultaIdEfectivo = consultaId ?? (vinculoSugerido && vincular ? vinculoSugerido.consultaId : null)
-  const citaIdEfectivo = citaId ?? (vinculoSugerido && vincular ? vinculoSugerido.citaId : null)
 
   const [lineas, setLineas] = useState(() => {
     const iniciales = lineasIniciales || (lineaInicial?.productoId ? [{ tipo: "producto", ...lineaInicial }] : [])
     const out = []
     for (const l of iniciales) {
+      if (l.tipo === "luna") {
+        out.push({ tipo: "luna", productoId: null, descripcion: l.descripcion || "Luna", cantidad: 1, precioUnitario: Math.max(0, Number(l.precioUnitario) || 0), detalle: l.detalle || null })
+        continue
+      }
       if (l.tipo === "servicio" || !l.productoId) {
         out.push({ tipo: "servicio", productoId: null, descripcion: l.descripcion || "Servicio", cantidad: Math.max(1, l.cantidad || 1), precioUnitario: Math.max(0, Number(l.precioUnitario) || 0) })
         continue
@@ -111,6 +123,11 @@ export default function FacturaVentaModal({
   const [busquedaProducto, setBusquedaProducto] = useState("")
   const [mostrarDropdownProducto, setMostrarDropdownProducto] = useState(false)
   const [cantidadProducto, setCantidadProducto] = useState("1")
+
+  // Luna (texto + precio): los mismos catálogos de tipo, material y tratamientos de la orden de laboratorio.
+  const [luna, setLuna] = useState({ tipoLente: "monofocal", material: "", antirreflejo: false, filtroAzul: false, fotocromatico: false, otrosTratamientos: "" })
+  const [precioLuna, setPrecioLuna] = useState("")
+  const [facturaElectronica, setFacturaElectronica] = useState("")
 
   const [descServicio, setDescServicio] = useState("")
   const [cantidadServicio, setCantidadServicio] = useState("1")
@@ -134,6 +151,9 @@ export default function FacturaVentaModal({
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdownPaciente, setMostrarDropdownPaciente] = useState(false)
   const paciente = pacienteFijo || pacienteSel
+  const vinculo = vinculoSugerido || (paciente && vinculoParaPaciente ? vinculoParaPaciente(paciente) : null)
+  const consultaIdEfectivo = consultaId ?? (vinculo && vincular ? vinculo.consultaId : null)
+  const citaIdEfectivo = citaId ?? (vinculo && vincular ? vinculo.citaId : null)
   const pacientesFiltrados = useMemo(() => {
     const q = busquedaPaciente.trim().toLowerCase()
     const base = q ? pacientes.filter((p) => p.nombre.toLowerCase().includes(q) || (p.cedula || "").includes(q)) : pacientes
@@ -149,7 +169,7 @@ export default function FacturaVentaModal({
   const productoSeleccionado = inventario.find((p) => p.id === productoId) || null
 
   const productosFiltrados = useMemo(() => {
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0)
+    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
     const q = busquedaProducto.trim().toLowerCase()
     if (!q) return disponibles.slice(0, 8)
     return disponibles.filter((p) => p.nombre.toLowerCase().includes(q)).slice(0, 8)
@@ -191,6 +211,16 @@ export default function FacturaVentaModal({
     setDescServicio("")
     setCantidadServicio("1")
     setPrecioServicio("")
+  }
+
+  const agregarLineaLuna = () => {
+    const precio = parseFloat(precioLuna)
+    if (!luna.tipoLente) { setError("Elige el tipo de luna."); return }
+    if (isNaN(precio) || precio < 0) { setError("Ingresa el precio de la luna (0 o más)."); return }
+    setLineas((prev) => [...prev, { tipo: "luna", productoId: null, descripcion: descripcionLuna(luna), cantidad: 1, precioUnitario: precio, detalle: detalleLuna(luna) }])
+    setError("")
+    setPrecioLuna("")
+    setLuna((p) => ({ ...p, material: "", antirreflejo: false, filtroAzul: false, fotocromatico: false, otrosTratamientos: "" }))
   }
 
   const quitarLinea = (idx) => setLineas((prev) => prev.filter((_, i) => i !== idx))
@@ -284,6 +314,9 @@ export default function FacturaVentaModal({
     const abonoNum = metodoPago === "abonos" && abonoInicial.trim() !== "" ? Math.round(parseFloat(abonoInicial) * 100) / 100 : 0
     if (metodoPago === "abonos" && abonoInicial.trim() !== "" && (!(abonoNum > 0) || abonoNum > total)) { setError("El abono inicial debe ser mayor que cero y no superar el total."); return }
 
+    const fe = normalizarFacturaElectronica(facturaElectronica)
+    if (fe.demasiadoLargo) { setError("El número de la factura electrónica es demasiado largo (máximo 60 caracteres)."); return }
+
     setGuardando(true)
     setError("")
 
@@ -299,15 +332,17 @@ export default function FacturaVentaModal({
             descripcion: l.descripcion,
             cantidad: l.cantidad,
             precio_unitario: l.precioUnitario,
+            ...(l.tipo === "luna" && l.detalle ? { detalle: l.detalle } : {}),
           })),
           p_cita_id: citaIdEfectivo,
           p_consulta_id: consultaIdEfectivo,
           p_cuotas_totales: cuotasNum,
           p_registrado_por: usuario?.id || null,
+          ...(fe.valor ? { p_factura_electronica: fe.valor } : {}),
         })
         .single()
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo generar la factura. Revisa tu conexión e intenta de nuevo.")
+        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo registrar la venta. Revisa tu conexión e intenta de nuevo.")
         setGuardando(false)
         return
       }
@@ -320,7 +355,7 @@ export default function FacturaVentaModal({
           return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
         }))
       }
-      registrarLog(usuario, "pacientes", titulo === "Nueva venta" ? "Registró una venta" : "Generó una factura", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
+      registrarLog(usuario, "pacientes", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
       let estadoFinal = data.estado
       let avisoAbono = ""
       if (abonoNum > 0) {
@@ -338,6 +373,7 @@ export default function FacturaVentaModal({
         id: data.id, pacienteId: paciente.id, citaId: citaIdEfectivo, consultaId: consultaIdEfectivo,
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
         estado: estadoFinal, creadoEn: data.created_at,
+        numero: data.numero ?? null, facturaElectronica: fe.valor,
         lineas,
       }
       if (avisoAbono) window.dispatchEvent(new CustomEvent("aviso-global", { detail: avisoAbono }))
@@ -365,6 +401,8 @@ export default function FacturaVentaModal({
         consultaId={ordenPara.consultaId}
         consulta={diagnostico}
         monturaInicial={ordenPara.lineas.find((l) => l.tipo === "producto")?.descripcion || ""}
+        lunaInicial={datosOrdenDeLinea(lunaDe(ordenPara.lineas))}
+        facturaNumero={ordenPara.numero}
         usuario={usuario}
         onCerrar={() => onCerrar?.()}
       />
@@ -373,14 +411,14 @@ export default function FacturaVentaModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="factura-modal-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="comprobante-modal-titulo" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD_VENTA }}>
               <Receipt size={20} />
             </div>
             <div>
-              <h2 id="factura-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
+              <h2 id="comprobante-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
               <p className="text-xs text-slate-500">{subtitulo}</p>
             </div>
           </div>
@@ -393,7 +431,7 @@ export default function FacturaVentaModal({
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
 
             <div className="relative">
-              <label htmlFor="factura-paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
+              <label htmlFor="comprobante-paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
               {pacienteFijo ? (
                 <div className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">{pacienteFijo.nombre}</div>
               ) : pacienteSel ? (
@@ -406,7 +444,7 @@ export default function FacturaVentaModal({
                   <div className="relative">
                     <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
-                      id="factura-paciente"
+                      id="comprobante-paciente"
                       type="text"
                       placeholder="Busca al paciente por nombre o cédula..."
                       value={busquedaPaciente}
@@ -434,10 +472,10 @@ export default function FacturaVentaModal({
               )}
             </div>
 
-            {vinculoSugerido && !consultaId && (
+            {vinculo && !consultaId && (
               <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3 text-xs text-emerald-900">
                 <input type="checkbox" checked={vincular} onChange={(e) => setVincular(e.target.checked)} className="mt-0.5 accent-emerald-600" />
-                <span><span className="font-bold">{vinculoSugerido.etiqueta}</span><br />Si es esta venta, queda vinculada a la consulta y el paciente sale de la lista de espera. Desmárcalo si es otra compra.</span>
+                <span><span className="font-bold">{vinculo.etiqueta}</span><br />Si es esta venta, queda vinculada a la consulta y el paciente sale de la lista de espera. Desmárcalo si es otra compra.</span>
               </label>
             )}
 
@@ -470,10 +508,10 @@ export default function FacturaVentaModal({
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Líneas</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Detalle de la venta</label>
               {lineas.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 py-4 text-center text-xs text-slate-500">
-                  Todavía no agregaste ninguna línea.
+                  Todavía no agregaste la montura, la luna ni ningún servicio.
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -482,6 +520,10 @@ export default function FacturaVentaModal({
                       <span className="flex min-w-0 items-center gap-2">
                         {l.tipo === "producto" ? (
                           <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
+                        ) : l.tipo === "luna" ? (
+                          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-cyan-50 text-cyan-700">
+                            <Glasses size={13} aria-hidden="true" />
+                          </span>
                         ) : (
                           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-violet-600">
                             <Wrench size={13} />
@@ -490,7 +532,7 @@ export default function FacturaVentaModal({
                         <span className="truncate text-sm font-semibold text-slate-700">{l.descripcion}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
-                        {l.tipo === "servicio" ? (
+                        {l.tipo === "servicio" || l.tipo === "luna" ? (
                           <span className="flex items-center gap-1 font-mono text-xs text-slate-500">
                             {l.cantidad} × $
                             <input
@@ -518,7 +560,7 @@ export default function FacturaVentaModal({
                   <button type="button" onClick={cancelarAltaProducto} className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer">
                     <ArrowLeft size={13} /> Volver a buscar
                   </button>
-                  <span className="text-xs font-bold uppercase tracking-wide text-blue-700">Producto nuevo</span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-blue-700">Montura o accesorio nuevo</span>
                 </div>
                 <div className="space-y-3">
                   <CampoImagenProducto opticaId={opticaId} valor={npImagenUrl} onCambio={setNpImagenUrl} />
@@ -527,8 +569,8 @@ export default function FacturaVentaModal({
                     <CampoCategoria valor={npCategoria} onChange={setNpCategoria} categorias={CATEGORIAS_NP} setCategorias={setCategorias} />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Descripción del producto</label>
-                    <input type="text" required value={npNombre} onChange={(e) => setNpNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Descripción de la montura o accesorio</label>
+                    <input type="text" required value={npNombre} onChange={(e) => setNpNombre(e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X"
                       className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresNp.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                     {erroresNp.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.nombre}</p>}
                   </div>
@@ -563,7 +605,7 @@ export default function FacturaVentaModal({
                   )}
                   <button type="button" onClick={guardarProductoRapido} disabled={guardandoNp}
                     className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition disabled:opacity-60 cursor-pointer" style={{ background: GRAD }}>
-                    {guardandoNp ? "Guardando..." : "Guardar y usar en esta factura"}
+                    {guardandoNp ? "Guardando..." : "Guardar y usar en esta venta"}
                   </button>
                 </div>
               </div>
@@ -573,7 +615,12 @@ export default function FacturaVentaModal({
                   <button type="button" onClick={() => setTipoLinea("producto")}
                     className="flex-1 rounded-xl border py-2 text-sm font-bold transition cursor-pointer"
                     style={tipoLinea === "producto" ? { background: GRAD, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
-                    Producto
+                    Montura / accesorio
+                  </button>
+                  <button type="button" onClick={() => setTipoLinea("luna")}
+                    className="flex-1 rounded-xl border py-2 text-sm font-bold transition cursor-pointer"
+                    style={tipoLinea === "luna" ? { backgroundColor: AZUL_LUNA, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
+                    Luna
                   </button>
                   <button type="button" onClick={() => setTipoLinea("servicio")}
                     className="flex-1 rounded-xl border py-2 text-sm font-bold transition cursor-pointer"
@@ -599,7 +646,7 @@ export default function FacturaVentaModal({
                       <div className="relative">
                         <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                         <input
-                          type="text" placeholder="Buscar producto con stock..."
+                          type="text" placeholder="Buscar montura o accesorio con stock..."
                           value={busquedaProducto}
                           onFocus={() => setMostrarDropdownProducto(true)}
                           onChange={(e) => { setBusquedaProducto(e.target.value); setMostrarDropdownProducto(true) }}
@@ -619,10 +666,10 @@ export default function FacturaVentaModal({
                           </ul>
                         )}
                         {mostrarDropdownProducto && busquedaProducto && productosFiltrados.length === 0 && (
-                          <p className="mt-1.5 text-xs text-slate-500">Ningún producto con stock coincide.</p>
+                          <p className="mt-1.5 text-xs text-slate-500">Ninguna montura o accesorio con stock coincide.</p>
                         )}
                         <button type="button" onClick={abrirAltaProducto} className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                          <Plus size={13} /> ¿No lo encuentras? Registrar producto nuevo
+                          <Plus size={13} /> ¿No lo encuentras? Registrar montura o accesorio nuevo
                         </button>
                       </div>
                     )}
@@ -633,6 +680,42 @@ export default function FacturaVentaModal({
                         <button type="button" onClick={agregarLineaProducto} className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-white cursor-pointer" style={{ background: INK }}>+ Agregar línea</button>
                       </div>
                     )}
+                  </div>
+                ) : tipoLinea === "luna" ? (
+                  <div className="space-y-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
+                    <p className="text-xs text-slate-500">La luna se escribe aquí, no sale del inventario. Lo que elijas llena la orden de laboratorio.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor="luna-tipo" className="mb-1 block text-xs font-semibold text-slate-600">Tipo</label>
+                        <select id="luna-tipo" value={luna.tipoLente} onChange={(e) => setLuna((p) => ({ ...p, tipoLente: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm">
+                          {TIPOS_LENTE.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="luna-material" className="mb-1 block text-xs font-semibold text-slate-600">Material</label>
+                        <select id="luna-material" value={luna.material} onChange={(e) => setLuna((p) => ({ ...p, material: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm">
+                          <option value="">Sin indicar</option>
+                          {MATERIALES_LENTE.map((m) => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <fieldset>
+                      <legend className="mb-1 text-xs font-semibold text-slate-600">Filtros y tratamientos</legend>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {TRATAMIENTOS_LUNA.map((t) => (
+                          <label key={t.id} className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-700">
+                            <input type="checkbox" checked={!!luna[t.id]} onChange={(e) => setLuna((p) => ({ ...p, [t.id]: e.target.checked }))} className="accent-cyan-700" /> {t.label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <input type="text" aria-label="Otros tratamientos" placeholder="Otros (ej. endurecido, polarizado)" value={luna.otrosTratamientos} onChange={(e) => setLuna((p) => ({ ...p, otrosTratamientos: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500" />
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="luna-precio" className="text-xs font-semibold text-slate-600">Precio de la luna</label>
+                      <input id="luna-precio" type="number" min="0" step="0.01" inputMode="decimal" value={precioLuna} onChange={(e) => setPrecioLuna(e.target.value)} placeholder="0.00" className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                      <button type="button" onClick={agregarLineaLuna} className="ml-auto rounded-lg px-3 py-1.5 text-xs font-bold text-white cursor-pointer" style={{ background: INK }}>+ Agregar luna</button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
@@ -651,6 +734,20 @@ export default function FacturaVentaModal({
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                   <span className="text-sm font-semibold text-slate-600">Total</span>
                   <span className="font-mono text-xl font-bold text-slate-800">${total.toFixed(2)}</span>
+                </div>
+
+                <div>
+                  <label htmlFor="factura-electronica" className="mb-1.5 block text-sm font-semibold text-slate-700">Factura electrónica (SRI) <span className="font-normal text-slate-500">(opcional)</span></label>
+                  <input id="factura-electronica" type="text" value={facturaElectronica}
+                    onChange={(e) => setFacturaElectronica(e.target.value)}
+                    onBlur={() => setFacturaElectronica((v) => normalizarFacturaElectronica(v).valor)}
+                    placeholder="001-001-000000123"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 font-mono text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+                  {facturaElectronica.trim() && !normalizarFacturaElectronica(facturaElectronica).formatoSri ? (
+                    <p className="mt-1 text-xs text-amber-700">No tiene el formato 001-001-000000123 del SRI. Puedes guardarla igual si tu proveedor la numera distinto.</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-500">Si ya emitiste la factura electrónica por fuera, escribe su número. Puedes agregarlo después. {LEYENDA_INTERNO}</p>
+                  )}
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3 text-sm text-slate-700">
@@ -698,7 +795,7 @@ export default function FacturaVentaModal({
           </div>
 
           {!agregandoProducto && (
-            <div className="space-y-3 border-t border-slate-100 p-6 pt-4">
+            <div className="space-y-2 border-t border-slate-100 px-6 py-4">
               {(onProforma || onNoCompro) && (
                 <div className="flex items-center justify-between gap-3">
                   {onProforma ? (

@@ -43,10 +43,11 @@ import { hoyISO } from "../utilidades/disponibilidad"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
-import FacturaVentaModal from "./FacturaVentaModal"
-import MiniaturaProducto from "../componentes/MiniaturaProducto"
+import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { fechaLegible } from "../utilidades/formatoFecha"
+import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -89,43 +90,12 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-// Umbral compartido por calcularEvolucionIA (refracción de hoy vs. visita
-// anterior) y tendenciaHistorica (entre las 2 visitas anteriores, sin
-// depender de lo que se teclee hoy): variaciones menores a 0.25 D se leen
-// como ruido de medición, no un cambio real.
-const verdictoPorVariacion = (variacionPromedio) => {
-  if (Math.abs(variacionPromedio) < 0.25) return "Sin cambios"
-  return variacionPromedio > 0.25 ? "Aumentó" : "Disminuyó"
-}
+// El umbral y el cálculo de la tendencia (refracción de hoy vs. visita anterior, y entre las 2 visitas
+// anteriores) viven en utilidades/tendenciaGraduacion.js, compartidos con el perfil del paciente.
 
-const numONull = (v) => {
-  const n = parseFloat(v)
-  return Number.isNaN(n) ? null : n
-}
 
-// Equivalente esférico de un ojo (esfera + cilindro/2). null si ese ojo no
-// tiene esfera ni cilindro registrados: sin dato no hay cálculo, nunca un 0.
-const eeOjo = (esf, cil) => {
-  const e = numONull(esf)
-  const c = numONull(cil)
-  if (e === null && c === null) return null
-  return (e ?? 0) + (c ?? 0) / 2
-}
-
-// Variación promedio de |EE| entre dos refracciones ({od,oi}), calculada solo
-// sobre los ojos que tienen dato en ambas. null si no hay nada comparable.
-const variacionEntre = (a, b) => {
-  const difs = ["od", "oi"]
-    .map((o) => {
-      const x = eeOjo(a?.[o]?.esfera, a?.[o]?.cilindro)
-      const y = eeOjo(b?.[o]?.esfera, b?.[o]?.cilindro)
-      return x === null || y === null ? null : Math.abs(x) - Math.abs(y)
-    })
-    .filter((d) => d !== null)
-  return difs.length ? difs.reduce((s, d) => s + d, 0) / difs.length : null
-}
-
-const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
+// Misma escritura que el perfil: coma decimal ("+0,25 D").
+const textoVariacion = textoDioptrias
 
 export default function ConsultaMedica({ usuario, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
   const [subTab, setSubTab] = useState("anamnesis")
@@ -171,9 +141,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setMostrarDropdown(false)
-      }
-      if (lenteDropdownRef.current && !lenteDropdownRef.current.contains(event.target)) {
-        setLenteMostrarDropdown(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -275,10 +242,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // aparte del panel de cobro (que se abre al guardar la ficha):
   // esto es específicamente "¿qué lente recomendó el optómetra?", no una
   // factura ya armada — la venta recién se decide después de guardar.
-  const [lenteRecomendadoProductoId, setLenteRecomendadoProductoId] = useState(null)
-  const [lenteBusquedaProducto, setLenteBusquedaProducto] = useState("")
-  const [lenteMostrarDropdown, setLenteMostrarDropdown] = useState(false)
-  const lenteDropdownRef = useRef(null)
   const [indicaciones, setIndicaciones] = useState("")
   const [proximoControlDias, setProximoControlDias] = useState(180)
   // Punto 2.1 (plan 29 sept.): arranca en false en CADA ficha nueva, incluso
@@ -298,7 +261,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // Antes la ficha mezclaba tres lugares para el dinero (campo "Costo de la
   // consulta", editor "Factura de esta consulta" y el modal "lente sugerido").
   // Ahora la ficha solo captura lo clínico; al guardarla aparece UN panel de
-  // cobro (FacturaVentaModal, el mismo del perfil del paciente) ya relleno
+  // cobro (ComprobanteVentaModal, el mismo del perfil del paciente) ya relleno
   // con la consulta (costo base del motivo, editable, puede ser 0) y el lente
   // recomendado si está vinculado a inventario.
   const [consultaGuardadaId, setConsultaGuardadaId] = useState(null)
@@ -383,13 +346,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     ;(onCerrar || onVolver)?.()
   }
 
-  const lenteProductosFiltrados = useMemo(() => {
-    const q = lenteBusquedaProducto.trim().toLowerCase()
-    const disponibles = inventario.filter((p) => (Number(p.stock) || 0) > 0 && p.activo !== false)
-    if (!q) return disponibles
-    return disponibles.filter((p) => p.nombre.toLowerCase().includes(q))
-  }, [inventario, lenteBusquedaProducto])
-  const lenteProductoVinculado = useMemo(() => inventario.find((p) => p.id === lenteRecomendadoProductoId) || null, [inventario, lenteRecomendadoProductoId])
 
   // --- Imágenes adjuntas (opcional) — se suben a Storage recién al
   // confirmar guardado, no antes, para no dejar archivos huérfanos si el
@@ -540,13 +496,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // solo tienen sentido una vez que hay datos de hoy que comparar (ver
   // "Comparación con la refracción de hoy" en PanelEvolucion). Decisión de
   // Diego, 30 sept.
-  const tendenciaHistorica = useMemo(() => {
-    if (historialPaciente.length < 2) return null
-    const [reciente, previa] = historialPaciente
-    const variacion = variacionEntre(reciente, previa)
-    if (variacion === null) return null
-    return { variacion, verdicto: verdictoPorVariacion(variacion), fechaReciente: reciente.fecha, fechaPrevia: previa.fecha }
-  }, [historialPaciente])
+  const tendenciaHistorica = useMemo(() => tendenciaEntreConsultas(historialPaciente), [historialPaciente])
 
   const seleccionarPacienteCombo = (paciente) => {
     setPacienteId(paciente.id)
@@ -781,7 +731,6 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // esas pantallas.
       diagnostico: [diagnosticoCategorias.join(", "), diagnostico.trim()].filter(Boolean).join(" — "),
       lenteRecomendado,
-      lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null,
       indicaciones,
       proximoControlDias,
       evolucionCalculada: tendenciaGraduacion,
@@ -830,7 +779,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, lente_producto_id: nuevaFicha.lenteProductoId },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -879,7 +828,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // Hallazgo I4: era el único módulo que crea/edita historia clínica sin
       // dejar rastro de auditoría — la auditoría de superadmin/admin ya
       // existía para el resto del sistema, esta era la excepción real.
-      registrarLog(usuario, "consultas", "Registró una ficha clínica", `${nuevaFicha.paciente} · ${nuevaFicha.fecha}`)
+      registrarLog(usuario, "consultas", "Registró una ficha clínica", `${nuevaFicha.paciente} · ${fechaLegible(nuevaFicha.fecha)}`)
       const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta, estado_clinico: nuevoEstadoClinico }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
 
@@ -1118,7 +1067,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (od === "No registrada" && oi === "No registrada") return null
     return { fecha: ultimaConsultaPaciente.fecha, od, oi }
   }, [ultimaConsultaPaciente])
-  const fechaCorta = (iso) => (iso ? iso.split("-").reverse().join("/") : "")
+  const fechaCorta = (iso) => (iso ? fechaLegible(iso) : "")
 
   const fechaLarga = useMemo(() => {
     try {
@@ -1224,7 +1173,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {citaDeLaVisita
-                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? `Hoy ${fechaCorta(citaDeLaVisita.fecha).slice(0, 5)}` : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
+                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
                       : "Sin cita · consulta directa"}
                     {motivo && !citaDeLaVisita ? ` · ${motivo}` : ""}
                   </p>
@@ -1357,7 +1306,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   <span className="flex items-center gap-2">
                     {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
                       <span className="hidden items-center gap-1 text-[11px] font-normal normal-case text-slate-500 sm:flex">
-                        <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaPrecarga.split("-").reverse().join("/")}` : ""} · toca para ver o editar
+                        <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaLegible(fechaPrecarga)}` : ""} · toca para ver o editar
                       </span>
                     )}
                     <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
@@ -2038,67 +1987,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                             className="w-full bg-transparent text-sm font-semibold outline-none focus-visible:underline"
                             style={{ color: INK }}
                           />
-
-                          {/* Vincular a un producto real de inventario — lo que
-                              permite después ofrecer "procesar la venta ahora"
-                              con el precio y el stock reales, en vez de un
-                              texto suelto sin nada detrás. Opcional: si el
-                              lente no está en bodega (ej. se manda a hacer),
-                              el texto de arriba alcanza para la receta. */}
-                          {!fichaGuardada && (
-                            <div className="no-print relative" ref={lenteDropdownRef}>
-                              {lenteProductoVinculado ? (
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 px-3 py-1.5">
-                                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
-                                    <MiniaturaProducto url={lenteProductoVinculado.imagen_url} alt={lenteProductoVinculado.nombre} size={20} />
-                                    <CheckCircle size={12} /> Vinculado a inventario · {lenteProductoVinculado.stock} u. · ${Number(lenteProductoVinculado.precio).toFixed(2)}
-                                  </span>
-                                  <button type="button" onClick={() => { setLenteRecomendadoProductoId(null); setLenteBusquedaProducto("") }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">
-                                    Desvincular
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="relative">
-                                    <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                                    <input
-                                      type="text"
-                                      placeholder="Vincular a un producto de inventario (opcional, para venta rápida)…"
-                                      value={lenteBusquedaProducto}
-                                      onFocus={() => setLenteMostrarDropdown(true)}
-                                      onChange={(e) => { setLenteBusquedaProducto(e.target.value); setLenteMostrarDropdown(true) }}
-                                      className="w-full rounded-lg border border-amber-200/60 bg-white/70 py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
-                                    />
-                                  </div>
-                                  {lenteMostrarDropdown && lenteProductosFiltrados.length > 0 && (
-                                    <ul className="absolute z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
-                                      {lenteProductosFiltrados.map((p) => (
-                                        <li
-                                          key={p.id}
-                                          onClick={() => {
-                                            setLenteRecomendadoProductoId(p.id)
-                                            setLenteBusquedaProducto(p.nombre)
-                                            if (!lenteRecomendado.trim()) setLenteRecomendado(p.nombre)
-                                            setLenteMostrarDropdown(false)
-                                          }}
-                                          className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                                        >
-                                          <span className="flex min-w-0 items-center gap-2">
-                                            <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
-                                            <span className="truncate font-semibold">{p.nombre}</span>
-                                          </span>
-                                          <span className="shrink-0 font-mono text-xs text-slate-500">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                  {lenteMostrarDropdown && lenteBusquedaProducto && lenteProductosFiltrados.length === 0 && (
-                                    <p className="mt-1 text-[11px] text-slate-500">Ningún producto con stock coincide — puede seguir como descripción libre para la receta.</p>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          )}
+                          <p className="no-print text-[11px] text-slate-500">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
                         </div>
                       </div>
                     )}
@@ -2441,7 +2330,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
 
       {/* ─── PANEL DE COBRO (Ronda 4): aparece al guardar la ficha ─── */}
       {mostrarPanelCobro && pacienteInfo && (
-        <FacturaVentaModal
+        <ComprobanteVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}
@@ -2449,7 +2338,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
           titulo={`Cobrar la atención de ${pacienteInfo.nombre}`}
           subtitulo={`Consulta${motivo ? ` · ${motivo}` : ""}`}
           etiquetaGuardar="Cobrar y finalizar"
-          lineasIniciales={lineasCobroConsulta({ motivo, lenteProductoId: recomendarLente ? lenteRecomendadoProductoId : null }, parametrizacion)}
+          lineasIniciales={lineasCobroConsulta({ motivo, lenteRecomendado: recomendarLente ? lenteRecomendado : "" }, parametrizacion)}
           consultaId={consultaGuardadaId}
           citaId={citaEnAtencionId}
           onGuardado={alCobrar}
@@ -2473,7 +2362,7 @@ function LineaVariacion({ analisis }) {
   return (
     <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
       <IconoT size={13} style={{ color: t.fg }} aria-hidden="true" />
-      Variación frente al {analisis.fechaPrev}:{" "}
+      Variación frente al {fechaLegible(analisis.fechaPrev)}:{" "}
       <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto.toLowerCase()}</span> ({textoVariacion(analisis.variacion)})
     </p>
   )
@@ -2603,7 +2492,7 @@ function TarjetaVisita({ consulta: c }) {
 
 // Marca un campo como heredado de una visita anterior, sin ocultar que sigue siendo editable
 function InsigniaHistorial({ fecha }) {
-  const fechaCorta = fecha ? fecha.split("-").reverse().join("/") : null
+  const fechaCorta = fecha ? fechaLegible(fecha) : null
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600" title="Puedes editarlo si cambió">
       <History size={10} /> {fechaCorta ? `De su visita del ${fechaCorta}` : "De su historial"}

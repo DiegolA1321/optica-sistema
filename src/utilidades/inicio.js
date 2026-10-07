@@ -1,6 +1,6 @@
 // Cálculos del Inicio por rol (R52-R56). Cada fila de tarjetas habla de una sola cosa y lo dice en su título:
 // "Totales", "Hoy", "Este mes" o "Para vender". Funciones puras, con los datos que ya carga la aplicación.
-import { esHoy, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
+import { esHoy, hoyISO, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
 import { saldoFactura } from "./abonos"
 
 export const PLANTILLAS_INICIO = ["administrador", "optometra", "recepcion", "ventas", "general"]
@@ -38,11 +38,33 @@ export function resumenHoy(citas) {
   }
 }
 
-// Citas del mes en curso: atendidas, no atendidas (no asistió) y canceladas.
-export function resumenMes(citas, ahora = new Date()) {
-  const delMes = citas.filter((c) => { const f = parseFechaFlexible(c.fecha); return f && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth() })
-  const cuenta = (estado) => delMes.filter((c) => c.estado === estado).length
-  return { registradas: delMes.length, atendidas: cuenta("Atendida"), noAtendidas: cuenta("No Asistió"), canceladas: cuenta("Cancelada") }
+// Desenlace de las citas en un período: "mes" (el mes en curso) o "siempre" (todo lo registrado).
+// Cuenta atendidas, no atendidas (no asistió) y canceladas.
+export function resumenPeriodo(citas, periodo = "mes", ahora = new Date()) {
+  const delPeriodo = periodo === "mes"
+    ? citas.filter((c) => { const f = parseFechaFlexible(c.fecha); return f && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth() })
+    : citas
+  const cuenta = (estado) => delPeriodo.filter((c) => c.estado === estado).length
+  return { registradas: delPeriodo.length, atendidas: cuenta("Atendida"), noAtendidas: cuenta("No Asistió"), canceladas: cuenta("Cancelada") }
+}
+export const resumenMes = (citas, ahora) => resumenPeriodo(citas, "mes", ahora)
+
+// Primer y último día del mes en curso, en ISO (para abrir Citas filtrada por el mismo período).
+export function rangoDelMes(ahora = new Date()) {
+  const dos = (n) => String(n).padStart(2, "0")
+  const y = ahora.getFullYear(), m = ahora.getMonth()
+  return { desde: `${y}-${dos(m + 1)}-01`, hasta: `${y}-${dos(m + 1)}-${dos(new Date(y, m + 1, 0).getDate())}` }
+}
+
+// "Hoy": la agenda del día; si hoy no hay citas, las próximas (nunca las ya pasadas).
+export function agendaHoyOProximas(citas, limite = 5, hoy = hoyISO()) {
+  const delDia = resumenHoy(citas).citas
+  if (delDia.length > 0) return { modo: "hoy", citas: delDia }
+  const proximas = citas
+    .filter((c) => sinCancelar(c) && c.estado !== "Atendida" && c.estado !== "No Asistió" && String(c.fecha) > hoy)
+    .sort((a, b) => (String(a.fecha) < String(b.fecha) ? -1 : String(a.fecha) > String(b.fecha) ? 1 : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)))
+    .slice(0, limite)
+  return { modo: "proximas", citas: proximas }
 }
 
 // Pacientes que todavía no tuvieron ninguna consulta.
@@ -60,3 +82,10 @@ export function saldosPorCobrar(facturas, abonos) {
 // Pacientes a los que ya se les dio una proforma y siguen "lo pensará" (listo con proforma entregada).
 export const proformasEnSeguimiento = (pases) => pases.filter((p) => p.estado === "listo" && p.proformaEntregadaEn)
 export const pasesListos = (pases) => pases.filter((p) => p.estado === "listo")
+
+// Fichas sin terminar: las atenciones que esta persona dejó abiertas ("En Atención" a su nombre), la más antigua primero.
+export function fichasSinTerminar(citas, usuarioId) {
+  return citas
+    .filter((c) => c.estado === "En Atención" && usuarioId != null && c.atendidoPor === usuarioId)
+    .sort((a, b) => (String(a.fecha) < String(b.fecha) ? -1 : String(a.fecha) > String(b.fecha) ? 1 : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)))
+}

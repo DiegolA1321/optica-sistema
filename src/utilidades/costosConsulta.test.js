@@ -27,15 +27,15 @@ import { lineasCobroConsulta } from "./costosConsulta"
 
 describe("lineasCobroConsulta", () => {
   const param = { costosMotivo: { "Consulta General": 15 } }
-  it("consulta con el costo base del motivo y el lente vinculado", () => {
-    const l = lineasCobroConsulta({ motivo: "Consulta General", lenteProductoId: "p1" }, param)
+  it("consulta con el costo base del motivo y el lente recomendado como luna de texto", () => {
+    const l = lineasCobroConsulta({ motivo: "Consulta General", lenteRecomendado: "Monofocal antirreflejo" }, param)
     expect(l).toEqual([
       { tipo: "servicio", descripcion: "Consulta — Consulta General", cantidad: 1, precioUnitario: 15 },
-      { tipo: "producto", productoId: "p1", cantidad: 1 },
+      { tipo: "luna", productoId: null, descripcion: "Luna: Monofocal antirreflejo", cantidad: 1, precioUnitario: 0, detalle: null },
     ])
   })
-  it("sin lente vinculado, solo la consulta (a $0 si no hay costo configurado)", () => {
-    const l = lineasCobroConsulta({ motivo: "Otro", lenteProductoId: null }, param)
+  it("sin lente recomendado, solo la consulta (a $0 si no hay costo configurado), y nunca una línea de inventario", () => {
+    const l = lineasCobroConsulta({ motivo: "Otro", lenteRecomendado: "  " }, param)
     expect(l).toHaveLength(1)
     expect(l[0].precioUnitario).toBe(0)
   })

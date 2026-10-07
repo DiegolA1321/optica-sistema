@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { fechaLegible, fechaCorta } from "./formatoFecha"
+import { fechaLegible, fechaCorta, horaLegible, fechaHoraLegible } from "./formatoFecha"
 
 describe("formatoFecha", () => {
   it("escribe la fecha como 15 sept 2026", () => {
@@ -21,5 +21,19 @@ describe("formatoFecha", () => {
     expect(fechaLegible("")).toBe("")
     expect(fechaLegible(null)).toBe("")
     expect(fechaLegible("no es fecha")).toBe("")
+  })
+})
+
+describe("hora y fecha con hora", () => {
+  it("hora en 12 h con cero a la izquierda", () => {
+    expect(horaLegible(new Date(2026, 9, 7, 8, 19))).toBe("08:19 AM")
+    expect(horaLegible(new Date(2026, 9, 7, 16, 20))).toBe("04:20 PM")
+    expect(horaLegible(new Date(2026, 9, 7, 0, 5))).toBe("12:05 AM")
+    expect(horaLegible(new Date(2026, 9, 7, 12, 0))).toBe("12:00 PM")
+  })
+  it("fecha corta con hora, con o sin año", () => {
+    expect(fechaHoraLegible(new Date(2026, 9, 7, 8, 19))).toBe("7 oct, 08:19 AM")
+    expect(fechaHoraLegible(new Date(2026, 9, 3, 15, 20), { anio: true })).toBe("3 oct 2026, 03:20 PM")
+    expect(fechaHoraLegible("nada")).toBe("")
   })
 })

@@ -14,7 +14,7 @@ const COLORES = {
 
 // Una fila de tarjetas del Inicio (R52): todas hablan de lo mismo y el título de la fila lo dice
 // ("Totales", "Hoy", "Este mes"...). Cada tarjeta puede llevar a su módulo y tener un atajo que abre la acción.
-export default function FilaTarjetas({ titulo, descripcion, tarjetas }) {
+export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones }) {
   if (!tarjetas || tarjetas.length === 0) return null
   const columnas = tarjetas.length >= 4 ? "lg:grid-cols-4" : tarjetas.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"
   return (
@@ -22,6 +22,7 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas }) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{titulo}</h2>
         {descripcion && <p className="text-xs text-slate-400">{descripcion}</p>}
+        {acciones && <div className="ml-auto">{acciones}</div>}
       </div>
       <div className={"grid grid-cols-1 gap-3 sm:grid-cols-2 " + columnas}>
         {tarjetas.map((t) => {

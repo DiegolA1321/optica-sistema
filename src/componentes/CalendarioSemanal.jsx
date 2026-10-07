@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { fechaLegible } from "../utilidades/formatoFecha"
 import { createPortal } from "react-dom"
 import { Receipt, Stethoscope, CalendarClock, X, Plus, Globe, Building2, ExternalLink } from "lucide-react"
-import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, hoyISO, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
+import { puedeCancelarCita } from "../utilidades/filtrosCitas"
 import { colorDe, useAlturaDisponible, urlPerfilPaciente, LEYENDA_ESTADOS } from "./calendarioComun"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
@@ -12,7 +14,7 @@ import { colorDe, useAlturaDisponible, urlPerfilPaciente, LEYENDA_ESTADOS } from
 // horario de la óptica, en filas de 30 minutos.
 
 const PX_POR_MIN = 64 / 60 // 64 px por hora
-const ANCHO_HORAS = 56
+const ANCHO_HORAS = 76
 const ALTO_ENCABEZADO = 52
 const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
@@ -78,7 +80,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
   const left = cabeDerecha ? ancla.right + 8 : Math.max(8, ancla.left - 8 - ANCHO_TARJETA)
   const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 340))
 
-  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onAtender
   return createPortal(
     <div
       ref={ref}
@@ -110,7 +112,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
           </dd>
         </div>
         {cita.creadoEn && (
-          <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Agendada el</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{new Date(cita.creadoEn).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" })}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Agendada el</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{fechaLegible(cita.creadoEn)}</dd></div>
         )}
         <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Fecha y hora</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
       </dl>
@@ -147,7 +149,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
         <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
           <CalendarClock size={14} /> Editar cita
         </button>
-        {cita.estado !== "Cancelada" && (
+        {puedeCancelarCita(cita) && (
           <button type="button" onClick={() => onCancelar(cita)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
             <X size={14} /> Cancelar cita
           </button>
@@ -267,7 +269,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 className={"absolute right-2 text-[11px] tabular-nums " + (t % 60 === 0 ? "font-semibold text-slate-600" : "text-slate-400")}
                 style={{ top: (t - rango.inicio) * PX_POR_MIN + 2 }}
               >
-                {minutosAHHMM(t)}
+                {horaA12(minutosAHHMM(t))}
               </span>
             ))}
           </div>
@@ -321,7 +323,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     style={{ top: (hover.min - rango.inicio) * PX_POR_MIN + 1, height: PASO_MINUTOS * PX_POR_MIN - 2 }}
                     aria-hidden="true"
                   >
-                    <Plus size={14} /> <span className="ml-1 text-[11px] font-semibold">{minutosAHHMM(hover.min)}</span>
+                    <Plus size={14} /> <span className="ml-1 text-[11px] font-semibold">{horaA12(minutosAHHMM(hover.min))}</span>
                   </div>
                 )}
                 {franjas.map((f, i) => (
@@ -347,7 +349,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     style={{ top: (destino.min - rango.inicio) * PX_POR_MIN, height: Math.max(22, arrastre.dur * PX_POR_MIN) }}
                     aria-hidden="true"
                   >
-                    {destino.ok ? minutosAHHMM(destino.min) : destino.motivo}
+                    {destino.ok ? horaA12(minutosAHHMM(destino.min)) : destino.motivo}
                   </div>
                 )}
 
@@ -439,7 +441,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
           ancla={abierta.ancla}
           cobroPendiente={!!cobroPendienteIds?.has(citaAbierta.id)}
           onCerrar={cerrarTarjeta}
-          onAtender={conCierre(onAtender)}
+          onAtender={onAtender ? conCierre(onAtender) : undefined}
           onEditar={conCierre(onEditar)}
           onCancelar={conCierre(onCancelar)}
           onCobrar={conCierre(onCobrar)}
