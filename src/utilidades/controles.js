@@ -22,6 +22,15 @@ export function diaHabilMasCercano(iso, disponibilidad, citas = [], { hoy = hoyI
   return null
 }
 
+// A quién se le asigna por defecto la cita de un control: a quien atendió esa consulta. Las fichas nuevas guardan su id
+// (controlAsignadoA); en las anteriores se busca por el nombre del profesional. Solo si sigue activo en el equipo.
+export function asignadoDelControl(consulta, equipo = []) {
+  if (!consulta) return ""
+  if (consulta.controlAsignadoA) return consulta.controlAsignadoA
+  const miembro = equipo.find((m) => m.activo !== false && m.nombre && m.nombre === consulta.profesionalNombre)
+  return miembro?.id || ""
+}
+
 // Pacientes cuya última ficha dejó un control por agendar (el optómetra eligió "Agendar ahora" o "Agendar después")
 // y hoy no tienen ninguna cita pendiente posterior a esa ficha: o se eligió "después", o la cita del control se canceló
 // o no se pudo crear. Ordenados por la fecha del control, el más próximo primero.

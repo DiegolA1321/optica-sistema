@@ -791,7 +791,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, control_agenda: nuevaFicha.controlAgenda },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, control_agenda: nuevaFicha.controlAgenda, control_asignado_a: nuevaFicha.controlAgenda ? usuario?.id || null : null },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,

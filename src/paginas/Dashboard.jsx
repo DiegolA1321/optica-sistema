@@ -258,7 +258,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Atajos de Inicio (Registrar paciente, Agendar cita, Añadir producto): el formulario se abre encima del Inicio.
   const [atajoInicio, setAtajoInicio] = useState(null)
-  // Control a agendar desde el aviso de Inicio: { pacienteId, fecha } (la fecha recomendada del control).
+  // Control a agendar desde el aviso de Inicio: { pacienteId, fecha, asignadoA } (fecha recomendada y quien atendió la consulta).
   const [controlParaAgendar, setControlParaAgendar] = useState(null)
   // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
@@ -763,7 +763,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
-            onAgendarControl={(paciente, fecha) => { setControlParaAgendar({ pacienteId: paciente.id, fecha }); setAtajoInicio("citas") }}
+            onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
             onCrearProductoRapido={() => setAtajoInicio("inventario")}
             onReabastecerProducto={(productoId) => {

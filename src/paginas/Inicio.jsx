@@ -19,7 +19,7 @@ import {
   Ban,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
-import { controlesSinAgendar } from "../utilidades/controles"
+import { controlesSinAgendar, asignadoDelControl } from "../utilidades/controles"
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
@@ -419,13 +419,13 @@ export default function Inicio({
     acciones: [{ etiqueta: "Ver atrasadas", onClick: () => onVerOrdenes?.("atrasadas") }],
   })
   if (incControlesPorAgendar) {
-    sinAgendar.slice(0, 3).forEach(({ paciente, fechaControl }) => filasAtencion.push({
+    sinAgendar.slice(0, 3).forEach(({ paciente, fechaControl, consulta }) => filasAtencion.push({
       id: "control-sin-agendar-" + paciente.id,
       icono: Calendar,
       titulo: `Control sin agendar: ${paciente.nombre}`,
       detalle: `Control recomendado para el ${fechaLegible(fechaAISO(fechaControl))}, todavía sin cita`,
       acciones: [
-        ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Agendar", principal: true, onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl)) }] : []),
+        ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Agendar", principal: true, onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl), asignadoDelControl(consulta, equipo)) }] : []),
         { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(paciente.id) },
       ],
     }))

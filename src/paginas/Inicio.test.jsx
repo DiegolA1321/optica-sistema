@@ -41,12 +41,14 @@ describe("Inicio por rol", () => {
     const consultas = [{ id: "k1", pacienteId: "p1", paciente: "Paciente Uno", fecha: hoy, motivo: "Control", proximoControlDias: 30, controlAgenda: "despues" }]
     const citasSinControl = base.citas.filter((c) => c.pacienteId !== "p1")
     const agendados = []
-    const { unmount } = render(<Inicio {...base} consultas={consultas} citas={citasSinControl} onAgendarControl={(p, f) => agendados.push([p.id, f])} />)
+    const equipo = [{ id: "u7", nombre: "Ana" }]
+    const { unmount } = render(<Inicio {...base} equipo={equipo} consultas={consultas.map((c) => ({ ...c, profesionalNombre: "Ana" }))} citas={citasSinControl} onAgendarControl={(p, f, a) => agendados.push([p.id, f, a])} />)
     const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
     expect(within(atencion).getByText("Control sin agendar: Paciente Uno")).toBeInTheDocument()
     fireEvent.click(within(atencion).getByRole("button", { name: "Agendar" }))
     expect(agendados).toHaveLength(1)
     expect(agendados[0][0]).toBe("p1")
+    expect(agendados[0][2]).toBe("u7") // la cita se asigna por defecto a quien atendió la consulta
     unmount()
     // Recepción también lo ve
     const { unmount: u2 } = render(<Inicio {...base} consultas={consultas} citas={citasSinControl} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], pacientes: ["ver"] } }} vista={vistaRol("recepcion")} />)

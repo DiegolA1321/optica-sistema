@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { sumarDiasISO, diaHabilMasCercano, controlesSinAgendar } from "./controles"
+import { sumarDiasISO, diaHabilMasCercano, controlesSinAgendar, asignadoDelControl } from "./controles"
 
 const SESION = (activo, inicio, fin) => ({ activo, inicio, fin })
 // Lunes a viernes abierto de 09:00 a 12:00; sábado y domingo cerrado.
@@ -76,5 +76,20 @@ describe("controlesSinAgendar", () => {
     const c2 = { id: "c9", pacienteId: "p2", paciente: "Luis Mora", fecha: "2026-10-01", proximoControlDias: 30, controlAgenda: "despues" }
     const r = controlesSinAgendar([paciente, otro], [consulta(), c2], [])
     expect(r.map((x) => x.paciente.id)).toEqual(["p2", "p1"])
+  })
+})
+
+describe("asignadoDelControl", () => {
+  const equipo = [{ id: "u1", nombre: "Paula Optómetra" }, { id: "u2", nombre: "Luis Baja", activo: false }]
+  it("usa el id guardado en la ficha", () => {
+    expect(asignadoDelControl({ controlAsignadoA: "u9", profesionalNombre: "Paula Optómetra" }, equipo)).toBe("u9")
+  })
+  it("en fichas anteriores busca al profesional por su nombre", () => {
+    expect(asignadoDelControl({ profesionalNombre: "Paula Optómetra" }, equipo)).toBe("u1")
+  })
+  it("si la persona está desactivada, o no se encuentra, no asigna a nadie", () => {
+    expect(asignadoDelControl({ profesionalNombre: "Luis Baja" }, equipo)).toBe("")
+    expect(asignadoDelControl({ profesionalNombre: "Otra" }, equipo)).toBe("")
+    expect(asignadoDelControl(null, equipo)).toBe("")
   })
 })

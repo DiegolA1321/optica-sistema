@@ -209,6 +209,8 @@ function mapConsulta(c) {
     lenteProductoId: c.datos_clinicos?.lente_producto_id || null,
     // Qué decidió el optómetra con el próximo control: "ahora" (se agendó al guardar la ficha) o "despues" (queda como aviso).
     controlAgenda: c.datos_clinicos?.control_agenda || null,
+    // Quién atendió la consulta: la cita del control se le asigna por defecto.
+    controlAsignadoA: c.datos_clinicos?.control_asignado_a || null,
     diagnostico: c.diagnostico, diagnosticoCategorias: c.diagnostico_categorias || [], lenteRecomendado: c.lente_recomendado, indicaciones: c.indicaciones,
     proximoControlDias: c.proximo_control_dias, evolucionCalculada: c.evolucion_calculada, estadoCorreccion: c.estado_correccion,
     productoId: c.producto_id, productoNombre: c.producto_nombre, montoVenta: c.monto_venta != null ? Number(c.monto_venta) : null,

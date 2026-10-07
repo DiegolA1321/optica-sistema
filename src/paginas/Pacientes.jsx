@@ -85,7 +85,8 @@ import { useVentas } from "../utilidades/useVentas"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
-import { controlesSinAgendar, diaHabilMasCercano } from "../utilidades/controles"
+import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
+import SelectorAsignado from "../componentes/SelectorAsignado"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
@@ -390,6 +391,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const [agendarFecha, setAgendarFecha] = useState("")
   const [agendarHora, setAgendarHora] = useState("")
   const [agendarMotivo, setAgendarMotivo] = useState("")
+  // A quién se asigna la cita; con "Control sin agendar" arranca en quien atendió la consulta.
+  const [agendarAsignado, setAgendarAsignado] = useState("")
   const [errorAgendar, setErrorAgendar] = useState("")
   const [confirmandoCita, setConfirmandoCita] = useState(false)
   const [guardandoCita, setGuardandoCita] = useState(false)
@@ -755,8 +758,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
   // ── Agendar cita desde el perfil del paciente ──
   // `fechaSugerida` (opcional): la del control recomendado; se abre en el día hábil más cercano, y la hora la elige quien agenda.
-  const abrirAgendar = (paciente, fechaSugerida = "") => {
+  const abrirAgendar = (paciente, fechaSugerida = "", asignadoSugerido = "") => {
     setAgendarPara(paciente)
+    setAgendarAsignado(asignadoSugerido)
     setAgendarFecha(fechaSugerida ? diaHabilMasCercano(fechaSugerida, disponibilidad, citas) || "" : "")
     setAgendarHora("")
     setAgendarMotivo(fechaSugerida ? motivosConsulta.find((m) => /control/i.test(m)) || "" : "")
@@ -791,6 +795,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       hora: agendarHora,
       motivo: agendarMotivo,
       iniciales,
+      asignadoA: agendarAsignado || null,
       estado: "Pendiente",
     }
     if (supabase && opticaId) {
@@ -806,6 +811,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           hora: nuevaCita.hora,
           motivo: nuevaCita.motivo,
           estado: nuevaCita.estado,
+          asignado_a: nuevaCita.asignadoA,
         })
         .select()
         .single()
@@ -2121,7 +2127,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(paseListo || abiertasPaciente.length > 0 || proximoControl || sinCitaPendiente || (diasCumple != null && diasCumple <= 30)) && (
+                  {(paseListo || abiertasPaciente.length > 0 || (proximoControl && consultasPaciente.length === 0) || sinCitaPendiente || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
@@ -2136,7 +2142,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
                         </span>
                       ))}
-                      {proximoControl && (inactivo ? (
+                      {proximoControl && consultasPaciente.length === 0 && (inactivo ? (
                         <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} title="Agendar su próximo control" className="inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer">
                           <AlertTriangle size={13} aria-hidden="true" /> Control vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} · Agendar
                         </button>
@@ -2147,11 +2153,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
                       ))}
-                      {controlPorAgendar && (
-                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial, fechaAISO(controlPorAgendar.fechaControl))} title="Agendar su control recomendado" className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
-                          <CalendarPlus size={13} aria-hidden="true" /> Control sin agendar · Agendar
-                        </button>
-                      )}
                       {sinCitaPendiente && !controlPorAgendar && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
                           <Calendar size={13} aria-hidden="true" /> Sin cita
@@ -2247,6 +2248,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                       <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
                                         {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
                                       </p>
+                                      {(controlPorAgendar || inactivo) && (
+                                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial, fechaAISO(proximoControl), asignadoDelControl(controlPorAgendar?.consulta || ultima, equipo))} title="Agendar su control recomendado" className={"mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer " + (inactivo ? "border-red-200 bg-white text-red-700 hover:bg-red-50" : "border-amber-300/70 bg-amber-50 text-amber-800 hover:bg-amber-100")}>
+                                          <CalendarPlus size={13} aria-hidden="true" /> {controlPorAgendar ? "Control sin agendar · Agendar" : "Agendar control"}
+                                        </button>
+                                      )}
                                     </>
                                   ) : (
                                     <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
@@ -2565,6 +2571,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
                   </select>
                 </div>
+
+                <SelectorAsignado id="pacientes-agendar-asignado" valor={agendarAsignado} onChange={setAgendarAsignado} equipo={equipo} />
 
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
