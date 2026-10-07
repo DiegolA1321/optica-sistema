@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
-import { esStockBajo } from "../utilidades/inventario"
+import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
@@ -38,6 +38,7 @@ import { INK } from "@/lib/tema"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function Inicio({
+  umbralStock = UMBRAL_STOCK_BAJO,
   setVista,
   setCitas,
   onAviso,
@@ -153,7 +154,7 @@ export default function Inicio({
 
   // Productos con stock bajo (por debajo de su mínimo), el más crítico primero. Se muestran una sola vez en
   // todo el Inicio, como una fila de "Requiere tu atención", con el reabastecimiento a un clic.
-  const productosBajoStock = useMemo(() => inventario.filter(esStockBajo).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)), [inventario])
+  const productosBajoStock = useMemo(() => inventario.filter((p) => esStockBajo(p, umbralStock)).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)), [inventario, umbralStock])
 
   // Para "Mi agenda" (vista del optómetra, D4): pacientes en atención ahora
   // mismo (no acotado a hoy, mismo criterio sin fecha que ya usa el badge de

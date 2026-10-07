@@ -5,7 +5,6 @@ import { createPortal } from "react-dom"
 import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown, Glasses } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
-import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import CampoCategoria from "../componentes/CampoCategoria"
@@ -142,7 +141,6 @@ export default function ComprobanteVentaModal({
   const [npStock, setNpStock] = useState("1")
   const [npPrecio, setNpPrecio] = useState("")
   const [npObservacion, setNpObservacion] = useState("")
-  const [npCritico, setNpCritico] = useState("")
   const [npImagenUrl, setNpImagenUrl] = useState(null)
   const [erroresNp, setErroresNp] = useState({})
   const [guardandoNp, setGuardandoNp] = useState(false)
@@ -235,7 +233,6 @@ export default function ComprobanteVentaModal({
     setNpStock("1")
     setNpPrecio("")
     setNpObservacion("")
-    setNpCritico("")
     setNpImagenUrl(null)
     setErroresNp({})
     setAgregandoProducto(true)
@@ -264,7 +261,6 @@ export default function ComprobanteVentaModal({
       stock: stockNum,
       precio: precioNum,
       observacion: npObservacion || "",
-      critico: npCritico === "" ? null : Math.max(0, parseInt(npCritico, 10) || 0),
       imagen_url: npImagenUrl || null,
     }
 
@@ -587,11 +583,6 @@ export default function ComprobanteVentaModal({
                         className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresNp.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                       {erroresNp.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.precio}</p>}
                     </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
-                    <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
-                      className="w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>

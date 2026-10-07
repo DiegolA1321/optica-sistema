@@ -48,6 +48,7 @@ const catColor = (c) => COLOR_CAT[c] || { fg: "#475569", bg: "#f1f5f9" }
 
 export default function Inventario({
   usuario,
+  umbralStock = UMBRAL_STOCK_BAJO,
   cargaInicial = false,
   inventario: productos = [],
   setInventario: setProductos,
@@ -80,7 +81,6 @@ export default function Inventario({
   const [stock, setStock] = useState("")
   const [precio, setPrecio] = useState("")
   const [observacion, setObservacion] = useState("")
-  const [critico, setCritico] = useState("")
   const [imagenUrl, setImagenUrl] = useState(null)
   const [guardadoExitoso, setGuardadoExitoso] = useState("")
 
@@ -106,7 +106,6 @@ export default function Inventario({
   const [edStock, setEdStock] = useState("")
   const [edPrecio, setEdPrecio] = useState("")
   const [edObservacion, setEdObservacion] = useState("")
-  const [edCritico, setEdCritico] = useState("")
   const [edImagenUrl, setEdImagenUrl] = useState(null)
   const [sumarStock, setSumarStock] = useState("")
   const [erroresEdicion, setErroresEdicion] = useState({})
@@ -124,7 +123,6 @@ export default function Inventario({
     setStock("")
     setPrecio("")
     setObservacion("")
-    setCritico("")
     setImagenUrl(null)
     setErroresForm({})
   }
@@ -173,7 +171,6 @@ export default function Inventario({
       stock: stockNum,
       precio: precioNum,
       observacion: observacion || "",
-      critico: critico === "" ? null : Math.max(0, parseInt(critico, 10) || 0),
       imagen_url: imagenUrl || null,
     }
 
@@ -278,7 +275,6 @@ export default function Inventario({
     setEdStock(String(prod.stock))
     setEdPrecio(String(prod.precio))
     setEdObservacion(prod.observacion || "")
-    setEdCritico(prod.critico != null ? String(prod.critico) : "")
     setEdImagenUrl(prod.imagen_url || null)
     setSumarStock("")
     setErroresEdicion({})
@@ -324,7 +320,7 @@ export default function Inventario({
     setErroresEdicion(errs)
     if (Object.keys(errs).length > 0) return
 
-    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", critico: edCritico === "" ? null : Math.max(0, parseInt(edCritico, 10) || 0), imagen_url: edImagenUrl || null }
+    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", imagen_url: edImagenUrl || null }
     if (supabase && opticaId) {
       const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id).select()
       if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
@@ -347,7 +343,7 @@ export default function Inventario({
     const q = busqueda.toLowerCase()
     const coincideTexto = p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q)
     const coincideCat = filtroCategoria === "Todas" || p.categoria === filtroCategoria
-    const coincideBajo = !soloBajo || esStockBajo(p)
+    const coincideBajo = !soloBajo || esStockBajo(p, umbralStock)
     const coincideActivo = verDescontinuados ? p.activo === false : p.activo !== false
     return coincideTexto && coincideCat && coincideBajo && coincideActivo
   })
@@ -382,7 +378,7 @@ export default function Inventario({
   const resumen = useMemo(() => {
     const unidades = productos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
     const valor = productos.reduce((a, p) => a + (Number(p.stock) || 0) * (Number(p.precio) || 0), 0)
-    const bajos = productos.filter(esStockBajo)
+    const bajos = productos.filter((p) => esStockBajo(p, umbralStock))
     return { total: productos.length, unidades, valor, bajos }
   }, [productos])
 
@@ -574,7 +570,7 @@ export default function Inventario({
               ) : (
                 productosVisibles.map((prod) => {
                   const col = catColor(prod.categoria)
-                  const bajo = esStockBajo(prod)
+                  const bajo = esStockBajo(prod, umbralStock)
                   return (
                     <tr key={prod.id} className="transition hover:bg-slate-50/70">
                       <td className={"px-4 " + celdaY}>
@@ -706,11 +702,6 @@ export default function Inventario({
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
-                  <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-                </div>
-                <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
                   <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
                     className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
@@ -791,11 +782,6 @@ export default function Inventario({
                   <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
                     className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
                   {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
-                  <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
