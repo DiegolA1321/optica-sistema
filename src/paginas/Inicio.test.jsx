@@ -136,7 +136,7 @@ describe("Inicio por rol", () => {
     expect(screen.getAllByText(/2 productos con stock bajo/i)).toHaveLength(1)
   })
 
-  it("optómetra: "Fichas sin terminar" aparece solo cuando hay una atención abierta suya", () => {
+  it("optómetra: Fichas sin terminar aparece solo cuando hay una atención abierta suya", () => {
     const citas = [...base.citas, { id: "c9", fecha: hoy, hora: "08:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" }]
     render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
     expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
