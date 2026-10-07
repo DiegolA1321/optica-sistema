@@ -44,3 +44,28 @@ describe("textoDiagnostico", () => {
     expect(textoDiagnostico(null)).toBe("")
   })
 })
+
+import { pacientesQueNoCompraron } from "./pasesVenta"
+
+describe("pacientesQueNoCompraron", () => {
+  const pase = (pacienteId, estado, extra = {}) => ({ id: pacienteId + estado, pacienteId, estado, pasadaEn: "2026-09-01T10:00:00Z", ...extra })
+  it("incluye a quien tiene su último pase descartado, con el motivo", () => {
+    const m = pacientesQueNoCompraron([pase("a", "descartado", { motivoDescarte: "precio" }), pase("b", "listo"), pase("c", "vendido")])
+    expect([...m.keys()]).toEqual(["a"])
+    expect(m.get("a").motivo).toBe("Por el precio")
+  })
+  it("el motivo 'otro' lleva su detalle y sin motivo no queda en blanco", () => {
+    const m = pacientesQueNoCompraron([pase("a", "descartado", { motivoDescarte: "otro", detalleDescarte: "viaja" }), pase("b", "descartado")])
+    expect(m.get("a").motivo).toBe("Otro: viaja")
+    expect(m.get("b").motivo).toBe("Sin motivo indicado")
+  })
+  it("si después compró (comprobante vigente) ya no cuenta; uno anulado no lo cambia", () => {
+    const pases = [pase("a", "descartado", { motivoDescarte: "precio" }), pase("b", "descartado", { motivoDescarte: "precio" })]
+    const facturas = [{ pacienteId: "a", estado: "pagada", creadoEn: "2026-09-10T10:00:00Z" }, { pacienteId: "b", estado: "anulada", creadoEn: "2026-09-10T10:00:00Z" }]
+    expect([...pacientesQueNoCompraron(pases, facturas).keys()]).toEqual(["b"])
+  })
+  it("manda el pase más reciente: descartó y luego volvió y quedó listo", () => {
+    const pases = [pase("a", "descartado", { motivoDescarte: "precio" }), pase("a", "listo", { pasadaEn: "2026-09-20T10:00:00Z" })]
+    expect(pacientesQueNoCompraron(pases).size).toBe(0)
+  })
+})

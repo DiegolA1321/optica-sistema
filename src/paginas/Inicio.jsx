@@ -38,6 +38,7 @@ import { INK } from "@/lib/tema"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function Inicio({
+  onVerPacientes,
   umbralStock = UMBRAL_STOCK_BAJO,
   setVista,
   setCitas,
@@ -243,7 +244,7 @@ export default function Inicio({
       descripcion="Todo lo registrado hasta hoy"
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes registrados", valor: pacientes.length, desc: pacientesEsteMes > 0 ? `+${pacientesEsteMes} este mes` : "En la base de datos", icono: Users, color: "slate", onClick: () => setVista?.("pacientes"), cta: puede(usuario, "pacientes", "crear") ? "Registrar paciente" : null, onCta: onCrearPacienteRapido },
-        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Sin ninguna consulta", icono: Users, color: "amber", onClick: () => setVista?.("pacientes") },
+        { id: "sinAtender", titulo: "Pacientes sin atender", valor: sinAtender, desc: "Sin ninguna consulta", icono: Users, color: "amber", onClick: () => (onVerPacientes ? onVerPacientes({ correccion: "Sin evaluación" }) : setVista?.("pacientes")) },
         { id: "citas", titulo: "Citas registradas", valor: citas.length, desc: "Desde el inicio", icono: Calendar, color: "blue", onClick: () => setVista?.("citas"), cta: puede(usuario, "citas", "crear") ? "Agendar cita" : null, onCta: onAgendarRapido },
         { id: "productos", titulo: "Productos en inventario", valor: inventario.length, desc: "Registrados", icono: Package, color: "slate", onClick: () => setVista?.("inventario"), cta: puede(usuario, "inventario", "crear") ? "Añadir producto" : null, onCta: onCrearProductoRapido },
       ]}

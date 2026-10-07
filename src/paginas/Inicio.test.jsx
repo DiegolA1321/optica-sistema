@@ -124,4 +124,15 @@ describe("Inicio por rol", () => {
     expect(screen.getByRole("button", { name: "Ver inventario" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
+
+  it("Pacientes sin atender abre Pacientes ya filtrado por Sin consulta", () => {
+    const pedidos = []
+    render(<Inicio {...base} onVerPacientes={(f) => pedidos.push(f)} />)
+    fireEvent.click(screen.getByText("Pacientes sin atender"))
+    expect(pedidos).toEqual([{ correccion: "Sin evaluación" }])
+  })
+  it("el stock mínimo sale del umbral que le pasa Configuración", () => {
+    render(<Inicio {...base} umbralStock={50} />)
+    expect(screen.getAllByText(/2 productos con stock bajo/i)).toHaveLength(1)
+  })
 })

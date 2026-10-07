@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import {
   ArrowLeft,
+  UserX,
   UserPlus,
   Search,
   Trash2,
@@ -68,6 +69,7 @@ import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
+import { pacientesQueNoCompraron } from "../utilidades/pasesVenta"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
@@ -559,7 +561,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // modal que se usaría si el optómetra hiciera clic aquí mismo, en vez de tener una copia aparte.
   useEffect(() => {
     if (!accionInicial) return
-    if (accionInicial.accion === "crear") {
+    if (accionInicial.accion === "filtrar") {
+      // Atajo desde Inicio (ej. "Pacientes sin atender"): abre esta lista ya filtrada.
+      setFiltroCorreccion(accionInicial.correccion ?? "Todos")
+      setFiltroRapido(accionInicial.rapido ?? "Todos")
+    } else if (accionInicial.accion === "crear") {
       // Atajo "Gestionar pacientes" del Dashboard — no referencia a ningún
       // paciente existente, así que no pasa por la búsqueda por id de abajo.
       abrirCrear()
@@ -822,6 +828,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Tendencia de graduación por paciente, calculada con la misma regla que la ficha clínica y el perfil
   // (entre sus dos consultas más recientes), no con el valor guardado al momento de cada consulta.
   // Pacientes listos para venta (pase "listo", sin vender ni descartar): se marcan en la lista con un enlace a la cola de Ventas.
+  // Consultaron y no compraron (N4): su último pase quedó en "No compró", con el motivo.
+  const noCompraron = useMemo(() => pacientesQueNoCompraron(pases, facturasVenta), [pases, facturasVenta])
   const idsListosParaVenta = useMemo(() => new Set(pases.filter((p) => p.estado === "listo" && p.pacienteId).map((p) => p.pacienteId)), [pases])
   const puedeVerVentas = puede(usuario, "ventas", "ver")
   const tendenciaPorPaciente = useMemo(() => {
@@ -861,10 +869,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       const coincideRapido =
         filtroRapido === "Todos" ||
         (filtroRapido === "Recientes" && (() => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS })()) ||
-        (filtroRapido === "PagosPendientes" && idsConDeuda.has(p.id))
+        (filtroRapido === "PagosPendientes" && idsConDeuda.has(p.id)) ||
+        (filtroRapido === "NoCompraron" && noCompraron.has(p.id))
       return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha && coincideRapido
     })
-  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido, consultas, idsConDeuda])
+  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido, consultas, idsConDeuda, noCompraron])
 
   // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
   // usa CRM.jsx en su modal de detalle, para no inventar uno nuevo. Solo la
@@ -985,6 +994,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     { key: "Recientes", label: "Visitas recientes" },
     { key: "RecetasActivas", label: "Recetas activas" },
     { key: "PagosPendientes", label: "Pagos pendientes" },
+    { key: "NoCompraron", label: `Consultaron y no compraron (${noCompraron.size})` },
   ]
   const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
   const activarBadgeRapido = (key) => {
@@ -1318,6 +1328,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                   <ShoppingCart size={11} /> Listo para venta
                                 </span>
                               ))}
+                              {noCompraron.has(paciente.id) && (
+                                <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" title="Consultó y no compró">
+                                  <UserX size={11} /> No compró: {noCompraron.get(paciente.id).motivo}
+                                </span>
+                              )}
                               {tienePagoPendiente && (
                                 <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
                                   <CreditCard size={11} /> Pago pendiente
