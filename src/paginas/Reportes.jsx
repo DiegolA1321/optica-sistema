@@ -26,7 +26,7 @@ import { useAnchoElemento } from "../utilidades/graficos"
 import { calcularEmbudo } from "../utilidades/embudo"
 import { totalAbonado } from "../utilidades/abonos"
 import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas, claveDiagnostico, etiquetaDeVariantes, categoriasDeConsulta } from "../utilidades/reportesDiagnosticos"
-import { resumenPorLaboratorio, ventasPorTipoLuna } from "../utilidades/reportesLaboratorio"
+import { resumenPorLaboratorio, ventasPorTipoLuna, productosMasVendidos as rankingProductos } from "../utilidades/reportesLaboratorio"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -184,9 +184,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // / cuotas_totales), no el total — mismo bug que se encontró y se decidió
   // no repetir (ver Punto 09): 1 de 6 cuotas pagadas no es el ingreso
   // completo. Una factura 'anulada' no aporta nada.
-  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, enRango, historial: consultasTodas }), [consultas, consultasTodas, pases, rango]) // eslint-disable-line react-hooks/exhaustive-deps
-  const consultasEsteMesArr = useMemo(() => consultas.filter((c) => enRango(c.fecha)), [consultas, rango])
-  const ventasVinculadasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
+  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, facturas: facturasVenta, enRango, historial: consultasTodas }), [consultas, consultasTodas, pases, facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
   const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
   const facturasVentaEsteMes = useMemo(() => facturasVenta.filter((f) => enRango(f.creadoEn)), [facturasVenta, rango])
   const ingresoFacturaVenta = (f) => {
@@ -200,10 +198,9 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
       + facturasVentaEsteMes.reduce((sum, f) => sum + ingresoFacturaVenta(f), 0),
     [ventasRealesEsteMes, facturasVentaEsteMes, abonos],
   )
-  const conversionVenta = useMemo(() => {
-    if (consultasEsteMesArr.length === 0) return null
-    return Math.round((ventasVinculadasEsteMes.length / consultasEsteMesArr.length) * 100)
-  }, [consultasEsteMesArr, ventasVinculadasEsteMes])
+  const cantidadVentas = ventasRealesEsteMes.length + facturasVentaEsteMes.filter((f) => f.estado !== "anulada").length
+  // Conversión = el mismo "compraron / consultaron" del embudo (ventas reales: comprobantes no anulados).
+  const conversionVenta = embudo.compraronSobreConsultaron
 
   // Satisfacción de pacientes (CSAT, 1 a 5) — respuestas de la encuesta
   // automática enviada al marcar una cita "Atendida" (migración 0041).
@@ -310,17 +307,11 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // H3: rotación de inventario — qué se está vendiendo de verdad en el
   // período elegido arriba (mismo selector que ya usan ingresos/conversión),
   // no solo el stock estático que ya se ve en Inventario.jsx.
-  const productosMasVendidos = useMemo(() => {
-    const mapa = new Map()
-    ventasRealesEsteMes.forEach((v) => {
-      const nombre = v.productoNombre || "Producto sin nombre"
-      mapa.set(nombre, (mapa.get(nombre) || 0) + (Number(v.cantidad) || 0))
-    })
-    return Array.from(mapa.entries())
-      .map(([label, valor]) => ({ label, valor }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 5)
-  }, [ventasRealesEsteMes])
+  // Sale de los comprobantes de venta (líneas "producto") y de las ventas sueltas, igual que Ingresos.
+  const productosMasVendidos = useMemo(
+    () => rankingProductos({ facturas: facturasVenta, ventas, enRango }),
+    [facturasVenta, ventas, rango], // eslint-disable-line react-hooks/exhaustive-deps
+  )
   const maxProductoVendido = Math.max(1, ...productosMasVendidos.map((p) => p.valor))
   const [hoverProducto, setHoverProducto] = useState(null)
 
@@ -359,8 +350,8 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const kpis = [
     { key: "consultas", label: "Consultas", sub: rango.etiqueta, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
-    { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${ventasRealesEsteMes.length + facturasVentaEsteMes.length} venta${(ventasRealesEsteMes.length + facturasVentaEsteMes.length) === 1 ? "" : "s"} · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
-    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta}`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
+    { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo)`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} con AV sin evaluar`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
     { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
     { key: "vencidos", label: "Controles atrasados", valor: controlesVencidos, sub: "a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — excluye a los pacientes de alta. No cambia con el período seleccionado arriba." },

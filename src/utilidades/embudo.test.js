@@ -41,6 +41,25 @@ describe("calcularEmbudo", () => {
     expect(e.proformasSobreVenta).toBeNull()
   })
 
+  describe("compras reales (comprobantes)", () => {
+    const consultas = [
+      { id: "a", fecha: "2026-10-02" }, { id: "b", fecha: "2026-10-03" }, { id: "c", fecha: "2026-10-04" }, { id: "d", fecha: "2026-10-05" },
+    ]
+    it("compró = comprobante no anulado; un comprobante anulado deja de contar aunque el pase siga 'vendido'", () => {
+      const e = calcularEmbudo({
+        enRango, consultas,
+        pases: [{ id: 1, estado: "vendido", consultaId: "a" }, { id: 2, estado: "vendido", consultaId: "b" }],
+        facturas: [{ consultaId: "a", estado: "pagada" }, { consultaId: "b", estado: "anulada" }, { consultaId: "c", estado: "pendiente_pago" }],
+      })
+      expect(e.compraron).toBe(2) // a (con pase) y c (comprobante sin pase)
+      expect(e.pasaron).toBe(3) // a, b (tiene pase) y c
+      expect(e.compraronSobreConsultaron).toBe(50)
+    })
+    it("sin comprobantes cargados sigue contando los pases vendidos", () => {
+      const e = calcularEmbudo({ enRango, consultas, pases: [{ id: 1, estado: "vendido", consultaId: "a" }] })
+      expect(e.compraron).toBe(1)
+    })
+  })
   describe("primera vez (R40)", () => {
     const consultas = [
       { id: "a", pacienteId: "p1", citaId: "k1", fecha: "2026-10-02" }, // nuevo, compró

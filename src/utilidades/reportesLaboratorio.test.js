@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { resumenPorLaboratorio, ventasPorTipoLuna, diasDeEntrega } from "./reportesLaboratorio"
+import { resumenPorLaboratorio, ventasPorTipoLuna, diasDeEntrega, productosMasVendidos } from "./reportesLaboratorio"
 
 const hoy = new Date(2026, 9, 10)
 const ord = (o) => ({ id: "x", estado: "enviada", laboratorio: "Lab A", creadaEn: "2026-10-01T10:00:00Z", fechaPrometida: "2026-10-20", historial: [], ...o })
@@ -46,5 +46,21 @@ describe("ventasPorTipoLuna", () => {
 
   it("respeta el período", () => {
     expect(ventasPorTipoLuna([f("pagada", [luna("monofocal")])], { enRango: () => false })).toEqual([])
+  })
+})
+
+describe("productosMasVendidos", () => {
+  const prod = (descripcion, cantidad = 1) => ({ tipo: "producto", descripcion, cantidad })
+  it("suma por unidades los productos de comprobantes no anulados y de ventas sueltas", () => {
+    const facturas = [
+      { estado: "pagada", creadoEn: "2026-10-01", lineas: [prod("Montura 1"), { tipo: "luna", descripcion: "Luna" }] },
+      { estado: "pendiente_pago", creadoEn: "2026-10-02", lineas: [prod("Montura 1"), prod("Estuche", 3)] },
+      { estado: "anulada", creadoEn: "2026-10-02", lineas: [prod("Montura 9", 5)] },
+    ]
+    const r = productosMasVendidos({ facturas, ventas: [{ creadoEn: "2026-10-03", productoNombre: "Estuche", cantidad: 1 }] })
+    expect(r).toEqual([{ label: "Estuche", valor: 4 }, { label: "Montura 1", valor: 2 }])
+  })
+  it("respeta el período", () => {
+    expect(productosMasVendidos({ facturas: [{ estado: "pagada", creadoEn: "2026-10-01", lineas: [prod("A")] }], enRango: () => false })).toEqual([])
   })
 })

@@ -43,6 +43,19 @@ export function resumenPorLaboratorio(ordenes = [], { hoy = new Date(), enRango 
     .sort((a, b) => b.atrasadas - a.atrasadas || b.abiertas - a.abiertas || a.laboratorio.localeCompare(b.laboratorio))
 }
 
+// Productos (monturas y accesorios) más vendidos por unidades, de los comprobantes de venta no anulados
+// y de las ventas sueltas de Inventario. Sin esto el ranking se quedaba vacío con ventas reales.
+export function productosMasVendidos({ facturas = [], ventas = [], enRango = () => true, limite = 5 } = {}) {
+  const mapa = new Map()
+  const sumar = (nombre, cantidad) => mapa.set(nombre, (mapa.get(nombre) || 0) + (Number(cantidad) || 1))
+  for (const f of facturas) {
+    if (f.estado === "anulada" || !enRango(f.creadoEn)) continue
+    for (const l of f.lineas || []) if (l.tipo === "producto") sumar(l.descripcion || "Producto sin nombre", l.cantidad)
+  }
+  for (const v of ventas) if (enRango(v.creadoEn)) sumar(v.productoNombre || "Producto sin nombre", v.cantidad)
+  return [...mapa.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor || a.label.localeCompare(b.label)).slice(0, limite)
+}
+
 // Lunas vendidas por tipo (monofocal, bifocal, progresivo, otro/sin tipo): unidades y, si se piden, monto.
 // Solo comprobantes no anulados; una línea de luna lleva `detalle.tipo_lente`.
 export function ventasPorTipoLuna(facturas = [], { enRango = () => true } = {}) {
