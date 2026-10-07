@@ -334,7 +334,9 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const citasAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
   const citasNoAsistio = useMemo(() => citas.filter((c) => c.estado === "No Asistió").length, [citas])
   const citasCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
-  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas, [citas, citasAtendidas, citasNoAsistio, citasCanceladas])
+  // Mismos grupos que el filtro de Citas médicas: "Pendientes" incluye En espera; "En atención" va aparte.
+  const citasEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención").length, [citas])
+  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas - citasEnAtencion, [citas, citasAtendidas, citasNoAsistio, citasCanceladas, citasEnAtencion])
   const totalCitasDist = Math.max(1, citas.length)
 
   // % de citas solicitadas que terminan en un paciente atendido — caso de
@@ -350,7 +352,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // los siguientes 4 son una foto del estado actual y no cambian con él
   // (no tendría sentido "Controles atrasados en marzo", por ejemplo).
   const kpis = [
-    { key: "consultas", label: "Consultas", sub: rango.etiqueta, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
+    { key: "consultas", label: "Consultas", sub: `fichas clínicas guardadas · ${rango.etiqueta}`, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
     { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo)`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
@@ -483,7 +485,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {/* ─── CONSULTAS POR MES ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "120ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Consultas por mes</h3>
-          <p className="mb-5 text-xs text-slate-500">Últimos 6 meses</p>
+          <p className="mb-5 text-xs text-slate-500">Fichas clínicas por mes · últimos 6 meses</p>
           {consultas.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay consultas registradas.</p>
           ) : (
@@ -532,7 +534,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {/* ─── DIAGNÓSTICOS MÁS FRECUENTES ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "170ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Diagnósticos más frecuentes</h3>
-          <p className="mb-5 text-xs text-slate-500">Top 5 registrados en fichas clínicas</p>
+          <p className="mb-5 text-xs text-slate-500">Top 5 · cuenta fichas clínicas (un paciente con varias fichas suma varias veces)</p>
           {diagnosticosTop.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay diagnósticos registrados.</p>
           ) : (
@@ -681,7 +683,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
 
         {/* ─── CITAS: PENDIENTES / ATENDIDAS / NO ASISTIÓ ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "270ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, atendidas y no-shows</h3>
+          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, en atención, atendidas e inasistencias</h3>
           <p className="mb-5 text-xs text-slate-500">{citas.length} cita{citas.length === 1 ? "" : "s"} en la agenda · desenlace marcado desde Citas médicas</p>
           {citas.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay citas agendadas.</p>
@@ -694,6 +696,14 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                       className="transition-[filter] duration-150"
                       style={{ width: `${(citasPendientes / totalCitasDist) * 100}%`, background: GRAD, filter: hoverCitaEstado === "Pendientes" ? "brightness(1.12)" : "none" }}
                       onMouseEnter={() => setHoverCitaEstado("Pendientes")}
+                      onMouseLeave={() => setHoverCitaEstado(null)}
+                    />
+                  )}
+                  {citasEnAtencion > 0 && (
+                    <div
+                      className="transition-[filter] duration-150"
+                      style={{ width: `${(citasEnAtencion / totalCitasDist) * 100}%`, backgroundColor: "#2563eb", filter: hoverCitaEstado === "En atención" ? "brightness(1.12)" : "none" }}
+                      onMouseEnter={() => setHoverCitaEstado("En atención")}
                       onMouseLeave={() => setHoverCitaEstado(null)}
                     />
                   )}
@@ -724,7 +734,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 </div>
                 {hoverCitaEstado && (
                   <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg" style={{ background: INK }}>
-                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "Atendidas" ? citasAtendidas : hoverCitaEstado === "No asistió" ? citasNoAsistio : citasCanceladas}
+                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "En atención" ? citasEnAtencion : hoverCitaEstado === "Atendidas" ? citasAtendidas : hoverCitaEstado === "No asistió" ? citasNoAsistio : citasCanceladas}
                   </div>
                 )}
               </div>
@@ -732,6 +742,10 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: GRAD }} />
                   Pendientes <span className="text-slate-500">({citasPendientes})</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                  En atención <span className="text-slate-500">({citasEnAtencion})</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                   <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
