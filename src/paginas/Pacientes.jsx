@@ -1852,8 +1852,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
-              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-                <div className="flex min-w-0 items-start gap-4">
+              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+                <div className="flex min-w-0 items-start gap-4 lg:flex-1">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
                   </div>
@@ -1889,7 +1889,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:w-[22rem] lg:shrink-0 lg:grid-cols-2 lg:border-t-0 lg:pt-0">
                   {/* Acción primaria primero — antes quedaba al final de la
                       pila, después de hasta 3 botones secundarios (outline),
                       obligando a escanear toda la columna para llegar a la
@@ -2028,6 +2028,84 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
               return (
                 <>
+                  {/* Segmented control tipo píldora — mismo lenguaje que el
+                      resto del sistema para "esto está activo" (ver filtros
+                      de Citas.jsx), en vez del subrayado recto que tenía
+                      antes. role="tablist"/"tab"/aria-selected para que un
+                      lector de pantalla las anuncie como pestañas, no como
+                      4 botones sueltos. */}
+                  <div role="tablist" aria-label="Secciones del paciente" className="mt-4 flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+                    {[
+                      { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
+                    ].map(({ id, etiqueta, Icono, cuenta }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        id={"tab-" + id}
+                        aria-selected={tabHistorial === id}
+                        aria-controls="panel-paciente"
+                        onClick={() => setTabHistorial(id)}
+                        className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                        style={tabHistorial === id ? { background: GRAD } : undefined}
+                      >
+                        {/* El ing pidió dos secciones en vez de un historial único (29 sept.,
+                            R45): Citas (pendientes, próxima e historial) y Diagnósticos
+                            (cada atención con su motivo y diagnóstico, con la tendencia arriba). */}
+                        <Icono size={14} /> {etiqueta}
+                        {cuenta > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      role="tab"
+                      id="tab-pagos"
+                      aria-selected={tabHistorial === "pagos"}
+                      aria-controls="panel-paciente"
+                      onClick={() => setTabHistorial("pagos")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "pagos" ? { background: GRAD } : undefined}
+                    >
+                      {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
+                          pestaña — "aquí están los productos que yo le he
+                          vendido al paciente", así que la etiqueta pasa a ser
+                          literal. Reunión 29 sept.: separa productos de
+                          servicios (la línea "Consulta" del cobro de la
+                          ficha clínica incluida), así que el nombre ya no
+                          puede ser solo "productos". */}
+                      <Wallet size={14} /> Productos y servicios
+                      {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
+                      {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      id="tab-ordenes"
+                      aria-selected={tabHistorial === "ordenes"}
+                      aria-controls="panel-paciente"
+                      onClick={() => setTabHistorial("ordenes")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
+                      style={tabHistorial === "ordenes" ? { background: GRAD } : undefined}
+                    >
+                      <FlaskConical size={14} /> Órdenes de laboratorio
+                      {ordenesPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{ordenesPaciente.length}</span>}
+                      {ordenesPaciente.some((o) => o.estado === "lista" && !o.pacienteAvisadoEn) && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>Avisar</span>}
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      id="tab-fidelizacion"
+                      aria-selected={tabHistorial === "fidelizacion"}
+                      aria-controls="panel-paciente"
+                      onClick={() => setTabHistorial("fidelizacion")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "fidelizacion" ? { background: GRAD } : undefined}
+                    >
+                      <Heart size={14} /> Fidelización
+                      {inactivo && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "fidelizacion" ? "bg-white/25 text-white" : "bg-red-100 text-red-700")}>Vencido</span>}
+                    </button>
+                  </div>
+
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
@@ -2119,84 +2197,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
                     </button>
                   )}
-                  {/* Segmented control tipo píldora — mismo lenguaje que el
-                      resto del sistema para "esto está activo" (ver filtros
-                      de Citas.jsx), en vez del subrayado recto que tenía
-                      antes. role="tablist"/"tab"/aria-selected para que un
-                      lector de pantalla las anuncie como pestañas, no como
-                      4 botones sueltos. */}
-                  <div role="tablist" aria-label="Secciones del paciente" className="mt-6 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-                    {[
-                      { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
-                    ].map(({ id, etiqueta, Icono, cuenta }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        role="tab"
-                        id={"tab-" + id}
-                        aria-selected={tabHistorial === id}
-                        aria-controls="panel-paciente"
-                        onClick={() => setTabHistorial(id)}
-                        className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                        style={tabHistorial === id ? { background: GRAD } : undefined}
-                      >
-                        {/* El ing pidió dos secciones en vez de un historial único (29 sept.,
-                            R45): Citas (pendientes, próxima e historial) y Diagnósticos
-                            (cada atención con su motivo y diagnóstico, con la tendencia arriba). */}
-                        <Icono size={14} /> {etiqueta}
-                        {cuenta > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-pagos"
-                      aria-selected={tabHistorial === "pagos"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("pagos")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "pagos" ? { background: GRAD } : undefined}
-                    >
-                      {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
-                          pestaña — "aquí están los productos que yo le he
-                          vendido al paciente", así que la etiqueta pasa a ser
-                          literal. Reunión 29 sept.: separa productos de
-                          servicios (la línea "Consulta" del cobro de la
-                          ficha clínica incluida), así que el nombre ya no
-                          puede ser solo "productos". */}
-                      <Wallet size={14} /> Productos y servicios
-                      {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
-                      {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-ordenes"
-                      aria-selected={tabHistorial === "ordenes"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("ordenes")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
-                      style={tabHistorial === "ordenes" ? { background: GRAD } : undefined}
-                    >
-                      <FlaskConical size={14} /> Órdenes de laboratorio
-                      {ordenesPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{ordenesPaciente.length}</span>}
-                      {ordenesPaciente.some((o) => o.estado === "lista" && !o.pacienteAvisadoEn) && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>Avisar</span>}
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-fidelizacion"
-                      aria-selected={tabHistorial === "fidelizacion"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("fidelizacion")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "fidelizacion" ? { background: GRAD } : undefined}
-                    >
-                      <Heart size={14} /> Fidelización
-                      {inactivo && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "fidelizacion" ? "bg-white/25 text-white" : "bg-red-100 text-red-700")}>Vencido</span>}
-                    </button>
-                  </div>
-
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
                       pestaña para que "rise-in" (ya estándar en el resto del
                       sistema, 320ms) se dispare de nuevo — antes el
