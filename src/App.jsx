@@ -621,21 +621,33 @@ function App() {
           if (data) setCitas(data.map(mapCita))
           else if (error) registrarErrorCarga('citas')
         }),
+        // Datos que el Inicio combina entre sí (consultas, ventas, pases, órdenes y abonos): se esperan junto con lo
+        // demás para que el Inicio no calcule con una parte vacía (p. ej. todos los pacientes "sin atender" mientras llegan las consultas).
+        supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (data) setConsultas(data.map(mapConsulta))
+          else if (error) registrarErrorCarga('consultas')
+        }),
+        supabase.from('facturas_venta').select('*, facturas_venta_lineas(*)').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (data) setFacturasVenta(data.map(mapFacturaVenta))
+          else if (error) registrarErrorCarga('facturas')
+        }),
+        supabase.from('pases_a_venta').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setPasesVenta(data.map(mapPase))
+          else if (error) registrarErrorCarga('pacientes listos para venta')
+        }),
+        supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setOrdenesLab(data.map(mapOrden))
+          else if (error) registrarErrorCarga('órdenes de laboratorio')
+        }),
+        supabase.from('abonos_factura').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+          if (data) setAbonos(data.map(mapAbono))
+          else if (error) registrarErrorCarga('abonos')
+        }),
       ]).then(() => setCargaInicialStaff(false))
-
-      supabase.from('consultas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (data) setConsultas(data.map(mapConsulta))
-        else if (error) registrarErrorCarga('consultas')
-      })
 
       supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
         if (data) setVentas(data.map(mapVenta))
         else if (error) registrarErrorCarga('ventas')
-      })
-
-      supabase.from('facturas_venta').select('*, facturas_venta_lineas(*)').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (data) setFacturasVenta(data.map(mapFacturaVenta))
-        else if (error) registrarErrorCarga('facturas')
       })
 
       supabase.from('respuestas_satisfaccion').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
@@ -646,21 +658,6 @@ function App() {
       supabase.from('solicitudes_eliminacion_paciente').select('*').eq('optica_id', opticaId).eq('estado', 'pendiente').then(({ data, error }) => {
         if (data) setSolicitudesEliminacion(data.map(mapSolicitudEliminacion))
         else if (error) registrarErrorCarga('solicitudes de eliminación')
-      })
-
-      supabase.from('pases_a_venta').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setPasesVenta(data.map(mapPase))
-        else if (error) registrarErrorCarga('pacientes listos para venta')
-      })
-
-      supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setOrdenesLab(data.map(mapOrden))
-        else if (error) registrarErrorCarga('órdenes de laboratorio')
-      })
-
-      supabase.from('abonos_factura').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
-        if (data) setAbonos(data.map(mapAbono))
-        else if (error) registrarErrorCarga('abonos')
       })
 
       supabase.rpc('equipo_optica').then(({ data, error }) => {

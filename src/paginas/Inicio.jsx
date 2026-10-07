@@ -349,7 +349,9 @@ export default function Inicio({
   // App.jsx aún hidrataba — justo la primera pantalla que ve el usuario al
   // entrar. Estrictamente prohibido por CLAUDE.md ("pantallas vacías o
   // parpadeos durante la petición de datos").
-  if (cargaInicial && pacientes.length === 0 && citas.length === 0 && inventario.length === 0) {
+  // Mientras hidrata no se calcula nada: con las consultas todavía vacías, todos los pacientes salían "sin atender"
+  // y con el control vencido. Los datos en caché de pacientes/citas no bastan para los números del Inicio.
+  if (cargaInicial) {
     return <InicioSkeleton />
   }
 
