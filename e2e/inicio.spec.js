@@ -3,7 +3,7 @@
 // Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/inicio-capturas/.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { iniciarSesion } from './ayudas.js'
+import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 const CARPETA = 'docs/inicio-capturas'
 // El Inicio se desplaza dentro de un contenedor propio: se captura el tope y, si hay más, cada tramo siguiente (1366x768).
@@ -182,6 +182,8 @@ test('el contador del menú de Ventas solo lo ve quien puede vender', async ({ b
 })
 
 test('Paula: "Siguiente paciente" tiene "Atender" y abre el mismo flujo de Citas', async ({ page }) => {
+  // Crea su propia cita de hoy para Paula: no depende de la hora del día ni de lo que haya sembrado.
+  await crearCitaDeHoyParaPaula()
   await iniciarSesion(page, 'OPTOMETRA')
   const tarjeta = main(page).getByRole('region', { name: 'Hoy' })
   await expect(tarjeta.getByText('Siguiente paciente')).toBeVisible({ timeout: 20_000 })

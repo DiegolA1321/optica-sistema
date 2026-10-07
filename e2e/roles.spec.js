@@ -2,7 +2,7 @@
 // Los permisos esperados son los de los roles predefinidos (migración 0090). Usa expect.soft para
 // reunir todos los hallazgos de una pasada; no corrige nada.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion } from './ayudas.js'
+import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 const TODOS = ['Inicio', 'Citas médicas', 'Pacientes', 'Ventas', 'Inventario', 'CRM y fidelización', 'Mi horario', 'Reportes']
 const SOLO_ADMIN = ['Usuarios y permisos', 'Configuración', 'Mensajes']
@@ -103,6 +103,8 @@ test.describe('Ventas', () => {
 
 test.describe('Optómetra', () => {
   test('menú, Inicio y alcance propio', async ({ page }) => {
+    // Su propia cita de hoy asignada a Paula, para que "Atender" exista sin depender de la hora del día.
+    await crearCitaDeHoyParaPaula()
     await iniciarSesion(page, 'OPTOMETRA')
     await expect(page.getByText('Tu agenda del día')).toBeVisible({ timeout: 15_000 })
     expect.soft(await menuVisible(page)).toEqual(TODOS)
