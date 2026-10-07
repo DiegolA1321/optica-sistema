@@ -200,7 +200,7 @@ Verificación (51 de 51 comprobaciones, con datos de prueba en transacciones rev
 
 ### 4.5 bis Pruebas unitarias intermitentes (a investigar)
 
-El 7 de octubre, al correr `npm test` justo después de agregar las pruebas de Playwright y mientras el servidor de desarrollo seguía abierto, **4 pruebas unitarias fallaron una sola vez** (291 de 295 pasaron). Se repitió la corrida sin cambiar nada y pasaron las 295. No se guardó el nombre de las pruebas que fallaron. **Pendiente:** investigar la causa (sospecha: tiempos de espera por la carga de la máquina), repitiendo la suite con el servidor abierto y con `--reporter=verbose` para identificar cuáles son.
+El 7 de octubre, al correr `npm test` justo después de agregar las pruebas de Playwright y mientras el servidor de desarrollo seguía abierto, **4 pruebas unitarias fallaron una sola vez** (291 de 295 pasaron). Se repitió la corrida sin cambiar nada y pasaron las 295. No se guardó el nombre de las pruebas que fallaron. **Segunda aparición (7 de octubre):** falló una sola prueba, `ConsultaMedica.test.jsx › 'Siguiente' y 'Terminar atención' son nodos <button> distintos`, en una corrida con el servidor de desarrollo abierto; las dos corridas siguientes pasaron 303 de 303. **Pendiente:** investigar la causa (sospecha: tiempos de espera por la carga de la máquina), repitiendo la suite con el servidor abierto y con `--reporter=verbose` para identificar cuáles son.
 
 ### 4.6 Observación de limpieza (no es del código)
 
