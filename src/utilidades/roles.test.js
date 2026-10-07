@@ -56,3 +56,10 @@ describe("clave temporal del portal", () => {
     for (let i = 0; i < 300; i++) expect(validarClaveNueva(generarClaveTemporal())).toBe("")
   })
 })
+
+describe("menú con Ventas (Bloque E)", () => {
+  it("Ventas aparece en el menú entre Pacientes y Inventario según el permiso ventas:ver", () => {
+    expect(menuDePermisos({ pacientes: ["ver"], ventas: ["ver", "crear"], inventario: ["ver"] })).toEqual(["Pacientes", "Ventas", "Inventario"])
+    expect(menuDePermisos({ pacientes: ["ver"], inventario: ["ver"] })).toEqual(["Pacientes", "Inventario"])
+  })
+})

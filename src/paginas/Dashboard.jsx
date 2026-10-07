@@ -30,6 +30,7 @@ import {
   Loader2,
   Search,
   UserX,
+  ShoppingBag,
 } from "lucide-react"
 
 // Módulos del sistema — Inicio se queda como import normal porque es lo
@@ -42,6 +43,7 @@ import { lazyConReintento } from "../utilidades/lazyConReintento"
 const Pacientes = lazyConReintento(() => import("./Pacientes"), "Pacientes")
 const ConsultaMedica = lazyConReintento(() => import("./ConsultaMedica"), "ConsultaMedica")
 const Inventario = lazyConReintento(() => import("./Inventario"), "Inventario")
+const Ventas = lazyConReintento(() => import("./Ventas"), "Ventas")
 const Citas = lazyConReintento(() => import("./Citas"), "Citas")
 const Horario = lazyConReintento(() => import("./Horario"), "Horario")
 const CRM = lazyConReintento(() => import("./CRM"), "CRM")
@@ -51,6 +53,8 @@ const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configu
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo } from "../utilidades/inventario"
+import { filtrarComprobantes } from "../utilidades/saldosVentas"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import { diasVencido } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
@@ -87,6 +91,9 @@ const OPCIONES = [
   // porque el permiso "consultas" en Usuarios y permisos sigue existiendo.
   { id: "consultas", nombre: "Ficha clínica", icono: Eye, oculto: true },
   { id: "pacientes", nombre: "Pacientes", icono: Users },
+  // Ventas (Bloque E): la cola "Listo para venta", los comprobantes, las órdenes de laboratorio y los saldos.
+  // Se ve con el permiso ventas:ver (rol o vista activa); antes vivía dentro de Pacientes.
+  { id: "ventas", nombre: "Ventas", icono: ShoppingBag },
   { id: "inventario", nombre: "Inventario", icono: Package },
   { id: "crm", nombre: "CRM y fidelización", icono: HeartHandshake },
   { id: "horario", nombre: "Mi horario", icono: CalendarClock },
@@ -140,10 +147,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
   // Órdenes de laboratorio que piden acción: lentes listos sin avisar y órdenes atrasadas (R37).
   const ordenesPendientes = useMemo(() => ordenesListasSinAvisar(ordenesLab).length + ordenesAtrasadas(ordenesLab).length, [ordenesLab])
-  // El contador del menú es de quien vende (Inicio de ventas y, más adelante, el módulo de Ventas).
+  // El contador del menú es de quien vende: aparece sobre "Ventas".
   const vendeAqui = puede(usuario, "ventas", "ver")
-  const avisosPacientes = vendeAqui ? listosParaVenta + ordenesPendientes : 0
-  const textoAvisosPacientes = [
+  const avisosVentas = vendeAqui ? listosParaVenta + ordenesPendientes : 0
+  const textoAvisosVentas = [
     listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
     ordenesPendientes > 0 && `${ordenesPendientes} orden${ordenesPendientes === 1 ? "" : "es"} de laboratorio por atender`,
   ].filter(Boolean).join(" · ")
@@ -160,6 +167,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const opcionesVisibles = useMemo(
     () => OPCIONES.filter((o) => {
       if (o.id === "inicio") return true
+      if (o.id === "ventas" && !menuDeRol) return puede(usuario, "ventas", "ver")
       if (menuDeRol) return menuDeRol[o.id] === true && !(o.soloAdmin && !o.delegable)
       if (o.soloAdmin) {
         if (esAdmin) return true
@@ -216,6 +224,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const id = new URLSearchParams(window.location.search).get('paciente')
     return id && opcionesVisibles.some((o) => o.id === 'pacientes') ? { pacienteId: id, accion: 'historial' } : null
   })
+  // Destino pedido al módulo de Ventas: { tab: "cola" | "ventas" | "ordenes" | "saldos", filtro?, texto? }
+  const [accionVentasInicio, setAccionVentasInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
@@ -313,6 +323,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     if (!q) return []
     return inventario.filter((p) => (p.nombre || "").toLowerCase().includes(q)).slice(0, 4)
   }, [inventario, busquedaGlobal])
+  // Ventas: comprobantes por paciente, número CV-0001 o número de la factura electrónica (solo si puede ver ventas).
+  const resultadosVentasGlobal = useMemo(() => {
+    if (!busquedaGlobal.trim() || !puede(usuario, "ventas", "ver")) return []
+    return filtrarComprobantes(facturasVenta, { texto: busquedaGlobal, pacientes, abonos }).slice(0, 4)
+  }, [facturasVenta, pacientes, abonos, busquedaGlobal, usuario])
   const irASeccionGlobal = (seccion) => {
     navegar(seccion)
     setMostrarBusquedaGlobal(false)
@@ -566,6 +581,33 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setPases={setPases}
           />
         )
+      case "ventas":
+        return (
+          <Ventas
+            usuario={usuario}
+            cargaInicial={cargaInicialStaff}
+            parametrizacion={parametrizacion}
+            pacientes={pacientes}
+            consultas={consultas}
+            inventario={inventario}
+            setInventario={setInventario}
+            categoriasInventario={categoriasInventario}
+            setCategoriasInventario={setCategoriasInventario}
+            ventas={ventas}
+            facturasVenta={facturasVenta}
+            setFacturasVenta={setFacturasVenta}
+            pases={pases}
+            setPases={setPases}
+            ordenesLab={ordenesLab}
+            setOrdenesLab={setOrdenesLab}
+            abonos={abonos}
+            equipo={equipo}
+            accionInicial={accionVentasInicio}
+            onAccionInicialConsumida={() => setAccionVentasInicio(null)}
+            onVerPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
+            onAviso={mostrarAviso}
+          />
+        )
       case "inventario":
         return (
           <Inventario
@@ -666,9 +708,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             pases={pases}
             facturasVenta={facturasVenta}
             abonos={abonos}
-            onVerCola={() => { setAccionPacienteInicio({ accion: "cola" }); navegar("pacientes") }}
+            onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
             onVerCitas={(estado) => { setEstadoCitasInicial(estado); navegar("citas") }}
-            onVerOrdenes={(filtro) => { setAccionPacienteInicio({ accion: "ordenes", filtro }); navegar("pacientes") }}
+            onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => {
               setAbrirAgendarAlEntrar(true)
@@ -756,18 +798,17 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 >
                   <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
-                  {/* Pacientes listos para venta (R35): se ve en el menú de quien ve Pacientes.
-                      Pasará al módulo de Ventas y al Inicio de quien vende (Bloques D y E). */}
-                  {opcion.id === "pacientes" && avisosPacientes > 0 && (
+                  {/* Pacientes listos para venta (R35) y órdenes por atender: se ven sobre el módulo de Ventas. */}
+                  {opcion.id === "ventas" && avisosVentas > 0 && (
                     <span
-                      title={textoAvisosPacientes}
-                      aria-label={textoAvisosPacientes}
+                      title={textoAvisosVentas}
+                      aria-label={textoAvisosVentas}
                       className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]" : "")}
                     >
-                      {avisosPacientes}
+                      {avisosVentas}
                     </span>
                   )}
-                  {activo && <span className={(opcion.id === "pacientes" && avisosPacientes > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
+                  {activo && <span className={(opcion.id === "ventas" && avisosVentas > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
               )
             })}
@@ -890,14 +931,14 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                         type="text"
                         value={busquedaGlobal}
                         onChange={(e) => setBusquedaGlobal(e.target.value)}
-                        placeholder="Paciente, cita de hoy o producto..."
+                        placeholder="Paciente, cita de hoy, producto o venta..."
                         className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
                       />
                     </div>
                   </div>
                   {busquedaGlobal.trim() && (
                     <div className="max-h-80 overflow-y-auto">
-                      {resultadosBusquedaGlobal.length === 0 && resultadosCitasGlobal.length === 0 && resultadosProductosGlobal.length === 0 ? (
+                      {resultadosBusquedaGlobal.length === 0 && resultadosCitasGlobal.length === 0 && resultadosProductosGlobal.length === 0 && resultadosVentasGlobal.length === 0 ? (
                         <p className="p-4 text-center text-xs text-slate-500">Nada coincide.</p>
                       ) : (
                         <>
@@ -929,6 +970,22 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                                 >
                                   <span className="truncate font-semibold text-slate-700">{c.paciente || "Sin nombre"}</span>
                                   <span className="shrink-0 text-xs text-slate-400">{c.hora || ""}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {resultadosVentasGlobal.length > 0 && (
+                            <div>
+                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Ventas</p>
+                              {resultadosVentasGlobal.map((f) => (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => { setAccionVentasInicio({ tab: "ventas", texto: numeroComprobante(f.numero) }); irASeccionGlobal("ventas") }}
+                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
+                                >
+                                  <span className="truncate font-semibold text-slate-700">{numeroComprobante(f.numero)} · {pacientes.find((p) => p.id === f.pacienteId)?.nombre || "Paciente"}</span>
+                                  <span className="shrink-0 font-mono text-xs text-slate-400">${f.montoTotal.toFixed(2)}</span>
                                 </button>
                               ))}
                             </div>
