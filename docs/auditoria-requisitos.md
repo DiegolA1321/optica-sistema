@@ -2,7 +2,7 @@
 
 Fecha: 6 de octubre de 2026 · Rama `bloque-f` · Fuente de requisitos: `docs/feedback-ing/requisitos-reunion-29sep.md`.
 
-**Cómo se hizo.** Cada requisito se contrastó con el código actual (búsqueda de la pantalla, la función o la migración que lo cumple) y con los planes de `docs/feedback-ing/` (prioridad 1, bloques D, E y F). Las líneas citadas son las de hoy; se mueven con cada cambio. La suite de pruebas pasa completa (39 archivos, 295 pruebas) y el build compila. **No se volvió a recorrer cada pantalla en el navegador en esta auditoría** (la herramienta de navegador se desconectó); lo que sí se verificó en vivo es lo de los pendientes técnicos (sección 4) y el ensayo del script de demostración (sección 5). Los recorridos en navegador de cada bloque están documentados en sus planes. La columna "Cómo probarlo" sirve para repetirlos con la Óptica Demo ya poblada.
+**Cómo se hizo.** Cada requisito se contrastó con el código actual (búsqueda de la pantalla, la función o la migración que lo cumple) y con los planes de `docs/feedback-ing/` (prioridad 1, bloques D, E y F). Las líneas citadas son las de hoy; se mueven con cada cambio. La suite de pruebas pasa completa (39 archivos, 309 pruebas) y el build compila. **No se volvió a recorrer cada pantalla en el navegador en esta auditoría** (la herramienta de navegador se desconectó); lo que sí se verificó en vivo es lo de los pendientes técnicos (sección 4) y el ensayo del script de demostración (sección 5). Los recorridos en navegador de cada bloque están documentados en sus planes. La columna "Cómo probarlo" sirve para repetirlos con la Óptica Demo ya poblada.
 
 Leyenda: **Hecho** cumple lo pedido · **Hecho distinto** existe, pero resuelve el pedido de otra manera, por decisión explícita · **Parcial** falta una parte · **Pendiente** no existe.
 
@@ -10,9 +10,9 @@ Leyenda: **Hecho** cumple lo pedido · **Hecho distinto** existe, pero resuelve 
 
 | Estado | Cantidad |
 |---|---|
-| Hecho | 58 |
+| Hecho | 59 |
 | Hecho distinto | 1 (R39) |
-| Parcial | 3 (R40, R51, R62) |
+| Parcial | 2 (R51, R62) |
 | Pendiente | 0 |
 | **Total** | **62** |
 
@@ -20,7 +20,6 @@ Leyenda: **Hecho** cumple lo pedido · **Hecho distinto** existe, pero resuelve 
 
 | Req. | Qué falta | Razón |
 |---|---|---|
-| R40 | Separar "vinieron por primera vez" de "se volvieron clientes". El embudo cuenta consultaron → pasaron a venta → compraron / no compraron (con motivo) y proformas, pero no distingue primera vez ni cuántos volvieron a comprar. | El embudo se diseñó sobre las consultas del período (Bloque D/E); la separación por primera vez quedó fuera. No necesita base de datos: `esPrimeraVez` ya existe (`utilidades/filtrosCitas.js:33`). Propuesta en 4.7. |
 | R51 | Verificación de cuentas por correo. Cédula única y correo obligatorio sí están hechos. | Depende de enviar correo con un dominio propio verificado en Resend. Ver 4.4. |
 | R62 | Pulido visual final módulo por módulo y aplicación de la base visual a las páginas públicas y al Portal del paciente. | Es el Bloque G, que el ingeniero fijó "al final". La base visual común ya está aplicada al sistema interno (Bloque A, `docs/base-visual-capturas`). |
 
@@ -76,7 +75,7 @@ Leyenda: **Hecho** cumple lo pedido · **Hecho distinto** existe, pero resuelve 
 | R37 Laboratorio completa, el administrador recibe el aviso | Hecho | `componentes/OrdenesLaboratorio.jsx` (enviada → lista → entregada), `Inicio.jsx:353,532` ("Lentes listos sin avisar", atrasadas), `registrar_aviso_paciente` | Marcar una orden "Lista": aparece la alerta en Inicio |
 | R38 Pagos al contado, cuotas o abonos | Hecho | `ComprobanteVentaModal.jsx:163-314` (directo, tarjeta, cuotas, abonos), `componentes/AbonoModal.jsx:48` (`registrar_abono`, migración 0088) | Vender con abonos y registrar abonos hasta saldar |
 | R39 Cita "Atendida" con la factura | Hecho distinto | `ConsultaMedica.jsx:331-343` (Atendida al terminar la atención); decisión de Diego del 6 oct. | Terminar atención sin vender: la cita queda Atendida |
-| R40 Quién consultó y no compró; embudo | Parcial | `utilidades/embudo.js`, `paginas/Reportes.jsx:187` ("Embudo de ventas": consultaron, pasaron, compraron, no compraron por motivo, proformas). Falta "primera vez vs. volvieron" | Reportes → Embudo; ver 4.7 para lo que falta |
+| R40 Quién consultó y no compró; embudo | Hecho | `utilidades/embudo.js` (`calcularEmbudo`, con `esPrimeraVez` de `filtrosCitas.js`), `paginas/Reportes.jsx` ("Embudo de ventas": consultaron, pasaron, compraron, no compraron por motivo, proformas y, nuevo, "Primera vez o ya eran pacientes" con cuántos de los de primera vez compraron). Pruebas en `embudo.test.js` | Reportes → Embudo (verificado en vivo en la Óptica Demo, 7 oct.: 18 de primera vez + 27 ya pacientes = 45 consultas; 4 de los 18 compraron) |
 
 ### Perfil del paciente (R41 a R45)
 
@@ -206,9 +205,9 @@ El 7 de octubre, al correr `npm test` justo después de agregar las pruebas de P
 
 El estado de git arrastra 16 enlaces borrados en `.claude/skills/` desde antes de esta sesión. No los toqué ni los incluí en ningún commit; conviene resolverlos aparte (restaurarlos o confirmar el borrado).
 
-### 4.7 Propuesta para cerrar R40
+### 4.7 Cierre de R40 (7 oct.)
 
-Agregar al embudo dos cifras con lo que ya existe: pacientes cuya primera consulta cayó en el período (`esPrimeraVez`) y cuántos de ellos compraron o regresaron después. Es lógica pura sobre consultas y pases, sin base de datos; unas dos horas con pruebas.
+Hecho sin tocar la base de datos. `calcularEmbudo` recibe además el `historial` completo de consultas (sin el filtro por motivo, para que filtrar no vuelva "primera vez" a un paciente antiguo) y usa `esPrimeraVez` por cada consulta del período. El embudo muestra cuántas consultas fueron de primera vez, cuántas de pacientes que ya lo eran y cuántos de los de primera vez compraron. Límites conocidos: una consulta sin paciente vinculado (paciente anonimizado) cuenta como primera vez, igual que en Citas; y no se mide todavía cuántos de los de primera vez regresaron a una segunda consulta, solo cuántos compraron.
 
 ## 5. Datos de demostración de la Óptica Demo
 
