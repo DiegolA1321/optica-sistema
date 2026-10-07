@@ -313,7 +313,7 @@ function FormularioCodigoMfa({ codigo, setCodigo, errorLogin, enviando, onSubmit
   )
 }
 
-export default function Login({ pacientes = [], opticaPublica = null, disponibilidad = null, soloModal = false, avisoInicial = null, AlTenerExito = () => {}, AlIrARegistro = () => {} }) {
+export default function Login({ pacientes = [], opticaPublica = null, disponibilidad = null, soloModal = false, resolviendoOptica = false, avisoInicial = null, AlTenerExito = () => {}, AlIrARegistro = () => {} }) {
   // Personalización por óptica (nombre de marca, eslogan, color de acento,
   // logo, mensaje de bienvenida, servicios) — con los valores de siempre
   // como default para no cambiar el aspecto de la óptica de prueba mientras
@@ -542,6 +542,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
     e.preventDefault()
     if (enviando) return
     setErrorLogin("")
+    // La óptica del sitio se resuelve en segundo plano. Enviar antes de que llegue mandaba el RPC del
+    // paciente sin p_optica_id (404) y comparaba el perfil contra una óptica aún vacía ("no pertenece a esta óptica").
+    if (resolviendoOptica) { setErrorLogin("Estamos cargando los datos de la óptica. Intenta de nuevo en un momento."); return }
     setEnviando(true)
     try {
       const u = usuario.trim().toLowerCase()
@@ -783,10 +786,10 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 <span className="text-xs font-medium text-slate-400">¿Problemas? Soporte técnico</span>
               </div>
 
-              <button type="submit" disabled={enviando}
+              <button type="submit" disabled={enviando || resolviendoOptica}
                 className="mt-1 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:brightness-105 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: "linear-gradient(135deg, #22D3EE 0%, #2563EB 100%)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
-                {enviando ? "Entrando…" : "Entrar"}
+                {enviando ? "Entrando…" : resolviendoOptica ? "Cargando…" : "Entrar"}
               </button>
             </form>
             )}
@@ -1246,10 +1249,10 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   </div>
                 </div>
 
-                <button type="submit" disabled={enviando}
+                <button type="submit" disabled={enviando || resolviendoOptica}
                   className="mt-2 w-full rounded-xl py-3.5 text-base font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                   style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)", boxShadow: "0 12px 26px -10px rgba(37,99,235,0.5)" }}>
-                  {enviando ? "Entrando…" : "Entrar"}
+                  {enviando ? "Entrando…" : resolviendoOptica ? "Cargando…" : "Entrar"}
                 </button>
               </form>
               )}

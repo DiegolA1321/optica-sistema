@@ -1146,6 +1146,7 @@ function App() {
             disponibilidad={disponibilidad}
             avisoInicial={avisoSesion}
             soloModal={sitio.modo === 'admin_sistema'}
+            resolviendoOptica={sitio.modo === 'optica' && !opticaPublica && !!supabase}
             AlTenerExito={manejarExitoLogin}
             AlIrARegistro={() => setPantallaActual('registro_paciente')}
           />
