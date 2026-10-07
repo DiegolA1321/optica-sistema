@@ -38,11 +38,13 @@ describe("Inicio por rol", () => {
   })
 
   it("optómetra: solo lo de hoy y sus citas (sin las asignadas a otra persona), sin totales ni stock", () => {
-    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente" }} vista={vistaRol("optometra")} />)
+    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
     expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Agenda de hoy" })).toBeInTheDocument()
     expect(screen.getByText("Mis citas de hoy")).toBeInTheDocument()
     expect(screen.getByText("Siguiente paciente")).toBeInTheDocument()
+    expect(screen.queryByText("En atención ahora")).not.toBeInTheDocument() // quien atiende está en la ficha: esa tarjeta es del administrador
+    expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText("Resumen del día")).toHaveTextContent(/2 citas tuyas hoy/)
@@ -99,5 +101,27 @@ describe("Inicio por rol", () => {
     fireEvent.click(screen.getByRole("button", { name: "Desde siempre" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
     expect(llamadas).toEqual([["atendida", "mes"], ["cancelada", "siempre"]])
+  })
+
+  it("optómetra: 'Siguiente paciente' trae Atender y las fichas sin terminar traen Retomar", () => {
+    const atender = []
+    const retomar = []
+    const citas = [
+      { id: "c1", fecha: hoy, hora: "09:00 AM", estado: "Pendiente", paciente: "Paciente Uno", pacienteId: "p1" },
+      { id: "c9", fecha: "2020-01-01", hora: "09:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" },
+    ]
+    render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} onAtenderEnCitas={(c) => atender.push(c.id)} onAtenderCita={(c) => retomar.push(c.id)} />)
+    fireEvent.click(screen.getByRole("button", { name: /^Atender/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Retomar/ }))
+    expect(atender).toEqual(["c1"])
+    expect(retomar).toEqual(["c9"])
+  })
+
+  it("quien solo puede mirar el inventario ve '1 producto con stock bajo' y 'Ver inventario', sin 'Reabastecer'", () => {
+    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], inventario: ["ver"] } }} vista={vistaRol("optometra")} />)
+    const bloque = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(bloque).toHaveTextContent(/1 producto con stock bajo/)
+    expect(screen.getByRole("button", { name: "Ver inventario" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
 })
