@@ -220,7 +220,7 @@ function StockMinimo({ parametrizacion, setParametrizacion, onExito, onError }) 
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package size={18} /></span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold" style={{ color: INK }}>Stock mínimo del inventario</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Un producto con esta cantidad o menos aparece como "stock bajo" en Inicio, Inventario y los avisos. Es el mismo número para todos los productos. Por defecto es {UMBRAL_STOCK_BAJO}.</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Un producto con esta cantidad o menos aparece como "stock bajo" en Inicio, Inventario y los avisos. Vale para todos los productos que no tengan su propio mínimo (se define al editar el producto). Por defecto es {UMBRAL_STOCK_BAJO}.</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
               Stock bajo desde

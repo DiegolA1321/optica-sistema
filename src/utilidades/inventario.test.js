@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { esStockBajo, umbralStock, UMBRAL_STOCK_BAJO } from "./inventario"
+import { esStockBajo, minimoDe, umbralStock, UMBRAL_STOCK_BAJO } from "./inventario"
 
 describe("esStockBajo", () => {
   it("por defecto el umbral es 10: con 10 o menos es stock bajo", () => {
@@ -7,9 +7,16 @@ describe("esStockBajo", () => {
     expect(esStockBajo({ stock: 10 })).toBe(true)
     expect(esStockBajo({ stock: 11 })).toBe(false)
   })
-  it("el mismo número vale para todos los productos: ya no cuenta un mínimo propio", () => {
-    expect(esStockBajo({ stock: 8, critico: 3 })).toBe(true)
-    expect(esStockBajo({ stock: 12, critico: 20 })).toBe(false)
+  it("un mínimo propio del producto reemplaza al general, para más o para menos", () => {
+    expect(esStockBajo({ stock: 8, critico: 3 })).toBe(false)
+    expect(esStockBajo({ stock: 3, critico: 3 })).toBe(true)
+    expect(esStockBajo({ stock: 12, critico: 20 })).toBe(true)
+    expect(esStockBajo({ stock: 12, critico: 20 }, 5)).toBe(true)
+  })
+  it("sin mínimo propio (vacío, nulo o inválido) vale el general", () => {
+    for (const critico of [null, undefined, "", "abc", -2]) expect(minimoDe({ critico }, 7)).toBe(7)
+    expect(minimoDe({ critico: 0 }, 7)).toBe(0)
+    expect(minimoDe({ critico: "4" }, 7)).toBe(4)
   })
   it("usa el umbral que se le pase", () => {
     expect(esStockBajo({ stock: 5 }, 4)).toBe(false)
