@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { createPortal } from "react-dom"
 import { Receipt, Stethoscope, CalendarClock, X, Plus, Globe, Building2, ExternalLink } from "lucide-react"
-import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, hoyISO, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { puedeCancelarCita } from "../utilidades/filtrosCitas"
@@ -14,7 +14,7 @@ import { colorDe, useAlturaDisponible, urlPerfilPaciente, LEYENDA_ESTADOS } from
 // horario de la óptica, en filas de 30 minutos.
 
 const PX_POR_MIN = 64 / 60 // 64 px por hora
-const ANCHO_HORAS = 56
+const ANCHO_HORAS = 76
 const ALTO_ENCABEZADO = 52
 const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
@@ -269,7 +269,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 className={"absolute right-2 text-[11px] tabular-nums " + (t % 60 === 0 ? "font-semibold text-slate-600" : "text-slate-400")}
                 style={{ top: (t - rango.inicio) * PX_POR_MIN + 2 }}
               >
-                {minutosAHHMM(t)}
+                {horaA12(minutosAHHMM(t))}
               </span>
             ))}
           </div>
@@ -323,7 +323,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     style={{ top: (hover.min - rango.inicio) * PX_POR_MIN + 1, height: PASO_MINUTOS * PX_POR_MIN - 2 }}
                     aria-hidden="true"
                   >
-                    <Plus size={14} /> <span className="ml-1 text-[11px] font-semibold">{minutosAHHMM(hover.min)}</span>
+                    <Plus size={14} /> <span className="ml-1 text-[11px] font-semibold">{horaA12(minutosAHHMM(hover.min))}</span>
                   </div>
                 )}
                 {franjas.map((f, i) => (
@@ -349,7 +349,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     style={{ top: (destino.min - rango.inicio) * PX_POR_MIN, height: Math.max(22, arrastre.dur * PX_POR_MIN) }}
                     aria-hidden="true"
                   >
-                    {destino.ok ? minutosAHHMM(destino.min) : destino.motivo}
+                    {destino.ok ? horaA12(minutosAHHMM(destino.min)) : destino.motivo}
                   </div>
                 )}
 

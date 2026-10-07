@@ -245,14 +245,14 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 pl-6">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+        <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-600">
           <Clock size={14} className="text-slate-500" />
           <span>{cita.hora}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {cita.estado === "Atendida" ? (
             <div className="flex flex-col items-end gap-0.5">
-              <span className="flex items-center gap-1 rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+              <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
                 <CheckCircle2 size={12} /> Atendida
               </span>
               {fechaRealDistinta && (
@@ -260,26 +260,26 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
               )}
             </div>
           ) : cita.estado === "No Asistió" ? (
-            <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
               <UserX size={12} /> No asistió
             </span>
           ) : cita.estado === "Cancelada" ? (
-            <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
               <X size={12} /> {cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : cita.canceladaPor === "paciente" ? "Cancelada por el paciente" : "Cancelada"}
             </span>
           ) : (
-            <span className={"flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
+            <span className={"flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
               {cita.estado === "En Atención" ? <Activity size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
               {cita.estado === "En Atención" ? "En atención" : "Pendiente"}
             </span>
           )}
           {diasAtencionAbierta(cita) !== null && (
-            <span title={textoAtencionAbierta(diasAtencionAbierta(cita))} className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            <span title={textoAtencionAbierta(diasAtencionAbierta(cita))} className="flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
               <AlertTriangle size={11} aria-hidden="true" /> Abierta hace {diasAtencionAbierta(cita)} d
             </span>
           )}
           {cobroPendiente && (
-            <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
               <Receipt size={12} aria-hidden="true" /> Cobro pendiente
             </span>
           )}
