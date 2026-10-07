@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "./filtrosCitas"
+import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -76,5 +76,22 @@ describe("puedeCancelarCita", () => {
     expect(puedeCancelarCita({ estado: "Atendida" })).toBe(false)
     expect(puedeCancelarCita({ estado: "Cancelada" })).toBe(false)
     for (const estado of ["Pendiente", "En Espera", "En Atención", "No Asistió"]) expect(puedeCancelarCita({ estado })).toBe(true)
+  })
+})
+
+describe("acciones según el estado de la cita", () => {
+  const c = (estado) => ({ estado })
+  it("solo se atiende lo que sigue abierto: no lo atendido, cancelado ni lo que no asistió", () => {
+    for (const e of ["Pendiente", "En Espera", "En Atención"]) expect(puedeAtenderCita(c(e))).toBe(true)
+    for (const e of ["Atendida", "Cancelada", "No Asistió"]) expect(puedeAtenderCita(c(e))).toBe(false)
+  })
+  it("una cita atendida o cancelada no se edita; una que no asistió sí (para corregir el estado)", () => {
+    expect(puedeEditarCita(c("Atendida"))).toBe(false)
+    expect(puedeEditarCita(c("Cancelada"))).toBe(false)
+    for (const e of ["Pendiente", "En Atención", "No Asistió"]) expect(puedeEditarCita(c(e))).toBe(true)
+  })
+  it("quien no asistió ofrece agendar otra cita; el resto no", () => {
+    expect(puedeAgendarOtraCita(c("No Asistió"))).toBe(true)
+    expect(puedeAgendarOtraCita(c("Pendiente"))).toBe(false)
   })
 })
