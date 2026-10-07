@@ -44,7 +44,7 @@ describe("Inicio por rol", () => {
     expect(screen.getByText("Mis citas de hoy")).toBeInTheDocument()
     expect(screen.getByText("Siguiente paciente")).toBeInTheDocument()
     expect(screen.queryByText("En atención ahora")).not.toBeInTheDocument() // quien atiende está en la ficha: esa tarjeta es del administrador
-    expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
+    expect(screen.queryByText("Fichas sin terminar")).not.toBeInTheDocument() // sin atenciones abiertas, la tarjeta no aparece
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText("Resumen del día")).toHaveTextContent(/2 citas tuyas hoy/)
@@ -134,5 +134,12 @@ describe("Inicio por rol", () => {
   it("el stock mínimo sale del umbral que le pasa Configuración", () => {
     render(<Inicio {...base} umbralStock={50} />)
     expect(screen.getAllByText(/2 productos con stock bajo/i)).toHaveLength(1)
+  })
+
+  it("optómetra: "Fichas sin terminar" aparece solo cuando hay una atención abierta suya", () => {
+    const citas = [...base.citas, { id: "c9", fecha: hoy, hora: "08:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" }]
+    render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
+    expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
+    expect(screen.queryByText("Ninguna atención abierta")).not.toBeInTheDocument()
   })
 })
