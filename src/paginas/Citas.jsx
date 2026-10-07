@@ -1342,7 +1342,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             {atencionesAntiguas.length === 1 ? "1 atención abierta de un día anterior" : `${atencionesAntiguas.length} atenciones abiertas de días anteriores`}
           </p>
           <p className="text-xs text-amber-800/80">La más antigua: {atencionesAntiguas[0].cita.paciente}, {textoAtencionAbierta(atencionesAntiguas[0].dias).toLowerCase()}.</p>
-          <button type="button" onClick={() => { setEstadoFiltro("enAtencion"); setFiltro("todas") }} className="ml-auto rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Revisar</button>
+          <button type="button" onClick={() => abrirDetalle(atencionesAntiguas[0].cita)} className="ml-auto rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Revisar</button>
         </div>
       )}
 
