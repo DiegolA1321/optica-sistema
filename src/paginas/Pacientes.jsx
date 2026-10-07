@@ -71,18 +71,14 @@ import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion } from "../utilidades/correccion"
-import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
-import AbonoModal from "../componentes/AbonoModal"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
-import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
-import AnularVentaModal from "../componentes/AnularVentaModal"
-import { saldoFactura, saldoPacienteFacturas, totalAbonado } from "../utilidades/abonos"
-import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
-import NoComproModal from "../componentes/NoComproModal"
-import { armarHtmlProforma, imprimirHtml, lineasProformaDeConsulta, datosOpticaProforma } from "../utilidades/proforma"
+import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
+import FilaComprobante from "../componentes/FilaComprobante"
+import ModalesVentas from "../componentes/ModalesVentas"
+import { useVentas } from "../utilidades/useVentas"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
@@ -221,7 +217,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // entre sí y con la tarjeta de corrección activa, para no combinar dos
   // filtros a la vez sin que quede claro cuál está aplicado.
   const [filtroRapido, setFiltroRapido] = useState("Todos")
-  const [filtroOrdenesInicial, setFiltroOrdenesInicial] = useState("abiertas")
 
   // Atajos de teclado: "/" o Ctrl+K enfocan la búsqueda al instante — pedido
   // explícito, mismo patrón que la paleta de comandos del resto del sistema.
@@ -338,82 +333,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // botón manual "Nueva venta" de la pestaña Productos y servicios).
   const [facturaLineaInicial, setFacturaLineaInicial] = useState(undefined)
 
-  const registrarFactura = (factura) => {
-    setFacturasVenta?.((prev) => [factura, ...prev])
-    if (factura.consultaId) {
-      setPases?.((prev) => prev.map((p) => (p.consultaId === factura.consultaId && p.pacienteId === factura.pacienteId && (p.estado === "listo" || p.estado === "descartado") ? { ...p, estado: "vendido", facturaId: factura.id } : p)))
-    }
-  }
-
-  // ── Cola de "Listo para venta" (R35): tomar datos y armar la proforma, registrar
-  // la venta (siempre vinculada a su consulta) o marcar "No compró".
-  const [ventaCola, setVentaCola] = useState(null) // { pase, paciente, consulta }
-  const [noComproPara, setNoComproPara] = useState(null)
-  // Abonos y anulación de ventas (R38)
-  const [abonoPara, setAbonoPara] = useState(null) // { factura, paciente }
-  const [anularPara, setAnularPara] = useState(null)
-  const [ordenParaVenta, setOrdenParaVenta] = useState(null) // venta a la que se le crea una orden de laboratorio
-  const alAbonar = ({ monto, estado, cuotasPagadas }) => {
-    const { factura, paciente } = abonoPara
-    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado, cuotasPagadas } : f)))
-    mostrarNotif(estado === "pagada" ? `Abono de $${monto.toFixed(2)} registrado: la venta de ${paciente?.nombre || "el paciente"} quedó pagada.` : `Abono de $${monto.toFixed(2)} registrado.`)
-  }
-  const alAnular = () => {
-    const { factura } = anularPara
-    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado: "anulada" } : f)))
-    // La base repone el stock y cancela las órdenes sin entregar; se refleja aquí sin recargar.
-    setInventario?.((prev) => prev.map((p) => {
-      const linea = (factura.lineas || []).find((l) => l.tipo === "producto" && l.productoId === p.id)
-      return linea ? { ...p, stock: (Number(p.stock) || 0) + linea.cantidad } : p
-    }))
-    setOrdenesLab?.((prev) => prev.map((o) => (o.facturaId === factura.id && (o.estado === "enviada" || o.estado === "lista") ? { ...o, estado: "cancelada" } : o)))
-    mostrarNotif("Venta anulada.")
-  }
-  const [reabriendoId, setReabriendoId] = useState(null)
-  const construirCola = (estado) => pases
-    .filter((p) => p.estado === estado)
-    .map((pase) => ({ pase, paciente: pacientes.find((x) => x.id === pase.pacienteId) || null, consulta: consultas.find((c) => c.id === pase.consultaId) || null }))
-    .sort((a, b) => (estado === "listo" ? (a.pase.pasadaEn < b.pase.pasadaEn ? -1 : 1) : (a.pase.pasadaEn < b.pase.pasadaEn ? 1 : -1)))
-  const colaListos = useMemo(() => construirCola("listo"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
-  const colaDescartados = useMemo(() => construirCola("descartado"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // La proforma no se guarda como documento: el pase solo anota cuándo se entregó y por cuánto.
-  const imprimirProformaCola = async ({ lineas, total, incluirMedidas }) => {
-    const item = ventaCola
-    if (!item) return
-    if (supabase) {
-      const { data, error } = await supabase.rpc("registrar_proforma", { p_pase_id: item.pase.id, p_total: total })
-      if (error) {
-        setBannerError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo registrar la proforma. Revisa tu conexión e intenta de nuevo.")
-        return
-      }
-      setPases?.((prev) => prev.map((p) => (p.id === item.pase.id ? { ...p, proformaEntregadaEn: data, proformaTotal: total } : p)))
-    }
-    imprimirHtml(armarHtmlProforma({
-      opticaNombre: usuario?.opticaNombre,
-      opticaDatos: datosOpticaProforma(parametrizacion),
-      paciente: item.paciente,
-      diagnostico: item.consulta,
-      lineas: lineas.map((l) => ({ descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),
-      incluirMedidas,
-    }))
-    mostrarNotif("Proforma registrada e impresa.")
-  }
-  const alVenderDesdeCola = (factura) => {
-    registrarFactura(factura)
-    mostrarNotif(`Venta registrada: ${ventaCola?.paciente?.nombre || "el paciente"} salió de la lista de espera.`)
-  }
-  const reabrirPase = async ({ pase, paciente }) => {
-    setReabriendoId(pase.id)
-    const { error } = supabase ? await supabase.rpc("reabrir_pase", { p_pase_id: pase.id }) : { error: null }
-    setReabriendoId(null)
-    if (error) {
-      setBannerError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo volver a la lista de espera. Revisa tu conexión e intenta de nuevo.")
-      return
-    }
-    setPases?.((prev) => prev.map((p) => (p.id === pase.id ? { ...p, estado: "listo", motivoDescarte: null, detalleDescarte: null } : p)))
-    mostrarNotif(`${paciente?.nombre || "El paciente"} volvió a la lista de espera.`)
-  }
+  // Abonar, anular, crear la orden y registrar la factura electrónica de una venta se manejan con el mismo
+  // hook que usa el módulo de Ventas (Bloque E); aquí solo se abren desde el perfil del paciente.
+  const ventasApi = useVentas({
+    usuario, parametrizacion, pacientes, consultas, pases, setPases, setOrdenesLab, facturasVenta, setFacturasVenta, abonos, ventas, setInventario,
+    notificar: (m) => mostrarNotif(m), avisarError: (m) => mostrarError(m),
+  })
+  const { registrarFactura } = ventasApi
+  const { setAbonoPara, setAnularPara, setOrdenParaVenta, setFacturaElectronicaPara } = ventasApi
 
   // Cobro pendiente (Ronda 4): ficha guardada con "Más tarde" en el panel de
   // cobro. Se cobra con el mismo panel; al cobrar, la cita (si la hay) pasa a
@@ -629,16 +556,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // modal que se usaría si el optómetra hiciera clic aquí mismo, en vez de tener una copia aparte.
   useEffect(() => {
     if (!accionInicial) return
-    if (accionInicial.accion === "cola") {
-      // Inicio de quien vende: abre la lista de "Listos para venta"
-      setFiltroCorreccion("Todos")
-      setFiltroRapido("ListosVenta")
-    } else if (accionInicial.accion === "ordenes") {
-      // Alerta del Inicio: abre la lista de órdenes con el filtro pedido
-      setFiltroCorreccion("Todos")
-      setFiltroOrdenesInicial(accionInicial.filtro || "abiertas")
-      setFiltroRapido("Ordenes")
-    } else if (accionInicial.accion === "crear") {
+    if (accionInicial.accion === "crear") {
       // Atajo "Gestionar pacientes" del Dashboard — no referencia a ningún
       // paciente existente, así que no pasa por la búsqueda por id de abajo.
       abrirCrear()
@@ -1050,12 +968,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     { key: "Recientes", label: "Visitas recientes" },
     { key: "RecetasActivas", label: "Recetas activas" },
     { key: "PagosPendientes", label: "Pagos pendientes" },
-    { key: "ListosVenta", label: `Listos para venta${colaListos.length > 0 ? ` (${colaListos.length})` : ""}` },
-    { key: "Ordenes", label: `Órdenes de laboratorio${ordenesAbiertas(ordenesLab).length > 0 ? ` (${ordenesAbiertas(ordenesLab).length})` : ""}` },
-    ...(colaDescartados.length > 0 || filtroRapido === "NoCompraron" ? [{ key: "NoCompraron", label: `No compraron (${colaDescartados.length})` }] : []),
   ]
-  const colaActiva = filtroRapido === "ListosVenta" || filtroRapido === "NoCompraron"
-  const ordenesActivas = filtroRapido === "Ordenes"
   const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
   const activarBadgeRapido = (key) => {
     if (key === "RecetasActivas") {
@@ -1257,33 +1170,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       </div>
 
       {/* ─── TABLA (o la cola de ventas cuando está activo "Listos para venta" / "No compraron") ─── */}
-      {ordenesActivas ? (
-        <OrdenesLaboratorio
-          ordenes={ordenesLab}
-          setOrdenes={setOrdenesLab}
-          pacientes={pacientes}
-          equipo={equipo}
-          usuario={usuario}
-          facturas={facturasVenta}
-          abonos={abonos}
-          onAbonar={(factura, paciente) => setAbonoPara({ factura, paciente })}
-          filtroInicial={filtroOrdenesInicial}
-          onAviso={mostrarNotif}
-          onVerPerfil={(p) => { setPacienteHistorial(p); setTabHistorial("ordenes") }}
-        />
-      ) : colaActiva ? (
-        <ColaVentas
-          modo={filtroRapido === "ListosVenta" ? "listos" : "descartados"}
-          items={filtroRapido === "ListosVenta" ? colaListos : colaDescartados}
-          puedeActuar={puedeVender}
-          saldoDe={(pacienteId) => saldoPacienteFacturas(pacienteId, facturasVenta, abonos) + ventasPendientesPaciente(ventas, pacienteId).reduce((a, v) => a + saldoVenta(v), 0)}
-          reabriendoId={reabriendoId}
-          onTomarDatos={setVentaCola}
-          onNoCompro={setNoComproPara}
-          onReabrir={reabrirPase}
-          onVerPerfil={(p) => { setPacienteHistorial(p); setTabHistorial("citas") }}
-        />
-      ) : (
+      {(
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -2326,43 +2213,16 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <div>
                             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Receipt size={13} /> Ventas <span className="font-normal normal-case text-slate-400">· {facturasPaciente.length}</span></h3>
                             <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60" aria-label="Ventas del paciente">
-                              {facturasPaciente.map((f) => {
-                                const saldoF = saldoFactura(f, abonos)
-                                const abonadoF = totalAbonado(f.id, abonos)
-                                const ordenesF = ordenesLab.filter((o) => o.facturaId === f.id)
-                                return (
-                                  <li key={f.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="min-w-0">
-                                      <p className={"text-sm font-semibold " + (f.estado === "anulada" ? "text-slate-400 line-through" : "text-slate-800")}>
-                                        ${f.montoTotal.toFixed(2)} · {METODOS_PAGO[f.metodoPago] || f.metodoPago}{f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales})` : ""} · {fechaLegible(f.creadoEn)}
-                                      </p>
-                                      <p className="text-[11px] text-slate-500">
-                                        {(f.lineas || []).map((l) => l.descripcion).join(", ") || "Sin líneas"}
-                                        {f.estado === "pendiente_pago" && ` · abonado $${abonadoF.toFixed(2)}`}
-                                        {ordenesF.length > 0 && ` · ${ordenesF.length} orden${ordenesF.length === 1 ? "" : "es"} de laboratorio`}
-                                      </p>
-                                    </div>
-                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                      {f.estado === "anulada" ? (
-                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">Anulada</span>
-                                      ) : f.estado === "pagada" ? (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><CheckCircle size={12} /> Pagada</span>
-                                      ) : (
-                                        <>
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} /> Saldo ${saldoF.toFixed(2)}</span>
-                                          {puedeEditarVentas && <button type="button" onClick={() => setAbonoPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Abonar</button>}
-                                        </>
-                                      )}
-                                      {f.estado !== "anulada" && puedeVender && (
-                                        <button type="button" onClick={() => setOrdenParaVenta({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">{ordenesF.length > 0 ? "Otra orden" : "Crear orden"}</button>
-                                      )}
-                                      {f.estado !== "anulada" && puedeAnular && (
-                                        <button type="button" onClick={() => setAnularPara({ factura: f, paciente: pacienteHistorial })} className="rounded-lg border border-slate-200/60 px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 cursor-pointer">Anular</button>
-                                      )}
-                                    </div>
-                                  </li>
-                                )
-                              })}
+                              {facturasPaciente.map((f) => (
+                                <FilaComprobante
+                                  key={f.id} factura={f} abonos={abonos} ordenes={ordenesLab.filter((o) => o.facturaId === f.id)}
+                                  puedeEditar={puedeEditarVentas} puedeVender={puedeVender} puedeAnular={puedeAnular}
+                                  onAbonar={(fac) => setAbonoPara({ factura: fac, paciente: pacienteHistorial })}
+                                  onOrden={(fac) => setOrdenParaVenta({ factura: fac, paciente: pacienteHistorial })}
+                                  onAnular={(fac) => setAnularPara({ factura: fac, paciente: pacienteHistorial })}
+                                  onFacturaElectronica={(fac) => setFacturaElectronicaPara({ factura: fac, paciente: pacienteHistorial })}
+                                />
+                              ))}
                             </ul>
                           </div>
                         )}
@@ -2569,64 +2429,10 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         />
       )}
 
-      {/* ─── VENTA DESDE LA COLA: datos del diagnóstico, proforma y venta vinculada a su consulta ─── */}
-      {ventaCola && ventaCola.paciente && (
-        <ComprobanteVentaModal
-          usuario={usuario}
-          inventario={inventario}
-          setInventario={setInventario}
-          categorias={categoriasInventario}
-          setCategorias={setCategoriasInventario}
-          pacienteFijo={ventaCola.paciente}
-          titulo={`Venta de ${ventaCola.paciente.nombre}`}
-          subtitulo="Listo para venta: toma los datos, arma la proforma o registra la venta."
-          etiquetaGuardar="Registrar venta"
-          lineasIniciales={lineasProformaDeConsulta(ventaCola.consulta, parametrizacion)}
-          consultaId={ventaCola.pase.consultaId}
-          citaId={ventaCola.pase.citaId}
-          diagnostico={ventaCola.consulta}
-          onProforma={imprimirProformaCola}
-          onNoCompro={() => { const item = ventaCola; setVentaCola(null); setNoComproPara(item) }}
-          onGuardado={alVenderDesdeCola}
-          onCerrar={() => setVentaCola(null)}
-        />
-      )}
-      {ordenParaVenta && (
-        <OrdenLaboratorioModal
-          paciente={ordenParaVenta.paciente}
-          facturaId={ordenParaVenta.factura.id}
-          consultaId={ordenParaVenta.factura.consultaId}
-          usuario={usuario}
-          onCerrar={() => setOrdenParaVenta(null)}
-        />
-      )}
-      {abonoPara && (
-        <AbonoModal factura={abonoPara.factura} paciente={abonoPara.paciente} abonos={abonos} usuario={usuario} onRegistrado={alAbonar} onCerrar={() => setAbonoPara(null)} />
-      )}
-      {anularPara && (
-        <AnularVentaModal
-          factura={anularPara.factura}
-          paciente={anularPara.paciente}
-          abonos={abonos}
-          ordenesAbiertas={ordenesLab.filter((o) => o.facturaId === anularPara.factura.id && (o.estado === "enviada" || o.estado === "lista")).length}
-          usuario={usuario}
-          onAnulada={alAnular}
-          onCerrar={() => setAnularPara(null)}
-        />
-      )}
-      {noComproPara && (
-        <NoComproModal
-          nombrePaciente={noComproPara.paciente?.nombre || "Paciente"}
-          paseId={noComproPara.pase.id}
-          onCancelar={() => setNoComproPara(null)}
-          onHecho={({ motivo, detalle }) => {
-            const item = noComproPara
-            setPases?.((prev) => prev.map((p) => (p.id === item.pase.id ? { ...p, estado: "descartado", motivoDescarte: motivo, detalleDescarte: detalle } : p)))
-            setNoComproPara(null)
-            mostrarNotif("Quedó registrado: el paciente no compró.")
-          }}
-        />
-      )}
+      <ModalesVentas
+        v={ventasApi} usuario={usuario} parametrizacion={parametrizacion} inventario={inventario} setInventario={setInventario}
+        categoriasInventario={categoriasInventario} setCategoriasInventario={setCategoriasInventario} abonos={abonos} ordenesLab={ordenesLab}
+      />
 
       {/* ─── PANEL DE COBRO / NUEVA VENTA (desde el perfil del paciente) ─── */}
       {mostrarFactura && pacienteHistorial && (
