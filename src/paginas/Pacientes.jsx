@@ -322,9 +322,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [pacienteHistorial])
-  // Qué eventos del Timeline están expandidos (mostrando el detalle de
-  // refracción OD/OI de esa consulta) — por id de consulta, cerrado por defecto.
-  const [timelineAbiertos, setTimelineAbiertos] = useState({})
   // "Nueva venta" (Ronda 4 del flujo de atención): antes había dos botones,
   // "Vender producto" (un producto, pago directo, tabla `ventas`) y "Nueva
   // factura" (varias líneas, cuotas, tabla `facturas_venta`). Una venta de un
@@ -2113,7 +2110,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   <div role="tablist" aria-label="Secciones del paciente" className="mt-6 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
                     {[
                       { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
-                      { id: "diagnosticos", etiqueta: "Diagnósticos", Icono: Stethoscope, cuenta: consultasPaciente.length },
                     ].map(({ id, etiqueta, Icono, cuenta }) => (
                       <button
                         key={id}
@@ -2189,14 +2185,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       contenido cambiaba de golpe sin ninguna transición. */}
                   <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
                     {tabHistorial === "citas" ? (
-                      <PanelCitasPaciente
-                        citas={citasPaciente}
-                        consultas={consultasPaciente}
-                        onDejarDeAtender={setDejarCita}
-                        onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
-                        onAgendar={() => abrirAgendar(pacienteHistorial)}
-                      />
-                    ) : tabHistorial === "diagnosticos" ? (
                       <div className="space-y-4">
                         {consultasPaciente.length > 0 && (() => {
                           const ultima = consultasPaciente[0]
@@ -2247,11 +2235,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                             </>
                           )
                         })()}
-                        <ListaDiagnosticos
-                          consultas={consultasPaciente}
-                          abiertos={timelineAbiertos}
-                          alternarAbierto={(id) => setTimelineAbiertos((prev) => ({ ...prev, [id]: !prev[id] }))}
-                        />
+                        <PanelCitasPaciente
+                        citas={citasPaciente}
+                        consultas={consultasPaciente}
+                        onDejarDeAtender={setDejarCita}
+                        onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
+                        onAgendar={() => abrirAgendar(pacienteHistorial)}
+                      />
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
@@ -2733,10 +2723,12 @@ function BadgeEstadoCita({ estado }) {
 function PanelCitasPaciente({ citas, consultas = [], onIngresar, onAgendar, onDejarDeAtender }) {
   // Una cita atendida se abre aquí mismo para ver qué se diagnosticó, sin ir a la pestaña Diagnósticos.
   const [abiertas, setAbiertas] = useState({})
-  const consultaDe = (cita) => consultas.find((k) => k.citaId === cita.id)
+  const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   const pendientes = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.estado === "En Atención" ? -1 : b.estado === "En Atención" ? 1 : porFechaHora(a, b)))
-  const historial = citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => porFechaHora(b, a))
+  // Una atención sin cita (paciente que llegó sin agendar) también aparece aquí: así este historial es el único lugar donde se ve todo lo que pasó.
+  const sinCita = consultas.filter((k) => !citas.some((c) => c.id === k.citaId)).map((k) => ({ id: "consulta-" + k.id, fecha: k.fecha, hora: "Sin cita", motivo: k.motivo, estado: "Atendida", _consulta: k }))
+  const historial = [...citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)), ...sinCita].sort((a, b) => porFechaHora(b, a))
   const proxima = pendientes[0]
   const otras = pendientes.slice(1)
   const fila = (c, conIngresar) => (
@@ -2886,62 +2878,6 @@ function DetalleFichaConsulta({ c }) {
             </div>
           )}
         </div>
-  )
-}
-
-function ListaDiagnosticos({ consultas, abiertos = {}, alternarAbierto }) {
-  if (consultas.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-white py-12 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Stethoscope size={24} /></div>
-        <p className="text-sm font-medium text-slate-500">Todavía no hay atenciones registradas para este paciente.</p>
-      </div>
-    )
-  }
-  return (
-    <section aria-label="Diagnósticos del paciente">
-      <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Diagnósticos · {consultas.length}</h3>
-      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white">
-        {consultas.map((c) => {
-          const abierto = !!abiertos[c.id]
-          const correccion = CORRECCION[c.estadoCorreccion] || CORRECCION["Sin evaluación"]
-          const IconoCorreccion = correccion.icon
-          return (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => alternarAbierto(c.id)}
-                aria-expanded={abierto}
-                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/70 cursor-pointer"
-              >
-                <div className="w-28 shrink-0">
-                  <p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p>
-                  {c.profesionalNombre && <p className="truncate text-xs text-slate-500">{c.profesionalNombre}</p>}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-500"><span className="font-semibold text-slate-600">Motivo:</span> {c.motivo || "Sin motivo registrado"}</p>
-                  <p className="mt-0.5 text-sm font-semibold" style={{ color: INK }}>{c.diagnostico || "Sin diagnóstico registrado"}</p>
-                </div>
-                <span className={"hidden shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold sm:inline-flex " + correccion.clase}>
-                  <IconoCorreccion size={11} aria-hidden="true" /> {correccion.label}
-                </span>
-                <ChevronDown size={16} className={"mt-0.5 shrink-0 text-slate-400 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
-              </button>
-              {abierto && (
-                <div className="space-y-2 px-4 pb-4" style={{ animation: "rise-in 200ms ease-out both" }}>
-                  {c.lenteRecomendado && (
-                    <p className="flex items-center gap-1.5 text-sm text-slate-600">
-                      <Glasses size={13} style={{ color: "#C8A24E" }} aria-hidden="true" /> <span className="font-semibold text-slate-700">Receta generada:</span> {c.lenteRecomendado}
-                    </p>
-                  )}
-                  <DetalleFichaConsulta c={c} />
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </section>
   )
 }
 
