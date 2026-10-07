@@ -163,6 +163,26 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const alcanceDeVista = (modulo) => (vista?.tipo === "rol" ? (vista.alcance?.[modulo] === "propio" ? "propio" : "todo") : usuario?.alcance?.[modulo] === "propio" ? "propio" : "todo")
   const citasReportes = useMemo(() => (alcanceDeVista("citas") === "propio" || alcanceDeVista("reportes") === "propio" ? citasPropias(citas, usuario?.id) : citas), [citas, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
   const consultasReportes = useMemo(() => (alcanceDeVista("consultas") === "propio" || alcanceDeVista("reportes") === "propio" ? consultas.filter((c) => !c.profesionalId || c.profesionalId === usuario?.id) : consultas), [consultas, vista, usuario]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Con alcance "propio" (por el rol o por la vista de optómetra) TODAS las secciones de Reportes se acotan a lo suyo,
+  // no solo las citas: sus pacientes (los de sus citas o consultas), las encuestas de sus citas y los pases de sus
+  // consultas. El historial completo de consultas se pasa aparte para que "controles atrasados" y "primera vez"
+  // se midan contra todo lo que pasó con ese paciente, no solo contra lo que atendió esta persona.
+  const reportesAcotado = alcanceDeVista("citas") === "propio" || alcanceDeVista("reportes") === "propio"
+  const pacientesReportes = useMemo(() => {
+    if (!reportesAcotado) return pacientes
+    const ids = new Set([...citasReportes.map((c) => c.pacienteId), ...consultasReportes.map((c) => c.pacienteId)].filter(Boolean))
+    return pacientes.filter((p) => ids.has(p.id))
+  }, [pacientes, citasReportes, consultasReportes, reportesAcotado])
+  const respuestasReportes = useMemo(() => {
+    if (!reportesAcotado) return respuestasSatisfaccion
+    const ids = new Set(citasReportes.map((c) => c.id))
+    return respuestasSatisfaccion.filter((r) => ids.has(r.citaId))
+  }, [respuestasSatisfaccion, citasReportes, reportesAcotado])
+  const pasesReportes = useMemo(() => {
+    if (!reportesAcotado) return pases
+    const ids = new Set(consultasReportes.map((c) => c.id))
+    return pases.filter((p) => ids.has(p.consultaId))
+  }, [pases, consultasReportes, reportesAcotado])
   // Reportes: los montos (ingresos, ventas por tipo de luna, etc.) solo los ve quien puede ver Ventas en la vista activa.
   const verMontosReportes = vista?.tipo === "rol" ? puedeNivel(vista.permisos, "ventas", "ver") : puede(usuario, "ventas", "ver")
   // Con alcance "propio" en Reportes, las órdenes de laboratorio son solo las que creó la persona o de sus consultas.
@@ -676,7 +696,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes usuario={usuario} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultasReportes} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasSatisfaccion} pases={pases} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
+        return <Reportes usuario={usuario} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasReportes} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":

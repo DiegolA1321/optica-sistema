@@ -90,7 +90,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], ordenesLab = [], soloLoPropio = false, verMontos = true }) {
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], consultasCompletas = null, citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], ordenesLab = [], soloLoPropio = false, verMontos = true }) {
   // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
   // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
   // atención — las métricas financieras (ingresos, conversión a venta,
@@ -159,7 +159,9 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
     [pacientes],
   )
 
-  const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultasTodas)).length, [pacientes, consultasTodas])
+  // Se mide contra el historial completo (no el acotado por alcance): un control no vence más rápido porque se mire "lo mío".
+  const historialCompleto = consultasCompletas || consultasTodas
+  const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, historialCompleto)).length, [pacientes, historialCompleto])
 
   // Punto 2.1 (plan 29 sept.): pacientes que el optómetra marcó "De alta"
   // desde el Paso 3 de la ficha clínica (checkbox "Tratamiento finalizado").
@@ -184,7 +186,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // / cuotas_totales), no el total — mismo bug que se encontró y se decidió
   // no repetir (ver Punto 09): 1 de 6 cuotas pagadas no es el ingreso
   // completo. Una factura 'anulada' no aporta nada.
-  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, facturas: facturasVenta, enRango, historial: consultasTodas }), [consultas, consultasTodas, pases, facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
+  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, facturas: facturasVenta, enRango, historial: historialCompleto }), [consultas, historialCompleto, pases, facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
   const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
   const facturasVentaEsteMes = useMemo(() => facturasVenta.filter((f) => enRango(f.creadoEn)), [facturasVenta, rango])
   const ingresoFacturaVenta = (f) => {
