@@ -2,6 +2,17 @@
 // Se cuentan PACIENTES distintos por diagnóstico (no fichas): "cuántos pacientes tuvieron miopía".
 const clave2 = (n) => String(n).padStart(2, "0")
 
+// Clave para agrupar diagnósticos que solo difieren en tildes, mayúsculas o espacios
+// ("Sin alteracion refractiva" y "Sin alteración  refractiva" son el mismo).
+export const claveDiagnostico = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim()
+
+// Nombre a mostrar de un grupo: la variante más usada; si empatan, la que lleva tildes y mayúscula inicial.
+export function etiquetaDeVariantes(variantes) {
+  const conTildes = (t) => (t.normalize("NFD") !== t ? 1 : 0)
+  const orden = [...variantes.entries()].sort((a, b) => b[1] - a[1] || conTildes(b[0]) - conTildes(a[0]) || a[0].localeCompare(b[0]))
+  return orden[0][0]
+}
+
 // Categorías de la ficha; cae al texto libre solo en fichas viejas sin categorías.
 export const categoriasDeConsulta = (c) => {
   if (c?.diagnosticoCategorias?.length > 0) return c.diagnosticoCategorias
@@ -32,6 +43,7 @@ export function aniosConConsultas(consultas = [], anioActual = new Date().getFul
 // Devuelve { filas: [{ diagnostico, meses: [12], anio }], maxMes, totalPacientes }
 export function diagnosticosPorMes(consultas = [], anio) {
   const porDx = new Map()
+  const variantes = new Map() // clave -> Map(texto original -> veces)
   const pacientesAnio = new Set()
   for (const c of consultas) {
     if (!c.fecha || Number(c.fecha.slice(0, 4)) !== anio) continue
@@ -39,7 +51,11 @@ export function diagnosticosPorMes(consultas = [], anio) {
     if (!(mes >= 0 && mes < 12)) continue
     const quien = c.pacienteId ?? `c${c.id}`
     pacientesAnio.add(quien)
-    for (const dx of categoriasDeConsulta(c)) {
+    for (const texto of categoriasDeConsulta(c)) {
+      const dx = claveDiagnostico(texto)
+      if (!dx) continue
+      if (!variantes.has(dx)) variantes.set(dx, new Map())
+      variantes.get(dx).set(texto, (variantes.get(dx).get(texto) || 0) + 1)
       if (!porDx.has(dx)) porDx.set(dx, { meses: Array.from({ length: 12 }, () => new Set()), anio: new Set() })
       const f = porDx.get(dx)
       f.meses[mes].add(quien)
@@ -47,7 +63,7 @@ export function diagnosticosPorMes(consultas = [], anio) {
     }
   }
   const filas = [...porDx.entries()]
-    .map(([diagnostico, f]) => ({ diagnostico, meses: f.meses.map((s) => s.size), anio: f.anio.size }))
+    .map(([clave, f]) => ({ diagnostico: etiquetaDeVariantes(variantes.get(clave)), meses: f.meses.map((s) => s.size), anio: f.anio.size }))
     .sort((a, b) => b.anio - a.anio || a.diagnostico.localeCompare(b.diagnostico))
   return { filas, maxMes: Math.max(0, ...filas.flatMap((f) => f.meses)), totalPacientes: pacientesAnio.size }
 }

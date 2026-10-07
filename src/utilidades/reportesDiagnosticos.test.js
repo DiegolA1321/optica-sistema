@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas, categoriasDeConsulta } from "./reportesDiagnosticos"
+import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas, categoriasDeConsulta, claveDiagnostico } from "./reportesDiagnosticos"
 
 const c = (id, pacienteId, fecha, cats, motivo = "Consulta General") => ({ id, pacienteId, fecha, diagnosticoCategorias: cats, motivo })
 
@@ -40,5 +40,27 @@ describe("reportesDiagnosticos", () => {
 
   it("los años incluyen el actual y los de las consultas", () => {
     expect(aniosConConsultas(consultas, 2026)).toEqual([2026, 2025])
+  })
+})
+
+describe("diagnósticos que solo difieren en tildes o mayúsculas", () => {
+  const c2 = (id, pacienteId, fecha, cats) => ({ id, pacienteId, fecha, diagnosticoCategorias: cats })
+  it("se agrupan en una sola fila y se muestra la variante más usada", () => {
+    const r = diagnosticosPorMes([
+      c2(1, 1, "2026-09-02", ["Sin alteración refractiva"]),
+      c2(2, 2, "2026-09-03", ["Sin alteracion refractiva"]),
+      c2(3, 3, "2026-09-04", ["SIN ALTERACIÓN  REFRACTIVA"]),
+      c2(4, 4, "2026-09-05", ["Sin alteración refractiva"]),
+    ], 2026)
+    expect(r.filas).toHaveLength(1)
+    expect(r.filas[0]).toMatchObject({ diagnostico: "Sin alteración refractiva", anio: 4 })
+    expect(r.filas[0].meses[8]).toBe(4)
+  })
+  it("si empatan, gana la variante con tildes", () => {
+    const r = diagnosticosPorMes([c2(1, 1, "2026-09-02", ["sin alteracion"]), c2(2, 2, "2026-09-03", ["Sin alteración"])], 2026)
+    expect(r.filas[0].diagnostico).toBe("Sin alteración")
+  })
+  it("la clave ignora tildes, mayúsculas y espacios", () => {
+    expect(claveDiagnostico("  Hipermetropía ")).toBe(claveDiagnostico("hipermetropia"))
   })
 })

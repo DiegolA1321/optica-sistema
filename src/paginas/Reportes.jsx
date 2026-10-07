@@ -25,7 +25,7 @@ import { fechaAISO } from "../utilidades/disponibilidad"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { calcularEmbudo } from "../utilidades/embudo"
 import { totalAbonado } from "../utilidades/abonos"
-import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas } from "../utilidades/reportesDiagnosticos"
+import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas, claveDiagnostico, etiquetaDeVariantes, categoriasDeConsulta } from "../utilidades/reportesDiagnosticos"
 import { resumenPorLaboratorio, ventasPorTipoLuna } from "../utilidades/reportesLaboratorio"
 import { INK } from "@/lib/tema"
 
@@ -287,13 +287,20 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // categoría pero distinto detalle contaban como diagnósticos distintos.
   // Cae al texto completo solo para fichas viejas sin categorías guardadas.
   const diagnosticosTop = useMemo(() => {
-    const mapa = new Map()
+    // Se agrupa sin importar tildes ni mayúsculas ("Sin alteracion" y "Sin alteración" son uno).
+    const cuenta = new Map() // clave -> { valor, variantes }
     consultas.forEach((c) => {
-      const categorias = c.diagnosticoCategorias?.length > 0 ? c.diagnosticoCategorias : [(c.diagnostico || "").trim()].filter(Boolean)
-      categorias.forEach((dx) => mapa.set(dx, (mapa.get(dx) || 0) + 1))
+      categoriasDeConsulta(c).forEach((texto) => {
+        const clave = claveDiagnostico(texto)
+        if (!clave) return
+        const g = cuenta.get(clave) || { valor: 0, variantes: new Map() }
+        g.valor++
+        g.variantes.set(texto, (g.variantes.get(texto) || 0) + 1)
+        cuenta.set(clave, g)
+      })
     })
-    return Array.from(mapa.entries())
-      .map(([label, valor]) => ({ label, valor }))
+    return Array.from(cuenta.values())
+      .map((g) => ({ label: etiquetaDeVariantes(g.variantes), valor: g.valor }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5)
   }, [consultas])
