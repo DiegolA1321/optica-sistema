@@ -249,3 +249,5 @@ Comprobación posterior: la Óptica Demo tiene 0 pacientes (debe ser 0).
 ## 6. Pendiente de pruebas (anotado el 7 de octubre)
 
 Las pruebas `e2e/inicio.spec.js:169` ("Paula: Siguiente paciente tiene Atender") y `e2e/roles.spec.js:105` (Optómetra: menú, Inicio y alcance propio) dependen de que Paula tenga una cita pendiente **del día**. Si la hora pasa y la cita se marca sola como "No asistió" (a los 10 minutos), o ya no quedan citas hoy, fallan aunque el sistema esté bien: el 7 de octubre fallaron a las 12:56 PM por eso, y desde el cambio de que una cita "No asistió" ya no ofrece "Atender" el botón desaparece. Deben buscar una cita pendiente futura, o crearla en su preparación.
+
+Del mismo tipo (7 de octubre, tarde): `e2e/admin-navegacion.spec.js:15` y `e2e/inicio.spec.js:90` esperaban que existiera una atención abierta de un día anterior. Al cerrar la de Daniela Vera en la Demo y ocultar "Fichas sin terminar" cuando no hay ninguna, se ajustaron: la primera se omite si no hay aviso y la segunda ya no exige la tarjeta. Lo ideal es que su preparación cree esa atención abierta cuando la necesiten.

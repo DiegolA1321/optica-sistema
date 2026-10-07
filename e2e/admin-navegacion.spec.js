@@ -16,6 +16,10 @@ test('Citas: "Revisar" abre la atención abierta más antigua', async ({ page })
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   const aviso = page.getByRole('status').filter({ hasText: /atenci(ón|ones) abiertas? de/ })
+  // El aviso solo existe si hay una atención abierta de un día anterior; la Demo puede no tener ninguna.
+  await page.getByRole('heading', { name: 'Citas médicas' }).waitFor({ timeout: 15_000 })
+  await page.waitForTimeout(3000)
+  test.skip((await aviso.count()) === 0, 'No hay atenciones abiertas de días anteriores')
   await expect(aviso).toBeVisible({ timeout: 15_000 })
   const paciente = (await aviso.innerText()).match(/La más antigua: (.+?),/)?.[1]
   await aviso.getByRole('button', { name: 'Revisar' }).click()

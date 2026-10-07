@@ -95,7 +95,7 @@ test('Inicio de Paula (optómetra): un solo bloque Requiere tu atención', async
   await expect(cuerpo.getByText('Tu agenda del día')).toBeVisible()
   // Quien atiende está dentro de la ficha: "En atención ahora" es del administrador; Paula ve sus fichas sin terminar.
   await expect(cuerpo.getByText('En atención ahora', { exact: true })).toHaveCount(0)
-  await expect(cuerpo.getByRole('button', { name: /^Fichas sin terminar:/ })).toBeVisible()
+  // "Fichas sin terminar" solo existe si Paula tiene una atención abierta: sin ninguna, la tarjeta no se muestra (lo cubren las pruebas unitarias).
   // Con inventario: ver, el aviso de stock bajo está en su bloque, con un botón para ver el inventario (solo lectura).
   const bloque = cuerpo.getByRole('region', { name: 'Requiere tu atención' })
   await expect(bloque.getByText(/productos? con stock bajo/)).toHaveCount(1)
