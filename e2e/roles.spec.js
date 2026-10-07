@@ -15,6 +15,16 @@ async function totalAgendadas(page) {
   const t = await page.getByRole('button', { name: /Total agendadas/ }).first().innerText()
   return Number(t.replace(/\D/g, ''))
 }
+// Otros caminos a la ficha (perfil del paciente): sin permiso tampoco se ofrecen. Si alguien llegara igual por
+// otro camino, Citas, Pacientes y Dashboard muestran "No tienes permiso para atender pacientes." (red de seguridad
+// que hoy no tiene botón desde el cual probarse en pantalla).
+async function sinAtajosAFicha(page) {
+  await abrir(page, 'Pacientes')
+  await page.locator('main').getByRole('button', { name: 'Ver perfil 360°' }).first().click()
+  await expect.soft(page.getByRole('button', { name: 'Ficha clínica' }), 'sin botón "Ficha clínica" en el perfil').toHaveCount(0)
+  await expect.soft(page.getByRole('button', { name: /^Ingresar$/ }), 'sin "Ingresar" en el perfil').toHaveCount(0)
+  await expect.soft(page.getByRole('button', { name: /Atenderlo ahora/ })).toHaveCount(0)
+}
 async function menuVisible(page) {
   const out = []
   for (const n of [...TODOS, ...SOLO_ADMIN]) if (await modulo(page, n).count()) out.push(n)
@@ -46,11 +56,16 @@ test.describe('Recepción', () => {
     await expect.soft(visible(page, 'Publicar aviso')).toBeVisible()
   })
 
-  test('"Atender" sin permiso de crear fichas clínica (consultas: solo ver)', async ({ page }) => {
+  test('sin permiso para fichas clínicas: no ve "Atender" ni "Ingresar"', async ({ page }) => {
     await iniciarSesion(page, 'RECEPCION')
     await abrir(page, 'Citas médicas')
-    const atender = page.locator('main').getByRole('button', { name: 'Atender', exact: true })
-    expect.soft(await atender.count(), 'Recepción no debería ver "Atender": su rol no puede crear fichas clínicas').toBe(0)
+    await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }), 'Recepción no debe ver "Atender"').toHaveCount(0)
+    // El detalle de la cita tampoco ofrece "Ingresar".
+    await page.locator('main').getByText('Paola Zambrano Loor').first().click()
+    await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar/ }), 'Recepción no debe ver "Ingresar" en el detalle').toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect.soft(page.getByText('Atender ahora (hora actual)'), 'tampoco "Atender ahora" al agendar').toHaveCount(0)
+    await sinAtajosAFicha(page)
   })
 })
 
@@ -73,11 +88,16 @@ test.describe('Ventas', () => {
     await expect.soft(visible(page, 'Editar o añadir stock').first()).toBeVisible()
   })
 
-  test('"Atender" y edición de citas sin permiso', async ({ page }) => {
+  test('sin permiso para fichas clínicas: no ve "Atender" ni "Ingresar"', async ({ page }) => {
     await iniciarSesion(page, 'VENTAS')
     await abrir(page, 'Citas médicas')
-    const atender = page.locator('main').getByRole('button', { name: 'Atender', exact: true })
-    expect.soft(await atender.count(), 'Ventas no debería ver "Atender" (sin permiso para crear fichas)').toBe(0)
+    await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }), 'Ventas no debe ver "Atender"').toHaveCount(0)
+    // El detalle de la cita tampoco ofrece "Ingresar".
+    await page.locator('main').getByText('Paola Zambrano Loor').first().click()
+    await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar/ }), 'Ventas no debe ver "Ingresar" en el detalle').toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect.soft(page.getByText('Atender ahora (hora actual)'), 'tampoco "Atender ahora" al agendar').toHaveCount(0)
+    await sinAtajosAFicha(page)
   })
 })
 
@@ -94,7 +114,7 @@ test.describe('Optómetra', () => {
     await expect.soft(page.getByText('Paola Zambrano Loor').first(), 'su cita asignada').toBeVisible()
     await expect.soft(page.getByText('Rosa Bravo Delgado'), 'cita asignada al administrador: no debe verse').toHaveCount(0)
     await expect.soft(visible(page, 'Gestionar cita')).toBeVisible()
-    await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }).first()).toBeVisible()
+    await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }).first(), 'el optómetra sí ve "Atender"').toBeVisible()
   })
 
   test('permisos: crea pacientes, no vende ni toca inventario', async ({ page }) => {
@@ -102,6 +122,9 @@ test.describe('Optómetra', () => {
     await abrir(page, 'Pacientes')
     await expect.soft(visible(page, 'Crear paciente')).toBeVisible()
     await expect.soft(visible(page, 'Nueva venta')).toHaveCount(0)
+    await page.locator('main').getByRole('button', { name: 'Ver perfil 360°' }).first().click()
+    await expect.soft(page.getByRole('button', { name: 'Ficha clínica' }), 'el optómetra sí puede abrir la ficha').toBeVisible()
+    await page.keyboard.press('Escape')
     await abrir(page, 'Ventas')
     await expect.soft(visible(page, 'Nueva venta'), 'Optómetra solo ve ventas').toHaveCount(0)
     await expect.soft(visible(page, 'Tomar datos del diagnóstico')).toHaveCount(0)
