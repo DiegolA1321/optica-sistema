@@ -16,12 +16,17 @@ import {
   CalendarRange,
   Info,
   ShieldCheck,
+  FlaskConical,
+  Glasses,
+  Filter,
 } from "lucide-react"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { calcularEmbudo } from "../utilidades/embudo"
 import { totalAbonado } from "../utilidades/abonos"
+import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas } from "../utilidades/reportesDiagnosticos"
+import { resumenPorLaboratorio, ventasPorTipoLuna } from "../utilidades/reportesLaboratorio"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -85,7 +90,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], soloLoPropio = false }) {
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], ordenesLab = [], soloLoPropio = false, verMontos = true }) {
   // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
   // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
   // atención — las métricas financieras (ingresos, conversión a venta,
@@ -95,6 +100,14 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // ve una vez adentro.
   // Vista acotada a lo propio (R49): por el alcance del rol o por ser optómetra sin ser administrador.
   const esOptometraNoAdmin = soloLoPropio || (!!usuario?.esOptometra && usuario?.rol !== "admin")
+  // Montos (ingresos, ventas, conversión): se ocultan a quien no puede ver Ventas y a quien trabaja solo con lo suyo.
+  const ocultarMontos = esOptometraNoAdmin || verMontos === false
+  // Filtro por motivo de consulta (R61): acota todo lo que sale de las consultas (KPIs, gráficas, embudo).
+  const [motivo, setMotivo] = useState("")
+  const motivos = useMemo(() => motivosEnConsultas(consultasTodas), [consultasTodas])
+  const consultas = useMemo(() => filtrarPorMotivo(consultasTodas, motivo), [consultasTodas, motivo])
+  const [anioDx, setAnioDx] = useState(new Date().getFullYear())
+  const [verTodosDx, setVerTodosDx] = useState(false)
   const [periodo, setPeriodo] = useState("mes")
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")
   const [finPersonalizado, setFinPersonalizado] = useState("")
@@ -146,7 +159,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
     [pacientes],
   )
 
-  const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultas)).length, [pacientes, consultas])
+  const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, consultasTodas)).length, [pacientes, consultasTodas])
 
   // Punto 2.1 (plan 29 sept.): pacientes que el optómetra marcó "De alta"
   // desde el Paso 3 de la ficha clínica (checkbox "Tratamiento finalizado").
@@ -351,7 +364,17 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // Un optómetra que no es admin no ve las métricas financieras (Diego,
   // 2026-09-30): Ingresos y Conversión a venta salen de la grilla de KPIs;
   // "Productos más vendidos" (más abajo) se oculta con el mismo criterio.
-  const kpisVisibles = esOptometraNoAdmin ? kpis.filter((k) => k.key !== "ingresos" && k.key !== "conversion") : kpis
+  const kpisVisibles = ocultarMontos ? kpis.filter((k) => k.key !== "ingresos" && k.key !== "conversion") : kpis
+
+  // R60: pacientes por diagnóstico, mes a mes, en el año elegido.
+  const aniosDx = useMemo(() => aniosConConsultas(consultas), [consultas])
+  const dxMensual = useMemo(() => diagnosticosPorMes(consultas, anioDx), [consultas, anioDx])
+  const filasDx = verTodosDx ? dxMensual.filas : dxMensual.filas.slice(0, 8)
+
+  // Laboratorios: abiertas y atrasadas hoy; tiempo promedio de lo entregado dentro del período.
+  const labs = useMemo(() => resumenPorLaboratorio(ordenesLab, { enRango: (cuando) => !!cuando && enRango(cuando) }), [ordenesLab, rango]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lunasPorTipo = useMemo(() => ventasPorTipoLuna(facturasVenta, { enRango }), [facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
+  const maxLunas = Math.max(1, ...lunasPorTipo.map((l) => l.unidades))
 
   // Cada KPI y cada gráfico se calcula directo de props (pacientes/consultas/
   // citas/ventas) que App.jsx hidrata de forma asíncrona — sin esto, la
@@ -408,6 +431,28 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
           </div>
         )}
       </div>
+
+      {/* ─── FILTRO POR MOTIVO DE CONSULTA (R61) ─── */}
+      {motivos.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/60 bg-white p-3">
+          <label htmlFor="reportes-motivo" className="flex items-center gap-1.5 pl-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+            <Filter size={14} /> Motivo de consulta
+          </label>
+          <select
+            id="reportes-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)}
+            className="rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
+          >
+            <option value="">Todos los motivos</option>
+            {motivos.map((m) => <option key={m.motivo} value={m.motivo}>{m.motivo} ({m.cantidad})</option>)}
+          </select>
+          {motivo && (
+            <>
+              <button type="button" onClick={() => setMotivo("")} className="cursor-pointer rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50">Quitar filtro</button>
+              <span className="text-xs text-slate-500">Aplica a consultas, diagnósticos, conversión y embudo.</span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ─── KPIs ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -561,7 +606,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
 
         {/* ─── PRODUCTOS MÁS VENDIDOS (H3, rotación de inventario) ───
             Financiero (ventas) — oculto para un optómetra que no es admin. ─── */}
-        {!esOptometraNoAdmin && (
+        {!ocultarMontos && (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "205ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Productos más vendidos</h3>
           <p className="mb-5 text-xs text-slate-500">Top 5 por unidades · período seleccionado arriba</p>
@@ -706,7 +751,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         </div>
 
         {/* ─── EMBUDO DE VENTAS (R40): consultaron → pasaron a venta → compraron. Financiero: oculto para un optómetra que no es admin. ─── */}
-        {!esOptometraNoAdmin && (
+        {!ocultarMontos && (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "240ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Embudo de ventas</h3>
           <p className="mb-5 text-xs text-slate-500">De las consultas del período, cuántos pasaron a venta, compraron o no compraron · período seleccionado arriba</p>
@@ -754,6 +799,133 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                   {embudo.proformas > 0 && <> · <span className="font-bold">{embudo.proformasEnVenta}</span> terminaron en venta{embudo.proformasSobreVenta != null ? ` (${embudo.proformasSobreVenta}%)` : ""}</>}
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+        )}
+
+        {/* ─── DIAGNÓSTICOS POR MES (R60) ─── */}
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "230ms" }}>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Diagnósticos por mes</h3>
+              <p className="text-xs text-slate-500">
+                Pacientes distintos con cada diagnóstico{motivo ? ` · motivo: ${motivo}` : ""} · {dxMensual.totalPacientes} paciente{dxMensual.totalPacientes === 1 ? "" : "s"} con consulta en {anioDx}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5" role="group" aria-label="Año">
+              {aniosDx.map((a) => (
+                <button
+                  key={a} type="button" onClick={() => setAnioDx(a)} aria-pressed={anioDx === a}
+                  className="cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
+                  style={anioDx === a ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
+                >{a}</button>
+              ))}
+            </div>
+          </div>
+          {dxMensual.filas.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">No hay diagnósticos registrados en {anioDx}{motivo ? " para este motivo" : ""}.</p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] border-separate border-spacing-y-1 text-xs">
+                  <thead>
+                    <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      <th scope="col" className="w-40 text-left font-bold">Diagnóstico</th>
+                      {MESES_CORTOS.map((m) => <th key={m} scope="col" className="text-center font-bold">{m}</th>)}
+                      <th scope="col" className="pl-2 text-right font-bold">Año</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filasDx.map((f) => (
+                      <tr key={f.diagnostico}>
+                        <th scope="row" className="max-w-[10rem] truncate pr-2 text-left font-semibold text-slate-700" title={f.diagnostico}>{f.diagnostico}</th>
+                        {f.meses.map((n, i) => {
+                          const peso = n / Math.max(1, dxMensual.maxMes)
+                          return (
+                            <td key={i} className="p-0.5 text-center">
+                              <span
+                                className="grid h-7 place-items-center rounded-md font-mono font-semibold"
+                                style={{ backgroundColor: n > 0 ? `rgba(37,99,235,${0.12 + 0.78 * peso})` : "#F1F5F9", color: n === 0 ? "#CBD5E1" : peso > 0.55 ? "#fff" : "#1E3A8A" }}
+                                title={`${f.diagnostico} · ${MESES_CORTOS[i]} ${anioDx}: ${n} paciente${n === 1 ? "" : "s"}`}
+                              >{n > 0 ? n : "·"}</span>
+                            </td>
+                          )
+                        })}
+                        <td className="pl-2 text-right font-mono font-bold text-slate-700">{f.anio}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {dxMensual.filas.length > 8 && (
+                <button type="button" onClick={() => setVerTodosDx((v) => !v)} className="mt-3 cursor-pointer text-xs font-semibold text-blue-600 hover:underline">
+                  {verTodosDx ? "Ver solo los 8 más frecuentes" : `Ver los ${dxMensual.filas.length} diagnósticos`}
+                </button>
+              )}
+              <p className="mt-3 text-xs text-slate-500">Un paciente con dos diagnósticos en la misma ficha cuenta en ambos; en cada mes cuenta una sola vez por diagnóstico.</p>
+            </>
+          )}
+        </div>
+
+        {/* ─── LABORATORIOS: atrasos y tiempo de entrega ─── */}
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "250ms" }}>
+          <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold" style={{ color: INK }}><FlaskConical size={15} /> Laboratorios</h3>
+          <p className="mb-4 text-xs text-slate-500">Órdenes abiertas y atrasadas hoy · tiempo de entrega de lo entregado en {rango.etiqueta}</p>
+          {labs.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">No hay órdenes de laboratorio abiertas ni entregadas en este período.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-xs">
+                <thead>
+                  <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    <th scope="col" className="pb-2 text-left font-bold">Laboratorio</th>
+                    <th scope="col" className="pb-2 text-right font-bold">Abiertas</th>
+                    <th scope="col" className="pb-2 text-right font-bold">Atrasadas</th>
+                    <th scope="col" className="pb-2 text-right font-bold">Entrega promedio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {labs.map((l) => {
+                    const dias = l.promedioDias == null ? null : Math.round(l.promedioDias * 10) / 10
+                    return (
+                      <tr key={l.laboratorio} className="border-t border-slate-100">
+                        <th scope="row" className="py-2 pr-2 text-left font-semibold text-slate-700">{l.laboratorio}</th>
+                        <td className="py-2 text-right font-mono text-slate-600">{l.abiertas}</td>
+                        <td className="py-2 text-right font-mono font-bold" style={{ color: l.atrasadas > 0 ? "#dc2626" : "#94a3b8" }}>{l.atrasadas}</td>
+                        <td className="py-2 text-right font-mono text-slate-600">
+                          {dias == null ? "—" : `${dias} ${dias === 1 ? "día" : "días"}`}
+                          {l.entregadas > 0 && <span className="ml-1 font-sans text-slate-500">({l.entregadas})</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ─── VENTAS POR TIPO DE LUNA — oculto sin permiso para ver montos ─── */}
+        {!ocultarMontos && (
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "260ms" }}>
+          <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold" style={{ color: INK }}><Glasses size={15} /> Ventas por tipo de luna</h3>
+          <p className="mb-5 text-xs text-slate-500">Lunas vendidas en {rango.etiqueta} · sin comprobantes anulados</p>
+          {lunasPorTipo.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">No hay lunas vendidas en este período.</p>
+          ) : (
+            <div className="space-y-3.5">
+              {lunasPorTipo.map((l) => (
+                <div key={l.id}>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                    <span className="font-semibold text-slate-700">{l.etiqueta}</span>
+                    <span className="shrink-0 font-mono font-bold text-slate-500">{l.unidades} u. · ${l.monto.toFixed(2)}</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full" style={{ width: `${Math.max(4, (l.unidades / maxLunas) * 100)}%`, background: GRAD }} />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
