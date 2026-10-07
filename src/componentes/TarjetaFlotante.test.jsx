@@ -30,4 +30,10 @@ describe("Tarjeta flotante de la cita — acciones según el estado", () => {
     expect(screen.queryByRole("button", { name: /Editar cita/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Cancelar cita/ })).not.toBeInTheDocument()
   })
+
+  it("una cita cancelada dice quién la canceló y no ofrece acciones", () => {
+    render(<TarjetaFlotante cita={{ ...cita("Cancelada"), canceladaPor: "paciente" }} ancla={{ top: 100, left: 100, right: 200 }} {...acciones} />)
+    expect(screen.getByText("Cancelada por el paciente")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Editar cita|Cancelar cita|Atender/ })).not.toBeInTheDocument()
+  })
 })

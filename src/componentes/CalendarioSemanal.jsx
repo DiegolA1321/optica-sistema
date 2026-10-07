@@ -119,7 +119,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
       </dl>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className={"rounded-full border px-2 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{cita.estado || "Pendiente"}</span>
+        <span className={"rounded-full border px-2 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{cita.estado === "Cancelada" ? (cita.canceladaPor === "paciente" ? "Cancelada por el paciente" : cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : "Cancelada") : cita.estado || "Pendiente"}</span>
         {cobroPendiente && (
           <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
             <Receipt size={11} aria-hidden="true" /> Cobro pendiente

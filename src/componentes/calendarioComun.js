@@ -15,7 +15,7 @@ const COLOR_ESTADO = {
 const COLOR_PENDIENTE = { linea: "#d97706", fondo: "#fde68a", texto: "#78350f", etiqueta: "Pendiente" }
 export const colorDe = (estado) => COLOR_ESTADO[estado] || COLOR_PENDIENTE
 // Leyenda que se muestra en el encabezado de Semana y Mes.
-export const LEYENDA_ESTADOS = [COLOR_PENDIENTE, COLOR_ESTADO["En Atención"], COLOR_ESTADO.Atendida, COLOR_ESTADO["No Asistió"]]
+export const LEYENDA_ESTADOS = [COLOR_PENDIENTE, COLOR_ESTADO["En Atención"], COLOR_ESTADO.Atendida, COLOR_ESTADO["No Asistió"], COLOR_ESTADO.Cancelada]
 
 // Enlace al perfil del paciente para abrirlo en otra pestaña: así no se pierde
 // el lugar del calendario. Conserva los parámetros de la URL actual (óptica o

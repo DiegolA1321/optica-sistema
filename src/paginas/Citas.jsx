@@ -1197,10 +1197,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   const gruposPorFecha = useMemo(() => new Map(agruparPorDia(estadoFiltro === "cancelada" ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))), [filtradasBase, estadoFiltro])
 
-  // Semana y Mes son para planificar: una cita cancelada libera su horario, así
-  // que por defecto no ocupa el calendario (ni lo apaga con citas en gris). Se
-  // pueden mostrar con el interruptor "Canceladas".
-  const [verCanceladas, setVerCanceladas] = useState(false)
+  // Semana y Mes muestran las canceladas por defecto (en gris, con quién canceló): que un paciente canceló debe verse.
+  // Una cancelada libera su horario; si estorba, se oculta con el interruptor "Canceladas".
+  const [verCanceladas, setVerCanceladas] = useState(true)
   const totalCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
   // Si el filtro de estado pide las canceladas, se muestran aunque el interruptor esté apagado.
   const mostrarCanceladas = verCanceladas || estadoFiltro === "cancelada"
