@@ -2,7 +2,7 @@
 
 import { fechaHoraLegible } from "../utilidades/formatoFecha"
 import { createPortal } from "react-dom"
-import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, CalendarPlus, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck, LogOut } from "lucide-react"
+import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck, LogOut } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { etiquetaFecha } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
