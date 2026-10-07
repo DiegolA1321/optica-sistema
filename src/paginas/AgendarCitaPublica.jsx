@@ -29,7 +29,17 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 // ─── Paleta de firma (consistente con el login) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica, parametrizacion }) {
+// Motivos que trae el sistema si la óptica aún no cargó los suyos (los mismos de la agenda interna).
+const MOTIVOS_POR_DEFECTO = ["Consulta General", "Examen de Control", "Adaptación de Lentes", "Garantía / Ajuste"]
+// Texto de ayuda para los motivos conocidos; un motivo que la óptica agregó va solo con su nombre.
+const AYUDA_MOTIVO = {
+  "Consulta General": { descripcion: "Revisión de tu vista o una molestia que quieras consultar.", icon: Stethoscope },
+  "Examen de Control": { descripcion: "Control de tu graduación o seguimiento de tu examen anterior.", icon: Eye },
+  "Adaptación de Lentes": { descripcion: "Ayuda para adaptarte a lentes nuevos o progresivos.", icon: Glasses },
+  "Garantía / Ajuste": { descripcion: "Ajuste, reparación o garantía de tus lentes o monturas.", icon: ShieldCheck },
+}
+
+export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = MOTIVOS_POR_DEFECTO }) {
   const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
   const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "esta óptica"
   const [paso, setPaso] = useState(1)
@@ -58,7 +68,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     fechaNacimiento: "",
     telefono: "",
     correo: "",
-    motivo: "Medición y examen visual",
+    motivo: motivosConsulta.includes("Consulta General") ? "Consulta General" : (motivosConsulta[0] || "Consulta General"),
     // Pre-triage remoto: solo se le pide al paciente cuando el motivo es una
     // molestia real (ver marco referencial del anteproyecto — la
     // teleoptometría se usa sobre todo para esto, decidir con más contexto
@@ -74,39 +84,21 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const [copiado, setCopiado] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
 
-  const motivos = [
-    {
-      id: "atencion",
-      titulo: "Atención por molestia o enfermedad",
-      descripcion: "Ojo rojo, dolor, visión borrosa u otra molestia que quieras revisar.",
-      icon: HeartPulse,
-    },
-    {
-      id: "medicion",
-      titulo: "Medición y examen visual",
-      descripcion: "Chequeo de tu vista, control de tu graduación o examen completo.",
-      icon: Eye,
-    },
-    {
-      id: "compra",
-      titulo: "Compra de lentes o monturas",
-      descripcion: "Asesoría para elegir monturas, lentes o cambio de armazón.",
-      icon: Glasses,
-    },
-  ]
-
-  // La agenda interna (Citas.jsx) sólo reconoce y colorea 4 motivos fijos
-  // ("Consulta General" / "Adaptación de Lentes" / "Examen de Control" /
-  // "Garantía / Ajuste"). Antes toda cita agendada desde este formulario público
-  // guardaba el texto del paciente tal cual y caía en el badge gris genérico —
-  // nunca se podía filtrar ni colorear en la agenda del optómetra. Se conserva
-  // el texto amigable para el paciente en este wizard, pero al guardar la cita
-  // se traduce al motivo interno equivalente.
-  const MOTIVO_INTERNO = {
-    "Atención por molestia o enfermedad": "Consulta General",
-    "Medición y examen visual": "Examen de Control",
-    "Compra de lentes o monturas": "Adaptación de Lentes",
-  }
+  // Los motivos son los que configuró la óptica (Configuración → Catálogos), los mismos de su agenda interna:
+  // el paciente elige uno de ellos y la cita se guarda con ese texto, sin traducciones.
+  const motivos = (motivosConsulta.length > 0 ? motivosConsulta : MOTIVOS_POR_DEFECTO).map((nombre) => ({
+    id: nombre,
+    titulo: nombre,
+    descripcion: AYUDA_MOTIVO[nombre]?.descripcion || "",
+    icon: AYUDA_MOTIVO[nombre]?.icon || Stethoscope,
+  }))
+  // Si los motivos de la óptica llegan después de abrir el formulario, el elegido se ajusta al primero válido.
+  useEffect(() => {
+    if (!motivos.some((m) => m.titulo === formData.motivo)) setFormData((prev) => ({ ...prev, motivo: motivos[0].titulo }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motivosConsulta])
+  // Contar una molestia al optómetra es opcional y va aparte del motivo (antes solo existía con el motivo "molestia").
+  const [conMolestia, setConMolestia] = useState(false)
 
   const SINTOMAS = ["Dolor", "Enrojecimiento", "Visión borrosa", "Picazón o ardor", "Secreción", "Sensibilidad a la luz", "Golpe o trauma"]
   const alternarSintoma = (s) => {
@@ -128,7 +120,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       ? (partesNombre[0][0] + partesNombre[1][0]).toUpperCase()
       : (partesNombre[0]?.[0] || "P").toUpperCase()
 
-    const motivoInterno = MOTIVO_INTERNO[formData.motivo] || "Consulta General"
+    const motivoInterno = formData.motivo
     const triageAEnviar = formData.triage.sintomas.length > 0 || formData.triage.desdeCuando || formData.triage.detalle.trim()
       ? formData.triage
       : null
@@ -430,7 +422,16 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                     })}
                   </div>
 
-                  {formData.motivo === "Atención por molestia o enfermedad" && (
+                  <button
+                    type="button"
+                    onClick={() => { setConMolestia((v) => !v); if (conMolestia) setFormData((prev) => ({ ...prev, triage: { sintomas: [], desdeCuando: "", detalle: "" } })) }}
+                    aria-expanded={conMolestia}
+                    className="mt-4 flex items-center gap-2 text-xs font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"
+                  >
+                    <HeartPulse size={14} aria-hidden="true" /> {conMolestia ? "No tengo ninguna molestia que contar" : "¿Tienes alguna molestia? Cuéntasela al optómetra (opcional)"}
+                  </button>
+
+                  {conMolestia && (
                     <div className="ac-step mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                       <h4 className="text-sm font-bold" style={{ color: INK }}>Cuéntanos un poco más</h4>
                       <p className="text-[11px] text-slate-500">Esto le llega al optómetra antes de tu cita para revisarlo con más contexto — es opcional.</p>
