@@ -7,28 +7,20 @@ import ModalMisRoles from "./ModalMisRoles"
 const rol = (id, nombre, extra = {}) => ({ id, nombre, descripcion: "", es_predefinido: false, atiende_pacientes: false, permisos: { citas: ["ver"] }, alcance: {}, inicio: "general", ...extra })
 const base = { usuario: { id: "u1", opticaId: "o1" }, asignaciones: [], onCambio: () => {}, onExito: () => {} }
 
-describe("RolesPanel — quitar roles", () => {
-  it("un rol predefinido sin personas se puede quitar y también restaurar", () => {
-    render(<RolesPanel {...base} roles={[rol("r1", "Optómetra", { es_predefinido: true, clave: "optometra" }), rol("r2", "Recepción", { es_predefinido: true, clave: "recepcion" }), rol("r3", "Ventas", { es_predefinido: true, clave: "ventas" })]} />)
-    expect(screen.getByRole("button", { name: "Eliminar Optómetra" })).toBeEnabled()
+describe("RolesPanel — predefinidos", () => {
+  const pre = [rol("r1", "Optómetra", { es_predefinido: true, clave: "optometra" }), rol("r2", "Recepción", { es_predefinido: true, clave: "recepcion" })]
+  it("un rol predefinido se edita y se restaura, pero no se elimina", () => {
+    render(<RolesPanel {...base} roles={pre} />)
+    expect(screen.getByRole("button", { name: "Editar Optómetra" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Restaurar Optómetra a sus valores originales/ })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Eliminar Optómetra/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Restaurar roles predefinidos/ })).not.toBeInTheDocument()
   })
 
-  it("un rol con personas asignadas no se puede quitar", () => {
-    render(<RolesPanel {...base} asignaciones={[{ perfil_id: "p1", rol_id: "r1" }]} roles={[rol("r1", "Optómetra", { es_predefinido: true, clave: "optometra" })]} />)
-    expect(screen.getByRole("button", { name: "Eliminar Optómetra" })).toBeDisabled()
-  })
-
-  it("si faltan predefinidos ofrece restaurarlos y dice cuántos", () => {
-    render(<RolesPanel {...base} roles={[rol("r1", "Optómetra", { es_predefinido: true, clave: "optometra" })]} />)
-    expect(screen.getByRole("button", { name: "Restaurar roles predefinidos (2)" })).toBeInTheDocument()
-  })
-
-  it("al quitar un predefinido avisa que se puede recuperar", () => {
-    render(<RolesPanel {...base} roles={[rol("r1", "Ventas", { es_predefinido: true, clave: "ventas" })]} />)
-    fireEvent.click(screen.getByRole("button", { name: "Eliminar Ventas" }))
-    expect(screen.getByText(/podrás recuperarlo con «Restaurar roles predefinidos»/)).toBeInTheDocument()
+  it("un rol propio sí se elimina, salvo que tenga personas asignadas", () => {
+    render(<RolesPanel {...base} asignaciones={[{ perfil_id: "p1", rol_id: "r9" }]} roles={[rol("r8", "Auxiliar"), rol("r9", "Gerente")]} />)
+    expect(screen.getByRole("button", { name: "Eliminar Auxiliar" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Eliminar Gerente" })).toBeDisabled()
   })
 })
 

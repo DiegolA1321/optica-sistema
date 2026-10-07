@@ -28,19 +28,6 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
   const [errorGlobal, setErrorGlobal] = useState("")
 
   const enUso = (rolId) => asignaciones.filter((a) => a.rol_id === rolId).length
-  // Los predefinidos se pueden quitar; los que falten se recuperan con sus valores originales.
-  const faltanPredefinidos = Math.max(0, 3 - roles.filter((r) => r.es_predefinido).length)
-  const [recuperando, setRecuperando] = useState(false)
-  const recuperarPredefinidos = async () => {
-    setErrorGlobal("")
-    setRecuperando(true)
-    const { data, error } = await supabase.rpc("restaurar_roles_predefinidos_faltantes")
-    setRecuperando(false)
-    if (error) { setErrorGlobal(error.message); return }
-    registrarLog(usuario, "usuarios", "Restauró los roles predefinidos", `${data} rol(es)`)
-    onExito(`Se recuperaron ${data} rol${data === 1 ? "" : "es"} predefinido${data === 1 ? "" : "s"}.`)
-    onCambio()
-  }
 
   const eliminar = async () => {
     setEliminando(true)
@@ -73,16 +60,9 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
         <p className="max-w-2xl text-sm text-slate-600">
           Un rol define qué módulos ve una persona y qué puede hacer en cada uno. Al crear un usuario eliges su rol (o varios: los permisos se suman).
         </p>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {faltanPredefinidos > 0 && (
-            <button type="button" onClick={recuperarPredefinidos} disabled={recuperando} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">
-              <RotateCcw size={15} aria-hidden="true" /> {recuperando ? "Restaurando…" : `Restaurar roles predefinidos (${faltanPredefinidos})`}
-            </button>
-          )}
         <button type="button" onClick={() => { setErrorGlobal(""); setEditando(rolVacio()) }} className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
           <Plus size={16} aria-hidden="true" /> Nuevo rol
         </button>
-        </div>
       </div>
       {errorGlobal && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><AlertTriangle size={16} aria-hidden="true" /> {errorGlobal}</p>}
 
@@ -107,10 +87,11 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <button type="button" onClick={() => { setErrorGlobal(""); setEditando(rol) }} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" aria-label={`Editar ${rol.nombre}`} title="Editar"><Pencil size={15} /></button>
-                    {rol.es_predefinido && (
+                    {rol.es_predefinido ? (
                       <button type="button" onClick={() => restaurar(rol)} disabled={restaurando === rol.id} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer disabled:opacity-50" aria-label={`Restaurar ${rol.nombre} a sus valores originales`} title="Restaurar valores originales"><RotateCcw size={15} /></button>
+                    ) : (
+                      <button type="button" onClick={() => setPorEliminar(rol)} disabled={usos > 0} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" aria-label={`Eliminar ${rol.nombre}`} title={usos > 0 ? "Hay personas con este rol: cámbiales el rol primero" : "Eliminar"}><Trash2 size={15} /></button>
                     )}
-                    <button type="button" onClick={() => setPorEliminar(rol)} disabled={usos > 0} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" aria-label={`Eliminar ${rol.nombre}`} title={usos > 0 ? "Hay personas con este rol: cámbiales el rol primero" : "Eliminar"}><Trash2 size={15} /></button>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
@@ -138,7 +119,7 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
       {porEliminar && (
         <ConfirmarEliminarModal
           titulo={`¿Eliminar el rol «${porEliminar.nombre}»?`}
-          mensaje={porEliminar.es_predefinido ? "Nadie lo tiene asignado. Es un rol predefinido: si lo quitas, podrás recuperarlo con «Restaurar roles predefinidos»." : "Nadie lo tiene asignado. Esta acción no se puede deshacer."}
+          mensaje="Nadie lo tiene asignado. Esta acción no se puede deshacer."
           eliminando={eliminando}
           onCancelar={() => setPorEliminar(null)}
           onConfirmar={eliminar}
@@ -208,7 +189,7 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
             <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><ShieldCheck size={20} aria-hidden="true" /></div>
             <div>
               <h2 id="rol-titulo" className="text-lg font-bold" style={{ color: INK }}>{nuevo ? "Nuevo rol" : `Editar rol: ${rol.nombre}`}</h2>
-              <p className="text-xs text-slate-500">{rol.es_predefinido ? "Rol predefinido: puedes editarlo, restaurarlo o quitarlo si nadie lo tiene (luego se recupera)." : "Define qué ve y qué puede hacer quien tenga este rol."}</p>
+              <p className="text-xs text-slate-500">{rol.es_predefinido ? "Rol predefinido: puedes editarlo y restaurarlo, pero no eliminarlo." : "Define qué ve y qué puede hacer quien tenga este rol."}</p>
             </div>
           </div>
           <button type="button" onClick={cerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
