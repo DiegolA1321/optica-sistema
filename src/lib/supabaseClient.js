@@ -17,6 +17,16 @@ if (!CONFIGURADO && import.meta.env.DEV) {
 
 export const supabase = CONFIGURADO ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null
 
+// Cliente para lecturas públicas (sin sesión): jamás adjunta el token guardado en el navegador. Si ese token está
+// vencido o revocado, PostgREST responde 401 (PGRST301) incluso en una vista pública (opticas_publicas); sin sesión
+// la lectura responde 200 siempre. Se crea una sola vez, la primera vez que se pide.
+let clientePublico
+export function obtenerClientePublico() {
+  if (!CONFIGURADO) return null
+  if (!clientePublico) clientePublico = crearClienteTemporal()
+  return clientePublico
+}
+
 // Cliente desechable, sin persistir sesión: se usa solo para dar de alta la
 // cuenta de un nuevo admin (auth.signUp) sin pisar la sesión del superadmin
 // que está logueado en el cliente principal de arriba.
