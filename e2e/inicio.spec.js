@@ -92,15 +92,24 @@ test('Inicio de Paula (optómetra): un solo bloque Requiere tu atención', async
   const cuerpo = main(page)
   await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención' })).toBeVisible({ timeout: 20_000 })
   await expect(cuerpo.getByText(/¡Bienvenido/)).toHaveCount(0)
-  await expect(cuerpo.getByText(/stock bajo/)).toHaveCount(0)
   await expect(cuerpo.getByText('Tu agenda del día')).toBeVisible()
+  // Quien atiende está dentro de la ficha: "En atención ahora" es del administrador; Paula ve sus fichas sin terminar.
+  await expect(cuerpo.getByText('En atención ahora', { exact: true })).toHaveCount(0)
+  await expect(cuerpo.getByRole('button', { name: /^Fichas sin terminar:/ })).toBeVisible()
+  // Con inventario: ver, el aviso de stock bajo está en su bloque, con un botón para ver el inventario (solo lectura).
+  const bloque = cuerpo.getByRole('region', { name: 'Requiere tu atención' })
+  await expect(bloque.getByText(/productos? con stock bajo/)).toHaveCount(1)
+  await expect(bloque.getByRole('button', { name: 'Ver inventario' })).toBeVisible()
+  await expect(bloque.getByRole('button', { name: 'Reabastecer' })).toHaveCount(0)
   await capturar(page, 'paula-optometra')
 })
 
 test('Inicio de Recepción y de Ventas con su bloque único', async ({ page }) => {
   await iniciarSesion(page, 'RECEPCION')
   await expect(main(page).getByRole('region', { name: 'Requiere tu atención' })).toBeVisible({ timeout: 20_000 })
-  await expect(main(page).getByText(/stock bajo/)).toHaveCount(0)
+  // Recepción también puede ver el inventario: el aviso de stock bajo aparece una vez, sin "Reabastecer" (no edita).
+  await expect(main(page).getByText(/productos? con stock bajo/)).toHaveCount(1)
+  await expect(main(page).getByRole('button', { name: 'Reabastecer' })).toHaveCount(0)
   await capturar(page, 'recepcion')
 })
 
