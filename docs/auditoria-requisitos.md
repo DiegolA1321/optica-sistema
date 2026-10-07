@@ -137,7 +137,7 @@ Al investigar el 401 apareció esto, **confirmado**:
 - `opticas_publicas` es una vista simple (una sola tabla), por lo tanto actualizable, y corre con los privilegios de su dueño, sorteando RLS. Los permisos por defecto de Supabase le dieron `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE` a `anon` y `authenticated`.
 - Prueba sin riesgo por HTTP: un `PATCH` con la clave pública y un filtro que no coincide con ninguna fila respondió **204** (permitido). En una transacción revertida, con el rol `anon`: `UPDATE … SET settings = '{}'` afectó 1 fila; `INSERT` creó una óptica; `UPDATE nombre`, `UPDATE logo_url` quedaron frenados por los disparadores de `opticas`; `DELETE` falló solo de rebote (restricción de `perfiles`). Nada quedó escrito.
 - **Impacto:** cualquier persona con la clave pública (está en el JavaScript de la app) puede sobrescribir `settings`, `motivos_consulta` y `diagnosticos_rapidos` de cualquier óptica y crear ópticas falsas. Las otras tres vistas con permisos de escritura (`citas`, `consultas`, `pacientes`) usan `security_invoker`, así que sí respetan RLS.
-- **¿Requiere base de datos?** Sí. SQL propuesto (**no aplicado, espero tu aprobación**):
+- **¿Requiere base de datos?** Sí. SQL (**aplicado el 6 de octubre, migración 0095**):
 
 ```sql
 -- 0095_opticas_publicas_solo_lectura.sql
@@ -147,6 +147,22 @@ revoke insert, update, delete, truncate, references, trigger
 ```
 
   Verificación posterior: repetir el `PATCH` anónimo (debe dar 401/403) y comprobar que el login, la página de agendar y el portal siguen cargando la óptica.
+
+#### Estado de la seguridad de permisos (actualizado el 6 de octubre)
+
+| Migración | Qué hace | Estado |
+|---|---|---|
+| 0095 | `opticas_publicas` queda de solo lectura | **Aplicada** y verificada |
+| 0096 (partes a, b, d) | Sin TRUNCATE, REFERENCES ni TRIGGER; `anon` solo con SELECT en `opticas_publicas` y `disponibilidad`; funciones internas de envío y de no asistió cerradas a la API; `cifrar_clinico` y `descifrar_clinico` cerradas a `anon` | **Aplicada** y verificada |
+| 0097 (parte c) | Quitar a `authenticated` la escritura directa en las tablas que solo se usan por RPC | **NO aplicada** (borrador). Se aplica después de las pruebas con Playwright |
+
+Verificación (51 de 51 comprobaciones, con datos de prueba en transacciones revertidas y lecturas reales): login del administrador y del superadmin, vistas de pacientes, citas y consultas descifradas, reserva pública, portal del paciente, venta con orden de laboratorio y abonos, y los cuatro trabajos programados activos. El cron real de "no asistió" corrió después del cambio y terminó bien.
+
+**Pendientes de esta línea:**
+1. **Aplicar la 0097** tras las pruebas con Playwright (recorrer un flujo por rol; correr `scripts/test-rls.mjs`). Aviso: `registrar_venta_producto`, la función antigua sin uso, dejaría de funcionar al quitar el INSERT de `ventas`.
+2. **Revisar la ejecución real de las 15:00 UTC** de `enviar_recordatorios_citas` y `enviar_saludos_cumpleanos` en `cron.job_run_details`: ya no se llaman por la API, pero solo se probaron como `postgres` dentro de una transacción.
+3. **Revisar los registros de la API de Supabase** (Logs → API) buscando PATCH, POST o DELETE sin sesión contra `opticas_publicas` mientras estuvo abierto el hueco: es la única prueba definitiva de si alguien lo usó. En la base no se encontraron ópticas desconocidas ni cambios atribuibles (ver el análisis del 6 de octubre).
+4. Quedan por revisar las funciones `exportar_mis_datos_paciente`, `mis_notificaciones_recientes` y `tiene_permiso_modulo`: se dejaron fuera a propósito porque no está claro si algo las usa.
 
 ### 4.3 Verificación en dos pasos obligatoria para administradores
 
