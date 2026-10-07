@@ -719,7 +719,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             facturasVenta={facturasVenta}
             abonos={abonos}
             onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
-            onVerCitas={(estado) => { setEstadoCitasInicial(estado); navegar("citas") }}
+            onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => {

@@ -47,6 +47,7 @@ import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro, opcionesAsignables } from "../utilidades/equipo"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
+import { rangoDelMes } from "../utilidades/inicio"
 import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
@@ -358,10 +359,16 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   }, [abrirModalAlEntrar])
 
   // Desde una tarjeta del Inicio ("Atendidas", "No asistieron"...): abre la lista ya filtrada por ese estado.
+  // estadoInicial es el estado ("atendida"...) o { estado, periodo }: con periodo "mes" la lista se acota a este mes
+  // (igual que la tarjeta del Inicio) y con "siempre" no se acota por fecha.
   useEffect(() => {
     if (estadoInicial) {
-      setEstadoFiltro(estadoInicial)
+      const { estado, periodo } = typeof estadoInicial === "string" ? { estado: estadoInicial, periodo: null } : estadoInicial
+      setEstadoFiltro(estado)
       setFiltro("todas")
+      setVistaState("lista") // la tarjeta promete una lista filtrada; no se pisa la vista guardada
+      if (periodo === "mes") { const r = rangoDelMes(); setRangoDesde(r.desde); setRangoHasta(r.hasta) }
+      else if (periodo === "siempre") { setRangoDesde(""); setRangoHasta("") }
       onEstadoInicialConsumido?.()
     }
   }, [estadoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
