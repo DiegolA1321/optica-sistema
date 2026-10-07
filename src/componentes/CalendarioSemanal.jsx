@@ -151,9 +151,11 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
             <ExternalLink size={14} aria-hidden="true" /> Ver perfil
           </a>
         )}
-        <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-          <CalendarClock size={14} /> Editar cita
-        </button>
+        {puedeEditarCita(cita) && (
+          <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+            <CalendarClock size={14} /> Editar cita
+          </button>
+        )}
         {puedeCancelarCita(cita) && (
           <button type="button" onClick={() => onCancelar(cita)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
             <X size={14} /> Cancelar cita
