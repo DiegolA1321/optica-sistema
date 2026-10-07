@@ -73,6 +73,7 @@ import { etiquetaCorreccion } from "../utilidades/correccion"
 import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import AbonoModal from "../componentes/AbonoModal"
+import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
@@ -885,7 +886,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         .single()
       if (error) {
         setGuardandoCita(false)
-        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo agendar la cita. Revisa tu conexión e intenta de nuevo.")
+        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : esErrorHoraInvalida(error) ? MENSAJE_HORA_INVALIDA : "No se pudo agendar la cita. Revisa tu conexión e intenta de nuevo.")
         return
       }
       if (data) nuevaCita.id = data.id

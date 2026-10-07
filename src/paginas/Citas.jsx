@@ -45,6 +45,7 @@ import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { ChipFiltro, BuscadorCitas, SelectorEstado, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro, opcionesAsignables } from "../utilidades/equipo"
+import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
@@ -608,6 +609,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         setError(
           errorInsert.code === "23505"
             ? "Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro."
+            : esErrorHoraInvalida(errorInsert)
+              ? MENSAJE_HORA_INVALIDA
             : esErrorSinPermiso(errorInsert)
               ? MENSAJE_SIN_PERMISO
               : "No se pudo registrar la cita. Revisa tu conexión e intenta de nuevo."
@@ -902,7 +905,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           return
         }
         if (errorUpdate) {
-          setErrorReagendar("No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.")
+          setErrorReagendar(esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.")
           return
         }
       }
@@ -933,7 +936,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         return
       }
       if (errorUpdate) {
-        setErrorReagendar("No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
+        setErrorReagendar(esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
         return
       }
     }
@@ -979,7 +982,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           return
         }
         if (errorUpdate) {
-          setBannerError(errorUpdate.code === "23505" ? "Ese horario ya no está disponible — alguien más lo acaba de reservar." : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
+          setBannerError(errorUpdate.code === "23505" ? "Ese horario ya no está disponible — alguien más lo acaba de reservar." : esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
           setMoviendo(null)
           return
         }

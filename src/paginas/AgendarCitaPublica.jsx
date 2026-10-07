@@ -24,6 +24,7 @@ import { isoAFechaLocal } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
 import { supabase } from "../lib/supabaseClient"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
+import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 
 // ─── Paleta de firma (consistente con el login) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -185,6 +186,9 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
         if (error?.message?.includes("horario")) {
           setErrorReserva("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
           supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
+          setFormData((prev) => ({ ...prev, hora: "" }))
+        } else if (esErrorHoraInvalida(error)) {
+          setErrorReserva(MENSAJE_HORA_INVALIDA + " Elige otra hora.")
           setFormData((prev) => ({ ...prev, hora: "" }))
         } else if (error?.message?.includes("cédula")) {
           setErrorReserva("La cédula ingresada no es válida — revisa los dígitos.")

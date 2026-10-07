@@ -40,6 +40,7 @@ import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
 import { validarClaveNueva } from "../utilidades/validaciones"
+import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 
 // ─── Paleta de firma (consistente con todo el sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -185,6 +186,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           setErrorReagenda("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
           refrescarHorasOcupadas()
           setHoraReagenda("")
+        } else if (esErrorHoraInvalida(errorRpc)) {
+          setErrorReagenda(MENSAJE_HORA_INVALIDA + " Elige otra hora.")
+          setHoraReagenda("")
         } else {
           setErrorReagenda("No pudimos reagendar tu cita. Intenta de nuevo en un momento.")
         }
@@ -322,6 +326,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         if (errorRpc?.message?.includes("horario")) {
           setErrorCita("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
           refrescarHorasOcupadas()
+          setHora("")
+        } else if (esErrorHoraInvalida(errorRpc)) {
+          setErrorCita(MENSAJE_HORA_INVALIDA + " Elige otra hora.")
           setHora("")
         } else if (errorRpc?.message?.includes("cédula") || errorRpc?.message?.includes("nacimiento")) {
           setErrorCita("Tu perfil no tiene cédula o fecha de nacimiento registrada — pide en recepción que actualicen tu ficha antes de agendar online.")
