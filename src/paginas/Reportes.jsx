@@ -184,7 +184,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // / cuotas_totales), no el total — mismo bug que se encontró y se decidió
   // no repetir (ver Punto 09): 1 de 6 cuotas pagadas no es el ingreso
   // completo. Una factura 'anulada' no aporta nada.
-  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, enRango }), [consultas, pases, rango]) // eslint-disable-line react-hooks/exhaustive-deps
+  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, enRango, historial: consultasTodas }), [consultas, consultasTodas, pases, rango]) // eslint-disable-line react-hooks/exhaustive-deps
   const consultasEsteMesArr = useMemo(() => consultas.filter((c) => enRango(c.fecha)), [consultas, rango])
   const ventasVinculadasEsteMes = useMemo(() => consultasEsteMesArr.filter((c) => c.productoId), [consultasEsteMesArr])
   const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
@@ -782,6 +782,14 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                     </div>
                   </div>
                 ))}
+                <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-4 py-3 text-xs text-slate-600">
+                  <p className="mb-1 font-bold uppercase tracking-wide text-slate-500">Primera vez o ya eran pacientes</p>
+                  <p><span className="font-mono font-bold text-slate-700">{embudo.primeraVez}</span> vinieron por primera vez · <span className="font-mono font-bold text-slate-700">{embudo.yaEranPacientes}</span> ya eran pacientes</p>
+                  <p className="mt-0.5">
+                    De los de primera vez, <span className="font-mono font-bold text-slate-700">{embudo.compraronPrimeraVez}</span> {embudo.compraronPrimeraVez === 1 ? "compró" : "compraron"}
+                    {embudo.compraronPrimeraVezSobrePrimeraVez != null ? ` (${embudo.compraronPrimeraVezSobrePrimeraVez}%)` : ""}
+                  </p>
+                </div>
                 <p className="pt-1 text-xs text-slate-500">{embudo.enEspera > 0 ? `${embudo.enEspera} más siguen en la lista de espera. ` : ""}Los pacientes anonimizados se siguen contando.</p>
               </div>
               <div className="space-y-4">

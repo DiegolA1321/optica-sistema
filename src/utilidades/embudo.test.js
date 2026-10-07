@@ -40,4 +40,41 @@ describe("calcularEmbudo", () => {
     expect(e.pasaronSobreConsultaron).toBeNull()
     expect(e.proformasSobreVenta).toBeNull()
   })
+
+  describe("primera vez (R40)", () => {
+    const consultas = [
+      { id: "a", pacienteId: "p1", citaId: "k1", fecha: "2026-10-02" }, // nuevo, compró
+      { id: "b", pacienteId: "p2", citaId: "k2", fecha: "2026-10-03" }, // nuevo, no compró
+      { id: "c", pacienteId: "p3", citaId: "k3", fecha: "2026-10-04" }, // ya era paciente (viene del historial)
+      { id: "d", pacienteId: "p4", citaId: null, fecha: "2026-10-05" }, // sin cita, nuevo
+      { id: "h", pacienteId: "p3", citaId: "k0", fecha: "2026-08-10" }, // consulta vieja de p3
+    ]
+    const pases = [
+      { id: 1, estado: "vendido", consultaId: "a" },
+      { id: 2, estado: "descartado", consultaId: "b", motivoDescarte: "precio" },
+      { id: 3, estado: "vendido", consultaId: "c" },
+    ]
+    it("separa primera vez de quienes ya eran pacientes y cuenta cuántos de los nuevos compraron", () => {
+      const e = calcularEmbudo({ enRango, consultas, pases })
+      expect(e.consultaron).toBe(4)
+      expect(e.primeraVez).toBe(3)
+      expect(e.yaEranPacientes).toBe(1)
+      expect(e.compraronPrimeraVez).toBe(1)
+      expect(e.compraronPrimeraVezSobrePrimeraVez).toBe(33)
+      expect(e.compraron).toBe(2)
+    })
+    it("usa el historial completo: con un filtro por motivo no cambia quién es nuevo", () => {
+      const filtradas = consultas.filter((c) => c.id === "c")
+      const sinHistorial = calcularEmbudo({ enRango, consultas: filtradas, pases })
+      expect(sinHistorial.primeraVez).toBe(1) // sin historial, el paciente antiguo parecería nuevo
+      const conHistorial = calcularEmbudo({ enRango, consultas: filtradas, pases, historial: consultas })
+      expect(conHistorial.primeraVez).toBe(0)
+      expect(conHistorial.yaEranPacientes).toBe(1)
+    })
+    it("sin consultas no inventa porcentajes", () => {
+      const e = calcularEmbudo({ enRango, consultas: [], pases: [] })
+      expect(e.primeraVez).toBe(0)
+      expect(e.compraronPrimeraVezSobrePrimeraVez).toBeNull()
+    })
+  })
 })
