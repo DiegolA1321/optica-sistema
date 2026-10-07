@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   numeroOrden, estaAtrasada, estadoVisible, diasDeAtraso, ordenesListasSinAvisar, atrasosPorLaboratorio, laboratoriosUsados,
-  datosInicialesOrden, datosParaRpc, validarOrden, mensajeLentesListos, armarHtmlOrdenLaboratorio, armarHtmlOrdenPaciente,
+  datosInicialesOrden, datosParaRpc, validarOrden, mensajeLentesListos, armarHtmlOrdenLaboratorio, armarHtmlOrdenPaciente, observacionesParaLaboratorio,
 } from "./ordenesLaboratorio"
 
 const hoy = new Date(2026, 9, 6, 10)
@@ -110,5 +110,22 @@ describe("número del comprobante en las dos copias (R36)", () => {
     expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: con })).toContain("Comprobante de venta:</b> CV-0007")
     expect(armarHtmlOrdenPaciente({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: con })).toContain("CV-0007")
     expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: orden() })).not.toContain("Comprobante de venta")
+  })
+
+  it("la orden nueva no copia el lente recomendado de la consulta a las observaciones", () => {
+    expect(datosInicialesOrden({ lenteRecomendado: "Progresivo CR-39" }).observaciones).toBe("")
+  })
+
+  it("la copia del laboratorio imprime los datos de la orden, no la nota vieja copiada de la consulta", () => {
+    const o = orden({ tipoLente: "monofocal", material: "CR-39", observaciones: "Lente recomendado: Monofocal Policarbonato" })
+    const h = armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: o })
+    expect(h).toContain("Material:</b> CR-39")
+    expect(h).not.toContain("Policarbonato")
+    expect(h).not.toContain("Observaciones")
+  })
+
+  it("una observación escrita por una persona sí se imprime", () => {
+    expect(observacionesParaLaboratorio({ observaciones: "Biselar con cuidado" })).toBe("Biselar con cuidado")
+    expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: {}, orden: orden({ observaciones: "Biselar con cuidado" }) })).toContain("Biselar con cuidado")
   })
 })

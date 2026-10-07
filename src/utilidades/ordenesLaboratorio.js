@@ -86,7 +86,9 @@ export function datosInicialesOrden(consulta, { montura = "", luna = null } = {}
     monturaMedidas: "",
     laboratorio: "",
     fechaPrometida: "",
-    observaciones: consulta?.lenteRecomendado ? `Lente recomendado: ${consulta.lenteRecomendado}` : "",
+    // Las observaciones son para lo que el laboratorio debe saber además de los datos de la orden. Ya no se
+    // precargan con el lente recomendado de la consulta: si la venta lleva otro lente, la nota quedaba contradiciendo la orden.
+    observaciones: "",
     ...deLuna,
   }
 }
@@ -129,6 +131,10 @@ p{margin:3px 0}table{border-collapse:collapse}th,td{padding:6px 12px;border:1px 
 
 const contactoOptica = (d = {}) => [d.direccion, d.telefono && `Tel. ${d.telefono}`, d.ruc && `RUC ${d.ruc}`].filter(Boolean).map(escapar).join(" · ")
 
+// Las órdenes viejas traen una nota automática "Lente recomendado: …" copiada de la consulta. Lo que se fabrica es
+// lo que dice la propia orden (tipo y material), así que esa nota automática no se imprime en la copia del laboratorio.
+export const observacionesParaLaboratorio = (orden) => (/^s*lente recomendado:/i.test(orden?.observaciones || "") ? "" : (orden?.observaciones || "").trim())
+
 // Copia para el laboratorio: todo lo que hace falta para fabricar. Sin precios ni datos de contacto del paciente.
 export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, orden }) {
   const trat = tratamientos(orden)
@@ -144,7 +150,7 @@ export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDato
 <p><b>Tratamientos:</b> ${trat.length ? trat.map(escapar).join(", ") : "Ninguno"}</p>
 <h2>Montura</h2>
 <p>${v(orden.montura)}${orden.monturaMedidas ? ` · medidas: ${escapar(orden.monturaMedidas)}` : ""}</p>
-${orden.observaciones ? `<h2>Observaciones</h2><p>${escapar(orden.observaciones)}</p>` : ""}
+${observacionesParaLaboratorio(orden) ? `<h2>Observaciones</h2><p>${escapar(observacionesParaLaboratorio(orden))}</p>` : ""}
 </body></html>`
 }
 

@@ -8,7 +8,7 @@ import { etiquetaFecha } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
-import { puedeCancelarCita } from "../utilidades/filtrosCitas"
+import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -44,9 +44,10 @@ function Fila({ icono: Icono, etiqueta, children }) {
 // en la lista y en el modal "Citas del día". "Ingresar" lleva a la ficha
 // clínica de esa cita (o al cobro si ya quedó pendiente) y "Ver perfil" abre
 // el paciente en otra pestaña para no perder el lugar en la agenda.
-export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar, onDejarDeAtender }) {
+export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender }) {
   const refModal = useModalAccesible(true, onCerrar)
-  const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onIngresar
+  const puedeIngresar = puedeAtenderCita(cita) && !!onIngresar
+  const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
   const agendada = fechaHoraAgendada(cita.creadoEn)
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
     ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")
@@ -139,6 +140,10 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
               <button type="button" onClick={() => onCobrar(cita)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer">
                 <Receipt size={15} aria-hidden="true" /> Cobrar
               </button>
+            ) : puedeAgendarOtra ? (
+              <button type="button" onClick={() => onAgendarOtra(cita)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-200/70 bg-blue-50 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
+                <CalendarPlus size={15} aria-hidden="true" /> Agendar otra cita
+              </button>
             ) : puedeIngresar && (
               <button type="button" onClick={() => onIngresar(cita)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
                 <Stethoscope size={15} aria-hidden="true" /> Ingresar
@@ -151,9 +156,11 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
                 <ExternalLink size={13} aria-hidden="true" /> Ver perfil
               </a>
             )}
-            <button type="button" onClick={() => onEditar(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 cursor-pointer">
-              <CalendarClock size={13} aria-hidden="true" /> Editar cita
-            </button>
+            {puedeEditarCita(cita) && (
+              <button type="button" onClick={() => onEditar(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 cursor-pointer">
+                <CalendarClock size={13} aria-hidden="true" /> Editar cita
+              </button>
+            )}
             {cita.estado === "En Atención" && onDejarDeAtender && (
               <button type="button" onClick={() => onDejarDeAtender(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900 cursor-pointer">
                 <LogOut size={13} aria-hidden="true" /> Dejar de atender

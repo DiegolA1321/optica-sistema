@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, Plus, ArrowRight, Undo2, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, Plus, ArrowRight, Undo2, AlertTriangle, CheckCircle2, Search } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
@@ -12,6 +12,7 @@ import { registrarLog } from "../utilidades/logs"
 import { puede } from "../utilidades/permisosUi"
 import OrdenLaboratorioModal from "./OrdenLaboratorioModal"
 import { numeroComprobante } from "../utilidades/comprobantes"
+import { coincideTexto } from "../utilidades/busqueda"
 import EntregaConSaldoModal from "./EntregaConSaldoModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import {
@@ -31,13 +32,15 @@ const ANTERIOR = { lista: "enviada", entregada: "lista" }
 const FILTROS = [
   { id: "abiertas", label: "Abiertas" },
   { id: "atrasadas", label: "Atrasadas" },
-  { id: "listas", label: "Listas" },
+  { id: "enviadas", label: "Enviadas al laboratorio" },
+  { id: "listas", label: "Listas para entrega" },
   { id: "entregadas", label: "Entregadas" },
   { id: "todas", label: "Todas" },
 ]
 const aplicarFiltro = (ordenes, filtro) => {
   if (filtro === "abiertas") return ordenesAbiertas(ordenes)
   if (filtro === "atrasadas") return ordenesAtrasadas(ordenes)
+  if (filtro === "enviadas") return ordenes.filter((o) => o.estado === "enviada")
   if (filtro === "listas") return ordenes.filter((o) => o.estado === "lista")
   if (filtro === "entregadas") return ordenes.filter((o) => o.estado === "entregada")
   return ordenes
@@ -51,6 +54,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
   const propias = useMemo(() => (pacienteFijo ? ordenes.filter((o) => o.pacienteId === pacienteFijo.id) : ordenes), [ordenes, pacienteFijo])
   const [filtro, setFiltro] = useState(filtroInicial)
   const [laboratorio, setLaboratorio] = useState("")
+  const [texto, setTexto] = useState("")
   const [editando, setEditando] = useState(null)
   const [entregaConSaldo, setEntregaConSaldo] = useState(null) // orden que se quiere entregar con saldo pendiente
   const [otraDe, setOtraDe] = useState(null) // orden de cuya venta se crea otra (segundo par)
@@ -70,8 +74,8 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
   const laboratorios = useMemo(() => laboratoriosUsados(propias), [propias])
   const atrasos = useMemo(() => atrasosPorLaboratorio(propias), [propias])
   const visibles = useMemo(
-    () => aplicarFiltro(propias, filtro).filter((o) => !laboratorio || o.laboratorio === laboratorio).sort((a, b) => (a.fechaPrometida < b.fechaPrometida ? -1 : a.fechaPrometida > b.fechaPrometida ? 1 : b.numero - a.numero)),
-    [propias, filtro, laboratorio],
+    () => aplicarFiltro(propias, filtro).filter((o) => !laboratorio || o.laboratorio === laboratorio).filter((o) => { const p = pacientes.find((x) => x.id === o.pacienteId); return coincideTexto(texto, p?.nombre, p?.cedula, `OL-${String(o.numero).padStart(4, "0")}`, o.numero) }).sort((a, b) => (a.fechaPrometida < b.fechaPrometida ? -1 : a.fechaPrometida > b.fechaPrometida ? 1 : b.numero - a.numero)),
+    [propias, filtro, laboratorio, texto, pacientes],
   )
   const nombreDe = (id) => equipo.find((m) => m.id === id)?.nombre || (id === usuario?.id ? usuario?.nombre : null) || "Equipo"
   const pacienteDe = (o) => pacienteFijo || pacientes.find((p) => p.id === o.pacienteId) || null
@@ -141,6 +145,14 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
         )}
       </div>
 
+      {!pacienteFijo && propias.length > 0 && (
+        <div className="relative">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          <input type="search" aria-label="Buscar orden de laboratorio" placeholder="Buscar por paciente, cédula o número de orden (OL-0011)…" value={texto} onChange={(e) => setTexto(e.target.value)}
+            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50" />
+        </div>
+      )}
+
       {atrasos.length > 0 && !pacienteFijo && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-red-200/60 bg-red-50/60 px-3 py-2 text-xs text-red-800">
           <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />
@@ -156,7 +168,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
       {visibles.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400"><FlaskConical size={24} aria-hidden="true" /></div>
-          <p className="text-sm font-semibold text-slate-600">{propias.length === 0 ? "Aún no hay órdenes de laboratorio." : "No hay órdenes con este filtro."}</p>
+          <p className="text-sm font-semibold text-slate-600">{propias.length === 0 ? "Aún no hay órdenes de laboratorio." : texto ? "Ninguna orden coincide con la búsqueda." : "No hay órdenes con este filtro."}</p>
           {propias.length === 0 && <p className="max-w-sm text-xs text-slate-500">Se crean al registrar una venta que incluye lentes.</p>}
         </div>
       ) : (

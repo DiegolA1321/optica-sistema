@@ -13,6 +13,8 @@ import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
 import RolesPanel from "../componentes/RolesPanel"
+import ModalMisRoles from "../componentes/ModalMisRoles"
+import { cargarMisPermisos } from "../utilidades/sesionPermisos"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -20,24 +22,31 @@ const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-
 
 // Usuarios y roles (Bloque D, R46-R51). Los roles definen los permisos; cada persona recibe uno o varios.
 // Desactivar reemplaza a eliminar: la persona pierde el acceso pero conserva su historial.
-export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
+export default function Usuarios({ usuario, asistentes = [], setAsistentes, alActualizarUsuario }) {
   const [pestana, setPestana] = useState("usuarios")
   const [roles, setRoles] = useState([])
   const [asignaciones, setAsignaciones] = useState([]) // { perfil_id, rol_id }
   const [cargando, setCargando] = useState(true)
   // Asignar roles predefinidos y desactivar solo se ofrecen si la base ya aplica los permisos por nivel (migración 0091).
   const [nivelesVigentes, setNivelesVigentes] = useState(false)
+  // El administrador principal (el primero de la óptica) cambia sus propios roles desde aquí; un administrador
+  // creado después puede cambiar los de los demás, pero no los suyos. La base lo hace cumplir (migración 0098).
+  const [esPrincipal, setEsPrincipal] = useState(true)
+  const [misRolesAbierto, setMisRolesAbierto] = useState(false)
   const [mensajeExito, setMensajeExito] = useState(null)
   const mostrarExito = (msg) => { setMensajeExito(msg); setTimeout(() => setMensajeExito(null), 3500) }
 
   const cargar = useCallback(async () => {
     if (!supabase || !usuario?.opticaId) { setCargando(false); return }
-    const [{ data: r }, { data: a }, { data: v }, { data: perfiles }] = await Promise.all([
+    const [{ data: r }, { data: a }, { data: v }, { data: perfiles }, { data: principal }] = await Promise.all([
       supabase.from("roles").select("*").eq("optica_id", usuario.opticaId).order("es_predefinido", { ascending: false }).order("nombre"),
       supabase.from("perfil_roles").select("perfil_id, rol_id"),
       supabase.rpc("permisos_por_nivel_vigentes"),
       supabase.from("perfiles").select("id, nombre, email, etiqueta_rol, es_optometra, cedula, activo, desactivado_en, motivo_desactivacion").eq("optica_id", usuario.opticaId).eq("rol", "asistente"),
+      usuario.rol === "admin" ? supabase.rpc("soy_administrador_principal") : Promise.resolve({ data: null }),
     ])
+    // Sin la función (base sin la 0098) se asume principal: la base decide al guardar.
+    if (principal === false) setEsPrincipal(false)
     setRoles(r || [])
     setAsignaciones(a || [])
     setNivelesVigentes(v === true)
@@ -88,10 +97,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
   const rolesSeleccionados = roles.filter((r) => rolesElegidos.includes(r.id))
   const vistaPrevia = useMemo(() => { const p = permisosDeRoles(rolesSeleccionados); return { menu: menuDePermisos(p), resumen: resumenPermisos(p) } }, [rolesElegidos, roles]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const guardarRoles = async (perfilId) => {
+  const guardarRoles = async (perfilId, elegidos = rolesElegidos) => {
     const actuales = asignaciones.filter((a) => a.perfil_id === perfilId).map((a) => a.rol_id)
-    const quitar = actuales.filter((id) => !rolesElegidos.includes(id))
-    const agregar = rolesElegidos.filter((id) => !actuales.includes(id))
+    const quitar = actuales.filter((id) => !elegidos.includes(id))
+    const agregar = elegidos.filter((id) => !actuales.includes(id))
     // primero se agrega y luego se quita: la persona nunca queda un instante sin ningún rol
     if (agregar.length > 0) {
       const { error: e1 } = await supabase.from("perfil_roles").insert(agregar.map((rol_id) => ({ perfil_id: perfilId, rol_id, asignado_por: usuario.id })))
@@ -101,6 +110,19 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       const { error: e2 } = await supabase.from("perfil_roles").delete().eq("perfil_id", perfilId).in("rol_id", quitar)
       if (e2) return e2
     }
+    return null
+  }
+
+  // "Mis roles" del administrador principal: guarda y refresca su sesión para que las vistas del menú se actualicen al instante.
+  const guardarMisRoles = async (ids) => {
+    const errorRoles = await guardarRoles(usuario.id, ids)
+    if (errorRoles) return /solo el administrador principal/i.test(errorRoles.message) ? "Solo el administrador principal puede cambiar sus propios roles." : errorRoles.message
+    const [extras, { data: yo }] = await Promise.all([cargarMisPermisos(supabase), supabase.from("perfiles").select("es_optometra").eq("id", usuario.id).maybeSingle()])
+    alActualizarUsuario?.({ ...(extras || {}), esOptometra: !!yo?.es_optometra })
+    registrarLog(usuario, "usuarios", "Cambió sus propios roles", roles.filter((r) => ids.includes(r.id)).map((r) => r.nombre).join(", ") || "Sin roles")
+    setMisRolesAbierto(false)
+    mostrarExito("Tus roles se guardaron. Elige tu vista en el menú de tu cuenta.")
+    cargar()
     return null
   }
 
@@ -289,13 +311,19 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                     {usuario.correo && <p className="truncate font-mono text-xs text-slate-500">{usuario.correo}</p>}
                   </div>
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600"><Lock size={10} aria-hidden="true" /> Solo lectura</span>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{esPrincipal ? "Administrador principal" : "Solo lectura"}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">Administrador</span>
+                {rolesDe(usuario.id).map((r) => <span key={r.id} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">{r.nombre}</span>)}
                 {usuario.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
               </div>
-              <p className="mt-3 text-xs text-slate-500">Cuenta principal de la óptica: ve y administra todos los módulos. No se edita ni se desactiva desde aquí.</p>
+              <p className="mt-3 text-xs text-slate-500">Ve y administra todos los módulos; no se desactiva desde aquí.{esPrincipal ? " Puedes sumarte roles para trabajar con su vista (por ejemplo, la de Optómetra)." : " Solo el administrador principal cambia sus propios roles."}</p>
+              {esPrincipal && nivelesVigentes && (
+                <button type="button" onClick={() => setMisRolesAbierto(true)} className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                  <Pencil size={13} aria-hidden="true" /> Mis roles
+                </button>
+              )}
             </li>
           )}
           {asistentes.map((a) => {
@@ -340,6 +368,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
             )
           })}
         </ul>
+      )}
+
+      {misRolesAbierto && (
+        <ModalMisRoles roles={rolesAsignables} elegidosIniciales={asignaciones.filter((a) => a.perfil_id === usuario.id).map((a) => a.rol_id)} onGuardar={guardarMisRoles} onCerrar={() => setMisRolesAbierto(false)} />
       )}
 
       {modal != null && createPortal(

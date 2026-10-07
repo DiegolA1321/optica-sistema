@@ -38,3 +38,24 @@ export function textoDiagnostico(consulta) {
   const norm = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   return partes.filter((p, i) => !partes.some((q, j) => j !== i && (norm(q).includes(norm(p)) && (norm(q) !== norm(p) || j < i)))).join(" · ")
 }
+
+// Pacientes que consultaron y no compraron (N4): el último pase de cada paciente está descartado
+// ("No compró") y después no hubo un comprobante vigente suyo. Devuelve Map(pacienteId → { motivo, fecha }).
+// "Lo pensará" sigue contando: no compró todavía.
+export function pacientesQueNoCompraron(pases = [], facturas = []) {
+  const ultimo = new Map()
+  for (const p of pases) {
+    if (!p.pacienteId) continue
+    const fecha = p.cerradaEn || p.pasadaEn || ""
+    const previo = ultimo.get(p.pacienteId)
+    if (!previo || fecha > previo.fecha) ultimo.set(p.pacienteId, { pase: p, fecha })
+  }
+  const res = new Map()
+  for (const [pacienteId, { pase, fecha }] of ultimo) {
+    if (pase.estado !== "descartado") continue
+    const compro = facturas.some((f) => f.pacienteId === pacienteId && f.estado !== "anulada" && (f.creadoEn || "") > fecha)
+    if (compro) continue
+    res.set(pacienteId, { motivo: etiquetaMotivo(pase.motivoDescarte, pase.detalleDescarte) || "Sin motivo indicado", fecha })
+  }
+  return res
+}

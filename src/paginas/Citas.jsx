@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Stethoscope,
   CalendarClock,
+  CalendarPlus,
   Sun,
   ChevronLeft,
   ChevronRight,
@@ -54,7 +55,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -135,7 +136,7 @@ function SelectorAsignado({ id, valor, onChange, equipo }) {
 // Tarjeta de cita — extraída de la lista agrupada por día para poder
 // reutilizarla tal cual (mismo diseño, ya aprobado por el ing) dentro del
 // modal de "Citas del día" de la vista por mes, sin mantener dos copias.
-function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onAtender, onCobrar, onAbrirMenuAcciones }) {
+function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onAtender, onAgendarOtra, onCobrar, onAbrirMenuAcciones }) {
   const info = motivoInfo(cita.motivo, motivosConsulta)
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
@@ -143,7 +144,8 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
   // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
-  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onAtender
+  const puedeAtender = puedeAtenderCita(cita) && !!onAtender
+  const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
@@ -295,6 +297,14 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
               className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer"
             >
               <Receipt size={14} /> Cobrar
+            </button>
+          ) : puedeAgendarOtra ? (
+            <button
+              type="button"
+              onClick={() => onAgendarOtra(cita)}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
+            >
+              <CalendarPlus size={14} /> Agendar otra cita
             </button>
           ) : puedeAtender && (
             <button
@@ -676,6 +686,13 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       setDuracionCustom(disponibilidad?.duracionCita || 40)
     }
     setModalAbierto(true)
+  }
+
+  // "Agendar otra cita" para quien no asistió: abre el mismo modal de agendar con el paciente ya elegido.
+  const agendarOtraCita = (cita) => {
+    const paciente = cita.pacienteId ? pacientes.find((p) => p.id === cita.pacienteId) : null
+    abrirModal()
+    if (paciente) seleccionarPaciente(paciente)
   }
 
   const cerrarModal = () => {
@@ -1299,6 +1316,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
                         onAtender={puedeAtenderPacientes ? atenderCita : undefined}
+          onAgendarOtra={agendarOtraCita}
                       onAbrirMenuAcciones={abrirMenuAcciones}
                     />
                   ))}
@@ -1522,6 +1540,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             setVista("lista")
           }}
           onAtender={puedeAtenderPacientes ? atenderCita : undefined}
+          onAgendarOtra={agendarOtraCita}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
@@ -1541,6 +1560,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
           }}
           onAtender={puedeAtenderPacientes ? atenderCita : undefined}
+          onAgendarOtra={agendarOtraCita}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
@@ -1623,6 +1643,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                             cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
                         onAtender={puedeAtenderPacientes ? atenderCita : undefined}
+          onAgendarOtra={agendarOtraCita}
                             onAbrirMenuAcciones={abrirMenuAcciones}
                           />
                         ))}
@@ -2275,6 +2296,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             cobroPendiente={pendientesPorCita.has(cita.id)}
             onCerrar={() => setDetalleCitaId(null)}
             onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); atenderCita(c) } : undefined}
+            onAgendarOtra={(c) => { setDetalleCitaId(null); agendarOtraCita(c) }}
             onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
             onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
             onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
@@ -2320,13 +2342,15 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                 <LogOut size={15} /> Dejar de atender
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => { setMenuAccionesId(null); abrirReagendar(cita) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-            >
-              <CalendarClock size={15} /> Editar cita
-            </button>
+            {puedeEditarCita(cita) && (
+              <button
+                type="button"
+                onClick={() => { setMenuAccionesId(null); abrirReagendar(cita) }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+              >
+                <CalendarClock size={15} /> Editar cita
+              </button>
+            )}
             {puedeCancelarCita(cita) && (
               <button
                 type="button"

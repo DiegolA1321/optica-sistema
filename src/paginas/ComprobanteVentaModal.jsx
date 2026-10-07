@@ -589,7 +589,7 @@ export default function ComprobanteVentaModal({
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — por defecto {UMBRAL_STOCK_BAJO})</span></label>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — si lo dejas vacío usa el stock mínimo general)</span></label>
                     <input type="number" min="0" step="1" value={npCritico} onChange={(e) => setNpCritico(e.target.value)} placeholder={String(UMBRAL_STOCK_BAJO)}
                       className="w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50" />
                   </div>

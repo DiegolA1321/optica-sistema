@@ -99,7 +99,7 @@ function ListaDelDia({ iso, citas, ancla, onCerrar, onElegir, onVerSemana }) {
   )
 }
 
-export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, coincide, onDiaClick, onAtender, onEditar, onCancelar, onCobrar, onAgendar }) {
+export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, coincide, onDiaClick, onAtender, onAgendarOtra, onEditar, onCancelar, onCobrar, onAgendar }) {
   const refSeccion = useRef(null)
   const altoSeccion = useAlturaDisponible(refSeccion)
   const [abierta, setAbierta] = useState(null) // { id, ancla } | null
@@ -277,6 +277,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
           cobroPendiente={!!cobroPendienteIds?.has(citaAbierta.id)}
           onCerrar={cerrarTarjeta}
           onAtender={conCierre(onAtender)}
+          onAgendarOtra={onAgendarOtra ? conCierre(onAgendarOtra) : undefined}
           onEditar={conCierre(onEditar)}
           onCancelar={conCierre(onCancelar)}
           onCobrar={conCierre(onCobrar)}

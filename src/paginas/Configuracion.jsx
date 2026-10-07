@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabaseClient"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { costoBaseMotivo, renombrarCostoMotivo } from "../utilidades/costosConsulta"
 import { datosOpticaProforma } from "../utilidades/proforma"
+import { umbralStock, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -196,6 +197,47 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
 }
 
 // Datos que salen en la proforma impresa: contacto de la óptica y vigencia.
+// Stock mínimo: un solo número para todo el inventario. Un producto con ese stock o menos aparece como "stock bajo".
+function StockMinimo({ parametrizacion, setParametrizacion, onExito, onError }) {
+  const actual = umbralStock(parametrizacion)
+  const [borrador, setBorrador] = useState(null)
+  const [guardando, setGuardando] = useState(false)
+  const texto = borrador ?? String(actual)
+  const n = parseInt(texto, 10)
+  const invalido = !(n >= 0 && n <= 9999)
+  const guardar = async () => {
+    if (invalido) { onError?.("El stock mínimo debe ser un número entre 0 y 9999."); return }
+    setGuardando(true)
+    const { error } = (await setParametrizacion((prev) => ({ ...prev, stockMinimo: n }))) || {}
+    setGuardando(false)
+    if (error) { onError?.("No se pudo guardar el stock mínimo. Revisa tu conexión e intenta de nuevo."); return }
+    setBorrador(null)
+    onExito?.("Stock mínimo guardado correctamente.")
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200/60 bg-white p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Package size={18} /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold" style={{ color: INK }}>Stock mínimo del inventario</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Un producto con esta cantidad o menos aparece como "stock bajo" en Inicio, Inventario y los avisos. Vale para todos los productos que no tengan su propio mínimo (se define al editar el producto). Por defecto es {UMBRAL_STOCK_BAJO}.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+              Stock bajo desde
+              <input type="number" min={0} max={9999} inputMode="numeric" value={texto} aria-invalid={invalido} onChange={(e) => setBorrador(e.target.value)}
+                className="w-20 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-center font-semibold text-slate-800 outline-none focus-visible:border-blue-500" />
+              unidades o menos
+            </label>
+            <button type="button" onClick={guardar} disabled={borrador === null || guardando || invalido} className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50" style={{ background: GRAD }}>
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DatosProforma({ parametrizacion, setParametrizacion, onExito, onError }) {
   const g = datosOpticaProforma(parametrizacion)
   const [borrador, setBorrador] = useState({})
@@ -582,6 +624,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           />
         </div>
         <CostosPorMotivo motivos={motivosConsulta} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
+        <StockMinimo parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
         <DatosProforma parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
       </div>
       </div>

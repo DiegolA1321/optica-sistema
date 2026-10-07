@@ -51,7 +51,7 @@ const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
 const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { esHoy } from "../utilidades/disponibilidad"
-import { esStockBajo } from "../utilidades/inventario"
+import { esStockBajo, umbralStock } from "../utilidades/inventario"
 import { filtrarComprobantes } from "../utilidades/saldosVentas"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { diasVencido } from "../utilidades/fidelizacion"
@@ -495,7 +495,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const alertas = useMemo(() => {
     const arr = []
     inventario.forEach((p) => {
-      if (esStockBajo(p)) arr.push({ icon: Package, color: "#d97706", bg: "#fffbeb", texto: `Stock bajo: ${p.nombre}`, sub: `${p.stock} u. disponibles`, destino: "inventario" })
+      if (esStockBajo(p, umbralStock(parametrizacion))) arr.push({ icon: Package, color: "#d97706", bg: "#fffbeb", texto: `Stock bajo: ${p.nombre}`, sub: `${p.stock} u. disponibles`, destino: "inventario" })
     })
     const citasDeHoy = citas.filter((c) => esHoy(c.fecha))
     if (citasDeHoy.length) arr.push({ icon: Calendar, color: "#2563eb", bg: "#eff6ff", texto: `${citasDeHoy.length} cita${citasDeHoy.length > 1 ? "s" : ""} para hoy`, sub: "Revisa la agenda del día", destino: "citas" })
@@ -529,7 +529,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       }
     })
     return arr
-  }, [inventario, citas, pacientes, consultas, mensajesResumen])
+  }, [inventario, citas, pacientes, consultas, mensajesResumen, parametrizacion])
 
   const hora = new Date().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
@@ -644,6 +644,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <Inventario
             usuario={usuario}
+            umbralStock={umbralStock(parametrizacion)}
             cargaInicial={cargaInicialStaff}
             inventario={inventario}
             setInventario={setInventario}
@@ -700,7 +701,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
-        return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} />
+        return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} alActualizarUsuario={alActualizarUsuario} />
       case "configuracion":
         return (
           <Configuracion
@@ -719,6 +720,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inicio":
         return (
           <Inicio
+            onVerPacientes={(filtro) => { setAccionPacienteInicio({ accion: "filtrar", ...filtro }); navegar("pacientes") }}
+            umbralStock={umbralStock(parametrizacion)}
             equipo={equipo}
             setCitas={setCitas}
             onAviso={mostrarAviso}
