@@ -28,7 +28,7 @@ import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencion from "../componentes/RequiereAtencion"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
-import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, agendaHoyOProximas, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
+import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
 import { INK } from "@/lib/tema"
@@ -267,6 +267,7 @@ export default function Inicio({
       ]}
     />
   )
+  const sinTerminar = useMemo(() => fichasSinTerminar(citas, usuario?.id), [citas, usuario?.id])
   const filaHoyOptometra = (
     <FilaTarjetas
       titulo="Hoy"
@@ -274,7 +275,7 @@ export default function Inicio({
       tarjetas={[
         { id: "mias", titulo: "Mis citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
         { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: () => setVista?.("citas"), cta: hoyVista.siguiente && puede(usuario, "consultas", "crear") ? "Atender" : null, onCta: () => onAtenderEnCitas?.(hoyVista.siguiente) },
-        { id: "enAtencion", titulo: "En atención ahora", valor: hoyVista.enAtencion, desc: "Pacientes con la ficha abierta", icono: Activity, color: "amber", onClick: () => setVista?.("citas") },
+        { id: "sinTerminar", titulo: "Fichas sin terminar", valor: sinTerminar.length, desc: sinTerminar.length === 0 ? "Ninguna atención abierta" : sinTerminar.length === 1 ? sinTerminar[0].paciente : `${sinTerminar[0].paciente} y ${sinTerminar.length - 1} más`, icono: Activity, color: sinTerminar.length > 0 ? "amber" : "slate", onClick: () => setVista?.("citas"), cta: sinTerminar.length > 0 && puede(usuario, "consultas", "crear") ? "Retomar" : null, onCta: () => onAtenderCita?.(sinTerminar[0]) },
         { id: "atendidos", titulo: "Atendidos hoy", valor: hoyVista.atendidas, desc: "Fichas terminadas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
       ]}
     />
@@ -421,7 +422,7 @@ export default function Inicio({
 
   const segmentosDia = []
   if (["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)) segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"), `${enAtencionAhora.length} en atención ahora`)
-  else if (plantilla === "optometra") segmentosDia.push(plural(hoyVista.total, "cita tuya hoy", "citas tuyas hoy"), `${enAtencionAhora.length} en atención ahora`)
+  else if (plantilla === "optometra") segmentosDia.push(plural(hoyVista.total, "cita tuya hoy", "citas tuyas hoy"), ...(sinTerminar.length > 0 ? [plural(sinTerminar.length, "ficha sin terminar", "fichas sin terminar")] : []))
   else if (plantilla === "ventas" || (plantilla === "general" && veVentas)) segmentosDia.push(plural(listos.length, "paciente espera su venta", "pacientes esperan su venta"))
   const bResumenDia = (
     <p aria-label="Resumen del día" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">

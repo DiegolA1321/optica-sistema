@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, rangoDelMes, agendaHoyOProximas, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
+import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
 import { hoyISO, fechaAISO } from "./disponibilidad"
 
 const hoy = hoyISO()
@@ -102,5 +102,14 @@ describe("agenda de hoy o próximas", () => {
   it("respeta el límite", () => {
     const muchas = Array.from({ length: 9 }, (_, i) => cita({ fecha: manana, hora: `${String(i + 1).padStart(2, "0")}:00 AM` }))
     expect(agendaHoyOProximas(muchas, 5).citas).toHaveLength(5)
+  })
+})
+
+describe("fichas sin terminar", () => {
+  it("son las atenciones abiertas a nombre de la persona, la más antigua primero", () => {
+    const mias = [cita({ estado: "En Atención", atendidoPor: "yo", fecha: "2026-10-05" }), cita({ estado: "En Atención", atendidoPor: "yo", fecha: "2026-10-03" })]
+    const lista = fichasSinTerminar([...mias, cita({ estado: "En Atención", atendidoPor: "otra" }), cita({ estado: "Atendida", atendidoPor: "yo" }), cita({ estado: "Pendiente", asignadoA: "yo" })], "yo")
+    expect(lista.map((c) => c.fecha)).toEqual(["2026-10-03", "2026-10-05"])
+    expect(fichasSinTerminar(mias, null)).toEqual([])
   })
 })

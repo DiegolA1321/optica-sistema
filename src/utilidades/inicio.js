@@ -82,3 +82,10 @@ export function saldosPorCobrar(facturas, abonos) {
 // Pacientes a los que ya se les dio una proforma y siguen "lo pensará" (listo con proforma entregada).
 export const proformasEnSeguimiento = (pases) => pases.filter((p) => p.estado === "listo" && p.proformaEntregadaEn)
 export const pasesListos = (pases) => pases.filter((p) => p.estado === "listo")
+
+// Fichas sin terminar: las atenciones que esta persona dejó abiertas ("En Atención" a su nombre), la más antigua primero.
+export function fichasSinTerminar(citas, usuarioId) {
+  return citas
+    .filter((c) => c.estado === "En Atención" && usuarioId != null && c.atendidoPor === usuarioId)
+    .sort((a, b) => (String(a.fecha) < String(b.fecha) ? -1 : String(a.fecha) > String(b.fecha) ? 1 : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)))
+}
