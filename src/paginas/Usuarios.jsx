@@ -209,7 +209,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
       </div>
 
       <div role="tablist" aria-label="Secciones" className="flex w-fit gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-        {[["usuarios", "Usuarios", Users, asistentes.length], ["roles", "Roles", ShieldCheck, roles.length]].map(([id, etiqueta, Icono, n]) => (
+        {[["usuarios", "Usuarios", Users, asistentes.length + (usuario?.rol === "admin" ? 1 : 0)], ["roles", "Roles", ShieldCheck, roles.length]].map(([id, etiqueta, Icono, n]) => (
           <button key={id} type="button" role="tab" aria-selected={pestana === id} onClick={() => setPestana(id)} className={"flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (pestana === id ? "text-white" : "text-slate-500 hover:bg-slate-50")} style={pestana === id ? { background: GRAD } : undefined}>
             <Icono size={14} aria-hidden="true" /> {etiqueta} <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (pestana === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{n}</span>
           </button>
@@ -269,7 +269,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
         </div>
       ) : pestana === "roles" ? (
         <RolesPanel usuario={usuario} roles={roles} asignaciones={asignaciones} onCambio={cargar} onExito={mostrarExito} />
-      ) : asistentes.length === 0 ? (
+      ) : asistentes.length === 0 && usuario?.rol !== "admin" ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300"><Users size={30} /></div>
           <p className="mt-4 text-base font-semibold text-slate-600">Aún no hay usuarios creados</p>
@@ -277,6 +277,26 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-label="Usuarios">
+          {/* El administrador de la óptica aparece en la lista, solo lectura: sus datos y su rol no se editan ni se desactivan desde aquí. */}
+          {usuario?.rol === "admin" && (
+            <li className="flex flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{(usuario.nombre || "A").charAt(0).toUpperCase()}</div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-800">{usuario.nombre}</p>
+                    {usuario.correo && <p className="truncate font-mono text-xs text-slate-500">{usuario.correo}</p>}
+                  </div>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600"><Lock size={10} aria-hidden="true" /> Solo lectura</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">Administrador</span>
+                {usuario.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
+              </div>
+              <p className="mt-3 text-xs text-slate-500">Cuenta principal de la óptica: ve y administra todos los módulos. No se edita ni se desactiva desde aquí.</p>
+            </li>
+          )}
           {asistentes.map((a) => {
             const susRoles = rolesDe(a.id)
             const permisos = permisosDeRoles(susRoles)
