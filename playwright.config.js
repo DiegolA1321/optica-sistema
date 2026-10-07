@@ -4,6 +4,8 @@ import { defineConfig } from '@playwright/test'
 import dotenv from 'dotenv'
 
 dotenv.config({ path: '.env.test', quiet: true })
+// Solo para las claves públicas VITE_SUPABASE_* (las pruebas de la base las necesitan).
+dotenv.config({ path: '.env.local', quiet: true })
 
 const PUERTO = process.env.E2E_PUERTO || '5174'
 const BASE = `http://localhost:${PUERTO}`
