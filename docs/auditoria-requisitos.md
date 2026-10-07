@@ -128,6 +128,7 @@ Además, dentro del Bloque F se pidieron las **órdenes atrasadas por laboratori
 - **No reproducido en el navegador** (herramienta desconectada): la hipótesis es una sesión guardada caducada o revocada en el momento de la primera lectura. Se confirma abriendo la app con una sesión vieja y mirando la pestaña de red.
 - **¿Requiere base de datos?** No.
 - **Propuesta:** que esa lectura pública use un cliente sin sesión (ya existe `crearClienteTemporal()` en `lib/supabaseClient.js`, con `persistSession:false`). Cambio de unas cinco líneas.
+- **Hecho (7 de octubre, rama `despues-reunion`):** `obtenerClientePublico()` en `lib/supabaseClient.js` y `resolverOpticaPublica` lo usa; con prueba (`utilidades/opticaActual.test.js`). Sin tocar la base. Falta confirmarlo en el navegador con una sesión vieja.
 
 ### 4.2 Hallazgo nuevo y más grave: la vista pública acepta escrituras anónimas
 
@@ -254,4 +255,5 @@ Del mismo tipo (7 de octubre, tarde): `e2e/admin-navegacion.spec.js:15` y `e2e/i
 
 ## 7. Pendientes para después de la reunión (anotado el 7 de octubre)
 
+- ✅ **Hecho en `despues-reunion` (7 de octubre):** aviso de citas canceladas por pacientes, texto de "AV sin evaluar", 401 de `opticas_publicas`, pruebas intermitentes y cuarta medición de Nielsen (`docs/nielsen-medicion-4.md`). Falta publicarlo y probarlo en vivo.
 - **Aviso de citas canceladas por pacientes.** Agregar en "Requiere tu atención" de Recepción y del administrador un aviso con las citas que los pacientes cancelaron (cancelada por el paciente), con un botón para reagendarlas. Hoy las canceladas solo se ven en Citas (Semana y Mes, con su leyenda) y no generan ningún aviso, así que nadie las retoma.
