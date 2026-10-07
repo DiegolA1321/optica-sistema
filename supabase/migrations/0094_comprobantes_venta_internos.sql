@@ -1,6 +1,5 @@
 -- Bloque E (R57-R59 y ajuste 6.2 de vision-sistema.md): comprobantes de venta internos y lunas como texto.
--- NO APLICADA TODAVÍA — Diego debe aprobar este SQL antes de correrlo con
--- node scripts/_run-migration.mjs. Backup previo: ~/backups-optica/pre-bloque-e-2026-10-06.dump
+-- Aprobada por Diego el 2026-10-07 (con la condición de compatibilidad con main, ver punto 4). Backup previo: ~/backups-optica/pre-bloque-e-2026-10-06.dump
 -- (pg_dump -Fc del esquema public, hecho el 2026-10-06 antes de proponer esto).
 --
 -- Qué hace:
@@ -12,9 +11,11 @@
 --   3. Las lunas dejan de ser productos de inventario: pasan a ser una línea de tipo 'luna'
 --      (texto + precio, sin producto_id, sin stock) con un `detalle` jsonb opcional (tipo,
 --      material, tratamientos) que precarga la orden de laboratorio y alimenta reportes.
---   4. crear_factura_venta cambia de firma (parámetro nuevo, columna nueva en el resultado): se
---      hace `drop function` de la anterior ANTES de crear la nueva (gotcha de la sobrecarga
---      silenciosa) y el único llamador, FacturaVentaModal.jsx, se actualiza en el mismo bloque.
+--   4. crear_factura_venta se recrea (el resultado gana una columna, por eso `drop function` de la
+--      anterior ANTES de crear la nueva, sin sobrecarga silenciosa). COMPATIBLE CON main: conserva los
+--      8 parámetros actuales con los mismos nombres y orden; el parámetro nuevo (p_factura_electronica)
+--      va al final con valor por defecto, y la columna nueva del resultado (numero) va al final.
+--      El modal de venta publicado en main sigue vendiendo sin cambios mientras se publica la pantalla nueva.
 --   5. registrar_factura_electronica: para cargar o corregir ese número después de la venta (la
 --      factura electrónica suele emitirse más tarde). Exige nivel 'editar' de Ventas.
 --   6. anular_factura_venta: solo cambia el texto del mensaje de error ("comprobante", no "factura").
@@ -96,7 +97,7 @@ create function public.crear_factura_venta(
   p_cuotas_totales integer default null,
   p_registrado_por uuid default null,
   p_factura_electronica text default null
-) returns table (id uuid, numero integer, monto_total numeric, estado text, created_at timestamptz)
+) returns table (id uuid, monto_total numeric, estado text, created_at timestamptz, numero integer)
 language plpgsql
 security definer
 set search_path to 'public'
@@ -204,7 +205,7 @@ begin
     );
   end loop;
 
-  return query select v_factura_id, v_numero, v_monto_total, v_estado, v_created_at;
+  return query select v_factura_id, v_monto_total, v_estado, v_created_at, v_numero;
 end;
 $function$;
 
@@ -302,4 +303,5 @@ $function$;
 --    "Descontinuar" (activo = false) ya existe desde 0081: el producto sale de las listas y de los
 --    buscadores pero la fila se conserva. Se propone solo el de QA; el de Karla V pertenece a otra
 --    óptica y lo decide su administrador desde Inventario → Descontinuar.
--- update public.inventario set activo = false where id = 'f19f6e79-3243-4dd6-b510-8061b29d010e';
+--    Decisión de Diego (2026-10-07): descontinuar el de QA de Solna. Es la línea siguiente.
+update public.inventario set activo = false where id = 'f19f6e79-3243-4dd6-b510-8061b29d010e';
