@@ -46,6 +46,7 @@ import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -88,41 +89,9 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
   return Math.max(odIdx, oiIdx) <= 1 ? "Bien corregido" : "Requiere ajuste"
 }
 
-// Umbral compartido por calcularEvolucionIA (refracción de hoy vs. visita
-// anterior) y tendenciaHistorica (entre las 2 visitas anteriores, sin
-// depender de lo que se teclee hoy): variaciones menores a 0.25 D se leen
-// como ruido de medición, no un cambio real.
-const verdictoPorVariacion = (variacionPromedio) => {
-  if (Math.abs(variacionPromedio) < 0.25) return "Sin cambios"
-  return variacionPromedio > 0.25 ? "Aumentó" : "Disminuyó"
-}
+// El umbral y el cálculo de la tendencia (refracción de hoy vs. visita anterior, y entre las 2 visitas
+// anteriores) viven en utilidades/tendenciaGraduacion.js, compartidos con el perfil del paciente.
 
-const numONull = (v) => {
-  const n = parseFloat(v)
-  return Number.isNaN(n) ? null : n
-}
-
-// Equivalente esférico de un ojo (esfera + cilindro/2). null si ese ojo no
-// tiene esfera ni cilindro registrados: sin dato no hay cálculo, nunca un 0.
-const eeOjo = (esf, cil) => {
-  const e = numONull(esf)
-  const c = numONull(cil)
-  if (e === null && c === null) return null
-  return (e ?? 0) + (c ?? 0) / 2
-}
-
-// Variación promedio de |EE| entre dos refracciones ({od,oi}), calculada solo
-// sobre los ojos que tienen dato en ambas. null si no hay nada comparable.
-const variacionEntre = (a, b) => {
-  const difs = ["od", "oi"]
-    .map((o) => {
-      const x = eeOjo(a?.[o]?.esfera, a?.[o]?.cilindro)
-      const y = eeOjo(b?.[o]?.esfera, b?.[o]?.cilindro)
-      return x === null || y === null ? null : Math.abs(x) - Math.abs(y)
-    })
-    .filter((d) => d !== null)
-  return difs.length ? difs.reduce((s, d) => s + d, 0) / difs.length : null
-}
 
 const textoVariacion = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)} D`
 
@@ -525,13 +494,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
   // solo tienen sentido una vez que hay datos de hoy que comparar (ver
   // "Comparación con la refracción de hoy" en PanelEvolucion). Decisión de
   // Diego, 30 sept.
-  const tendenciaHistorica = useMemo(() => {
-    if (historialPaciente.length < 2) return null
-    const [reciente, previa] = historialPaciente
-    const variacion = variacionEntre(reciente, previa)
-    if (variacion === null) return null
-    return { variacion, verdicto: verdictoPorVariacion(variacion), fechaReciente: reciente.fecha, fechaPrevia: previa.fecha }
-  }, [historialPaciente])
+  const tendenciaHistorica = useMemo(() => tendenciaEntreConsultas(historialPaciente), [historialPaciente])
 
   const seleccionarPacienteCombo = (paciente) => {
     setPacienteId(paciente.id)

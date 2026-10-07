@@ -67,6 +67,7 @@ import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 }
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
+import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
@@ -818,6 +819,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Pacientes con algún saldo pendiente (venta puntual sin completar, o
   // factura multi-línea en "pendiente_pago") — para el badge "Pagos
   // pendientes" y el filtro rápido del mismo nombre.
+  // Tendencia de graduación por paciente, calculada con la misma regla que la ficha clínica y el perfil
+  // (entre sus dos consultas más recientes), no con el valor guardado al momento de cada consulta.
+  const tendenciaPorPaciente = useMemo(() => {
+    const porPaciente = new Map()
+    consultas.forEach((c) => { if (c.pacienteId) porPaciente.set(c.pacienteId, [...(porPaciente.get(c.pacienteId) || []), c]) })
+    const mapa = new Map()
+    porPaciente.forEach((lista, id) => mapa.set(id, tendenciaEntreConsultas(lista.sort(ordenarPorFechaYCreacion))?.verdicto))
+    return mapa
+  }, [consultas])
   const idsConDeuda = useMemo(() => {
     const set = new Set()
     ventas.forEach((v) => { if (v.estado === "pendiente") set.add(v.pacienteId) })
@@ -1243,7 +1253,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                 pacientesVisibles.map((paciente, indiceFila) => {
                   const correccion = CORRECCION[paciente.estadoCorreccion] || CORRECCION["Sin evaluación"]
                   const IconoCorreccion = correccion.icon
-                  const tendencia = TENDENCIA[paciente.evolucion]
+                  const tendencia = TENDENCIA[tendenciaPorPaciente.get(paciente.id)]
                   const activa = indiceFila === filaActiva
                   // Badges contextuales de alto valor — lo que recepción
                   // necesita saber de un vistazo sin abrir el perfil: si
@@ -2164,7 +2174,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           const ultima = consultasPaciente[0]
                           const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
                           const IconoCorreccion = correccion.icon
-                          const tendencia = TENDENCIA[ultima.evolucionCalculada]
+                          const tendencia = TENDENCIA[tendenciaEntreConsultas(consultasPaciente)?.verdicto]
                           const colorEstado = CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"]
                           return (
                             <>
