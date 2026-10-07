@@ -876,13 +876,13 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
             <p className="py-8 text-center text-sm text-slate-500">No hay órdenes de laboratorio abiertas ni entregadas en este período.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] text-xs">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                     <th scope="col" className="pb-2 text-left font-bold">Laboratorio</th>
                     <th scope="col" className="pb-2 text-right font-bold">Abiertas</th>
                     <th scope="col" className="pb-2 text-right font-bold">Atrasadas</th>
-                    <th scope="col" className="pb-2 text-right font-bold">Entrega promedio</th>
+                    <th scope="col" className="pb-2 text-right font-bold">Entrega prom.</th>
                   </tr>
                 </thead>
                 <tbody>
