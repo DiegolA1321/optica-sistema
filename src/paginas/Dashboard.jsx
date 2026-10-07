@@ -146,8 +146,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
   // Órdenes de laboratorio que piden acción: lentes listos sin avisar y órdenes atrasadas (R37).
   const ordenesPendientes = useMemo(() => ordenesListasSinAvisar(ordenesLab).length + ordenesAtrasadas(ordenesLab).length, [ordenesLab])
-  // El contador del menú es de quien vende: aparece sobre "Ventas".
-  const vendeAqui = puede(usuario, "ventas", "ver")
+  // El contador del menú es de quien vende (ventas: crear), no de quien solo puede mirar Ventas: aparece sobre "Ventas".
+  const vendeAqui = puede(usuario, "ventas", "crear")
   const avisosVentas = vendeAqui ? listosParaVenta + ordenesPendientes : 0
   const textoAvisosVentas = [
     listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
