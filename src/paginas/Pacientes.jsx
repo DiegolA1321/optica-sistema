@@ -84,6 +84,8 @@ import ModalesVentas from "../componentes/ModalesVentas"
 import { useVentas } from "../utilidades/useVentas"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
+import { hoyISO } from "../utilidades/disponibilidad"
+import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -2736,14 +2738,37 @@ function BadgeEstadoCita({ estado }) {
 }
 
 function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender }) {
-  // Una cita atendida se abre aquí mismo para ver qué se diagnosticó, sin ir a la pestaña Diagnósticos.
-  const [abiertas, setAbiertas] = useState({})
+  // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
+  const [citaAbierta, setCitaAbierta] = useState(null)
+  // Buscador del historial: rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
+  const [desde, setDesde] = useState("")
+  const [hasta, setHasta] = useState("")
+  const [texto, setTexto] = useState("")
   const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   const pendientes = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.estado === "En Atención" ? -1 : b.estado === "En Atención" ? 1 : porFechaHora(a, b)))
   // Una atención sin cita (paciente que llegó sin agendar) también aparece aquí: así este historial es el único lugar donde se ve todo lo que pasó.
   const sinCita = consultas.filter((k) => !citas.some((c) => c.id === k.citaId)).map((k) => ({ id: "consulta-" + k.id, fecha: k.fecha, hora: "Sin cita", motivo: k.motivo, estado: "Atendida", _consulta: k }))
-  const historial = [...citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)), ...sinCita].sort((a, b) => porFechaHora(b, a))
+  const historialCompleto = [...citas.filter((c) => !ESTADOS_PENDIENTES.includes(c.estado)), ...sinCita].sort((a, b) => porFechaHora(b, a))
+  const quitarTildes = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  const buscado = quitarTildes(texto.trim())
+  const historial = historialCompleto.filter((c) => {
+    if (desde && c.fecha < desde) return false
+    if (hasta && c.fecha > hasta) return false
+    if (!buscado) return true
+    const k = consultaDe(c)
+    return quitarTildes([c.motivo, c.estado, k && textoDiagnostico(k), k?.lenteRecomendado].filter(Boolean).join(" ")).includes(buscado)
+  })
+  const hayFiltro = !!(desde || hasta || texto.trim())
+  const limpiarFiltro = () => { setDesde(""); setHasta(""); setTexto("") }
+  // Atajos de rango: terminan hoy y empiezan hace 1, 6 o 12 meses.
+  const rangoReciente = (meses) => {
+    const f = new Date()
+    f.setMonth(f.getMonth() - meses)
+    const dos = (n) => String(n).padStart(2, "0")
+    setDesde(f.getFullYear() + "-" + dos(f.getMonth() + 1) + "-" + dos(f.getDate()))
+    setHasta(hoyISO())
+  }
   const proxima = pendientes[0]
   const otras = pendientes.slice(1)
   const fila = (c, conIngresar) => (
@@ -2755,16 +2780,9 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
       <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
       <BadgeEstadoCita estado={c.estado} />
       {!conIngresar && consultaDe(c) && (
-        <button type="button" onClick={() => setAbiertas((a) => ({ ...a, [c.id]: !a[c.id] }))} aria-expanded={!!abiertas[c.id]} aria-label={abiertas[c.id] ? "Ocultar el diagnóstico de esta cita" : "Ver el diagnóstico de esta cita"} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
-          Diagnóstico <ChevronDown size={14} aria-hidden="true" className={"transition-transform " + (abiertas[c.id] ? "rotate-180" : "")} />
+        <button type="button" onClick={() => setCitaAbierta(c)} aria-haspopup="dialog" aria-label={"Ver el diagnóstico de la cita del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
+          Ver diagnóstico <ChevronRight size={14} aria-hidden="true" />
         </button>
-      )}
-      {!conIngresar && abiertas[c.id] && consultaDe(c) && (
-        <div className="w-full pb-2">
-          <p className="text-sm font-semibold text-slate-800">{textoDiagnostico(consultaDe(c)) || "Sin diagnóstico registrado"}</p>
-          {consultaDe(c).lenteRecomendado && <p className="text-xs text-slate-600">Lente recomendado: <span className="font-semibold">{consultaDe(c).lenteRecomendado}</span></p>}
-          <DetalleFichaConsulta c={consultaDe(c)} />
-        </div>
       )}
       {conIngresar && onIngresar && (
         <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
@@ -2804,14 +2822,73 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
       )}
 
       <section aria-label="Historial de citas">
-        <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Historial de citas · {historial.length}</h3>
+        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Historial de citas · {hayFiltro ? historial.length + " de " + historialCompleto.length : historialCompleto.length}</h3>
+        {historialCompleto.length > 1 && (
+          <div role="search" aria-label="Buscar en el historial de citas" className="mb-3 flex flex-wrap items-end gap-x-3 gap-y-2 rounded-2xl border border-slate-200/60 bg-white p-3">
+            <label className="min-w-0 flex-1 basis-48 text-xs font-semibold text-slate-500">
+              Buscar
+              <span className="relative mt-1 block">
+                <Search size={14} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="search" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Motivo o diagnóstico" className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
+              </span>
+            </label>
+            <label className="text-xs font-semibold text-slate-500">
+              Desde
+              <input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
+            </label>
+            <label className="text-xs font-semibold text-slate-500">
+              Hasta
+              <input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[["Último mes", 1], ["6 meses", 6], ["Último año", 12]].map(([etiqueta, meses]) => (
+                <button key={meses} type="button" onClick={() => rangoReciente(meses)} className="rounded-full border border-slate-200/60 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 cursor-pointer">{etiqueta}</button>
+              ))}
+              {hayFiltro && <button type="button" onClick={limpiarFiltro} className="rounded-full px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Limpiar</button>}
+            </div>
+          </div>
+        )}
         {historial.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center text-sm text-slate-500">Todavía no hay citas pasadas.</p>
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center text-sm text-slate-500">{hayFiltro ? "Ninguna cita coincide con esa búsqueda." : "Todavía no hay citas pasadas."}</p>
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{historial.map((c) => fila(c, false))}</ul>
         )}
       </section>
+      {citaAbierta && consultaDe(citaAbierta) && <ModalDiagnosticoCita cita={citaAbierta} consulta={consultaDe(citaAbierta)} onCerrar={() => setCitaAbierta(null)} />}
     </div>
+  )
+}
+
+// Ficha de una cita ya atendida, en una ventana encima del perfil: fecha, estado, diagnóstico y todo lo registrado ese día.
+function ModalDiagnosticoCita({ cita, consulta, onCerrar }) {
+  const refModal = useModalAccesible(true, onCerrar)
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="diagnostico-cita-titulo" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Stethoscope size={20} aria-hidden="true" /></div>
+            <div className="min-w-0">
+              <h2 id="diagnostico-cita-titulo" className="text-lg font-bold" style={{ color: INK }}>Diagnóstico de la cita</h2>
+              <p className="text-xs text-slate-500">{fechaLegible(cita.fecha) || "Sin fecha"} · {cita.hora}{cita.motivo ? " · " + cita.motivo : ""}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <BadgeEstadoCita estado={cita.estado} />
+            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <p className="text-base font-bold text-slate-800">{textoDiagnostico(consulta) || "Sin diagnóstico registrado"}</p>
+          {consulta.lenteRecomendado && <p className="mt-0.5 text-sm text-slate-600">Lente recomendado: <span className="font-semibold">{consulta.lenteRecomendado}</span></p>}
+          <DetalleFichaConsulta c={consulta} />
+        </div>
+        <div className="shrink-0 border-t border-slate-100 p-4">
+          <button type="button" onClick={onCerrar} className="w-full rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 

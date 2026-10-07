@@ -52,6 +52,8 @@ export function useModalAccesible(abierto, onCerrar) {
 
     const alTeclado = (e) => {
       if (e.key === "Escape") {
+        // Solo cierra esta ventana: sin esto, Escape también llegaba a la pantalla de debajo (por ejemplo cerraba el perfil del paciente).
+        e.stopPropagation()
         refCerrar.current?.()
         return
       }
