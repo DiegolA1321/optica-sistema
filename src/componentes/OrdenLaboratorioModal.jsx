@@ -9,6 +9,7 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { registrarLog } from "../utilidades/logs"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
+import { numeroComprobante, datosOrdenDeLinea } from "../utilidades/comprobantes"
 import {
   EVENTO_ORDEN, MATERIALES_LENTE, TIPOS_LENTE, laboratoriosUsados, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias,
 } from "../utilidades/ordenesLaboratorio"
@@ -27,7 +28,7 @@ const consultaMinima = (c) => ({
 // Crear (o corregir) la orden de laboratorio de una venta con lentes (R36).
 // Trae de la consulta lo que existe; quien vende completa el resto.
 export default function OrdenLaboratorioModal({
-  paciente, facturaId, consultaId = null, consulta = null, monturaInicial = "", orden = null,
+  paciente, facturaId, consultaId = null, consulta = null, monturaInicial = "", lunaInicial = null, facturaNumero = null, orden = null,
   laboratoriosSugeridos: sugeridosIniciales = [], usuario, opticaDatos: datosIniciales = {}, onCreada, onActualizada, onCerrar,
 }) {
   const [laboratoriosSugeridos, setLaboratoriosSugeridos] = useState(sugeridosIniciales)
@@ -43,14 +44,16 @@ export default function OrdenLaboratorioModal({
   useEffect(() => {
     if (orden) { setD({ ...orden }); return }
     const armar = async (c) => {
-      // La montura se precarga de la que se vendió en la venta (un producto de categoría de armazones, o el primero)
+      // La montura es la primera línea de producto de la venta y la luna (tipo, material, tratamientos) sale
+      // de su línea de luna: se escriben una sola vez, en la venta (Bloque E).
       let montura = monturaInicial
-      if (!montura && supabase && facturaId) {
-        const { data: lineas } = await supabase.from("facturas_venta_lineas").select("descripcion, producto_id, inventario(categoria)").eq("factura_id", facturaId).eq("tipo", "producto")
-        const armazon = (lineas || []).find((l) => /armaz|montura|marco/i.test(l.inventario?.categoria || "")) || (lineas || [])[0]
-        montura = armazon?.descripcion || ""
+      let luna = lunaInicial && Object.keys(lunaInicial).length > 0 ? lunaInicial : null
+      if ((!montura || !luna) && supabase && facturaId) {
+        const { data: lineas } = await supabase.from("facturas_venta_lineas").select("tipo, descripcion, detalle").eq("factura_id", facturaId).in("tipo", ["producto", "luna"])
+        if (!montura) montura = (lineas || []).find((l) => l.tipo === "producto")?.descripcion || ""
+        if (!luna) luna = datosOrdenDeLinea((lineas || []).find((l) => l.tipo === "luna"))
       }
-      const base = datosInicialesOrden(c, { montura })
+      const base = datosInicialesOrden(c, { montura, luna })
       const entrega = new Date(); entrega.setDate(entrega.getDate() + 7)
       setD({ ...base, fechaPrometida: iso(entrega) })
     }
@@ -113,7 +116,15 @@ export default function OrdenLaboratorioModal({
       avisarOrdenGuardada(guardada)
       ;(orden ? onActualizada : onCreada)?.(guardada, { imprimir })
     }
-    if (imprimir && guardada) imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos, paciente, orden: guardada }))
+    if (imprimir && guardada) {
+      // El número del comprobante va en las dos copias (R36). Si no llegó por props, se lee de la venta.
+      let numeroVenta = facturaNumero
+      if (numeroVenta == null && supabase && facturaId) {
+        const { data: f } = await supabase.from("facturas_venta").select("numero").eq("id", facturaId).maybeSingle()
+        numeroVenta = f?.numero ?? null
+      }
+      imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos, paciente, orden: { ...guardada, facturaNumero: numeroVenta != null ? numeroComprobante(numeroVenta) : "" } }))
+    }
     onCerrar()
   }
 

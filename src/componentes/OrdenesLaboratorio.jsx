@@ -11,6 +11,7 @@ import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { registrarLog } from "../utilidades/logs"
 import { puede } from "../utilidades/permisosUi"
 import OrdenLaboratorioModal from "./OrdenLaboratorioModal"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import EntregaConSaldoModal from "./EntregaConSaldoModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import {
@@ -110,7 +111,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
     onAviso?.(`Aviso a ${p.nombre} abierto en WhatsApp.`)
   }
 
-  const imprimir = (o) => imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOptica, paciente: pacienteDe(o) || {}, orden: o }))
+  const imprimir = (o) => imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOptica, paciente: pacienteDe(o) || {}, orden: { ...o, facturaNumero: facturaDe(o)?.numero != null ? numeroComprobante(facturaDe(o).numero) : "" } }))
 
   const alternarHistorial = async (o) => {
     if (abierta === o.id) { setAbierta(null); return }

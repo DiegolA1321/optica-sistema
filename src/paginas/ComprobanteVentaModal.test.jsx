@@ -45,3 +45,35 @@ describe("ComprobanteVentaModal — panel de cobro único", () => {
     expect(screen.getByText("$0.00", { selector: "span.font-mono.text-xl" })).toBeInTheDocument()
   })
 })
+
+describe("ComprobanteVentaModal — luna como texto y factura electrónica (Bloque E)", () => {
+  it("agrega una línea de luna con su precio, sin tocar el inventario", () => {
+    render(<ComprobanteVentaModal usuario={{}} inventario={[PRODUCTO]} pacienteFijo={PACIENTES[0]} onCerrar={() => {}} />)
+    fireEvent.click(screen.getByRole("button", { name: "Luna" }))
+    fireEvent.change(screen.getByLabelText("Material"), { target: { value: "CR-39" } })
+    fireEvent.click(screen.getByLabelText("Antirreflejo"))
+    fireEvent.change(screen.getByLabelText("Precio de la luna"), { target: { value: "55" } })
+    fireEvent.click(screen.getByRole("button", { name: /Agregar luna/i }))
+    expect(screen.getByText("Luna: Monofocal · CR-39 · antirreflejo")).toBeInTheDocument()
+    expect(screen.getByText("$55.00", { selector: "span.font-mono.text-xl" })).toBeInTheDocument()
+    // una luna sugiere la orden de laboratorio
+    expect(screen.getByLabelText(/Esta venta incluye lentes/i)).toBeChecked()
+  })
+
+  it("avisa sin bloquear cuando la factura electrónica no tiene el formato del SRI", () => {
+    render(<ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} onCerrar={() => {}} />)
+    const campo = screen.getByLabelText(/Factura electrónica \(SRI\)/i)
+    fireEvent.change(campo, { target: { value: "FE-77" } })
+    expect(screen.getByText(/No tiene el formato 001-001-000000123/i)).toBeInTheDocument()
+    fireEvent.change(campo, { target: { value: "001001000000123" } })
+    fireEvent.blur(campo)
+    expect(campo).toHaveValue("001-001-000000123")
+    expect(screen.getByText(/Documento interno\. No es una factura electrónica autorizada por el SRI/i)).toBeInTheDocument()
+  })
+
+  it("no ofrece un producto descontinuado", () => {
+    render(<ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} inventario={[{ ...PRODUCTO, activo: false }]} onCerrar={() => {}} />)
+    fireEvent.focus(screen.getByPlaceholderText(/Buscar montura o accesorio/i))
+    expect(screen.queryByText("Armazón Test")).not.toBeInTheDocument()
+  })
+})

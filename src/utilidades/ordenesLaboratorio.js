@@ -135,7 +135,7 @@ export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDato
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Laboratorio</title><style>${ESTILO}</style></head><body>
 <div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Orden de laboratorio</b> · copia para el laboratorio</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
-<p><b>Laboratorio:</b> ${v(orden.laboratorio)} &nbsp; <b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Entrega prometida:</b> ${escapar(fechaLegible(orden.fechaPrometida))}</p>
+<p><b>Laboratorio:</b> ${v(orden.laboratorio)} &nbsp; <b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Entrega prometida:</b> ${escapar(fechaLegible(orden.fechaPrometida))}${orden.facturaNumero ? ` &nbsp; <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <h2>Receta</h2>
 <table><thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>Adición</th></tr></thead><tbody>${ojoFila("OD", orden.recetaOd)}${ojoFila("OI", orden.recetaOi)}</tbody></table>
 <p style="margin-top:8px"><b>DP lejos:</b> ${mm(orden.dpLejos)} &nbsp; <b>DP cerca:</b> ${mm(orden.dpCerca)} &nbsp; <b>Altura de montaje:</b> ${mm(orden.alturaMontaje)}</p>
@@ -155,7 +155,7 @@ export function armarHtmlOrdenPaciente({ opticaNombre = "Óptica", opticaDatos =
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Paciente</title><style>${ESTILO}</style></head><body>
 <div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Comprobante de orden de lentes</b> · copia para el paciente</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
-<p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))}${orden.facturaNumero ? ` · <b>Venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
+<p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))}${orden.facturaNumero ? ` · <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <p><b>Entrega estimada:</b> ${escapar(fechaLegible(orden.fechaPrometida))}</p>
 <h2>Tu pedido</h2>
 <p><b>Lente:</b> ${escapar(tipoLabel(orden.tipoLente))}${orden.material ? `, ${escapar(orden.material)}` : ""}</p>

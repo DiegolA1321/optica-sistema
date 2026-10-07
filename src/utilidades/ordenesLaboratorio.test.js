@@ -103,3 +103,12 @@ describe("luna de la venta (Bloque E)", () => {
     expect(esLineaDeLente({ tipo: "producto", descripcion: "Luna" })).toBe(false)
   })
 })
+
+describe("número del comprobante en las dos copias (R36)", () => {
+  it("aparece en la copia del laboratorio y en la del paciente solo si existe", () => {
+    const con = orden({ facturaNumero: "CV-0007" })
+    expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: con })).toContain("Comprobante de venta:</b> CV-0007")
+    expect(armarHtmlOrdenPaciente({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: con })).toContain("CV-0007")
+    expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: { nombre: "Ana" }, orden: orden() })).not.toContain("Comprobante de venta")
+  })
+})
