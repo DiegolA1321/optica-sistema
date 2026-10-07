@@ -824,8 +824,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     setMostrarFactura(true)
     mostrarNotif(
       consulta?.productoId || consulta?.lenteProductoId
-        ? `Factura precargada con "${consulta.productoNombre || consulta.lenteRecomendado}".`
-        : `Abriendo factura para ${pacienteHistorial?.nombre}.`,
+        ? `Venta precargada con "${consulta.productoNombre || consulta.lenteRecomendado}".`
+        : `Abriendo la venta de ${pacienteHistorial?.nombre}.`,
     )
   }
 
@@ -2006,7 +2006,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
                       style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
                     >
-                      <Receipt size={16} /> Facturar receta
+                      <Receipt size={16} /> Vender receta
                     </button>
                   )}
                   <MenuMasPerfil
