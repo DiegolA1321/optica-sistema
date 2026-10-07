@@ -75,7 +75,8 @@ describe("puedeCancelarCita", () => {
   it("no se cancela lo ya atendido ni lo ya cancelado", () => {
     expect(puedeCancelarCita({ estado: "Atendida" })).toBe(false)
     expect(puedeCancelarCita({ estado: "Cancelada" })).toBe(false)
-    for (const estado of ["Pendiente", "En Espera", "En Atención", "No Asistió"]) expect(puedeCancelarCita({ estado })).toBe(true)
+    for (const estado of ["No Asistió", "En Atención"]) expect(puedeCancelarCita({ estado })).toBe(false)
+    for (const estado of ["Pendiente", "En Espera"]) expect(puedeCancelarCita({ estado })).toBe(true)
   })
 })
 

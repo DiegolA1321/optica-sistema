@@ -37,8 +37,9 @@ export function esPrimeraVez(cita, consultas = []) {
   )
 }
 
-// Una cita ya atendida (hubo consulta) o ya cancelada no se cancela: lo atendido queda en el historial.
-export const puedeCancelarCita = (cita) => cita.estado !== "Cancelada" && cita.estado !== "Atendida"
+// Solo se cancela lo que todavía no empezó: no lo atendido, ni lo cancelado, ni lo que no asistió (queda como registro
+// de inasistencia), ni lo que está en atención (ahí se "deja de atender").
+export const puedeCancelarCita = (cita) => ["Pendiente", "En Espera"].includes(cita.estado)
 
 // Qué acciones ofrece cada estado. Atender solo tiene sentido en lo que sigue abierto; una cita ya atendida o
 // cancelada no se edita; una que no asistió muestra su estado y ofrece agendar otra (corregir el estado, por

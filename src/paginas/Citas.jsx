@@ -315,7 +315,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
               style={{ background: GRAD, boxShadow: "0 6px 14px -6px rgba(37,99,235,0.5)" }}
             >
               {marcandoEstadoId === cita.id ? <Loader2 size={14} className="animate-spin" /> : <Stethoscope size={14} />}
-              Atender
+              {cita.estado === "En Atención" ? "Retomar" : "Atender"}
             </button>
           )}
         </div>

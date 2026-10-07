@@ -138,7 +138,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
           </button>
         ) : puedeAtender && (
           <button type="button" onClick={() => onAtender(cita)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
-            <Stethoscope size={14} /> Atender
+            <Stethoscope size={14} /> {cita.estado === "En Atención" ? "Retomar" : "Atender"}
           </button>
         )}
         {cita.pacienteId && (
