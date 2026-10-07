@@ -208,7 +208,7 @@ Agregar al embudo dos cifras con lo que ya existe: pacientes cuya primera consul
 
 ## 5. Datos de demostración de la Óptica Demo
 
-Script: `scripts/seed-optica-demo.mjs`. **No se ejecutó de verdad.** Se corrió el ensayo (modo por defecto), que hace todo dentro de una transacción y la revierte; la comprobación posterior confirmó que la Óptica Demo sigue con 0 pacientes.
+Script: `scripts/seed-optica-demo.mjs`. **Ejecutado de verdad el 6 de octubre (20:56 hora de Ecuador)** tras un ensayo previo revertido: 29 verificaciones correctas; solo cambió la Óptica Demo (las otras tres ópticas conservan exactamente sus filas y fechas de modificación) y no se encoló ningún correo ni mensaje (`notificaciones_enviadas`, `mensajes` y la cola de `pg_net` sin cambios). No se puede volver a ejecutar sobre la misma óptica: aborta si ya tiene datos.
 
 ```
 node --env-file=.env.local scripts/seed-optica-demo.mjs              # ensayo: no deja nada
