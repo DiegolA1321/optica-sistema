@@ -162,6 +162,11 @@ function mapPaciente(p) {
     medidasSolicitadasEn: p.medidas_solicitadas_en,
   }
 }
+// Un producto del inventario tal como lo usa la pantalla (se usa al cargar y al refrescar cada 20 s).
+function mapProducto(p) {
+  return { id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false }
+}
+
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
@@ -553,6 +558,12 @@ function App() {
         if (ordenesData) setOrdenesLab(ordenesData.map(mapOrden))
         const { data: abonosData } = await supabase.from('abonos_factura').select('*').eq('optica_id', usuario.opticaId)
         if (abonosData) setAbonos(abonosData.map(mapAbono))
+        // El inventario también se refresca: si el administrador cambia un precio o una cantidad, los demás roles lo ven sin cerrar sesión.
+        const { data: productosData } = await supabase.from('inventario').select('*').eq('optica_id', usuario.opticaId).order('created_at', { ascending: false })
+        if (productosData) {
+          const nuevos = productosData.map(mapProducto)
+          setInventario((prev) => (JSON.stringify(prev) === JSON.stringify(nuevos) ? prev : nuevos))
+        }
         const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
         if (data) {
           setCitas((prev) => {
@@ -604,7 +615,7 @@ function App() {
       // skeleton en vez de "no hay datos todavía" mientras tanto.
       Promise.allSettled([
         supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (data) setInventario(data.map((p) => ({ id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false })))
+          if (data) setInventario(data.map(mapProducto))
           else if (error) registrarErrorCarga('inventario')
         }),
         // pacientes/citas/consultas: hidratan el estado local con lo real de
