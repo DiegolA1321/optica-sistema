@@ -4,6 +4,7 @@ import { Receipt, Stethoscope, CalendarClock, X, Plus, Globe, Building2, Externa
 import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
+import { puedeCancelarCita } from "../utilidades/filtrosCitas"
 import { colorDe, useAlturaDisponible, urlPerfilPaciente, LEYENDA_ESTADOS } from "./calendarioComun"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
@@ -147,7 +148,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
         <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
           <CalendarClock size={14} /> Editar cita
         </button>
-        {cita.estado !== "Cancelada" && (
+        {puedeCancelarCita(cita) && (
           <button type="button" onClick={() => onCancelar(cita)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
             <X size={14} /> Cancelar cita
           </button>

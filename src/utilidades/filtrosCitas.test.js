@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "./filtrosCitas"
+import { puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -68,5 +68,13 @@ describe("coincideResponsable", () => {
     expect(coincideResponsable(cita, "asignadoA", "u1")).toBe(true)
     expect(coincideResponsable(cita, "asignadoA", "u2")).toBe(false)
     expect(coincideResponsable(cita, "atendidoPor", "u2")).toBe(true)
+  })
+})
+
+describe("puedeCancelarCita", () => {
+  it("no se cancela lo ya atendido ni lo ya cancelado", () => {
+    expect(puedeCancelarCita({ estado: "Atendida" })).toBe(false)
+    expect(puedeCancelarCita({ estado: "Cancelada" })).toBe(false)
+    for (const estado of ["Pendiente", "En Espera", "En Atención", "No Asistió"]) expect(puedeCancelarCita({ estado })).toBe(true)
   })
 })

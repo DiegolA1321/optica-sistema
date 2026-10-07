@@ -53,7 +53,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -2326,13 +2326,15 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             >
               <CalendarClock size={15} /> Editar cita
             </button>
-            <button
-              type="button"
-              onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-            >
-              <X size={15} /> Cancelar cita
-            </button>
+            {puedeCancelarCita(cita) && (
+              <button
+                type="button"
+                onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+              >
+                <X size={15} /> Cancelar cita
+              </button>
+            )}
           </div>,
           document.body,
         )

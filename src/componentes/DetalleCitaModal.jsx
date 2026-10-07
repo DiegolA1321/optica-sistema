@@ -7,6 +7,7 @@ import { etiquetaFecha } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
+import { puedeCancelarCita } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -157,7 +158,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
                 <LogOut size={13} aria-hidden="true" /> Dejar de atender
               </button>
             )}
-            {cita.estado !== "Cancelada" && (
+            {puedeCancelarCita(cita) && (
               <button type="button" onClick={() => onCancelar(cita)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 transition-colors hover:text-red-700 cursor-pointer">
                 <X size={13} aria-hidden="true" /> Cancelar cita
               </button>
