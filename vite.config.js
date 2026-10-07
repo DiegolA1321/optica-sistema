@@ -41,6 +41,11 @@ export default defineConfig({
     environment: 'jsdom',
     globals: false,
     setupFiles: './src/test-setup.js',
+    // Las pruebas de pantalla (ConsultaMedica, Inicio, Ventas...) renderizan árboles grandes en jsdom: solas tardan 0,3-2,5 s,
+    // pero con todos los archivos en paralelo (o con el servidor de desarrollo abierto) llegan a 7 s y el límite por defecto
+    // de 5 s las marcaba como fallidas al azar. Una prueba síncrona no se interrumpe: el límite solo decide si falla al terminar.
+    testTimeout: 20000,
+    hookTimeout: 20000,
     // Las pruebas de e2e/ son de Playwright, no de Vitest.
     exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
   },
