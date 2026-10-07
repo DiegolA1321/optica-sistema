@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaHoraLegible } from "../utilidades/formatoFecha"
 import { createPortal } from "react-dom"
 import { X, User, Stethoscope, CalendarDays, Clock, CalendarPlus, Globe, Building2, Hash, Phone, IdCard, ExternalLink, CalendarClock, Receipt, AlertTriangle, MessageSquare, UserCog, UserCheck, LogOut } from "lucide-react"
 import { INK } from "@/lib/tema"
@@ -21,12 +22,12 @@ const BADGE_ESTADO = {
 const BADGE_PENDIENTE = "border-amber-200/60 bg-amber-50 text-amber-700"
 const ETIQUETA_ESTADO = { "En Atención": "En atención", "No Asistió": "No asistió" }
 
-// "4 oct 2026, 15:20" a partir del created_at de la cita (timestamptz).
+// "4 oct 2026, 03:20 PM" a partir del created_at de la cita (timestamptz).
 function fechaHoraAgendada(iso) {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleString("es-EC", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  return fechaHoraLegible(d, { anio: true })
 }
 
 function Fila({ icono: Icono, etiqueta, children }) {

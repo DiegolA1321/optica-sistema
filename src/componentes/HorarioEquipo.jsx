@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaCorta } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Users, CalendarRange, Loader2 } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
@@ -21,7 +22,7 @@ const ESTADO_AHORA = {
 const diaDe = (iso) => ETIQUETAS_DIA[DIAS_SEMANA[new Date(`${iso}T12:00:00`).getDay()]]
 const diaNumero = (iso) => iso.split("-")[2]
 // "5 oct – 11 oct" (sin "Ayer", "Hoy" ni "Mañana", que no sirven para un rango)
-const corta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-EC", { day: "numeric", month: "short" }).replace(".", "")
+const corta = (iso) => fechaCorta(iso)
 
 // Horarios ocupados y disponibles (R19). Cada persona ve su semana; el
 // administrador además ve a todo el equipo: quién está ocupado ahora, cuántos

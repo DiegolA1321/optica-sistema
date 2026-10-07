@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -196,7 +197,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         return
       }
       setAvisos(data.map((a) => ({
-        id: a.id, texto: a.texto, fecha: new Date(a.created_at).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+        id: a.id, texto: a.texto, fecha: fechaLegible(a.created_at),
         destinatarioId: a.destinatario_id, destinatarioNombre: a.destinatario_nombre, destinatarioTelefono: a.destinatario_telefono,
       })))
     })
@@ -223,7 +224,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
       const aviso = {
         texto: nuevoAviso.trim(),
-        fecha: new Date().toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }),
+        fecha: fechaLegible(new Date()),
         destinatarioId: destinatario?.id || null,
         destinatarioNombre: destinatario?.nombre || null,
         destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",

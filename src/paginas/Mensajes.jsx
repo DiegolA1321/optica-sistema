@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
 import { MessageSquare, Megaphone, Send, Clock, AlertCircle, CheckCircle2, Wallet, Receipt, Printer } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
@@ -13,9 +14,9 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 // muestra un texto neutral que no lo insinúa.
 const NOMBRE_EQUIPO = MODO_SAAS_VISIBLE ? "Diego Óptica" : "la óptica"
 
-const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })
+const formatearFecha = (fecha) => fechaLegible(fecha)
 const formatearFechaHora = (fecha) =>
-  new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  fechaHoraLegible(fecha, { anio: true })
 
 export default function Mensajes({ usuario }) {
   const [mensajes, setMensajes] = useState([])

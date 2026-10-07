@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { fechaLegible } from "../utilidades/formatoFecha"
 import { createPortal } from "react-dom"
 import { Receipt, Stethoscope, CalendarClock, X, Plus, Globe, Building2, ExternalLink } from "lucide-react"
 import { isoAFechaLocal, hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
@@ -111,7 +112,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
           </dd>
         </div>
         {cita.creadoEn && (
-          <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Agendada el</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{new Date(cita.creadoEn).toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" })}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Agendada el</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{fechaLegible(cita.creadoEn)}</dd></div>
         )}
         <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Fecha y hora</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
       </dl>

@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaHoraLegible } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -247,7 +248,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes }) {
                       <p className="text-sm text-slate-700"><span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}{l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}</p>
                       <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo}</p>
                     </div>
-                    <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{new Date(l.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
                   </div>
                 ))}
               </div>

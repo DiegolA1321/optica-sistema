@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
@@ -641,7 +642,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
 
     setCitas([...citas, nuevaCita])
-    registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${nuevaCita.fecha}`)
+    registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
 
     const irADeUnaALaFicha = atenderInmediato
     setConfirmando(false)
@@ -755,7 +756,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
     setBannerError("")
     setCitas(citas.map((c) => (c.id === porCancelar ? { ...c, estado: "Cancelada", canceladaPor: "recepcion" } : c)))
-    registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${cancelada.fecha}` : "")
+    registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${fechaLegible(cancelada.fecha)}` : "")
     setPorCancelar(null)
   }
 
@@ -933,7 +934,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       }
       const { asignado_a: asignadoNuevo, cancelada_por: canceladaPorNuevo, ...cambiosLocales } = cambios
       setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}), ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
-      registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${reagendando.fecha}`)
+      registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${fechaLegible(reagendando.fecha)}`)
       cerrarReagendar()
       setMensajeExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
       setTimeout(() => setMensajeExito(null), 3000)
@@ -972,7 +973,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     let numeroLimpio = (cita.telefono || "").replace(/\D/g, "")
     if (numeroLimpio.startsWith("0")) numeroLimpio = "593" + numeroLimpio.substring(1)
     if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) numeroLimpio = "593" + numeroLimpio
-    const texto = `Hola ${cita.paciente}, te escribimos de ${usuario?.opticaNombre || "tu óptica"} para avisarte que tu cita fue reagendada. Nueva fecha: ${cita.fecha} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
+    const texto = `Hola ${cita.paciente}, te escribimos de ${usuario?.opticaNombre || "tu óptica"} para avisarte que tu cita fue reagendada. Nueva fecha: ${fechaLegible(cita.fecha)} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
   }
@@ -1011,7 +1012,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       }
       const citaActualizada = { ...cita, fecha: nuevaFecha, hora: nuevaHora }
       setCitas((prev) => prev.map((c) => (c.id === cita.id ? citaActualizada : c)))
-      registrarLog(usuario, "citas", "Reagendó una cita (arrastrando en el calendario)", `${cita.paciente} · ${nuevaFecha}`)
+      registrarLog(usuario, "citas", "Reagendó una cita (arrastrando en el calendario)", `${cita.paciente} · ${fechaLegible(nuevaFecha)}`)
       setBannerError("")
       setMoviendo(null)
       setReagendada(citaActualizada)

@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaHoraLegible, fechaCorta } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
   Users,
@@ -188,7 +189,7 @@ export default function Inicio({
           <span>{cita.hora || "09:00 AM"}</span>
           {mostrarFecha ? (
             <span className="font-sans text-[10px] font-medium text-slate-500">
-              {(() => { const f = parseFechaFlexible(cita.fecha); return f ? f.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "" })()}
+              {(() => { const f = parseFechaFlexible(cita.fecha); return f ? fechaCorta(f) : "" })()}
             </span>
           ) : (
             cita.espera && <span className="font-sans text-[10px] font-medium text-amber-600">{cita.espera} esp</span>
@@ -504,7 +505,7 @@ export default function Inicio({
               {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
               <span className="text-slate-400"> · {NOMBRE_MODULO[l.modulo] || l.modulo}</span>
             </p>
-            <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{new Date(l.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
           </li>
         ))}
       </ul>

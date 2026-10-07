@@ -1364,7 +1364,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <td className="px-5 py-4 text-slate-500">
                         <div className="flex items-center gap-1.5">
                           <Calendar size={13} className="text-slate-500" />
-                          <span>{paciente.ultimaConsulta}</span>
+                          <span>{fechaLegible(paciente.ultimaConsulta) || paciente.ultimaConsulta}</span>
                         </div>
                       </td>
 

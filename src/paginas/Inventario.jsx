@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -921,7 +922,7 @@ export default function Inventario({
                         ) : (
                           <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
                         )}
-                        <p className="text-[11px] text-slate-500">{v.cantidad} u. · {new Date(v.creadoEn).toLocaleDateString("es-ES")}</p>
+                        <p className="text-[11px] text-slate-500">{v.cantidad} u. · {fechaLegible(v.creadoEn)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm font-bold text-slate-700">${Number(v.montoTotal).toFixed(2)}</span>

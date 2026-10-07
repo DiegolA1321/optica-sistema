@@ -32,6 +32,7 @@ import { registrarLog } from "../utilidades/logs"
 import HorarioEquipo from "../componentes/HorarioEquipo"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
+import { fechaLegible as fechaFormato } from "../utilidades/formatoFecha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -345,7 +346,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     }
     setModalAusenciaAbierto(false)
     mostrarGuardado()
-    registrarLog(usuario, "horario", "Registró que no podrá asistir", `${fecha} · ${inicio}-${fin}${motivo ? " · " + motivo : ""}`)
+    registrarLog(usuario, "horario", "Registró que no podrá asistir", `${fechaFormato(fecha)} · ${inicio}-${fin}${motivo ? " · " + motivo : ""}`)
   }
 
   const registrarAusencia = (e) => {
@@ -503,7 +504,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                   return (
                     <div key={iso} className="flex items-center gap-2.5 py-2">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: abierta ? "#059669" : "#dc2626" }} />
-                      <span className="text-sm font-semibold text-slate-700">{iso.split("-").reverse().join("/")}</span>
+                      <span className="text-sm font-semibold text-slate-700">{fechaFormato(iso)}</span>
                       <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : "Cerrado todo el día"}</span>
                     </div>
                   )
@@ -733,7 +734,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                     <div key={iso} className="flex items-center justify-between py-2.5">
                       <div className="flex items-center gap-2.5">
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: abierta ? "#059669" : "#dc2626" }} />
-                        <span className="text-sm font-semibold text-slate-700">{iso.split("-").reverse().join("/")}</span>
+                        <span className="text-sm font-semibold text-slate-700">{fechaFormato(iso)}</span>
                         <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : "Cerrado todo el día"}</span>
                       </div>
                       <button type="button" onClick={() => setFechaEditando(iso)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Editar</button>
@@ -1025,7 +1026,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
               <div key={`${a.fecha}-${a.idx}`} className="flex items-center justify-between gap-2 py-2.5">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-700">
-                    {a.fecha.split("-").reverse().join("/")} <span className="font-mono text-xs font-normal text-slate-500">{horaA12(a.inicio)}–{horaA12(a.fin)}</span>
+                    {fechaFormato(a.fecha)} <span className="font-mono text-xs font-normal text-slate-500">{horaA12(a.inicio)}–{horaA12(a.fin)}</span>
                   </p>
                   {a.motivo && <p className="truncate text-xs text-slate-500">{a.motivo}</p>}
                 </div>

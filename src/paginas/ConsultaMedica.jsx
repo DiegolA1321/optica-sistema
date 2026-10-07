@@ -46,6 +46,7 @@ import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { fechaLegible } from "../utilidades/formatoFecha"
 import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
@@ -826,7 +827,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
       // Hallazgo I4: era el único módulo que crea/edita historia clínica sin
       // dejar rastro de auditoría — la auditoría de superadmin/admin ya
       // existía para el resto del sistema, esta era la excepción real.
-      registrarLog(usuario, "consultas", "Registró una ficha clínica", `${nuevaFicha.paciente} · ${nuevaFicha.fecha}`)
+      registrarLog(usuario, "consultas", "Registró una ficha clínica", `${nuevaFicha.paciente} · ${fechaLegible(nuevaFicha.fecha)}`)
       const { error: errorPaciente } = await supabase.from("pacientes").update({ evolucion: tendenciaGraduacion, estado_correccion: estadoCorreccion, ultima_consulta: fechaConsulta, estado_clinico: nuevoEstadoClinico }).eq("id", pacienteId)
       if (errorPaciente) console.error("La ficha se guardó, pero no se pudo actualizar el resumen del paciente:", errorPaciente.message)
 
@@ -1065,7 +1066,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
     if (od === "No registrada" && oi === "No registrada") return null
     return { fecha: ultimaConsultaPaciente.fecha, od, oi }
   }, [ultimaConsultaPaciente])
-  const fechaCorta = (iso) => (iso ? iso.split("-").reverse().join("/") : "")
+  const fechaCorta = (iso) => (iso ? fechaLegible(iso) : "")
 
   const fechaLarga = useMemo(() => {
     try {
@@ -1171,7 +1172,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {citaDeLaVisita
-                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? `Hoy ${fechaCorta(citaDeLaVisita.fecha).slice(0, 5)}` : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
+                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
                       : "Sin cita · consulta directa"}
                     {motivo && !citaDeLaVisita ? ` · ${motivo}` : ""}
                   </p>
@@ -1304,7 +1305,7 @@ export default function ConsultaMedica({ usuario, pacientes: pacientesLista = []
                   <span className="flex items-center gap-2">
                     {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
                       <span className="hidden items-center gap-1 text-[11px] font-normal normal-case text-slate-500 sm:flex">
-                        <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaPrecarga.split("-").reverse().join("/")}` : ""} · toca para ver o editar
+                        <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaLegible(fechaPrecarga)}` : ""} · toca para ver o editar
                       </span>
                     )}
                     <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
@@ -2360,7 +2361,7 @@ function LineaVariacion({ analisis }) {
   return (
     <p className="no-print flex items-center gap-1.5 text-xs text-slate-500">
       <IconoT size={13} style={{ color: t.fg }} aria-hidden="true" />
-      Variación frente al {analisis.fechaPrev}:{" "}
+      Variación frente al {fechaLegible(analisis.fechaPrev)}:{" "}
       <span className="font-semibold" style={{ color: t.fg }}>{analisis.verdicto.toLowerCase()}</span> ({textoVariacion(analisis.variacion)})
     </p>
   )
@@ -2490,7 +2491,7 @@ function TarjetaVisita({ consulta: c }) {
 
 // Marca un campo como heredado de una visita anterior, sin ocultar que sigue siendo editable
 function InsigniaHistorial({ fecha }) {
-  const fechaCorta = fecha ? fecha.split("-").reverse().join("/") : null
+  const fechaCorta = fecha ? fechaLegible(fecha) : null
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600" title="Puedes editarlo si cambió">
       <History size={10} /> {fechaCorta ? `De su visita del ${fechaCorta}` : "De su historial"}

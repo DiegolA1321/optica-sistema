@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -128,9 +129,9 @@ const diasACumple = (fn) => {
 const camposOpticaIniciales = { nombreOptica: "", slug: "", eslogan: "", colorAcento: "#2563EB", logoUrl: "", nombreAdmin: "", cedulaAdmin: "", emailAdmin: "", fechaNacimientoAdmin: "", clave: "", confirmarClave: "", esOptometra: true }
 const camposCuentaIniciales = { nombre: "", cedula: "", email: "", clave: "", confirmarClave: "", esOptometra: true }
 
-const formatearFecha = (fecha) => new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })
+const formatearFecha = (fecha) => fechaLegible(fecha)
 const formatearFechaHora = (fecha) =>
-  new Date(fecha).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  fechaHoraLegible(fecha, { anio: true })
 
 const NAV = [
   { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
@@ -3587,7 +3588,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                                     <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
                                     {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
                                   </p>
-                                  <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo} · {new Date(l.created_at).toLocaleString("es-EC", { dateStyle: "medium", timeStyle: "short" })}</p>
+                                  <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
                                 </div>
                               ))}
                             </div>
