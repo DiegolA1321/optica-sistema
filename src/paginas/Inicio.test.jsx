@@ -1,6 +1,6 @@
 import React from "react"
 import { describe, it, expect } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen, fireEvent, within } from "@testing-library/react"
 import Inicio from "./Inicio"
 import { hoyISO } from "../utilidades/disponibilidad"
 
@@ -141,5 +141,15 @@ describe("Inicio por rol", () => {
     render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
     expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
     expect(screen.queryByText("Ninguna atención abierta")).not.toBeInTheDocument()
+  })
+
+  it("administrador: crear va en los atajos y las tarjetas de totales solo llevan a su lista", () => {
+    const pedidos = []
+    render(<Inicio {...base} setVista={(v) => pedidos.push(v)} onCrearPacienteRapido={() => pedidos.push("crear")} />)
+    const totales = screen.getByRole("region", { name: "Totales" })
+    expect(within(totales).getByRole("group", { name: "Atajos" })).toBeInTheDocument()
+    fireEvent.click(within(totales).getByRole("button", { name: /Pacientes registrados/ }))
+    fireEvent.click(within(totales).getByRole("button", { name: /Registrar paciente/ }))
+    expect(pedidos).toEqual(["pacientes", "crear"])
   })
 })
