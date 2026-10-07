@@ -78,7 +78,7 @@ export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtend
   const left = cabeDerecha ? ancla.right + 8 : Math.max(8, ancla.left - 8 - ANCHO_TARJETA)
   const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 340))
 
-  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onAtender
   return createPortal(
     <div
       ref={ref}
@@ -439,7 +439,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
           ancla={abierta.ancla}
           cobroPendiente={!!cobroPendienteIds?.has(citaAbierta.id)}
           onCerrar={cerrarTarjeta}
-          onAtender={conCierre(onAtender)}
+          onAtender={onAtender ? conCierre(onAtender) : undefined}
           onEditar={conCierre(onEditar)}
           onCancelar={conCierre(onCancelar)}
           onCobrar={conCierre(onCobrar)}

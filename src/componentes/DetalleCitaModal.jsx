@@ -44,7 +44,7 @@ function Fila({ icono: Icono, etiqueta, children }) {
 // el paciente en otra pestaña para no perder el lugar en la agenda.
 export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, onCerrar, onIngresar, onCobrar, onEditar, onCancelar, onDejarDeAtender }) {
   const refModal = useModalAccesible(true, onCerrar)
-  const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  const puedeIngresar = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onIngresar
   const agendada = fechaHoraAgendada(cita.creadoEn)
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
     ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")

@@ -140,7 +140,8 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   // Cancelada: pendiente, en atención, "No asistió" (la paciente llegó 12
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
-  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada"
+  // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
+  const puedeAtender = cita.estado !== "Atendida" && cita.estado !== "Cancelada" && !!onAtender
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
@@ -771,7 +772,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // ── "Atender": abre primero el resumen de la cita (punto 1, reunión 29
   // sept.) — la lógica real de entrar a la ficha vive en ingresarAFicha,
   // disparada recién cuando se confirma ese resumen. ──
+  // Atender exige poder crear fichas clínicas (consultas: crear). Los botones ya no se muestran sin ese
+  // permiso; esto es la red de seguridad para que ningún camino quede en un clic mudo.
+  const puedeAtenderPacientes = puede(usuario, "consultas", "crear")
+  const avisarSinPermisoAtender = () => onAviso?.("No tienes permiso para atender pacientes.")
   const atenderCita = (cita) => {
+    if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
     setResumenPara(cita)
   }
 
@@ -781,6 +787,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // el paciente es web y no está confirmado por recepción (D2), pide
   // confirmar/completar sus datos antes de la ficha. ──
   const ingresarAFicha = (cita) => {
+    if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
     if (cita.pacienteId) {
       const paciente = pacientes.find((p) => p.id === cita.pacienteId)
       if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
@@ -1275,7 +1282,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       onAbrirDetalle={abrirDetalle}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
-                        onAtender={atenderCita}
+                        onAtender={puedeAtenderPacientes ? atenderCita : undefined}
                       onAbrirMenuAcciones={abrirMenuAcciones}
                     />
                   ))}
@@ -1498,7 +1505,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             setSoloPorRegistrar(false)
             setVista("lista")
           }}
-          onAtender={atenderCita}
+          onAtender={puedeAtenderPacientes ? atenderCita : undefined}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
@@ -1517,7 +1524,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             // es angosta y no cabe, se conserva el detalle del día en el modal).
             if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
           }}
-          onAtender={atenderCita}
+          onAtender={puedeAtenderPacientes ? atenderCita : undefined}
           onEditar={abrirReagendar}
           onCancelar={(cita) => setPorCancelar(cita.id)}
           onCobrar={cobrarCita}
@@ -1599,7 +1606,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                             onAbrirDetalle={abrirDetalle}
                             cobroPendiente={pendientesPorCita.has(cita.id)}
                         onCobrar={cobrarCita}
-                        onAtender={atenderCita}
+                        onAtender={puedeAtenderPacientes ? atenderCita : undefined}
                             onAbrirMenuAcciones={abrirMenuAcciones}
                           />
                         ))}
@@ -1795,27 +1802,29 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                     Atención" al confirmar, sin forzarlo a elegir un bloque de
                     la grilla de 30/40 min. Pedido explícito: "Atender Ahora /
                     Hora Actual", cero fricción cuando el paciente ya llegó. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const ahora = new Date()
-                    const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
-                    setFecha(hoyISO())
-                    setHoraPersonalizada(true)
-                    setHoraCustom(hhmm)
-                    setAtenderInmediato(true)
-                    setErrorHorarioCustom("")
-                  }}
-                  className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200/60 bg-white hover:border-blue-200/60 hover:bg-blue-50/30")}
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
-                    <Zap size={16} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold" style={{ color: INK }}>Atender ahora (hora actual)</span>
-                    <span className="block text-xs text-slate-500">El paciente ya está aquí — usa la hora de este momento y pasa directo a la ficha clínica al confirmar.</span>
-                  </span>
-                </button>
+                {puedeAtenderPacientes && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ahora = new Date()
+                      const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
+                      setFecha(hoyISO())
+                      setHoraPersonalizada(true)
+                      setHoraCustom(hhmm)
+                      setAtenderInmediato(true)
+                      setErrorHorarioCustom("")
+                    }}
+                    className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200/60 bg-white hover:border-blue-200/60 hover:bg-blue-50/30")}
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
+                      <Zap size={16} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold" style={{ color: INK }}>Atender ahora (hora actual)</span>
+                      <span className="block text-xs text-slate-500">El paciente ya está aquí — usa la hora de este momento y pasa directo a la ficha clínica al confirmar.</span>
+                    </span>
+                  </button>
+                )}
 
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
@@ -2249,7 +2258,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}
             onCerrar={() => setDetalleCitaId(null)}
-            onIngresar={(c) => { setDetalleCitaId(null); atenderCita(c) }}
+            onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); atenderCita(c) } : undefined}
             onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
             onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
             onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
