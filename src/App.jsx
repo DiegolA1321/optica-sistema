@@ -386,7 +386,8 @@ function App() {
   }, []);
   // Una orden creada o corregida desde cualquier pantalla entra a la lista sin recargar.
   useEffect(() => {
-    const alGuardar = (e) => setOrdenesLab((prev) => [e.detail, ...prev.filter((o) => o.id !== e.detail.id)])
+    // El historial (que usan los reportes) no viaja en el evento: se conserva el que ya se tenía.
+    const alGuardar = (e) => setOrdenesLab((prev) => [{ ...e.detail, historial: e.detail.historial ?? prev.find((o) => o.id === e.detail.id)?.historial ?? [] }, ...prev.filter((o) => o.id !== e.detail.id)])
     window.addEventListener(EVENTO_ORDEN, alGuardar)
     return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
   }, []);
@@ -548,7 +549,7 @@ function App() {
         const iso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`
         const { data: pasesData } = await supabase.from('pases_a_venta').select('*').eq('optica_id', usuario.opticaId)
         if (pasesData) setPasesVenta(pasesData.map(mapPase))
-        const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*').eq('optica_id', usuario.opticaId)
+        const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', usuario.opticaId)
         if (ordenesData) setOrdenesLab(ordenesData.map(mapOrden))
         const { data: abonosData } = await supabase.from('abonos_factura').select('*').eq('optica_id', usuario.opticaId)
         if (abonosData) setAbonos(abonosData.map(mapAbono))
@@ -652,7 +653,7 @@ function App() {
         else if (error) registrarErrorCarga('pacientes listos para venta')
       })
 
-      supabase.from('ordenes_laboratorio').select('*').eq('optica_id', opticaId).then(({ data, error }) => {
+      supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', opticaId).then(({ data, error }) => {
         if (data) setOrdenesLab(data.map(mapOrden))
         else if (error) registrarErrorCarga('órdenes de laboratorio')
       })

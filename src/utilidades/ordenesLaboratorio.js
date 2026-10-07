@@ -178,6 +178,8 @@ export function mapOrden(o) {
     fechaPrometida: o.fecha_prometida, observaciones: o.observaciones || "",
     estado: o.estado, creadaPor: o.creada_por, creadaEn: o.creada_en,
     pacienteAvisadoEn: o.paciente_avisado_en || null, pacienteAvisadoPor: o.paciente_avisado_por || null,
+    // Cambios de estado con su fecha (solo llegan si la consulta los incluye): alimentan el tiempo de entrega de Reportes.
+    historial: (o.ordenes_laboratorio_historial || []).map((h) => ({ estado: h.estado, cambiadoEn: h.cambiado_en })),
   }
 }
 
