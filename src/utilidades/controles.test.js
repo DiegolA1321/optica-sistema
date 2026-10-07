@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { sumarDiasISO, diaHabilMasCercano, controlesSinAgendar, asignadoDelControl } from "./controles"
+import { sumarDiasISO, diaHabilMasCercano, controlesSinAgendar, asignadoDelControl, canceladasPorPaciente } from "./controles"
 
 const SESION = (activo, inicio, fin) => ({ activo, inicio, fin })
 // Lunes a viernes abierto de 09:00 a 12:00; sábado y domingo cerrado.
@@ -91,5 +91,29 @@ describe("asignadoDelControl", () => {
     expect(asignadoDelControl({ profesionalNombre: "Luis Baja" }, equipo)).toBe("")
     expect(asignadoDelControl({ profesionalNombre: "Otra" }, equipo)).toBe("")
     expect(asignadoDelControl(null, equipo)).toBe("")
+  })
+})
+
+describe("canceladasPorPaciente", () => {
+  const hoy = "2026-10-07"
+  const cancelada = (id, fecha, extra = {}) => ({ id, fecha, hora: "09:00 AM", estado: "Cancelada", canceladaPor: "paciente", paciente: "Ana", pacienteId: "p1", ...extra })
+  it("lista las canceladas por el paciente, no las de recepción", () => {
+    const r = canceladasPorPaciente([cancelada("c1", "2026-10-08"), cancelada("c2", "2026-10-09", { canceladaPor: "recepcion", pacienteId: "p2", paciente: "Luis" })], { hoy })
+    expect(r.map((c) => c.id)).toEqual(["c1"])
+  })
+  it("una sola por paciente (la más reciente) y las más próximas primero", () => {
+    const r = canceladasPorPaciente([cancelada("c1", "2026-10-01"), cancelada("c2", "2026-10-05"), cancelada("c3", "2026-10-02", { pacienteId: "p2", paciente: "Luis" })], { hoy })
+    expect(r.map((c) => c.id)).toEqual(["c3", "c2"])
+  })
+  it("desaparece si el paciente ya reagendó (cita activa o atendida posterior)", () => {
+    expect(canceladasPorPaciente([cancelada("c1", "2026-10-05"), { id: "c9", fecha: "2026-10-12", estado: "Pendiente", pacienteId: "p1", paciente: "Ana" }], { hoy })).toEqual([])
+    expect(canceladasPorPaciente([cancelada("c1", "2026-10-05"), { id: "c9", fecha: "2026-10-06", estado: "Atendida", pacienteId: "p1", paciente: "Ana" }], { hoy })).toEqual([])
+  })
+  it("una cita posterior cancelada o que no asistió no cuenta como reagendada", () => {
+    const r = canceladasPorPaciente([cancelada("c1", "2026-10-05"), { id: "c9", fecha: "2026-10-06", estado: "No Asistió", pacienteId: "p1", paciente: "Ana" }], { hoy })
+    expect(r.map((c) => c.id)).toEqual(["c1"])
+  })
+  it("ignora las canceladas de hace más de 30 días", () => {
+    expect(canceladasPorPaciente([cancelada("c1", "2026-08-01")], { hoy })).toEqual([])
   })
 })

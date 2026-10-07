@@ -354,7 +354,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         const paciente = pacientes.find((p) => p.id === controlParaAgendar.pacienteId)
         if (paciente) seleccionarPaciente(paciente)
         setFecha(diaHabilMasCercano(controlParaAgendar.fecha, disponibilidad, citas) || hoyISO())
-        setMotivo(motivosConsulta.find((m) => /control/i.test(m)) || "")
+        setMotivo(controlParaAgendar.motivo ?? (motivosConsulta.find((m) => /control/i.test(m)) || ""))
         setAsignadoA(controlParaAgendar.asignadoA || "")
       }
       setModalAbierto(true)

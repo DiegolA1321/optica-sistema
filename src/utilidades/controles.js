@@ -50,3 +50,19 @@ export function controlesSinAgendar(pacientes = [], consultas = [], citas = []) 
   }
   return resultado.sort((a, b) => a.fechaControl - b.fechaControl)
 }
+
+// Citas que el propio paciente canceló y nadie retomó: una por paciente (la más reciente), de los últimos `dias` días
+// o futuras, y solo si esa persona no tiene hoy otra cita activa ni una posterior. Las más próximas primero.
+export function canceladasPorPaciente(citas = [], { hoy = hoyISO(), dias = 30 } = {}) {
+  const desde = sumarDiasISO(hoy, -dias)
+  const claveDe = (c) => (c.pacienteId != null ? "id:" + c.pacienteId : "n:" + c.paciente)
+  const porPaciente = new Map()
+  for (const c of citas) {
+    if (c.estado !== "Cancelada" || c.canceladaPor !== "paciente" || c.fecha < desde) continue
+    const previa = porPaciente.get(claveDe(c))
+    if (!previa || c.fecha > previa.fecha) porPaciente.set(claveDe(c), c)
+  }
+  return [...porPaciente.values()]
+    .filter((c) => !citas.some((o) => o.id !== c.id && claveDe(o) === claveDe(c) && (ESTADOS_ACTIVOS.includes(o.estado) || o.estado === "Atendida") && o.fecha >= c.fecha))
+    .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0))
+}

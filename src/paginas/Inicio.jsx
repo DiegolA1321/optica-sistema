@@ -19,7 +19,7 @@ import {
   Ban,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
-import { controlesSinAgendar, asignadoDelControl } from "../utilidades/controles"
+import { controlesSinAgendar, asignadoDelControl, canceladasPorPaciente } from "../utilidades/controles"
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
@@ -57,6 +57,7 @@ export default function Inicio({
   consultas = [],
   onAgendarRapido,
   onAgendarControl,
+  onReagendarCancelada,
   onCrearPacienteRapido,
   onCrearProductoRapido,
   onReabastecerProducto,
@@ -150,6 +151,7 @@ export default function Inicio({
 
   // Controles que el optómetra dejó "para agendar después" (o cuya cita se canceló) y siguen sin cita.
   const sinAgendar = useMemo(() => controlesSinAgendar(pacientes, consultas, citas), [pacientes, consultas, citas])
+  const canceladasPaciente = useMemo(() => canceladasPorPaciente(citas), [citas])
 
   // Pacientes que no visitan hace tiempo (adherencia a controles visuales)
   const inactivos = useMemo(() => {
@@ -387,6 +389,7 @@ export default function Inicio({
   const incOrdenes = ["administrador", "ventas"].includes(plantilla) || (plantilla === "general" && veVentas)
   const incControles = (["administrador", "optometra", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const incControlesPorAgendar = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
+  const incCanceladas = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incStock = veInventario // quien puede ver el inventario ve el aviso; "Reabastecer" solo con inventario: editar
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
@@ -433,6 +436,23 @@ export default function Inicio({
       id: "controles-sin-agendar-mas", icono: Calendar,
       titulo: `Y ${plural(sinAgendar.length - 3, "control sin agendar más", "controles sin agendar más")}`,
       acciones: [{ etiqueta: "Ver pacientes", onClick: () => onVerPacientes ? onVerPacientes({ rapido: "ControlSinAgendar" }) : setVista?.("pacientes") }],
+    })
+  }
+  if (incCanceladas) {
+    canceladasPaciente.slice(0, 3).forEach((cita) => filasAtencion.push({
+      id: "cancelada-" + cita.id,
+      icono: Ban,
+      titulo: `Cita cancelada por el paciente: ${cita.paciente}`,
+      detalle: `Era el ${fechaLegible(cita.fecha)} a las ${cita.hora}${cita.motivo ? ` · ${cita.motivo}` : ""}, todavía sin reagendar`,
+      acciones: [
+        ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Reagendar", principal: true, onClick: () => onReagendarCancelada?.(cita) }] : []),
+        { etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("cancelada", "siempre") },
+      ],
+    }))
+    if (canceladasPaciente.length > 3) filasAtencion.push({
+      id: "canceladas-mas", icono: Ban,
+      titulo: `Y ${plural(canceladasPaciente.length - 3, "cita cancelada por pacientes más", "citas canceladas por pacientes más")}`,
+      acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("cancelada", "siempre") }],
     })
   }
   if (incControles && hayInactivos) filasAtencion.push({

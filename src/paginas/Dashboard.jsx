@@ -771,6 +771,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
             onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}
+            onReagendarCancelada={(cita) => { setControlParaAgendar({ pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
             onCrearProductoRapido={() => setAtajoInicio("inventario")}
             onReabastecerProducto={(productoId) => {
