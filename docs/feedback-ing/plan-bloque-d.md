@@ -2,7 +2,7 @@
 
 Rama: `bloque-d` (creada desde `prioridad-1`). Fuentes: secciones 4 y 5 de `requisitos-reunion-29sep.md` (R46 a R56), secciones 3.6, 3.7 y 6.4 de `docs/vision-sistema.md` y los pendientes anotados en `plan-prioridad-1.md`.
 
-**Estado (6 oct.):** D1 y D3 aplicadas (migraciones 0090 y 0091, con 59 y 48 verificaciones contra la base real); D2, D5, D6 y D7 hechas en el código; la 0092 (hora de las citas y proceso "No asistió") y la 0093 (alcance) están escritas y validadas en simulación, **a la espera de aprobación**.
+**Estado (7 oct.):** Bloque D terminado. Migraciones 0090 a 0093 aplicadas y verificadas contra la base real; pantallas de Roles y Usuarios, selector de vista, Inicio por rol y cola de ventas en el Inicio hechos. Quedan fuera del bloque, por decisión: la verificación de correo (depende del dominio en Resend) y las cuentas de la Óptica Demo, que crea Diego desde Usuarios.
 
 ---
 
@@ -176,7 +176,21 @@ Cada migración lleva su respaldo, su SQL completo y su aprobación antes de apl
 |---|---|---|
 | 0090 | Modelo de roles, permisos efectivos, desactivar, traslado | Aplicada |
 | 0091 | Permisos por nivel en la base, cuentas desactivadas sin acceso | Aplicada (junto con la 0090) |
-| 0092 | Hora de las citas y proceso "No asistió" | Propuesta |
-| 0093 | Alcance "propio" de citas, consultas y encuestas | Propuesta |
+| 0092 | Hora de las citas ("hh:mm AM/PM", restricción validada; la cita antigua "10:00" pasó a "10:00 AM") y proceso "No asistió" que salta las horas mal escritas y avisa | Aplicada el 7 oct. |
+| 0093 | Alcance "propio" de citas (incluye las que la persona atendió aunque estén asignadas a otra), consultas y encuestas | Aplicada el 7 oct. |
+
+## 7. Estado de los requisitos (R46 a R56)
+
+| Req. | Estado | Cómo quedó |
+|---|---|---|
+| R46 Roles separados de usuarios | **Hecho** | Pestañas "Usuarios" y "Roles"; al crear un usuario se eligen sus roles con vista previa de lo que verá. |
+| R47 Predefinidos editables y propios | **Hecho** | Optómetra, Recepción y Ventas (editables, restaurables, no eliminables) y roles propios (eliminables si nadie los usa). |
+| R48 Permisos por nivel | **Hecho** | Ver / Crear / Editar / Eliminar por módulo, exigido por la base (0091) y reflejado en los botones. |
+| R49 Alcance de los datos | **Hecho** | "Solo lo propio" en citas, consultas y reportes, exigido por la base (0093); en la vista de un rol enfoca Citas y Reportes. |
+| R50 Varios roles y cambio de vista | **Hecho** | Los permisos se suman; selector de vista en el menú de usuario. |
+| R51 Cédula, correo y verificación | **Parcial** | Cédula única y correo obligatorio hechos; la verificación por correo queda fuera del bloque, junto al dominio en Resend. |
+| R52 a R56 Inicio por rol | **Hecho** | Administrador, Optómetra, Recepción, Ventas y rol propio; cada fila de tarjetas con un título (Totales, Citas de este mes, Hoy, Para vender); "N productos con stock bajo" una sola vez; atajos en un clic. |
+
+Pendientes anotados en el plan de la prioridad 1: desactivar usuarios (hecho), selector "Asignado a" sin desactivados (hecho), misma regla de contraseña (hecha en pantalla; falta en la base del portal y en Supabase Auth), permiso "eliminar" de Pacientes para anonimizar (hecho), cola de ventas y órdenes en el Inicio de quien vende (hecho).
 
 **Pendiente fuera del bloque:** contraseña mínima en las funciones de la base del portal del paciente y en los requisitos de contraseña de Supabase Auth (hoy la regla vive en la pantalla); verificación de correo (depende del dominio en Resend).
