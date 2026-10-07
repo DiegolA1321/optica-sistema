@@ -73,7 +73,7 @@ import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVe
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { etiquetaCorreccion } from "../utilidades/correccion"
+import { etiquetaCorreccion, AYUDA_CORRECCION } from "../utilidades/correccion"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
@@ -137,7 +137,7 @@ const claseBadgeEstadoClinico = (estado) =>
 const CORRECCION = {
   "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200/60" },
   "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200/60" },
-  "Sin evaluar": { label: "AV sin evaluar", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
+  "Sin evaluar": { label: "Sin agudeza visual con lentes registrada", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
   "Sin evaluación": { label: "Sin consulta", icon: HelpCircle, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
 }
 
@@ -986,7 +986,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     { key: "Todos", icon: Users, valor: pacientes.length, label: "Total pacientes", filled: true, fg: "#fff", bg: GRAD, ring: "#2563EB" },
     { key: "Bien corregido", icon: CORRECCION["Bien corregido"].icon, valor: conteoCorreccion["Bien corregido"], label: "Bien corregidos", fg: CORRECCION_COLOR["Bien corregido"].fg, bg: CORRECCION_COLOR["Bien corregido"].bg, ring: CORRECCION_COLOR["Bien corregido"].fg },
     { key: "Requiere ajuste", icon: CORRECCION["Requiere ajuste"].icon, valor: conteoCorreccion["Requiere ajuste"], label: "Requieren ajuste", fg: CORRECCION_COLOR["Requiere ajuste"].fg, bg: CORRECCION_COLOR["Requiere ajuste"].bg, ring: CORRECCION_COLOR["Requiere ajuste"].fg },
-    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "AV sin evaluar", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
+    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "Sin agudeza visual con lentes registrada", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
     { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin consulta", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
   ]
 
@@ -1082,6 +1082,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               <button
                 key={t.key}
                 type="button"
+                title={AYUDA_CORRECCION[t.key]}
                 onClick={() => setFiltroCorreccion((prev) => (t.key === "Todos" ? "Todos" : prev === t.key ? "Todos" : t.key))}
                 className="group relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
                 style={{
@@ -1170,7 +1171,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               <option value="Todos">Todas</option>
               <option value="Bien corregido">Bien corregido</option>
               <option value="Requiere ajuste">Requiere ajuste</option>
-              <option value="Sin evaluar">AV sin evaluar</option>
+              <option value="Sin evaluar">Sin agudeza visual con lentes registrada</option>
               <option value="Sin evaluación">Sin consulta</option>
             </select>
           </div>
@@ -1388,7 +1389,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
                       <td className="px-5 py-4">
                         <div className="space-y-1">
-                          <span className={"inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " + correccion.clase}>
+                          <span title={AYUDA_CORRECCION[paciente.estadoCorreccion] || AYUDA_CORRECCION["Sin evaluación"]} className={"inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " + correccion.clase}>
                             <IconoCorreccion size={13} />
                             {correccion.label}
                           </span>

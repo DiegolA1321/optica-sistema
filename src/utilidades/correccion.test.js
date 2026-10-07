@@ -3,7 +3,7 @@ import { etiquetaCorreccion } from "./correccion"
 
 describe("etiquetaCorreccion", () => {
   it("renombra los dos estados sin evaluar para distinguirlos", () => {
-    expect(etiquetaCorreccion("Sin evaluar")).toBe("AV sin evaluar")
+    expect(etiquetaCorreccion("Sin evaluar")).toBe("Sin agudeza visual con lentes registrada")
     expect(etiquetaCorreccion("Sin evaluación")).toBe("Sin consulta")
     expect(etiquetaCorreccion(undefined)).toBe("Sin consulta")
   })
