@@ -189,6 +189,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const puedeEditarPaciente = puede(usuario, "pacientes", "editar")
   const puedeEliminar = puede(usuario, "pacientes", "eliminar")
   const puedeAgendar = puede(usuario, "citas", "crear")
+  // Atender = abrir la ficha clínica para registrar una consulta: exige consultas "crear".
+  const puedeAtender = puede(usuario, "consultas", "crear")
   const puedeVender = puede(usuario, "ventas", "crear")
   const puedeEditarVentas = puede(usuario, "ventas", "editar")
   const puedeAnular = puede(usuario, "ventas", "eliminar")
@@ -688,6 +690,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // vincular, como antes. Un solo lugar para esta lógica: la usan el botón
   // grande del perfil y el atajo "Nueva ficha clínica" del menú de la tabla.
   const abrirFichaClinica = (paciente) => {
+    if (!puedeAtender) { onAviso?.("No tienes permiso para atender pacientes."); return }
     setPacienteHistorial(null)
     const citasSinTerminar = citas
       .filter((c) => perteneceAPaciente(c, paciente) && (c.estado === "Pendiente" || c.estado === "En Atención"))
@@ -710,6 +713,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // pendiente). Un solo punto de entrada para no repetir el chequeo en cada
   // callback de arriba.
   const irAFichaConfirmandoSiHaceFalta = (paciente, citaId) => {
+    if (!puedeAtender) { onAviso?.("No tienes permiso para atender pacientes."); return }
     if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
       setConfirmarDatosPara({ paciente, citaId })
       return
@@ -1585,6 +1589,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                 había que cerrar el modal y buscarlo de nuevo en la lista
                 para agendarle una cita. */}
             <div className="mt-6 space-y-2">
+              {puedeAtender && (
               <button
                 type="button"
                 onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); onIrAFichaClinica?.(p) }}
@@ -1593,6 +1598,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               >
                 <Stethoscope size={15} /> Atenderlo ahora — abrir ficha clínica
               </button>
+              )}
               <button
                 type="button"
                 onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); abrirAgendar(p) }}
@@ -1850,6 +1856,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       SeleccionarCitaModal) — igual que entrar por "Atender"
                       en Citas médicas — para que guardar la ficha también la
                       marque "Atendida" sin un paso aparte. */}
+                  {puedeAtender && (
                   <button
                     type="button"
                     onClick={() => abrirFichaClinica(pacienteHistorial)}
@@ -1858,6 +1865,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   >
                     <Stethoscope size={16} /> Ficha clínica
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
@@ -1987,7 +1995,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {abiertasPaciente.map(({ cita, dias }) => (
                         <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
                           <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
-                          <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>
+                          {puedeAtender && <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>}
                           <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
                         </span>
                       ))}
@@ -2147,7 +2155,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <PanelCitasPaciente
                         citas={citasPaciente}
                         onDejarDeAtender={setDejarCita}
-                        onIngresar={(cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }}
+                        onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
                         onAgendar={() => abrirAgendar(pacienteHistorial)}
                       />
                     ) : tabHistorial === "diagnosticos" ? (
@@ -2697,7 +2705,7 @@ function PanelCitasPaciente({ citas, onIngresar, onAgendar, onDejarDeAtender }) 
       </div>
       <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
       <BadgeEstadoCita estado={c.estado} />
-      {conIngresar && (
+      {conIngresar && onIngresar && (
         <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
           <Stethoscope size={13} aria-hidden="true" /> Ingresar
         </button>
@@ -2719,9 +2727,11 @@ function PanelCitasPaciente({ citas, onIngresar, onAgendar, onDejarDeAtender }) 
           {diasAtencionAbierta(proxima) !== null && (
             <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
           )}
+          {onIngresar && (
           <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
             <Stethoscope size={15} aria-hidden="true" /> Ingresar
           </button>
+          )}
         </section>
       ) : (
         <section aria-label="Próxima cita" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
