@@ -821,6 +821,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // pendientes" y el filtro rápido del mismo nombre.
   // Tendencia de graduación por paciente, calculada con la misma regla que la ficha clínica y el perfil
   // (entre sus dos consultas más recientes), no con el valor guardado al momento de cada consulta.
+  // Pacientes listos para venta (pase "listo", sin vender ni descartar): se marcan en la lista con un enlace a la cola de Ventas.
+  const idsListosParaVenta = useMemo(() => new Set(pases.filter((p) => p.estado === "listo" && p.pacienteId).map((p) => p.pacienteId)), [pases])
+  const puedeVerVentas = puede(usuario, "ventas", "ver")
   const tendenciaPorPaciente = useMemo(() => {
     const porPaciente = new Map()
     consultas.forEach((c) => { if (c.pacienteId) porPaciente.set(c.pacienteId, [...(porPaciente.get(c.pacienteId) || []), c]) })
@@ -1306,6 +1309,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                   <Calendar size={11} /> Cita hoy
                                 </span>
                               )}
+                              {idsListosParaVenta.has(paciente.id) && (puedeVerVentas && setVista ? (
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setVista("ventas") }} title="Ir a la cola de Ventas" className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer">
+                                  <ShoppingCart size={11} /> Listo para venta
+                                </button>
+                              ) : (
+                                <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                  <ShoppingCart size={11} /> Listo para venta
+                                </span>
+                              ))}
                               {tienePagoPendiente && (
                                 <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
                                   <CreditCard size={11} /> Pago pendiente
