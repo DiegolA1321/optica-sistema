@@ -79,6 +79,8 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 
 ## Pendiente
 
+- **IMPORTANTE (se corregirá después): la ausencia de una persona bloquea esas horas para toda la óptica**, aunque otro profesional esté disponible. Las ausencias de "Mi horario" viven en la disponibilidad de la óptica (`disponibilidad.excepciones[fecha].ausencias`) y el calendario, la reserva en línea y el índice único (óptica + fecha + hora) tratan la agenda como una sola. Con dos o más profesionales eso hace perder citas. Falta modelar la agenda por profesional.
+- **Mejora futura:** una cita pendiente cuya hora ya pasó, o cuyo profesional registró una ausencia, debe aparecer a los demás optómetras como "Sin atender: disponible para tomar" (hoy solo pueden tomar las que están sin asignar).
 - **E2E (`e2e/roles.spec.js`):** `totalAgendadas` leía el número del botón "Todas" de Citas; ahora cuenta con la búsqueda `CIT-` (mira todas las fechas). **No se ha corrido.** `e2e/inicio.spec.js` usa "Todas" del período del desenlace de Inicio, que no cambió.
 - **Capturas del bug de Diagnóstico:** se restauraron (commit de esta nota) porque `docs/feedback-ing/bug-diagnostico-receta.md` las enlaza; sin ellas el documento tenía imágenes rotas.
 - **Las 2 citas antiguas de la Demo sin paciente: resueltas el 8 oct.** Lorena Mero Vélez (`8a14467d-…`) y Rafael Cedeño Pibaque (`4650a523-…`) no se pudieron ligar con certeza a ningún paciente de la Demo (41): sin cédula, y sin coincidencia por nombre, teléfono ni correo. Con ensayo previo (transacción deshecha), se **cancelaron** (`estado = Cancelada`, `cancelada_por = recepcion`, con su registro en la actividad). La de Rafael estaba en "No asistió"; ya no hay citas activas sin paciente en la Demo.
