@@ -3,7 +3,7 @@
 // Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/inicio-capturas/.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
+import { iniciarSesion } from './ayudas.js'
 
 const CARPETA = 'docs/inicio-capturas'
 // El Inicio se desplaza dentro de un contenedor propio: se captura el tope y, si hay más, cada tramo siguiente (1366x768).
@@ -181,16 +181,4 @@ test('el contador del menú de Ventas solo lo ve quien puede vender', async ({ b
   expect(await veContador('RECEPCION'), 'Recepción (ventas: crear) sí').toBe(true)
 })
 
-test('Paula: "Siguiente paciente" tiene "Atender" y abre el mismo flujo de Citas', async ({ page }) => {
-  // Crea su propia cita de hoy para Paula: no depende de la hora del día ni de lo que haya sembrado.
-  await crearCitaDeHoyParaPaula()
-  await iniciarSesion(page, 'OPTOMETRA')
-  const tarjeta = main(page).getByRole('region', { name: 'Hoy' })
-  await expect(tarjeta.getByText('Siguiente paciente')).toBeVisible({ timeout: 20_000 })
-  await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
-  const resumen = page.getByRole('dialog')
-  await expect(resumen.getByText('Resumen de la cita')).toBeVisible()
-  await expect(resumen.getByRole('button', { name: /Ingresar a la ficha clínica|Atender hoy/ })).toBeVisible()
-  await resumen.getByRole('button', { name: 'Cerrar' }).click()
-})
+// "Siguiente paciente" de Paula necesita una cita suya de hoy: esa prueba vive en e2e/flujo-completo.spec.js (óptica de pruebas).

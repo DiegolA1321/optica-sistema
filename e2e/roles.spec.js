@@ -2,7 +2,7 @@
 // Los permisos esperados son los de los roles predefinidos (migración 0090). Usa expect.soft para
 // reunir todos los hallazgos de una pasada; no corrige nada.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
+import { iniciarSesion } from './ayudas.js'
 
 const TODOS = ['Inicio', 'Citas médicas', 'Pacientes', 'Ventas', 'Inventario', 'CRM y fidelización', 'Mi horario', 'Reportes']
 const SOLO_ADMIN = ['Usuarios y permisos', 'Configuración', 'Mensajes']
@@ -103,8 +103,6 @@ test.describe('Ventas', () => {
 
 test.describe('Optómetra', () => {
   test('menú, Inicio y alcance propio', async ({ page }) => {
-    // Su propia cita de hoy asignada a Paula, para que "Atender" exista sin depender de la hora del día.
-    await crearCitaDeHoyParaPaula()
     await iniciarSesion(page, 'OPTOMETRA')
     await expect(page.getByText('Tu agenda del día')).toBeVisible({ timeout: 15_000 })
     expect.soft(await menuVisible(page)).toEqual(TODOS)
@@ -116,7 +114,8 @@ test.describe('Optómetra', () => {
     await expect.soft(page.getByText('Paola Zambrano Loor').first(), 'su cita asignada').toBeVisible()
     await expect.soft(page.getByText('Rosa Bravo Delgado'), 'cita asignada al administrador: no debe verse').toHaveCount(0)
     await expect.soft(visible(page, 'Gestionar cita')).toBeVisible()
-    await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }).first(), 'el optómetra sí ve "Atender"').toBeVisible()
+    // Que Paula vea 'Atender' depende de que tenga una cita HOY (los datos sembrados no lo garantizan): lo cubre e2e/flujo-completo.spec.js
+    // en la óptica de pruebas, que crea su propia cita. Aquí (Demo, solo lectura) no se escribe nada.
   })
 
   test('permisos: crea pacientes, no vende ni toca inventario', async ({ page }) => {
