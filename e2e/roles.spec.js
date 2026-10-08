@@ -67,7 +67,7 @@ test.describe('Recepción', () => {
     // El detalle de la cita tampoco ofrece "Ingresar".
     await buscarCita(page, 'Paola Zambrano Loor')
     await page.locator('main').getByText('Paola Zambrano Loor').first().click()
-    await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar/ }), 'Recepción no debe ver "Ingresar" en el detalle').toHaveCount(0)
+    await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar|^Atender$|^Retomar$/ }), 'Recepción no debe ver "Atender" ni "Ingresar" en el detalle').toHaveCount(0)
     await page.keyboard.press('Escape')
     await expect.soft(page.getByText('Atender ahora (hora actual)'), 'tampoco "Atender ahora" al agendar').toHaveCount(0)
     await sinAtajosAFicha(page)
@@ -100,7 +100,7 @@ test.describe('Ventas', () => {
     // El detalle de la cita tampoco ofrece "Ingresar".
     await buscarCita(page, 'Paola Zambrano Loor')
     await page.locator('main').getByText('Paola Zambrano Loor').first().click()
-    await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar/ }), 'Ventas no debe ver "Ingresar" en el detalle').toHaveCount(0)
+    await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar|^Atender$|^Retomar$/ }), 'Ventas no debe ver "Atender" ni "Ingresar" en el detalle').toHaveCount(0)
     await page.keyboard.press('Escape')
     await expect.soft(page.getByText('Atender ahora (hora actual)'), 'tampoco "Atender ahora" al agendar').toHaveCount(0)
     await sinAtajosAFicha(page)
