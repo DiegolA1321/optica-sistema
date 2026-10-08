@@ -111,11 +111,12 @@ export async function agendarCitaParaPaula(page, { nombre, cedula, telefono }, e
 // ── Datos de apoyo por API (para pruebas que necesitan "una cita de hoy de Paula", sin depender de la hora ni de que
 // el calendario aún ofrezca turnos hoy). Usan la sesión de Recepción, con los mismos permisos que la pantalla. ──
 const hora12 = (d) => `${String(d.getHours() % 12 === 0 ? 12 : d.getHours() % 12).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`
-const hoyLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const hoyLocalISO = (diasDespues = 0) => { const d = new Date(); d.setDate(d.getDate() + diasDespues); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
 // Crea un paciente "E Dos E ..." y una cita de HOY asignada a Paula (pendiente, media hora más tarde, o a las 11:50 PM
 // si ya es tarde: nunca pasada, para que el proceso de "No asistió" no la toque). Devuelve el nombre del paciente.
-export async function crearCitaDeHoyParaPaula(entorno = 'E2E') {
+// Con `diasDespues` > 0 la cita es de otro día (a las 09:MM AM de ese día), para probar "¿Atenderla hoy?".
+export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0 } = {}) {
   const { createClient } = await import('@supabase/supabase-js')
   const { correo, clave } = credencial('RECEPCION', entorno)
   const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
@@ -138,10 +139,10 @@ export async function crearCitaDeHoyParaPaula(entorno = 'E2E') {
   let errorCita
   for (let extra = 30; extra < 90; extra++) {
     const tarde = new Date(ahora.getTime() + extra * 60_000)
-    const hora = tarde.getDate() === ahora.getDate() ? hora12(tarde) : `11:${String(59 - (extra % 60)).padStart(2, '0')} PM`
+    const hora = diasDespues > 0 ? `09:${String(extra % 60).padStart(2, '0')} AM` : tarde.getDate() === ahora.getDate() ? hora12(tarde) : `11:${String(59 - (extra % 60)).padStart(2, '0')} PM`
     ;({ error: errorCita } = await cliente.from('citas').insert({
       optica_id: perfil.optica_id, paciente_id: paciente.id, paciente: nombre, cedula: paciente.cedula, telefono: paciente.telefono,
-      fecha: hoyLocalISO(), hora, duracion_minutos: null, motivo: 'Consulta General', estado: 'Pendiente', asignado_a: paula.id,
+      fecha: hoyLocalISO(diasDespues), hora, duracion_minutos: null, motivo: 'Consulta General', estado: 'Pendiente', asignado_a: paula.id,
     }))
     if (!errorCita || errorCita.code !== '23505') break
   }
