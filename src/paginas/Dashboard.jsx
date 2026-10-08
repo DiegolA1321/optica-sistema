@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
-import { createPortal } from "react-dom"
 import {
   Users,
   Calendar,
@@ -27,7 +26,6 @@ import {
   Settings,
   MessageSquare,
   Loader2,
-  Search,
   UserX,
   ShoppingBag,
 } from "lucide-react"
@@ -54,8 +52,6 @@ const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configu
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { esHoy } from "../utilidades/disponibilidad"
 import { esStockBajo, umbralStock } from "../utilidades/inventario"
-import { filtrarComprobantes } from "../utilidades/saldosVentas"
-import { numeroComprobante } from "../utilidades/comprobantes"
 import { diasVencido } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
@@ -284,22 +280,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [notifAbierta, setNotifAbierta] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
 
-  // Paleta de comandos (Ctrl/Cmd+K) — sección 7 del pedido de UI ("reduce
-  // clics en uso diario intensivo"), la única pieza de navegación del spec
-  // que faltaba por completo. Reusa opcionesVisibles/navegar tal cual, así
-  // que respeta el mismo filtro de permisos que ya aplica el sidebar — no
-  // se duplica esa lógica.
-  const [paletaAbierta, setPaletaAbierta] = useState(false)
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setPaletaAbierta((v) => !v)
-      }
-    }
-    document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
-  }, [])
   const [modalMiCuentaAbierto, setModalMiCuentaAbierto] = useState(false)
   // Número de registro profesional (hallazgo de auditoría 2026-09-08: la
   // receta impresa siempre dejaba "Reg. Prof. ____" en blanco porque no
@@ -320,63 +300,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     }
     setGuardandoRegistroProfesional(false)
   }
-  // Buscador global de pacientes en la barra superior — hallazgo de la
-  // auditoría de navegación 2026-09-08: antes solo se podía buscar un
-  // paciente desde adentro de Pacientes (o el widget de Inicio); estando en
-  // Inventario, Reportes, etc. había que ir primero ahí. Reusa el mismo
-  // mecanismo que ya usa Inicio.jsx (accionPacienteInicio → navegar a
-  // "pacientes" → Pacientes.jsx abre el perfil solo con su useEffect sobre
-  // accionInicial), no hizo falta ninguna plomería nueva del lado de
-  // Pacientes.jsx.
-  const [busquedaGlobal, setBusquedaGlobal] = useState("")
-  const [mostrarBusquedaGlobal, setMostrarBusquedaGlobal] = useState(false)
-  const resultadosBusquedaGlobal = useMemo(() => {
-    const q = busquedaGlobal.trim().toLowerCase()
-    if (!q) return []
-    return pacientes.filter((p) => p.nombre?.toLowerCase().includes(q) || p.cedula?.includes(q)).slice(0, 6)
-  }, [pacientes, busquedaGlobal])
-  const irAPacienteGlobal = (paciente) => {
-    setAccionPacienteInicio({ pacienteId: paciente.id, accion: "historial" })
-    navegar("pacientes")
-    setMostrarBusquedaGlobal(false)
-    setBusquedaGlobal("")
-  }
-
-  // B1: el buscador global solo cubría pacientes — lo que más se busca en
-  // el día a día también incluye la cita de hoy de alguien y si queda un
-  // producto en bodega. Sin deep-link a la fila exacta (Citas.jsx no tiene
-  // un mecanismo externo para abrir una cita puntual, a diferencia de
-  // Pacientes.jsx con accionInicial) — igual resuelve el caso real: saltar
-  // directo a la sección correcta en vez de navegar ahí a ciegas primero.
-  const resultadosCitasGlobal = useMemo(() => {
-    const q = busquedaGlobal.trim().toLowerCase()
-    if (!q) return []
-    return citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada" && ((c.paciente || "").toLowerCase().includes(q) || (c.motivo || "").toLowerCase().includes(q))).slice(0, 4)
-  }, [citas, busquedaGlobal])
-  const resultadosProductosGlobal = useMemo(() => {
-    const q = busquedaGlobal.trim().toLowerCase()
-    if (!q) return []
-    return inventario.filter((p) => (p.nombre || "").toLowerCase().includes(q)).slice(0, 4)
-  }, [inventario, busquedaGlobal])
-  // Ventas: comprobantes por paciente, número CV-0001 o número de la factura electrónica (solo si puede ver ventas).
-  const resultadosVentasGlobal = useMemo(() => {
-    if (!busquedaGlobal.trim() || !puede(usuario, "ventas", "ver")) return []
-    return filtrarComprobantes(facturasVenta, { texto: busquedaGlobal, pacientes, abonos }).slice(0, 4)
-  }, [facturasVenta, pacientes, abonos, busquedaGlobal, usuario])
-  const irASeccionGlobal = (seccion) => {
-    navegar(seccion)
-    setMostrarBusquedaGlobal(false)
-    setBusquedaGlobal("")
-  }
   const notifRef = useRef(null)
   const userRef = useRef(null)
-  const busquedaGlobalRef = useRef(null)
 
   useEffect(() => {
     const onDown = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifAbierta(false)
       if (userRef.current && !userRef.current.contains(e.target)) setUserMenuAbierto(false)
-      if (busquedaGlobalRef.current && !busquedaGlobalRef.current.contains(e.target)) setMostrarBusquedaGlobal(false)
     }
     document.addEventListener("mousedown", onDown)
     return () => document.removeEventListener("mousedown", onDown)
@@ -941,113 +871,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Buscador global de pacientes — accesible desde cualquier
-                sección, no solo desde adentro de Pacientes. */}
-            <div className="relative" ref={busquedaGlobalRef}>
-              <button
-                type="button"
-                onClick={() => setMostrarBusquedaGlobal((v) => !v)}
-                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-3.5 text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer sm:w-64"
-                title="Buscar paciente"
-                aria-label="Buscar paciente"
-              >
-                <Search size={16} className="shrink-0" />
-                <span className="hidden truncate text-sm sm:inline">Buscar paciente...</span>
-              </button>
-
-              {mostrarBusquedaGlobal && (
-                <div className="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl sm:left-auto sm:right-0">
-                  <div className="border-b border-slate-100 p-3">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                      <input
-                        autoFocus
-                        type="text"
-                        value={busquedaGlobal}
-                        onChange={(e) => setBusquedaGlobal(e.target.value)}
-                        placeholder="Paciente, cita de hoy, producto o venta..."
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
-                      />
-                    </div>
-                  </div>
-                  {busquedaGlobal.trim() && (
-                    <div className="max-h-80 overflow-y-auto">
-                      {resultadosBusquedaGlobal.length === 0 && resultadosCitasGlobal.length === 0 && resultadosProductosGlobal.length === 0 && resultadosVentasGlobal.length === 0 ? (
-                        <p className="p-4 text-center text-xs text-slate-500">Nada coincide.</p>
-                      ) : (
-                        <>
-                          {resultadosBusquedaGlobal.length > 0 && (
-                            <div>
-                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Pacientes</p>
-                              {resultadosBusquedaGlobal.map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => irAPacienteGlobal(p)}
-                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
-                                >
-                                  <span className="truncate font-semibold text-slate-700">{p.nombre}</span>
-                                  {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-400">{p.cedula}</span>}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {resultadosCitasGlobal.length > 0 && (
-                            <div>
-                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Citas de hoy</p>
-                              {resultadosCitasGlobal.map((c) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onClick={() => irASeccionGlobal("citas")}
-                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
-                                >
-                                  <span className="truncate font-semibold text-slate-700">{c.paciente || "Sin nombre"}</span>
-                                  <span className="shrink-0 text-xs text-slate-400">{c.hora || ""}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {resultadosVentasGlobal.length > 0 && (
-                            <div>
-                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Ventas</p>
-                              {resultadosVentasGlobal.map((f) => (
-                                <button
-                                  key={f.id}
-                                  type="button"
-                                  onClick={() => { setAccionVentasInicio({ tab: "ventas", texto: numeroComprobante(f.numero) }); irASeccionGlobal("ventas") }}
-                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
-                                >
-                                  <span className="truncate font-semibold text-slate-700">{numeroComprobante(f.numero)} · {pacientes.find((p) => p.id === f.pacienteId)?.nombre || "Paciente"}</span>
-                                  <span className="shrink-0 font-mono text-xs text-slate-400">${f.montoTotal.toFixed(2)}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {resultadosProductosGlobal.length > 0 && (
-                            <div>
-                              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Inventario</p>
-                              {resultadosProductosGlobal.map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => irASeccionGlobal("inventario")}
-                                  className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-blue-50 cursor-pointer"
-                                >
-                                  <span className="truncate font-semibold text-slate-700">{p.nombre}</span>
-                                  <span className="shrink-0 font-mono text-xs text-slate-400">{p.stock} u.</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Notificaciones */}
             <div className="relative" ref={notifRef}>
               <button
@@ -1164,7 +987,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         </header>
 
         {/* Espacio de trabajo */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-8 pt-3 sm:pt-3 lg:pt-4">
           {/* Hallazgo real 2026-09-10: suspender una óptica no cortaba el
               acceso de una sesión ya abierta, y tampoco avisaba nada — la
               persona solo veía que las cosas empezaban a fallar sin
@@ -1295,96 +1118,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           }}
         />
       )}
-
-      {paletaAbierta && (
-        <PaletaComandos
-          opciones={opcionesVisibles.filter((o) => !o.oculto)}
-          onNavegar={(id) => { navegar(id); setPaletaAbierta(false) }}
-          onCerrar={() => setPaletaAbierta(false)}
-        />
-      )}
     </div>
-  )
-}
-
-// Paleta de comandos: Ctrl/Cmd+K la abre desde cualquier pantalla del
-// dashboard (listener global en el componente de arriba). Filtra por texto,
-// se navega con flechas + Enter o con un clic — mismo patrón visual
-// hand-rolled (createPortal + overlay-in/modal-in) que el resto de los
-// modales del sistema.
-function PaletaComandos({ opciones, onNavegar, onCerrar }) {
-  const [texto, setTexto] = useState("")
-  const [indiceActivo, setIndiceActivo] = useState(0)
-  const inputRef = useRef(null)
-
-  const filtradas = useMemo(() => {
-    const q = texto.trim().toLowerCase()
-    if (!q) return opciones
-    return opciones.filter((o) => o.nombre.toLowerCase().includes(q))
-  }, [opciones, texto])
-
-  useEffect(() => { setIndiceActivo(0) }, [texto])
-  useEffect(() => { inputRef.current?.focus() }, [])
-
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") { onCerrar(); return }
-      if (e.key === "ArrowDown") { e.preventDefault(); setIndiceActivo((i) => Math.min(i + 1, filtradas.length - 1)) }
-      if (e.key === "ArrowUp") { e.preventDefault(); setIndiceActivo((i) => Math.max(i - 1, 0)) }
-      if (e.key === "Enter" && filtradas[indiceActivo]) { e.preventDefault(); onNavegar(filtradas[indiceActivo].id) }
-    }
-    document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
-  }, [filtradas, indiceActivo, onCerrar, onNavegar])
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[80] flex items-start justify-center p-4 pt-[12vh] backdrop-blur-sm"
-      style={{ backgroundColor: "rgba(14,43,51,0.55)" }}
-      onClick={onCerrar}
-    >
-      <div
-        className="flex max-h-[60vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Paleta de comandos"
-      >
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-slate-100 px-4 py-3">
-          <Search size={16} className="shrink-0 text-slate-400" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Ir a..."
-            className="w-full text-sm text-slate-800 outline-none placeholder:text-slate-400"
-          />
-          <kbd className="hidden shrink-0 rounded border border-slate-200/60 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 sm:block">Esc</kbd>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-          {filtradas.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-slate-500">Sin resultados.</p>
-          ) : (
-            filtradas.map((o, i) => {
-              const Icono = o.icono
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => onNavegar(o.id)}
-                  onMouseEnter={() => setIndiceActivo(i)}
-                  className={"flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors cursor-pointer " + (i === indiceActivo ? "bg-blue-50 text-blue-700" : "text-slate-600")}
-                >
-                  <Icono size={16} className="shrink-0" />
-                  {o.nombre}
-                </button>
-              )
-            })
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body,
   )
 }

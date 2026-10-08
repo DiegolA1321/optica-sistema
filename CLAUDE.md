@@ -10,7 +10,7 @@
 - **Micro-feedback Inmediato:** Toda acción del usuario (guardar ficha médica, agendar cita, actualizar inventario, eliminar usuario) DEBE mostrar una notificación flotante (Toast) o respuesta visual instantánea.
 - **Estados de Carga (Skeleton Loaders):** Queda estrictamente prohibido mostrar pantallas vacías o parpadeos durante la petición de datos. Muestra componentes tipo "Skeleton" mientras se hidrata el estado.
 - **Navegación Eficiente y Cero Redundancia:**
-  - Garantiza que la barra de búsqueda global y paleta de comandos (`Ctrl + K`) permitan saltar a cualquier módulo o paciente.
+  - No hay buscador global en la cabecera ni paleta de comandos (`Ctrl + K`): decisión de Diego (8 oct 2026). Cada módulo tiene su propio buscador y el resto de la navegación es por el menú lateral.
   - Elimina clics intermedios: si un flujo sugiere una venta tras el diagnóstico clínico, el sistema debe precargar los productos y abrir el modal de cobro directamente.
 - **Formularios Flexibles y Adaptativos:**
   - En formularios extensos (como la Ficha Clínica), prioriza acordeones/bloques colapsables.
