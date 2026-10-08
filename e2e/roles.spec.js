@@ -12,7 +12,10 @@ const abrir = async (page, nombre) => { await modulo(page, nombre).first().click
 const visible = (page, nombre, ambito = 'main') => page.locator(ambito).getByRole('button', { name: nombre })
 async function totalAgendadas(page) {
   await abrir(page, 'Citas médicas')
-  const t = await page.getByRole('group', { name: 'Periodo de las citas' }).getByRole('button', { name: /Todas/ }).innerText()
+  // La Lista ya no tiene "Todas": la búsqueda mira todas las fechas, y todas las citas llevan código (CIT-2026-…).
+  await page.getByLabel('Buscar cita: paciente o código').fill('CIT-')
+  await page.waitForTimeout(600)
+  const t = await page.getByRole('status').filter({ hasText: /cita/ }).first().innerText()
   return Number(t.replace(/\D/g, ''))
 }
 // Otros caminos a la ficha (perfil del paciente): sin permiso tampoco se ofrecen. Si alguien llegara igual por
