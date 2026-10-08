@@ -13,7 +13,7 @@ export const ESTADOS_FILTRO = [
 ]
 
 // Periodos de la Lista, los mismos que las vistas Semana y Mes: un día, una semana (de lunes a domingo) o un mes, que se
-// mueven con las flechas de la barra. El rango libre de fechas es un filtro del panel "Filtrar". "Para reagendar" y
+// mueven con las flechas de la barra. El rango libre de fechas es el botón "Rango…" de la fila final. "Para reagendar" y
 // "Todas" no son atajos fijos: aparecen solo mientras están activos (se llega a ellos desde las tarjetas de Inicio;
 // `activo` es el periodo elegido).
 export const periodosFiltro = (activo = "") => [

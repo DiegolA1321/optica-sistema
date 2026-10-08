@@ -38,7 +38,7 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
-import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
+import { BuscadorCitas, BloqueFiltros, BotonRango, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
 import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import SelectorAsignado from "../componentes/SelectorAsignado"
@@ -1138,7 +1138,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
-  // Filtros elegidos en el panel "Filtrar", como etiquetas con su "x" dentro de la barra. El periodo (Hoy, Esta semana, Este mes…)
+  // Filtros activos (sin contar el texto del buscador): activan "Limpiar filtros" y deciden los avisos de lista vacía. El periodo (Hoy, Semana, Mes…)
   // se ve en sus propios atajos y la búsqueda en su campo, así que no llevan etiqueta.
   const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
   const etiquetasActivas = [
@@ -1161,16 +1161,19 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
   const elegirPeriodo = (id) => { setFiltro(id); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
   const opcionesResponsable = [{ id: "todos", etiqueta: "Todos" }, { id: "ninguno", etiqueta: "Nadie" }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre }))]
-  const seccionesFiltro = [
-    { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
-    { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
-    { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
-    ...(vistaActiva === "lista" ? [{ id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta } }] : []),
-    ...(usuario?.rol === "admin" ? [
-      { id: "responsable", titulo: "Profesional", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable },
-    ] : []),
+  // Bloque de filtros siempre visible, en dos filas fijas: Estado + Origen, y Visita + Profesional (solo el administrador).
+  const filasFiltros = [
+    [
+      { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
+      { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
+    ],
+    [
+      { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
+      ...(usuario?.rol === "admin" ? [{ id: "responsable", titulo: "Profesional", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable }] : []),
+    ],
   ]
-  // Limpiar quita los filtros del panel y la búsqueda; el periodo se cambia con sus atajos.
+  // "Limpiar filtros" quita los filtros del bloque (y el rango de fechas), no el texto del buscador.
+  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setResponsableFiltro("todos"); setRangoDesde(""); setRangoHasta("") }
   const limpiarFiltrosPanel = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setResponsableFiltro("todos"); setBusqueda(""); setRangoDesde(""); setRangoHasta("") }
 
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
@@ -1336,8 +1339,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               </button>
             ))}
           </div>
-          <BarraBusquedaFiltros texto={busqueda} onTexto={setBusqueda} secciones={seccionesFiltro} etiquetas={etiquetasActivas} onLimpiar={limpiarFiltrosPanel} />
+          <BuscadorCitas texto={busqueda} onTexto={setBusqueda} />
         </div>
+
+        <BloqueFiltros filas={filasFiltros} hayFiltros={etiquetasActivas.length > 0} onLimpiar={limpiarFiltros} />
 
         {/* Fila 2, igual en las tres vistas: a la izquierda cuántas citas se ven; a la derecha, el periodo (en la Lista,
             Hoy · Semana · Mes) y las flechas ‹ › con su título. */}
@@ -1351,6 +1356,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           {vistaActiva === "lista" ? (
             !buscando && (
               <div className="flex min-w-0 items-center gap-3">
+                <BotonRango rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta }} />
                 <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} />
                 {(hayRango || ["hoy", "semana", "mes"].includes(filtro)) && (
                   <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" />
