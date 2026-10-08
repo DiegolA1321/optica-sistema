@@ -51,13 +51,13 @@ import SelectorAsignado from "../componentes/SelectorAsignado"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import { rangoDelMes } from "../utilidades/inicio"
-import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
+import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, periodosFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, contarCon, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, periodosFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -447,9 +447,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Detalle de la cita (R12-R13): se abre al hacer clic en la cita. Se guarda
   // el id y no la cita, para que el modal refleje los cambios de estado.
   const [detalleCitaId, setDetalleCitaId] = useState(null)
-  // Atención abierta de un día anterior que se quiere dejar de atender (desde el menú, el detalle o el aviso).
+  // Atención abierta de un día anterior que se quiere dejar de atender (desde el menú o el detalle).
   const [dejarCita, setDejarCita] = useState(null)
-  const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
   const abrirDetalle = (cita) => setDetalleCitaId(cita.id)
   const alCobrarCita = async (factura) => {
     const cita = cobrandoCita
@@ -1093,7 +1092,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Atajos por tarea: el día de atención que recepción debe confirmar y las citas que hay que volver a agendar.
   const diaConfirmar = useMemo(() => proximoDiaDeAtencion(disponibilidad, hoyISO()), [disponibilidad])
   const idsReagendar = useMemo(() => new Set(citasParaReagendar(citas).map((c) => c.id)), [citas])
-  const periodos = useMemo(() => periodosFiltro(diaConfirmar), [diaConfirmar])
+  const periodos = useMemo(() => periodosFiltro(diaConfirmar, hoyISO(), filtro === "reagendar"), [diaConfirmar, filtro])
   const ventana = useMemo(() => {
     if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
     if (vistaActiva === "mes") {
@@ -1108,21 +1107,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   )
   const resultado = useMemo(() => citas.filter((c) => citaPasaFiltros(c, filtros, consultas)), [citas, filtros, consultas])
   const totalAlcance = useMemo(() => totalDelAlcance(citas, filtros), [citas, filtros])
-
-  // Cuántas citas habría con cada opción de cada filtro, con todos los demás aplicados (incluidas la búsqueda y el periodo).
-  const conteos = useMemo(() => {
-    const cuenta = (cambios) => contarCon(citas, filtros, consultas, cambios)
-    const responsables = (campo) => Object.fromEntries([["todos", cuenta({ [campo]: "todos" })], ["ninguno", cuenta({ [campo]: "ninguno" })], ...equipo.map((m) => [m.id, cuenta({ [campo]: m.id })])])
-    return {
-      estado: Object.fromEntries(ESTADOS_FILTRO.map((e) => [e.id, cuenta({ estado: e.id })])),
-      origen: Object.fromEntries(ORIGENES_FILTRO.map((o) => [o.id, cuenta({ origen: o.id })])),
-      seguimiento: Object.fromEntries(SEGUIMIENTO_FILTRO.map((o) => [o.id, cuenta({ seguimiento: o.id })])),
-      asignado: responsables("asignado"),
-      atendido: responsables("atendido"),
-      periodo: Object.fromEntries(periodos.map((p) => [p.id, cuenta({ periodo: { filtro: p.id, desde: "", hasta: "" } })])),
-      rango: resultado.length,
-    }
-  }, [citas, filtros, consultas, equipo, resultado.length, periodos])
 
   // Vista Semana: si lo buscado no está en la semana que se ve, ofrece ir a la
   // semana de la coincidencia más cercana (la próxima, o la última pasada).
@@ -1192,13 +1176,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
-  // "Hoy" lleva el periodo de la vista actual a hoy: la semana a la semana actual, el mes al mes actual.
-  // No toca los filtros: solo se mueve en el tiempo.
-  const irAHoy = () => {
-    const h = new Date()
-    setMesVista(new Date(h.getFullYear(), h.getMonth(), 1))
-    setSemanaLunes(lunesDeSemana(hoyISO()))
-  }
   const moverRango = (sentido) => {
     const r = desplazarRango(rangoDesde, rangoHasta, sentido, hoyISO())
     setRangoDesde(r.desde)
@@ -1254,22 +1231,18 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const buscando = busqueda.trim() !== ""
   const hayFiltros = etiquetasActivas.length > 0 || buscando
   const sufijoPeriodo = vistaActiva === "semana" ? " en la semana" : vistaActiva === "mes" ? " en el mes" : ""
-  const palabraCitas = totalAlcance === 1 ? "cita" : "citas"
   // Hoy sin citas (y sin otros filtros): nunca una lista vacía, se avisa y se ofrece ver lo que viene.
   const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !hayFiltros && mostradas === 0
-  const textoResumen = mostradas === 0 && totalAlcance > 0
-    ? (hayFiltros ? "Ninguna cita coincide con estos filtros" : "Ninguna cita en este periodo")
-    : mostradas !== totalAlcance ? `Mostrando ${mostradas} de ${totalAlcance} ${palabraCitas}${sufijoPeriodo}` : `${totalAlcance} ${palabraCitas}${sufijoPeriodo}`
+  const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
   const elegirPeriodo = (id) => { setFiltro(id); setRangoDesde(""); setRangoHasta("") }
-  const opcionesConConteo = (lista, tabla) => lista.map((o) => ({ ...o, conteo: tabla[o.id] }))
-  const opcionesResponsable = (tabla) => [{ id: "todos", etiqueta: "Todos", conteo: tabla.todos }, { id: "ninguno", etiqueta: "Nadie", conteo: tabla.ninguno }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre, conteo: tabla[m.id] }))]
+  const opcionesResponsable = [{ id: "todos", etiqueta: "Todos" }, { id: "ninguno", etiqueta: "Nadie" }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre }))]
   const seccionesFiltro = [
-    { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: opcionesConConteo(ESTADOS_FILTRO, conteos.estado) },
-    { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: opcionesConConteo(ORIGENES_FILTRO, conteos.origen) },
-    { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: opcionesConConteo(SEGUIMIENTO_FILTRO, conteos.seguimiento).map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
+    { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
+    { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
+    { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
     ...(usuario?.rol === "admin" ? [
-      { id: "asignado", titulo: "Asignada a", tipo: "lista", valor: asignadoFiltro, onChange: setAsignadoFiltro, opciones: opcionesResponsable(conteos.asignado) },
-      { id: "atendido", titulo: "Atendida por", tipo: "lista", valor: atendidoFiltro, onChange: setAtendidoFiltro, opciones: opcionesResponsable(conteos.atendido) },
+      { id: "asignado", titulo: "Asignada a", tipo: "lista", valor: asignadoFiltro, onChange: setAsignadoFiltro, opciones: opcionesResponsable },
+      { id: "atendido", titulo: "Atendida por", tipo: "lista", valor: atendidoFiltro, onChange: setAtendidoFiltro, opciones: opcionesResponsable },
     ] : []),
   ]
   // Limpiar quita los filtros del panel y la búsqueda; el periodo se cambia con sus atajos.
@@ -1375,18 +1348,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         </div>
       </div>
 
-      {/* ─── ATENCIONES ABIERTAS DE DÍAS ANTERIORES ─── */}
-      {atencionesAntiguas.length > 0 && (
-        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
-          <AlertTriangle size={16} className="shrink-0 text-amber-600" aria-hidden="true" />
-          <p className="font-semibold">
-            {atencionesAntiguas.length === 1 ? "1 atención abierta de un día anterior" : `${atencionesAntiguas.length} atenciones abiertas de días anteriores`}
-          </p>
-          <p className="text-xs text-amber-800/80">La más antigua: {atencionesAntiguas[0].cita.paciente}, {textoAtencionAbierta(atencionesAntiguas[0].dias).toLowerCase()}.</p>
-          <button type="button" onClick={() => abrirDetalle(atencionesAntiguas[0].cita)} className="ml-auto rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Revisar</button>
-        </div>
-      )}
-
       {/* ─── ÉXITO ─── */}
       {mensajeExito && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
@@ -1412,7 +1373,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
               Cobrar) y la semana/el mes para planificar. Conviven sobre los
               mismos datos. La semana no se ofrece donde no cabe. */}
-          <div className="flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
+          <div className="order-2 flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
             {[
               { key: "lista", label: "Lista", Icono: List },
               ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
@@ -1434,7 +1395,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           <BarraBusquedaFiltros texto={busqueda} onTexto={setBusqueda} secciones={seccionesFiltro} etiquetas={etiquetasActivas} onLimpiar={limpiarFiltrosPanel} />
         </div>
 
-        <div className="flex h-10 items-center justify-between gap-3">
+        <div className={"flex h-10 items-center justify-between gap-3" + (vistaActiva === "lista" ? "" : " flex-row-reverse pt-2.5")}>
           {vistaActiva === "lista" ? (
             buscando ? (
               <p className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Search size={14} aria-hidden="true" /> Buscando en todas las fechas</p>
@@ -1442,43 +1403,36 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               <PeriodoLista
                 valor={filtro}
                 onChange={elegirPeriodo}
-                opciones={opcionesConConteo(periodos, conteos.periodo)}
-                rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango, conteo: conteos.rango }}
+                opciones={periodos}
+                rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango }}
               />
             )
           ) : (
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+              <div className="flex shrink-0 items-center rounded-lg border border-slate-200/60 bg-white p-0.5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
                   aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
                   title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-                  className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                 >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={irAHoy}
-                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
-                >
-                  Hoy
+                  <ChevronLeft size={14} />
                 </button>
                 <button
                   type="button"
                   onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
                   aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
                   title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-                  className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} />
                 </button>
               </div>
-              <h2 className="min-w-0 truncate text-sm font-bold" style={{ color: INK }}>{vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}</h2>
+              <h2 className="min-w-0 truncate text-[13px] font-semibold" style={{ color: INK }}>{vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}</h2>
             </div>
           )}
-          <ConteoCitas texto={textoResumen} vacio={mostradas === 0 && totalAlcance > 0} onLimpiar={hayFiltros ? limpiarFiltrosPanel : undefined} />
+          <ConteoCitas texto={textoResumen} />
         </div>
       </div>
 

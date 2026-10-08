@@ -148,7 +148,10 @@ describe("atajos por tarea y búsqueda en todas las fechas", () => {
     expect(proximoDiaDeAtencion(disp, "2026-10-09")).toBe("2026-10-12") // viernes 9 → lunes 12
     expect(proximoDiaDeAtencion(disp, "2026-10-07")).toBe("2026-10-08") // miércoles → jueves
     expect(etiquetaDiaCorta("2026-10-12")).toBe("Lun 12")
-    expect(periodosFiltro("2026-10-12")[1]).toEqual({ id: "confirmar", etiqueta: "Lun 12 · por confirmar" })
+    expect(periodosFiltro("2026-10-12", "2026-10-09")[1]).toEqual({ id: "confirmar", etiqueta: "Lunes" })
+    expect(periodosFiltro("2026-10-09", "2026-10-08")[1]).toEqual({ id: "confirmar", etiqueta: "Mañana" })
+    expect(periodosFiltro("2026-10-09", "2026-10-08").map((p) => p.id)).not.toContain("reagendar")
+    expect(periodosFiltro("2026-10-09", "2026-10-08", true).map((p) => p.id)).toContain("reagendar")
   })
   it("sin horario cargado, el día a confirmar es mañana", () => {
     expect(proximoDiaDeAtencion({}, "2026-10-07")).toBe("2026-10-08")
@@ -165,14 +168,14 @@ describe("atajos por tarea y búsqueda en todas las fechas", () => {
   const base = { estado: "todas", origen: "todos", seguimiento: "todos", asignado: "todos", atendido: "todos", texto: "", ventana: null, diaConfirmar: "2026-10-12", idsReagendar: new Set(["d", "e"]) }
   const con = (filtro, extra = {}) => citas.filter((c) => citaPasaFiltros(c, { ...base, periodo: { filtro, desde: "", hasta: "" }, ...extra })).map((c) => c.id)
 
-  it("'por confirmar' son las citas abiertas de ese día que aún no están confirmadas", () => {
-    expect(con("confirmar")).toEqual(["a"])
+  it("'Mañana' son todas las citas de ese día, confirmadas o no", () => {
+    expect(con("confirmar")).toEqual(["a", "b"])
   })
   it("'para reagendar' incluye canceladas y no asistidas aunque el estado esté en Todas", () => {
     expect(con("reagendar")).toEqual(["d", "e"])
   })
   it("la búsqueda mira todas las fechas e ignora el periodo; al borrarla, vuelve", () => {
     expect(con("confirmar", { texto: "paciente c" })).toEqual(["c"])
-    expect(con("confirmar", { texto: "" })).toEqual(["a"])
+    expect(con("confirmar", { texto: "" })).toEqual(["a", "b"])
   })
 })

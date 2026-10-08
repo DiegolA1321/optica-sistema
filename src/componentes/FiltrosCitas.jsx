@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { INK } from "@/lib/tema"
+import { fechaAISO, hoyISO, isoAFechaLocal } from "../utilidades/disponibilidad"
 
 // Piezas de la barra de Citas: la barra única de búsqueda y filtros, el periodo de la Lista y el conteo.
 
@@ -20,8 +21,7 @@ function useCierre(abierto, cerrar) {
   return ref
 }
 
-// Barra única de búsqueda y filtros: "Filtrar" abre un panel con todas las categorías a la vista (cada opción con
-// cuántas citas habría dados los demás filtros), los filtros elegidos quedan como etiquetas con su "x" dentro de la
+// Barra única de búsqueda y filtros: "Filtrar" abre un panel con todas las categorías a la vista (los filtros elegidos quedan como etiquetas con su "x" dentro de la
 // barra, y el campo de búsqueda ocupa el resto. "Limpiar" quita etiquetas y búsqueda.
 // secciones: [{ id, titulo, valor, onChange, opciones: [{ id, etiqueta, conteo }], tipo?: "chips" | "lista" }]
 export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar }) {
@@ -30,7 +30,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
   const hayAlgo = etiquetas.length > 0 || texto.trim() !== ""
   return (
     <div ref={ref} className="relative min-w-0 flex-1">
-      <div className="flex min-h-[38px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-1.5 py-1 shadow-sm transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
+      <div className="flex h-[38px] flex-nowrap items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-1.5 py-1 shadow-sm transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
@@ -44,14 +44,14 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           <ChevronDown size={13} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
         </button>
         {etiquetas.map((e) => (
-          <span key={e.id} className="inline-flex max-w-full shrink-0 items-center gap-1 rounded-full border border-slate-200/60 bg-slate-100 py-0.5 pl-2.5 pr-1 text-xs font-semibold text-slate-700">
+          <span key={e.id} title={e.texto} className="inline-flex min-w-0 max-w-[14rem] shrink items-center gap-1 rounded-full border border-slate-200/60 bg-slate-100 py-0.5 pl-2.5 pr-1 text-xs font-semibold text-slate-700">
             <span className="truncate">{e.texto}</span>
-            <button type="button" onClick={e.quitar} aria-label={`Quitar el filtro ${e.texto}`} className="rounded-full p-0.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800 cursor-pointer">
+            <button type="button" onClick={e.quitar} aria-label={`Quitar el filtro ${e.texto}`} className="shrink-0 rounded-full p-0.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800 cursor-pointer">
               <X size={12} aria-hidden="true" />
             </button>
           </span>
         ))}
-        <div className="relative min-w-[12rem] flex-1">
+        <div className="relative min-w-[6rem] flex-1">
           <Search size={15} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
           <label htmlFor="citas-busqueda" className="sr-only">Buscar cita: paciente o código</label>
           <input
@@ -92,7 +92,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
                       <button
                         key={o.id}
                         type="button"
-                        onClick={() => s.onChange(o.id)}
+                        onClick={() => s.onChange(activo ? s.opciones[0].id : o.id)} title={activo && o.id !== s.opciones[0].id ? "Clic de nuevo para quitar este filtro" : undefined}
                         aria-pressed={activo}
                         className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")}
                         style={activo ? { backgroundColor: INK } : undefined}
@@ -108,6 +108,75 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+// Calendario del rango, con el mismo estilo del selector de fecha de las citas: el primer clic marca el inicio, el
+// segundo el final (si es anterior, se intercambian) y el trayecto queda sombreado. "Borrar" quita el rango.
+function CalendarioRango({ rango }) {
+  const hoy = hoyISO()
+  const ref = rango.desde || rango.hasta || hoy
+  const [mes, setMes] = useState(() => new Date(Number(ref.slice(0, 4)), Number(ref.slice(5, 7)) - 1, 1))
+  const { desde, hasta } = rango
+  const eligiendoFin = Boolean(desde) && !hasta
+  const primero = new Date(mes.getFullYear(), mes.getMonth(), 1)
+  const celdas = [...Array((primero.getDay() + 6) % 7).fill(null), ...Array.from({ length: new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate() }, (_, i) => fechaAISO(new Date(mes.getFullYear(), mes.getMonth(), i + 1)))]
+  const elegir = (iso) => {
+    if (eligiendoFin) {
+      const [d, h] = iso < desde ? [iso, desde] : [desde, iso]
+      rango.onDesde(d); rango.onHasta(h)
+    } else { rango.onDesde(iso); rango.onHasta("") }
+  }
+  const corta = (iso) => { const d = isoAFechaLocal(iso); return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}` }
+  const resumen = desde && hasta ? `${corta(desde)} – ${corta(hasta)}` : desde ? `Desde el ${corta(desde)} · elige el final` : "Elige el inicio y el final"
+  const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Rango de fechas</span>
+        <div className="flex items-center gap-0.5">
+          <button type="button" onClick={() => rango.onMover(-1)} aria-label="Rango anterior" title="Rango anterior" className={flecha}><ChevronLeft size={14} /></button>
+          <button type="button" onClick={() => rango.onMover(1)} aria-label="Rango siguiente" title="Rango siguiente" className={flecha}><ChevronRight size={14} /></button>
+        </div>
+      </div>
+      <div className="rounded-xl border border-slate-200/60 bg-slate-50/40 p-2.5">
+        <div className="mb-2 flex items-center justify-between px-0.5">
+          <span className="text-xs font-bold capitalize" style={{ color: INK }}>{MESES[mes.getMonth()]} {mes.getFullYear()}</span>
+          <div className="flex gap-0.5">
+            <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} aria-label="Mes anterior" className={flecha}><ChevronLeft size={14} /></button>
+            <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} aria-label="Mes siguiente" className={flecha}><ChevronRight size={14} /></button>
+          </div>
+        </div>
+        <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-bold text-slate-500">{DIAS_CORTOS.map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="grid grid-cols-7 gap-y-0.5">
+          {celdas.map((iso, i) => {
+            if (!iso) return <span key={"v" + i} />
+            const extremo = iso === desde || iso === hasta
+            const dentro = desde && hasta && iso > desde && iso < hasta
+            return (
+              <button
+                key={iso}
+                type="button"
+                onClick={() => elegir(iso)}
+                aria-pressed={extremo}
+                aria-label={iso.split("-").reverse().join("/")}
+                className={"h-7 text-xs font-semibold tabular-nums transition-colors cursor-pointer " + (extremo ? "rounded-lg text-white" : dentro ? "bg-slate-200/70 text-slate-800" : "rounded-lg text-slate-700 hover:bg-slate-200/70") + (!extremo && iso === hoy ? " ring-1 ring-inset ring-slate-400 rounded-lg" : "")}
+                style={extremo ? { backgroundColor: INK } : undefined}
+              >
+                {Number(iso.slice(8))}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <span className="truncate text-xs font-semibold text-slate-600">{resumen}</span>
+        {(desde || hasta) && <button type="button" onClick={() => { rango.onDesde(""); rango.onHasta("") }} className="shrink-0 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800 cursor-pointer">Borrar</button>}
+      </div>
     </div>
   )
 }
@@ -148,33 +217,15 @@ export function PeriodoLista({ valor, onChange, opciones, rango }) {
         {hayRango && rango.conteo != null && <span className="rounded-full bg-white/20 px-1.5 text-[11px] font-bold tabular-nums text-white">{rango.conteo}</span>}
       </button>
       {abierto && (
-        <div className="absolute right-0 top-full z-30 mt-1.5 space-y-2 rounded-2xl border border-slate-200/60 bg-white p-3 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
-          <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">Rango de fechas</span>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1">
-            <button type="button" onClick={() => rango.onMover(-1)} aria-label="Rango anterior" title="Rango anterior" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={15} /></button>
-            <label htmlFor="rango-desde" className="sr-only">Desde</label>
-            <input id="rango-desde" type="date" value={rango.desde} onChange={(e) => rango.onDesde(e.target.value)} max={rango.hasta || undefined} className="w-[7.4rem] rounded-lg bg-transparent px-1 py-1 text-xs font-semibold text-slate-600 outline-none" />
-            <span className="text-xs text-slate-400">–</span>
-            <label htmlFor="rango-hasta" className="sr-only">Hasta</label>
-            <input id="rango-hasta" type="date" value={rango.hasta} onChange={(e) => rango.onHasta(e.target.value)} min={rango.desde || undefined} className="w-[7.4rem] rounded-lg bg-transparent px-1 py-1 text-xs font-semibold text-slate-600 outline-none" />
-            <button type="button" onClick={() => rango.onMover(1)} aria-label="Rango siguiente" title="Rango siguiente" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={15} /></button>
-          </div>
+        <div className="absolute left-0 top-full z-30 mt-1.5 w-[17.5rem] space-y-2 rounded-2xl border border-slate-200/60 bg-white p-3 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+          <CalendarioRango rango={rango} />
         </div>
       )}
     </div>
   )
 }
 
-// Cuántas citas se ven ("Mostrando 4 de 9 citas") y, si ninguna coincide, el aviso con su botón para limpiar.
-export function ConteoCitas({ texto, vacio, onLimpiar }) {
-  return (
-    <div className="flex shrink-0 items-center gap-2">
-      <p role="status" className={"text-xs " + (vacio ? "font-semibold text-slate-700" : "text-slate-500")}>{texto}</p>
-      {vacio && onLimpiar && (
-        <button type="button" onClick={onLimpiar} className="rounded-lg border border-slate-200/60 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
-          Limpiar filtros
-        </button>
-      )}
-    </div>
-  )
+// Cuántas citas se ven ("5 citas", "0 citas"): siempre el mismo formato, con o sin resultados.
+export function ConteoCitas({ texto }) {
+  return <p role="status" className="shrink-0 text-xs text-slate-500">{texto}</p>
 }

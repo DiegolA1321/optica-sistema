@@ -12,15 +12,20 @@ export const ESTADOS_FILTRO = [
   { id: "cancelada", etiqueta: "Canceladas" },
 ]
 
-// Atajos de la Lista, en orden de la jornada: hoy, el día que recepción debe confirmar, las que hay que volver a
-// agendar, lo que viene y todo. La etiqueta del segundo lleva el día (ver proximoDiaDeAtencion).
-export const periodosFiltro = (diaConfirmar) => [
-  { id: "hoy", etiqueta: "Hoy" },
-  { id: "confirmar", etiqueta: `${etiquetaDiaCorta(diaConfirmar)} · por confirmar` },
-  { id: "reagendar", etiqueta: "Para reagendar" },
-  { id: "proximas", etiqueta: "Próximas" },
-  { id: "todas", etiqueta: "Todas" },
-]
+// Atajos de la Lista, en orden de la jornada: hoy, el siguiente día de atención ("Mañana"; si es otro día, su nombre,
+// sin número), lo que viene y todo. "Para reagendar" no es un atajo fijo: solo aparece mientras se llega a él desde
+// Inicio (`reagendarActivo`).
+export function periodosFiltro(diaConfirmar, hoy, reagendarActivo = false) {
+  const nombreDia = isoAFechaLocal(diaConfirmar).toLocaleDateString("es-EC", { weekday: "long" })
+  const esManana = !hoy || diaConfirmar === sumarDiasISO(hoy, 1)
+  return [
+    { id: "hoy", etiqueta: "Hoy" },
+    { id: "confirmar", etiqueta: esManana ? "Mañana" : `${nombreDia.charAt(0).toUpperCase()}${nombreDia.slice(1)}` },
+    ...(reagendarActivo ? [{ id: "reagendar", etiqueta: "Para reagendar" }] : []),
+    { id: "proximas", etiqueta: "Próximas" },
+    { id: "todas", etiqueta: "Todas" },
+  ]
+}
 
 // "Lun 12": el nombre corto del día y su número.
 export function etiquetaDiaCorta(iso) {
@@ -134,7 +139,7 @@ export function citaPasaFiltros(cita, f, consultas = []) {
     if (desde || hasta) return (!desde || cita.fecha >= desde) && (!hasta || cita.fecha <= hasta)
     if (filtro === "hoy") return esHoy(cita.fecha)
     if (filtro === "proximas") return esFutura(cita.fecha)
-    if (filtro === "confirmar") return cita.fecha === f.diaConfirmar && ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt
+    if (filtro === "confirmar") return cita.fecha === f.diaConfirmar
     if (filtro === "reagendar") return Boolean(f.idsReagendar?.has(cita.id))
   }
   return true
