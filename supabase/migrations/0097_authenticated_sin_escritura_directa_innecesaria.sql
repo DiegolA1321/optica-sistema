@@ -4,6 +4,13 @@
 -- (SECURITY DEFINER, no necesitan permisos de tabla del llamador), y deja las escrituras que el cliente sí hace.
 -- Lectura: se conserva en todo (la limita el RLS).
 --
+-- Tablas y vistas que SÍ conservan escritura directa, porque la app las escribe con .insert/.update/.upsert/.delete
+-- (revisado el 7 de octubre contra todo src/, y ensayado con scripts/ensayo-0097.mjs):
+--   pacientes, citas, consultas (vistas) y sus tablas base; inventario (insert, update, delete); ventas (update);
+--   opticas, perfiles (insert, update); roles, perfil_roles (insert, update, delete); disponibilidad, horarios_usuario,
+--   mensajes (insert, update); avisos (insert, delete); logs_optica, auditoria (insert); facturas (insert, update);
+--   leads (update).
+--
 -- Tablas que quedan sin escritura directa para authenticated (solo por RPC): abonos_factura, facturas_venta,
 -- facturas_venta_lineas, ordenes_laboratorio, ordenes_laboratorio_historial, pases_a_venta, contador_*,
 -- limite_solicitudes, notificaciones_enviadas, respuestas_satisfaccion, solicitudes_eliminacion_paciente, visitas.
