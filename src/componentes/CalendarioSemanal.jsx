@@ -48,6 +48,7 @@ export function tituloSemana(dias) {
 }
 
 const BADGE_ESTADO = {
+  "En Espera": "border-violet-200/60 bg-violet-50 text-violet-700",
   "En Atención": "border-blue-200/60 bg-blue-50 text-blue-700",
   Atendida: "border-emerald-200/60 bg-emerald-50 text-emerald-700",
   "No Asistió": "border-red-200/60 bg-red-50 text-red-700",

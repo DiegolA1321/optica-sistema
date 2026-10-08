@@ -7,6 +7,7 @@ import { useLayoutEffect, useState } from "react"
 // fondo pastel y texto oscuro del mismo tono. Un estado desconocido cuenta como
 // pendiente.
 const COLOR_ESTADO = {
+  "En Espera": { linea: "#7c3aed", fondo: "#ede9fe", texto: "#4c1d95", etiqueta: "En espera" },
   "En Atención": { linea: "#2563eb", fondo: "#dbeafe", texto: "#1e3a8a", etiqueta: "En atención" },
   Atendida: { linea: "#059669", fondo: "#bbf7d0", texto: "#064e3b", etiqueta: "Atendida" },
   "No Asistió": { linea: "#dc2626", fondo: "#fecaca", texto: "#7f1d1d", etiqueta: "No asistió" },
@@ -15,7 +16,7 @@ const COLOR_ESTADO = {
 const COLOR_PENDIENTE = { linea: "#d97706", fondo: "#fde68a", texto: "#78350f", etiqueta: "Pendiente" }
 export const colorDe = (estado) => COLOR_ESTADO[estado] || COLOR_PENDIENTE
 // Leyenda que se muestra en el encabezado de Semana y Mes.
-export const LEYENDA_ESTADOS = [COLOR_PENDIENTE, COLOR_ESTADO["En Atención"], COLOR_ESTADO.Atendida, COLOR_ESTADO["No Asistió"], COLOR_ESTADO.Cancelada]
+export const LEYENDA_ESTADOS = [COLOR_PENDIENTE, COLOR_ESTADO["En Espera"], COLOR_ESTADO["En Atención"], COLOR_ESTADO.Atendida, COLOR_ESTADO["No Asistió"], COLOR_ESTADO.Cancelada]
 
 // Enlace al perfil del paciente para abrirlo en otra pestaña: así no se pierde
 // el lugar del calendario. Conserva los parámetros de la URL actual (óptica o
