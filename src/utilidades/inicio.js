@@ -33,7 +33,8 @@ export function resumenHoy(citas) {
     atendidas: cuenta("Atendida"),
     noAsistieron: cuenta("No Asistió"),
     canceladas: cuenta("Cancelada"),
-    siguiente: porVenir.find((c) => c.estado !== "Cancelada") || null,
+    // Quien ya llegó (En espera) va primero: está en la sala, y el que sigue por hora puede no haber llegado todavía.
+    siguiente: porVenir.find((c) => c.estado === "En Espera") || porVenir.find((c) => c.estado !== "Cancelada") || null,
     citas: vigentes,
   }
 }

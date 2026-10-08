@@ -221,7 +221,7 @@ export default function Inicio({
           sesión: Pendiente=ámbar (acá caía en gris por defecto,
           cuarta repetición del mismo patrón encontrada en el sistema). */}
       <span className={"rounded-full px-3 py-1 text-[11px] font-bold " + (
-        cita.estado === "En Espera" ? "border border-amber-200/60 bg-amber-50 text-amber-700"
+        cita.estado === "En Espera" ? "border border-violet-200/60 bg-violet-50 text-violet-700"
           : cita.estado === "En Atención" ? "border border-blue-200/60 bg-blue-50 text-blue-700"
           : cita.estado === "Atendida" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-700"
           : cita.estado === "No Asistió" ? "border border-red-200/60 bg-red-50 text-red-700"
@@ -299,6 +299,7 @@ export default function Inicio({
       descripcion="Tu agenda del día"
       tarjetas={[
         { id: "mias", titulo: "Mis citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
+        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: hoyVista.enEspera === 0 ? "Nadie esperando" : hoyVista.enEspera === 1 ? "paciente ya llegó" : "pacientes ya llegaron", icono: Users, color: "violet", onClick: () => setVista?.("citas") },
         { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: () => (hoyVista.siguiente && puede(usuario, "consultas", "crear") ? onAtenderEnCitas?.(hoyVista.siguiente) : setVista?.("citas")), cta: hoyVista.siguiente && puede(usuario, "consultas", "crear") ? "Atender" : null, onCta: () => onAtenderEnCitas?.(hoyVista.siguiente) },
         // Solo aparece si hay alguna atención abierta propia; sin ninguna, no ocupa lugar.
         ...(sinTerminar.length > 0 ? [{ id: "sinTerminar", titulo: "Fichas sin terminar", valor: sinTerminar.length, desc: sinTerminar.length === 0 ? "Ninguna atención abierta" : sinTerminar.length === 1 ? sinTerminar[0].paciente : `${sinTerminar[0].paciente} y ${sinTerminar.length - 1} más`, icono: Activity, color: sinTerminar.length > 0 ? "amber" : "slate", onClick: () => (sinTerminar.length > 0 && puede(usuario, "consultas", "crear") ? onAtenderCita?.(sinTerminar[0]) : setVista?.("citas")), cta: sinTerminar.length > 0 && puede(usuario, "consultas", "crear") ? "Retomar" : null, onCta: () => onAtenderCita?.(sinTerminar[0]) }] : []),
@@ -313,7 +314,7 @@ export default function Inicio({
       tarjetas={[
         { id: "hoy", titulo: "Citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
         { id: "porLlegar", titulo: "Por llegar", valor: hoyVista.pendientes, desc: "Pendientes", icono: Clock, color: "slate", onClick: () => onVerCitas?.("pendiente") },
-        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: "Ya llegaron", icono: Users, color: "amber", onClick: () => setVista?.("citas") },
+        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: "Ya llegaron", icono: Users, color: "violet", onClick: () => setVista?.("citas") },
         { id: "noAsistieron", titulo: "No asistieron", valor: hoyVista.noAsistieron, desc: "Hoy", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio") },
       ]}
     />

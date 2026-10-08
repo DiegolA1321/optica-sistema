@@ -9,6 +9,7 @@ const COLORES = {
   blue: { tile: GRAD, texto: "#fff" },
   green: { tile: "#DCFCE7", texto: "#15803D" },
   amber: { tile: "#FEF3C7", texto: "#D97706" },
+  violet: { tile: "#EDE9FE", texto: "#6D28D9" },
   red: { tile: "#FEE2E2", texto: "#DC2626" },
 }
 
@@ -16,7 +17,7 @@ const COLORES = {
 // ("Totales", "Hoy", "Este mes"...). Cada tarjeta puede llevar a su módulo y tener un atajo que abre la acción.
 export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones }) {
   if (!tarjetas || tarjetas.length === 0) return null
-  const columnas = tarjetas.length >= 4 ? "lg:grid-cols-4" : tarjetas.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"
+  const columnas = tarjetas.length >= 5 ? "lg:grid-cols-5" : tarjetas.length === 4 ? "lg:grid-cols-4" : tarjetas.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"
   return (
     <section aria-label={titulo} className="space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">

@@ -41,6 +41,15 @@ describe("resúmenes del día y del mes", () => {
     expect(r).toMatchObject({ pendientes: 1, enEspera: 1, enAtencion: 1, atendidas: 1, noAsistieron: 1, canceladas: 1 })
     expect(r.siguiente.id).toBe(4)
   })
+  it("el siguiente paciente es quien ya llegó (En espera), aunque otra cita sea más temprana", () => {
+    const r = resumenHoy([
+      cita({ id: 1, estado: "Pendiente", hora: "09:00 AM" }),
+      cita({ id: 2, estado: "En Espera", hora: "11:00 AM" }),
+      cita({ id: 3, estado: "Pendiente", hora: "10:00 AM" }),
+    ])
+    expect(r.siguiente.id).toBe(2)
+    expect(resumenHoy([cita({ id: 1, estado: "Pendiente", hora: "09:00 AM" }), cita({ id: 3, estado: "Pendiente", hora: "10:00 AM" })]).siguiente.id).toBe(1)
+  })
   it("cuenta las citas del mes en curso", () => {
     const ahora = new Date(2026, 9, 15)
     const r = resumenMes([
