@@ -123,7 +123,7 @@ export async function crearCitaDeHoyParaPaula() {
 
   const nombre = nombrePrueba()
   const { data: paciente, error: errorPaciente } = await cliente.from('pacientes').insert({
-    optica_id: perfil.optica_id, nombre, cedula: cedulaValida(), telefono: telefonoPrueba(), correo: 'Sin Correo',
+    optica_id: perfil.optica_id, nombre, cedula: cedulaValida(), telefono: telefonoPrueba(), correo: 'Sin Correo', fecha_nacimiento: '1990-05-15',
     evolucion: 'Sin evaluación', ultima_consulta: 'Pendiente', fecha_registro: hoyLocalISO(), estado_clinico: 'Activo',
   }).select().single()
   if (errorPaciente) throw new Error(`No se pudo crear el paciente de prueba: ${errorPaciente.message}`)
