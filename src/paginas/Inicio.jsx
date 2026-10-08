@@ -299,11 +299,11 @@ export default function Inicio({
       descripcion="Tu agenda del día"
       tarjetas={[
         { id: "mias", titulo: "Mis citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
-        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: hoyVista.enEspera === 0 ? "Nadie esperando" : hoyVista.enEspera === 1 ? "paciente ya llegó" : "pacientes ya llegaron", icono: Users, color: "violet", onClick: () => setVista?.("citas") },
+        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: hoyVista.enEspera === 0 ? "Nadie esperando" : hoyVista.enEspera === 1 ? "paciente ya llegó" : "pacientes ya llegaron", icono: Users, color: "violet", onClick: () => onVerCitas?.("enEspera", "hoy") },
         { id: "siguiente", titulo: "Siguiente paciente", valor: hoyVista.siguiente ? hoyVista.siguiente.hora : "—", desc: hoyVista.siguiente ? hoyVista.siguiente.paciente : "No queda nadie por atender", icono: Clock, color: "slate", onClick: () => (hoyVista.siguiente && puede(usuario, "consultas", "crear") ? onAtenderEnCitas?.(hoyVista.siguiente) : setVista?.("citas")), cta: hoyVista.siguiente && puede(usuario, "consultas", "crear") ? "Atender" : null, onCta: () => onAtenderEnCitas?.(hoyVista.siguiente) },
         // Solo aparece si hay alguna atención abierta propia; sin ninguna, no ocupa lugar.
         ...(sinTerminar.length > 0 ? [{ id: "sinTerminar", titulo: "Fichas sin terminar", valor: sinTerminar.length, desc: sinTerminar.length === 0 ? "Ninguna atención abierta" : sinTerminar.length === 1 ? sinTerminar[0].paciente : `${sinTerminar[0].paciente} y ${sinTerminar.length - 1} más`, icono: Activity, color: sinTerminar.length > 0 ? "amber" : "slate", onClick: () => (sinTerminar.length > 0 && puede(usuario, "consultas", "crear") ? onAtenderCita?.(sinTerminar[0]) : setVista?.("citas")), cta: sinTerminar.length > 0 && puede(usuario, "consultas", "crear") ? "Retomar" : null, onCta: () => onAtenderCita?.(sinTerminar[0]) }] : []),
-        { id: "atendidos", titulo: "Atendidos hoy", valor: hoyVista.atendidas, desc: "Fichas terminadas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida") },
+        { id: "atendidos", titulo: "Atendidos hoy", valor: hoyVista.atendidas, desc: "Fichas terminadas", icono: CheckCircle2, color: "green", onClick: () => onVerCitas?.("atendida", "hoy") },
       ]}
     />
   )
@@ -313,9 +313,9 @@ export default function Inicio({
       descripcion="El movimiento del día"
       tarjetas={[
         { id: "hoy", titulo: "Citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
-        { id: "porLlegar", titulo: "Por llegar", valor: hoyVista.pendientes, desc: "Pendientes", icono: Clock, color: "slate", onClick: () => onVerCitas?.("pendiente") },
-        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: "Ya llegaron", icono: Users, color: "violet", onClick: () => setVista?.("citas") },
-        { id: "noAsistieron", titulo: "No asistieron", valor: hoyVista.noAsistieron, desc: "Hoy", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio") },
+        { id: "porLlegar", titulo: "Por llegar", valor: hoyVista.pendientes, desc: "Pendientes", icono: Clock, color: "slate", onClick: () => onVerCitas?.("pendiente", "hoy") },
+        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: "Ya llegaron", icono: Users, color: "violet", onClick: () => onVerCitas?.("enEspera", "hoy") },
+        { id: "noAsistieron", titulo: "No asistieron", valor: hoyVista.noAsistieron, desc: "Hoy", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio", "hoy") },
       ]}
     />
   )
