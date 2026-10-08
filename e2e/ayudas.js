@@ -1,13 +1,18 @@
-// Ayudas compartidas. SOLO la Óptica Demo (slug qu7u2j); nunca otra óptica.
+// Ayudas compartidas. Dos ópticas, nunca otra:
+//   * 'DEMO' (Óptica Demo, slug qu7u2j): la que se usa para presentar. Las pruebas que la usan son de SOLO LECTURA.
+//   * 'E2E'  (QA Test Claude, slug v8twzq): la óptica de pruebas. Las pruebas que crean o cambian datos corren aquí.
+// Las credenciales de cada una están en .env.test como DEMO_<ROL>_EMAIL/PASSWORD y E2E_<ROL>_EMAIL/PASSWORD.
 import { expect } from '@playwright/test'
 import fs from 'node:fs'
 
 export const SLUG_DEMO = 'qu7u2j'
+export const SLUG_PRUEBAS = 'v8twzq'
+export const slugDe = (entorno) => (entorno === 'E2E' ? SLUG_PRUEBAS : SLUG_DEMO)
 
-export function credencial(prefijo) {
-  const correo = process.env[`DEMO_${prefijo}_EMAIL`]
-  const clave = process.env[`DEMO_${prefijo}_PASSWORD`]
-  if (!correo || !clave) throw new Error(`Faltan DEMO_${prefijo}_EMAIL / DEMO_${prefijo}_PASSWORD en .env.test`)
+export function credencial(prefijo, entorno = 'DEMO') {
+  const correo = process.env[`${entorno}_${prefijo}_EMAIL`]
+  const clave = process.env[`${entorno}_${prefijo}_PASSWORD`]
+  if (!correo || !clave) throw new Error(`Faltan ${entorno}_${prefijo}_EMAIL / ${entorno}_${prefijo}_PASSWORD en .env.test`)
   return { correo, clave }
 }
 
@@ -19,9 +24,9 @@ export async function escribirSecreto(page, locator, valor) {
   await page.keyboard.insertText(valor)
 }
 
-export async function iniciarSesion(page, prefijo) {
-  const { correo, clave } = credencial(prefijo)
-  await page.goto(`/?optica=${SLUG_DEMO}`)
+export async function iniciarSesion(page, prefijo, entorno = 'DEMO') {
+  const { correo, clave } = credencial(prefijo, entorno)
+  await page.goto(`/?optica=${slugDe(entorno)}`)
   await page.getByRole('button', { name: 'Iniciar sesión' }).first().click()
   await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), correo)
   await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), clave)
@@ -44,7 +49,7 @@ export function guardarEnEnv(pares) {
 }
 
 // ── Datos propios de cada prueba del recorrido completo ──
-// Todo lo que crea una prueba lleva este prefijo, para reconocerlo (y limpiarlo) en la Óptica Demo.
+// Todo lo que crea una prueba lleva este prefijo, para reconocerlo (y limpiarlo) en la óptica de pruebas.
 export const PREFIJO = 'E2E '
 export const PREFIJO_NOMBRE = 'E Dos E '
 
@@ -81,8 +86,8 @@ export async function seleccionarPorTexto(select, patron) {
 // Recepción registra un paciente nuevo y le agenda una cita asignada a Paula, en el primer día con cupo y su primer
 // horario libre (no depende de la hora del día ni de qué turnos haya sembrados). Paula puede atenderla el mismo día
 // ("Atender hoy": la fecha agendada no cambia). Deja la sesión de Recepción abierta en la página dada.
-export async function agendarCitaParaPaula(page, { nombre, cedula, telefono }) {
-  await iniciarSesion(page, 'RECEPCION')
+export async function agendarCitaParaPaula(page, { nombre, cedula, telefono }, entorno = 'E2E') {
+  await iniciarSesion(page, 'RECEPCION', entorno)
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByRole('button', { name: 'Gestionar cita' }).click()
   const form = page.getByRole('dialog')
@@ -110,16 +115,16 @@ const hoyLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${S
 
 // Crea un paciente "E Dos E ..." y una cita de HOY asignada a Paula (pendiente, media hora más tarde, o a las 11:50 PM
 // si ya es tarde: nunca pasada, para que el proceso de "No asistió" no la toque). Devuelve el nombre del paciente.
-export async function crearCitaDeHoyParaPaula() {
+export async function crearCitaDeHoyParaPaula(entorno = 'E2E') {
   const { createClient } = await import('@supabase/supabase-js')
-  const { correo, clave } = credencial('RECEPCION')
+  const { correo, clave } = credencial('RECEPCION', entorno)
   const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
   const { data: sesion, error: errorSesion } = await cliente.auth.signInWithPassword({ email: correo, password: clave })
   if (errorSesion) throw new Error('No se pudo iniciar la sesión de Recepción para preparar los datos.')
   const { data: perfil } = await cliente.from('perfiles').select('optica_id').eq('id', sesion.user.id).single()
   const { data: equipo } = await cliente.rpc('equipo_optica')
   const paula = (equipo || []).find((m) => /Paula/.test(m.nombre))
-  if (!paula) throw new Error('No se encontró a Paula en el equipo de la Óptica Demo.')
+  if (!paula) throw new Error('No se encontró a Paula en el equipo de la óptica de pruebas.')
 
   const nombre = nombrePrueba()
   const { data: paciente, error: errorPaciente } = await cliente.from('pacientes').insert({

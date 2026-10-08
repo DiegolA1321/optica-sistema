@@ -2,7 +2,7 @@
 // prefijo "E2E " (los nombres de paciente, "E Dos E ") y no depende de la hora del día ni de citas sembradas: la cita se
 // agenda en el primer día con cupo y Paula la atiende hoy.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, PREFIJO, nombrePrueba, cedulaValida, telefonoPrueba, agendarCitaParaPaula } from './ayudas.js'
+import { iniciarSesion, PREFIJO, nombrePrueba, cedulaValida, telefonoPrueba, agendarCitaParaPaula, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 test.describe.configure({ mode: 'serial' })
@@ -19,7 +19,7 @@ const datos = { nombre: nombrePrueba(), cedula: cedulaValida(), telefono: telefo
 // Lee del Reportes del administrador (este mes) lo que el recorrido debe mover. Se compara antes y después, así que
 // no depende de los datos que ya haya en la Óptica Demo.
 async function leerReportes(page) {
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await page.getByRole('button', { name: 'Reportes', exact: true }).first().click()
   const cuerpo = page.locator('main')
   const leer = async () => {
@@ -27,9 +27,20 @@ async function leerReportes(page) {
     const num = (re) => Number((texto.match(re)?.[1] ?? 'NaN').replace(/[^\d.]/g, ''))
     return { consultas: num(/CONSULTAS\s+(\d+)/), ingresos: num(/INGRESOS\s+\$([\d.,]+)/), ventas: num(/(\d+) ventas \(sin anuladas\)/) }
   }
-  // Los indicadores arrancan en 0 mientras cargan los datos: se espera a que haya cifras reales (la Demo siempre las tiene).
-  await expect.poll(async () => { const r = await leer(); return r.ventas > 0 && r.consultas > 0 && r.ingresos > 0 }, { timeout: 25_000 }).toBe(true)
-  return leer()
+  // Los indicadores arrancan en 0 mientras cargan los datos, y en una óptica vacía 0 es un valor legítimo: no se puede esperar
+  // "una cifra mayor que cero". Se espera a que el Reportes termine de cargar (sin esqueletos, con las tarjetas pintadas) y a que
+  // la lectura se mantenga igual durante un par de segundos.
+  await expect(cuerpo.getByText(/ventas \(sin anuladas\)/)).toBeVisible({ timeout: 25_000 })
+  await expect(cuerpo.locator('.animate-pulse')).toHaveCount(0, { timeout: 25_000 })
+  let previa = JSON.stringify(await leer())
+  await expect(async () => {
+    await page.waitForTimeout(1500)
+    const actual = JSON.stringify(await leer())
+    const estable = actual === previa
+    previa = actual
+    expect(estable, 'el Reportes sigue cargando').toBe(true)
+  }).toPass({ timeout: 25_000 })
+  return JSON.parse(previa)
 }
 let antes
 
@@ -43,7 +54,7 @@ test('1 · Recepción agenda una cita para Paula con un paciente nuevo', async (
 })
 
 test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ page }) => {
-  await iniciarSesion(page, 'OPTOMETRA')
+  await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(datos.nombre)
   await page.getByText(datos.nombre).first().click()
@@ -69,7 +80,7 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
 })
 
 test('3 · Vera vende con abono y luna', async ({ page }) => {
-  await iniciarSesion(page, 'VENTAS')
+  await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
   await page.getByRole('tab', { name: /Por vender/ }).click()
   await page.getByLabel('Buscar paciente en la cola').fill(datos.nombre)
@@ -99,7 +110,7 @@ test('3 · Vera vende con abono y luna', async ({ page }) => {
 })
 
 test('4 · Vera marca la orden lista, avisa, cobra el saldo y entrega', async ({ page }) => {
-  await iniciarSesion(page, 'VENTAS')
+  await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
   await page.getByRole('tab', { name: /Órdenes de laboratorio/ }).click()
   await page.getByLabel('Buscar orden de laboratorio').fill(datos.nombre)
@@ -149,4 +160,18 @@ test('5 · El administrador ve el resultado en Reportes y la cita quedó atendid
   // Con el filtro de estado en 'Atendidas', la cita del paciente tiene que seguir apareciendo.
   await page.locator('main select').filter({ has: page.locator('option[value=atendida]') }).selectOption('atendida')
   await expect(page.locator('main').getByText(datos.nombre).first()).toBeVisible({ timeout: 20_000 })
+})
+
+// Va aparte del recorrido: necesita una cita suya DE HOY (no de otro día), que se crea por API para no depender de la hora.
+test('6 · Paula ve "Siguiente paciente" con "Atender", que abre el mismo flujo de Citas', async ({ page }) => {
+  await crearCitaDeHoyParaPaula('E2E')
+  await iniciarSesion(page, 'OPTOMETRA', 'E2E')
+  const tarjeta = page.locator('main').first().getByRole('region', { name: 'Hoy' })
+  await expect(tarjeta.getByText('Siguiente paciente')).toBeVisible({ timeout: 20_000 })
+  await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
+  const resumen = page.getByRole('dialog')
+  await expect(resumen.getByText('Resumen de la cita')).toBeVisible()
+  await expect(resumen.getByRole('button', { name: /Ingresar a la ficha clínica|Atender hoy/ })).toBeVisible()
+  await resumen.getByRole('button', { name: 'Cerrar' }).click()
 })

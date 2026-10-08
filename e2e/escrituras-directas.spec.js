@@ -4,7 +4,7 @@
 // que la base la acepte (2xx), así que si faltara un permiso fallaría con 401/403.
 // Todo lo que crean lleva el prefijo "E2E " y se borra o se restaura al terminar la prueba (también si la prueba falla).
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, PREFIJO, crearCitaDeHoyParaPaula } from './ayudas.js'
+import { iniciarSesion, PREFIJO, crearCitaDeHoyParaPaula, cedulaValida, escribirSecreto } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -35,7 +35,7 @@ const confirmarEliminar = (page) => page.getByRole('dialog').last().getByRole('b
 test('Inventario: crear, editar y eliminar un producto (inventario: insert, update y delete)', async ({ page }) => {
   const nombre = `${PREFIJO}Montura ${sufijo()}`
   const nombre2 = `${nombre} editada`
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Inventario')
 
   await page.getByRole('button', { name: 'Agregar producto' }).click()
@@ -66,7 +66,7 @@ test('Inventario: crear, editar y eliminar un producto (inventario: insert, upda
 
 test('CRM: publicar y eliminar un aviso (avisos: insert y delete)', async ({ page }) => {
   const texto = `${PREFIJO}aviso de prueba ${sufijo()}`
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'CRM y fidelización')
   await page.getByPlaceholder(/Cerraremos el sábado/).fill(texto)
   await conEscritura(page, 'avisos', 'publicar aviso', () => page.getByRole('button', { name: 'Publicar aviso', exact: true }).click())
@@ -82,7 +82,7 @@ test('CRM: publicar y eliminar un aviso (avisos: insert y delete)', async ({ pag
 })
 
 test('Horario general: cambiar y restaurar la duración de cada cita (disponibilidad: upsert)', async ({ page }) => {
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Mi horario')
   await page.getByRole('button', { name: 'Horario general de la óptica' }).click()
   const campo = () => page.locator('input[type=number][step="5"]').first()
@@ -111,7 +111,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
 
 test('Mi horario: registrar y quitar una ausencia lejana (disponibilidad: upsert)', async ({ page }) => {
   const fecha = fechaEn(500)
-  await iniciarSesion(page, 'OPTOMETRA')
+  await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await irA(page, 'Mi horario')
   await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
   await page.getByRole('button', { name: 'Registrar' }).click()
@@ -127,7 +127,7 @@ test('Mi horario: registrar y quitar una ausencia lejana (disponibilidad: upsert
 })
 
 test('Mi horario: guardar y restaurar el horario habitual propio (horarios_usuario: upsert)', async ({ page }) => {
-  await iniciarSesion(page, 'VENTAS')
+  await iniciarSesion(page, 'VENTAS', 'E2E')
   await irA(page, 'Mi horario')
   await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
   await page.getByRole('button', { name: /^Lunes/ }).click()
@@ -153,7 +153,7 @@ test('Mi horario: guardar y restaurar el horario habitual propio (horarios_usuar
 
 test('Configuración: catálogos y datos de la proforma (opticas: update)', async ({ page }) => {
   const marca = sufijo()
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Configuración')
 
   // Datos de la proforma: se cambia la dirección y se restaura la original.
@@ -192,7 +192,7 @@ test('Configuración: catálogos y datos de la proforma (opticas: update)', asyn
 })
 
 test('Usuarios: asignar y quitar un rol y cambiar un nombre, dejándolo todo como estaba (perfil_roles y perfiles)', async ({ page }) => {
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Usuarios y permisos')
   const abrirRosa = async () => {
     await page.getByRole('button', { name: /^Editar Rosa/ }).click()
@@ -223,7 +223,7 @@ test('Usuarios: asignar y quitar un rol y cambiar un nombre, dejándolo todo com
 test('Roles: crear, editar y eliminar un rol (roles: insert, update y delete)', async ({ page }) => {
   const rol = `${PREFIJO}Rol ${sufijo()}`
   const nombreRol = `${rol} editado`
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Usuarios y permisos')
   await page.getByRole('tab', { name: /^Roles/ }).click()
 
@@ -250,7 +250,7 @@ test('Roles: crear, editar y eliminar un rol (roles: insert, update y delete)', 
 
 test('Mensajes: el administrador envía una consulta al equipo (mensajes: insert)', async ({ page }) => {
   const asunto = `${PREFIJO}consulta de prueba ${sufijo()}`
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Mensajes')
   await page.getByPlaceholder(/Asunto/).fill(asunto)
   await page.getByPlaceholder('Cuéntanos qué necesitas…').fill(`${PREFIJO}mensaje de prueba, no requiere respuesta`)
@@ -260,7 +260,7 @@ test('Mensajes: el administrador envía una consulta al equipo (mensajes: insert
 
 test('Citas y pacientes: corregir los datos de un paciente y cancelar su cita (pacientes y citas: update)', async ({ page }) => {
   const nombre = await crearCitaDeHoyParaPaula()
-  await iniciarSesion(page, 'ADMIN')
+  await iniciarSesion(page, 'ADMIN', 'E2E')
 
   // Pacientes: editar el teléfono desde "Más acciones" de su fila
   await irA(page, 'Pacientes')
@@ -280,4 +280,28 @@ test('Citas y pacientes: corregir los datos de un paciente y cancelar su cita (p
   await page.locator('main').getByRole('button', { name: 'Más acciones' }).first().click()
   await page.getByRole('button', { name: 'Cancelar cita' }).dispatchEvent('click')
   await conEscritura(page, 'citas', 'cancelar cita', () => page.getByRole('dialog').last().getByRole('button', { name: /Cancelar cita|Sí/ }).last().click(), ['PATCH'])
+})
+
+test('Usuarios: crear una cuenta nueva y desactivarla (perfiles: insert; cuenta de acceso y desactivación)', async ({ page }) => {
+  const azar = sufijo()
+  const letras = azar.replace(/[0-9]/g, 'x')
+  const nombre = `E Dos E Usuario ${letras[0].toUpperCase()}${letras.slice(1)}`
+  const correo = `e2e.${azar}@pruebas-e2e.test`
+  await iniciarSesion(page, 'ADMIN', 'E2E')
+  await irA(page, 'Usuarios y permisos')
+  await page.getByRole('button', { name: 'Crear usuario' }).first().click()
+  const modal = page.getByRole('dialog').last()
+  await modal.getByPlaceholder('Ej. Ana Torres').fill(nombre)
+  await modal.getByPlaceholder('10 dígitos').fill(cedulaValida())
+  await modal.getByPlaceholder('ana.torres@correo.com').fill(correo)
+  await escribirSecreto(page, modal.getByPlaceholder('8 o más, con letra y número'), `Prueba-${azar}-77Zq`)
+  await modal.getByRole('checkbox', { name: /^Ventas/ }).check()
+  await conEscritura(page, 'perfiles', 'crear usuario', () => modal.getByRole('button', { name: 'Crear usuario' }).click(), ['POST'])
+  await expect(page.getByText(/creado correctamente/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('list', { name: 'Usuarios' }).getByText(nombre)).toBeVisible({ timeout: 20_000 })
+
+  // Una cuenta de prueba no debe quedar activa: se desactiva (rpc desactivar_usuario).
+  await page.getByRole('button', { name: `Desactivar a ${nombre}` }).click()
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Desactivar', exact: true }).click()
+  await expect(page.getByText(`${nombre} fue desactivado`)).toBeVisible({ timeout: 20_000 })
 })

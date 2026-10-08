@@ -1,35 +1,32 @@
-// Crea (una sola vez) las cuentas de prueba de la Óptica Demo desde Usuarios y guarda sus
-// credenciales en .env.test sin imprimirlas. Se ejecuta con E2E_CREAR_CUENTAS=1.
+// Crea (una sola vez) las cuentas de prueba de Optómetra, Recepción y Ventas desde Usuarios y guarda sus credenciales en
+// .env.test sin imprimirlas. Se ejecuta con E2E_CREAR_CUENTAS=E2E (óptica de pruebas, la normal) o E2E_CREAR_CUENTAS=DEMO.
+// Necesita las credenciales del administrador de esa óptica (E2E_ADMIN_* o DEMO_ADMIN_*) y no repite las cuentas que ya existen.
 import { test, expect } from '@playwright/test'
 import crypto from 'node:crypto'
-import { iniciarSesion, escribirSecreto, guardarEnEnv } from './ayudas.js'
+import { iniciarSesion, escribirSecreto, guardarEnEnv, cedulaValida } from './ayudas.js'
 
-test.skip(!process.env.E2E_CREAR_CUENTAS, 'Solo con E2E_CREAR_CUENTAS=1')
+const ENTORNO = process.env.E2E_CREAR_CUENTAS === 'DEMO' ? 'DEMO' : 'E2E'
+test.skip(!process.env.E2E_CREAR_CUENTAS, 'Solo con E2E_CREAR_CUENTAS=E2E (o DEMO)')
 
+const SUFIJO = ENTORNO === 'E2E' ? 'Pruebas' : 'Demo'
+const DOMINIO = ENTORNO === 'E2E' ? 'pruebas-e2e.test' : 'opticademo.test'
 const CUENTAS = [
-  { prefijo: 'OPTOMETRA', rol: /^Optómetra/, nombre: 'Paula Optómetra Demo', correo: 'optometra@opticademo.test' },
-  { prefijo: 'RECEPCION', rol: /^Recepci[oó]n/, nombre: 'Rosa Recepción Demo', correo: 'recepcion@opticademo.test' },
-  { prefijo: 'VENTAS', rol: /^Ventas/, nombre: 'Vera Ventas Demo', correo: 'ventas@opticademo.test' },
+  { prefijo: 'OPTOMETRA', rol: /^Optómetra/, nombre: `Paula Optómetra ${SUFIJO}`, correo: `optometra@${DOMINIO}` },
+  { prefijo: 'RECEPCION', rol: /^Recepci[oó]n/, nombre: `Rosa Recepción ${SUFIJO}`, correo: `recepcion@${DOMINIO}` },
+  { prefijo: 'VENTAS', rol: /^Ventas/, nombre: `Vera Ventas ${SUFIJO}`, correo: `ventas@${DOMINIO}` },
 ]
 
 const claveNueva = () => `Demo-${crypto.randomBytes(5).toString('hex')}-${crypto.randomInt(10, 99)}Zq`
-// Cédula ecuatoriana válida (provincia 17, persona natural), con verificador calculado.
-function cedulaValida() {
-  const base = '170' + String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
-  let suma = 0
-  for (let i = 0; i < 9; i++) { let v = Number(base[i]) * (i % 2 === 0 ? 2 : 1); if (v >= 10) v -= 9; suma += v }
-  return base + String((10 - (suma % 10)) % 10)
-}
 
-test('crear Optómetra, Recepción y Ventas desde Usuarios', async ({ page }) => {
-  await iniciarSesion(page, 'ADMIN')
+test(`crear Optómetra, Recepción y Ventas desde Usuarios (${ENTORNO})`, async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN', ENTORNO)
   await page.getByRole('button', { name: /Usuarios y permisos/ }).first().click()
   await expect(page.getByRole('heading', { name: 'Usuarios y permisos' })).toBeVisible()
 
   for (const c of CUENTAS) {
-    if (process.env[`DEMO_${c.prefijo}_EMAIL`] && process.env[`DEMO_${c.prefijo}_PASSWORD`]) continue
+    if (process.env[`${ENTORNO}_${c.prefijo}_EMAIL`] && process.env[`${ENTORNO}_${c.prefijo}_PASSWORD`]) continue
     const clave = claveNueva()
-    guardarEnEnv({ [`DEMO_${c.prefijo}_EMAIL`]: c.correo, [`DEMO_${c.prefijo}_PASSWORD`]: clave })
+    guardarEnEnv({ [`${ENTORNO}_${c.prefijo}_EMAIL`]: c.correo, [`${ENTORNO}_${c.prefijo}_PASSWORD`]: clave })
     await page.getByRole('button', { name: 'Crear usuario' }).first().click()
     const modal = page.getByRole('dialog')
     await modal.getByPlaceholder('Ej. Ana Torres').fill(c.nombre)
