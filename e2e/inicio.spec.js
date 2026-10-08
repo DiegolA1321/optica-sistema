@@ -65,7 +65,7 @@ test.describe('Inicio del administrador', () => {
     await cuerpo.getByRole('button', { name: 'Todas' }).click()
     await cuerpo.getByRole('button', { name: /^Atendidas:/ }).click()
     await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('Estado: Atendidas')).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Filtros de las citas' }).getByRole('button', { name: 'Atendidas' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   test('"Requiere tu atención" reúne todo con el stock bajo una sola vez', async ({ page }) => {
