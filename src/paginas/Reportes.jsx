@@ -334,9 +334,10 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const citasAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
   const citasNoAsistio = useMemo(() => citas.filter((c) => c.estado === "No Asistió").length, [citas])
   const citasCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
-  // Mismos grupos que el filtro de Citas médicas: "Pendientes" incluye En espera; "En atención" va aparte.
+  // Mismos grupos que el filtro de Estado de Citas médicas: "En espera" y "En atención" van aparte de "Pendientes".
+  const citasEnEspera = useMemo(() => citas.filter((c) => c.estado === "En Espera").length, [citas])
   const citasEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención").length, [citas])
-  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas - citasEnAtencion, [citas, citasAtendidas, citasNoAsistio, citasCanceladas, citasEnAtencion])
+  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas - citasEnAtencion - citasEnEspera, [citas, citasAtendidas, citasNoAsistio, citasCanceladas, citasEnAtencion, citasEnEspera])
   const totalCitasDist = Math.max(1, citas.length)
 
   // % de citas solicitadas que terminan en un paciente atendido — caso de
@@ -683,7 +684,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
 
         {/* ─── CITAS: PENDIENTES / ATENDIDAS / NO ASISTIÓ ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "270ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, en atención, atendidas e inasistencias</h3>
+          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, en espera, en atención, atendidas e inasistencias</h3>
           <p className="mb-5 text-xs text-slate-500">{citas.length} cita{citas.length === 1 ? "" : "s"} en la agenda · desenlace marcado desde Citas médicas</p>
           {citas.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay citas agendadas.</p>
@@ -696,6 +697,14 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                       className="transition-[filter] duration-150"
                       style={{ width: `${(citasPendientes / totalCitasDist) * 100}%`, background: GRAD, filter: hoverCitaEstado === "Pendientes" ? "brightness(1.12)" : "none" }}
                       onMouseEnter={() => setHoverCitaEstado("Pendientes")}
+                      onMouseLeave={() => setHoverCitaEstado(null)}
+                    />
+                  )}
+                  {citasEnEspera > 0 && (
+                    <div
+                      className="transition-[filter] duration-150"
+                      style={{ width: `${(citasEnEspera / totalCitasDist) * 100}%`, backgroundColor: "#7c3aed", filter: hoverCitaEstado === "En espera" ? "brightness(1.12)" : "none" }}
+                      onMouseEnter={() => setHoverCitaEstado("En espera")}
                       onMouseLeave={() => setHoverCitaEstado(null)}
                     />
                   )}
@@ -734,7 +743,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 </div>
                 {hoverCitaEstado && (
                   <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg" style={{ background: INK }}>
-                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "En atención" ? citasEnAtencion : hoverCitaEstado === "Atendidas" ? citasAtendidas : hoverCitaEstado === "No asistió" ? citasNoAsistio : citasCanceladas}
+                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "En espera" ? citasEnEspera : hoverCitaEstado === "En atención" ? citasEnAtencion : hoverCitaEstado === "Atendidas" ? citasAtendidas : hoverCitaEstado === "No asistió" ? citasNoAsistio : citasCanceladas}
                   </div>
                 )}
               </div>
@@ -742,6 +751,10 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: GRAD }} />
                   Pendientes <span className="text-slate-500">({citasPendientes})</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                  <span className="h-2.5 w-2.5 rounded-full bg-violet-600" />
+                  En espera <span className="text-slate-500">({citasEnEspera})</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                   <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
