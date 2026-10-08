@@ -573,7 +573,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
       // local `pacientes`, que solo tiene datos reales si un admin ya iniciió
       // sesión antes en ese mismo navegador. Para el paciente real, en su
       // propio dispositivo, esa comparación nunca podía funcionar.
-      if (supabase) {
+      // Solo con una óptica resuelta: el acceso de superadmin (?sitio=admin) no tiene óptica ni pacientes, y sin
+      // p_optica_id la función no existe para el servidor (404 inútil en cada inicio de sesión).
+      if (supabase && opticaPublica?.id) {
         const { data: filas } = await supabase.rpc("verificar_login_paciente", {
           p_usuario: usuario.trim(),
           p_clave: password,
