@@ -10,11 +10,12 @@ const SOLO_ADMIN = ['Usuarios y permisos', 'Configuración', 'Mensajes']
 const modulo = (page, nombre) => page.getByRole('button', { name: nombre, exact: true })
 const abrir = async (page, nombre) => { await modulo(page, nombre).first().click(); await page.waitForTimeout(1800) }
 const visible = (page, nombre, ambito = 'main') => page.locator(ambito).getByRole('button', { name: nombre })
+// La Lista abre en "Hoy"; la búsqueda mira todas las fechas, así que sirve para encontrar una cita de cualquier día.
+const buscarCita = async (page, texto) => { await page.getByLabel('Buscar cita: paciente o código').fill(texto); await page.waitForTimeout(600) }
 async function totalAgendadas(page) {
   await abrir(page, 'Citas médicas')
   // La Lista ya no tiene "Todas": la búsqueda mira todas las fechas, y todas las citas llevan código (CIT-2026-…).
-  await page.getByLabel('Buscar cita: paciente o código').fill('CIT-')
-  await page.waitForTimeout(600)
+  await buscarCita(page, 'CIT-')
   const t = await page.getByRole('status').filter({ hasText: /cita/ }).first().innerText()
   return Number(t.replace(/\D/g, ''))
 }
@@ -64,6 +65,7 @@ test.describe('Recepción', () => {
     await abrir(page, 'Citas médicas')
     await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }), 'Recepción no debe ver "Atender"').toHaveCount(0)
     // El detalle de la cita tampoco ofrece "Ingresar".
+    await buscarCita(page, 'Paola Zambrano Loor')
     await page.locator('main').getByText('Paola Zambrano Loor').first().click()
     await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar/ }), 'Recepción no debe ver "Ingresar" en el detalle').toHaveCount(0)
     await page.keyboard.press('Escape')
@@ -96,6 +98,7 @@ test.describe('Ventas', () => {
     await abrir(page, 'Citas médicas')
     await expect.soft(page.locator('main').getByRole('button', { name: 'Atender', exact: true }), 'Ventas no debe ver "Atender"').toHaveCount(0)
     // El detalle de la cita tampoco ofrece "Ingresar".
+    await buscarCita(page, 'Paola Zambrano Loor')
     await page.locator('main').getByText('Paola Zambrano Loor').first().click()
     await expect.soft(page.getByRole('dialog').getByRole('button', { name: /Ingresar/ }), 'Ventas no debe ver "Ingresar" en el detalle').toHaveCount(0)
     await page.keyboard.press('Escape')
@@ -114,8 +117,11 @@ test.describe('Optómetra', () => {
     const propias = await totalAgendadas(page)
     expect.soft(propias, 'alcance propio: menos citas que Recepción').toBeLessThan(totalRecepcion ?? 1e9)
     expect.soft(propias).toBeGreaterThan(0)
+    await buscarCita(page, 'Paola Zambrano Loor')
     await expect.soft(page.getByText('Paola Zambrano Loor').first(), 'su cita asignada').toBeVisible()
-    await expect.soft(page.getByText('Rosa Bravo Delgado'), 'cita asignada al administrador: no debe verse').toHaveCount(0)
+    await buscarCita(page, 'Rosa Bravo Delgado')
+    await expect.soft(page.locator('main').getByText('Rosa Bravo Delgado'), 'cita asignada al administrador: no debe verse').toHaveCount(0)
+    await buscarCita(page, '')
     await expect.soft(visible(page, 'Gestionar cita')).toBeVisible()
     // Que Paula vea 'Atender' depende de que tenga una cita HOY (los datos sembrados no lo garantizan): lo cubre e2e/flujo-completo.spec.js
     // en la óptica de pruebas, que crea su propia cita. Aquí (Demo, solo lectura) no se escribe nada.
