@@ -33,6 +33,12 @@ describe("coincideEstado", () => {
     expect(coincideEstado({ estado: "Cancelada" }, "cancelada", ahora)).toBe(true)
     expect(coincideEstado({ estado: "Atendida" }, "pendiente", ahora)).toBe(false)
   })
+  it("'En espera' es una opción propia: no se mezcla con Pendientes", () => {
+    expect(coincideEstado({ estado: "En Espera" }, "enEspera", ahora)).toBe(true)
+    expect(coincideEstado({ estado: "En Espera" }, "pendiente", ahora)).toBe(false)
+    expect(coincideEstado({ estado: "Pendiente" }, "enEspera", ahora)).toBe(false)
+    expect(coincideEstado({ estado: "En Espera" }, "todas", ahora)).toBe(true)
+  })
   it("noAsistio: solo las citas marcadas No asistió", () => {
     expect(coincideEstado({ estado: "No Asistió" }, "noAsistio", ahora)).toBe(true)
     expect(coincideEstado({ estado: "Pendiente", fecha: "2026-10-05", hora: "9:00" }, "noAsistio", ahora)).toBe(false)

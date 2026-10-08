@@ -5,6 +5,7 @@ import { esHoy } from "./disponibilidad"
 export const ESTADOS_FILTRO = [
   { id: "todas", etiqueta: "Todas" },
   { id: "pendiente", etiqueta: "Pendientes" },
+  { id: "enEspera", etiqueta: "En espera" },
   { id: "enAtencion", etiqueta: "En atención" },
   { id: "atendida", etiqueta: "Atendidas" },
   { id: "noAsistio", etiqueta: "No asistió" },
@@ -65,7 +66,8 @@ export const puedeAgendarOtraCita = (cita) => cita.estado === "No Asistió"
 
 export function coincideEstado(cita, estado) {
   switch (estado) {
-    case "pendiente": return cita.estado === "Pendiente" || cita.estado === "En Espera"
+    case "pendiente": return cita.estado === "Pendiente"
+    case "enEspera": return cita.estado === "En Espera"
     case "enAtencion": return cita.estado === "En Atención"
     case "atendida": return cita.estado === "Atendida"
     case "cancelada": return cita.estado === "Cancelada"
