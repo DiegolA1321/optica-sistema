@@ -1,15 +1,16 @@
 "use client"
 
 import { fechaHoraLegible } from "../utilidades/formatoFecha"
+import { useState } from "react"
 import { createPortal } from "react-dom"
 import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, CheckCircle2, Loader2 } from "lucide-react"
 import { INK } from "@/lib/tema"
-import { etiquetaFecha, hoyISO } from "../utilidades/disponibilidad"
+import { etiquetaFecha, hoyISO, isoAFechaLocal } from "../utilidades/disponibilidad"
 import { yaPasoLaHora } from "../utilidades/agendaCitas"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
-import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita } from "../utilidades/filtrosCitas"
+import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, requiereConfirmarOtroDia } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -59,8 +60,13 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // final, TODAS las acciones de la cita. "Atender"/"Retomar" entran directo a la ficha; "Llegó" pasa la cita a
 // "En espera" (lo usa recepción, que no atiende) y "Ver perfil" abre el paciente en otra pestaña para no perder el
 // lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está en un estado que la admite.
-export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar }) {
+export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar }) {
   const refModal = useModalAccesible(true, onCerrar)
+  // Cita de otro día: "Atender" pide un clic más ("¿Atenderla hoy?"); las de hoy entran directo a la ficha.
+  const [confirmandoOtroDia, setConfirmandoOtroDia] = useState(preguntarOtroDia)
+  const otroDia = requiereConfirmarOtroDia(cita, hoyISO())
+  const diaDeLaCita = cita.fecha ? isoAFechaLocal(cita.fecha).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" }) : ""
+  const alAtender = () => { if (otroDia && !confirmandoOtroDia) setConfirmandoOtroDia(true); else onIngresar(cita) }
   const puedeIngresar = puedeAtenderCita(cita) && !!onIngresar
   const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
   const agendada = fechaHoraAgendada(cita.creadoEn)
@@ -193,6 +199,21 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
           </section>
         </div>
 
+        {confirmandoOtroDia && otroDia && puedeIngresar && (
+          <div role="group" aria-label="Atender una cita de otro día" className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-blue-100 bg-blue-50/70 px-6 py-3">
+            <p className="text-sm font-semibold text-blue-900">
+              Esta cita es del {diaDeLaCita}. ¿Atenderla hoy?
+              <span className="ml-1 text-xs font-normal text-blue-800/80">La fecha agendada no cambia.</span>
+            </p>
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setConfirmandoOtroDia(false)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">No</button>
+              <button type="button" onClick={() => onIngresar(cita)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                <Stethoscope size={14} aria-hidden="true" /> Atenderla hoy
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-slate-100 px-6 py-4" role="group" aria-label="Acciones de la cita">
           {cita.pacienteId && (
             <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
@@ -225,7 +246,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
                 <Receipt size={14} aria-hidden="true" /> Cobrar
               </button>
             ) : puedeIngresar && (
-              <button type="button" onClick={() => onIngresar(cita)} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+              <button type="button" onClick={alAtender} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
                 <Stethoscope size={14} aria-hidden="true" /> {cita.estado === "En Atención" ? "Retomar" : "Atender"}
               </button>
             )}

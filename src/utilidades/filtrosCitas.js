@@ -57,6 +57,9 @@ export const puedeCancelarCita = (cita) => ["Pendiente", "En Espera"].includes(c
 // Qué acciones ofrece cada estado. Atender solo tiene sentido en lo que sigue abierto; una cita ya atendida o
 // cancelada no se edita; una que no asistió solo muestra su estado y ofrece agendar otra.
 export const puedeAtenderCita = (cita) => ["Pendiente", "En Espera", "En Atención"].includes(cita.estado)
+// Una cita de otro día (la de mañana que se atiende hoy, o una de ayer) pide una confirmación liviana antes de entrar a la
+// ficha: se atiende hoy y su fecha agendada no cambia. Las de hoy entran directo, y retomar una atención abierta no pregunta.
+export const requiereConfirmarOtroDia = (cita, hoy) => cita.estado !== "En Atención" && Boolean(cita.fecha) && cita.fecha !== hoy
 export const puedeEditarCita = (cita) => !["Atendida", "Cancelada", "No Asistió"].includes(cita.estado)
 export const puedeAgendarOtraCita = (cita) => cita.estado === "No Asistió"
 

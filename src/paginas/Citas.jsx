@@ -50,7 +50,7 @@ import { isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, mi
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, periodosFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeAtenderCita, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, periodosFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeAtenderCita, requiereConfirmarOtroDia, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -355,9 +355,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Detalle de la cita (R12-R13): se abre al hacer clic en la cita. Se guarda
   // el id y no la cita, para que el modal refleje los cambios de estado.
   const [detalleCitaId, setDetalleCitaId] = useState(null)
+  const [preguntarOtroDia, setPreguntarOtroDia] = useState(false) // el detalle se abre con "¿Atenderla hoy?" ya planteado
   // Atención abierta de un día anterior que se quiere dejar de atender (desde el menú o el detalle).
   const [dejarCita, setDejarCita] = useState(null)
-  const abrirDetalle = (cita) => setDetalleCitaId(cita.id)
+  const abrirDetalle = (cita) => { setPreguntarOtroDia(false); setDetalleCitaId(cita.id) }
   const alCobrarCita = async (factura) => {
     const cita = cobrandoCita
     setFacturasVenta?.((prev) => [factura, ...prev])
@@ -712,8 +713,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const avisarSinPermisoAtender = () => onAviso?.("No tienes permiso para atender pacientes.")
   const atenderCita = (cita) => {
     if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
-    // Una cita de otro día se atiende hoy sin mover su fecha agendada; sin el resumen previo, se avisa al entrar.
-    if (cita.fecha && cita.fecha !== hoyISO()) onAviso?.(`Atendiendo hoy la cita agendada para ${etiquetaFecha(cita.fecha)}; la fecha agendada no cambia.`)
+    // Una cita de otro día abre su detalle ya con la pregunta "¿Atenderla hoy?"; las de hoy entran directo a la ficha.
+    if (requiereConfirmarOtroDia(cita, hoyISO())) { setPreguntarOtroDia(true); setDetalleCitaId(cita.id); return }
     ingresarAFicha(cita)
   }
 
@@ -2142,7 +2143,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}
             onCerrar={() => setDetalleCitaId(null)}
-            onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); atenderCita(c) } : undefined}
+            onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); ingresarAFicha(c) } : undefined}
+            preguntarOtroDia={preguntarOtroDia}
             onAgendarOtra={(c) => { setDetalleCitaId(null); agendarOtraCita(c) }}
             onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
             onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}

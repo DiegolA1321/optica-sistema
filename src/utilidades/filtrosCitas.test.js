@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro } from "./filtrosCitas"
+import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, requiereConfirmarOtroDia } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -179,5 +179,15 @@ describe("atajos del periodo y búsqueda en todas las fechas", () => {
   it("la búsqueda mira todas las fechas e ignora el periodo; al borrarla, vuelve", () => {
     expect(con("semana", { texto: "paciente c" })).toEqual(["c"])
     expect(con("semana", { texto: "" })).toEqual(["a", "b", "d"])
+  })
+})
+
+describe("requiereConfirmarOtroDia", () => {
+  it("pide confirmar solo las citas de otro día; las de hoy y las atenciones abiertas entran directo", () => {
+    expect(requiereConfirmarOtroDia({ estado: "Pendiente", fecha: "2026-10-09" }, "2026-10-08")).toBe(true)
+    expect(requiereConfirmarOtroDia({ estado: "En Espera", fecha: "2026-10-07" }, "2026-10-08")).toBe(true)
+    expect(requiereConfirmarOtroDia({ estado: "Pendiente", fecha: "2026-10-08" }, "2026-10-08")).toBe(false)
+    expect(requiereConfirmarOtroDia({ estado: "En Atención", fecha: "2026-10-07" }, "2026-10-08")).toBe(false)
+    expect(requiereConfirmarOtroDia({ estado: "Pendiente", fecha: "" }, "2026-10-08")).toBe(false)
   })
 })
