@@ -164,15 +164,13 @@ test('5 · El administrador ve el resultado en Reportes y la cita quedó atendid
 })
 
 // Va aparte del recorrido: necesita una cita suya DE HOY (no de otro día), que se crea por API para no depender de la hora.
-test('6 · Paula ve "Siguiente paciente" con "Atender", que abre el mismo flujo de Citas', async ({ page }) => {
+test('6 · Paula ve "Siguiente paciente" con "Atender", que entra directo a la ficha clínica', async ({ page }) => {
   await crearCitaDeHoyParaPaula('E2E')
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   const tarjeta = page.locator('main').first().getByRole('region', { name: 'Hoy' })
   await expect(tarjeta.getByText('Siguiente paciente')).toBeVisible({ timeout: 20_000 })
   await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
-  const resumen = page.getByRole('dialog')
-  await expect(resumen.getByText('Resumen de la cita')).toBeVisible()
-  await expect(resumen.getByRole('button', { name: /Ingresar a la ficha clínica|Atender hoy/ })).toBeVisible()
-  await resumen.getByRole('button', { name: 'Cerrar' }).click()
+  // Sin el modal "Resumen de la cita": Atender lleva directo a la ficha (reunión 7 oct., C16).
+  await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Resumen de la cita')).toHaveCount(0)
 })

@@ -387,7 +387,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
   }, [estadoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Desde "Atender" del Inicio (Siguiente paciente): abre el mismo resumen de la cita que el botón "Atender" de esta pantalla.
+  // Desde "Atender" del Inicio (Siguiente paciente): entra a la ficha igual que el botón "Atender" de esta pantalla.
   useEffect(() => {
     if (!atenderCitaId) return
     const cita = citas.find((c) => c.id === atenderCitaId)
@@ -430,12 +430,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const [npFechaNacimiento, setNpFechaNacimiento] = useState("")
   const [npErrores, setNpErrores] = useState({})
   const [npGuardando, setNpGuardando] = useState(false)
-
-  // ── Resumen previo a "Atender" (reunión 29 sept., punto 1 del plan):
-  // antes de entrar a la ficha clínica (o al paso de confirmar datos de
-  // D2), se muestra un resumen de la cita con "Ingresar a la ficha
-  // clínica" / "Cerrar" — este último no cambia ningún estado. ──
-  const [resumenPara, setResumenPara] = useState(null) // la cita, o null
 
   // ── Cobro pendiente (Ronda 4): una cita "En atención" cuya ficha ya se
   // guardó pero cuyo cobro quedó para después ("Más tarde"). Se cobra con el
@@ -827,16 +821,17 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
   }
 
-  // ── "Atender": abre primero el resumen de la cita (punto 1, reunión 29
-  // sept.) — la lógica real de entrar a la ficha vive en ingresarAFicha,
-  // disparada recién cuando se confirma ese resumen. ──
+  // ── "Atender" y "Retomar" van directo a la ficha clínica (reunión 7 oct., C16): el detalle de la cita ya
+  // reúne los datos, así que no hay un resumen intermedio. La lógica de entrar vive en ingresarAFicha. ──
   // Atender exige poder crear fichas clínicas (consultas: crear). Los botones ya no se muestran sin ese
   // permiso; esto es la red de seguridad para que ningún camino quede en un clic mudo.
   const puedeAtenderPacientes = puede(usuario, "consultas", "crear")
   const avisarSinPermisoAtender = () => onAviso?.("No tienes permiso para atender pacientes.")
   const atenderCita = (cita) => {
     if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
-    setResumenPara(cita)
+    // Una cita de otro día se atiende hoy sin mover su fecha agendada; sin el resumen previo, se avisa al entrar.
+    if (cita.fecha && cita.fecha !== hoyISO()) onAviso?.(`Atendiendo hoy la cita agendada para ${etiquetaFecha(cita.fecha)}; la fecha agendada no cambia.`)
+    ingresarAFicha(cita)
   }
 
   // ── Pasa la cita a "En Atención" y abre la ficha clínica del paciente ya
@@ -1926,26 +1921,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           onCancelar={() => setConfirmando(false)}
           onConfirmar={agendarCita}
           etiquetaConfirmar={atenderInmediato ? "Atender ahora" : "Confirmar"}
-        />
-      )}
-
-      {/* ─── RESUMEN PREVIO A "ATENDER" (punto 1, reunión 29 sept.) ─── */}
-      {resumenPara && (
-        <ConfirmarCitaModal
-          titulo="Resumen de la cita"
-          subtitulo={
-            resumenPara.fecha !== hoyISO()
-              ? `Esta cita está agendada para ${etiquetaFecha(resumenPara.fecha)}. Se atenderá hoy y la fecha agendada no cambia.`
-              : "Revisa los datos antes de entrar a la ficha clínica."
-          }
-          paciente={resumenPara.paciente}
-          motivo={resumenPara.motivo}
-          fecha={etiquetaFecha(resumenPara.fecha)}
-          hora={resumenPara.hora}
-          onCancelar={() => setResumenPara(null)}
-          onConfirmar={() => { const cita = resumenPara; setResumenPara(null); ingresarAFicha(cita) }}
-          etiquetaCancelar="Cerrar"
-          etiquetaConfirmar={resumenPara.fecha !== hoyISO() ? "Atender hoy" : "Ingresar a la ficha clínica"}
         />
       )}
 
