@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, requiereConfirmarOtroDia } from "./filtrosCitas"
+import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, tareasFiltro, proximoDiaDeAtencion, etiquetaDiaCorta, requiereConfirmarOtroDia } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -153,7 +153,6 @@ describe("filtros combinados y conteos", () => {
 describe("atajos del periodo y búsqueda en todas las fechas", () => {
   it("los periodos son Hoy, Semana y Mes; 'Para reagendar' y 'Todas' aparecen solo mientras están activos", () => {
     expect(periodosFiltro().map((p) => p.etiqueta)).toEqual(["Hoy", "Semana", "Mes"])
-    expect(periodosFiltro("reagendar").map((p) => p.id)).toEqual(["hoy", "semana", "mes", "reagendar"])
     expect(periodosFiltro("todas").map((p) => p.id)).toEqual(["hoy", "semana", "mes", "todas"])
   })
 
@@ -185,6 +184,43 @@ describe("atajos del periodo y búsqueda en todas las fechas", () => {
   it("la búsqueda mira todas las fechas e ignora el periodo; al borrarla, vuelve", () => {
     expect(con("semana", { texto: "paciente c" })).toEqual(["c"])
     expect(con("semana", { texto: "" })).toEqual(["a", "b", "d"])
+  })
+})
+
+describe("atajos por tarea (grupo Tarea del panel)", () => {
+  const sesion = (activo) => ({ activo, inicio: "09:00", fin: "12:00" })
+  const abierto = { manana: sesion(true), tarde: sesion(false) }
+  const cerrado = { manana: sesion(false), tarde: sesion(false) }
+  const disp = { horarioSemanal: { lunes: abierto, martes: abierto, miercoles: abierto, jueves: abierto, viernes: abierto, sabado: cerrado, domingo: cerrado }, excepciones: {} }
+
+  it("el día a confirmar es el próximo día de atención: un viernes, el lunes; sin horario, mañana", () => {
+    expect(proximoDiaDeAtencion(disp, "2026-10-09")).toBe("2026-10-12")
+    expect(proximoDiaDeAtencion(disp, "2026-10-07")).toBe("2026-10-08")
+    expect(proximoDiaDeAtencion({}, "2026-10-07")).toBe("2026-10-08")
+    expect(etiquetaDiaCorta("2026-10-12")).toBe("Lun 12")
+  })
+  it("las opciones son Todas, por confirmar (con su día) y Para reagendar", () => {
+    expect(tareasFiltro("2026-10-12").map((t) => t.etiqueta)).toEqual(["Todas", "Lun 12 · por confirmar", "Para reagendar"])
+  })
+
+  const cita = (id, o) => ({ id, paciente: `Paciente ${id}`, estado: "Pendiente", origen: "staff", fecha: "2026-10-12", pacienteId: id, asignadoA: null, atendidoPor: null, confirmadaAt: null, ...o })
+  const citas = [
+    cita("a"), // lunes 12, sin confirmar
+    cita("b", { confirmadaAt: "2026-10-08T10:00:00Z" }), // lunes 12, ya confirmada
+    cita("c", { fecha: "2026-10-13" }), // otro día
+    cita("d", { estado: "No Asistió", fecha: "2026-10-06" }),
+    cita("e", { estado: "Cancelada", canceladaPor: "paciente", fecha: "2026-10-05" }),
+    cita("f", { estado: "En Espera" }), // lunes 12, en espera y sin confirmar
+    cita("g", { estado: "Atendida" }), // lunes 12, ya atendida
+  ]
+  const base = { estado: "todas", origen: "todos", seguimiento: "todos", responsable: "todos", texto: "", ventana: null, diaConfirmar: "2026-10-12", idsReagendar: new Set(["d", "e"]) }
+  const con = (filtro) => citas.filter((c) => citaPasaFiltros(c, { ...base, periodo: { filtro, desde: "", hasta: "" } })).map((c) => c.id)
+
+  it("'por confirmar': las citas abiertas de ese día que aún no están confirmadas", () => {
+    expect(con("confirmar")).toEqual(["a", "f"])
+  })
+  it("'para reagendar' incluye canceladas y no asistidas aunque el estado esté en Todas", () => {
+    expect(con("reagendar")).toEqual(["d", "e"])
   })
 })
 
