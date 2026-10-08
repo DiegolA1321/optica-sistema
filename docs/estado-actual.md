@@ -61,9 +61,6 @@ Construido el 8 oct, **sin publicar** (commits `4a6e4b5` a `acb96c0` en `main` l
 
 - **E2E (`e2e/roles.spec.js`):** `totalAgendadas` leía el número del botón "Todas" de Citas; ahora cuenta con la búsqueda `CIT-` (mira todas las fechas). **No se ha corrido.** `e2e/inicio.spec.js` usa "Todas" del período del desenlace de Inicio, que no cambió.
 - **Capturas del bug de Diagnóstico:** se restauraron (commit de esta nota) porque `docs/feedback-ing/bug-diagnostico-receta.md` las enlaza; sin ellas el documento tenía imágenes rotas.
-- **2 citas antiguas de la Demo sin paciente** (óptica `qu7u2j`, ambas Pendiente, origen web, con código y sin cédula):
-  - `8a14467d-d38b-4e77-bd6b-5949bb337f45` — Lorena Mero Vélez, 15 oct 2026, 01:40 PM, `lorena.mero@example.com`, 0966739833.
-  - `4650a523-c834-4069-805d-9821bdb38d8a` — Rafael Cedeño Pibaque, 8 oct 2026, 09:00 AM, `rafael.cedeno@example.com`, 0923126028.
-  - **Decisión de Diego:** vincularlas a su paciente por cédula o nombre, con ensayo previo. Ninguna tiene cédula y ningún paciente de la Demo (41) coincide por nombre, teléfono ni correo. **No se ha escrito nada.** Hay que avisarle a Diego antes de crear los pacientes, borrar las citas o dejarlas.
+- **Las 2 citas antiguas de la Demo sin paciente: resueltas el 8 oct.** Lorena Mero Vélez (`8a14467d-…`) y Rafael Cedeño Pibaque (`4650a523-…`) no se pudieron ligar con certeza a ningún paciente de la Demo (41): sin cédula, y sin coincidencia por nombre, teléfono ni correo. Con ensayo previo (transacción deshecha), se **cancelaron** (`estado = Cancelada`, `cancelada_por = recepcion`, con su registro en la actividad). La de Rafael estaba en "No asistió"; ya no hay citas activas sin paciente en la Demo.
 - **`CLAUDE.md`, sección 2:** ya refleja que no hay buscador global ni Ctrl + K.
 - **Capturas de revisión:** `C:\Users\diego\Downloads\citas-capturas\` (rondas anteriores) las borra Diego.
