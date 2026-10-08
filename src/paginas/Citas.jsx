@@ -818,7 +818,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const [nuevaFecha, setNuevaFecha] = useState("")
   const [nuevaHora, setNuevaHora] = useState("")
   const [nuevoMotivo, setNuevoMotivo] = useState("")
-  const [nuevoAsignado, setNuevoAsignado] = useState("")
   const [errorReagendar, setErrorReagendar] = useState("")
   const [estadoCorregido, setEstadoCorregido] = useState("")
   const [reagendada, setReagendada] = useState(null) // cita ya guardada, para ofrecer avisar por WhatsApp
@@ -828,7 +827,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     setNuevaFecha("")
     setNuevaHora("")
     setNuevoMotivo(cita.motivo || "")
-    setNuevoAsignado(cita.asignadoA || "")
     setEstadoCorregido(cita.estado)
     setErrorReagendar("")
   }
@@ -853,10 +851,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     // motivo), no hace falta elegir una fecha nueva.
     const estadoCambiado = estadoCorregido && estadoCorregido !== reagendando.estado
     const sinNuevoHorario = !nuevaFecha && !nuevaHora
-    const asignadoCambiado = (nuevoAsignado || null) !== (reagendando.asignadoA || null)
-    if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo || asignadoCambiado)) {
+    if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo)) {
       const cancelaAhora = estadoCambiado && estadoCorregido === "Cancelada"
-      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}), ...(asignadoCambiado ? { asignado_a: nuevoAsignado || null } : {}), ...(cancelaAhora ? { cancelada_por: "recepcion" } : {}) }
+      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}), ...(cancelaAhora ? { cancelada_por: "recepcion" } : {}) }
       if (supabase && opticaId) {
         const { data: actualizadas, error: errorUpdate } = await supabase.from("citas").update(cambios).eq("id", reagendando.id).select()
         if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizadas })) {
@@ -868,8 +865,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           return
         }
       }
-      const { asignado_a: asignadoNuevo, cancelada_por: canceladaPorNuevo, ...cambiosLocales } = cambios
-      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(asignadoCambiado ? { asignadoA: asignadoNuevo } : {}), ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
+      const { cancelada_por: canceladaPorNuevo, ...cambiosLocales } = cambios
+      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
       registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${fechaLegible(reagendando.fecha)}`)
       cerrarReagendar()
       mostrarExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
@@ -886,9 +883,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     const resueltaAlEditar = ["Atendida", "No Asistió", "Cancelada"].includes(reagendando.estado)
     const nuevoEstado = estadoCambiado ? estadoCorregido : resueltaAlEditar ? reagendando.estado : "Pendiente"
     const seCancela = nuevoEstado === "Cancelada" && reagendando.estado !== "Cancelada"
-    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignadoA: nuevoAsignado || null, ...(seCancela ? { canceladaPor: "recepcion" } : {}) }
+    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, ...(seCancela ? { canceladaPor: "recepcion" } : {}) }
     if (supabase && opticaId) {
-      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, asignado_a: nuevoAsignado || null, ...(seCancela ? { cancelada_por: "recepcion" } : {}) }).eq("id", reagendando.id).select()
+      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, ...(seCancela ? { cancelada_por: "recepcion" } : {}) }).eq("id", reagendando.id).select()
       if (fueBloqueadoPorPermiso({ error: errorUpdate, data: reagendadas })) {
         setErrorReagendar(MENSAJE_SIN_PERMISO)
         return
@@ -2029,8 +2026,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                     ))}
                   </select>
                 </div>
-
-                <SelectorAsignado id="citas-editar-asignado" valor={nuevoAsignado} onChange={setNuevoAsignado} equipo={equipo} />
 
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
