@@ -9,7 +9,8 @@ import { hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { yaPasoLaHora } from "../utilidades/agendaCitas"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
-import { etiquetaMiembro } from "../utilidades/equipo"
+import { profesionalDeCita, mostrarProfesional } from "../utilidades/profesionalCita"
+import { edadEnAnios } from "../utilidades/edad"
 import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, requiereConfirmarOtroDia } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
@@ -60,7 +61,7 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // final, TODAS las acciones de la cita. "Atender"/"Retomar" entran directo a la ficha; "Llegó" pasa la cita a
 // "En espera" (lo usa recepción, que no atiende) y "Ver perfil" abre el paciente en otra pestaña para no perder el
 // lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está en un estado que la admite.
-export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar }) {
+export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar }) {
   const refModal = useModalAccesible(true, onCerrar)
   // Cita de otro día: "Atender" pide un clic más ("¿Atenderla hoy?"); las de hoy entran directo a la ficha.
   const [confirmandoOtroDia, setConfirmandoOtroDia] = useState(preguntarOtroDia)
@@ -81,6 +82,13 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
   const puedeConfirmar = !!onConfirmar && ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt
   const hayCambioDeEstado = puedeLlego || puedeNoLlego || puedeNoAsistio || puedeConfirmar
   const etiquetaEstado = ETIQUETA_ESTADO[cita.estado] || cita.estado || "Pendiente"
+  // Datos del paciente (la cita guarda los del momento de agendar; el expediente trae la edad y, a veces, el correo).
+  const edad = edadEnAnios(paciente?.fecha_nacimiento || paciente?.fechaNacimiento)
+  const correoBruto = cita.correo || paciente?.correo || ""
+  const correo = correoBruto && correoBruto !== "Sin Correo" ? correoBruto : ""
+  const cedula = cita.cedula || paciente?.cedula
+  const telefono = cita.telefono || paciente?.telefono
+  const profesional = profesionalDeCita(cita, equipo)
 
   return createPortal(
     <div
@@ -104,7 +112,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
             </div>
             <div className="min-w-0">
               <h4 id="detalle-cita-titulo" className="truncate text-lg font-bold" style={{ color: INK }}>{cita.paciente}</h4>
-              <p className="truncate text-xs text-slate-500">Detalle de la cita</p>
+              <p className="truncate text-xs text-slate-500">Detalle de la cita{cita.codigo && <> · <span className="font-mono">{cita.codigo}</span></>}</p>
             </div>
           </div>
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
@@ -120,31 +128,45 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
                 {["Hoy", "Mañana", "Ayer"].includes(etiquetaFecha(cita.fecha)) && <span className="mt-0.5 block text-xs font-normal text-slate-500">{etiquetaFecha(cita.fecha)}</span>}
               </Dato>
               <Dato etiqueta="Hora">{cita.hora}</Dato>
+              <Dato etiqueta="Motivo">
+                {cita.motivo || <Vacio>Sin motivo</Vacio>}
+                {cita.motivoPublico && <span className="mt-0.5 block text-xs font-normal text-slate-500">Indicado en línea: {cita.motivoPublico}</span>}
+              </Dato>
+              <Dato etiqueta="Origen">{cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}</Dato>
+            </Columna>
+
+            <Columna titulo="Seguimiento">
+              {mostrarProfesional(cita, vistaPropia) && (
+                <Dato etiqueta="Profesional">
+                  {profesional.tipo === "sinAsignar" ? (
+                    <span className="inline-flex items-center rounded-md border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Sin asignar</span>
+                  ) : profesional.tipo === "enLugarDe" ? (
+                    <>
+                      {profesional.verbo} {profesional.nombre}
+                      <span className="mt-0.5 block text-xs font-normal text-slate-500">en lugar de {profesional.enLugarDe}</span>
+                    </>
+                  ) : (
+                    <>
+                      {profesional.nombre}
+                      {profesional.reasignadaDe && <span className="mt-0.5 block text-xs font-normal text-slate-500">Reasignada de {profesional.reasignadaDe}</span>}
+                    </>
+                  )}
+                </Dato>
+              )}
               {fechaAtencionReal && fechaAtencionReal !== cita.fecha && <Dato etiqueta="Atendida el">{formatoFecha(fechaAtencionReal, "largo")}</Dato>}
               <Dato etiqueta="Agendada el">{agendada || <Vacio>Sin registro</Vacio>}</Dato>
               {cita.confirmadaAt && <Dato etiqueta="Confirmada el">{fechaHoraAgendada(cita.confirmadaAt) || "Sí"}</Dato>}
-              <Dato etiqueta="Origen">{cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}</Dato>
-              {cita.codigo && <Dato etiqueta="Código"><span className="font-mono">{cita.codigo}</span></Dato>}
-            </Columna>
-
-            <Columna titulo="Profesional">
-              <Dato etiqueta="Asignado a">{etiquetaMiembro(equipo, cita.asignadoA) || <Vacio>Sin asignar</Vacio>}</Dato>
-              <Dato etiqueta="Atendido por">
-                {etiquetaMiembro(equipo, cita.atendidoPor) || <Vacio>{cita.estado === "Atendida" || cita.estado === "En Atención" ? "Sin registro" : "Aún no la atiende nadie"}</Vacio>}
-              </Dato>
               {cita.estado === "Cancelada" && cita.canceladaPor && (
                 <Dato etiqueta="Cancelada por">{cita.canceladaPor === "recepcion" ? "Recepción" : "El paciente"}</Dato>
               )}
             </Columna>
 
-            <Columna titulo="Paciente y motivo">
-              <Dato etiqueta="Motivo">
-                {cita.motivo || <Vacio>Sin motivo</Vacio>}
-                {cita.motivoPublico && <span className="mt-0.5 block text-xs font-normal text-slate-500">Indicado en línea: {cita.motivoPublico}</span>}
-              </Dato>
-              {cita.cedula && <Dato etiqueta="Cédula"><span className="font-mono">{cita.cedula}</span></Dato>}
-              {cita.telefono && <Dato etiqueta="Teléfono">{cita.telefono}</Dato>}
-              {!cita.cedula && !cita.telefono && <Dato etiqueta="Contacto"><Vacio>Sin datos</Vacio></Dato>}
+            <Columna titulo="Paciente">
+              {cedula && <Dato etiqueta="Cédula"><span className="font-mono">{cedula}</span></Dato>}
+              {telefono && <Dato etiqueta="Teléfono">{telefono}</Dato>}
+              {edad !== null && <Dato etiqueta="Edad">{edad} {edad === 1 ? "año" : "años"}</Dato>}
+              {correo && <Dato etiqueta="Correo">{correo}</Dato>}
+              {!cedula && !telefono && edad === null && !correo && <Dato etiqueta="Contacto"><Vacio>Sin datos</Vacio></Dato>}
             </Columna>
           </div>
 

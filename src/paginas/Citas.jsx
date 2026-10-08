@@ -41,6 +41,7 @@ import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
 import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
+import { lineaProfesional as textoProfesional, mostrarProfesional } from "../utilidades/profesionalCita"
 import SelectorAsignado from "../componentes/SelectorAsignado"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
@@ -88,7 +89,7 @@ const CONSULTA_ANCHO_SEMANA = "(min-width: 1024px)"
 // Tarjeta de cita, simplificada (reunión 7 oct., C12-C13): solo lo que hace falta para decidir de un vistazo. El motivo, el
 // código, el origen, "Ver perfil", "Agendar otra cita" y el resto de las acciones viven en el detalle (clic en la
 // tarjeta). La barra de color del borde sigue el estado, con los mismos colores del calendario.
-function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, fechaRealPorCitaId, marcandoEstadoId, cobroPendiente, onAtender, onCobrar }) {
+function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDetalle, fechaRealPorCitaId, marcandoEstadoId, cobroPendiente, onAtender, onCobrar }) {
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
   // Cancelada: pendiente, en espera, en atención, "No asistió" (la paciente llegó 12
@@ -108,9 +109,10 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, fechaRealPorCit
       ? { texto: "Primera vez", clase: "border-sky-200/60 bg-sky-50 text-sky-700", ayuda: "El paciente no tenía atenciones anteriores" }
       : { texto: "Seguimiento", clase: "border-slate-200/60 bg-slate-50 text-slate-600", ayuda: "El paciente ya tenía atenciones anteriores" }
   // Un solo profesional por cita: quien la atiende o atendió y, si todavía no, a quien está asignada.
-  const lineaProfesional = cita.atendidoPor
-    ? `${cita.estado === "En Atención" ? "Atiende" : "Atendió"}: ${etiquetaMiembro(equipo, cita.atendidoPor)}`
-    : cita.asignadoA ? `Asignada a: ${etiquetaMiembro(equipo, cita.asignadoA)}` : null
+  // Con alcance propio el nombre sería siempre el suyo: solo se avisa de las citas que nadie tiene.
+  const lineaProfesional = !mostrarProfesional(cita, vistaPropia) ? null
+    : vistaPropia ? (["Pendiente", "En Espera"].includes(cita.estado) ? "Sin asignar" : null)
+    : textoProfesional(cita, equipo)
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
     ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")
     : null
@@ -214,7 +216,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, fechaRealPorCit
 const FILTRO_POR_DEFECTO = "hoy"
 const PAGINA_LISTA = 30
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -1202,6 +1204,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       cita={cita}
                       primeraVez={idsPrimeraVez.has(cita.id)}
                       equipo={equipo}
+                      vistaPropia={vistaPropia}
                       fechaRealPorCitaId={fechaRealPorCitaId}
                       marcandoEstadoId={marcandoEstadoId}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
@@ -1487,6 +1490,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       cita={cita}
                       primeraVez={idsPrimeraVez.has(cita.id)}
                       equipo={equipo}
+                      vistaPropia={vistaPropia}
                       fechaRealPorCitaId={fechaRealPorCitaId}
                       marcandoEstadoId={marcandoEstadoId}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
@@ -2120,6 +2124,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         return (
           <DetalleCitaModal
             cita={cita}
+            paciente={pacientes.find((p) => p.id === cita.pacienteId) || null}
+            vistaPropia={vistaPropia}
             equipo={equipo}
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}

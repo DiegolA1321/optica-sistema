@@ -187,6 +187,8 @@ function mapCita(c) {
     creadoEn: c.created_at,
     // Responsable (0083): quién debería atender y quién atendió de verdad.
     asignadoA: c.asignado_a || null, atendidoPor: c.atendido_por || null,
+    // Quién la tenía antes de la primera reasignación (0100).
+    asignadoOriginal: c.asignado_original || null,
   }
 }
 // Pase a venta ("Listo para venta", 0085): el paciente que el optómetra dejó
