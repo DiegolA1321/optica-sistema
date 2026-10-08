@@ -157,9 +157,10 @@ test('5 · El administrador ve el resultado en Reportes y la cita quedó atendid
 
   // La cita del paciente quedó "Atendida" (Paula al terminar la atención).
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByPlaceholder(/Buscar paciente o código/).fill(datos.nombre)
-  // Con el filtro de estado en 'Atendidas', la cita del paciente tiene que seguir apareciendo.
-  await page.locator('main select').filter({ has: page.locator('option[value=atendida]') }).selectOption('atendida')
+  await page.getByLabel('Buscar cita: paciente o código').fill(datos.nombre)
+  // Con el filtro de estado en 'Atendidas' (panel Filtrar), la cita del paciente tiene que seguir apareciendo.
+  await page.getByRole('button', { name: /Filtrar/ }).click()
+  await page.locator('#citas-filtrar-panel').getByRole('group', { name: 'Estado' }).getByRole('button', { name: 'Atendidas' }).click()
   await expect(page.locator('main').getByText(datos.nombre).first()).toBeVisible({ timeout: 20_000 })
 })
 
