@@ -1345,7 +1345,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
         {/* Fila 2, igual en las tres vistas: a la izquierda cuántas citas se ven; a la derecha, el periodo (en la Lista,
             Hoy · Semana · Mes) y las flechas ‹ › con su título. */}
-        <div className="flex h-12 items-center justify-between gap-3 pt-2.5">
+        <div className="flex h-12 items-center justify-between gap-3 px-2 pt-2.5">
           <div className="flex min-w-0 items-center gap-3">
             {vistaActiva === "lista" && buscando && (
               <p className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Search size={14} aria-hidden="true" /> Buscando en todas las fechas</p>
