@@ -1,12 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Search, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { INK } from "@/lib/tema"
 
-// Piezas de la barra de filtros de Citas. Todos los filtros comparten un mismo
-// formato: un menú compacto con su nombre visible ("Estado: Todas") y, dentro,
-// cuántas citas habría con cada opción dados los demás filtros.
+// Piezas de la barra de Citas: la barra única de búsqueda y filtros, el periodo de la Lista y el conteo.
 
 // Cierra un popover con Escape o al hacer clic fuera.
 function useCierre(abierto, cerrar) {
@@ -22,45 +20,91 @@ function useCierre(abierto, cerrar) {
   return ref
 }
 
-const CLASE_BOTON = "inline-flex min-w-0 max-w-full items-center gap-1.5 whitespace-nowrap rounded-xl border px-2 py-2 text-xs font-semibold shadow-sm transition-colors cursor-pointer "
-
-// Menú desplegable de un filtro. `opciones`: [{ id, etiqueta, conteo }]. Lo elegido distinto de `porDefecto` se marca relleno.
-export function FiltroDesplegable({ nombre, valor, onChange, opciones, porDefecto }) {
+// Barra única de búsqueda y filtros: "Filtrar" abre un panel con todas las categorías a la vista (cada opción con
+// cuántas citas habría dados los demás filtros), los filtros elegidos quedan como etiquetas con su "x" dentro de la
+// barra, y el campo de búsqueda ocupa el resto. "Limpiar" quita etiquetas y búsqueda.
+// secciones: [{ id, titulo, valor, onChange, opciones: [{ id, etiqueta, conteo }], tipo?: "chips" | "lista" }]
+export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useCierre(abierto, () => setAbierto(false))
-  const actual = opciones.find((o) => o.id === valor)
-  const activo = valor !== porDefecto
+  const hayAlgo = etiquetas.length > 0 || texto.trim() !== ""
   return (
-    <div ref={ref} className="relative min-w-0 shrink">
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={abierto}
-        aria-label={`${nombre}: ${actual?.etiqueta ?? ""}`}
-        title={`${nombre}: ${actual?.etiqueta ?? ""}`}
-        className={CLASE_BOTON + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
-        style={activo ? { backgroundColor: INK } : undefined}
-      >
-        <span className={"shrink-0 " + (activo ? "text-white/70" : "text-slate-500")}>{nombre}:</span>
-        <span className="min-w-0 truncate font-bold">{actual?.etiqueta}</span>
-        <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
-      </button>
-      {abierto && (
-        <div role="menu" aria-label={nombre} className="absolute left-0 top-full z-30 mt-1.5 max-h-72 min-w-[12rem] overflow-y-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
-          {opciones.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              role="menuitemradio"
-              aria-checked={o.id === valor}
-              onClick={() => { onChange(o.id); setAbierto(false) }}
-              className={"flex w-full items-center justify-between gap-4 rounded-lg px-3 py-1.5 text-left text-xs font-semibold transition-colors cursor-pointer " + (o.id === valor ? "text-white" : "text-slate-700 hover:bg-slate-50")}
-              style={o.id === valor ? { backgroundColor: INK } : undefined}
-            >
-              <span className="truncate">{o.etiqueta}</span>
-              {o.conteo != null && <span className={"rounded-full px-1.5 text-[11px] font-bold tabular-nums " + (o.id === valor ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
+    <div ref={ref} className="relative min-w-0 flex-1">
+      <div className="flex min-h-[38px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-1.5 py-1 shadow-sm transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
+        <button
+          type="button"
+          onClick={() => setAbierto((v) => !v)}
+          aria-haspopup="dialog"
+          aria-expanded={abierto}
+          aria-controls="citas-filtrar-panel"
+          className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
+        >
+          <SlidersHorizontal size={14} aria-hidden="true" /> Filtrar
+          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-[11px] font-bold text-white" style={{ backgroundColor: INK }}>{etiquetas.length}</span>}
+          <ChevronDown size={13} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+        </button>
+        {etiquetas.map((e) => (
+          <span key={e.id} className="inline-flex max-w-full shrink-0 items-center gap-1 rounded-full border border-slate-200/60 bg-slate-100 py-0.5 pl-2.5 pr-1 text-xs font-semibold text-slate-700">
+            <span className="truncate">{e.texto}</span>
+            <button type="button" onClick={e.quitar} aria-label={`Quitar el filtro ${e.texto}`} className="rounded-full p-0.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800 cursor-pointer">
+              <X size={12} aria-hidden="true" />
             </button>
+          </span>
+        ))}
+        <div className="relative min-w-[12rem] flex-1">
+          <Search size={15} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          <label htmlFor="citas-busqueda" className="sr-only">Buscar cita: paciente o código</label>
+          <input
+            id="citas-busqueda"
+            type="text"
+            value={texto}
+            onChange={(e) => onTexto(e.target.value)}
+            placeholder="Buscar cita: paciente o código"
+            className="w-full bg-transparent py-1.5 pl-8 pr-2 text-xs font-medium text-slate-800 outline-none"
+          />
+        </div>
+        {hayAlgo && (
+          <button type="button" onClick={onLimpiar} className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
+            <X size={12} aria-hidden="true" /> Limpiar
+          </button>
+        )}
+      </div>
+      {abierto && (
+        <div id="citas-filtrar-panel" role="dialog" aria-label="Filtrar citas" className="absolute left-0 top-full z-30 mt-1.5 w-[24rem] max-w-[calc(100vw-2rem)] space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+          {secciones.map((s) => (
+            <div key={s.id} role="group" aria-label={s.titulo} className="space-y-1.5">
+              <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">{s.titulo}</span>
+              {s.tipo === "lista" ? (
+                <select
+                  aria-label={s.titulo}
+                  value={s.valor}
+                  onChange={(e) => s.onChange(e.target.value)}
+                  className={"w-full rounded-lg border px-2.5 py-1.5 text-xs font-semibold outline-none transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-100 " + (s.valor === s.opciones[0].id ? "border-slate-200/60 bg-white text-slate-600" : "border-transparent text-white")}
+                  style={s.valor === s.opciones[0].id ? undefined : { backgroundColor: INK }}
+                >
+                  {s.opciones.map((o) => <option key={o.id} value={o.id} className="text-slate-800">{o.etiqueta}{o.conteo != null ? ` (${o.conteo})` : ""}</option>)}
+                </select>
+              ) : (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {s.opciones.map((o) => {
+                    const activo = s.valor === o.id
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => s.onChange(o.id)}
+                        aria-pressed={activo}
+                        className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")}
+                        style={activo ? { backgroundColor: INK } : undefined}
+                      >
+                        {o.etiqueta}
+                        {o.conteo != null && <span className={"rounded-full px-1.5 text-[11px] font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -121,43 +165,13 @@ export function PeriodoLista({ valor, onChange, opciones, rango }) {
   )
 }
 
-// Buscador de las citas (el de la cabecera salta a pacientes y módulos).
-export function BuscadorCitas({ valor, onChange }) {
+// Cuántas citas se ven ("Mostrando 4 de 9 citas") y, si ninguna coincide, el aviso con su botón para limpiar.
+export function ConteoCitas({ texto, vacio, onLimpiar }) {
   return (
-    <div className="relative w-72 max-w-full">
-      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-      <label htmlFor="citas-busqueda" className="sr-only">Buscar en las citas por paciente o código de cita</label>
-      <input
-        id="citas-busqueda"
-        type="text"
-        value={valor}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Buscar en citas…"
-        className="w-full rounded-xl border border-slate-200/60 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-800 shadow-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-      />
-    </div>
-  )
-}
-
-// Línea siempre visible bajo los filtros: cuántas citas se muestran, los filtros activos con su "x" y "Limpiar filtros".
-export function ResumenCitas({ texto, vacio, etiquetas, hayFiltros, onLimpiar }) {
-  return (
-    <div className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1.5" aria-label="Resumen de la lista">
+    <div className="flex shrink-0 items-center gap-2">
       <p role="status" className={"text-xs " + (vacio ? "font-semibold text-slate-700" : "text-slate-500")}>{texto}</p>
-      {etiquetas.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Filtros activos">
-          {etiquetas.map((e) => (
-            <span key={e.id} className="inline-flex items-center gap-1 rounded-full border border-slate-200/60 bg-slate-100 py-0.5 pl-2.5 pr-1 text-xs font-semibold text-slate-700">
-              {e.texto}
-              <button type="button" onClick={e.quitar} aria-label={`Quitar el filtro ${e.texto}`} className="rounded-full p-0.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800 cursor-pointer">
-                <X size={12} aria-hidden="true" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {hayFiltros && (
-        <button type="button" onClick={onLimpiar} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
+      {vacio && onLimpiar && (
+        <button type="button" onClick={onLimpiar} className="rounded-lg border border-slate-200/60 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
           Limpiar filtros
         </button>
       )}

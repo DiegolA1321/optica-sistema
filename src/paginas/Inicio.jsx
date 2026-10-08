@@ -453,13 +453,13 @@ export default function Inicio({
       detalle: `Era el ${fechaLegible(cita.fecha)} a las ${cita.hora}${cita.motivo ? ` · ${cita.motivo}` : ""}, todavía sin reagendar`,
       acciones: [
         ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Reagendar", principal: true, onClick: () => onReagendarCancelada?.(cita) }] : []),
-        { etiqueta: "Ver en Citas", onClick: () => onVerCitas?.(cita.estado === "No Asistió" ? "noAsistio" : "cancelada", "siempre") },
+        { etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("todas", "reagendar") },
       ],
     }))
     if (paraReagendar.length > 3) filasAtencion.push({
       id: "reagendar-mas", icono: Ban,
       titulo: `Y ${plural(paraReagendar.length - 3, "cita para reagendar más", "citas para reagendar más")}`,
-      acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("todas", "siempre") }],
+      acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("todas", "reagendar") }],
     })
   }
   if (incPorConfirmar && porConfirmar.length > 0) {

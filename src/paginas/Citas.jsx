@@ -44,7 +44,7 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
-import { FiltroDesplegable, PeriodoLista, BuscadorCitas, ResumenCitas } from "../componentes/FiltrosCitas"
+import { BarraBusquedaFiltros, PeriodoLista, ConteoCitas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import SelectorAsignado from "../componentes/SelectorAsignado"
@@ -383,6 +383,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       setVistaState("lista") // la tarjeta promete una lista filtrada; no se pisa la vista guardada
       if (periodo === "mes") { const r = rangoDelMes(); setRangoDesde(r.desde); setRangoHasta(r.hasta) }
       else if (periodo === "siempre") { setRangoDesde(""); setRangoHasta("") }
+      else if (periodo === "reagendar") { setFiltro("reagendar"); setRangoDesde(""); setRangoHasta("") } // el atajo "Para reagendar" de la Lista
       onEstadoInicialConsumido?.()
     }
   }, [estadoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1165,7 +1166,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
-  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda(""); setRangoDesde(""); setRangoHasta(""); setFiltro(FILTRO_POR_DEFECTO) }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1238,34 +1238,42 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
-  // Filtros activos como etiquetas con su "x". El periodo de la Lista cuenta solo si no es el de siempre.
+  // Filtros elegidos en el panel "Filtrar", como etiquetas con su "x" dentro de la barra. El periodo (Hoy, Próximas…)
+  // se ve en sus propios atajos y la búsqueda en su campo, así que no llevan etiqueta.
   const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
-  const corta = (iso) => (iso ? iso.split("-").reverse().slice(0, 2).join("/") : "")
-  const textoRango = rangoDesde && rangoHasta ? `${corta(rangoDesde)} – ${corta(rangoHasta)}` : rangoDesde ? `desde ${corta(rangoDesde)}` : `hasta ${corta(rangoHasta)}`
   const etiquetasActivas = [
-    vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${textoRango}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
-    vistaActiva === "lista" && !hayRango && filtro !== FILTRO_POR_DEFECTO && { id: "periodo", texto: `Periodo: ${periodos.find((p) => p.id === filtro)?.etiqueta}`, quitar: () => setFiltro(FILTRO_POR_DEFECTO) },
     estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
     asignadoFiltro !== "todos" && { id: "asignado", texto: `Asignada a: ${nombreResponsableFiltro(asignadoFiltro)}`, quitar: () => setAsignadoFiltro("todos") },
     atendidoFiltro !== "todos" && { id: "atendido", texto: `Atendida por: ${nombreResponsableFiltro(atendidoFiltro)}`, quitar: () => setAtendidoFiltro("todos") },
-    busqueda.trim() && { id: "busqueda", texto: `Búsqueda: ${busqueda.trim()}`, quitar: () => setBusqueda("") },
   ].filter(Boolean)
 
-  // Línea de resumen: "89 citas" sin filtros; "Mostrando 5 de 89 citas" con filtros (en Semana y Mes, del periodo visible).
+  // "89 citas" sin filtros; "Mostrando 5 de 89 citas" cuando hay menos que el total (en Semana y Mes, del periodo visible).
   const mostradas = resultado.length
-  const hayFiltros = etiquetasActivas.length > 0 || mostradas !== totalAlcance
+  const buscando = busqueda.trim() !== ""
+  const hayFiltros = etiquetasActivas.length > 0 || buscando
   const sufijoPeriodo = vistaActiva === "semana" ? " en la semana" : vistaActiva === "mes" ? " en el mes" : ""
   const palabraCitas = totalAlcance === 1 ? "cita" : "citas"
   // Hoy sin citas (y sin otros filtros): nunca una lista vacía, se avisa y se ofrece ver lo que viene.
-  const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !busqueda.trim() && etiquetasActivas.length === 0 && mostradas === 0
-  const textoResumen = hayFiltros && mostradas === 0 && totalAlcance > 0
-    ? "Ninguna cita coincide con estos filtros"
-    : hayFiltros ? `Mostrando ${mostradas} de ${totalAlcance} ${palabraCitas}${sufijoPeriodo}` : `${totalAlcance} ${palabraCitas}${sufijoPeriodo}`
+  const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !hayFiltros && mostradas === 0
+  const textoResumen = mostradas === 0 && totalAlcance > 0
+    ? (hayFiltros ? "Ninguna cita coincide con estos filtros" : "Ninguna cita en este periodo")
+    : mostradas !== totalAlcance ? `Mostrando ${mostradas} de ${totalAlcance} ${palabraCitas}${sufijoPeriodo}` : `${totalAlcance} ${palabraCitas}${sufijoPeriodo}`
   const elegirPeriodo = (id) => { setFiltro(id); setRangoDesde(""); setRangoHasta("") }
   const opcionesConConteo = (lista, tabla) => lista.map((o) => ({ ...o, conteo: tabla[o.id] }))
   const opcionesResponsable = (tabla) => [{ id: "todos", etiqueta: "Todos", conteo: tabla.todos }, { id: "ninguno", etiqueta: "Nadie", conteo: tabla.ninguno }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre, conteo: tabla[m.id] }))]
+  const seccionesFiltro = [
+    { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: opcionesConConteo(ESTADOS_FILTRO, conteos.estado) },
+    { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: opcionesConConteo(ORIGENES_FILTRO, conteos.origen) },
+    { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: opcionesConConteo(SEGUIMIENTO_FILTRO, conteos.seguimiento).map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
+    ...(usuario?.rol === "admin" ? [
+      { id: "asignado", titulo: "Asignada a", tipo: "lista", valor: asignadoFiltro, onChange: setAsignadoFiltro, opciones: opcionesResponsable(conteos.asignado) },
+      { id: "atendido", titulo: "Atendida por", tipo: "lista", valor: atendidoFiltro, onChange: setAtendidoFiltro, opciones: opcionesResponsable(conteos.atendido) },
+    ] : []),
+  ]
+  // Limpiar quita los filtros del panel y la búsqueda; el periodo se cambia con sus atajos.
+  const limpiarFiltrosPanel = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda("") }
 
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
   const renderDia = ([dia, citasDia]) => {
@@ -1395,14 +1403,16 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         </div>
       )}
 
-      {/* ─── BARRA SUPERIOR: dos filas con la misma altura en las tres vistas ─── */}
+      {/* ─── BARRA SUPERIOR ───
+          Fila 1 (igual en las tres vistas): el selector de vista y, a su derecha, una sola barra de búsqueda y filtros.
+          Fila 2 (misma altura): en la Lista, los atajos por tarea; en Semana y Mes, "‹ Hoy ›" con el rango visible.
+          A la derecha de la fila 2, cuántas citas se ven. ─── */}
       <div className="space-y-2.5">
-        {/* Fila 1: el selector de vista no se mueve nunca; el buscador de las citas, a la derecha. */}
-        <div className="flex h-10 items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
           {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
               Cobrar) y la semana/el mes para planificar. Conviven sobre los
               mismos datos. La semana no se ofrece donde no cabe. */}
-          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
+          <div className="flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
             {[
               { key: "lista", label: "Lista", Icono: List },
               ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
@@ -1421,69 +1431,56 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               </button>
             ))}
           </div>
-          <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
+          <BarraBusquedaFiltros texto={busqueda} onTexto={setBusqueda} secciones={seccionesFiltro} etiquetas={etiquetasActivas} onLimpiar={limpiarFiltrosPanel} />
         </div>
 
-        {/* Fila 2: a la izquierda los filtros, todos con el mismo formato; a la derecha el periodo (en la
-            Lista un filtro, en Semana y Mes las flechas con el rango visible), en un espacio de ancho fijo. */}
-        <div className="flex h-10 items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <FiltroDesplegable nombre="Estado" valor={estadoFiltro} onChange={setEstadoFiltro} porDefecto="todas" opciones={opcionesConConteo(ESTADOS_FILTRO, conteos.estado)} />
-            <FiltroDesplegable nombre="Origen" valor={origenFiltro} onChange={setOrigenFiltro} porDefecto="todos" opciones={opcionesConConteo(ORIGENES_FILTRO, conteos.origen)} />
-            <FiltroDesplegable nombre="Visita" valor={seguimientoFiltro} onChange={setSeguimientoFiltro} porDefecto="todos" opciones={opcionesConConteo(SEGUIMIENTO_FILTRO, conteos.seguimiento).map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o))} />
-            {usuario?.rol === "admin" && (
-              <>
-                <FiltroDesplegable nombre="Asignada a" valor={asignadoFiltro} onChange={setAsignadoFiltro} porDefecto="todos" opciones={opcionesResponsable(conteos.asignado)} />
-                <FiltroDesplegable nombre="Atendida por" valor={atendidoFiltro} onChange={setAtendidoFiltro} porDefecto="todos" opciones={opcionesResponsable(conteos.atendido)} />
-              </>
-            )}
-          </div>
-          <div className="flex w-[19rem] shrink-0 items-center justify-start gap-2">
-            {vistaActiva === "lista" ? (
+        <div className="flex h-10 items-center justify-between gap-3">
+          {vistaActiva === "lista" ? (
+            buscando ? (
+              <p className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Search size={14} aria-hidden="true" /> Buscando en todas las fechas</p>
+            ) : (
               <PeriodoLista
                 valor={filtro}
                 onChange={elegirPeriodo}
                 opciones={opcionesConConteo(periodos, conteos.periodo)}
                 rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango, conteo: conteos.rango }}
               />
-            ) : (
-              <>
-                <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
-                    aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-                    title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={irAHoy}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
-                  >
-                    Hoy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
-                    aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-                    title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-                <h2 className="min-w-0 truncate text-sm font-bold" style={{ color: INK }}>{vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}</h2>
-              </>
-            )}
-          </div>
+            )
+          ) : (
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
+                  aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+                  title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+                  className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={irAHoy}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
+                  aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+                  title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+                  className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <h2 className="min-w-0 truncate text-sm font-bold" style={{ color: INK }}>{vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}</h2>
+            </div>
+          )}
+          <ConteoCitas texto={textoResumen} vacio={mostradas === 0 && totalAlcance > 0} onLimpiar={hayFiltros ? limpiarFiltrosPanel : undefined} />
         </div>
       </div>
-
-      {/* ─── RESUMEN: cuántas citas se ven, filtros activos con su "x" y "Limpiar filtros" ─── */}
-      <ResumenCitas texto={textoResumen} vacio={hayFiltros && mostradas === 0 && totalAlcance > 0} etiquetas={etiquetasActivas} hayFiltros={hayFiltros} onLimpiar={limpiarFiltros} />
 
       {/* ─── LISTADO ─── */}
       {cargaInicial && citas.length === 0 ? (
@@ -1549,11 +1546,11 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />
           </div>
-          <p className="mt-4 text-base font-semibold text-slate-600">{hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : "Todavía no hay citas"}</p>
+          <p className="mt-4 text-base font-semibold text-slate-600">{hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : totalAlcance > 0 ? "Ninguna cita en este periodo" : "Todavía no hay citas"}</p>
           {hoySinCitas ? (
             <button type="button" onClick={() => setFiltro("proximas")} className="mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Ver próximas</button>
           ) : hayFiltros ? (
-            <button type="button" onClick={limpiarFiltros} className="mt-3 rounded-xl border border-slate-200/60 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">Limpiar filtros</button>
+            <button type="button" onClick={limpiarFiltrosPanel} className="mt-3 rounded-xl border border-slate-200/60 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">Limpiar filtros</button>
           ) : (
             <p className="mt-1 text-sm text-slate-500">Agenda una nueva cita para empezar.</p>
           )}
