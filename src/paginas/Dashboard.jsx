@@ -739,6 +739,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inicio":
         return (
           <Inicio
+            setPacientes={setPacientes}
             onVerPacientes={(filtro) => { setAccionPacienteInicio({ accion: "filtrar", ...filtro }); navegar("pacientes") }}
             umbralStock={umbralStock(parametrizacion)}
             equipo={equipo}

@@ -158,6 +158,24 @@ describe("Inicio por rol", () => {
     expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
 
+  it("administrador y recepción: pacientes de la web con datos sin confirmar traen 'Confirmar datos'; el optómetra no los ve", () => {
+    const pacientes = [
+      ...base.pacientes,
+      { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
+      { id: "p4", nombre: "Web Ya Confirmado", origen: "paciente", confirmadoRecepcion: true },
+      { id: "p5", nombre: "Registrado Por Recepción", origen: "staff", confirmadoRecepcion: true },
+    ]
+    const { unmount } = render(<Inicio {...base} pacientes={pacientes} />)
+    const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(within(atencion).getByText("Datos sin confirmar: Web Sin Confirmar")).toBeInTheDocument()
+    expect(within(atencion).queryByText(/Web Ya Confirmado|Registrado Por Recepción/)).not.toBeInTheDocument()
+    fireEvent.click(within(atencion).getByRole("button", { name: "Confirmar datos" }))
+    expect(screen.getByRole("dialog", { name: "Confirmar datos del paciente" })).toBeInTheDocument()
+    unmount()
+    render(<Inicio {...base} pacientes={pacientes} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
+    expect(screen.queryByText(/Datos sin confirmar:/)).not.toBeInTheDocument()
+  })
+
   it("Pacientes sin atender abre Pacientes ya filtrado por Sin consulta", () => {
     const pedidos = []
     render(<Inicio {...base} onVerPacientes={(f) => pedidos.push(f)} />)

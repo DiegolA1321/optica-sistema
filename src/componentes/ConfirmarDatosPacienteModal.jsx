@@ -19,7 +19,8 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // 0077). Un solo componente para este paso: antes vivía duplicado a mano en
 // Citas.jsx ("Atender") y hubiera repetido lo mismo en Pacientes.jsx (elegir
 // cita desde el perfil) — ahora ambos lo reutilizan.
-export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacientes, setPacientes, onConfirmado, onCerrar }) {
+// `soloConfirmar`: se abre desde el Inicio, sin ir a la ficha clínica después.
+export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacientes, setPacientes, onConfirmado, onCerrar, soloConfirmar = false }) {
   const opticaId = usuario?.opticaId
   const [nombre, setNombre] = useState(paciente.nombre || "")
   const [cedula, setCedula] = useState(paciente.cedula || "")
@@ -68,7 +69,7 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
           </div>
           <div>
             <h4 id="confirmar-datos-paciente-titulo" className="text-lg font-bold" style={{ color: INK }}>Confirmar datos del paciente</h4>
-            <p className="text-xs text-slate-500">Se registró por la web y todavía no pasó por recepción — revisa o corrige sus datos antes de abrir la ficha clínica.</p>
+            <p className="text-xs text-slate-500">Se registró por la web y todavía no pasó por recepción — revisa o corrige sus datos{soloConfirmar ? "." : " antes de abrir la ficha clínica."}</p>
           </div>
         </div>
 
@@ -140,8 +141,8 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
               Cancelar
             </button>
             <button type="submit" disabled={guardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-              {guardando ? "Guardando…" : "Confirmar y atender"}
-              <ChevronRight size={16} />
+              {guardando ? "Guardando…" : soloConfirmar ? "Confirmar datos" : "Confirmar y atender"}
+              {!soloConfirmar && <ChevronRight size={16} />}
             </button>
           </div>
         </form>

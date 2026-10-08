@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   UserX,
   Ban,
+  UserCheck,
 } from "lucide-react"
+import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { controlesSinAgendar, asignadoDelControl, canceladasPorPaciente } from "../utilidades/controles"
 import { fechaAISO } from "../utilidades/disponibilidad"
@@ -41,6 +43,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 export default function Inicio({
   onVerPacientes,
+  setPacientes,
   umbralStock = UMBRAL_STOCK_BAJO,
   setVista,
   setCitas,
@@ -172,6 +175,7 @@ export default function Inicio({
   // Atenciones que se abrieron un día anterior y nadie cerró.
   const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
   const [dejarCita, setDejarCita] = useState(null)
+  const [confirmarPaciente, setConfirmarPaciente] = useState(null) // paciente de la web cuyos datos recepción aún no confirma
   // Señal de "qué cambió" en el KPI de pacientes (antes solo mostraba el
   // número del momento, sin ningún punto de comparación) — cuántos se
   // registraron este mes calendario, contra fechaRegistro real.
@@ -391,6 +395,9 @@ export default function Inicio({
   const incControlesPorAgendar = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incCanceladas = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incStock = veInventario // quien puede ver el inventario ve el aviso; "Reabastecer" solo con inventario: editar
+  const incPorConfirmar = ["administrador", "recepcion"].includes(plantilla)
+  // Pacientes que se registraron solos al agendar por la web (R15) y cuyos datos recepción todavía no confirma (R22).
+  const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
   const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
@@ -455,6 +462,23 @@ export default function Inicio({
       acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("cancelada", "siempre") }],
     })
   }
+  if (incPorConfirmar && porConfirmar.length > 0) {
+    porConfirmar.slice(0, 3).forEach((paciente) => filasAtencion.push({
+      id: "confirmar-paciente-" + paciente.id,
+      icono: UserCheck,
+      titulo: `Datos sin confirmar: ${paciente.nombre}`,
+      detalle: "Se registró solo al agendar por la web: revisa que su cédula, teléfono y correo estén bien",
+      acciones: [
+        ...(puede(usuario, "pacientes", "editar") ? [{ etiqueta: "Confirmar datos", principal: true, onClick: () => setConfirmarPaciente(paciente) }] : []),
+        { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(paciente.id) },
+      ],
+    }))
+    if (porConfirmar.length > 3) filasAtencion.push({
+      id: "confirmar-pacientes-mas", icono: UserCheck,
+      titulo: `Y ${plural(porConfirmar.length - 3, "paciente de la web por confirmar más", "pacientes de la web por confirmar más")}`,
+      acciones: [{ etiqueta: "Ver pacientes", onClick: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) }],
+    })
+  }
   if (incControles && hayInactivos) filasAtencion.push({
     id: "controles", icono: Clock,
     titulo: plural(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
@@ -504,6 +528,18 @@ export default function Inicio({
       setCitas={setCitas}
       onCancelar={() => setDejarCita(null)}
       onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
+    />
+  )
+
+  const bConfirmarPaciente = confirmarPaciente && (
+    <ConfirmarDatosPacienteModal
+      soloConfirmar
+      usuario={usuario}
+      paciente={confirmarPaciente}
+      pacientes={pacientes}
+      setPacientes={setPacientes}
+      onCerrar={() => setConfirmarPaciente(null)}
+      onConfirmado={(p) => { setConfirmarPaciente(null); onAviso?.(`Datos de ${p.nombre} confirmados.`) }}
     />
   )
 
@@ -579,6 +615,7 @@ export default function Inicio({
 
       {bResumenDia}
       {bDejarCita}
+      {bConfirmarPaciente}
 
       {plantilla === "administrador" && (
         <>
