@@ -25,12 +25,12 @@ async function leerReportes(page) {
   const leer = async () => {
     const texto = await cuerpo.innerText()
     const num = (re) => Number((texto.match(re)?.[1] ?? 'NaN').replace(/[^\d.]/g, ''))
-    return { consultas: num(/CONSULTAS\s+(\d+)/), ingresos: num(/INGRESOS\s+\$([\d.,]+)/), ventas: num(/(\d+) ventas \(sin anuladas\)/) }
+    return { consultas: num(/CONSULTAS\s+(\d+)/), ingresos: num(/INGRESOS\s+\$([\d.,]+)/), ventas: num(/(\d+) ventas? \(sin anuladas\)/) }
   }
   // Los indicadores arrancan en 0 mientras cargan los datos, y en una óptica vacía 0 es un valor legítimo: no se puede esperar
   // "una cifra mayor que cero". Se espera a que el Reportes termine de cargar (sin esqueletos, con las tarjetas pintadas) y a que
   // la lectura se mantenga igual durante un par de segundos.
-  await expect(cuerpo.getByText(/ventas \(sin anuladas\)/)).toBeVisible({ timeout: 25_000 })
+  await expect(cuerpo.getByText(/ventas? \(sin anuladas\)/)).toBeVisible({ timeout: 25_000 })
   await expect(cuerpo.locator('.animate-pulse')).toHaveCount(0, { timeout: 25_000 })
   let previa = JSON.stringify(await leer())
   await expect(async () => {
@@ -66,7 +66,8 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await page.getByRole('button', { name: 'Entendido, completar antecedentes' }).click()
   await page.getByRole('button', { name: /^Siguiente$/ }).click() // Refracción (opcional)
   await page.getByRole('button', { name: /^Siguiente$/ }).click() // Diagnóstico y receta
-  await page.getByRole('button', { name: 'Miopía' }).first().click()
+  // La lista de diagnósticos rápidos es de cada óptica (la de pruebas conserva «Miopia» sin tilde): vale cualquiera de las dos.
+  await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
   await page.getByLabel(/Añadir recomendación de lente/).check()
   await page.getByLabel('Lente a recomendar').fill(`${PREFIJO}Monofocal con antirreflejo`)
   await page.getByRole('radio', { name: /Agendar después/ }).check()
