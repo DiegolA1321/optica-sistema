@@ -1,6 +1,7 @@
 // Filtros de la agenda de Citas (reunión 29 sept., R3-R6): estado, origen y
 // primera vez/seguimiento. Lógica pura, sin React, para probarla aparte.
-import { esHoy, esFutura } from "./disponibilidad"
+import { esHoy, esFutura, horarioEfectivo, diaAbierto, isoAFechaLocal } from "./disponibilidad"
+import { sumarDiasISO } from "./controles"
 
 export const ESTADOS_FILTRO = [
   { id: "todas", etiqueta: "Todas" },
@@ -11,11 +12,32 @@ export const ESTADOS_FILTRO = [
   { id: "cancelada", etiqueta: "Canceladas" },
 ]
 
-export const PERIODOS_FILTRO = [
+// Atajos de la Lista, en orden de la jornada: hoy, el día que recepción debe confirmar, las que hay que volver a
+// agendar, lo que viene y todo. La etiqueta del segundo lleva el día (ver proximoDiaDeAtencion).
+export const periodosFiltro = (diaConfirmar) => [
   { id: "hoy", etiqueta: "Hoy" },
+  { id: "confirmar", etiqueta: `${etiquetaDiaCorta(diaConfirmar)} · por confirmar` },
+  { id: "reagendar", etiqueta: "Para reagendar" },
   { id: "proximas", etiqueta: "Próximas" },
   { id: "todas", etiqueta: "Todas" },
 ]
+
+// "Lun 12": el nombre corto del día y su número.
+export function etiquetaDiaCorta(iso) {
+  const d = isoAFechaLocal(iso)
+  const dia = d.toLocaleDateString("es-EC", { weekday: "short" }).replace(".", "")
+  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${d.getDate()}`
+}
+
+// El próximo día en que la óptica atiende (según su horario semanal y sus excepciones), después de hoy: es el día
+// cuyas citas recepción necesita confirmar. Un viernes es el lunes. Sin horario cargado, mañana.
+export function proximoDiaDeAtencion(disponibilidad, hoy) {
+  for (let i = 1; i <= 14; i++) {
+    const iso = sumarDiasISO(hoy, i)
+    if (diaAbierto(horarioEfectivo(iso, disponibilidad))) return iso
+  }
+  return sumarDiasISO(hoy, 1)
+}
 
 export const ORIGENES_FILTRO = [
   { id: "todos", etiqueta: "Todos" },
@@ -91,22 +113,29 @@ export function coincideTexto(cita, texto) {
   return !t || (cita.paciente || "").toLowerCase().includes(t) || (cita.codigo || "").toLowerCase().includes(t)
 }
 
-// f = { estado, origen, seguimiento, asignado, atendido, texto, periodo, ventana }
-//   periodo: { filtro: "hoy" | "proximas" | "todas", desde, hasta } — solo la Lista; un rango (desde/hasta) manda sobre `filtro`.
+// f = { estado, origen, seguimiento, asignado, atendido, texto, periodo, ventana, diaConfirmar, idsReagendar }
+//   periodo: { filtro: "hoy" | "confirmar" | "reagendar" | "proximas" | "todas", desde, hasta } — solo la Lista; un rango (desde/hasta) manda sobre `filtro`.
 //   ventana: { desde, hasta } — el periodo visible de Semana y Mes; en Lista es null.
 export function citaPasaFiltros(cita, f, consultas = []) {
   if (f.ventana && (cita.fecha < f.ventana.desde || cita.fecha > f.ventana.hasta)) return false
-  if (!coincideEstadoVisible(cita, f.estado)) return false
+  const p = f.periodo
+  const buscando = Boolean((f.texto || "").trim())
+  // "Para reagendar" incluye canceladas y no asistidas aunque el estado esté en "Todas"; con búsqueda no rige el periodo.
+  const paraReagendar = !f.ventana && !buscando && p && !p.desde && !p.hasta && p.filtro === "reagendar"
+  if (!paraReagendar && !coincideEstadoVisible(cita, f.estado)) return false
   if (!coincideOrigen(cita, f.origen)) return false
   if (!coincideSeguimiento(cita, f.seguimiento, consultas)) return false
   if (!coincideResponsable(cita, "asignadoA", f.asignado)) return false
   if (!coincideResponsable(cita, "atendidoPor", f.atendido)) return false
   if (!coincideTexto(cita, f.texto)) return false
-  if (!f.ventana && f.periodo) {
-    const { filtro, desde, hasta } = f.periodo
+  // La búsqueda mira todas las fechas: el periodo elegido no la limita (al borrarla, vuelve).
+  if (!f.ventana && p && !buscando) {
+    const { filtro, desde, hasta } = p
     if (desde || hasta) return (!desde || cita.fecha >= desde) && (!hasta || cita.fecha <= hasta)
     if (filtro === "hoy") return esHoy(cita.fecha)
     if (filtro === "proximas") return esFutura(cita.fecha)
+    if (filtro === "confirmar") return cita.fecha === f.diaConfirmar && ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt
+    if (filtro === "reagendar") return Boolean(f.idsReagendar?.has(cita.id))
   }
   return true
 }

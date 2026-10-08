@@ -56,7 +56,8 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, PERIODOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, contarCon, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { citasParaReagendar } from "../utilidades/controles"
+import { ESTADOS_FILTRO, periodosFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, contarCon, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -1087,6 +1088,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // es un filtro más. La búsqueda mira el nombre y el código de cita (CIT-2026-ABC123)
   // que el paciente recibe al reservar en línea. ──
   const hayRango = Boolean(rangoDesde || rangoHasta)
+  // Atajos por tarea: el día de atención que recepción debe confirmar y las citas que hay que volver a agendar.
+  const diaConfirmar = useMemo(() => proximoDiaDeAtencion(disponibilidad, hoyISO()), [disponibilidad])
+  const idsReagendar = useMemo(() => new Set(citasParaReagendar(citas).map((c) => c.id)), [citas])
+  const periodos = useMemo(() => periodosFiltro(diaConfirmar), [diaConfirmar])
   const ventana = useMemo(() => {
     if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
     if (vistaActiva === "mes") {
@@ -1096,8 +1101,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     return null
   }, [vistaActiva, semanaLunes, mesVista])
   const filtros = useMemo(
-    () => ({ estado: estadoFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, asignado: asignadoFiltro, atendido: atendidoFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana }),
-    [estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana],
+    () => ({ estado: estadoFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, asignado: asignadoFiltro, atendido: atendidoFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana, diaConfirmar, idsReagendar }),
+    [estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana, diaConfirmar, idsReagendar],
   )
   const resultado = useMemo(() => citas.filter((c) => citaPasaFiltros(c, filtros, consultas)), [citas, filtros, consultas])
   const totalAlcance = useMemo(() => totalDelAlcance(citas, filtros), [citas, filtros])
@@ -1112,10 +1117,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       seguimiento: Object.fromEntries(SEGUIMIENTO_FILTRO.map((o) => [o.id, cuenta({ seguimiento: o.id })])),
       asignado: responsables("asignado"),
       atendido: responsables("atendido"),
-      periodo: Object.fromEntries(PERIODOS_FILTRO.map((p) => [p.id, cuenta({ periodo: { filtro: p.id, desde: "", hasta: "" } })])),
+      periodo: Object.fromEntries(periodos.map((p) => [p.id, cuenta({ periodo: { filtro: p.id, desde: "", hasta: "" } })])),
       rango: resultado.length,
     }
-  }, [citas, filtros, consultas, equipo, resultado.length])
+  }, [citas, filtros, consultas, equipo, resultado.length, periodos])
 
   // Vista Semana: si lo buscado no está en la semana que se ve, ofrece ir a la
   // semana de la coincidencia más cercana (la próxima, o la última pasada).
@@ -1239,7 +1244,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const textoRango = rangoDesde && rangoHasta ? `${corta(rangoDesde)} – ${corta(rangoHasta)}` : rangoDesde ? `desde ${corta(rangoDesde)}` : `hasta ${corta(rangoHasta)}`
   const etiquetasActivas = [
     vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${textoRango}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
-    vistaActiva === "lista" && !hayRango && filtro !== filtroPorDefecto && { id: "periodo", texto: `Periodo: ${PERIODOS_FILTRO.find((p) => p.id === filtro)?.etiqueta}`, quitar: () => setFiltro(filtroPorDefecto) },
+    vistaActiva === "lista" && !hayRango && filtro !== filtroPorDefecto && { id: "periodo", texto: `Periodo: ${periodos.find((p) => p.id === filtro)?.etiqueta}`, quitar: () => setFiltro(filtroPorDefecto) },
     estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
@@ -1436,7 +1441,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               <PeriodoLista
                 valor={filtro}
                 onChange={elegirPeriodo}
-                opciones={opcionesConConteo(PERIODOS_FILTRO, conteos.periodo)}
+                opciones={opcionesConConteo(periodos, conteos.periodo)}
                 rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango, conteo: conteos.rango }}
               />
             ) : (
