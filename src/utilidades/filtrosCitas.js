@@ -1,5 +1,6 @@
 // Filtros de la agenda de Citas (reunión 29 sept., R3-R6): estado, origen y
 // primera vez/seguimiento. Lógica pura, sin React, para probarla aparte.
+import { esHoy, esFutura } from "./disponibilidad"
 
 export const ESTADOS_FILTRO = [
   { id: "todas", etiqueta: "Todas" },
@@ -78,3 +79,48 @@ export function coincideResponsable(cita, campo, valor) {
   const actual = cita[campo] || null
   return valor === "ninguno" ? actual === null : actual === valor
 }
+
+// ── Filtros combinados y conteos que los reflejan ──
+// "Todas" significa las citas activas: las canceladas solo se ven eligiendo el estado "Canceladas",
+// igual en Lista, Semana y Mes.
+export const coincideEstadoVisible = (cita, estado) => (estado === "todas" ? cita.estado !== "Cancelada" : coincideEstado(cita, estado))
+
+// Búsqueda por nombre del paciente o código de la cita (el que recibe al reservar en línea).
+export function coincideTexto(cita, texto) {
+  const t = (texto || "").trim().toLowerCase()
+  return !t || (cita.paciente || "").toLowerCase().includes(t) || (cita.codigo || "").toLowerCase().includes(t)
+}
+
+// f = { estado, origen, seguimiento, asignado, atendido, texto, periodo, ventana }
+//   periodo: { filtro: "hoy" | "proximas" | "todas", desde, hasta } — solo la Lista; un rango (desde/hasta) manda sobre `filtro`.
+//   ventana: { desde, hasta } — el periodo visible de Semana y Mes; en Lista es null.
+export function citaPasaFiltros(cita, f, consultas = []) {
+  if (f.ventana && (cita.fecha < f.ventana.desde || cita.fecha > f.ventana.hasta)) return false
+  if (!coincideEstadoVisible(cita, f.estado)) return false
+  if (!coincideOrigen(cita, f.origen)) return false
+  if (!coincideSeguimiento(cita, f.seguimiento, consultas)) return false
+  if (!coincideResponsable(cita, "asignadoA", f.asignado)) return false
+  if (!coincideResponsable(cita, "atendidoPor", f.atendido)) return false
+  if (!coincideTexto(cita, f.texto)) return false
+  if (!f.ventana && f.periodo) {
+    const { filtro, desde, hasta } = f.periodo
+    if (desde || hasta) return (!desde || cita.fecha >= desde) && (!hasta || cita.fecha <= hasta)
+    if (filtro === "hoy") return esHoy(cita.fecha)
+    if (filtro === "proximas") return esFutura(cita.fecha)
+  }
+  return true
+}
+
+// Cuántas citas habría si se cambiara un filtro (`cambios`), con todos los demás aplicados.
+export const contarCon = (citas, f, consultas, cambios) => {
+  const g = { ...f, ...cambios }
+  return citas.reduce((n, c) => n + (citaPasaFiltros(c, g, consultas) ? 1 : 0), 0)
+}
+
+// Denominador de "Mostrando X de Y": las citas del alcance sin ningún filtro del usuario (en Semana y Mes, las del
+// periodo visible). Las canceladas entran solo si se está mirando el estado "Canceladas".
+export const totalDelAlcance = (citas, f) =>
+  citas.reduce((n, c) => {
+    if (f.ventana && (c.fecha < f.ventana.desde || c.fecha > f.ventana.hasta)) return n
+    return n + (c.estado !== "Cancelada" || f.estado === "cancelada" ? 1 : 0)
+  }, 0)

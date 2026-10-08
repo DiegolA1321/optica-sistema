@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "./filtrosCitas"
+import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, citaPasaFiltros, contarCon, totalDelAlcance } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -93,5 +93,47 @@ describe("acciones según el estado de la cita", () => {
   it("quien no asistió ofrece agendar otra cita; el resto no", () => {
     expect(puedeAgendarOtraCita(c("No Asistió"))).toBe(true)
     expect(puedeAgendarOtraCita(c("Pendiente"))).toBe(false)
+  })
+})
+
+describe("filtros combinados y conteos", () => {
+  const cita = (id, o) => ({ id, paciente: `Paciente ${id}`, estado: "Pendiente", origen: "staff", fecha: "2026-10-12", pacienteId: id, asignadoA: null, atendidoPor: null, ...o })
+  const citas = [
+    cita("a", { origen: "paciente" }),
+    cita("b", { origen: "paciente", estado: "Atendida" }),
+    cita("c", { origen: "staff" }),
+    cita("d", { origen: "paciente", estado: "Cancelada" }),
+    cita("e", { origen: "paciente", fecha: "2026-11-02" }),
+  ]
+  const base = { estado: "todas", origen: "todos", seguimiento: "todos", asignado: "todos", atendido: "todos", texto: "", periodo: { filtro: "todas", desde: "", hasta: "" }, ventana: null }
+  const pasan = (f) => citas.filter((c) => citaPasaFiltros(c, f)).map((c) => c.id)
+
+  it("'Todas' son las activas: las canceladas solo salen con el estado Canceladas", () => {
+    expect(pasan(base)).toEqual(["a", "b", "c", "e"])
+    expect(pasan({ ...base, estado: "cancelada" })).toEqual(["d"])
+  })
+  it("el conteo de cada opción respeta todos los demás filtros pero no el propio", () => {
+    const f = { ...base, origen: "paciente" }
+    expect(contarCon(citas, f, [], { estado: "todas" })).toBe(3) // a, b, e
+    expect(contarCon(citas, f, [], { estado: "pendiente" })).toBe(2) // a, e
+    expect(contarCon(citas, f, [], { estado: "cancelada" })).toBe(1) // d
+    expect(contarCon(citas, f, [], { origen: "staff" })).toBe(1) // c, sin el filtro de origen propio
+  })
+  it("la búsqueda cuenta en todas las opciones", () => {
+    expect(contarCon(citas, { ...base, texto: "paciente a" }, [], { origen: "paciente" })).toBe(1)
+    expect(contarCon(citas, { ...base, texto: "paciente a" }, [], { origen: "staff" })).toBe(0)
+  })
+  it("un rango de fechas manda sobre Hoy/Próximas/Todas", () => {
+    const f = { ...base, periodo: { filtro: "hoy", desde: "2026-11-01", hasta: "2026-11-30" } }
+    expect(pasan(f)).toEqual(["e"])
+  })
+  it("en Semana y Mes el periodo visible recorta, y el total es el de ese periodo", () => {
+    const f = { ...base, ventana: { desde: "2026-10-01", hasta: "2026-10-31" } }
+    expect(pasan(f)).toEqual(["a", "b", "c"])
+    expect(totalDelAlcance(citas, f)).toBe(3)
+    expect(totalDelAlcance(citas, { ...f, estado: "cancelada" })).toBe(4)
+  })
+  it("el total sin filtros no cuenta las canceladas", () => {
+    expect(totalDelAlcance(citas, base)).toBe(4)
   })
 })
