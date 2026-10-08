@@ -5,7 +5,7 @@ import { fechaAISO, isoAFechaLocal, hoyISO, minutosDesdeMedianoche, horaA12 } fr
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible } from "./calendarioComun"
-import { TarjetaFlotante, LeyendaEstados } from "./CalendarioSemanal"
+import { LeyendaEstados } from "./CalendarioSemanal"
 import { nivelCarga, citasQueCuentan } from "../utilidades/cargaCitas"
 
 // Calendario mensual (vista Mes de Citas). Presentacional, como la vista
@@ -99,13 +99,10 @@ function ListaDelDia({ iso, citas, ancla, onCerrar, onElegir, onVerSemana }) {
   )
 }
 
-export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, coincide, onDiaClick, onAtender, onAgendarOtra, onEditar, onCancelar, onCobrar, onAgendar }) {
+export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick, onAbrirDetalle, onAgendar }) {
   const refSeccion = useRef(null)
   const altoSeccion = useAlturaDisponible(refSeccion)
-  const [abierta, setAbierta] = useState(null) // { id, ancla } | null
   const [lista, setLista] = useState(null) // { iso, ancla } | null
-  const cerrarTarjeta = useRef(() => setAbierta(null)).current
-  const conCierre = (fn) => (cita) => { setAbierta(null); fn?.(cita) }
   const hoy = hoyISO()
   // "citas": cada cita como etiqueta de su estado. "carga": cada día sombreado
   // según cuántas citas tiene, para ver de un vistazo qué días hay más o menos
@@ -132,7 +129,6 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
   const citasDelMes = semanas.flat().reduce((n, d) => n + (d.delMes ? (citasPorFecha.get(d.iso)?.length || 0) : 0), 0)
   const altoFila = Math.max(ALTO_FILA_MIN, Math.floor((altoSeccion - ALTO_TITULO - ALTO_DIAS) / semanas.length))
   const maxEtiquetas = Math.max(MIN_ETIQUETAS, Math.floor((altoFila - RELLENO_VERTICAL - ALTO_CABECERA + SEPARACION) / (ALTO_ETIQUETA + SEPARACION)))
-  const citaAbierta = abierta ? [...citasPorFecha.values()].flat().find((c) => c.id === abierta.id) : null
 
   return (
     <section ref={refSeccion} aria-label="Calendario mensual" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
@@ -201,7 +197,6 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                         onClick={(e) => {
                           e.stopPropagation()
                           const r = e.currentTarget.getBoundingClientRect()
-                          setAbierta(null)
                           setLista({ iso, ancla: { top: r.top, left: r.left, right: r.right } })
                         }}
                         title="Ver todas las citas del día"
@@ -226,12 +221,12 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
                           type="button"
                           key={c.id}
                           onClick={(e) => {
+                            // Mismo detalle de la cita que en la lista (todas las acciones viven ahí).
                             e.stopPropagation()
-                            const r = e.currentTarget.getBoundingClientRect()
-                            setAbierta({ id: c.id, ancla: { top: r.top, left: r.left, right: r.right } })
+                            onAbrirDetalle?.(c)
                           }}
                           title={`${c.paciente} · ${c.hora}${c.estado ? ` · ${c.estado}` : ""}`}
-                          className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-[10.5px] leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (abierta?.id === c.id ? "ring-2 ring-blue-300 " : esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
+                          className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-[10.5px] leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
                           style={{ height: ALTO_ETIQUETA, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
                         >
                           <span className="shrink-0 font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
@@ -265,24 +260,11 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
           citas={[...(citasPorFecha.get(lista.iso) || [])].sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))}
           ancla={lista.ancla}
           onCerrar={() => setLista(null)}
-          onElegir={(c, r) => { setLista(null); setAbierta({ id: c.id, ancla: { top: r.top, left: r.left, right: r.right } }) }}
+          onElegir={(c) => { setLista(null); onAbrirDetalle?.(c) }}
           onVerSemana={() => { const iso = lista.iso; setLista(null); onDiaClick?.(iso) }}
         />
       )}
 
-      {citaAbierta && (
-        <TarjetaFlotante
-          cita={citaAbierta}
-          ancla={abierta.ancla}
-          cobroPendiente={!!cobroPendienteIds?.has(citaAbierta.id)}
-          onCerrar={cerrarTarjeta}
-          onAtender={conCierre(onAtender)}
-          onAgendarOtra={onAgendarOtra ? conCierre(onAgendarOtra) : undefined}
-          onEditar={conCierre(onEditar)}
-          onCancelar={conCierre(onCancelar)}
-          onCobrar={conCierre(onCobrar)}
-        />
-      )}
     </section>
   )
 }

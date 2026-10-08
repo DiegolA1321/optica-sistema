@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { fechaLegible } from "../utilidades/formatoFecha"
-import { createPortal } from "react-dom"
-import { Receipt, Stethoscope, CalendarClock, CalendarPlus, X, Plus, Globe, Building2, ExternalLink } from "lucide-react"
-import { isoAFechaLocal, hoyISO, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
+import { Receipt, CalendarClock, Plus } from "lucide-react"
+import { isoAFechaLocal, hoyISO, horaA12 } from "../utilidades/disponibilidad"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
-import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita } from "../utilidades/filtrosCitas"
-import { colorDe, useAlturaDisponible, urlPerfilPaciente, LEYENDA_ESTADOS } from "./calendarioComun"
+import { colorDe, useAlturaDisponible, LEYENDA_ESTADOS } from "./calendarioComun"
 
 // Calendario semanal por horas (vista Semana de Citas). Presentacional: recibe
 // las citas y la disponibilidad ya cargadas y avisa por callbacks; no consulta
@@ -47,131 +44,7 @@ export function tituloSemana(dias) {
   return `${a.getDate()} de ${MESES[a.getMonth()]} al ${b.getDate()} de ${MESES[b.getMonth()]} de ${b.getFullYear()}`
 }
 
-const BADGE_ESTADO = {
-  "En Espera": "border-violet-200/60 bg-violet-50 text-violet-700",
-  "En Atención": "border-blue-200/60 bg-blue-50 text-blue-700",
-  Atendida: "border-emerald-200/60 bg-emerald-50 text-emerald-700",
-  "No Asistió": "border-red-200/60 bg-red-50 text-red-700",
-  Cancelada: "border-slate-200/60 bg-slate-50 text-slate-600",
-}
-const BADGE_PENDIENTE = "border-amber-200/60 bg-amber-50 text-amber-700"
-const ANCHO_TARJETA = 312
-
-// Tarjeta flotante con los datos de la cita y las mismas acciones que tiene en
-// la lista. Se ancla junto al bloque (a su derecha, o a su izquierda si no
-// cabe) y se cierra con Escape, con un clic fuera o al desplazar.
-export function TarjetaFlotante({ cita, ancla, cobroPendiente, onCerrar, onAtender, onAgendarOtra, onEditar, onCancelar, onCobrar }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) onCerrar() }
-    const tecla = (e) => { if (e.key === "Escape") onCerrar() }
-    document.addEventListener("mousedown", fuera)
-    document.addEventListener("keydown", tecla)
-    window.addEventListener("scroll", onCerrar, true)
-    window.addEventListener("resize", onCerrar)
-    return () => {
-      document.removeEventListener("mousedown", fuera)
-      document.removeEventListener("keydown", tecla)
-      window.removeEventListener("scroll", onCerrar, true)
-      window.removeEventListener("resize", onCerrar)
-    }
-  }, [onCerrar])
-
-  const cabeDerecha = ancla.right + 8 + ANCHO_TARJETA <= window.innerWidth - 8
-  const left = cabeDerecha ? ancla.right + 8 : Math.max(8, ancla.left - 8 - ANCHO_TARJETA)
-  const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 340))
-
-  const puedeAtender = puedeAtenderCita(cita) && !!onAtender
-  const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
-  return createPortal(
-    <div
-      ref={ref}
-      role="dialog"
-      aria-label={`Cita de ${cita.paciente}`}
-      className="fixed z-50 rounded-xl border border-slate-200/60 bg-white p-4 text-left shadow-xl"
-      style={{ top, left, width: ANCHO_TARJETA, animation: "menu-in 160ms ease-out" }}
-    >
-      <div className="flex items-start gap-3">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200/60 bg-slate-50 text-xs font-bold text-slate-600">
-          {cita.iniciales || (cita.paciente || "P").slice(0, 2).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold" style={{ color: INK }}>{cita.paciente}</p>
-          <p className="truncate text-xs text-slate-500">{[cita.cedula, cita.telefono].filter(Boolean).join(" · ") || "Sin datos de contacto"}</p>
-        </div>
-        <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-          <X size={14} />
-        </button>
-      </div>
-
-      <dl className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 text-xs">
-        <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Motivo</dt><dd className="truncate font-semibold text-slate-700">{cita.motivo || "Consulta general"}</dd></div>
-        <div className="flex items-center justify-between gap-3">
-          <dt className="shrink-0 whitespace-nowrap text-slate-500">Origen</dt>
-          <dd className="flex items-center gap-1.5 font-semibold text-slate-700">
-            {cita.origen === "paciente" ? <Globe size={12} className="text-cyan-600" aria-hidden="true" /> : <Building2 size={12} className="text-slate-500" aria-hidden="true" />}
-            {cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}
-          </dd>
-        </div>
-        {cita.creadoEn && (
-          <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Agendada el</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{fechaLegible(cita.creadoEn)}</dd></div>
-        )}
-        <div className="flex justify-between gap-3"><dt className="shrink-0 whitespace-nowrap text-slate-500">Fecha y hora</dt><dd className="whitespace-nowrap font-semibold text-slate-700">{etiquetaFecha(cita.fecha).replace(/^./, (c) => c.toUpperCase())} · {cita.hora}</dd></div>
-      </dl>
-
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className={"rounded-full border px-2 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{cita.estado === "Cancelada" ? (cita.canceladaPor === "paciente" ? "Cancelada por el paciente" : cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : "Cancelada") : cita.estado || "Pendiente"}</span>
-        {cobroPendiente && (
-          <span className="flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-            <Receipt size={11} aria-hidden="true" /> Cobro pendiente
-          </span>
-        )}
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {cobroPendiente ? (
-          <button type="button" onClick={() => onCobrar(cita)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer">
-            <Receipt size={14} /> Cobrar
-          </button>
-        ) : puedeAgendarOtra ? (
-          <button type="button" onClick={() => onAgendarOtra(cita)} className="flex items-center gap-1.5 rounded-lg border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
-            <CalendarPlus size={14} /> Agendar otra cita
-          </button>
-        ) : puedeAtender && (
-          <button type="button" onClick={() => onAtender(cita)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
-            <Stethoscope size={14} /> {cita.estado === "En Atención" ? "Retomar" : "Atender"}
-          </button>
-        )}
-        {cita.pacienteId && (
-          <a
-            href={urlPerfilPaciente(cita.pacienteId)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-          >
-            <ExternalLink size={14} aria-hidden="true" /> Ver perfil
-          </a>
-        )}
-        {puedeEditarCita(cita) && (
-          <button type="button" onClick={() => onEditar(cita)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-            <CalendarClock size={14} /> Editar cita
-          </button>
-        )}
-        {puedeCancelarCita(cita) && (
-          <button type="button" onClick={() => onCancelar(cita)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
-            <X size={14} /> Cancelar cita
-          </button>
-        )}
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
-export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAtender, onAgendarOtra, onEditar, onCancelar, onCobrar, onHuecoLibre, onMover, onAgendar }) {
-  // Cita con la tarjeta abierta y dónde anclarla (rect del bloque clicado).
-  const [abierta, setAbierta] = useState(null) // { id, ancla } | null
-  const cerrarTarjeta = useRef(() => setAbierta(null)).current
+export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAbrirDetalle, onHuecoLibre, onMover, onAgendar }) {
   // Celda libre bajo el puntero: { iso, min } | null (fantasma "+ agendar").
   const [hover, setHover] = useState(null)
   // Arrastrar y soltar (solo citas pendientes): la cita que se lleva, dónde la
@@ -179,9 +52,6 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
   const [arrastre, setArrastre] = useState(null) // { id, offsetMin, dur }
   const [destino, setDestino] = useState(null) // { iso, min, ok, motivo }
   const terminarArrastre = () => { setArrastre(null); setDestino(null) }
-  const citaAbierta = abierta ? citas.find((c) => c.id === abierta.id) : null
-  // Las acciones cierran la tarjeta y delegan en las funciones reales de Citas.
-  const conCierre = (fn) => (cita) => { setAbierta(null); fn?.(cita) }
 
   const refSeccion = useRef(null)
   const altoSeccion = useAlturaDisponible(refSeccion)
@@ -375,23 +245,22 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                       type="button"
                       key={b.cita.id}
                       onClick={(e) => {
+                        // Mismo detalle de la cita que en la lista (todas las acciones viven ahí).
                         e.stopPropagation()
-                        const r = e.currentTarget.getBoundingClientRect()
                         setHover(null)
-                        setAbierta({ id: b.cita.id, ancla: { top: r.top, left: r.left, right: r.right } })
+                        onAbrirDetalle?.(b.cita)
                       }}
                       draggable={b.cita.estado === "Pendiente"}
                       onDragStart={(e) => {
                         const r = e.currentTarget.getBoundingClientRect()
                         e.dataTransfer.effectAllowed = "move"
                         e.dataTransfer.setData("text/plain", String(b.cita.id))
-                        setAbierta(null)
                         setHover(null)
                         setArrastre({ id: b.cita.id, offsetMin: Math.max(0, Math.min(b.fin - b.inicio - 1, (e.clientY - r.top) / PX_POR_MIN)), dur: b.fin - b.inicio })
                       }}
                       onDragEnd={terminarArrastre}
                       title={`${b.cita.paciente} · ${b.cita.hora}${b.cita.estado === "Pendiente" ? " — arrastra para reagendar" : ""}`}
-                      className={"absolute overflow-hidden rounded-md border-l-4 px-2 py-1 text-left transition-shadow hover:shadow-lg hover:brightness-[0.97] cursor-pointer " + (abierta?.id === b.cita.id ? "ring-2 ring-blue-300" : esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
+                      className={"absolute overflow-hidden rounded-md border-l-4 px-2 py-1 text-left transition-shadow hover:shadow-lg hover:brightness-[0.97] cursor-pointer " + (esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
                       style={{
                         top: (b.inicio - rango.inicio) * PX_POR_MIN + 1,
                         height: altoBloque,
@@ -444,19 +313,6 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
         </div>
       )}
 
-      {citaAbierta && (
-        <TarjetaFlotante
-          cita={citaAbierta}
-          ancla={abierta.ancla}
-          cobroPendiente={!!cobroPendienteIds?.has(citaAbierta.id)}
-          onCerrar={cerrarTarjeta}
-          onAtender={onAtender ? conCierre(onAtender) : undefined}
-          onAgendarOtra={onAgendarOtra ? conCierre(onAgendarOtra) : undefined}
-          onEditar={conCierre(onEditar)}
-          onCancelar={conCierre(onCancelar)}
-          onCobrar={conCierre(onCobrar)}
-        />
-      )}
     </section>
   )
 }

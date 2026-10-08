@@ -1402,11 +1402,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             setFiltro("todas")
             setVista("lista")
           }}
-          onAtender={puedeAtenderPacientes ? atenderCita : undefined}
-          onAgendarOtra={agendarOtraCita}
-          onEditar={abrirReagendar}
-          onCancelar={(cita) => setPorCancelar(cita.id)}
-          onCobrar={cobrarCita}
+          onAbrirDetalle={abrirDetalle}
           onHuecoLibre={abrirModalEn}
           onMover={pedirMovimiento}
           onAgendar={() => abrirModal()}
@@ -1415,17 +1411,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         <CalendarioMes
           mes={mesVista}
           citasPorFecha={gruposCalendario}
-          cobroPendienteIds={pendientesPorCita}
           onDiaClick={(iso) => {
             // Un día del mes → esa semana en la vista Semana (si la pantalla
             // es angosta y no cabe, se conserva el detalle del día en el modal).
             if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
           }}
-          onAtender={puedeAtenderPacientes ? atenderCita : undefined}
-          onAgendarOtra={agendarOtraCita}
-          onEditar={abrirReagendar}
-          onCancelar={(cita) => setPorCancelar(cita.id)}
-          onCobrar={cobrarCita}
+          onAbrirDetalle={abrirDetalle}
           onAgendar={() => abrirModal()}
         />
       ) : grupos.length === 0 && totalAnteriores === 0 ? (
