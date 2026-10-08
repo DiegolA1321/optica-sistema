@@ -303,7 +303,9 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
   )
 }
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, vistaPropia = false, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+const FILTRO_POR_DEFECTO = "hoy"
+
+export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -394,10 +396,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   }, [atenderCitaId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [busqueda, setBusqueda] = useState("")
-  // D4 (reunión 29 sept.): el optómetra que no es admin abre directo en "hoy"
-  // — su agenda del día — en vez de "todas". El admin (sea o no también
-  // optómetra) sigue viendo "todas" por defecto, como hoy.
-  const [filtro, setFiltro] = useState(() => (vistaPropia || (usuario?.rol !== "admin" && usuario?.esOptometra) ? "hoy" : "todas")) // todas | hoy | proximas
+  // Todos los roles abren en Lista, periodo "Hoy": recepción ve quién viene, el optómetra su agenda y el
+  // administrador lo que pasa hoy. Si hoy no hay citas se avisa y se ofrece "Ver próximas".
+  const [filtro, setFiltro] = useState(FILTRO_POR_DEFECTO) // hoy | confirmar | reagendar | proximas | todas
   // Bloque de filtros (R3): estado, origen y primera vez/seguimiento. Se
   // combinan entre sí y con el indicador de arriba.
   const [estadoFiltro, setEstadoFiltro] = useState("todas")
@@ -1163,9 +1164,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
-  const filtroPorDefecto = vistaPropia || (usuario?.rol !== "admin" && usuario?.esOptometra) ? "hoy" : "todas"
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
-  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda(""); setRangoDesde(""); setRangoHasta(""); setFiltro(filtroPorDefecto) }
+  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda(""); setRangoDesde(""); setRangoHasta(""); setFiltro(FILTRO_POR_DEFECTO) }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1244,7 +1244,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const textoRango = rangoDesde && rangoHasta ? `${corta(rangoDesde)} – ${corta(rangoHasta)}` : rangoDesde ? `desde ${corta(rangoDesde)}` : `hasta ${corta(rangoHasta)}`
   const etiquetasActivas = [
     vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${textoRango}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
-    vistaActiva === "lista" && !hayRango && filtro !== filtroPorDefecto && { id: "periodo", texto: `Periodo: ${periodos.find((p) => p.id === filtro)?.etiqueta}`, quitar: () => setFiltro(filtroPorDefecto) },
+    vistaActiva === "lista" && !hayRango && filtro !== FILTRO_POR_DEFECTO && { id: "periodo", texto: `Periodo: ${periodos.find((p) => p.id === filtro)?.etiqueta}`, quitar: () => setFiltro(FILTRO_POR_DEFECTO) },
     estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
@@ -1258,6 +1258,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const hayFiltros = etiquetasActivas.length > 0 || mostradas !== totalAlcance
   const sufijoPeriodo = vistaActiva === "semana" ? " en la semana" : vistaActiva === "mes" ? " en el mes" : ""
   const palabraCitas = totalAlcance === 1 ? "cita" : "citas"
+  // Hoy sin citas (y sin otros filtros): nunca una lista vacía, se avisa y se ofrece ver lo que viene.
+  const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !busqueda.trim() && etiquetasActivas.length === 0 && mostradas === 0
   const textoResumen = hayFiltros && mostradas === 0 && totalAlcance > 0
     ? "Ninguna cita coincide con estos filtros"
     : hayFiltros ? `Mostrando ${mostradas} de ${totalAlcance} ${palabraCitas}${sufijoPeriodo}` : `${totalAlcance} ${palabraCitas}${sufijoPeriodo}`
@@ -1547,8 +1549,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />
           </div>
-          <p className="mt-4 text-base font-semibold text-slate-600">{hayFiltros ? "Ninguna cita coincide con estos filtros" : "Todavía no hay citas"}</p>
-          {hayFiltros ? (
+          <p className="mt-4 text-base font-semibold text-slate-600">{hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : "Todavía no hay citas"}</p>
+          {hoySinCitas ? (
+            <button type="button" onClick={() => setFiltro("proximas")} className="mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Ver próximas</button>
+          ) : hayFiltros ? (
             <button type="button" onClick={limpiarFiltros} className="mt-3 rounded-xl border border-slate-200/60 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">Limpiar filtros</button>
           ) : (
             <p className="mt-1 text-sm text-slate-500">Agenda una nueva cita para empezar.</p>
