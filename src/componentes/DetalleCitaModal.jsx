@@ -97,6 +97,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
               <Fila icono={CalendarClock} etiqueta="Atendida el">{etiquetaFecha(fechaAtencionReal)}</Fila>
             )}
             <Fila icono={CalendarPlus} etiqueta="Agendada el">{agendada || "Sin registro"}</Fila>
+            {cita.confirmadaAt && <Fila icono={UserCheck} etiqueta="Confirmada el">{fechaHoraAgendada(cita.confirmadaAt) || "Sí"}</Fila>}
             <Fila icono={cita.origen === "paciente" ? Globe : Building2} etiqueta="Origen">
               {cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}
             </Fila>

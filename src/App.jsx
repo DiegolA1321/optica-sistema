@@ -181,6 +181,8 @@ function mapCita(c) {
     // esto en el whitelist, el badge de "Cancelada" solo distinguía quién
     // canceló en el registro recién creado en memoria, nunca al recargar.
     canceladaPor: c.cancelada_por,
+    // confirmada_at (0031): cuándo el paciente (enlace del recordatorio) o recepción confirmó la asistencia.
+    confirmadaAt: c.confirmada_at || null, recordatorioEnviadoAt: c.recordatorio_enviado_at || null,
     // created_at: "Agendada el" en el detalle de la cita (R12).
     creadoEn: c.created_at,
     // Responsable (0083): quién debería atender y quién atendió de verdad.

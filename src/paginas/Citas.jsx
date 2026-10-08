@@ -144,6 +144,9 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
             ) : primeraVez && (
               <span className="rounded-md border border-sky-200/60 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700" title="El paciente no tenía atenciones anteriores">Primera vez</span>
             )}
+            {cita.confirmadaAt && !resuelta && (
+              <span className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700" title="La asistencia ya fue confirmada (por el paciente o por recepción)">Confirmada</span>
+            )}
             {/* Ícono compacto con tooltip en vez de texto siempre visible
                 (ING9: "aunque sea un ícono ahí y ya cuando yo pase el mouse
                 que se vea, ya estaría, no necesariamente tiene que ser un
@@ -791,6 +794,30 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       setCitas(citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)))
     } finally {
       setMarcandoEstadoId(null)
+    }
+  }
+
+  // Recepción registra que el paciente confirmó su asistencia (por teléfono, WhatsApp o en persona); el paciente
+  // que usa el enlace del recordatorio por correo la confirma solo. Misma columna: confirmada_at.
+  const marcarConfirmada = async (citaId) => {
+    const confirmadaAt = new Date().toISOString()
+    try {
+      if (supabase && opticaId) {
+        const { data: actualizadas, error: errorConfirmar } = await supabase.from("citas").update({ confirmada_at: confirmadaAt }).eq("id", citaId).select()
+        if (fueBloqueadoPorPermiso({ error: errorConfirmar, data: actualizadas })) {
+          setBannerError(MENSAJE_SIN_PERMISO)
+          return
+        }
+        if (errorConfirmar) {
+          setBannerError("No se pudo marcar la cita como confirmada. Revisa tu conexión e intenta de nuevo.")
+          return
+        }
+      }
+      setBannerError("")
+      setCitas(citas.map((c) => (c.id === citaId ? { ...c, confirmadaAt } : c)))
+      mostrarExito("Cita marcada como confirmada.")
+    } catch {
+      setBannerError("No se pudo marcar la cita como confirmada. Revisa tu conexión e intenta de nuevo.")
     }
   }
 
@@ -2262,6 +2289,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         // "No asistió" lo marca solo el sistema a los 10 minutos; a mano se
         // ofrece únicamente mientras la cita sigue pendiente y ya pasó su hora.
         const puedeMarcarNoAsistio = cita.estado === "Pendiente" && yaPasoLaHora(cita)
+        const puedeConfirmar = ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt && puede(usuario, "citas", "editar")
         return createPortal(
           <div
             ref={menuAccionesRef}
@@ -2279,6 +2307,15 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                 </button>
                 <div className="my-1 border-t border-slate-100" />
               </>
+            )}
+            {puedeConfirmar && (
+              <button
+                type="button"
+                onClick={() => { setMenuAccionesId(null); marcarConfirmada(cita.id) }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 cursor-pointer"
+              >
+                <CheckCircle2 size={15} /> Marcar como confirmada
+              </button>
             )}
             {cita.estado === "En Atención" && (
               <button
