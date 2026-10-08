@@ -1,5 +1,6 @@
 "use client"
 
+import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { useState } from "react"
 import { createPortal } from "react-dom"
 import { X, Wallet } from "lucide-react"
@@ -13,7 +14,6 @@ import { abonosDeFactura, abonoSugerido, mapAbono, saldoFactura, totalAbonado, E
 
 const GRAD = "linear-gradient(135deg,#059669,#10B981)"
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus-visible:border-emerald-500 focus-visible:bg-white"
-const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` }
 const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 
 // Registrar un abono de monto y fecha libres sobre una venta con saldo (R38).
@@ -29,7 +29,7 @@ export default function AbonoModal({ factura, paciente, abonos, usuario, onRegis
   const cerrar = () => { if (!guardando) onCerrar() }
   const refModal = useModalAccesible(true, cerrar)
   const historial = abonosDeFactura(factura.id, abonos)
-  const fechaVenta = (() => { const d = new Date(factura.creadoEn); return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` })()
+  const fechaVenta = (() => { const d = new Date(factura.creadoEn); return Number.isNaN(d.getTime()) ? "" : fechaAISO(d) })()
 
   const confirmar = async (e) => {
     e.preventDefault()

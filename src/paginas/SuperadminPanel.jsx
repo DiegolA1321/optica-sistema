@@ -1,6 +1,6 @@
 "use client"
 
-import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible, formatoFecha, MESES_CORTOS, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -144,8 +144,6 @@ const NAV = [
 
 const AUDITORIA_PAGINA = 20
 
-const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-const DIAS_CORTOS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"]
 
 function ultimosNMeses(n) {
   const hoy = new Date()
@@ -162,8 +160,8 @@ function ultimosNDias(n) {
   const arr = []
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i)
-    const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-    arr.push({ clave, etiqueta: DIAS_CORTOS[d.getDay()] })
+    const clave = fechaAISO(d)
+    arr.push({ clave, etiqueta: diaSemanaCorto(d.getDay()).toLowerCase() })
   }
   return arr
 }
@@ -179,7 +177,7 @@ function diasParaRangoActividad(rango) {
     const arr = []
     for (let i = 0; i < n; i++) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth(), 1 + i)
-      const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+      const clave = fechaAISO(d)
       arr.push({ clave, etiqueta: String(d.getDate()) })
     }
     return arr
@@ -962,7 +960,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }
   const claveDiaLocal = (iso) => {
     const d = new Date(iso)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    return fechaAISO(d)
   }
 
   const opticasPorMes = useMemo(() => {
@@ -1748,8 +1746,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Secciones ───
 
-  const hoyFechaBruta = new Date().toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-  const hoyFechaResumen = hoyFechaBruta.charAt(0).toUpperCase() + hoyFechaBruta.slice(1)
+  const hoyFechaResumen = formatoFecha(new Date(), "largo")
 
   // Solo se muestra en la primerísima carga (cargaInicial) — evita el "flash"
   // de tarjetas en 0 y gráficos vacíos antes de que responda Supabase, sin
@@ -2207,8 +2204,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               if (idx === -1) return null
               const d = actividadPorDia[idx]
               const p = curvaActividad.puntos[idx]
-              const [y, m, dia] = d.clave.split("-").map(Number)
-              const fechaLinda = `${dia} ${MESES_CORTOS[m - 1]}`
+              const fechaLinda = formatoFecha(d.clave, "medioSinAnio")
               return (
                 <div
                   className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(15,23,42,0.35)]"

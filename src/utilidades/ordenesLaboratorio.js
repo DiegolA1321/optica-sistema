@@ -2,6 +2,7 @@
 // incluye lentes se genera una orden por par; pasa por enviada → lista →
 // entregada (o cancelada si se anula la venta). "Atrasada" no es un estado
 // guardado: es una orden enviada cuya fecha prometida ya pasó.
+import { fechaAISO } from "./disponibilidad"
 import { fechaLegible } from "./formatoFecha"
 
 export const MATERIALES_LENTE = ["CR-39", "Policarbonato", "Alto índice 1.67", "Trivex", "Vidrio"]
@@ -22,7 +23,7 @@ export const ETIQUETA_ESTADO = {
 
 export const numeroOrden = (n) => `OL-${String(n ?? 0).padStart(4, "0")}`
 
-const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+const iso = fechaAISO
 
 export const estaAtrasada = (orden, hoy = new Date()) => orden?.estado === "enviada" && !!orden.fechaPrometida && orden.fechaPrometida < iso(hoy)
 

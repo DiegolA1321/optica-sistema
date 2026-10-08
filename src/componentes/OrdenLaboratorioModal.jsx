@@ -1,5 +1,6 @@
 "use client"
 
+import { fechaAISO } from "../utilidades/disponibilidad"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { X, FlaskConical, Printer } from "lucide-react"
@@ -16,7 +17,7 @@ import {
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 const CAMPO = "w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white"
-const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+const iso = fechaAISO
 
 const avisarOrdenGuardada = (orden) => window.dispatchEvent(new CustomEvent(EVENTO_ORDEN, { detail: orden }))
 

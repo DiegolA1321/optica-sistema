@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
 import { fechaAISO, hoyISO, diaTieneCupo, slotsDisponibles } from "../utilidades/disponibilidad"
+import { formatoFecha } from "../utilidades/formatoFecha"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 
 // Calendario + horarios reutilizable: solo deja elegir fechas con cupo real
 // (según el horario del optómetra) y horas que aún no están ocupadas.
@@ -57,7 +57,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
       <div className="rounded-xl border border-slate-200/60 bg-slate-50/40 p-3">
         <div className="mb-2.5 flex items-center justify-between px-0.5">
           <span className="text-xs font-bold capitalize" style={{ color: INK }}>
-            {MESES[mesVista.getMonth()]} {mesVista.getFullYear()}
+            {formatoFecha(mesVista, "mesAnio")}
           </span>
           <div className="flex gap-1 text-slate-500">
             <button
@@ -121,7 +121,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
       {/* Horarios */}
       <div>
         <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-          {fecha ? `Horarios para el ${fecha.split("-").reverse().slice(0, 2).join("/")}` : "Horarios disponibles"}
+          {fecha ? `Horarios para el ${formatoFecha(fecha, "numericoCorto")}` : "Horarios disponibles"}
         </label>
 
         {!fecha ? (

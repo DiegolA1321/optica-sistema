@@ -64,13 +64,13 @@ import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPend
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { lineaLunaDeTexto } from "../utilidades/comprobantes"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
-import { isoAFechaLocal, minutosDesdeMedianoche, esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
+import { minutosDesdeMedianoche, esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
-import { fechaLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion, AYUDA_CORRECCION } from "../utilidades/correccion"
@@ -415,7 +415,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     const cumple = diasParaCumpleanos(paciente.fecha_nacimiento || paciente.fechaNacimiento)
     return [
       { id: "saludo", etiqueta: "Saludo", texto: `Hola ${paciente.nombre}, te escribimos de ${nombreOptica}. ` },
-      ...(control ? [{ id: "control", etiqueta: "Recordar control", texto: `Hola ${paciente.nombre}, te escribimos de ${nombreOptica}. Te recordamos que tu próximo control visual es el ${control.toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })}. ¡Escríbenos para agendar tu cita!` }] : []),
+      ...(control ? [{ id: "control", etiqueta: "Recordar control", texto: `Hola ${paciente.nombre}, te escribimos de ${nombreOptica}. Te recordamos que tu próximo control visual es el ${formatoFecha(control, "largoSinDia")}. ¡Escríbenos para agendar tu cita!` }] : []),
       ...(cumple != null && cumple <= 30 ? [{ id: "cumple", etiqueta: "Cumpleaños", texto: `Hola ${paciente.nombre}, ¡de parte de todo el equipo de ${nombreOptica} te deseamos un feliz cumpleaños! ` }] : []),
     ]
   }
@@ -1332,7 +1332,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                               {(paciente.fecha_nacimiento || paciente.fechaNacimiento) && (
                                 <span className="flex items-center gap-1 text-xs text-slate-500">
                                   <Cake size={11} />
-                                  {(paciente.fecha_nacimiento || paciente.fechaNacimiento).split("-").reverse().slice(0, 2).join("/")}
+                                  {formatoFecha(paciente.fecha_nacimiento || paciente.fechaNacimiento, "numericoCorto")}
                                 </span>
                               )}
                               {tieneCitaHoy && (
@@ -2605,7 +2605,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         <ConfirmarCitaModal
           paciente={agendarPara.nombre}
           motivo={agendarMotivo}
-          fecha={agendarFecha ? isoAFechaLocal(agendarFecha).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" }) : ""}
+          fecha={agendarFecha ? formatoFecha(agendarFecha, "largoSinDia") : ""}
           hora={agendarHora}
           onCancelar={() => setConfirmandoCita(false)}
           onConfirmar={confirmarAgendarCita}
@@ -2753,8 +2753,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
   const rangoReciente = (meses) => {
     const f = new Date()
     f.setMonth(f.getMonth() - meses)
-    const dos = (n) => String(n).padStart(2, "0")
-    setDesde(f.getFullYear() + "-" + dos(f.getMonth() + 1) + "-" + dos(f.getDate()))
+    setDesde(fechaAISO(f))
     setHasta(hoyISO())
   }
   const proxima = pendientes[0]

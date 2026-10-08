@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Plus, CalendarClock, CalendarDays, X } from "lucide-react"
 import { fechaAISO, isoAFechaLocal, hoyISO, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
+import { formatoFecha, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible } from "./calendarioComun"
@@ -13,8 +14,7 @@ import { nivelCarga, citasQueCuentan } from "../utilidades/cargaCitas"
 // del color de su estado, y "+N más" cuando no caben. Un clic en el día lleva a
 // esa semana; un clic en una etiqueta abre la misma tarjeta con acciones.
 
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+const DIAS = [1, 2, 3, 4, 5, 6, 0].map(diaSemanaCorto) // lunes primero
 const ALTO_TITULO = 40
 const ALTO_DIAS = 26
 // Cada día muestra al menos 3 etiquetas: relleno (6) + cabecera con el número y "+N más" (22) + 3 etiquetas de 16 con 2 de separación (52).
@@ -59,13 +59,13 @@ function ListaDelDia({ iso, citas, ancla, onCerrar, onElegir, onVerSemana }) {
     <div
       ref={ref}
       role="dialog"
-      aria-label={`Citas del ${fecha.getDate()} de ${MESES[fecha.getMonth()]}`}
+      aria-label={`Citas del ${formatoFecha(fecha, "diaMes")}`}
       className="fixed z-50 flex max-h-[360px] flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-xl"
       style={{ top, left, width: ANCHO_LISTA, animation: "menu-in 160ms ease-out" }}
     >
       <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
         <div>
-          <p className="text-sm font-bold" style={{ color: INK }}>{fecha.getDate()} de {MESES[fecha.getMonth()]}</p>
+          <p className="text-sm font-bold" style={{ color: INK }}>{formatoFecha(fecha, "diaMes")}</p>
           <p className="text-[11px] text-slate-500">{citas.length} {citas.length === 1 ? "cita" : "citas"}</p>
         </div>
         <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={14} /></button>
@@ -133,7 +133,7 @@ export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick
   return (
     <section ref={refSeccion} aria-label="Calendario mensual" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5" style={{ height: ALTO_TITULO }}>
-        <div className="flex items-center gap-4"><h2 className="sr-only">{MESES[mes.getMonth()].replace(/^./, (l) => l.toUpperCase())} de {mes.getFullYear()}</h2>{modo === "citas" ? <LeyendaEstados /> : (
+        <div className="flex items-center gap-4"><h2 className="sr-only">{formatoFecha(mes, "mesAnio")}</h2>{modo === "citas" ? <LeyendaEstados /> : (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500" aria-label="Escala de carga">
             <span>Menos</span>
             {[1, 2, 3, 4].map((n) => <span key={n} className="h-3 w-5 rounded-sm border border-slate-200/60" style={{ backgroundColor: FONDO_CARGA[n] }} aria-hidden="true" />)}

@@ -1,3 +1,4 @@
+import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useEffect } from "react"
 import {
   ArrowLeft,
@@ -20,7 +21,6 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { isoAFechaLocal } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
 import { supabase } from "../lib/supabaseClient"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
@@ -214,7 +214,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const nombreCompleto =
     [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
   const fechaTexto = formData.fecha
-    ? isoAFechaLocal(formData.fecha).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })
+    ? formatoFecha(formData.fecha, "largoSinDia")
     : null
 
   return (

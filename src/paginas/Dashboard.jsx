@@ -1,5 +1,6 @@
 "use client"
 
+import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import {
   Users,
@@ -469,7 +470,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
 
   const hora = new Date().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = new Date().toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+  const hoyFecha = formatoFecha(new Date(), "largo")
 
   const nombreUsuario = usuario?.nombre || (esAsistente ? "Asistente" : "Administrador")
   const rolUsuario = vistas.length > 1 && vista ? vista.nombre : esAsistente ? (vista?.nombre || "Asistente") : "Administrador"
@@ -866,7 +867,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>
                 {saludo}, {nombreUsuario}
               </p>
-              <p className="truncate text-xs capitalize text-slate-500">{hoyFecha}</p>
+              <p className="truncate text-xs text-slate-500">{hoyFecha}</p>
             </div>
           </div>
 

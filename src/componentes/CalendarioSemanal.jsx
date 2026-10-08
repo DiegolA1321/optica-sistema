@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Receipt, CalendarClock, Plus } from "lucide-react"
 import { isoAFechaLocal, hoyISO, horaA12 } from "../utilidades/disponibilidad"
+import { rangoLargo, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible, LEYENDA_ESTADOS } from "./calendarioComun"
@@ -13,8 +14,6 @@ import { colorDe, useAlturaDisponible, LEYENDA_ESTADOS } from "./calendarioComun
 const PX_POR_MIN = 88 / 60 // 88 px por hora: las citas de 40 min caben con sus dos líneas y las horas no se pegan
 const ANCHO_HORAS = 84
 const ALTO_ENCABEZADO = 52
-const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 
 const ESTILO_FRANJA = {
   cerrado: { backgroundColor: "rgba(241,245,249,0.85)" },
@@ -35,13 +34,6 @@ export function LeyendaEstados() {
       ))}
     </ul>
   )
-}
-
-export function tituloSemana(dias) {
-  const a = isoAFechaLocal(dias[0])
-  const b = isoAFechaLocal(dias[dias.length - 1])
-  if (a.getMonth() === b.getMonth()) return `${a.getDate()} al ${b.getDate()} de ${MESES[b.getMonth()]} de ${b.getFullYear()}`
-  return `${a.getDate()} de ${MESES[a.getMonth()]} al ${b.getDate()} de ${MESES[b.getMonth()]} de ${b.getFullYear()}`
 }
 
 export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroPendienteIds, citasVisibles, coincide, aviso, onDiaClick, onAbrirDetalle, onHuecoLibre, onMover, onAgendar }) {
@@ -101,7 +93,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
     <section ref={refSeccion} aria-label="Calendario semanal" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3">
         <div className="flex min-w-0 items-center gap-4">
-          <h2 className="sr-only">{tituloSemana(dias)}</h2>
+          <h2 className="sr-only">{rangoLargo(dias[0], dias[dias.length - 1])}</h2>
           <LeyendaEstados />
         </div>
         {aviso && (
@@ -131,7 +123,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 title="Ver este día en la lista"
                 className={"flex flex-col items-center justify-center border-l border-slate-100 text-xs font-semibold transition-colors cursor-pointer " + (esHoyCol ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "text-slate-600 hover:bg-slate-50")}
               >
-                <span className="uppercase tracking-wide">{DIAS_CORTOS[f.getDay()]}</span>
+                <span className="uppercase tracking-wide">{diaSemanaCorto(f.getDay())}</span>
                 <span className={"text-base font-bold " + (esHoyCol ? "text-blue-700" : "")} style={esHoyCol ? undefined : { color: INK }}>{f.getDate()}</span>
               </button>
             )

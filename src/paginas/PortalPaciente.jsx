@@ -1,5 +1,6 @@
 "use client"
 
+import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -34,7 +35,7 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { isoAFechaLocal, minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
+import { minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
@@ -399,7 +400,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
   const hora24 = new Date().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const hoyFecha = formatoFecha(new Date(), "largo")
 
   return (
     <div className="flex h-screen font-sans text-slate-800" style={{ backgroundColor: "#F7F5F0" }}>
@@ -489,7 +490,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             </button>
             <div className="min-w-0">
               <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>{saludo}, {primerNombre}</p>
-              <p className="truncate text-xs capitalize text-slate-500">{hoyFecha}</p>
+              <p className="truncate text-xs text-slate-500">{hoyFecha}</p>
             </div>
           </div>
 
@@ -953,7 +954,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         <ConfirmarCitaModal
           paciente={usuario?.nombre || "Paciente Registrado"}
           motivo={motivo}
-          fecha={fecha ? isoAFechaLocal(fecha).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" }) : ""}
+          fecha={fecha ? formatoFecha(fecha, "largoSinDia") : ""}
           hora={hora}
           onCancelar={() => setConfirmandoCita(false)}
           onConfirmar={handleAgendar}

@@ -1,6 +1,6 @@
 // Cálculos del Inicio por rol (R52-R56). Cada fila de tarjetas habla de una sola cosa y lo dice en su título:
 // "Totales", "Hoy", "Este mes" o "Para vender". Funciones puras, con los datos que ya carga la aplicación.
-import { esHoy, hoyISO, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
+import { esHoy, hoyISO, fechaAISO, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
 import { saldoFactura } from "./abonos"
 
 export const PLANTILLAS_INICIO = ["administrador", "optometra", "recepcion", "ventas", "general"]
@@ -52,9 +52,8 @@ export const resumenMes = (citas, ahora) => resumenPeriodo(citas, "mes", ahora)
 
 // Primer y último día del mes en curso, en ISO (para abrir Citas filtrada por el mismo período).
 export function rangoDelMes(ahora = new Date()) {
-  const dos = (n) => String(n).padStart(2, "0")
   const y = ahora.getFullYear(), m = ahora.getMonth()
-  return { desde: `${y}-${dos(m + 1)}-01`, hasta: `${y}-${dos(m + 1)}-${dos(new Date(y, m + 1, 0).getDate())}` }
+  return { desde: fechaAISO(new Date(y, m, 1)), hasta: fechaAISO(new Date(y, m + 1, 0)) }
 }
 
 // "Hoy": la agenda del día; si hoy no hay citas, las próximas (nunca las ya pasadas).

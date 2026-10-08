@@ -39,7 +39,7 @@ import {
   ShoppingBag,
 } from "lucide-react"
 import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
-import { hoyISO, isoAFechaLocal, diaTieneCupo } from "../utilidades/disponibilidad"
+import { hoyISO, diaTieneCupo } from "../utilidades/disponibilidad"
 import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
 import { MENSAJE_HORA_INVALIDA, esErrorHoraInvalida } from "../utilidades/erroresCitas"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
@@ -49,7 +49,7 @@ import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
-import { fechaLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
@@ -1136,16 +1136,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     if (diaTieneCupo(fechaControlRecomendada, disponibilidad, citas)) return fechaControlRecomendada
     return diaHabilMasCercano(fechaControlRecomendada, disponibilidad, citas)
   }, [controlModo, fechaControlRecomendada, disponibilidad, citas])
-  const textoDia = (iso) => isoAFechaLocal(iso).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const textoDia = (iso) => formatoFecha(iso, "largo")
 
-  const fechaLarga = useMemo(() => {
-    try {
-      const d = new Date(fechaConsulta + "T00:00:00")
-      return d.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
-    } catch {
-      return fechaConsulta
-    }
-  }, [fechaConsulta])
+  const fechaLarga = useMemo(() => formatoFecha(fechaConsulta, "largoSinDia") || fechaConsulta, [fechaConsulta])
 
   return (
     <div className="w-full space-y-6 text-left">
@@ -1906,7 +1899,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       <div className="shrink-0 text-right">
                         <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Receta óptica</p>
                         <p className="mt-1 font-mono text-xs font-semibold text-slate-700">N.º {recetaNum}</p>
-                        <p className="text-[11px] capitalize text-slate-500">{fechaLarga}</p>
+                        <p className="text-[11px] text-slate-500">{fechaLarga}</p>
                       </div>
                     </div>
                   </div>

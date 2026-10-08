@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
-import { hoyISO } from './utilidades/disponibilidad';
+import { hoyISO, fechaAISO } from './utilidades/disponibilidad';
 import { supabase } from './lib/supabaseClient';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
@@ -557,7 +557,7 @@ function App() {
       enCurso = true
       try {
         const desde = new Date(Date.now() - 3 * 86400000)
-        const iso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`
+        const iso = fechaAISO(desde)
         const { data: pasesData } = await supabase.from('pases_a_venta').select('*').eq('optica_id', usuario.opticaId)
         if (pasesData) setPasesVenta(pasesData.map(mapPase))
         const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', usuario.opticaId)

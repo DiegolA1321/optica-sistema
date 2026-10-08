@@ -32,11 +32,10 @@ import { registrarLog } from "../utilidades/logs"
 import HorarioEquipo from "../componentes/HorarioEquipo"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
-import { fechaLegible as fechaFormato } from "../utilidades/formatoFecha"
+import { fechaLegible as fechaFormato, formatoFecha } from "../utilidades/formatoFecha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 const ORDEN_LV = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
 
@@ -664,7 +663,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
             </div>
 
             <div className="mb-3 flex items-center justify-between px-1">
-              <span className="text-sm font-bold capitalize" style={{ color: INK }}>{MESES[mesVista.getMonth()]} {mesVista.getFullYear()}</span>
+              <span className="text-sm font-bold" style={{ color: INK }}>{formatoFecha(mesVista, "mesAnio")}</span>
               <div className="flex gap-1 text-slate-500">
                 <button type="button" onClick={irMesAnterior} aria-label="Mes anterior" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronLeft size={16} /></button>
                 <button type="button" onClick={irMesSiguiente} aria-label="Mes siguiente" className="rounded-md p-1.5 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><ChevronRight size={16} /></button>
@@ -1047,7 +1046,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
   const [manana, setManana] = useState({ ...horarioBase.manana, ...base.manana })
   const [tarde, setTarde] = useState({ ...horarioBase.tarde, ...base.tarde })
 
-  const fechaLegible = new Date(fecha + "T00:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
+  const fechaLegible = formatoFecha(fecha, "calendario")
 
   // Citas + horarios libres de este día (reunión 29 sept., punto 9 del plan)
   // — informativo, calculado sobre el horario realmente guardado (no sobre
@@ -1070,7 +1069,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
       <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="horario-modal-excepcion-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
         <div className="shrink-0 border-b border-slate-100 px-6 py-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Excepción de horario</p>
-          <h2 id="horario-modal-excepcion-titulo" className="text-lg font-bold capitalize" style={{ color: INK }}>{fechaLegible}</h2>
+          <h2 id="horario-modal-excepcion-titulo" className="text-lg font-bold" style={{ color: INK }}>{fechaLegible}</h2>
           <p className="mt-1 text-xs text-slate-500">
             Normalmente este día: <span className="font-semibold">{resumenHorario(horarioBase)}</span>.
           </p>

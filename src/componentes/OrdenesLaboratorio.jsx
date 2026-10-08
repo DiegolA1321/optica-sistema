@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, Plus, ArrowRight, Undo2, AlertTriangle, CheckCircle2, Search } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
-import { fechaLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
@@ -234,7 +234,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                 {abierta === o.id && (
                   <ol className="mt-2 space-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600" aria-label="Historial de la orden">
                     {!historial[o.id] ? <li>Cargando…</li> : historial[o.id].map((h, i) => (
-                      <li key={i}><span className="font-semibold">{ETIQUETA_ESTADO[h.estado]}</span> · {fechaLegible(h.cambiado_en)} {new Date(h.cambiado_en).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" })} · {nombreDe(h.cambiado_por)}{h.nota ? ` · ${h.nota}` : ""}</li>
+                      <li key={i}><span className="font-semibold">{ETIQUETA_ESTADO[h.estado]}</span> · {fechaHoraLegible(h.cambiado_en, { anio: true })} · {nombreDe(h.cambiado_por)}{h.nota ? ` · ${h.nota}` : ""}</li>
                     ))}
                   </ol>
                 )}

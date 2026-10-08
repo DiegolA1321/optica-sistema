@@ -1,5 +1,6 @@
 "use client"
 
+import { MESES_CORTOS } from "../utilidades/formatoFecha"
 import { etiquetaCorreccion } from "../utilidades/correccion"
 import { useMemo, useState } from "react"
 import {
@@ -32,7 +33,6 @@ import { INK } from "@/lib/tema"
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
 // Colores de estado — los mismos que usan Pacientes.jsx / PortalPaciente.jsx,
 // para que un mismo estado se vea igual en todo el sistema.
@@ -62,7 +62,7 @@ function ultimosNMeses(n) {
 // Fechas como texto "AAAA-MM-DD" a propósito — mismo formato que ya usan
 // consultas.fecha/pacientes.fechaRegistro, comparar como texto alcanza
 // porque el ISO ordena igual que el calendario, sin líos de zona horaria.
-const fmtFecha = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+const fmtFecha = fechaAISO
 
 function calcularRango(periodo, inicioPersonalizado, finPersonalizado) {
   const hoy = new Date()
