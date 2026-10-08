@@ -44,7 +44,7 @@ Sin cambios de base de datos en nada de esto.
 ## Pendiente
 
 - **E2E (`e2e/roles.spec.js`):** `totalAgendadas` leía el número del botón "Todas" de Citas; ahora cuenta con la búsqueda `CIT-` (mira todas las fechas). **No se ha corrido.** `e2e/inicio.spec.js` usa "Todas" del período del desenlace de Inicio, que no cambió.
-- **8 capturas borradas del disco** en `docs/feedback-ing/capturas-bug-diagnostico/` (01 a 08), aún registradas en git. Si Diego las borró a propósito, falta un commit con esa eliminación; si no, restaurarlas con `git restore`.
+- **Capturas del bug de Diagnóstico:** Diego las borró a propósito y el commit `3010662` las elimina de git. `docs/feedback-ing/bug-diagnostico-receta.md` todavía las enlaza (imágenes rotas).
 - **2 citas antiguas de la Demo sin paciente** (óptica `qu7u2j`, ambas Pendiente, origen web, con código y sin cédula):
   - `8a14467d-d38b-4e77-bd6b-5949bb337f45` — Lorena Mero Vélez, 15 oct 2026, 01:40 PM, `lorena.mero@example.com`, 0966739833.
   - `4650a523-c834-4069-805d-9821bdb38d8a` — Rafael Cedeño Pibaque, 8 oct 2026, 09:00 AM, `rafael.cedeno@example.com`, 0923126028.
