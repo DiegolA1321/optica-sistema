@@ -43,6 +43,9 @@ export default function OrdenLaboratorioModal({
 
   useEffect(() => {
     if (orden) { setD({ ...orden }); return }
+    // `vivo` evita que un armado anterior (por ejemplo el primero que React descarta al montar en desarrollo) llegue tarde
+    // y pise con los datos iniciales lo que la persona ya escribió en el formulario.
+    let vivo = true
     const armar = async (c) => {
       // La montura es la primera línea de producto de la venta y la luna (tipo, material, tratamientos) sale
       // de su línea de luna: se escriben una sola vez, en la venta (Bloque E).
@@ -53,12 +56,12 @@ export default function OrdenLaboratorioModal({
         if (!montura) montura = (lineas || []).find((l) => l.tipo === "producto")?.descripcion || ""
         if (!luna) luna = datosOrdenDeLinea((lineas || []).find((l) => l.tipo === "luna"))
       }
+      if (!vivo) return
       const base = datosInicialesOrden(c, { montura, luna })
       const entrega = new Date(); entrega.setDate(entrega.getDate() + 7)
       setD({ ...base, fechaPrometida: iso(entrega) })
     }
-    if (consulta || !consultaId || !supabase) { armar(consulta); return }
-    let vivo = true
+    if (consulta || !consultaId || !supabase) { armar(consulta); return () => { vivo = false } }
     supabase.from("consultas").select("datos_clinicos, lente_recomendado").eq("id", consultaId).maybeSingle().then(({ data }) => {
       if (!vivo) return
       armar(data ? consultaMinima(data) : null)
