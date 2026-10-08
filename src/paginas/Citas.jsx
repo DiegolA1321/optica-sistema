@@ -1253,7 +1253,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
-    responsableFiltro !== "todos" && { id: "responsable", texto: `Responsable: ${nombreResponsableFiltro(responsableFiltro)}`, quitar: () => setResponsableFiltro("todos") },
+    responsableFiltro !== "todos" && { id: "responsable", texto: `Profesional: ${nombreResponsableFiltro(responsableFiltro)}`, quitar: () => setResponsableFiltro("todos") },
     vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${rangoDesde ? textoDia(rangoDesde) : "…"} – ${rangoHasta ? textoDia(rangoHasta) : "…"}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
   ].filter(Boolean)
 
@@ -1275,7 +1275,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
     ...(vistaActiva === "lista" ? [{ id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta } }] : []),
     ...(usuario?.rol === "admin" ? [
-      { id: "responsable", titulo: "Responsable", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable },
+      { id: "responsable", titulo: "Profesional", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable },
     ] : []),
   ]
   // Limpiar quita los filtros del panel y la búsqueda; el periodo se cambia con sus atajos.
