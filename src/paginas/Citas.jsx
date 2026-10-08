@@ -44,7 +44,7 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
-import { GrupoOpciones, BuscadorCitas, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
+import { FiltroDesplegable, PeriodoLista, BuscadorCitas, ResumenCitas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import SelectorAsignado from "../componentes/SelectorAsignado"
@@ -53,10 +53,10 @@ import { puede } from "../utilidades/permisosUi"
 import { rangoDelMes } from "../utilidades/inicio"
 import { atencionesAbiertasAntiguas, diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, PERIODOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, PERIODOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, contarCon, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -102,9 +102,6 @@ const leerVistaGuardada = () => {
 // Debajo de este ancho el calendario semanal no cabe: se muestra la lista.
 const CONSULTA_ANCHO_SEMANA = "(min-width: 1024px)"
 
-// Cita sin paciente vinculado todavía y aún sin resolver — la web agenda sin
-// ficha, y recepción la registra al atenderla.
-const porRegistrar = (c) => !c.pacienteId && !["Atendida", "No Asistió", "Cancelada"].includes(c.estado)
 
 const motivoInfo = (motivo = "", catalogo = []) => {
   const idx = catalogo.indexOf(motivo)
@@ -411,9 +408,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // exactamente ese tramo — hacia atrás o hacia adelante.
   const [rangoDesde, setRangoDesde] = useState("")
   const [rangoHasta, setRangoHasta] = useState("")
-  // Aviso "N por registrar": citas sin paciente vinculado todavía (la web
-  // agenda sin ficha). Reemplaza al filtro Primera vez/Seguimiento.
-  const [soloPorRegistrar, setSoloPorRegistrar] = useState(false)
   const [anterioresAbierto, setAnterioresAbierto] = useState(false)
   const [porCancelar, setPorCancelar] = useState(null)
 
@@ -1061,43 +1055,46 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Semana visible en la vista Semana (lunes, ISO); la usa también el aviso de búsqueda.
   const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
 
-  // Filtrado base (búsqueda + KPI de estado + "por registrar"). Lo comparten la
-  // lista y la vista por mes; el rango de fechas solo recorta la lista.
-
-  // Además del nombre, la búsqueda mira el código de cita (CIT-2026-ABC123)
-  // que el paciente recibe al reservar en línea — así el personal puede
-  // encontrar su cita si la dan por teléfono.
-  const textoBusqueda = busqueda.trim().toLowerCase()
-  const coincideBusqueda = (c) => c.paciente.toLowerCase().includes(textoBusqueda) || (c.codigo || "").toLowerCase().includes(textoBusqueda)
-
-  // Solo los filtros de estado (indicadores de arriba + "por registrar"). La
-  // vista Semana parte de aquí: la búsqueda no oculta citas, las resalta.
-  const filtradasPorEstado = useMemo(() => citas.filter((c) => {
-    if (soloPorRegistrar && !(porRegistrar(c))) return false
-    if (!coincideEstado(c, estadoFiltro)) return false
-    if (!coincideOrigen(c, origenFiltro)) return false
-    if (!coincideSeguimiento(c, seguimientoFiltro, consultas)) return false
-    if (!coincideResponsable(c, "asignadoA", asignadoFiltro)) return false
-    if (!coincideResponsable(c, "atendidoPor", atendidoFiltro)) return false
-    // El periodo (Hoy · Próximas · Todas) es solo de la Lista; Semana y Mes se
-    // mueven con sus flechas.
-    if (vistaActiva !== "lista") return true
-    if (filtro === "hoy") return esHoy(c.fecha)
-    if (filtro === "proximas") return esFutura(c.fecha)
-    return true
-  }), [citas, consultas, filtro, vistaActiva, estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, soloPorRegistrar])
-
-  const filtradasBase = useMemo(
-    () => (textoBusqueda ? filtradasPorEstado.filter(coincideBusqueda) : filtradasPorEstado),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filtradasPorEstado, textoBusqueda]
+  // ── Filtros combinados (lógica en utilidades/filtrosCitas). En Semana y Mes el
+  // periodo visible hace de ventana; en Lista el periodo (Hoy · Próximas · Todas · Rango)
+  // es un filtro más. La búsqueda mira el nombre y el código de cita (CIT-2026-ABC123)
+  // que el paciente recibe al reservar en línea. ──
+  const hayRango = Boolean(rangoDesde || rangoHasta)
+  const ventana = useMemo(() => {
+    if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
+    if (vistaActiva === "mes") {
+      const aISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+      return { desde: aISO(mesVista), hasta: aISO(new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)) }
+    }
+    return null
+  }, [vistaActiva, semanaLunes, mesVista])
+  const filtros = useMemo(
+    () => ({ estado: estadoFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, asignado: asignadoFiltro, atendido: atendidoFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana }),
+    [estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana],
   )
+  const resultado = useMemo(() => citas.filter((c) => citaPasaFiltros(c, filtros, consultas)), [citas, filtros, consultas])
+  const totalAlcance = useMemo(() => totalDelAlcance(citas, filtros), [citas, filtros])
+
+  // Cuántas citas habría con cada opción de cada filtro, con todos los demás aplicados (incluidas la búsqueda y el periodo).
+  const conteos = useMemo(() => {
+    const cuenta = (cambios) => contarCon(citas, filtros, consultas, cambios)
+    const responsables = (campo) => Object.fromEntries([["todos", cuenta({ [campo]: "todos" })], ["ninguno", cuenta({ [campo]: "ninguno" })], ...equipo.map((m) => [m.id, cuenta({ [campo]: m.id })])])
+    return {
+      estado: Object.fromEntries(ESTADOS_FILTRO.map((e) => [e.id, cuenta({ estado: e.id })])),
+      origen: Object.fromEntries(ORIGENES_FILTRO.map((o) => [o.id, cuenta({ origen: o.id })])),
+      seguimiento: Object.fromEntries(SEGUIMIENTO_FILTRO.map((o) => [o.id, cuenta({ seguimiento: o.id })])),
+      asignado: responsables("asignado"),
+      atendido: responsables("atendido"),
+      periodo: Object.fromEntries(PERIODOS_FILTRO.map((p) => [p.id, cuenta({ periodo: { filtro: p.id, desde: "", hasta: "" } })])),
+      rango: resultado.length,
+    }
+  }, [citas, filtros, consultas, equipo, resultado.length])
 
   // Vista Semana: si lo buscado no está en la semana que se ve, ofrece ir a la
   // semana de la coincidencia más cercana (la próxima, o la última pasada).
   const avisoBusquedaSemana = useMemo(() => {
-    if (!textoBusqueda) return null
-    const coincidencias = filtradasPorEstado.filter(coincideBusqueda)
+    if (!busqueda.trim() || vistaActiva !== "semana") return null
+    const coincidencias = citas.filter((c) => citaPasaFiltros(c, { ...filtros, ventana: null, periodo: null }, consultas))
     if (coincidencias.length === 0) return { texto: "Ninguna cita coincide con la búsqueda." }
     const finSemana = sumarDiasISO(semanaLunes, 6)
     if (coincidencias.some((c) => c.fecha >= semanaLunes && c.fecha <= finSemana)) return null
@@ -1112,45 +1109,31 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       irA: () => setSemanaLunes(lunesDeSemana(mejor.fecha)),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtradasPorEstado, textoBusqueda, semanaLunes])
-
-  const hayRango = Boolean(rangoDesde || rangoHasta)
+  }, [citas, filtros, consultas, busqueda, vistaActiva, semanaLunes])
 
   // Lista: sin rango → hoy en adelante + "Anteriores" (más reciente primero).
   // Con rango → solo ese tramo, cronológico. "Ya atendidas" es por naturaleza
   // un historial, así que va de la más reciente a la más antigua.
   const { grupos, gruposAnteriores } = useMemo(() => {
     const hoy = hoyISO()
-    // Las canceladas no estorban: solo se ven al elegir el estado "Canceladas".
-    const base = estadoFiltro === "cancelada" ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada")
-    if (hayRango) {
-      const enRango = base.filter((c) => (!rangoDesde || c.fecha >= rangoDesde) && (!rangoHasta || c.fecha <= rangoHasta))
-      return { grupos: agruparPorDia(ordenarCitas(enRango)), gruposAnteriores: [] }
-    }
+    if (hayRango) return { grupos: agruparPorDia(ordenarCitas(resultado)), gruposAnteriores: [] }
     // Atendidas, canceladas y No asistió son historial: de la más reciente a la
     // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
     if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
-      return { grupos: agruparPorDia(ordenarCitas(base, true)), gruposAnteriores: [] }
+      return { grupos: agruparPorDia(ordenarCitas(resultado, true)), gruposAnteriores: [] }
     }
-    const { proximas, anteriores } = particionarAgenda(base, hoy)
+    const { proximas, anteriores } = particionarAgenda(resultado, hoy)
     return { grupos: agruparPorDia(proximas), gruposAnteriores: agruparPorDia(anteriores) }
-  }, [filtradasBase, estadoFiltro, hayRango, rangoDesde, rangoHasta])
+  }, [resultado, estadoFiltro, hayRango])
 
   const totalAnteriores = gruposAnteriores.reduce((n, [, cs]) => n + cs.length, 0)
-  const totalPorRegistrar = useMemo(() => citas.filter(porRegistrar).length, [citas])
 
-  const totalHoy = useMemo(() => citas.filter((c) => esHoy(c.fecha) && c.estado !== "Cancelada").length, [citas])
-  const totalProximas = useMemo(() => citas.filter((c) => esFutura(c.fecha) && c.estado !== "Cancelada").length, [citas])
   // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
+  const filtroPorDefecto = vistaPropia || (usuario?.rol !== "admin" && usuario?.esOptometra) ? "hoy" : "todas"
   const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
-  // Cuántas citas hay de cada estado, para el selector de estado.
-  const conteosEstado = useMemo(
-    () => Object.fromEntries(ESTADOS_FILTRO.map((e) => [e.id, e.id === "todas" ? citas.filter((c) => c.estado !== "Cancelada").length : citas.filter((c) => coincideEstado(c, e.id)).length])),
-    [citas],
-  )
-  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda(""); setSoloPorRegistrar(false); setRangoDesde(""); setRangoHasta("") }
+  const limpiarFiltros = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda(""); setRangoDesde(""); setRangoHasta(""); setFiltro(filtroPorDefecto) }
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1177,15 +1160,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
-  // "Hoy" vuelve a la agenda de hoy: sin rango, sin filtros de estado ni
-  // "por registrar", y lleva el periodo de la vista actual a hoy: la lista
-  // vuelve a hoy, la semana a la semana actual, el mes al mes actual.
+  // "Hoy" lleva el periodo de la vista actual a hoy: la semana a la semana actual, el mes al mes actual.
+  // No toca los filtros: solo se mueve en el tiempo.
   const irAHoy = () => {
-    setRangoDesde("")
-    setRangoHasta("")
-    setFiltro("todas")
-    setSoloPorRegistrar(false)
-    limpiarFiltros()
     const h = new Date()
     setMesVista(new Date(h.getFullYear(), h.getMonth(), 1))
     setSemanaLunes(lunesDeSemana(hoyISO()))
@@ -1196,12 +1173,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     setRangoHasta(r.hasta)
   }
 
-  const gruposPorFecha = useMemo(() => new Map(agruparPorDia(estadoFiltro === "cancelada" ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))), [filtradasBase, estadoFiltro])
-
-  // Semana y Mes muestran las canceladas (en gris, con quién canceló) con el estado "Todas" o "Canceladas":
-  // que un paciente canceló debe verse. El filtro de estado ya decide qué estados entran, sin otro interruptor.
-  const citasCalendario = filtradasPorEstado
-  const gruposCalendario = useMemo(() => new Map(agruparPorDia(filtradasBase)), [filtradasBase])
+  // Las canceladas se ven solo con el estado "Canceladas", igual en Lista, Semana y Mes (y no ocupan horario).
+  const gruposCalendario = useMemo(() => new Map(agruparPorDia(resultado)), [resultado])
 
   const diasSemanaVisible = Array.from({ length: 7 }, (_, i) => sumarDiasISO(semanaLunes, i))
   // Rango corto para la barra ("5 – 11 oct 2026"); el título largo queda dentro del calendario para lectores de pantalla.
@@ -1217,7 +1190,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
-  const citasDelDiaModal = diaModalMes ? (gruposPorFecha.get(diaModalMes) || []) : []
+  const citasDelDiaModal = diaModalMes ? (gruposCalendario.get(diaModalMes) || []) : []
   const gruposEstadoModal = ORDEN_ESTADOS_MODAL
     .map((estado) => [estado, citasDelDiaModal.filter((c) => c.estado === estado)])
     .filter(([, arr]) => arr.length > 0)
@@ -1233,29 +1206,32 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
-  // Los KPIs son también los filtros de estado. En Lista van en su propia fila;
-  // en Semana y Mes, que necesitan toda la altura, se compactan dentro de la
-  // fila de control.
-  // Lo que vive dentro del botón "Filtros" (el estado y el buscador siempre se ven).
+  // Filtros activos como etiquetas con su "x". El periodo de la Lista cuenta solo si no es el de siempre.
   const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
   const corta = (iso) => (iso ? iso.split("-").reverse().slice(0, 2).join("/") : "")
   const textoRango = rangoDesde && rangoHasta ? `${corta(rangoDesde)} – ${corta(rangoHasta)}` : rangoDesde ? `desde ${corta(rangoDesde)}` : `hasta ${corta(rangoHasta)}`
-  const etiquetasPanel = [
+  const etiquetasActivas = [
     vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${textoRango}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
+    vistaActiva === "lista" && !hayRango && filtro !== filtroPorDefecto && { id: "periodo", texto: `Periodo: ${PERIODOS_FILTRO.find((p) => p.id === filtro)?.etiqueta}`, quitar: () => setFiltro(filtroPorDefecto) },
+    estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
     asignadoFiltro !== "todos" && { id: "asignado", texto: `Asignada a: ${nombreResponsableFiltro(asignadoFiltro)}`, quitar: () => setAsignadoFiltro("todos") },
     atendidoFiltro !== "todos" && { id: "atendido", texto: `Atendida por: ${nombreResponsableFiltro(atendidoFiltro)}`, quitar: () => setAtendidoFiltro("todos") },
-  ].filter(Boolean)
-  // El contador de "Filtros" es exactamente la cantidad de etiquetas del panel; las
-  // etiquetas de abajo suman además el estado, el buscador y "por registrar".
-  const filtrosEnPanel = etiquetasPanel.length
-  const etiquetasActivas = [
-    estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     busqueda.trim() && { id: "busqueda", texto: `Búsqueda: ${busqueda.trim()}`, quitar: () => setBusqueda("") },
-    soloPorRegistrar && { id: "porRegistrar", texto: "Solo por registrar", quitar: () => setSoloPorRegistrar(false) },
-    ...etiquetasPanel,
   ].filter(Boolean)
+
+  // Línea de resumen: "89 citas" sin filtros; "Mostrando 5 de 89 citas" con filtros (en Semana y Mes, del periodo visible).
+  const mostradas = resultado.length
+  const hayFiltros = etiquetasActivas.length > 0 || mostradas !== totalAlcance
+  const sufijoPeriodo = vistaActiva === "semana" ? " en la semana" : vistaActiva === "mes" ? " en el mes" : ""
+  const palabraCitas = totalAlcance === 1 ? "cita" : "citas"
+  const textoResumen = hayFiltros && mostradas === 0 && totalAlcance > 0
+    ? "Ninguna cita coincide con estos filtros"
+    : hayFiltros ? `Mostrando ${mostradas} de ${totalAlcance} ${palabraCitas}${sufijoPeriodo}` : `${totalAlcance} ${palabraCitas}${sufijoPeriodo}`
+  const elegirPeriodo = (id) => { setFiltro(id); setRangoDesde(""); setRangoHasta("") }
+  const opcionesConConteo = (lista, tabla) => lista.map((o) => ({ ...o, conteo: tabla[o.id] }))
+  const opcionesResponsable = (tabla) => [{ id: "todos", etiqueta: "Todos", conteo: tabla.todos }, { id: "ninguno", etiqueta: "Nadie", conteo: tabla.ninguno }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre, conteo: tabla[m.id] }))]
 
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
   const renderDia = ([dia, citasDia]) => {
@@ -1319,7 +1295,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Hoy sin citas nunca deja la pantalla en blanco: se avisa y se muestra lo
   // más cercano (criterio 1 del ingeniero).
   const anterioresVisibles = anterioresAbierto || (grupos.length === 0 && totalAnteriores > 0)
-  const avisoSinCitasHoy = hayRango || filtro !== "todas" || filtrosActivos > 0 || soloPorRegistrar || busqueda
+  const avisoSinCitasHoy = hayRango || filtro !== "todas" || filtrosActivos > 0 || busqueda
     ? null
     : grupos.length === 0
       ? "No hay citas próximas. Debajo está lo último atendido."
@@ -1387,12 +1363,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
       {/* ─── BARRA SUPERIOR: dos filas con la misma altura en las tres vistas ─── */}
       <div className="space-y-2.5">
-        {/* Fila 1: el selector de vista no se mueve nunca. A la derecha, lo que falta registrar. */}
-        <div className="flex h-10 items-center justify-between gap-2">
+        {/* Fila 1: el selector de vista no se mueve nunca; el buscador de las citas, a la derecha. */}
+        <div className="flex h-10 items-center justify-between gap-3">
           {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
               Cobrar) y la semana/el mes para planificar. Conviven sobre los
               mismos datos. La semana no se ofrece donde no cabe. */}
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
+          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
             {[
               { key: "lista", label: "Lista", Icono: List },
               ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
@@ -1411,31 +1387,30 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               </button>
             ))}
           </div>
-          {totalPorRegistrar > 0 && (
-            <button
-              type="button"
-              onClick={() => setSoloPorRegistrar((v) => !v)}
-              aria-pressed={soloPorRegistrar}
-              title="Citas agendadas en línea cuyo paciente aún no está registrado"
-              className={"flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors cursor-pointer " + (soloPorRegistrar ? "border-amber-300 bg-amber-100 text-amber-800" : "border-amber-200/60 bg-amber-50 text-amber-700 hover:bg-amber-100")}
-            >
-              <UserPlus size={13} aria-hidden="true" />
-              {totalPorRegistrar} por registrar
-            </button>
-          )}
+          <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
         </div>
 
-        {/* Fila 2: el periodo (en la Lista, filtro; en Semana y Mes, flechas + Hoy + rango),
-            en un espacio de ancho fijo, y después estado, buscador y más filtros, siempre en el mismo sitio. */}
+        {/* Fila 2: a la izquierda los filtros, todos con el mismo formato; a la derecha el periodo (en la
+            Lista un filtro, en Semana y Mes las flechas con el rango visible), en un espacio de ancho fijo. */}
         <div className="flex h-10 items-center gap-2">
-          <div className="flex w-[17rem] shrink-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <FiltroDesplegable nombre="Estado" valor={estadoFiltro} onChange={setEstadoFiltro} porDefecto="todas" opciones={opcionesConConteo(ESTADOS_FILTRO, conteos.estado)} />
+            <FiltroDesplegable nombre="Origen" valor={origenFiltro} onChange={setOrigenFiltro} porDefecto="todos" opciones={opcionesConConteo(ORIGENES_FILTRO, conteos.origen)} />
+            <FiltroDesplegable nombre="Visita" valor={seguimientoFiltro} onChange={setSeguimientoFiltro} porDefecto="todos" opciones={opcionesConConteo(SEGUIMIENTO_FILTRO, conteos.seguimiento).map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o))} />
+            {usuario?.rol === "admin" && (
+              <>
+                <FiltroDesplegable nombre="Asignada a" valor={asignadoFiltro} onChange={setAsignadoFiltro} porDefecto="todos" opciones={opcionesResponsable(conteos.asignado)} />
+                <FiltroDesplegable nombre="Atendida por" valor={atendidoFiltro} onChange={setAtendidoFiltro} porDefecto="todos" opciones={opcionesResponsable(conteos.atendido)} />
+              </>
+            )}
+          </div>
+          <div className="flex w-[19rem] shrink-0 items-center justify-start gap-2">
             {vistaActiva === "lista" ? (
-              <GrupoOpciones
-                etiqueta="Periodo de las citas"
+              <PeriodoLista
                 valor={filtro}
-                onChange={setFiltro}
-                opciones={PERIODOS_FILTRO}
-                conteos={{ hoy: totalHoy, proximas: totalProximas, todas: conteosEstado.todas }}
+                onChange={elegirPeriodo}
+                opciones={opcionesConConteo(PERIODOS_FILTRO, conteos.periodo)}
+                rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango, conteo: conteos.rango }}
               />
             ) : (
               <>
@@ -1470,26 +1445,11 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               </>
             )}
           </div>
-          <GrupoOpciones etiqueta="Estado de la cita" valor={estadoFiltro} onChange={setEstadoFiltro} opciones={ESTADOS_FILTRO} conteos={conteosEstado} verConteos={false} />
-          <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
-          <BotonFiltros
-            cantidad={filtrosEnPanel}
-            origen={origenFiltro} onOrigen={setOrigenFiltro}
-            seguimiento={seguimientoFiltro} onSeguimiento={setSeguimientoFiltro}
-            esAdmin={usuario?.rol === "admin"} equipo={equipo}
-            asignado={asignadoFiltro} onAsignado={setAsignadoFiltro}
-            atendido={atendidoFiltro} onAtendido={setAtendidoFiltro}
-            rango={vistaActiva === "lista" ? { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango } : null}
-          />
         </div>
       </div>
 
-      {/* ─── FILTROS ACTIVOS: etiquetas con su "x" y "Limpiar filtros" ─── */}
-      <EtiquetasActivas
-        etiquetas={etiquetasActivas}
-        hayAlgo={etiquetasActivas.length > 0}
-        onLimpiar={limpiarFiltros}
-      />
+      {/* ─── RESUMEN: cuántas citas se ven, filtros activos con su "x" y "Limpiar filtros" ─── */}
+      <ResumenCitas texto={textoResumen} vacio={hayFiltros && mostradas === 0 && totalAlcance > 0} etiquetas={etiquetasActivas} hayFiltros={hayFiltros} onLimpiar={limpiarFiltros} />
 
       {/* ─── LISTADO ─── */}
       {cargaInicial && citas.length === 0 ? (
@@ -1515,15 +1475,13 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           citas={citas}
           disponibilidad={disponibilidad}
           cobroPendienteIds={pendientesPorCita}
-          citasVisibles={citasCalendario}
-          coincide={textoBusqueda ? coincideBusqueda : null}
+          citasVisibles={resultado}
           aviso={avisoBusquedaSemana}
           onDiaClick={(iso) => {
             // Un día de la semana → ese día en la lista.
             setRangoDesde(iso)
             setRangoHasta(iso)
             setFiltro("todas")
-            setSoloPorRegistrar(false)
             setVista("lista")
           }}
           onAtender={puedeAtenderPacientes ? atenderCita : undefined}
@@ -1540,7 +1498,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           mes={mesVista}
           citasPorFecha={gruposCalendario}
           cobroPendienteIds={pendientesPorCita}
-          coincide={textoBusqueda ? coincideBusqueda : null}
           onDiaClick={(iso) => {
             // Un día del mes → esa semana en la vista Semana (si la pantalla
             // es angosta y no cabe, se conserva el detalle del día en el modal).
@@ -1558,10 +1515,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />
           </div>
-          <p className="mt-4 text-base font-semibold text-slate-600">No hay citas bajo este filtro</p>
-          <p className="mt-1 text-sm text-slate-500">
-            {busqueda ? "Ningún paciente coincide con la búsqueda." : "Prueba con otros filtros o agenda una nueva cita."}
-          </p>
+          <p className="mt-4 text-base font-semibold text-slate-600">{hayFiltros ? "Ninguna cita coincide con estos filtros" : "Todavía no hay citas"}</p>
+          {hayFiltros ? (
+            <button type="button" onClick={limpiarFiltros} className="mt-3 rounded-xl border border-slate-200/60 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">Limpiar filtros</button>
+          ) : (
+            <p className="mt-1 text-sm text-slate-500">Agenda una nueva cita para empezar.</p>
+          )}
         </div>
       ) : (
         <div className="space-y-8">
