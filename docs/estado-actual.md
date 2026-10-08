@@ -39,6 +39,8 @@ Sin cambios de base de datos en nada de esto.
 
 - **Pruebas unitarias:** `npx vitest run` → 401 pasan (`filtrosCitas.test.js`, `FiltrosCitas.test.jsx`, `controles.test.js`, `Inicio.test.jsx`).
 - **En el navegador (Playwright, óptica Demo `?optica=qu7u2j`, administrador):** periodos y flechas (semana 5 – 11 oct = 16 citas, igual que la vista Semana; mes de octubre = 27), rango del panel (3 – 20 oct = 25 citas), posiciones de la fila 2 iguales en las tres vistas, conteo con el mismo texto en todas, sin errores de consola. Producción: el código de Citas ya trae los cambios.
+- **Otra óptica y óptica vacía:** también probado en `v8twzq` (9 citas, otro equipo) y en la **óptica vacía de pruebas** `3pldf1` ("Óptica Vacía (pruebas)", creada el 8 oct desde el panel de superadmin; credenciales del admin en `.env.test` como `VACIA_ADMIN_*`). Se deja **sin datos a propósito**: usarla solo para leer y comprobar estados vacíos. Ahí Citas muestra "0 citas hoy / en la semana / en el mes" y "Hoy no hay citas" / "Todavía no hay citas", sin errores.
+- **Efecto secundario conocido:** la búsqueda por `CIT-` (que usa el e2e de roles para contar todas las citas) solo sirve en la Demo; en `v8twzq` da 0 porque sus citas no llevan código.
 - **No verificado en pantalla:** "Ver más" con más de 30 citas en una lista real; "Hoy no hay citas" + "Ver esta semana"; el filtro Responsable con un optómetra concreto.
 
 ## Pendiente
