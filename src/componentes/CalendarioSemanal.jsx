@@ -230,7 +230,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
     <section ref={refSeccion} aria-label="Calendario semanal" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3">
         <div className="flex min-w-0 items-center gap-4">
-          <h2 className="shrink-0 text-sm font-bold" style={{ color: INK }}>{tituloSemana(dias)}</h2>
+          <h2 className="sr-only">{tituloSemana(dias)}</h2>
           <LeyendaEstados />
         </div>
         {aviso && (

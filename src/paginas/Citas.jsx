@@ -16,7 +16,6 @@ import {
   Stethoscope,
   CalendarClock,
   CalendarPlus,
-  Sun,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -45,7 +44,7 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
-import { ChipFiltro, BuscadorCitas, SelectorEstado, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
+import { GrupoOpciones, BuscadorCitas, BotonFiltros, EtiquetasActivas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import SelectorAsignado from "../componentes/SelectorAsignado"
@@ -57,7 +56,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, esHoy, esFutura, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
-import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, PERIODOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -1036,6 +1035,29 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
   }
 
+  // ── Vista por día / por mes (reunión 29 sept., punto 12 del plan) — "día"
+  // es la lista agrupada de siempre (grupos, de arriba), sin cambios. "mes"
+  // es un calendario nuevo que reutiliza el mismo `grupos` (mismos filtros,
+  // misma búsqueda) solo que indexado por fecha para pintar un contador por
+  // día y abrir el detalle en un modal. ──
+  const [vista, setVistaState] = useState(leerVistaGuardada) // lista | semana | mes
+  const setVista = (v) => {
+    setVistaState(v)
+    try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento: no se recuerda */ }
+  }
+  const [cabeSemana, setCabeSemana] = useState(() => (typeof window === "undefined" || !window.matchMedia ? true : window.matchMedia(CONSULTA_ANCHO_SEMANA).matches))
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const mq = window.matchMedia(CONSULTA_ANCHO_SEMANA)
+    const alCambiar = () => setCabeSemana(mq.matches)
+    mq.addEventListener("change", alCambiar)
+    return () => mq.removeEventListener("change", alCambiar)
+  }, [])
+  // La preferencia guardada se respeta, pero en pantallas angostas la semana
+  // se muestra como lista (sin pisar lo que la persona eligió).
+  const vistaActiva = vista === "semana" && !cabeSemana ? "lista" : vista
+  const [mesVista, setMesVista] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1) })
+
   // Semana visible en la vista Semana (lunes, ISO); la usa también el aviso de búsqueda.
   const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
 
@@ -1057,10 +1079,13 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     if (!coincideSeguimiento(c, seguimientoFiltro, consultas)) return false
     if (!coincideResponsable(c, "asignadoA", asignadoFiltro)) return false
     if (!coincideResponsable(c, "atendidoPor", atendidoFiltro)) return false
+    // El periodo (Hoy · Próximas · Todas) es solo de la Lista; Semana y Mes se
+    // mueven con sus flechas.
+    if (vistaActiva !== "lista") return true
     if (filtro === "hoy") return esHoy(c.fecha)
     if (filtro === "proximas") return esFutura(c.fecha)
     return true
-  }), [citas, consultas, filtro, estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, soloPorRegistrar])
+  }), [citas, consultas, filtro, vistaActiva, estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, soloPorRegistrar])
 
   const filtradasBase = useMemo(
     () => (textoBusqueda ? filtradasPorEstado.filter(coincideBusqueda) : filtradasPorEstado),
@@ -1150,28 +1175,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
   }
 
-  // ── Vista por día / por mes (reunión 29 sept., punto 12 del plan) — "día"
-  // es la lista agrupada de siempre (grupos, de arriba), sin cambios. "mes"
-  // es un calendario nuevo que reutiliza el mismo `grupos` (mismos filtros,
-  // misma búsqueda) solo que indexado por fecha para pintar un contador por
-  // día y abrir el detalle en un modal. ──
-  const [vista, setVistaState] = useState(leerVistaGuardada) // lista | semana | mes
-  const setVista = (v) => {
-    setVistaState(v)
-    try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento: no se recuerda */ }
-  }
-  const [cabeSemana, setCabeSemana] = useState(() => (typeof window === "undefined" || !window.matchMedia ? true : window.matchMedia(CONSULTA_ANCHO_SEMANA).matches))
-  useEffect(() => {
-    if (!window.matchMedia) return
-    const mq = window.matchMedia(CONSULTA_ANCHO_SEMANA)
-    const alCambiar = () => setCabeSemana(mq.matches)
-    mq.addEventListener("change", alCambiar)
-    return () => mq.removeEventListener("change", alCambiar)
-  }, [])
-  // La preferencia guardada se respeta, pero en pantallas angostas la semana
-  // se muestra como lista (sin pisar lo que la persona eligió).
-  const vistaActiva = vista === "semana" && !cabeSemana ? "lista" : vista
-  const [mesVista, setMesVista] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1) })
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
   // "Hoy" vuelve a la agenda de hoy: sin rango, sin filtros de estado ni
@@ -1195,18 +1198,22 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   const gruposPorFecha = useMemo(() => new Map(agruparPorDia(estadoFiltro === "cancelada" ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))), [filtradasBase, estadoFiltro])
 
-  // Semana y Mes muestran las canceladas por defecto (en gris, con quién canceló): que un paciente canceló debe verse.
-  // Una cancelada libera su horario; si estorba, se oculta con el interruptor "Canceladas".
-  const [verCanceladas, setVerCanceladas] = useState(true)
-  const totalCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
-  // Si el filtro de estado pide las canceladas, se muestran aunque el interruptor esté apagado.
-  const mostrarCanceladas = verCanceladas || estadoFiltro === "cancelada"
-  const citasCalendario = useMemo(() => (mostrarCanceladas ? filtradasPorEstado : filtradasPorEstado.filter((c) => c.estado !== "Cancelada")), [filtradasPorEstado, mostrarCanceladas])
-  const gruposCalendario = useMemo(
-    () => new Map(agruparPorDia(mostrarCanceladas ? filtradasBase : filtradasBase.filter((c) => c.estado !== "Cancelada"))),
-    [filtradasBase, mostrarCanceladas],
-  )
+  // Semana y Mes muestran las canceladas (en gris, con quién canceló) con el estado "Todas" o "Canceladas":
+  // que un paciente canceló debe verse. El filtro de estado ya decide qué estados entran, sin otro interruptor.
+  const citasCalendario = filtradasPorEstado
+  const gruposCalendario = useMemo(() => new Map(agruparPorDia(filtradasBase)), [filtradasBase])
 
+  const diasSemanaVisible = Array.from({ length: 7 }, (_, i) => sumarDiasISO(semanaLunes, i))
+  // Rango corto para la barra ("5 – 11 oct 2026"); el título largo queda dentro del calendario para lectores de pantalla.
+  const rangoSemanaCorto = (dias) => {
+    const a = isoAFechaLocal(dias[0])
+    const b = isoAFechaLocal(dias[6])
+    const mes = (d) => d.toLocaleDateString("es-EC", { month: "short" }).replace(".", "")
+    return a.getMonth() === b.getMonth()
+      ? `${a.getDate()} – ${b.getDate()} ${mes(b)} ${b.getFullYear()}`
+      : `${a.getDate()} ${mes(a)} – ${b.getDate()} ${mes(b)} ${b.getFullYear()}`
+  }
+  const tituloMes = (m) => m.toLocaleDateString("es-EC", { month: "long", year: "numeric" }).replace(/^./, (l) => l.toUpperCase())
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
@@ -1249,21 +1256,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     soloPorRegistrar && { id: "porRegistrar", texto: "Solo por registrar", quitar: () => setSoloPorRegistrar(false) },
     ...etiquetasPanel,
   ].filter(Boolean)
-
-  const indicadores = (
-    <div role="group" aria-label="Ver citas de" className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ver</span>
-      <ChipFiltro grande={vistaActiva === "lista"} conteo={totalHoy} activo={filtro === "hoy"} onClick={() => { setFiltro("hoy"); setMesVista(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) }}>
-        <Sun size={14} aria-hidden="true" /> Citas de hoy
-      </ChipFiltro>
-      <ChipFiltro grande={vistaActiva === "lista"} conteo={totalProximas} activo={filtro === "proximas"} onClick={() => setFiltro("proximas")}>
-        <CalendarClock size={14} aria-hidden="true" /> Próximas
-      </ChipFiltro>
-      <ChipFiltro grande={vistaActiva === "lista"} conteo={citas.filter((c) => c.estado !== "Cancelada").length} activo={filtro === "todas"} onClick={() => setFiltro("todas")}>
-        <CalendarDays size={14} aria-hidden="true" /> Total agendadas
-      </ChipFiltro>
-    </div>
-  )
 
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
   const renderDia = ([dia, citasDia]) => {
@@ -1377,9 +1369,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         </div>
       )}
 
-      {/* ─── INDICADORES (en Semana y Mes van en la fila de control) ─── */}
-      {vistaActiva === "lista" && indicadores}
-
       {/* ─── ÉXITO ─── */}
       {mensajeExito && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
@@ -1396,102 +1385,103 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         </div>
       )}
 
-      {/* ─── UNA SOLA FILA DE CONTROL: Hoy · Día|Mes · rango · por registrar ─── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {vistaActiva !== "lista" && (
-        <button
-          type="button"
-          onClick={irAHoy}
-          className="rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"
-        >
-          Hoy
-        </button>
-        )}
-        {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
-            Cobrar) y la semana/el mes para planificar. Conviven sobre los
-            mismos datos. La semana no se ofrece donde no cabe. */}
-        <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
-          {[
-            { key: "lista", label: "Lista", Icono: List },
-            ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
-            { key: "mes", label: "Mes", Icono: CalendarDays },
-          ].map((op) => (
-            <button
-              key={op.key}
-              type="button"
-              onClick={() => setVista(op.key)}
-              aria-pressed={vistaActiva === op.key}
-              className={"flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaActiva === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-              style={vistaActiva === op.key ? { background: GRAD } : undefined}
-            >
-              <op.Icono size={14} aria-hidden="true" />
-              {op.label}
-            </button>
-          ))}
-        </div>
-        {/* Flechas del periodo en la misma fila: semana o mes según la vista
-            (la lista usa su propio rango de fechas, justo debajo). */}
-        {(vistaActiva === "semana" || vistaActiva === "mes") && (
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
-              aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-              title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-              className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
-              aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-              title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-              className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-        {/* El rango de fechas personalizado (R8) vive dentro de "Filtros", solo en la Lista. */}
-        {/* Buscador y estado siempre a la vista; lo demás, dentro de "Filtros". */}
-        <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
-        <SelectorEstado valor={estadoFiltro} onChange={setEstadoFiltro} conteos={conteosEstado} />
-        <BotonFiltros
-          cantidad={filtrosEnPanel}
-          origen={origenFiltro} onOrigen={setOrigenFiltro}
-          seguimiento={seguimientoFiltro} onSeguimiento={setSeguimientoFiltro}
-          esAdmin={usuario?.rol === "admin"} equipo={equipo}
-          asignado={asignadoFiltro} onAsignado={setAsignadoFiltro}
-          atendido={atendidoFiltro} onAtendido={setAtendidoFiltro}
-          rango={vistaActiva === "lista" ? { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango } : null}
-        />
-        {totalPorRegistrar > 0 && (
-          <button
-            type="button"
-            onClick={() => setSoloPorRegistrar((v) => !v)}
-            aria-pressed={soloPorRegistrar}
-            title="Citas agendadas en línea cuyo paciente aún no está registrado"
-            className={"flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors cursor-pointer " + (soloPorRegistrar ? "border-amber-300 bg-amber-100 text-amber-800" : "border-amber-200/60 bg-amber-50 text-amber-700 hover:bg-amber-100")}
-          >
-            <UserPlus size={13} aria-hidden="true" />
-            {totalPorRegistrar} por registrar
-          </button>
-        )}
-        {vistaActiva !== "lista" && totalCanceladas > 0 && (
-          <div className="ml-auto">
+      {/* ─── BARRA SUPERIOR: dos filas con la misma altura en las tres vistas ─── */}
+      <div className="space-y-2.5">
+        {/* Fila 1: el selector de vista no se mueve nunca. A la derecha, lo que falta registrar. */}
+        <div className="flex h-10 items-center justify-between gap-2">
+          {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
+              Cobrar) y la semana/el mes para planificar. Conviven sobre los
+              mismos datos. La semana no se ofrece donde no cabe. */}
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
+            {[
+              { key: "lista", label: "Lista", Icono: List },
+              ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
+              { key: "mes", label: "Mes", Icono: CalendarDays },
+            ].map((op) => (
               <button
+                key={op.key}
                 type="button"
-                onClick={() => setVerCanceladas((v) => !v)}
-                aria-pressed={verCanceladas}
-                title={verCanceladas ? "Ocultar las citas canceladas" : "Mostrar las citas canceladas"}
-                className={"flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors cursor-pointer " + (verCanceladas ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200/60 bg-white text-slate-500 hover:bg-slate-50")}
+                onClick={() => setVista(op.key)}
+                aria-pressed={vistaActiva === op.key}
+                className={"flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaActiva === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
+                style={vistaActiva === op.key ? { background: GRAD } : undefined}
               >
-                <Eye size={13} aria-hidden="true" />
-                Canceladas ({totalCanceladas})
+                <op.Icono size={14} aria-hidden="true" />
+                {op.label}
               </button>
+            ))}
           </div>
-        )}
+          {totalPorRegistrar > 0 && (
+            <button
+              type="button"
+              onClick={() => setSoloPorRegistrar((v) => !v)}
+              aria-pressed={soloPorRegistrar}
+              title="Citas agendadas en línea cuyo paciente aún no está registrado"
+              className={"flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors cursor-pointer " + (soloPorRegistrar ? "border-amber-300 bg-amber-100 text-amber-800" : "border-amber-200/60 bg-amber-50 text-amber-700 hover:bg-amber-100")}
+            >
+              <UserPlus size={13} aria-hidden="true" />
+              {totalPorRegistrar} por registrar
+            </button>
+          )}
+        </div>
+
+        {/* Fila 2: el periodo (en la Lista, filtro; en Semana y Mes, flechas + Hoy + rango),
+            en un espacio de ancho fijo, y después estado, buscador y más filtros, siempre en el mismo sitio. */}
+        <div className="flex h-10 items-center gap-2">
+          <div className="flex w-[17rem] shrink-0 items-center gap-2">
+            {vistaActiva === "lista" ? (
+              <GrupoOpciones
+                etiqueta="Periodo de las citas"
+                valor={filtro}
+                onChange={setFiltro}
+                opciones={PERIODOS_FILTRO}
+                conteos={{ hoy: totalHoy, proximas: totalProximas, todas: conteosEstado.todas }}
+              />
+            ) : (
+              <>
+                <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
+                    aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+                    title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={irAHoy}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
+                  >
+                    Hoy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
+                    aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+                    title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <h2 className="min-w-0 truncate text-sm font-bold" style={{ color: INK }}>{vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}</h2>
+              </>
+            )}
+          </div>
+          <GrupoOpciones etiqueta="Estado de la cita" valor={estadoFiltro} onChange={setEstadoFiltro} opciones={ESTADOS_FILTRO} conteos={conteosEstado} verConteos={false} />
+          <BuscadorCitas valor={busqueda} onChange={setBusqueda} />
+          <BotonFiltros
+            cantidad={filtrosEnPanel}
+            origen={origenFiltro} onOrigen={setOrigenFiltro}
+            seguimiento={seguimientoFiltro} onSeguimiento={setSeguimientoFiltro}
+            esAdmin={usuario?.rol === "admin"} equipo={equipo}
+            asignado={asignadoFiltro} onAsignado={setAsignadoFiltro}
+            atendido={atendidoFiltro} onAtendido={setAtendidoFiltro}
+            rango={vistaActiva === "lista" ? { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango } : null}
+          />
+        </div>
       </div>
 
       {/* ─── FILTROS ACTIVOS: etiquetas con su "x" y "Limpiar filtros" ─── */}

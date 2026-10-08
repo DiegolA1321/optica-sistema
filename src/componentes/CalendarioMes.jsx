@@ -137,7 +137,7 @@ export default function CalendarioMes({ mes, citasPorFecha, cobroPendienteIds, c
   return (
     <section ref={refSeccion} aria-label="Calendario mensual" className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ height: altoSeccion }}>
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5" style={{ height: ALTO_TITULO }}>
-        <div className="flex items-center gap-4"><h2 className="text-sm font-bold" style={{ color: INK }}>{MESES[mes.getMonth()].replace(/^./, (l) => l.toUpperCase())} de {mes.getFullYear()}</h2>{modo === "citas" ? <LeyendaEstados /> : (
+        <div className="flex items-center gap-4"><h2 className="sr-only">{MESES[mes.getMonth()].replace(/^./, (l) => l.toUpperCase())} de {mes.getFullYear()}</h2>{modo === "citas" ? <LeyendaEstados /> : (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500" aria-label="Escala de carga">
             <span>Menos</span>
             {[1, 2, 3, 4].map((n) => <span key={n} className="h-3 w-5 rounded-sm border border-slate-200/60" style={{ backgroundColor: FONDO_CARGA[n] }} aria-hidden="true" />)}

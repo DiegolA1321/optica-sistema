@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { INK } from "@/lib/tema"
-import { ESTADOS_FILTRO, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO } from "../utilidades/filtrosCitas"
+import { ORIGENES_FILTRO, SEGUIMIENTO_FILTRO } from "../utilidades/filtrosCitas"
 
 // Piezas del bloque de filtros de Citas (R3-R5). Lo que se usa siempre queda a
 // la vista (buscador y estado); lo demás vive dentro del botón "Filtros".
@@ -63,7 +63,7 @@ function SelectorResponsable({ etiqueta, valor, onChange, equipo }) {
 // Buscador: siempre visible.
 export function BuscadorCitas({ valor, onChange }) {
   return (
-    <div className="relative min-w-[11rem] max-w-[17rem] flex-1">
+    <div className="relative min-w-[7rem] max-w-[17rem] flex-1">
       <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
       <label htmlFor="citas-busqueda" className="sr-only">Buscar paciente o código de cita</label>
       <input
@@ -71,38 +71,42 @@ export function BuscadorCitas({ valor, onChange }) {
         type="text"
         value={valor}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Buscar paciente o código..."
+        placeholder="Buscar paciente..."
         className="w-full rounded-xl border border-slate-200/60 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-800 shadow-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
       />
     </div>
   )
 }
 
-// Estado de la cita: un solo control (lista desplegable) con cuántas hay de
-// cada estado. Es el único control de estado de la pantalla.
-export function SelectorEstado({ valor, onChange, conteos }) {
-  const activo = valor !== "todas"
+// Opciones desplegadas en un solo grupo (periodo de la Lista, estado de la
+// cita): todas a la vista, con su contador, sin abrir nada. La elegida va rellena.
+export function GrupoOpciones({ etiqueta, valor, onChange, opciones, conteos, verConteos = true }) {
   return (
-    <label
-      className={"flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition-colors focus-within:ring-2 focus-within:ring-blue-100 " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-500")}
-      style={activo ? { backgroundColor: INK } : undefined}
-    >
-      <span>Estado</span>
-      <select
-        aria-label="Estado de la cita"
-        value={valor}
-        onChange={(e) => onChange(e.target.value)}
-        className={"cursor-pointer bg-transparent text-xs font-bold outline-none " + (activo ? "text-white" : "text-slate-700")}
-      >
-        {ESTADOS_FILTRO.map((e) => (
-          <option key={e.id} value={e.id} className="text-slate-800">{e.etiqueta}{conteos?.[e.id] != null ? ` (${conteos[e.id]})` : ""}</option>
-        ))}
-      </select>
-    </label>
+    <div role="group" aria-label={etiqueta} className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+      {opciones.map((o) => {
+        const activo = valor === o.id
+        return (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onChange(o.id)}
+            aria-pressed={activo}
+            title={!verConteos && conteos?.[o.id] != null ? `${o.etiqueta}: ${conteos[o.id]}` : undefined}
+            className={"inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")}
+            style={activo ? { backgroundColor: INK } : undefined}
+          >
+            {o.etiqueta}
+            {verConteos && conteos?.[o.id] != null && (
+              <span className={"rounded-full px-1.5 text-[11px] font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{conteos[o.id]}</span>
+            )}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
-// Botón "Filtros" con el contador y, debajo, el panel con lo menos usado:
+// Botón "Más filtros" con el contador y, debajo, el panel con lo menos usado:
 // origen, visita y (solo administrador) los responsables. Se cierra con
 // Escape o al hacer clic fuera.
 export function BotonFiltros({ cantidad, origen, onOrigen, seguimiento, onSeguimiento, esAdmin, equipo, asignado, onAsignado, atendido, onAtendido, rango }) {
@@ -124,9 +128,9 @@ export function BotonFiltros({ cantidad, origen, onOrigen, seguimiento, onSeguim
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
         aria-controls="citas-filtros-panel"
-        className={"inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
+        className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
       >
-        <SlidersHorizontal size={14} aria-hidden="true" /> Filtros
+        <SlidersHorizontal size={14} aria-hidden="true" /> Más filtros
         {cantidad > 0 && <span className="rounded-full px-1.5 text-xs font-bold text-white" style={{ backgroundColor: INK }}>{cantidad}</span>}
         <ChevronDown size={14} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>

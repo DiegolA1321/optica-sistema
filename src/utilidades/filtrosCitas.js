@@ -6,8 +6,14 @@ export const ESTADOS_FILTRO = [
   { id: "pendiente", etiqueta: "Pendientes" },
   { id: "enAtencion", etiqueta: "En atención" },
   { id: "atendida", etiqueta: "Atendidas" },
-  { id: "cancelada", etiqueta: "Canceladas" },
   { id: "noAsistio", etiqueta: "No asistió" },
+  { id: "cancelada", etiqueta: "Canceladas" },
+]
+
+export const PERIODOS_FILTRO = [
+  { id: "hoy", etiqueta: "Hoy" },
+  { id: "proximas", etiqueta: "Próximas" },
+  { id: "todas", etiqueta: "Todas" },
 ]
 
 export const ORIGENES_FILTRO = [
