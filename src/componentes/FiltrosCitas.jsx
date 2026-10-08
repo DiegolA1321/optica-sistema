@@ -23,7 +23,7 @@ function useCierre(abierto, cerrar) {
 
 // Barra única de búsqueda y filtros: "Filtrar" abre un panel con todas las categorías a la vista (los filtros elegidos quedan como etiquetas con su "x" dentro de la
 // barra, y el campo de búsqueda ocupa el resto. "Limpiar" quita etiquetas y búsqueda.
-// secciones: [{ id, titulo, valor, onChange, opciones: [{ id, etiqueta, conteo }], tipo?: "chips" | "lista" }]
+// secciones: [{ id, titulo, valor, onChange, opciones: [{ id, etiqueta }], tipo?: "chips" | "lista" | "rango" }] (el tipo "rango" lleva `rango`: { desde, hasta, onDesde, onHasta })
 export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useCierre(abierto, () => setAbierto(false))
@@ -74,7 +74,9 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           {secciones.map((s) => (
             <div key={s.id} role="group" aria-label={s.titulo} className="space-y-1.5">
               <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">{s.titulo}</span>
-              {s.tipo === "lista" ? (
+              {s.tipo === "rango" ? (
+                <SeccionRango rango={s.rango} />
+              ) : s.tipo === "lista" ? (
                 <select
                   aria-label={s.titulo}
                   value={s.valor}
@@ -136,13 +138,6 @@ function CalendarioRango({ rango }) {
   const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Rango de fechas</span>
-        <div className="flex items-center gap-0.5">
-          <button type="button" onClick={() => rango.onMover(-1)} aria-label="Rango anterior" title="Rango anterior" className={flecha}><ChevronLeft size={14} /></button>
-          <button type="button" onClick={() => rango.onMover(1)} aria-label="Rango siguiente" title="Rango siguiente" className={flecha}><ChevronRight size={14} /></button>
-        </div>
-      </div>
       <div className="rounded-xl border border-slate-200/60 bg-slate-50/40 p-2.5">
         <div className="mb-2 flex items-center justify-between px-0.5">
           <span className="text-xs font-bold capitalize" style={{ color: INK }}>{MESES[mes.getMonth()]} {mes.getFullYear()}</span>
@@ -181,46 +176,62 @@ function CalendarioRango({ rango }) {
   )
 }
 
-// Periodo de la Lista: Hoy · Próximas · Todas · Rango… (el rango pide dos fechas en un popover).
-export function PeriodoLista({ valor, onChange, opciones, rango }) {
-  const [abierto, setAbierto] = useState(false)
-  const ref = useCierre(abierto, () => setAbierto(false))
-  const hayRango = Boolean(rango.desde || rango.hasta)
-  const corta = (iso) => (iso ? iso.split("-").reverse().slice(0, 2).join("/") : "…")
+// Periodo de la Lista: Hoy · Semana · Mes. Con un rango de fechas elegido en el panel "Filtrar" ninguno queda marcado.
+export function PeriodoLista({ valor, onChange, opciones, sinActivo = false }) {
   return (
-    <div ref={ref} role="group" aria-label="Periodo de las citas" className="relative flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+    <div role="group" aria-label="Periodo de las citas" className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
       {opciones.map((o) => {
-        const activo = !hayRango && valor === o.id
+        const activo = !sinActivo && valor === o.id
         return (
           <button
             key={o.id}
             type="button"
-            onClick={() => { setAbierto(false); onChange(o.id) }}
+            onClick={() => onChange(o.id)}
             aria-pressed={activo}
-            className={"inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")}
+            className={"inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")}
             style={activo ? { backgroundColor: INK } : undefined}
           >
             {o.etiqueta}
-            {o.conteo != null && <span className={"rounded-full px-1 text-[11px] font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// Flechas ‹ › con el título del periodo que se ve (igual en Lista, Semana y Mes).
+export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnterior, etiquetaSiguiente }) {
+  const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="flex shrink-0 items-center rounded-lg border border-slate-200/60 bg-white p-0.5 shadow-sm">
+        <button type="button" onClick={onAnterior} aria-label={etiquetaAnterior} title={etiquetaAnterior} className={flecha}><ChevronLeft size={14} /></button>
+        <button type="button" onClick={onSiguiente} aria-label={etiquetaSiguiente} title={etiquetaSiguiente} className={flecha}><ChevronRight size={14} /></button>
+      </div>
+      <h2 className="min-w-0 truncate text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
+    </div>
+  )
+}
+
+// Sección "Fechas" del panel: un botón con el rango elegido que despliega el calendario.
+function SeccionRango({ rango }) {
+  const [abierto, setAbierto] = useState(Boolean(rango.desde))
+  const corta = (iso) => { const d = isoAFechaLocal(iso); return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}` }
+  const texto = rango.desde && rango.hasta ? `${corta(rango.desde)} – ${corta(rango.hasta)}` : rango.desde ? `Desde el ${corta(rango.desde)}` : "Elegir rango de fechas…"
+  const hay = Boolean(rango.desde || rango.hasta)
+  return (
+    <div className="space-y-2">
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
-        aria-pressed={hayRango}
-        className={"inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (hayRango ? "text-white" : "text-slate-600 hover:bg-slate-50")}
-        style={hayRango ? { backgroundColor: INK } : undefined}
+        className={"flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (hay ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
+        style={hay ? { backgroundColor: INK } : undefined}
       >
-        {hayRango ? `${corta(rango.desde)} – ${corta(rango.hasta)}` : "Rango…"}
-        {hayRango && rango.conteo != null && <span className="rounded-full bg-white/20 px-1.5 text-[11px] font-bold tabular-nums text-white">{rango.conteo}</span>}
+        <span className="truncate">{texto}</span>
+        <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>
-      {abierto && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 w-[17.5rem] space-y-2 rounded-2xl border border-slate-200/60 bg-white p-3 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
-          <CalendarioRango rango={rango} />
-        </div>
-      )}
+      {abierto && <CalendarioRango rango={rango} />}
     </div>
   )
 }

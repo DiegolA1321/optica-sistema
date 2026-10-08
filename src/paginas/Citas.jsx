@@ -16,7 +16,6 @@ import {
   Stethoscope,
   CalendarClock,
   CalendarPlus,
-  ChevronLeft,
   ChevronRight,
   ChevronDown,
   UserX,
@@ -44,20 +43,19 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
-import { BarraBusquedaFiltros, PeriodoLista, ConteoCitas } from "../componentes/FiltrosCitas"
+import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
 import { urlPerfilPaciente } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import SelectorAsignado from "../componentes/SelectorAsignado"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
-import { rangoDelMes } from "../utilidades/inicio"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { isoAFechaLocal, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, periodosFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, periodosFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -304,6 +302,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
 }
 
 const FILTRO_POR_DEFECTO = "hoy"
+const PAGINA_LISTA = 30
 
 export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
@@ -381,7 +380,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       setEstadoFiltro(estado)
       setFiltro("todas")
       setVistaState("lista") // la tarjeta promete una lista filtrada; no se pisa la vista guardada
-      if (periodo === "mes") { const r = rangoDelMes(); setRangoDesde(r.desde); setRangoHasta(r.hasta) }
+      if (periodo === "mes") { setFiltro("mes"); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
       else if (periodo === "siempre") { setRangoDesde(""); setRangoHasta("") }
       else if (periodo === "reagendar") { setFiltro("reagendar"); setRangoDesde(""); setRangoHasta("") } // el atajo "Para reagendar" de la Lista
       onEstadoInicialConsumido?.()
@@ -398,22 +397,27 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   const [busqueda, setBusqueda] = useState("")
   // Todos los roles abren en Lista, periodo "Hoy": recepción ve quién viene, el optómetra su agenda y el
-  // administrador lo que pasa hoy. Si hoy no hay citas se avisa y se ofrece "Ver próximas".
-  const [filtro, setFiltro] = useState(FILTRO_POR_DEFECTO) // hoy | confirmar | reagendar | proximas | todas
+  // administrador lo que pasa hoy. Si hoy no hay citas se avisa y se ofrece "Ver esta semana".
+  // La Lista muestra de a 30 citas y ofrece "Ver más": con miles de citas no se dibujan todas de golpe.
+  const [limiteLista, setLimiteLista] = useState(PAGINA_LISTA)
+  // Día que se está viendo en la Lista: el periodo (Hoy · Semana · Mes) se calcula a partir de él y las flechas lo mueven.
+  const [refLista, setRefLista] = useState(() => hoyISO())
+  const [filtro, setFiltro] = useState(FILTRO_POR_DEFECTO) // hoy | semana | mes | reagendar | todas
   // Bloque de filtros (R3): estado, origen y primera vez/seguimiento. Se
   // combinan entre sí y con el indicador de arriba.
   const [estadoFiltro, setEstadoFiltro] = useState("todas")
   const [origenFiltro, setOrigenFiltro] = useState("todos")
   const [seguimientoFiltro, setSeguimientoFiltro] = useState("todos")
   // Solo el administrador: filtrar por quién estaba a cargo (R18).
-  const [asignadoFiltro, setAsignadoFiltro] = useState("todos") // todos | ninguno | id
-  const [atendidoFiltro, setAtendidoFiltro] = useState("todos")
+  const [responsableFiltro, setResponsableFiltro] = useState("todos") // todos | ninguno | id (asignada o atendida por)
   // Rango de fechas propio (reunión 29 sept.: "todas las de la siguiente
   // semana"), independiente de los KPIs. Sin rango, la lista abre en hoy y lo
   // próximo, y lo pasado queda plegado en "Anteriores". Con rango, se muestra
   // exactamente ese tramo — hacia atrás o hacia adelante.
   const [rangoDesde, setRangoDesde] = useState("")
   const [rangoHasta, setRangoHasta] = useState("")
+  // Al cambiar de periodo, filtro o búsqueda, la Lista vuelve a mostrar solo las primeras citas.
+  useEffect(() => { setLimiteLista(PAGINA_LISTA) }, [refLista, filtro, estadoFiltro, origenFiltro, seguimientoFiltro, responsableFiltro, busqueda, rangoDesde, rangoHasta])
   const [anterioresAbierto, setAnterioresAbierto] = useState(false)
   const [porCancelar, setPorCancelar] = useState(null)
 
@@ -1085,14 +1089,22 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
 
   // ── Filtros combinados (lógica en utilidades/filtrosCitas). En Semana y Mes el
-  // periodo visible hace de ventana; en Lista el periodo (Hoy · Próximas · Todas · Rango)
+  // periodo visible hace de ventana; en Lista el periodo (Hoy · Esta semana · Este mes · Rango)
   // es un filtro más. La búsqueda mira el nombre y el código de cita (CIT-2026-ABC123)
   // que el paciente recibe al reservar en línea. ──
   const hayRango = Boolean(rangoDesde || rangoHasta)
-  // Atajos por tarea: el día de atención que recepción debe confirmar y las citas que hay que volver a agendar.
-  const diaConfirmar = useMemo(() => proximoDiaDeAtencion(disponibilidad, hoyISO()), [disponibilidad])
+  // Periodos de la Lista, los mismos de las vistas Semana y Mes, a partir del día de referencia.
+  const rangos = useMemo(() => {
+    const lunes = lunesDeSemana(refLista)
+    const d = isoAFechaLocal(refLista)
+    return {
+      hoy: { desde: refLista, hasta: refLista },
+      semana: { desde: lunes, hasta: sumarDiasISO(lunes, 6) },
+      mes: { desde: fechaAISO(new Date(d.getFullYear(), d.getMonth(), 1)), hasta: fechaAISO(new Date(d.getFullYear(), d.getMonth() + 1, 0)) },
+    }
+  }, [refLista])
   const idsReagendar = useMemo(() => new Set(citasParaReagendar(citas).map((c) => c.id)), [citas])
-  const periodos = useMemo(() => periodosFiltro(diaConfirmar, hoyISO(), filtro === "reagendar"), [diaConfirmar, filtro])
+  const periodos = useMemo(() => periodosFiltro(filtro), [filtro])
   const ventana = useMemo(() => {
     if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
     if (vistaActiva === "mes") {
@@ -1102,8 +1114,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     return null
   }, [vistaActiva, semanaLunes, mesVista])
   const filtros = useMemo(
-    () => ({ estado: estadoFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, asignado: asignadoFiltro, atendido: atendidoFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana, diaConfirmar, idsReagendar }),
-    [estadoFiltro, origenFiltro, seguimientoFiltro, asignadoFiltro, atendidoFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana, diaConfirmar, idsReagendar],
+    () => ({ estado: estadoFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, responsable: responsableFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana, rangos, idsReagendar }),
+    [estadoFiltro, origenFiltro, seguimientoFiltro, responsableFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana, rangos, idsReagendar],
   )
   const resultado = useMemo(() => citas.filter((c) => citaPasaFiltros(c, filtros, consultas)), [citas, filtros, consultas])
   const totalAlcance = useMemo(() => totalDelAlcance(citas, filtros), [citas, filtros])
@@ -1134,7 +1146,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // un historial, así que va de la más reciente a la más antigua.
   const { grupos, gruposAnteriores } = useMemo(() => {
     const hoy = hoyISO()
-    if (hayRango) return { grupos: agruparPorDia(ordenarCitas(resultado)), gruposAnteriores: [] }
+    if (hayRango || ((filtro === "hoy" || filtro === "semana" || filtro === "mes") && !busqueda.trim())) return { grupos: agruparPorDia(ordenarCitas(resultado)), gruposAnteriores: [] }
     // Atendidas, canceladas y No asistió son historial: de la más reciente a la
     // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
     if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
@@ -1142,14 +1154,14 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
     const { proximas, anteriores } = particionarAgenda(resultado, hoy)
     return { grupos: agruparPorDia(proximas), gruposAnteriores: agruparPorDia(anteriores) }
-  }, [resultado, estadoFiltro, hayRango])
+  }, [resultado, estadoFiltro, hayRango, filtro, busqueda])
 
   const totalAnteriores = gruposAnteriores.reduce((n, [, cs]) => n + cs.length, 0)
 
   // Primera vez = sin atenciones anteriores (ver esPrimeraVez). Se calcula una
   // vez para todas las citas y las tarjetas solo consultan el conjunto.
   const idsPrimeraVez = useMemo(() => new Set(citas.filter((c) => esPrimeraVez(c, consultas)).map((c) => c.id)), [citas, consultas])
-  const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (asignadoFiltro !== "todos") + (atendidoFiltro !== "todos")
+  const filtrosActivos = (estadoFiltro !== "todas") + (origenFiltro !== "todos") + (seguimientoFiltro !== "todos") + (responsableFiltro !== "todos")
 
   // Fecha real de atención por cita (punto 3, reunión 29 sept.) — la cita
   // conserva su fecha/hora agendada; cita_id (migración 0079) vincula con
@@ -1176,6 +1188,14 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
+  const textoDia = (iso) => { const d = isoAFechaLocal(iso); return `${d.getDate()} ${d.toLocaleDateString("es-EC", { month: "short" }).replace(".", "")}` }
+  // Flechas de la Lista: mueven el día, la semana o el mes que se ve (o el rango libre, de a una semana).
+  const moverLista = (sentido) => {
+    if (hayRango) return moverRango(sentido)
+    if (filtro === "hoy") setRefLista((r) => sumarDiasISO(r, sentido))
+    else if (filtro === "semana") setRefLista((r) => sumarDiasISO(r, 7 * sentido))
+    else if (filtro === "mes") setRefLista((r) => { const d = isoAFechaLocal(r); return fechaAISO(new Date(d.getFullYear(), d.getMonth() + sentido, 1)) })
+  }
   const moverRango = (sentido) => {
     const r = desplazarRango(rangoDesde, rangoHasta, sentido, hoyISO())
     setRangoDesde(r.desde)
@@ -1196,6 +1216,17 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       : `${a.getDate()} ${mes(a)} – ${b.getDate()} ${mes(b)} ${b.getFullYear()}`
   }
   const tituloMes = (m) => m.toLocaleDateString("es-EC", { month: "long", year: "numeric" }).replace(/^./, (l) => l.toUpperCase())
+  const tituloLista = (() => {
+    if (hayRango) return `${rangoDesde ? textoDia(rangoDesde) : "…"} – ${rangoHasta ? textoDia(rangoHasta) : "…"}`
+    const d = isoAFechaLocal(refLista)
+    if (filtro === "hoy") {
+      const dia = d.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "short" }).replace(".", "")
+      return `${refLista === hoyISO() ? "Hoy · " : ""}${dia}`
+    }
+    if (filtro === "semana") return rangoSemanaCorto(Array.from({ length: 7 }, (_, i) => rangos.semana.desde && sumarDiasISO(rangos.semana.desde, i)))
+    if (filtro === "mes") return tituloMes(d)
+    return ""
+  })()
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
@@ -1215,38 +1246,40 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
   const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
-  // Filtros elegidos en el panel "Filtrar", como etiquetas con su "x" dentro de la barra. El periodo (Hoy, Próximas…)
+  // Filtros elegidos en el panel "Filtrar", como etiquetas con su "x" dentro de la barra. El periodo (Hoy, Esta semana, Este mes…)
   // se ve en sus propios atajos y la búsqueda en su campo, así que no llevan etiqueta.
   const nombreResponsableFiltro = (valor) => (valor === "ninguno" ? "Nadie" : etiquetaMiembro(equipo, valor) || "—")
   const etiquetasActivas = [
     estadoFiltro !== "todas" && { id: "estado", texto: `Estado: ${ESTADOS_FILTRO.find((e) => e.id === estadoFiltro)?.etiqueta}`, quitar: () => setEstadoFiltro("todas") },
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
-    asignadoFiltro !== "todos" && { id: "asignado", texto: `Asignada a: ${nombreResponsableFiltro(asignadoFiltro)}`, quitar: () => setAsignadoFiltro("todos") },
-    atendidoFiltro !== "todos" && { id: "atendido", texto: `Atendida por: ${nombreResponsableFiltro(atendidoFiltro)}`, quitar: () => setAtendidoFiltro("todos") },
+    responsableFiltro !== "todos" && { id: "responsable", texto: `Responsable: ${nombreResponsableFiltro(responsableFiltro)}`, quitar: () => setResponsableFiltro("todos") },
+    vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${rangoDesde ? textoDia(rangoDesde) : "…"} – ${rangoHasta ? textoDia(rangoHasta) : "…"}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
   ].filter(Boolean)
 
   // "89 citas" sin filtros; "Mostrando 5 de 89 citas" cuando hay menos que el total (en Semana y Mes, del periodo visible).
   const mostradas = resultado.length
   const buscando = busqueda.trim() !== ""
   const hayFiltros = etiquetasActivas.length > 0 || buscando
-  const sufijoPeriodo = vistaActiva === "semana" ? " en la semana" : vistaActiva === "mes" ? " en el mes" : ""
+  // Igual en las tres vistas: "16 citas en la semana", "27 citas en el mes", "3 citas hoy"; con búsqueda (todas las fechas), sin sufijo.
+  const periodoDeLaVista = vistaActiva !== "lista" ? vistaActiva : buscando ? null : hayRango ? "rango" : filtro
+  const sufijoPeriodo = { semana: " en la semana", mes: " en el mes", rango: " en el rango", hoy: refLista === hoyISO() ? " hoy" : " ese día" }[periodoDeLaVista] || ""
   // Hoy sin citas (y sin otros filtros): nunca una lista vacía, se avisa y se ofrece ver lo que viene.
-  const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !hayFiltros && mostradas === 0
+  const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && refLista === hoyISO() && !hayRango && !hayFiltros && mostradas === 0
   const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
-  const elegirPeriodo = (id) => { setFiltro(id); setRangoDesde(""); setRangoHasta("") }
+  const elegirPeriodo = (id) => { setFiltro(id); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
   const opcionesResponsable = [{ id: "todos", etiqueta: "Todos" }, { id: "ninguno", etiqueta: "Nadie" }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre }))]
   const seccionesFiltro = [
     { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
     { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
     { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
+    ...(vistaActiva === "lista" ? [{ id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta } }] : []),
     ...(usuario?.rol === "admin" ? [
-      { id: "asignado", titulo: "Asignada a", tipo: "lista", valor: asignadoFiltro, onChange: setAsignadoFiltro, opciones: opcionesResponsable },
-      { id: "atendido", titulo: "Atendida por", tipo: "lista", valor: atendidoFiltro, onChange: setAtendidoFiltro, opciones: opcionesResponsable },
+      { id: "responsable", titulo: "Responsable", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable },
     ] : []),
   ]
   // Limpiar quita los filtros del panel y la búsqueda; el periodo se cambia con sus atajos.
-  const limpiarFiltrosPanel = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setAsignadoFiltro("todos"); setAtendidoFiltro("todos"); setBusqueda("") }
+  const limpiarFiltrosPanel = () => { setEstadoFiltro("todas"); setOrigenFiltro("todos"); setSeguimientoFiltro("todos"); setResponsableFiltro("todos"); setBusqueda(""); setRangoDesde(""); setRangoHasta("") }
 
   // Un día de la lista: rail con la fecha + sus tarjetas (colapsable).
   const renderDia = ([dia, citasDia]) => {
@@ -1310,6 +1343,29 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // Hoy sin citas nunca deja la pantalla en blanco: se avisa y se muestra lo
   // más cercano (criterio 1 del ingeniero).
   const anterioresVisibles = anterioresAbierto || (grupos.length === 0 && totalAnteriores > 0)
+  // "Ver más": se dibujan las primeras `limiteLista` citas (primero las del listado y luego, si están abiertas, las
+  // anteriores); el conteo de arriba sigue diciendo el total real.
+  const recortarGrupos = (gs, max) => {
+    const salida = []
+    let n = 0
+    for (const [dia, cs] of gs) {
+      if (n >= max) break
+      const tomadas = cs.slice(0, max - n)
+      salida.push([dia, tomadas])
+      n += tomadas.length
+    }
+    return { grupos: salida, n }
+  }
+  const cuantas = (gs) => gs.reduce((n, [, cs]) => n + cs.length, 0)
+  const recorteListado = recortarGrupos(grupos, limiteLista)
+  const recorteAnteriores = recortarGrupos(anterioresVisibles ? gruposAnteriores : [], limiteLista - recorteListado.n)
+  const faltanListado = cuantas(grupos) - recorteListado.n
+  const faltanAnteriores = anterioresVisibles ? totalAnteriores - recorteAnteriores.n : 0
+  const botonVerMas = (faltan) => (
+    <button type="button" onClick={() => setLimiteLista((l) => l + PAGINA_LISTA)} className="mx-auto flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
+      Ver {Math.min(PAGINA_LISTA, faltan)} más <span className="font-normal text-slate-500">· quedan {faltan}</span>
+    </button>
+  )
   const avisoSinCitasHoy = hayRango || filtro !== "todas" || filtrosActivos > 0 || busqueda
     ? null
     : grupos.length === 0
@@ -1373,7 +1429,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
               Cobrar) y la semana/el mes para planificar. Conviven sobre los
               mismos datos. La semana no se ofrece donde no cabe. */}
-          <div className="order-2 flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
+          <div className="flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
             {[
               { key: "lista", label: "Lista", Icono: List },
               ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
@@ -1395,44 +1451,33 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           <BarraBusquedaFiltros texto={busqueda} onTexto={setBusqueda} secciones={seccionesFiltro} etiquetas={etiquetasActivas} onLimpiar={limpiarFiltrosPanel} />
         </div>
 
-        <div className={"flex h-10 items-center justify-between gap-3" + (vistaActiva === "lista" ? "" : " flex-row-reverse pt-2.5")}>
-          {vistaActiva === "lista" ? (
-            buscando ? (
+        {/* Fila 2, igual en las tres vistas: a la izquierda cuántas citas se ven; a la derecha, el periodo (en la Lista,
+            Hoy · Semana · Mes) y las flechas ‹ › con su título. */}
+        <div className="flex h-12 items-center justify-between gap-3 pt-2.5">
+          <div className="flex min-w-0 items-center gap-3">
+            {vistaActiva === "lista" && buscando && (
               <p className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Search size={14} aria-hidden="true" /> Buscando en todas las fechas</p>
-            ) : (
-              <PeriodoLista
-                valor={filtro}
-                onChange={elegirPeriodo}
-                opciones={periodos}
-                rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta, onMover: moverRango }}
-              />
+            )}
+            <ConteoCitas texto={textoResumen} />
+          </div>
+          {vistaActiva === "lista" ? (
+            !buscando && (
+              <div className="flex min-w-0 items-center gap-3">
+                <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} />
+                {(hayRango || ["hoy", "semana", "mes"].includes(filtro)) && (
+                  <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" />
+                )}
+              </div>
             )
           ) : (
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="flex shrink-0 items-center rounded-lg border border-slate-200/60 bg-white p-0.5 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
-                  aria-label={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-                  title={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
-                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
-                  aria-label={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-                  title={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
-                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-              <h2 className="min-w-0 truncate text-[13px] font-semibold" style={{ color: INK }}>{vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}</h2>
-            </div>
+            <NavegadorPeriodo
+              titulo={vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}
+              onAnterior={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
+              onSiguiente={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
+              etiquetaAnterior={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+              etiquetaSiguiente={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+            />
           )}
-          <ConteoCitas texto={textoResumen} />
         </div>
       </div>
 
@@ -1502,7 +1547,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           </div>
           <p className="mt-4 text-base font-semibold text-slate-600">{hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : totalAlcance > 0 ? "Ninguna cita en este periodo" : "Todavía no hay citas"}</p>
           {hoySinCitas ? (
-            <button type="button" onClick={() => setFiltro("proximas")} className="mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Ver próximas</button>
+            <button type="button" onClick={() => setFiltro("semana")} className="mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Ver esta semana</button>
           ) : hayFiltros ? (
             <button type="button" onClick={limpiarFiltrosPanel} className="mt-3 rounded-xl border border-slate-200/60 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">Limpiar filtros</button>
           ) : (
@@ -1516,7 +1561,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               {avisoSinCitasHoy}
             </p>
           )}
-          {grupos.map(renderDia)}
+          {recorteListado.grupos.map(renderDia)}
+          {faltanListado > 0 && botonVerMas(faltanListado)}
           {totalAnteriores > 0 && (
             <section aria-label="Citas anteriores">
               <button
@@ -1529,7 +1575,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                 <span className="text-sm font-bold" style={{ color: INK }}>Anteriores</span>
                 <span className="text-xs text-slate-500">· {totalAnteriores} {totalAnteriores === 1 ? "cita" : "citas"}, de la más reciente a la más antigua</span>
               </button>
-              {anterioresVisibles && <div className="mt-6 space-y-8">{gruposAnteriores.map(renderDia)}</div>}
+              {anterioresVisibles && (
+                <div className="mt-6 space-y-8">
+                  {recorteAnteriores.grupos.map(renderDia)}
+                  {faltanAnteriores > 0 && botonVerMas(faltanAnteriores)}
+                </div>
+              )}
             </section>
           )}
         </div>

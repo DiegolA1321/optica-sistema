@@ -32,15 +32,26 @@ describe("chips del panel Filtrar", () => {
   })
 })
 
-describe("rango de fechas", () => {
-  it("el primer clic marca el inicio y el segundo el final (intercambiados si va antes)", () => {
+describe("rango de fechas como filtro del panel", () => {
+  it("el primer clic marca el inicio y limpia el final", () => {
     const onDesde = vi.fn(), onHasta = vi.fn()
-    const rango = { desde: "", hasta: "", onDesde, onHasta, onMover: () => {} }
-    render(<PeriodoLista valor="hoy" onChange={() => {}} opciones={[{ id: "hoy", etiqueta: "Hoy" }]} rango={rango} />)
-    fireEvent.click(screen.getByRole("button", { name: /Rango/ }))
+    const secciones = [{ id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: "", hasta: "", onDesde, onHasta } }]
+    render(<BarraBusquedaFiltros texto="" onTexto={() => {}} secciones={secciones} etiquetas={[]} onLimpiar={() => {}} />)
+    fireEvent.click(screen.getByRole("button", { name: /Filtrar/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Elegir rango de fechas/ }))
     const dia = screen.getAllByRole("button").find((b) => /^\d\d\/\d\d\/\d{4}$/.test(b.getAttribute("aria-label") || ""))
     fireEvent.click(dia)
     expect(onDesde).toHaveBeenCalledWith(dia.getAttribute("aria-label").split("/").reverse().join("-"))
     expect(onHasta).toHaveBeenCalledWith("")
+  })
+})
+
+describe("PeriodoLista", () => {
+  it("marca el periodo activo, salvo con un rango de fechas elegido", () => {
+    const opciones = [{ id: "hoy", etiqueta: "Hoy" }, { id: "semana", etiqueta: "Semana" }]
+    const { rerender } = render(<PeriodoLista valor="semana" onChange={() => {}} opciones={opciones} />)
+    expect(screen.getByRole("button", { name: "Semana" })).toHaveAttribute("aria-pressed", "true")
+    rerender(<PeriodoLista valor="semana" onChange={() => {}} opciones={opciones} sinActivo />)
+    expect(screen.getByRole("button", { name: "Semana" })).toHaveAttribute("aria-pressed", "false")
   })
 })
