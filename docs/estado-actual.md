@@ -35,6 +35,19 @@ Sin cambios de base de datos en nada de esto.
 - **Cabecera:** ya **no hay** buscador global ni Ctrl + K (decisión de Diego). Dentro de Pacientes, Ctrl + K y "/" siguen enfocando su propio buscador.
 - **Archivos principales:** `src/paginas/Citas.jsx`, `src/componentes/FiltrosCitas.jsx`, `src/utilidades/filtrosCitas.js`, `src/utilidades/controles.js`, `src/paginas/Inicio.jsx`, `src/paginas/Dashboard.jsx`.
 
+## Reunión del 7 oct. (feedback-ing/requisitos-reunion-07oct-citas.md): C1 a C16
+
+Construido el 8 oct, **sin publicar** (commits `4a6e4b5` a `acb96c0` en `main` local):
+
+- **C11:** el filtro se llama **"Profesional"**: una sola persona por cita (quien atendió y, si no, la asignada). El detalle muestra "Asignado a" y "Atendido por" por separado.
+- **C12 y C13 (tarjeta):** sin menú ⋮, sin el ojo, sin "Agendar otra cita", sin motivo, origen ni código. Una etiqueta (Primera vez / Seguimiento / Por registrar), una línea de profesional, hora (con ✓ si está confirmada), estado y "Atender"/"Retomar"/"Cobrar". El borde de color sigue el estado (mismos colores del calendario).
+- **C15 (detalle):** tres columnas (la cita · el profesional · el paciente y su motivo), bloque "Estado" con cambios (**Llegó**, Aún no llegó, No asistió, Marcar como confirmada) y todas las acciones al pie (Ver perfil, Editar, Dejar de atender, Cancelar, Agendar otra cita, Cobrar, Atender/Retomar).
+- **Llegó → "En espera":** lo marca recepción en el detalle. "En espera" tiene su color (violeta) en el calendario, su leyenda y las tarjetas. Cuenta en "En sala de espera" de Recepción, el optómetra tiene esa misma tarjeta en su Inicio y su "Siguiente paciente" es quien ya llegó. **El proceso automático de "No asistió" no toca "En espera"**: solo actualiza citas `Pendiente` (verificado con una prueba dentro de una transacción deshecha: la pendiente pasó a No Asistió y la en espera quedó igual).
+- **C16:** "Atender" y "Retomar" entran directo a la ficha, sin el modal "Resumen de la cita" (también desde Inicio y desde el detalle). Una cita de otro día avisa al entrar que se atiende hoy sin mover su fecha agendada.
+- **Pendiente: C9** (bloque de filtros visibles). Falta que Diego apruebe el esquema (a 1366×768, sin números por opción, sin mover nada al cambiar de vista).
+- **Pruebas:** 402 unitarias; e2e `llego-en-espera.spec.js` (nuevo, óptica de pruebas) y `roles`, `inicio`, `admin-navegacion`, `despues-reunion` pasan.
+- **Capturas de revisión:** `C:\Users\diego\Downloads\citas-capturas\v4\` (las borra Diego).
+
 ## Cómo se verificó
 
 - **Pruebas unitarias:** `npx vitest run` → 401 pasan (`filtrosCitas.test.js`, `FiltrosCitas.test.jsx`, `controles.test.js`, `Inicio.test.jsx`).
