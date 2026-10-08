@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
-import { controlesSinAgendar, asignadoDelControl, canceladasPorPaciente } from "../utilidades/controles"
+import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
@@ -154,7 +154,7 @@ export default function Inicio({
 
   // Controles que el optómetra dejó "para agendar después" (o cuya cita se canceló) y siguen sin cita.
   const sinAgendar = useMemo(() => controlesSinAgendar(pacientes, consultas, citas), [pacientes, consultas, citas])
-  const canceladasPaciente = useMemo(() => canceladasPorPaciente(citas), [citas])
+  const paraReagendar = useMemo(() => citasParaReagendar(citas), [citas])
 
   // Pacientes que no visitan hace tiempo (adherencia a controles visuales)
   const inactivos = useMemo(() => {
@@ -446,20 +446,20 @@ export default function Inicio({
     })
   }
   if (incCanceladas) {
-    canceladasPaciente.slice(0, 3).forEach((cita) => filasAtencion.push({
-      id: "cancelada-" + cita.id,
-      icono: Ban,
-      titulo: `Cita cancelada por el paciente: ${cita.paciente}`,
+    paraReagendar.slice(0, 3).forEach((cita) => filasAtencion.push({
+      id: "reagendar-" + cita.id,
+      icono: cita.estado === "No Asistió" ? UserX : Ban,
+      titulo: cita.estado === "No Asistió" ? `No asistió a su cita: ${cita.paciente}` : `Cita cancelada por el paciente: ${cita.paciente}`,
       detalle: `Era el ${fechaLegible(cita.fecha)} a las ${cita.hora}${cita.motivo ? ` · ${cita.motivo}` : ""}, todavía sin reagendar`,
       acciones: [
         ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Reagendar", principal: true, onClick: () => onReagendarCancelada?.(cita) }] : []),
-        { etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("cancelada", "siempre") },
+        { etiqueta: "Ver en Citas", onClick: () => onVerCitas?.(cita.estado === "No Asistió" ? "noAsistio" : "cancelada", "siempre") },
       ],
     }))
-    if (canceladasPaciente.length > 3) filasAtencion.push({
-      id: "canceladas-mas", icono: Ban,
-      titulo: `Y ${plural(canceladasPaciente.length - 3, "cita cancelada por pacientes más", "citas canceladas por pacientes más")}`,
-      acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("cancelada", "siempre") }],
+    if (paraReagendar.length > 3) filasAtencion.push({
+      id: "reagendar-mas", icono: Ban,
+      titulo: `Y ${plural(paraReagendar.length - 3, "cita para reagendar más", "citas para reagendar más")}`,
+      acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("todas", "siempre") }],
     })
   }
   if (incPorConfirmar && porConfirmar.length > 0) {

@@ -110,6 +110,16 @@ describe("Inicio por rol", () => {
     expect(screen.getByLabelText("Resumen del día")).toHaveTextContent("Todo en orden")
   })
 
+  it("administrador: quien no asistió también aparece para reagendar, igual que en Citas", () => {
+    const noAsistio = { id: "cn", fecha: hoy, hora: "02:00 PM", estado: "No Asistió", paciente: "Paciente Cuatro", pacienteId: "p4", motivo: "Control" }
+    const reagendadas = []
+    render(<Inicio {...base} citas={[...base.citas, noAsistio]} onReagendarCancelada={(c) => reagendadas.push(c.id)} />)
+    const bloque = screen.getByRole("region", { name: "Requiere tu atención" })
+    expect(bloque).toHaveTextContent("No asistió a su cita: Paciente Cuatro")
+    fireEvent.click(within(bloque).getAllByRole("button", { name: "Reagendar" })[0])
+    expect(reagendadas).toEqual(["cn"])
+  })
+
   it("administrador: aviso de cita cancelada por el paciente con botón Reagendar", () => {
     const reagendadas = []
     const cancelada = { id: "cx", fecha: hoy, hora: "03:00 PM", estado: "Cancelada", canceladaPor: "paciente", paciente: "Paciente Tres", pacienteId: "p3", motivo: "Control" }

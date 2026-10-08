@@ -51,14 +51,16 @@ export function controlesSinAgendar(pacientes = [], consultas = [], citas = []) 
   return resultado.sort((a, b) => a.fechaControl - b.fechaControl)
 }
 
-// Citas que el propio paciente canceló y nadie retomó: una por paciente (la más reciente), de los últimos `dias` días
-// o futuras, y solo si esa persona no tiene hoy otra cita activa ni una posterior. Las más próximas primero.
-export function canceladasPorPaciente(citas = [], { hoy = hoyISO(), dias = 30 } = {}) {
+// Citas "para reagendar": las que el paciente no asistió o las que el propio paciente canceló, y nadie retomó.
+// Una por paciente (la más reciente), de los últimos `dias` días o futuras, y solo si esa persona no tiene otra cita
+// activa ni atendida posterior. Las más antiguas primero. Las canceladas por recepción no cuentan: recepción ya lo sabe.
+export const requiereReagendar = (c) => c.estado === "No Asistió" || (c.estado === "Cancelada" && c.canceladaPor === "paciente")
+export function citasParaReagendar(citas = [], { hoy = hoyISO(), dias = 30 } = {}) {
   const desde = sumarDiasISO(hoy, -dias)
   const claveDe = (c) => (c.pacienteId != null ? "id:" + c.pacienteId : "n:" + c.paciente)
   const porPaciente = new Map()
   for (const c of citas) {
-    if (c.estado !== "Cancelada" || c.canceladaPor !== "paciente" || c.fecha < desde) continue
+    if (!requiereReagendar(c) || c.fecha < desde) continue
     const previa = porPaciente.get(claveDe(c))
     if (!previa || c.fecha > previa.fecha) porPaciente.set(claveDe(c), c)
   }
