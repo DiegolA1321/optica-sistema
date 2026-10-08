@@ -49,6 +49,26 @@ Construido el 8 oct, **sin publicar** (commits `4a6e4b5` a `acb96c0` en `main` l
 - **Pruebas:** 402 unitarias; e2e `llego-en-espera.spec.js` (nuevo, óptica de pruebas) y `roles`, `inicio`, `admin-navegacion`, `despues-reunion` pasan.
 - **Capturas de revisión:** `C:\Users\diego\Downloads\citas-capturas\v4\` (las borra Diego).
 
+## Formato único de fechas y horas (8 oct)
+
+Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `hora(valor)`, de `src/utilidades/formatoFecha.js`. Ninguna pantalla arma fechas con `toLocaleDateString` ni con arreglos de meses.
+
+| Formato | Ejemplo (8 oct 2026) | Dónde |
+|---|---|---|
+| `largo` | Jueves, 8 de octubre de 2026 | cabeceras, detalle de la cita |
+| `largoSinDia` | 8 de octubre de 2026 | frases |
+| `medio` | 8 oct 2026 | tarjetas, listas, registros |
+| `medioSinAnio` | 8 oct | espacios cortos |
+| `corto` | jue 8 oct 2026 | título del día en el periodo de la Lista |
+| `calendario` | Jueves, 8 de octubre | encabezados de día |
+| `diaNumero` · `diaMes` · `mesAnio` · `mes` · `dia` · `numerico` · `numericoCorto` | Jue 8 · 8 de octubre · Octubre 2026 · oct · 08 · 08/10/2026 · 08/10 | piezas y etiquetas |
+
+- **Títulos de periodo** (`tituloSemana`, `formatoFecha(…, "mesAnio")`): "Hoy · jue 8 oct 2026", "5 – 11 oct 2026" (entre meses "28 sept – 4 oct 2026"), "Octubre 2026". El título tiene ancho mínimo fijo: las flechas y el selector no se mueven entre Hoy, Semana y Mes ni entre las vistas.
+- **Hora:** `hora()` ("09:00 AM"); `horaA12` y `horaLegible` son esa misma función con otro nombre. Las fechas ISO armadas a mano pasaron a `fechaAISO`.
+- **Mayúsculas:** la primera letra la pone la función; se quitó la clase `capitalize`, que escribía "8 De Octubre De 2026".
+- **Quedan a propósito:** `etiquetaFecha` (Hoy / Mañana / Ayer y, si no, el formato `calendario`), y las iniciales de una letra (L M X J V S D) de los calendarios pequeños. Las gráficas de Reportes y superadmin usan "sept" (4 letras) como en el resto.
+- Pruebas: `formatoFecha.test.js` y `e2e/citas-titulos-estables.spec.js`.
+
 ## Cómo se verificó
 
 - **Pruebas unitarias:** `npx vitest run` → 401 pasan (`filtrosCitas.test.js`, `FiltrosCitas.test.jsx`, `controles.test.js`, `Inicio.test.jsx`).
