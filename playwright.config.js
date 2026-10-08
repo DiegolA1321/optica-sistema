@@ -27,9 +27,10 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
-    command: `npm run dev -- --port ${PUERTO} --strictPort`,
+    // Con E2E_PREVIEW=1 se prueba la versión de producción (build + preview): sin StrictMode ni el servidor de desarrollo.
+    command: process.env.E2E_PREVIEW ? `npm run build && npm run preview -- --port ${PUERTO} --strictPort` : `npm run dev -- --port ${PUERTO} --strictPort`,
     url: BASE,
     reuseExistingServer: true,
-    timeout: 60_000,
+    timeout: 120_000,
   },
 })

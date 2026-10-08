@@ -91,18 +91,9 @@ test('3 · Vera vende con abono y luna', async ({ page }) => {
   // Se abre sola la orden de laboratorio, con la receta de la consulta.
   const orden = page.getByRole('dialog', { name: 'Nueva orden de laboratorio' })
   await expect(orden).toBeVisible()
-  // En desarrollo (React StrictMode) el modal puede rearmar sus datos una vez más al abrirse y borrar lo recién
-  // escrito: se escribe y se comprueba que se conserva tras un instante, repitiendo si hizo falta.
-  const lab = orden.getByLabel('Laboratorio')
-  const obs = orden.getByLabel('Observaciones')
-  await expect(async () => {
-    await lab.fill(`${PREFIJO}Laboratorio`)
-    await orden.getByLabel('Entrega prometida *').fill(fechaEn(7))
-    await obs.fill(`${PREFIJO}orden de prueba`)
-    await page.waitForTimeout(700)
-    await expect(lab).toHaveValue(`${PREFIJO}Laboratorio`, { timeout: 1000 })
-    await expect(obs).toHaveValue(`${PREFIJO}orden de prueba`, { timeout: 1000 })
-  }).toPass({ timeout: 20_000 })
+  await orden.getByLabel('Laboratorio').fill(PREFIJO + 'Laboratorio')
+  await orden.getByLabel('Entrega prometida *').fill(fechaEn(7))
+  await orden.getByLabel('Observaciones').fill(PREFIJO + 'orden de prueba')
   await orden.getByRole('button', { name: 'Crear orden', exact: true }).click()
   await expect(orden).toHaveCount(0, { timeout: 20_000 })
 })
