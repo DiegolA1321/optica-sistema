@@ -783,15 +783,16 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         const { data: actualizadas, error: errorEstado } = await supabase.from("citas").update({ estado: nuevoEstado }).eq("id", citaId).select()
         if (fueBloqueadoPorPermiso({ error: errorEstado, data: actualizadas })) {
           setBannerError(MENSAJE_SIN_PERMISO)
-          return
+          return false
         }
         if (errorEstado) {
           setBannerError("No se pudo actualizar el estado de la cita. Revisa tu conexión e intenta de nuevo.")
-          return
+          return false
         }
       }
       setBannerError("")
       setCitas(citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)))
+      return true
     } finally {
       setMarcandoEstadoId(null)
     }
@@ -815,7 +816,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
       }
       setBannerError("")
       setCitas(citas.map((c) => (c.id === citaId ? { ...c, confirmadaAt } : c)))
-      mostrarExito("Cita marcada como confirmada.")
+      if (detalleCitaId) onAviso?.("Cita marcada como confirmada."); else mostrarExito("Cita marcada como confirmada.")
     } catch {
       setBannerError("No se pudo marcar la cita como confirmada. Revisa tu conexión e intenta de nuevo.")
     }
@@ -833,6 +834,18 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     if (cita.fecha && cita.fecha !== hoyISO()) onAviso?.(`Atendiendo hoy la cita agendada para ${etiquetaFecha(cita.fecha)}; la fecha agendada no cambia.`)
     ingresarAFicha(cita)
   }
+
+  // ── Cambios de estado desde el detalle de la cita (la recepción). El detalle queda abierto y muestra el estado
+  // nuevo; el aviso es flotante porque el banner de la página queda detrás del modal. "Llegó" = "En espera": el
+  // optómetra lo ve en su Inicio y cuenta en "En sala de espera"; el proceso automático de "No asistió" solo toca
+  // las citas "Pendiente", así que una cita en espera no se marca sola. ──
+  const cambiarEstadoDesdeDetalle = async (cita, nuevoEstado, mensaje) => {
+    const ok = await marcarEstado(cita.id, nuevoEstado)
+    onAviso?.(ok ? mensaje : "No se pudo actualizar el estado de la cita. Intenta de nuevo.")
+  }
+  const marcarLlego = (cita) => cambiarEstadoDesdeDetalle(cita, "En Espera", `${cita.paciente} llegó: la cita pasa a "En espera".`)
+  const marcarNoLlego = (cita) => cambiarEstadoDesdeDetalle(cita, "Pendiente", `La cita de ${cita.paciente} vuelve a "Pendiente".`)
+  const marcarNoAsistio = (cita) => cambiarEstadoDesdeDetalle(cita, "No Asistió", `La cita de ${cita.paciente} se marcó como "No asistió".`)
 
   // ── Pasa la cita a "En Atención" y abre la ficha clínica del paciente ya
   // vinculado. Si la cita no tiene paciente vinculado (primera cita
@@ -2261,6 +2274,11 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
             onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
             onDejarDeAtender={(c) => { setDetalleCitaId(null); setDejarCita(c) }}
+            marcandoEstado={marcandoEstadoId === cita.id}
+            onLlego={puede(usuario, "citas", "editar") ? marcarLlego : undefined}
+            onNoLlego={puede(usuario, "citas", "editar") ? marcarNoLlego : undefined}
+            onNoAsistio={marcarNoAsistio}
+            onConfirmar={puede(usuario, "citas", "editar") ? (c) => marcarConfirmada(c.id) : undefined}
           />
         )
       })()}
