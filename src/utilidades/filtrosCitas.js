@@ -1,6 +1,7 @@
 // Filtros de la agenda de Citas (reunión 29 sept., R3-R6): estado, origen y
 // primera vez/seguimiento. Lógica pura, sin React, para probarla aparte.
-import { esHoy, horarioEfectivo, diaAbierto, isoAFechaLocal } from "./disponibilidad"
+import { esHoy, horarioEfectivo, diaAbierto } from "./disponibilidad"
+import { formatoFecha } from "./formatoFecha"
 import { sumarDiasISO } from "./controles"
 
 export const ESTADOS_FILTRO = [
@@ -33,11 +34,7 @@ export const tareasFiltro = (diaConfirmar) => [
 ]
 
 // "Lun 12": el nombre corto del día y su número.
-export function etiquetaDiaCorta(iso) {
-  const d = isoAFechaLocal(iso)
-  const dia = d.toLocaleDateString("es-EC", { weekday: "short" }).replace(".", "")
-  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${d.getDate()}`
-}
+export const etiquetaDiaCorta = (iso) => formatoFecha(iso, "diaNumero")
 
 // El próximo día en que la óptica atiende (según su horario semanal y sus excepciones), después de hoy: es el día
 // cuyas citas recepción necesita confirmar. Un viernes es el lunes. Sin horario cargado, mañana.

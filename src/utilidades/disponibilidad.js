@@ -1,3 +1,4 @@
+import { formatoFecha, hora } from "./formatoFecha"
 // ─── Utilidades de disponibilidad y horario del optómetra ───
 // Toda la lógica de "qué días/horas puede reservar un paciente" vive aquí,
 // para que el panel del optómetra (Horario.jsx) y los flujos de agendamiento
@@ -75,14 +76,8 @@ export function hoyISO() {
   return fechaAISO(new Date())
 }
 
-export function horaA12(hhmm) {
-  if (!hhmm) return ""
-  const [h, m] = hhmm.split(":").map(Number)
-  const periodo = h >= 12 ? "PM" : "AM"
-  let h12 = h % 12
-  if (h12 === 0) h12 = 12
-  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${periodo}`
-}
+// "09:00 AM" a partir de "09:00" (24 h): es hora() del módulo único de fechas y horas, con el nombre que ya usa el código.
+export const horaA12 = hora
 
 // Horario "efectivo" de una fecha concreta: una excepción puntual manda sobre
 // el horario semanal habitual (para cerrar un día que normalmente abre, o
@@ -229,7 +224,7 @@ export function etiquetaFecha(f) {
   if (diff === 0) return "Hoy"
   if (diff === 1) return "Mañana"
   if (diff === -1) return "Ayer"
-  return fecha.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })
+  return formatoFecha(fecha, "calendario")
 }
 
 // El ing probó en vivo el caso de un paciente que llega en un horario

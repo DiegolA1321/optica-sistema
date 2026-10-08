@@ -1,11 +1,11 @@
 "use client"
 
-import { fechaHoraLegible } from "../utilidades/formatoFecha"
+import { fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { useState } from "react"
 import { createPortal } from "react-dom"
 import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, CheckCircle2, Loader2 } from "lucide-react"
 import { INK } from "@/lib/tema"
-import { etiquetaFecha, hoyISO, isoAFechaLocal } from "../utilidades/disponibilidad"
+import { hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { yaPasoLaHora } from "../utilidades/agendaCitas"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
@@ -65,7 +65,7 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
   // Cita de otro día: "Atender" pide un clic más ("¿Atenderla hoy?"); las de hoy entran directo a la ficha.
   const [confirmandoOtroDia, setConfirmandoOtroDia] = useState(preguntarOtroDia)
   const otroDia = requiereConfirmarOtroDia(cita, hoyISO())
-  const diaDeLaCita = cita.fecha ? isoAFechaLocal(cita.fecha).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" }) : ""
+  const diaDeLaCita = cita.fecha ? formatoFecha(cita.fecha, "calendario", { enFrase: true }) : ""
   const alAtender = () => { if (otroDia && !confirmandoOtroDia) setConfirmandoOtroDia(true); else onIngresar(cita) }
   const puedeIngresar = puedeAtenderCita(cita) && !!onIngresar
   const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
@@ -115,9 +115,12 @@ export default function DetalleCitaModal({ cita, equipo = [], fechaAtencionReal,
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
             <Columna titulo="La cita">
-              <Dato etiqueta="Fecha">{cita.fecha ? etiquetaFecha(cita.fecha) : "Sin fecha"}</Dato>
+              <Dato etiqueta="Fecha">
+                {cita.fecha ? formatoFecha(cita.fecha, "largo") : "Sin fecha"}
+                {["Hoy", "Mañana", "Ayer"].includes(etiquetaFecha(cita.fecha)) && <span className="mt-0.5 block text-xs font-normal text-slate-500">{etiquetaFecha(cita.fecha)}</span>}
+              </Dato>
               <Dato etiqueta="Hora">{cita.hora}</Dato>
-              {fechaAtencionReal && fechaAtencionReal !== cita.fecha && <Dato etiqueta="Atendida el">{etiquetaFecha(fechaAtencionReal)}</Dato>}
+              {fechaAtencionReal && fechaAtencionReal !== cita.fecha && <Dato etiqueta="Atendida el">{formatoFecha(fechaAtencionReal, "largo")}</Dato>}
               <Dato etiqueta="Agendada el">{agendada || <Vacio>Sin registro</Vacio>}</Dato>
               {cita.confirmadaAt && <Dato etiqueta="Confirmada el">{fechaHoraAgendada(cita.confirmadaAt) || "Sí"}</Dato>}
               <Dato etiqueta="Origen">{cita.origen === "paciente" ? "Web (agendó el paciente)" : "Recepción"}</Dato>

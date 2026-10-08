@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { INK } from "@/lib/tema"
-import { fechaAISO, hoyISO, isoAFechaLocal } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { formatoFecha } from "../utilidades/formatoFecha"
 
 // Piezas de la barra de Citas: la barra única de búsqueda y filtros, el periodo de la Lista y el conteo.
 
@@ -115,7 +116,6 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
 }
 
 const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 
 // Calendario del rango, con el mismo estilo del selector de fecha de las citas: el primer clic marca el inicio, el
 // segundo el final (si es anterior, se intercambian) y el trayecto queda sombreado. "Borrar" quita el rango.
@@ -133,14 +133,14 @@ function CalendarioRango({ rango }) {
       rango.onDesde(d); rango.onHasta(h)
     } else { rango.onDesde(iso); rango.onHasta("") }
   }
-  const corta = (iso) => { const d = isoAFechaLocal(iso); return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}` }
+  const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const resumen = desde && hasta ? `${corta(desde)} – ${corta(hasta)}` : desde ? `Desde el ${corta(desde)} · elige el final` : "Elige el inicio y el final"
   const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
   return (
     <div className="space-y-2">
       <div className="rounded-xl border border-slate-200/60 bg-slate-50/40 p-2.5">
         <div className="mb-2 flex items-center justify-between px-0.5">
-          <span className="text-xs font-bold capitalize" style={{ color: INK }}>{MESES[mes.getMonth()]} {mes.getFullYear()}</span>
+          <span className="text-xs font-bold" style={{ color: INK }}>{formatoFecha(mes, "mesAnio")}</span>
           <div className="flex gap-0.5">
             <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} aria-label="Mes anterior" className={flecha}><ChevronLeft size={14} /></button>
             <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} aria-label="Mes siguiente" className={flecha}><ChevronRight size={14} /></button>
@@ -158,7 +158,7 @@ function CalendarioRango({ rango }) {
                 type="button"
                 onClick={() => elegir(iso)}
                 aria-pressed={extremo}
-                aria-label={iso.split("-").reverse().join("/")}
+                aria-label={formatoFecha(iso, "numerico")}
                 className={"h-7 text-xs font-semibold tabular-nums transition-colors cursor-pointer " + (extremo ? "rounded-lg text-white" : dentro ? "bg-slate-200/70 text-slate-800" : "rounded-lg text-slate-700 hover:bg-slate-200/70") + (!extremo && iso === hoy ? " ring-1 ring-inset ring-slate-400 rounded-lg" : "")}
                 style={extremo ? { backgroundColor: INK } : undefined}
               >
@@ -208,7 +208,7 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
         <button type="button" onClick={onAnterior} aria-label={etiquetaAnterior} title={etiquetaAnterior} className={flecha}><ChevronLeft size={14} /></button>
         <button type="button" onClick={onSiguiente} aria-label={etiquetaSiguiente} title={etiquetaSiguiente} className={flecha}><ChevronRight size={14} /></button>
       </div>
-      <h2 className="min-w-0 truncate text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
+      <h2 className="min-w-[7.9rem] shrink-0 whitespace-nowrap text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
     </div>
   )
 }
@@ -216,7 +216,7 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
 // Sección "Fechas" del panel: un botón con el rango elegido que despliega el calendario.
 function SeccionRango({ rango }) {
   const [abierto, setAbierto] = useState(Boolean(rango.desde))
-  const corta = (iso) => { const d = isoAFechaLocal(iso); return `${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}` }
+  const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const texto = rango.desde && rango.hasta ? `${corta(rango.desde)} – ${corta(rango.hasta)}` : rango.desde ? `Desde el ${corta(rango.desde)}` : "Elegir rango de fechas…"
   const hay = Boolean(rango.desde || rango.hasta)
   return (

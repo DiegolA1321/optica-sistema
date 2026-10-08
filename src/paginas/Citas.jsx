@@ -1,6 +1,6 @@
 "use client"
 
-import { fechaLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
@@ -1002,8 +1002,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const ventana = useMemo(() => {
     if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
     if (vistaActiva === "mes") {
-      const aISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-      return { desde: aISO(mesVista), hasta: aISO(new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)) }
+      return { desde: fechaAISO(mesVista), hasta: fechaAISO(new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)) }
     }
     return null
   }, [vistaActiva, semanaLunes, mesVista])
@@ -1075,14 +1074,13 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     const objFecha = parseFechaFlexible(dia)
     return {
       etiqueta: etiquetaFecha(dia),
-      diaNum: objFecha ? String(objFecha.getDate()).padStart(2, "0") : "--",
-      mes: objFecha ? objFecha.toLocaleDateString("es-EC", { month: "short" }).replace(".", "") : "DÍA",
+      diaNum: objFecha ? formatoFecha(objFecha, "dia") : "--",
+      mes: objFecha ? formatoFecha(objFecha, "mes") : "DÍA",
     }
   }
 
   const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
 
-  const textoDia = (iso) => { const d = isoAFechaLocal(iso); return `${d.getDate()} ${d.toLocaleDateString("es-EC", { month: "short" }).replace(".", "")}` }
   // Flechas de la Lista: mueven el día, la semana o el mes que se ve (o el rango libre, de a una semana).
   const moverLista = (sentido) => {
     if (hayRango) return moverRango(sentido)
@@ -1100,25 +1098,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const gruposCalendario = useMemo(() => new Map(agruparPorDia(resultado)), [resultado])
 
   const diasSemanaVisible = Array.from({ length: 7 }, (_, i) => sumarDiasISO(semanaLunes, i))
-  // Rango corto para la barra ("5 – 11 oct 2026"); el título largo queda dentro del calendario para lectores de pantalla.
-  const rangoSemanaCorto = (dias) => {
-    const a = isoAFechaLocal(dias[0])
-    const b = isoAFechaLocal(dias[6])
-    const mes = (d) => d.toLocaleDateString("es-EC", { month: "short" }).replace(".", "")
-    return a.getMonth() === b.getMonth()
-      ? `${a.getDate()} – ${b.getDate()} ${mes(b)} ${b.getFullYear()}`
-      : `${a.getDate()} ${mes(a)} – ${b.getDate()} ${mes(b)} ${b.getFullYear()}`
-  }
-  const tituloMes = (m) => m.toLocaleDateString("es-EC", { month: "long", year: "numeric" }).replace(/^./, (l) => l.toUpperCase())
+  // Títulos de periodo (formato "corto" del módulo de fechas): "Hoy · jue 8 oct 2026", "5 – 11 oct 2026", "Octubre 2026".
   const tituloLista = (() => {
-    if (hayRango) return `${rangoDesde ? textoDia(rangoDesde) : "…"} – ${rangoHasta ? textoDia(rangoHasta) : "…"}`
-    const d = isoAFechaLocal(refLista)
-    if (filtro === "hoy") {
-      const dia = d.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "short" }).replace(".", "")
-      return `${refLista === hoyISO() ? "Hoy · " : ""}${dia}`
-    }
-    if (filtro === "semana") return rangoSemanaCorto(Array.from({ length: 7 }, (_, i) => rangos.semana.desde && sumarDiasISO(rangos.semana.desde, i)))
-    if (filtro === "mes") return tituloMes(d)
+    if (hayRango) return rangoDesde && rangoHasta ? tituloSemana(rangoDesde, rangoHasta) : rangoDesde ? `Desde el ${formatoFecha(rangoDesde, "medio")}` : `Hasta el ${formatoFecha(rangoHasta, "medio")}`
+    if (filtro === "hoy") return `${refLista === hoyISO() ? "Hoy · " : ""}${formatoFecha(refLista, "corto")}`
+    if (filtro === "semana") return tituloSemana(rangos.semana.desde, rangos.semana.hasta)
+    if (filtro === "mes") return formatoFecha(refLista, "mesAnio")
     return ""
   })()
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -1204,7 +1189,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                   title={diasColapsados.has(dia) ? "Expandir este día" : "Colapsar este día"}
                 >
                   <ChevronDown size={15} className={"shrink-0 text-slate-500 transition-transform " + (diasColapsados.has(dia) ? "-rotate-90" : "")} />
-                  <h4 className="text-sm font-bold capitalize" style={{ color: INK }}>{t.etiqueta}</h4>
+                  <h4 className="text-sm font-bold" style={{ color: INK }}>{t.etiqueta}</h4>
                   {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
                   <span className="text-xs text-slate-500">· {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}</span>
                 </button>
@@ -1363,7 +1348,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             )
           ) : (
             <NavegadorPeriodo
-              titulo={vistaActiva === "semana" ? rangoSemanaCorto(diasSemanaVisible) : tituloMes(mesVista)}
+              titulo={vistaActiva === "semana" ? tituloSemana(diasSemanaVisible[0], diasSemanaVisible[6]) : formatoFecha(mesVista, "mesAnio")}
               onAnterior={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
               onSiguiente={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
               etiquetaAnterior={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
@@ -1475,7 +1460,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           <div ref={refModalDiaMes} role="dialog" aria-modal="true" aria-labelledby="citas-modal-dia-titulo" className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
-                <h4 id="citas-modal-dia-titulo" className="text-lg font-bold capitalize" style={{ color: INK }}>{etiquetaFecha(diaModalMes)}</h4>
+                <h4 id="citas-modal-dia-titulo" className="text-lg font-bold" style={{ color: INK }}>{etiquetaFecha(diaModalMes)}</h4>
                 <p className="text-xs text-slate-500">{citasDelDiaModal.length} {citasDelDiaModal.length === 1 ? "cita" : "citas"} registradas</p>
               </div>
               <button type="button" onClick={() => setDiaModalMes(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -1800,7 +1785,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         <ConfirmarCitaModal
           paciente={pacienteSeleccionado?.nombre}
           motivo={motivo}
-          fecha={fecha ? isoAFechaLocal(fecha).toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" }) : ""}
+          fecha={fecha ? formatoFecha(fecha, "largoSinDia") : ""}
           hora={horaPersonalizada ? `${horaA12(horaCustom)}${atenderInmediato ? " (ahora)" : ` (personalizada, ~${duracionCustom} min)`}` : hora}
           onCancelar={() => setConfirmando(false)}
           onConfirmar={agendarCita}
@@ -1975,10 +1960,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               <CalendarClock size={24} className="text-blue-600" />
             </div>
             <h4 id="citas-modal-mover-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>
-              ¿Mover la cita de {moviendo.cita.paciente} al {isoAFechaLocal(moviendo.fecha).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })} a las {moviendo.hora}?
+              ¿Mover la cita de {moviendo.cita.paciente} al {formatoFecha(moviendo.fecha, "calendario", { enFrase: true })} a las {moviendo.hora}?
             </h4>
             <p className="mt-1.5 text-center text-sm text-slate-500">
-              Ahora está {moviendo.cita.fecha === moviendo.fecha ? "ese mismo día" : "el " + isoAFechaLocal(moviendo.cita.fecha).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })} a las {moviendo.cita.hora}. La cita se reagenda, no se crea otra.
+              Ahora está {moviendo.cita.fecha === moviendo.fecha ? "ese mismo día" : "el " + formatoFecha(moviendo.cita.fecha, "calendario", { enFrase: true })} a las {moviendo.cita.hora}. La cita se reagenda, no se crea otra.
             </p>
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setMoviendo(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
