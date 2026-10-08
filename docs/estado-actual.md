@@ -61,9 +61,9 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 | `medioSinAnio` | 8 oct | espacios cortos |
 | `corto` | jue 8 oct 2026 | título del día en el periodo de la Lista |
 | `calendario` | Jueves, 8 de octubre | encabezados de día |
-| `diaNumero` · `diaMes` · `mesAnio` · `mes` · `dia` · `numerico` · `numericoCorto` | Jue 8 · 8 de octubre · Octubre 2026 · oct · 08 · 08/10/2026 · 08/10 | piezas y etiquetas |
+| `diaNumero` · `diaMes` · `mesAnio` · `mesAnioCorto` · `mes` · `dia` · `numerico` · `numericoCorto` | Jue 8 · 8 de octubre · Octubre 2026 · oct 2026 · oct · 08 · 08/10/2026 · 08/10 | piezas y etiquetas |
 
-- **Títulos de periodo** (`tituloSemana`, `formatoFecha(…, "mesAnio")`): "Hoy · jue 8 oct 2026", "5 – 11 oct 2026" (entre meses "28 sept – 4 oct 2026"), "Octubre 2026". El título tiene ancho mínimo fijo: las flechas y el selector no se mueven entre Hoy, Semana y Mes ni entre las vistas.
+- **Títulos de periodo** (`tituloSemana`, `formatoFecha(…, "mesAnioCorto")`): "Hoy · jue 8 oct 2026", "5 – 11 oct 2026" (entre meses "28 sept – 4 oct 2026"), "oct 2026". El título tiene ancho mínimo fijo: las flechas y el selector no se mueven entre Hoy, Semana y Mes ni entre las vistas.
 - **Hora:** `hora()` ("09:00 AM"); `horaA12` y `horaLegible` son esa misma función con otro nombre. Las fechas ISO armadas a mano pasaron a `fechaAISO`.
 - **Mayúsculas:** la primera letra la pone la función; se quitó la clase `capitalize`, que escribía "8 De Octubre De 2026".
 - **Quedan a propósito:** `etiquetaFecha` (Hoy / Mañana / Ayer y, si no, el formato `calendario`), y las iniciales de una letra (L M X J V S D) de los calendarios pequeños. Las gráficas de Reportes y superadmin usan "sept" (4 letras) como en el resto.

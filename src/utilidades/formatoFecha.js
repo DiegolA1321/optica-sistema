@@ -11,7 +11,8 @@
 //   "calendario"    Jueves, 8 de octubre             encabezados de día de la lista y del calendario
 //   "diaNumero"     Jue 8                            atajos y etiquetas muy cortas
 //   "diaMes"        8 de octubre                     un día dentro de su mes (calendario mensual)
-//   "mesAnio"       Octubre 2026                     título de un mes
+//   "mesAnio"       Octubre 2026                     título de un calendario mensual
+//   "mesAnioCorto"  oct 2026                         título del mes en el selector de periodo
 //   "mes" / "dia"   oct / 08                         piezas sueltas (el riel de fechas de la lista)
 //   "numerico"      08/10/2026                       etiquetas para lectores de pantalla y campos
 //   "numericoCorto" 08/10                            día y mes en espacios mínimos (cumpleaños, horarios)
@@ -52,6 +53,7 @@ const FORMATOS = {
   diaNumero: (p) => `${mayuscula(DIAS_CORTOS[p.diaSemana])} ${p.dia}`,
   diaMes: (p) => `${p.dia} de ${MESES_LARGOS[p.mes - 1]}`,
   mesAnio: (p) => `${mayuscula(MESES_LARGOS[p.mes - 1])} ${p.anio}`,
+  mesAnioCorto: (p) => `${MESES_CORTOS[p.mes - 1]} ${p.anio}`,
   mes: (p) => MESES_CORTOS[p.mes - 1],
   dia: (p) => dos(p.dia),
   numerico: (p) => `${dos(p.dia)}/${dos(p.mes)}/${p.anio}`,

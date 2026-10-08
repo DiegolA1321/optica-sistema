@@ -1098,12 +1098,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const gruposCalendario = useMemo(() => new Map(agruparPorDia(resultado)), [resultado])
 
   const diasSemanaVisible = Array.from({ length: 7 }, (_, i) => sumarDiasISO(semanaLunes, i))
-  // Títulos de periodo (formato "corto" del módulo de fechas): "Hoy · jue 8 oct 2026", "5 – 11 oct 2026", "Octubre 2026".
+  // Títulos de periodo (formato "corto" del módulo de fechas): "Hoy · jue 8 oct 2026", "5 – 11 oct 2026", "oct 2026".
   const tituloLista = (() => {
     if (hayRango) return rangoDesde && rangoHasta ? tituloSemana(rangoDesde, rangoHasta) : rangoDesde ? `Desde el ${formatoFecha(rangoDesde, "medio")}` : `Hasta el ${formatoFecha(rangoHasta, "medio")}`
     if (filtro === "hoy") return `${refLista === hoyISO() ? "Hoy · " : ""}${formatoFecha(refLista, "corto")}`
     if (filtro === "semana") return tituloSemana(rangos.semana.desde, rangos.semana.hasta)
-    if (filtro === "mes") return formatoFecha(refLista, "mesAnio")
+    if (filtro === "mes") return formatoFecha(refLista, "mesAnioCorto")
     return ""
   })()
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -1348,7 +1348,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             )
           ) : (
             <NavegadorPeriodo
-              titulo={vistaActiva === "semana" ? tituloSemana(diasSemanaVisible[0], diasSemanaVisible[6]) : formatoFecha(mesVista, "mesAnio")}
+              titulo={vistaActiva === "semana" ? tituloSemana(diasSemanaVisible[0], diasSemanaVisible[6]) : formatoFecha(mesVista, "mesAnioCorto")}
               onAnterior={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
               onSiguiente={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
               etiquetaAnterior={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}

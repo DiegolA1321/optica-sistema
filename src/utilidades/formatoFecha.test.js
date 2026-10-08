@@ -53,6 +53,8 @@ describe("formatoFecha: formatos con nombre (jueves 8 de octubre de 2026)", () =
     expect(formatoFecha(f, "diaNumero")).toBe("Jue 8")
     expect(formatoFecha(f, "diaMes")).toBe("8 de octubre")
     expect(formatoFecha(f, "mesAnio")).toBe("Octubre 2026")
+    expect(formatoFecha(f, "mesAnioCorto")).toBe("oct 2026")
+    expect(formatoFecha("2026-09-15", "mesAnioCorto")).toBe("sept 2026")
     expect(formatoFecha(f, "mes")).toBe("oct")
     expect(formatoFecha(f, "dia")).toBe("08")
     expect(formatoFecha(f, "numerico")).toBe("08/10/2026")

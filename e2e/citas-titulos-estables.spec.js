@@ -1,4 +1,4 @@
-// Títulos de periodo de Citas con el formato único de fechas ("Hoy · jue 8 oct 2026", "5 – 11 oct 2026", "Octubre 2026") y
+// Títulos de periodo de Citas con el formato único de fechas ("Hoy · jue 8 oct 2026", "5 – 11 oct 2026", "oct 2026") y
 // controles que NO se mueven al cambiar entre Hoy, Semana y Mes (ni entre las vistas Lista, Semana y Mes).
 // SOLO LECTURA en la Óptica Demo.
 import { test, expect } from '@playwright/test'
@@ -28,7 +28,7 @@ test('las flechas y el selector no se mueven y los títulos usan el formato úni
   await periodo.getByRole('button', { name: 'Semana' }).click()
   expect(await medir('Lista · Semana')).toMatch(/^\d{1,2} (\d{1,2} )?[a-z]{3,4} (– \d{1,2} [a-z]{3,4} )?\d{4}$|^\d{1,2} – \d{1,2} [a-z]{3,4} \d{4}$|^\d{1,2} [a-z]{3,4} – \d{1,2} [a-z]{3,4} \d{4}$/)
   await periodo.getByRole('button', { name: 'Mes' }).click()
-  expect(await medir('Lista · Mes')).toMatch(/^[A-ZÁÉÍÓÚ][a-zñáéíóú]+ \d{4}$/)
+  expect(await medir('Lista · Mes')).toMatch(/^[a-z]{3,4} \d{4}$/)
   await periodo.getByRole('button', { name: 'Hoy' }).click()
   await page.getByRole('button', { name: 'Periodo siguiente' }).click()
   expect(await medir('Lista · Hoy, un día después')).toMatch(/^[a-zñé]{3} \d{1,2} [a-z]{3,4} \d{4}$/) // sin "Hoy · "
