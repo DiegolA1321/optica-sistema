@@ -55,6 +55,8 @@ describe("formatoFecha: formatos con nombre (jueves 8 de octubre de 2026)", () =
     expect(formatoFecha(f, "mesAnio")).toBe("Octubre 2026")
     expect(formatoFecha(f, "mes")).toBe("oct")
     expect(formatoFecha(f, "dia")).toBe("08")
+    expect(formatoFecha(f, "numerico")).toBe("08/10/2026")
+    expect(formatoFecha(f, "numericoCorto")).toBe("08/10")
   })
   it("solo la primera letra va en mayúscula (nunca 'De')", () => {
     expect(formatoFecha("2026-10-06", "calendario")).toBe("Martes, 6 de octubre")

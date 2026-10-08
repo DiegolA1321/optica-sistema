@@ -13,6 +13,8 @@
 //   "diaMes"        8 de octubre                     un día dentro de su mes (calendario mensual)
 //   "mesAnio"       Octubre 2026                     título de un mes
 //   "mes" / "dia"   oct / 08                         piezas sueltas (el riel de fechas de la lista)
+//   "numerico"      08/10/2026                       etiquetas para lectores de pantalla y campos
+//   "numericoCorto" 08/10                            día y mes en espacios mínimos (cumpleaños, horarios)
 //
 // Con `{ enFrase: true }` la primera letra queda en minúscula para incrustarla en una oración ("el martes, 6 de
 // octubre"). Los rangos tienen su propia función (tituloSemana, rangoLargo). Las horas, una sola: hora().
@@ -52,8 +54,15 @@ const FORMATOS = {
   mesAnio: (p) => `${mayuscula(MESES_LARGOS[p.mes - 1])} ${p.anio}`,
   mes: (p) => MESES_CORTOS[p.mes - 1],
   dia: (p) => dos(p.dia),
+  numerico: (p) => `${dos(p.dia)}/${dos(p.mes)}/${p.anio}`,
+  numericoCorto: (p) => `${dos(p.dia)}/${dos(p.mes)}`,
 }
 export const NOMBRES_FORMATO = Object.keys(FORMATOS)
+
+// Nombre de un día de la semana ("Lun", "Mié") para encabezados de calendario: 0 = domingo … 6 = sábado.
+export const diaSemanaCorto = (indice) => mayuscula(DIAS_CORTOS[indice])
+// Nombre de un mes: 0 = enero … 11 = diciembre; "largo" (octubre) o "corto" (oct).
+export const nombreMes = (indice, tipo = "largo") => (tipo === "corto" ? MESES_CORTOS : MESES_LARGOS)[indice]
 
 export function formatoFecha(valor, nombre = "medio", { enFrase = false } = {}) {
   const formato = FORMATOS[nombre]
