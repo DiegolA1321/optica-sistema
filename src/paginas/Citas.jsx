@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   Stethoscope,
   CalendarClock,
-  CalendarPlus,
   ChevronRight,
   ChevronDown,
   UserX,
@@ -27,14 +26,10 @@ import {
   Phone,
   Mail,
   Cake,
-  MoreVertical,
   Loader2,
-  Globe,
-  Building2,
   Zap,
   Receipt,
   List,
-  LogOut,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import { diaHabilMasCercano } from "../utilidades/controles"
@@ -44,7 +39,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
-import { urlPerfilPaciente } from "../componentes/calendarioComun"
+import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import SelectorAsignado from "../componentes/SelectorAsignado"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
@@ -53,9 +48,9 @@ import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencio
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
-import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas, yaPasoLaHora } from "../utilidades/agendaCitas"
+import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, periodosFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, periodosFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeAtenderCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -64,23 +59,10 @@ import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
-import { INK, ACCION_VER } from "@/lib/tema"
+import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
-
-// Paleta de colores por motivo — se asigna por posición en el catálogo
-// editable (Configuración), no por nombre fijo, porque el administrador
-// puede agregar, renombrar o eliminar motivos libremente.
-const PALETA_MOTIVOS = [
-  { badge: "bg-blue-50 text-blue-700 border-blue-100", punto: "#3b82f6" },
-  { badge: "bg-emerald-50 text-emerald-700 border-emerald-100", punto: "#10b981" },
-  { badge: "bg-amber-50 text-amber-700 border-amber-100", punto: "#f59e0b" },
-  { badge: "bg-purple-50 text-purple-700 border-purple-100", punto: "#a855f7" },
-  { badge: "bg-pink-50 text-pink-700 border-pink-100", punto: "#ec4899" },
-  { badge: "bg-cyan-50 text-cyan-700 border-cyan-100", punto: "#06b6d4" },
-]
-const SIN_MOTIVO = { badge: "bg-slate-100 text-slate-600 border-slate-200/60", punto: "#94a3b8" }
 
 // Orden de los grupos por estado dentro del modal "Citas del día" (vista por
 // mes) — lo más urgente de revisar primero.
@@ -102,91 +84,47 @@ const leerVistaGuardada = () => {
 const CONSULTA_ANCHO_SEMANA = "(min-width: 1024px)"
 
 
-const motivoInfo = (motivo = "", catalogo = []) => {
-  const idx = catalogo.indexOf(motivo)
-  return idx === -1 ? SIN_MOTIVO : PALETA_MOTIVOS[idx % PALETA_MOTIVOS.length]
-}
 
-// Tarjeta de cita — extraída de la lista agrupada por día para poder
-// reutilizarla tal cual (mismo diseño, ya aprobado por el ing) dentro del
-// modal de "Citas del día" de la vista por mes, sin mantener dos copias.
-function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta, fechaRealPorCitaId, marcandoEstadoId, menuAccionesId, cobroPendiente, onAtender, onAgendarOtra, onCobrar, onAbrirMenuAcciones }) {
-  const info = motivoInfo(cita.motivo, motivosConsulta)
+// Tarjeta de cita, simplificada (reunión 7 oct., C12-C13): solo lo que hace falta para decidir de un vistazo. El motivo, el
+// código, el origen, "Ver perfil", "Agendar otra cita" y el resto de las acciones viven en el detalle (clic en la
+// tarjeta). La barra de color del borde sigue el estado, con los mismos colores del calendario.
+function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, fechaRealPorCitaId, marcandoEstadoId, cobroPendiente, onAtender, onCobrar }) {
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
-  // Cancelada: pendiente, en atención, "No asistió" (la paciente llegó 12
+  // Cancelada: pendiente, en espera, en atención, "No asistió" (la paciente llegó 12
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
   // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
   const puedeAtender = puedeAtenderCita(cita) && !!onAtender
-  const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
   const fechaReal = fechaRealPorCitaId.get(cita.id)?.fecha
   const fechaRealDistinta = fechaReal && fechaReal !== cita.fecha
+  // Una sola etiqueta: primera vez o seguimiento (o "Por registrar" si la cita aún no tiene paciente vinculado).
+  const etiquetaVisita = !cita.pacienteId
+    ? { texto: "Por registrar", clase: "border-amber-200/60 bg-amber-50 text-amber-700", ayuda: "Cita sin paciente vinculado todavía" }
+    : primeraVez
+      ? { texto: "Primera vez", clase: "border-sky-200/60 bg-sky-50 text-sky-700", ayuda: "El paciente no tenía atenciones anteriores" }
+      : { texto: "Seguimiento", clase: "border-slate-200/60 bg-slate-50 text-slate-600", ayuda: "El paciente ya tenía atenciones anteriores" }
+  // Un solo profesional por cita: quien la atiende o atendió y, si todavía no, a quien está asignada.
+  const lineaProfesional = cita.atendidoPor
+    ? `${cita.estado === "En Atención" ? "Atiende" : "Atendió"}: ${etiquetaMiembro(equipo, cita.atendidoPor)}`
+    : cita.asignadoA ? `Asignada a: ${etiquetaMiembro(equipo, cita.asignadoA)}` : null
+  const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
+    ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")
+    : null
   return (
     <div
       className={"relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md " + (resuelta ? "border-slate-100 opacity-80" : cita.estado === "En Atención" ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200/60 hover:border-blue-200/60")}
     >
-      <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: info.punto }} aria-hidden="true" />
+      <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: colorDe(cita.estado).linea }} aria-hidden="true" />
 
       <div
         className="p-5 pl-6 cursor-pointer"
         onClick={(e) => { if (!e.target.closest("button, a")) onAbrirDetalle?.(cita) }}
       >
-        <div className="mb-4 flex items-start justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className={"rounded-md border px-2.5 py-1 text-xs font-semibold " + info.badge}>{cita.motivo}</span>
-            {!cita.pacienteId ? (
-              <span className="rounded-md border border-amber-200/60 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700" title="Cita sin paciente vinculado todavía">Por registrar</span>
-            ) : primeraVez && (
-              <span className="rounded-md border border-sky-200/60 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700" title="El paciente no tenía atenciones anteriores">Primera vez</span>
-            )}
-            {cita.confirmadaAt && !resuelta && (
-              <span className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700" title="La asistencia ya fue confirmada (por el paciente o por recepción)">Confirmada</span>
-            )}
-            {/* Ícono compacto con tooltip en vez de texto siempre visible
-                (ING9: "aunque sea un ícono ahí y ya cuando yo pase el mouse
-                que se vea, ya estaría, no necesariamente tiene que ser un
-                texto grande"). El nombre accesible vive en el contenedor
-                (title + aria-label); el ícono queda aria-hidden para no
-                duplicar el anuncio en lectores de pantalla. */}
-            <span
-              title={cita.origen === "paciente" ? "Agendado por el paciente (web)" : "Registrado por el staff (recepción)"}
-              aria-label={cita.origen === "paciente" ? "Agendado por el paciente (web)" : "Registrado por el staff (recepción)"}
-              className={"flex items-center justify-center rounded-md border p-1 " + (cita.origen === "paciente" ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-slate-200/60 bg-slate-100 text-slate-500")}
-            >
-              {cita.origen === "paciente" ? <Globe size={13} aria-hidden="true" /> : <Building2 size={13} aria-hidden="true" />}
-            </span>
-          </div>
-          {/* Dos acciones primarias a la vista + el resto (cambiar
-              estado, editar, eliminar) bajo "Más acciones" — antes
-              eran 5 íconos sueltos sin etiqueta en la misma fila,
-              mismo patrón consolidado que ya quedó en Pacientes
-              (Séptima Mirada, hallazgo #1). */}
-          <div className="flex items-center gap-1">
-            {/* "Atender ahora" se movió al pie de la tarjeta como botón
-                con etiqueta (ver más abajo) — antes era un ícono suelto
-                del mismo tamaño que "Ver perfil"/"Más acciones", fácil de
-                pasar por alto (ING6: "está como que muy chiquito... tengo
-                que revisar cada cosita"). Misma condición, mismo handler. */}
-            {cita.pacienteId && (
-              <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={"rounded-md p-1.5 transition cursor-pointer " + ACCION_VER} title="Ver perfil del paciente (se abre en otra pestaña)" aria-label="Ver perfil del paciente (se abre en otra pestaña)">
-                <Eye size={16} />
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={(e) => onAbrirMenuAcciones(cita.id, e)}
-              className={"rounded-md p-1.5 transition cursor-pointer " + (menuAccionesId === cita.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
-              title="Más acciones"
-              aria-label="Más acciones"
-            >
-              <MoreVertical size={16} />
-            </button>
-          </div>
-        </div>
+        <span title={etiquetaVisita.ayuda} className={"mb-3 inline-block rounded-md border px-2.5 py-1 text-xs font-semibold " + etiquetaVisita.clase}>{etiquetaVisita.texto}</span>
 
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>
@@ -195,30 +133,9 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
           <div className="min-w-0">
             <span className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-slate-800">
               <button type="button" onClick={() => onAbrirDetalle?.(cita)} title="Ver el detalle de la cita" className="min-w-0 truncate text-left transition-colors hover:text-blue-700 cursor-pointer">{cita.paciente}</button>
+              {triage && <span title={`Pre-triage: ${triage}`} aria-label={`Pre-triage: ${triage}`} className="shrink-0 text-amber-600"><AlertTriangle size={14} aria-hidden="true" /></span>}
             </span>
-            {cita.motivoPublico && (
-              <span className="block truncate text-xs text-slate-500" title={cita.motivoPublico}>Motivo indicado en línea: {cita.motivoPublico}</span>
-            )}
-            {(cita.asignadoA || cita.atendidoPor) && (
-              <span className="mt-0.5 block truncate text-xs text-slate-500">
-                {[
-                  cita.atendidoPor ? `${cita.estado === "En Atención" ? "Atiende" : "Atendió"}: ${etiquetaMiembro(equipo, cita.atendidoPor)}` : null,
-                  cita.asignadoA && cita.asignadoA !== cita.atendidoPor ? `Asignada a: ${etiquetaMiembro(equipo, cita.asignadoA)}` : null,
-                ].filter(Boolean).join(" · ")}
-              </span>
-            )}
-            {cita.codigo && (
-              <span className="mt-0.5 block font-mono text-xs text-slate-400" title="Código que el paciente recibió al reservar en línea">{cita.codigo}</span>
-            )}
-            {cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle) && (
-              <span
-                className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-700"
-                title={[cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")}
-              >
-                <AlertTriangle size={12} className="shrink-0" />
-                Pre-triage: {[cita.triage.sintomas?.join(", "), cita.triage.desdeCuando].filter(Boolean).join(" · ") || "ver detalle"}
-              </span>
-            )}
+            {lineaProfesional && <span className="mt-0.5 block truncate text-xs text-slate-500">{lineaProfesional}</span>}
           </div>
         </div>
       </div>
@@ -227,6 +144,7 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
         <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-600">
           <Clock size={14} className="text-slate-500" />
           <span>{cita.hora}</span>
+          {cita.confirmadaAt && !resuelta && <span title="Asistencia confirmada (por el paciente o por recepción)" aria-label="Asistencia confirmada" className="text-emerald-600"><CheckCircle2 size={14} aria-hidden="true" /></span>}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {cita.estado === "Atendida" ? (
@@ -246,6 +164,10 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
             <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
               <X size={12} /> {cita.canceladaPor === "recepcion" ? "Cancelada por recepción" : cita.canceladaPor === "paciente" ? "Cancelada por el paciente" : "Cancelada"}
             </span>
+          ) : cita.estado === "En Espera" ? (
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-violet-200/60 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-500" /> En espera
+            </span>
           ) : (
             <span className={"flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold " + (cita.estado === "En Atención" ? "border-blue-200/60 bg-blue-50 text-blue-600" : "border-amber-200/60 bg-amber-50 text-amber-600")}>
               {cita.estado === "En Atención" ? <Activity size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
@@ -262,26 +184,14 @@ function TarjetaCita({ cita, equipo, primeraVez, onAbrirDetalle, motivosConsulta
               <Receipt size={12} aria-hidden="true" /> Cobro pendiente
             </span>
           )}
-          {/* Acción primaria de la tarjeta, con etiqueta visible y
-              color sólido — antes era un ícono suelto arriba, del
-              mismo tamaño que las acciones secundarias (ver más arriba). */}
           {cobroPendiente ? (
-            // La ficha ya se guardó: "Atender" abriría otra consulta. Lo que
-            // falta es cobrar.
+            // La ficha ya se guardó: "Atender" abriría otra consulta. Lo que falta es cobrar.
             <button
               type="button"
               onClick={() => onCobrar(cita)}
               className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer"
             >
               <Receipt size={14} /> Cobrar
-            </button>
-          ) : puedeAgendarOtra ? (
-            <button
-              type="button"
-              onClick={() => onAgendarOtra(cita)}
-              className="flex items-center gap-1.5 rounded-lg border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
-            >
-              <CalendarPlus size={14} /> Agendar otra cita
             </button>
           ) : puedeAtender && (
             <button
@@ -505,21 +415,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     })
   }
 
-  // Menú "más acciones" por tarjeta de cita — portal a document.body con
-  // posición calculada (no basta con position:absolute dentro de la
-  // tarjeta: la tarjeta tiene overflow-hidden por la barra de color a la
-  // izquierda, y con 5 ítems el menú ya no entra y se corta. Mismo patrón
-  // que "más acciones" en Pacientes.jsx / SuperadminPanel.jsx).
-  const [menuAccionesId, setMenuAccionesId] = useState(null)
-  const [menuAccionesPos, setMenuAccionesPos] = useState(null)
-  const menuAccionesRef = useRef(null)
-  const abrirMenuAcciones = (id, e) => {
-    if (menuAccionesId === id) { setMenuAccionesId(null); return }
-    const rect = e.currentTarget.getBoundingClientRect()
-    setMenuAccionesPos({ top: rect.bottom + 6, left: rect.right - 208 })
-    setMenuAccionesId(id)
-  }
-
   const pacientesFiltrados = useMemo(() => {
     const q = busquedaPaciente.trim().toLowerCase()
     if (!q) return pacientes
@@ -532,19 +427,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     return () => document.removeEventListener("mousedown", onDown)
   }, [])
 
-  useEffect(() => {
-    if (menuAccionesId == null) return
-    const onDown = (e) => { if (menuAccionesRef.current && !menuAccionesRef.current.contains(e.target)) setMenuAccionesId(null) }
-    const cerrarYa = () => setMenuAccionesId(null)
-    document.addEventListener("mousedown", onDown)
-    window.addEventListener("scroll", cerrarYa, true)
-    window.addEventListener("resize", cerrarYa)
-    return () => {
-      document.removeEventListener("mousedown", onDown)
-      window.removeEventListener("scroll", cerrarYa, true)
-      window.removeEventListener("resize", cerrarYa)
-    }
-  }, [menuAccionesId])
 
   const seleccionarPaciente = (p) => {
     setPacienteId(p.id)
@@ -1329,16 +1211,12 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       cita={cita}
                       primeraVez={idsPrimeraVez.has(cita.id)}
                       equipo={equipo}
-                      motivosConsulta={motivosConsulta}
                       fechaRealPorCitaId={fechaRealPorCitaId}
                       marcandoEstadoId={marcandoEstadoId}
-                      menuAccionesId={menuAccionesId}
-                      onAbrirDetalle={abrirDetalle}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
-                        onCobrar={cobrarCita}
-                        onAtender={puedeAtenderPacientes ? atenderCita : undefined}
-          onAgendarOtra={agendarOtraCita}
-                      onAbrirMenuAcciones={abrirMenuAcciones}
+                      onAbrirDetalle={abrirDetalle}
+                      onCobrar={cobrarCita}
+                      onAtender={puedeAtenderPacientes ? atenderCita : undefined}
                     />
                   ))}
                 </div>
@@ -1623,21 +1501,17 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                       <div className="grid grid-cols-1 gap-4">
                         {citasEstado.map((cita) => (
                           <TarjetaCita
-                            key={cita.id}
-                            cita={cita}
-                            primeraVez={idsPrimeraVez.has(cita.id)}
+                      key={cita.id}
+                      cita={cita}
+                      primeraVez={idsPrimeraVez.has(cita.id)}
                       equipo={equipo}
-                            motivosConsulta={motivosConsulta}
-                            fechaRealPorCitaId={fechaRealPorCitaId}
-                            marcandoEstadoId={marcandoEstadoId}
-                            menuAccionesId={menuAccionesId}
-                            onAbrirDetalle={abrirDetalle}
-                            cobroPendiente={pendientesPorCita.has(cita.id)}
-                        onCobrar={cobrarCita}
-                        onAtender={puedeAtenderPacientes ? atenderCita : undefined}
-          onAgendarOtra={agendarOtraCita}
-                            onAbrirMenuAcciones={abrirMenuAcciones}
-                          />
+                      fechaRealPorCitaId={fechaRealPorCitaId}
+                      marcandoEstadoId={marcandoEstadoId}
+                      cobroPendiente={pendientesPorCita.has(cita.id)}
+                      onAbrirDetalle={abrirDetalle}
+                      onCobrar={cobrarCita}
+                      onAtender={puedeAtenderPacientes ? atenderCita : undefined}
+                    />
                         ))}
                       </div>
                     </div>
@@ -2283,75 +2157,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         )
       })()}
 
-      {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) — va al
-          final del árbol a propósito: puede abrirse desde una tarjeta dentro del modal
-          "Citas del día" (vista por mes), y como ambos son portales a document.body, el que
-          se monta después queda visualmente encima. ─── */}
-      {menuAccionesId != null && menuAccionesPos && (() => {
-        const cita = citas.find((c) => c.id === menuAccionesId)
-        if (!cita) return null
-        // "No asistió" lo marca solo el sistema a los 10 minutos; a mano se
-        // ofrece únicamente mientras la cita sigue pendiente y ya pasó su hora.
-        const puedeMarcarNoAsistio = cita.estado === "Pendiente" && yaPasoLaHora(cita)
-        const puedeConfirmar = ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt && puede(usuario, "citas", "editar")
-        return createPortal(
-          <div
-            ref={menuAccionesRef}
-            className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
-            style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
-          >
-            {puedeMarcarNoAsistio && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => { setMenuAccionesId(null); marcarEstado(cita.id, "No Asistió") }}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-                >
-                  <UserX size={15} /> No asistió
-                </button>
-                <div className="my-1 border-t border-slate-100" />
-              </>
-            )}
-            {puedeConfirmar && (
-              <button
-                type="button"
-                onClick={() => { setMenuAccionesId(null); marcarConfirmada(cita.id) }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 cursor-pointer"
-              >
-                <CheckCircle2 size={15} /> Marcar como confirmada
-              </button>
-            )}
-            {cita.estado === "En Atención" && (
-              <button
-                type="button"
-                onClick={() => { setMenuAccionesId(null); setDejarCita(cita) }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-              >
-                <LogOut size={15} /> Dejar de atender
-              </button>
-            )}
-            {puedeEditarCita(cita) && (
-              <button
-                type="button"
-                onClick={() => { setMenuAccionesId(null); abrirReagendar(cita) }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-              >
-                <CalendarClock size={15} /> Editar cita
-              </button>
-            )}
-            {puedeCancelarCita(cita) && (
-              <button
-                type="button"
-                onClick={() => { setMenuAccionesId(null); setPorCancelar(cita.id) }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-              >
-                <X size={15} /> Cancelar cita
-              </button>
-            )}
-          </div>,
-          document.body,
-        )
-      })()}
     </div>
   )
 }
