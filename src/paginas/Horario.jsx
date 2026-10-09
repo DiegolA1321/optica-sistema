@@ -26,7 +26,7 @@ import {
 import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
-  haySolapamiento, finCitaMinutos, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado,
+  haySolapamiento, finCitaMinutos, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
 import { puede } from "../utilidades/permisosUi"
@@ -62,16 +62,6 @@ const resumenHorario = (horario) => {
 // Horario personal vacío por defecto — un usuario que nunca tocó "Mi
 // horario" arranca sin nada configurado, no heredando el horario general
 // (caso de la reunión con el ing: son dos cosas distintas a propósito).
-// Etiqueta de un día abierto por excepción: ¿también admite reservas por la web? Las excepciones anteriores (sin la marca) sí.
-function EtiquetaReservasWeb({ exc }) {
-  if (!diaAbierto(exc)) return null
-  const soloPersonal = exc.reservasWeb === false
-  return (
-    <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + (soloPersonal ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700")}>
-      {soloPersonal ? "Solo personal" : "También web"}
-    </span>
-  )
-}
 const textoAbiertoPor = (exc) => (exc?.abiertoPor?.nombre ? `Abierto por ${exc.abiertoPor.nombre}${exc.abiertoPor.en ? ` el ${formatoFecha(exc.abiertoPor.en.slice(0, 10), "medio")}` : ""}` : "")
 
 const DIA_PERSONAL_VACIO = () => ({ manana: { activo: false, inicio: "09:00", fin: "13:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } })
@@ -278,12 +268,15 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     }
     setFechaEditando(null)
     mostrarGuardado()
-    registrarLog(usuario, "horario", diaAbierto(cambios) ? "Agregó un horario extra puntual" : "Cerró un día puntual", `${fecha}${diaAbierto(cambios) ? (cambios.reservasWeb === false ? " · solo personal" : " · también reservas web") : ""}`)
+    registrarLog(usuario, "horario", diaAbierto(cambios) ? "Agregó un horario extra puntual" : "Cerró un día puntual", `${fecha}${cambios.nombre ? ` · ${cambios.nombre}` : ""}`)
   }
 
   const guardarExcepcion = (datos) => {
     const previa = disponibilidad.excepciones?.[fechaEditando] || {}
     const cambios = { ...previa, ...datos }
+    delete cambios.reservasWeb // ya no existe: un día abierto por excepción es siempre solo para el personal
+    if (diaAbierto(cambios) || !String(cambios.nombre || "").trim()) delete cambios.nombre
+    else cambios.nombre = String(cambios.nombre).trim()
     const habiaAbierto = diaAbierto(previa) || diaAbierto(horarioBaseFecha)
     if (diaAbierto(cambios) && !habiaAbierto) cambios.abiertoPor = { id: usuario?.id || null, nombre: usuario?.nombre || "", en: new Date().toISOString() }
     if (!diaAbierto(cambios)) {
@@ -531,8 +524,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                     <div key={iso} className="flex items-center gap-2.5 py-2">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: abierta ? "#059669" : "#dc2626" }} />
                       <span className="text-sm font-semibold text-slate-700">{fechaFormato(iso)}</span>
-                      <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : "Cerrado todo el día"}</span>
-                      <EtiquetaReservasWeb exc={exc} />
+                      <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : exc.nombre ? `Cerrado · ${exc.nombre}` : "Cerrado todo el día"}</span>
                     </div>
                   )
                 })}
@@ -716,7 +708,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                     type="button"
                     disabled={dia.pasado}
                     onClick={() => setFechaEditando(dia.iso)}
-                    title={efectivoAbierto ? `Abierto ${resumenHorario(efectivo)}` : "Cerrado"}
+                    title={efectivoAbierto ? `Abierto ${resumenHorario(efectivo)}` : nombreDeDiaCerrado(dia.iso, disponibilidad) || "Cerrado"}
                     className={
                       "relative grid h-10 w-full place-items-center rounded-xl text-xs font-bold transition-all " +
                       (dia.pasado
@@ -762,8 +754,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
                       <div className="flex items-center gap-2.5">
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: abierta ? "#059669" : "#dc2626" }} />
                         <span className="text-sm font-semibold text-slate-700">{fechaFormato(iso)}</span>
-                        <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : "Cerrado todo el día"}</span>
-                        <EtiquetaReservasWeb exc={exc} />
+                        <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : exc.nombre ? `Cerrado · ${exc.nombre}` : "Cerrado todo el día"}</span>
                         {textoAbiertoPor(exc) && <span className="hidden text-[11px] text-slate-500 lg:inline">· {textoAbiertoPor(exc)}</span>}
                       </div>
                       <button type="button" onClick={() => setFechaEditando(iso)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Editar</button>
@@ -1075,8 +1066,8 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
   const base = excepcion || horarioBase
   const [manana, setManana] = useState({ ...horarioBase.manana, ...base.manana })
   const [tarde, setTarde] = useState({ ...horarioBase.tarde, ...base.tarde })
-  // Reservas web: una excepción anterior (sin la marca) las admite; un día que normalmente está cerrado parte sin ellas.
-  const [reservasWeb, setReservasWeb] = useState(excepcion ? excepcion.reservasWeb !== false : diaAbierto(horarioBase))
+  // Nombre opcional de un día cerrado a mano ("Feriado: Día de los Difuntos"): se ve en los calendarios en lugar de solo "Cerrado".
+  const [nombre, setNombre] = useState(excepcion?.nombre || "")
 
   const fechaLegible = formatoFecha(fecha, "calendario")
 
@@ -1181,13 +1172,17 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
                 )}
               </div>
             ))}
-            {(manana.activo || tarde.activo) && (
-              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5">
-                <input type="checkbox" checked={reservasWeb} onChange={(e) => setReservasWeb(e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer accent-blue-600" />
-                <span>
-                  <span className="block text-sm font-semibold text-slate-700">Permitir también reservas por la web</span>
-                  <span className="block text-xs text-slate-500">Desmarcado: solo el personal agenda este día.</span>
-                </span>
+            {!manana.activo && !tarde.activo && (
+              <label className="block rounded-xl bg-slate-50 px-3 py-2.5">
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre del día <span className="font-normal text-slate-500">(opcional)</span></span>
+                <input
+                  type="text"
+                  value={nombre}
+                  maxLength={60}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej.: Feriado: Día de los Difuntos"
+                  className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none focus-visible:border-blue-500"
+                />
               </label>
             )}
           </div>
@@ -1200,7 +1195,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
             </button>
           )}
           <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
-          <button type="button" onClick={() => onGuardar({ manana, tarde, reservasWeb })} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
+          <button type="button" onClick={() => onGuardar({ manana, tarde, nombre })} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
             <span className="flex items-center justify-center gap-1.5"><CheckCircle2 size={15} /> Guardar</span>
           </button>
         </div>
