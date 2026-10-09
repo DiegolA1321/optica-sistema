@@ -1,10 +1,11 @@
 // Inicio del administrador y del optómetra (reunión del 7 oct., I1 a I18): Totales con el mes, "Requiere tu atención" en un bloque por área,
 // desenlace de las citas (Hoy · Esta semana · Este mes · Todas) conectado a la lista de citas, y registro de actividad compacto.
-// Por defecto corre contra la Óptica Demo (solo lectura); con E2E_ENTORNO=E2E, contra la óptica de pruebas.
+// Corre contra la óptica de pruebas y crea sus propios datos (stock bajo, control vencido, orden atrasada, citas de Paula);
+// con E2E_ENTORNO=DEMO corre en solo lectura contra la Demo, sin crear nada.
 // Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/inicio-capturas/.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { iniciarSesion } from './ayudas.js'
+import { iniciarSesion, prepararAvisosInicio, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 const CARPETA = process.env.E2E_CAPTURAS_DIR || 'docs/inicio-capturas'
 // El Inicio se desplaza dentro de un contenedor propio: se captura el tope y, si hay más, cada tramo siguiente (1366x768).
@@ -28,7 +29,8 @@ async function capturar(page, nombre) {
   await mover(0)
 }
 const main = (page) => page.locator('main').first()
-const ENTORNO = process.env.E2E_ENTORNO || 'DEMO'
+const ENTORNO = process.env.E2E_ENTORNO || 'E2E'
+test.beforeAll(async () => { if (ENTORNO === 'E2E') await prepararAvisosInicio('E2E') })
 const entrar = (page, cuenta) => iniciarSesion(page, cuenta, ENTORNO)
 const atencion = (page) => page.getByRole('region', { name: 'Requiere tu atención', exact: true })
 
@@ -165,6 +167,21 @@ test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, des
   await capturar(page, 'paula-optometra')
 })
 
+test('Inicio de Paula con un paciente en espera: el siguiente paciente es quien ya llegó y el título de la agenda lo cuenta', async ({ page }) => {
+  test.skip(ENTORNO !== 'E2E', 'Crea citas: solo en la óptica de pruebas')
+  const pendiente = await crearCitaDeHoyParaPaula('E2E') // todavía no llega
+  const enEspera = await crearCitaDeHoyParaPaula('E2E', { estado: 'En Espera' }) // ya llegó, aunque su hora sea posterior
+  await entrar(page, 'OPTOMETRA')
+  const agenda = main(page).getByRole('region', { name: 'Mi agenda de hoy' })
+  await expect(agenda).toBeVisible({ timeout: 20_000 })
+  await expect(agenda.getByLabel('Siguiente paciente')).toContainText(enEspera)
+  await expect(agenda.getByLabel('Siguiente paciente')).not.toContainText(pendiente)
+  await expect(agenda.getByLabel('Siguiente paciente')).toContainText('ya llegó')
+  await expect(main(page).getByRole('heading', { name: /^Mi agenda de hoy · [0-9]+ en espera$/i })).toBeVisible()
+  await expect(agenda.getByRole('button', { name: 'Atender', exact: true }).first()).toBeVisible()
+  await capturar(page, 'paula-en-espera')
+})
+
 test('Inicio de Recepción y de Ventas con su bloque único', async ({ page }) => {
   await entrar(page, 'RECEPCION')
   await expect(main(page).getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
@@ -179,7 +196,7 @@ test('Inicio de Ventas', async ({ page }) => {
   const cuerpo = main(page)
   await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
   await expect(cuerpo.getByText(/productos? con stock bajo/)).toHaveCount(1)
-  await expect(cuerpo.getByText(/órdenes? atrasadas?/).first()).toBeVisible()
+  await expect(cuerpo.getByText(/[oó]rdenes? atrasadas?/).first()).toBeVisible()
   await capturar(page, 'ventas')
 })
 

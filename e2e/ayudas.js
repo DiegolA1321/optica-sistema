@@ -116,7 +116,7 @@ const hoyLocalISO = (diasDespues = 0) => { const d = new Date(); d.setDate(d.get
 // Crea un paciente "E Dos E ..." y una cita de HOY asignada a Paula (pendiente, media hora más tarde, o a las 11:50 PM
 // si ya es tarde: nunca pasada, para que el proceso de "No asistió" no la toque). Devuelve el nombre del paciente.
 // Con `diasDespues` > 0 la cita es de otro día (a las 09:MM AM de ese día), para probar "¿Atenderla hoy?".
-export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0 } = {}) {
+export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0, estado = 'Pendiente' } = {}) {
   const { createClient } = await import('@supabase/supabase-js')
   const { correo, clave } = credencial('RECEPCION', entorno)
   const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
@@ -142,10 +142,55 @@ export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0
     const hora = diasDespues > 0 ? `09:${String(extra % 60).padStart(2, '0')} AM` : tarde.getDate() === ahora.getDate() ? hora12(tarde) : `11:${String(59 - (extra % 60)).padStart(2, '0')} PM`
     ;({ error: errorCita } = await cliente.from('citas').insert({
       optica_id: perfil.optica_id, paciente_id: paciente.id, paciente: nombre, cedula: paciente.cedula, telefono: paciente.telefono,
-      fecha: hoyLocalISO(diasDespues), hora, duracion_minutos: null, motivo: 'Consulta General', estado: 'Pendiente', asignado_a: paula.id,
+      fecha: hoyLocalISO(diasDespues), hora, duracion_minutos: null, motivo: 'Consulta General', estado, asignado_a: paula.id,
     }))
     if (!errorCita || errorCita.code !== '23505') break
   }
   if (errorCita) throw new Error(`No se pudo crear la cita de prueba: ${errorCita.message}`)
   return nombre
+}
+
+// ── Datos propios del Inicio (avisos de "Requiere tu atención") en la óptica de pruebas ──
+// Deja, de forma idempotente (no repite lo que ya existe), lo que las pruebas del Inicio necesitan ver y no deben pedirle
+// prestado a la Demo: un producto con stock bajo, un paciente con el control vencido y una orden de laboratorio atrasada.
+// Todo lleva el prefijo "E Dos E " para reconocerlo y limpiarlo. Usa la sesión del administrador de esa óptica.
+export async function prepararAvisosInicio(entorno = 'E2E') {
+  const { createClient } = await import('@supabase/supabase-js')
+  const { correo, clave } = credencial('ADMIN', entorno)
+  const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { data: sesion, error: errorSesion } = await cliente.auth.signInWithPassword({ email: correo, password: clave })
+  if (errorSesion) throw new Error('No se pudo iniciar la sesión del administrador para preparar los datos.')
+  const { data: perfil } = await cliente.from('perfiles').select('optica_id').eq('id', sesion.user.id).single()
+  const optica = perfil.optica_id
+  const falla = (que, error) => { if (error) throw new Error(`No se pudo preparar "${que}": ${error.message}`) }
+
+  const NOMBRE_PRODUCTO = 'E Dos E Montura agotada'
+  const { data: producto } = await cliente.from('inventario').select('id').eq('optica_id', optica).eq('nombre', NOMBRE_PRODUCTO).maybeSingle()
+  if (!producto) falla('producto con stock bajo', (await cliente.from('inventario').insert({ optica_id: optica, nombre: NOMBRE_PRODUCTO, categoria: 'Monturas', stock: 0, precio: 10, observacion: '' })).error)
+
+  const pacienteDe = async (nombre, extra = {}) => {
+    const { data: existente } = await cliente.from('pacientes').select('id').eq('optica_id', optica).eq('nombre', nombre).maybeSingle()
+    if (existente) return existente.id
+    const { data, error } = await cliente.from('pacientes').insert({
+      optica_id: optica, nombre, cedula: cedulaValida(), telefono: telefonoPrueba(), correo: 'Sin Correo', fecha_nacimiento: '1990-05-15',
+      evolucion: 'Sin evaluación', ultima_consulta: 'Pendiente', fecha_registro: hoyLocalISO(), estado_clinico: 'Activo', ...extra,
+    }).select('id').single()
+    falla(nombre, error)
+    return data.id
+  }
+  // Registrado hace años y sin ninguna consulta: su control está vencido.
+  await pacienteDe('E Dos E Control Vencido', { fecha_registro: '2020-01-15' })
+
+  const LAB = 'Lab E Dos E'
+  const { data: orden } = await cliente.from('ordenes_laboratorio').select('id').eq('optica_id', optica).eq('laboratorio', LAB).limit(1)
+  if (!orden?.length) {
+    const pacienteId = await pacienteDe('E Dos E Orden Atrasada')
+    const { data: factura, error: errorFactura } = await cliente.rpc('crear_factura_venta', {
+      p_optica_id: optica, p_paciente_id: pacienteId, p_metodo_pago: 'directo',
+      p_lineas: [{ tipo: 'servicio', descripcion: 'Lentes de prueba', cantidad: 1, precio_unitario: 10 }], p_registrado_por: sesion.user.id,
+    })
+    falla('venta de la orden atrasada', errorFactura)
+    const facturaId = Array.isArray(factura) ? factura[0].id : factura.id
+    falla('orden atrasada', (await cliente.rpc('crear_orden_laboratorio', { p_factura_id: facturaId, p_datos: { tipo_lente: 'monofocal', fecha_prometida: '2020-01-20', laboratorio: LAB } })).error)
+  }
 }
