@@ -2,6 +2,7 @@
 
 import { fechaHoraLegible } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useParamUrl } from "../utilidades/urlEstado"
 import { createPortal } from "react-dom"
 import {
   Users, UserPlus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Eye, EyeOff, Mail, Info, IdCard,
@@ -23,7 +24,7 @@ const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-
 // Usuarios y roles (Bloque D, R46-R51). Los roles definen los permisos; cada persona recibe uno o varios.
 // Desactivar reemplaza a eliminar: la persona pierde el acceso pero conserva su historial.
 export default function Usuarios({ usuario, asistentes = [], setAsistentes, alActualizarUsuario }) {
-  const [pestana, setPestana] = useState("usuarios")
+  const [pestana, setPestana] = useParamUrl("tab", "usuarios", ["usuarios", "roles"])
   const [roles, setRoles] = useState([])
   const [asignaciones, setAsignaciones] = useState([]) // { perfil_id, rol_id }
   const [cargando, setCargando] = useState(true)

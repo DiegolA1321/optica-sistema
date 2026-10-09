@@ -3,6 +3,7 @@
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useParamUrl } from "../utilidades/urlEstado"
 import { createPortal } from "react-dom"
 import {
   Clock,
@@ -74,7 +75,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
   const esAdmin = usuario?.rol === "admin"
   // Editar el horario general y sus excepciones: el administrador o quien tenga "Mi horario: editar" (la base lo exige igual).
   const puedeEditarHorario = esAdmin || puede(usuario, "horario", "editar")
-  const [tab, setTab] = useState("general")
+  const [tab, setTab] = useParamUrl("tab", "general", ["general", "personal"])
   const [mesVista, setMesVista] = useState(new Date(ahoraEcuador().getFullYear(), ahoraEcuador().getMonth(), 1))
   const [fechaEditando, setFechaEditando] = useState(null)
   // Citas que quedarían fuera del horario si se aplica un cambio pendiente —

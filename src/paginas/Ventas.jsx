@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useParamUrl } from "../utilidades/urlEstado"
 import { AlertCircle, CheckCircle, FlaskConical, Search, ShoppingBag, ShoppingCart, Wallet, Receipt, UserX } from "lucide-react"
 import { INK } from "@/lib/tema"
 import ColaVentas from "../componentes/ColaVentas"
@@ -35,7 +36,7 @@ export default function Ventas({
   const puedeEditar = puede(usuario, "ventas", "editar")
   const puedeAnular = puede(usuario, "ventas", "eliminar")
 
-  const [tab, setTab] = useState("cola") // cola | ventas | ordenes | saldos
+  const [tab, setTab] = useParamUrl("tab", "cola", ["cola", "ventas", "ordenes", "saldos"]) // cola | ventas | ordenes | saldos
   const [verNoCompraron, setVerNoCompraron] = useState(false)
   const [filtroOrdenes, setFiltroOrdenes] = useState("abiertas")
   const [texto, setTexto] = useState("")

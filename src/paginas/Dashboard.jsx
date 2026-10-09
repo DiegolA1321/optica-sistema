@@ -62,6 +62,7 @@ import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
 import { puedeReasignar } from "../utilidades/reasignacion"
 import { citasPropias } from "../utilidades/inicio"
+import { PARAMS_DE_SECCION, escribirParam, leerParam } from "../utilidades/urlEstado"
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
 
@@ -316,10 +317,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // volver a resolver la óptica (?optica=/?sitio= se preservan intactos).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    // El id del paciente ya se leyó al iniciar: se quita para que recargar no lo reabra.
-    const traiaPaciente = params.has("paciente")
-    params.delete("paciente")
-    if (traiaPaciente || params.get("seccion") !== seccionActiva) {
+    // El paciente abierto (?paciente=) se conserva: Pacientes lo reabre al recargar.
+    if (params.get("seccion") !== seccionActiva) {
       params.set("seccion", seccionActiva)
       window.history.replaceState({ seccion: seccionActiva }, "", `${window.location.pathname}?${params}`)
     }
@@ -343,6 +342,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     if (destino !== seccionActiva) {
       const params = new URLSearchParams(window.location.search)
       params.set("seccion", destino)
+      // El detalle de una sección (pestaña, paciente abierto, ficha) no viaja a la siguiente.
+      PARAMS_DE_SECCION.forEach((k) => params.delete(k))
       window.history.pushState({ seccion: destino }, "", `${window.location.pathname}?${params}`)
     }
     setSeccionActiva(destino)
@@ -388,7 +389,24 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     // Citas.jsx ahora lo manda explícito; la búsqueda queda como respaldo.
     setFichaClinicaMotivoInicial(motivo || citaOrigen?.motivo || null)
     navegar("consultas")
+    // La ficha sobrevive a una recargar: se guarda a quién se atiende y desde qué cita.
+    if (paciente?.id) escribirParam("ficha", String(paciente.id), { estado: { seccion: "consultas" } })
+    if (citaId) escribirParam("fcita", String(citaId), { estado: { seccion: "consultas" } })
   }
+
+  // Recarga dentro de la ficha clínica: se vuelve a poner al paciente y la cita en cuanto cargan los datos.
+  const fichaRestaurada = useRef(false)
+  useEffect(() => {
+    if (fichaRestaurada.current || seccionActiva !== "consultas" || pacientes.length === 0) return
+    fichaRestaurada.current = true
+    const id = leerParam("ficha")
+    if (!id || fichaClinicaPacienteInicial) return
+    const paciente = pacientes.find((p) => String(p.id) === id)
+    if (!paciente) return
+    setFichaClinicaPacienteInicial(paciente)
+    setFichaClinicaCitaId(leerParam("fcita"))
+    setFichaClinicaOrigen(leerParam("fcita") ? "citas" : "pacientes")
+  }, [seccionActiva, pacientes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resumen de Mensajes para la campanita — única llamada a Supabase de este
   // archivo (el resto del Dashboard es local/localStorage). Consultas propias

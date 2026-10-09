@@ -9,3 +9,8 @@ import { cleanup } from '@testing-library/react'
 afterEach(() => {
   cleanup()
 })
+
+// La pestaña o el paciente abierto viven en la URL: sin limpiarla, lo que deja un test condiciona al siguiente.
+afterEach(() => {
+  window.history.replaceState(null, '', '/')
+})
