@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { X, Stethoscope, Printer, ClipboardList, Eye } from "lucide-react"
+import { X, Stethoscope, Printer, ClipboardList, Eye, Glasses, HeartPulse, ShieldAlert, Users, CalendarCheck, FileText } from "lucide-react"
 import { INK, GOLD } from "@/lib/tema"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
+
+const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
 const BADGE_ESTADO_CITA = {
   "En Atención": "border-blue-200/60 bg-blue-50 text-blue-700",
@@ -16,23 +18,26 @@ const BADGE_ESTADO_CITA = {
 }
 const ETIQUETA_ESTADO_CITA = { "En Atención": "En atención", "No Asistió": "No asistió" }
 
-function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie }) {
+function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = FileText }) {
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
       <div ref={refModal} role="dialog" aria-modal="true" aria-label={titulo} className={"flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl " + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
-            <p className="text-xs text-slate-500">{subtitulo}</p>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-cyan-100/70 px-5 py-4" style={{ background: "linear-gradient(135deg,#ecfeff 0%,#eff6ff 100%)" }}>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white shadow-sm" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold leading-tight" style={{ color: INK }}>{titulo}</h2>
+              <p className="truncate text-xs text-slate-500">{subtitulo}</p>
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {derecha}
-            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
+            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/70 cursor-pointer"><X size={20} /></button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">{pie}</div>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">{pie}</div>
       </div>
     </div>,
     document.body,
@@ -43,52 +48,67 @@ const BotonCerrar = ({ onCerrar }) => (
   <button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
 )
 
-function Dato({ etiqueta, children }) {
-  return (
-    <div className="mt-3 first:mt-0">
-      <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
-      <dd className="mt-0.5 text-sm font-semibold break-words" style={{ color: INK }}>{children}</dd>
-    </div>
-  )
+// ─── Historia clínica: los datos permanentes que se piden al principio, en solo lectura ───
+// Hoy viven dentro de cada ficha y se copian a la siguiente, así que se muestran los de la ficha más reciente que los tenga.
+const TONOS = {
+  cyan: { tarjeta: "border-cyan-200/70 bg-cyan-50/50", icono: "bg-cyan-100 text-cyan-700", titulo: "text-cyan-800" },
+  amber: { tarjeta: "border-amber-200/70 bg-amber-50/50", icono: "bg-amber-100 text-amber-700", titulo: "text-amber-800" },
+  rose: { tarjeta: "border-rose-200/70 bg-rose-50/60", icono: "bg-rose-100 text-rose-700", titulo: "text-rose-800" },
+  violet: { tarjeta: "border-violet-200/70 bg-violet-50/50", icono: "bg-violet-100 text-violet-700", titulo: "text-violet-800" },
 }
 
-function Columna({ titulo, children }) {
+function Tarjeta({ tono, Icono, titulo, etiqueta, valor, vacio }) {
+  const t = TONOS[tono]
   return (
-    <section>
-      <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-500">{titulo}</h3>
-      <dl>{children}</dl>
+    <section className={"rounded-xl border p-4 " + t.tarjeta}>
+      <div className="mb-2 flex items-center gap-2.5">
+        <div className={"grid h-8 w-8 shrink-0 place-items-center rounded-lg " + t.icono}><Icono size={16} aria-hidden="true" /></div>
+        <div className="min-w-0">
+          <h3 className={"text-[11px] font-bold uppercase tracking-widest " + t.titulo}>{titulo}</h3>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{etiqueta}</p>
+        </div>
+      </div>
+      <p className={"text-sm break-words " + (vacio ? "italic text-slate-400" : "font-semibold")} style={vacio ? undefined : { color: INK }}>{valor}</p>
     </section>
   )
 }
 
-// ─── Historia clínica: los datos permanentes que se piden al principio, en solo lectura ───
-// Hoy viven dentro de cada ficha y se copian a la siguiente, así que se muestran los de la ficha más reciente que los tenga.
+const sinDato = (t) => { const x = String(t || "").trim().toLowerCase(); return !x || ["no", "sin", "n/a", "na", "-", "—"].includes(x) || x.startsWith("ningun") || x.startsWith("no ") || x.startsWith("sin ") }
+
 export function ModalHistoriaClinica({ paciente, consultas, onCerrar }) {
   const ficha = consultas.find((c) => c.usaLentes || c.antecedentes || c.alergias || c.antecedentesFamiliares)
+  const alergia = ficha && !sinDato(ficha.alergias)
   return (
     <Cascaron
       titulo="Historia clínica"
-      subtitulo={`${paciente.nombre} · datos permanentes, solo lectura`}
+      subtitulo={paciente.nombre + " · datos permanentes, solo lectura"}
+      Icono={ClipboardList}
       onCerrar={onCerrar}
       ancho="max-w-2xl"
+      derecha={ficha && <span className="hidden items-center gap-1.5 rounded-full border border-cyan-200 bg-white/80 px-2.5 py-1 text-xs font-semibold text-cyan-800 sm:inline-flex"><CalendarCheck size={13} aria-hidden="true" /> Actualizada el {fechaLegible(ficha.fecha) || "—"}</span>}
       pie={<><p className="text-xs text-slate-500">Se actualiza en cada ficha clínica. Aquí no se edita.</p><BotonCerrar onCerrar={onCerrar} /></>}
     >
       {ficha ? (
-        <div className="grid grid-cols-1 gap-6 p-5 sm:grid-cols-3">
-          <Columna titulo="Salud visual">
-            <Dato etiqueta="¿Usa lentes?">{ficha.usaLentes === "si" ? "Sí" : ficha.usaLentes === "no" ? "No" : "No registrado"}</Dato>
-            <Dato etiqueta="Última actualización">{fechaLegible(ficha.fecha) || "—"}</Dato>
-          </Columna>
-          <Columna titulo="Antecedentes">
-            <Dato etiqueta="Médicos / oculares">{ficha.antecedentes || "Ninguno registrado"}</Dato>
-            <Dato etiqueta="Alergias">{ficha.alergias || "Ninguna registrada"}</Dato>
-          </Columna>
-          <Columna titulo="Familiares">
-            <Dato etiqueta="Antecedentes familiares">{ficha.antecedentesFamiliares || "Ninguno registrado"}</Dato>
-          </Columna>
+        <div className="space-y-3 p-5">
+          {alergia && (
+            <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+              <ShieldAlert size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <p><span className="font-bold">Alergias:</span> {ficha.alergias}</p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Tarjeta tono="cyan" Icono={Glasses} titulo="Salud visual" etiqueta="¿Usa lentes?" valor={ficha.usaLentes === "si" ? "Sí, usa lentes" : ficha.usaLentes === "no" ? "No usa lentes" : "No registrado"} vacio={!ficha.usaLentes} />
+            <Tarjeta tono="amber" Icono={HeartPulse} titulo="Antecedentes" etiqueta="Médicos y oculares" valor={ficha.antecedentes || "Ninguno registrado"} vacio={!ficha.antecedentes} />
+            <Tarjeta tono="violet" Icono={Users} titulo="Familiares" etiqueta="Antecedentes familiares" valor={ficha.antecedentesFamiliares || "Ninguno registrado"} vacio={!ficha.antecedentesFamiliares} />
+            {!alergia && <Tarjeta tono="rose" Icono={ShieldAlert} titulo="Alergias" etiqueta="Conocidas" valor={ficha.alergias || "Ninguna registrada"} vacio={!ficha.alergias} />}
+          </div>
         </div>
       ) : (
-        <p className="m-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-600">Aún no hay historia clínica. Se registra en la primera ficha clínica del paciente.</p>
+        <div className="m-5 flex flex-col items-center gap-2 rounded-xl border border-dashed border-cyan-300 bg-cyan-50/40 p-8 text-center">
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-cyan-100 text-cyan-700"><ClipboardList size={22} aria-hidden="true" /></div>
+          <p className="text-sm font-bold" style={{ color: INK }}>Aún no hay historia clínica</p>
+          <p className="text-xs text-slate-600">Se registra en la primera ficha clínica del paciente.</p>
+        </div>
       )}
     </Cascaron>
   )
@@ -174,6 +194,7 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, parametrizaci
     <>
       <Cascaron
         titulo={"Atención del " + (fechaLegible(consulta.fecha) || "—")}
+        Icono={Stethoscope}
         subtitulo={[cita?.hora && cita.hora !== "Sin cita" ? cita.hora : "Sin cita", consulta.motivo, consulta.profesionalNombre].filter(Boolean).join(" · ")}
         derecha={<span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[cita?.estado] || "border-emerald-200/60 bg-emerald-50 text-emerald-700")}>{ETIQUETA_ESTADO_CITA[cita?.estado] || cita?.estado || "Atendida"}</span>}
         onCerrar={onCerrar}

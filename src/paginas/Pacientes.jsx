@@ -28,7 +28,6 @@ import {
   TrendingDown,
   Minus,
   AlertCircle,
-  SlidersHorizontal,
   KeyRound,
   Copy,
   Check,
@@ -59,7 +58,7 @@ import {
   FlaskConical,
 } from "lucide-react"
 import CamposCita from "../componentes/CamposCita"
-import { SeccionRango } from "../componentes/FiltrosCitas"
+import { BarraBusquedaFiltros, SeccionRango } from "../componentes/FiltrosCitas"
 import { contarCitas, citasPorMes, diaMasFrecuente } from "../utilidades/resumenCitas"
 import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -91,6 +90,7 @@ import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
 import { ModalAtencion, ModalHistoriaClinica } from "../componentes/AtencionPaciente"
+import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -227,7 +227,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const inputBusquedaRef = useRef(null)
   const [filtroEstado, setFiltroEstado] = useState("Todos")
   const [filtroCorreccion, setFiltroCorreccion] = useState("Todos")
-  const [filtroFecha, setFiltroFecha] = useState("")
+  const [filtroDesde, setFiltroDesde] = useState("")
+  const [filtroHasta, setFiltroHasta] = useState("")
   // Filtros rápidos (badges) que no se derivan de estadoCorreccion: excluyentes
   // entre sí y con la tarjeta de corrección activa, para no combinar dos
   // filtros a la vez sin que quede claro cuál está aplicado.
@@ -316,6 +317,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   }, [pacienteHistorial])
   const [tabHistorial, setTabHistorial] = useState("citas")
   const [verHistoriaClinica, setVerHistoriaClinica] = useState(false)
+  // El perfil abierto guardaba una copia del paciente: al crear su cuenta o editar sus datos seguía mostrando lo anterior ("Sin cuenta").
+  // Se mantiene al día con la lista.
+  useEffect(() => {
+    if (!pacienteHistorial) return
+    const actual = pacientes.find((p) => p.id === pacienteHistorial.id)
+    if (actual && actual !== pacienteHistorial) setPacienteHistorial(actual)
+  }, [pacientes]) // eslint-disable-line react-hooks/exhaustive-deps
   // Escape cierra la vista de perfil del paciente (atajo de teclado).
   useEffect(() => {
     if (!pacienteHistorial) return
@@ -323,6 +331,41 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [pacienteHistorial])
+  // El perfil abierto y su pestaña viven en la URL: recargar deja el perfil abierto, y "atrás" vuelve a la lista.
+  const sincronizarUrl = !overlaySolo
+  const idPerfil = pacienteHistorial?.id ?? null
+  const perfilVisto = useRef(false)
+  useEffect(() => {
+    if (!sincronizarUrl) return
+    const enUrl = leerParam("paciente")
+    if (idPerfil) {
+      perfilVisto.current = true
+      if (enUrl !== String(idPerfil)) escribirParam("paciente", String(idPerfil), { empujar: true, estado: { seccion: "pacientes", perfilPaciente: true } })
+    } else if (enUrl && perfilVisto.current) {
+      // Se cerró el perfil: si esa pantalla la empujó este módulo, "atrás" la quita del historial; si no, solo se limpia la URL.
+      if (window.history.state?.perfilPaciente) window.history.back()
+      else escribirParam("paciente", null)
+    }
+  }, [idPerfil]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (sincronizarUrl && idPerfil) escribirParam("tab", tabHistorial === "citas" ? null : tabHistorial)
+  }, [tabHistorial, idPerfil]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Atrás/adelante del navegador, y volver desde la ficha clínica: abre o cierra el perfil según la URL.
+  useEffect(() => {
+    if (!sincronizarUrl) return undefined
+    const abrirSegunUrl = () => {
+      const id = leerParam("paciente")
+      if (!id) { setPacienteHistorial(null); return }
+      const paciente = pacientes.find((x) => String(x.id) === id)
+      if (!paciente) return
+      const tab = leerParam("tab")
+      setPacienteHistorial(paciente)
+      setTabHistorial(["citas", "resumen", "pagos", "ordenes"].includes(tab) ? tab : "citas")
+    }
+    if (!perfilVisto.current && !pacienteHistorial) abrirSegunUrl()
+    window.addEventListener("popstate", abrirSegunUrl)
+    return () => window.removeEventListener("popstate", abrirSegunUrl)
+  }, [pacientes]) // eslint-disable-line react-hooks/exhaustive-deps
   // "Nueva venta" (Ronda 4 del flujo de atención): antes había dos botones,
   // "Vender producto" (un producto, pago directo, tabla `ventas`) y "Nueva
   // factura" (varias líneas, cuotas, tabla `facturas_venta`). Una venta de un
@@ -582,7 +625,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       // espera en vez de descartar la acción.
       if (!paciente && cargaInicial) return
       if (paciente) {
-        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial("citas") }
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(["citas", "resumen", "pagos", "ordenes"].includes(leerParam("tab")) ? leerParam("tab") : "citas") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
         else if (accionInicial.accion === "eliminar" && puedeEliminar) setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
@@ -863,7 +906,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         normalizarTexto(p.correo).includes(busquedaNorm)
       const coincideEstado = filtroEstado === "Todos" || p.estadoClinico === filtroEstado
       const coincideCorreccion = filtroCorreccion === "Todos" || (p.estadoCorreccion || "Sin evaluación") === filtroCorreccion
-      const coincideFecha = !filtroFecha || (p.fechaRegistro || "") === filtroFecha
+      const coincideFecha = (!filtroDesde && !filtroHasta) || (!!p.fechaRegistro && (!filtroDesde || p.fechaRegistro >= filtroDesde) && (!filtroHasta || p.fechaRegistro <= filtroHasta))
       const coincideRapido =
         filtroRapido === "Todos" ||
         (filtroRapido === "Recientes" && (() => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS })()) ||
@@ -872,7 +915,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         (filtroRapido === "ControlSinAgendar" && sinAgendarPorPaciente.has(p.id))
       return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha && coincideRapido
     })
-  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido, consultas, idsConDeuda, noCompraron, sinAgendarPorPaciente])
+  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroDesde, filtroHasta, filtroRapido, consultas, idsConDeuda, noCompraron, sinAgendarPorPaciente])
 
   // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
   // usa CRM.jsx en su modal de detalle, para no inventar uno nuevo. Solo la
@@ -905,7 +948,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const [pagina, setPagina] = useState(1)
   // `busquedaInput` (no el debounced `busqueda`) para que la página se
   // reinicie de inmediato al teclear, sin esperar los ~220ms del debounce.
-  useEffect(() => { setPagina(1) }, [busquedaInput, filtroEstado, filtroCorreccion, filtroFecha, filtroRapido])
+  useEffect(() => { setPagina(1) }, [busquedaInput, filtroEstado, filtroCorreccion, filtroDesde, filtroHasta, filtroRapido])
   const totalPaginas = Math.max(1, Math.ceil(pacientesOrdenados.length / PACIENTES_POR_PAGINA))
   // Si la página guardada quedó fuera de rango (p. ej. se estaba en la
   // página 3 y un filtro nuevo dejó solo 1 página), se recorta a la última
@@ -978,15 +1021,25 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin consulta", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
   ]
 
-  const hayFiltrosActivos =
-    busquedaInput || filtroEstado !== "Todos" || filtroCorreccion !== "Todos" || filtroFecha || filtroRapido !== "Todos"
+  const corta = (iso) => formatoFecha(iso, "medioSinAnio")
+  const seccionesFiltro = [
+    { id: "estado", titulo: "Estado", valor: filtroEstado, onChange: setFiltroEstado, opciones: [{ id: "Todos", etiqueta: "Todos" }, { id: "Activo", etiqueta: "Activo" }, { id: "De alta", etiqueta: "De alta" }] },
+    { id: "correccion", titulo: "Corrección", valor: filtroCorreccion, onChange: setFiltroCorreccion, opciones: [{ id: "Todos", etiqueta: "Todas" }, { id: "Bien corregido", etiqueta: "Bien corregido" }, { id: "Requiere ajuste", etiqueta: "Requiere ajuste" }, { id: "Sin evaluar", etiqueta: "Sin agudeza visual con lentes registrada" }, { id: "Sin evaluación", etiqueta: "Sin consulta" }] },
+    { id: "fecha", titulo: "Fecha de registro", tipo: "rango", rango: { desde: filtroDesde, hasta: filtroHasta, onDesde: setFiltroDesde, onHasta: setFiltroHasta } },
+  ]
+  const etiquetasFiltro = [
+    ...(filtroEstado !== "Todos" ? [{ id: "estado", texto: filtroEstado, quitar: () => setFiltroEstado("Todos") }] : []),
+    ...(filtroCorreccion !== "Todos" ? [{ id: "correccion", texto: seccionesFiltro[1].opciones.find((o) => o.id === filtroCorreccion)?.etiqueta || filtroCorreccion, quitar: () => setFiltroCorreccion("Todos") }] : []),
+    ...(filtroDesde || filtroHasta ? [{ id: "fecha", texto: filtroDesde && filtroHasta ? `${corta(filtroDesde)} – ${corta(filtroHasta)}` : `Desde el ${corta(filtroDesde || filtroHasta)}`, quitar: () => { setFiltroDesde(""); setFiltroHasta("") } }] : []),
+  ]
 
   const limpiarFiltros = () => {
     setBusquedaInput("")
     setBusqueda("")
     setFiltroEstado("Todos")
     setFiltroCorreccion("Todos")
-    setFiltroFecha("")
+    setFiltroDesde("")
+    setFiltroHasta("")
     setFiltroRapido("Todos")
   }
 
@@ -1100,93 +1153,18 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         </div>
       </div>
 
-      {/* ─── BARRA DE FILTROS ─── */}
-      <div className="rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-          <SlidersHorizontal size={14} />
-          Filtros
-        </div>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-          <div className="flex-1">
-            <label htmlFor="buscar-paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">Buscar</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-              <input
-                id="buscar-paciente"
-                ref={inputBusquedaRef}
-                type="text"
-                placeholder="Nombre, cédula, teléfono o correo del paciente..."
-                value={busquedaInput}
-                onChange={(e) => setBusquedaInput(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-              />
-              {/* Pista del atajo de teclado — se oculta mientras se escribe para no estorbar. */}
-              {!busquedaInput && (
-                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-slate-200/60 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 sm:flex">
-                  Ctrl K
-                </kbd>
-              )}
-              {busquedaInput && !buscando && (
-                <button type="button" onClick={() => setBusquedaInput("")} aria-label="Limpiar búsqueda" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="filtro-estado" className="mb-1.5 block text-sm font-semibold text-slate-700">Estado</label>
-            <select
-              id="filtro-estado"
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white lg:w-36"
-            >
-              <option value="Todos">Todos</option>
-              <option value="Activo">Activo</option>
-              <option value="De alta">De alta</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="filtro-evolucion" className="mb-1.5 block text-sm font-semibold text-slate-700">Corrección</label>
-            <select
-              id="filtro-evolucion"
-              value={filtroCorreccion}
-              onChange={(e) => setFiltroCorreccion(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white lg:w-40"
-            >
-              <option value="Todos">Todas</option>
-              <option value="Bien corregido">Bien corregido</option>
-              <option value="Requiere ajuste">Requiere ajuste</option>
-              <option value="Sin evaluar">Sin agudeza visual con lentes registrada</option>
-              <option value="Sin evaluación">Sin consulta</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="filtro-fecha" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de registro</label>
-            <input
-              id="filtro-fecha"
-              type="date"
-              value={filtroFecha}
-              onChange={(e) => setFiltroFecha(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white lg:w-44"
-            />
-          </div>
-
-          {hayFiltrosActivos && (
-            <button
-              type="button"
-              onClick={limpiarFiltros}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 cursor-pointer"
-            >
-              <X size={15} />
-              Limpiar
-            </button>
-          )}
-        </div>
-      </div>
+      {/* ─── BÚSQUEDA Y FILTROS: la misma barra única de Citas ─── */}
+      <BarraBusquedaFiltros
+        texto={busquedaInput}
+        onTexto={setBusquedaInput}
+        secciones={seccionesFiltro}
+        etiquetas={etiquetasFiltro}
+        onLimpiar={limpiarFiltros}
+        placeholder="Buscar paciente: nombre, cédula, teléfono o correo"
+        inputId="buscar-paciente"
+        inputRef={inputBusquedaRef}
+        etiquetaPanel="Filtrar pacientes"
+      />
 
       {/* ─── FILTROS RÁPIDOS (badges) ─── */}
       <div className="flex flex-wrap items-center gap-2">
@@ -1852,7 +1830,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
-              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm lg:flex-row lg:items-start lg:justify-between lg:gap-6">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
@@ -1892,7 +1870,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:justify-end lg:border-t-0 lg:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:max-w-[36rem] lg:shrink-0 lg:justify-end lg:border-t-0 lg:pt-0">
                   <button
                     type="button"
                     onClick={() => setVerHistoriaClinica(true)}

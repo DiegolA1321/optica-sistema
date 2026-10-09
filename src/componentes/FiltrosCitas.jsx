@@ -29,7 +29,7 @@ function useCierre(abierto, cerrar) {
 // Barra única de búsqueda y filtros: "Filtrar" abre un panel con todas las categorías a la vista (los filtros elegidos quedan como etiquetas con su "x" dentro de la
 // barra, y el campo de búsqueda ocupa el resto. "Limpiar" quita etiquetas y búsqueda.
 // secciones: [{ id, titulo, valor, onChange, opciones: [{ id, etiqueta }], tipo?: "chips" | "lista" | "rango" }] (el tipo "rango" lleva `rango`: { desde, hasta, onDesde, onHasta })
-export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar }) {
+export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar, placeholder = "Buscar cita: paciente o código", inputId = "citas-busqueda", inputRef, etiquetaPanel = "Filtrar citas" }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useCierre(abierto, () => setAbierto(false))
   const hayAlgo = etiquetas.length > 0 || texto.trim() !== ""
@@ -41,7 +41,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           onClick={() => setAbierto((v) => !v)}
           aria-haspopup="dialog"
           aria-expanded={abierto}
-          aria-controls="citas-filtrar-panel"
+          aria-controls={inputId + "-panel"}
           className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
         >
           <SlidersHorizontal size={14} aria-hidden="true" /> Filtrar
@@ -58,13 +58,14 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
         ))}
         <div className="relative min-w-[6rem] flex-1">
           <Search size={15} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-          <label htmlFor="citas-busqueda" className="sr-only">Buscar cita: paciente o código</label>
+          <label htmlFor={inputId} className="sr-only">{placeholder}</label>
           <input
-            id="citas-busqueda"
+            id={inputId}
+            ref={inputRef}
             type="text"
             value={texto}
             onChange={(e) => onTexto(e.target.value)}
-            placeholder="Buscar cita: paciente o código"
+            placeholder={placeholder}
             className="w-full bg-transparent py-1.5 pl-8 pr-2 text-xs font-medium text-slate-800 outline-none"
           />
         </div>
@@ -75,7 +76,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
         )}
       </div>
       {abierto && (
-        <div id="citas-filtrar-panel" role="dialog" aria-label="Filtrar citas" className="absolute left-0 top-full z-30 mt-1.5 w-[24rem] max-w-[calc(100vw-2rem)] space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+        <div id={inputId + "-panel"} role="dialog" aria-label={etiquetaPanel} className="absolute left-0 top-full z-30 mt-1.5 w-[24rem] max-w-[calc(100vw-2rem)] space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
           {secciones.map((s) => (
             <div key={s.id} role="group" aria-label={s.titulo} className="space-y-1.5">
               <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">{s.titulo}</span>
