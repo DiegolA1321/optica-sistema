@@ -3,13 +3,13 @@
 import { fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { useState } from "react"
 import { createPortal } from "react-dom"
-import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, CheckCircle2, Loader2 } from "lucide-react"
+import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, CheckCircle2, Loader2, UserRoundPlus, Repeat } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { yaPasoLaHora } from "../utilidades/agendaCitas"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { urlPerfilPaciente } from "./calendarioComun"
-import { profesionalDeCita, mostrarProfesional } from "../utilidades/profesionalCita"
+import { profesionalDeCita, mostrarProfesional, esReasignable, esTomable } from "../utilidades/profesionalCita"
 import { edadEnAnios } from "../utilidades/edad"
 import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, requiereConfirmarOtroDia } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
@@ -61,10 +61,15 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // final, TODAS las acciones de la cita. "Atender"/"Retomar" entran directo a la ficha; "Llegó" pasa la cita a
 // "En espera" (lo usa recepción, que no atiende) y "Ver perfil" abre el paciente en otra pestaña para no perder el
 // lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está en un estado que la admite.
-export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar }) {
+export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar }) {
   const refModal = useModalAccesible(true, onCerrar)
   // Cita de otro día: "Atender" pide un clic más ("¿Atenderla hoy?"); las de hoy entran directo a la ficha.
   const [confirmandoOtroDia, setConfirmandoOtroDia] = useState(preguntarOtroDia)
+  // "Reasignar": quien tiene permiso de editar citas con alcance "todo" (lo decide Citas.jsx pasando onReasignar). Un clic en la persona.
+  const [reasignando, setReasignando] = useState(false)
+  const puedeReasignar = !!onReasignar && esReasignable(cita)
+  const puedeTomar = !!onTomar && esTomable(cita)
+  const destinos = personasAsignables.filter((m) => m.id !== cita.asignadoA)
   const otroDia = requiereConfirmarOtroDia(cita, hoyISO())
   const diaDeLaCita = cita.fecha ? formatoFecha(cita.fecha, "calendario", { enFrase: true }) : ""
   const alAtender = () => { if (otroDia && !confirmandoOtroDia) setConfirmandoOtroDia(true); else onIngresar(cita) }
@@ -239,11 +244,48 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
           </div>
         )}
 
+        {reasignando && puedeReasignar && (
+          <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-6 py-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Pasar la cita a</p>
+            <div className="flex flex-wrap gap-2">
+              {destinos.length === 0 && <span className="text-sm text-slate-500">No hay otra persona activa a quien pasarla.</span>}
+              {destinos.map((m) => {
+                const ausente = !!ausenteEnLaHora?.(m.id, cita)
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { setReasignando(false); onReasignar(cita, m.id) }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-blue-50 cursor-pointer"
+                  >
+                    {m.nombre}
+                    {ausente && <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">ausente a esa hora</span>}
+                  </button>
+                )
+              })}
+              {cita.asignadoA && (
+                <button
+                  type="button"
+                  onClick={() => { setReasignando(false); onReasignar(cita, null) }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 cursor-pointer"
+                >
+                  Dejar sin asignar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-slate-100 px-6 py-4" role="group" aria-label="Acciones de la cita">
           {cita.pacienteId && (
             <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
               <ExternalLink size={14} aria-hidden="true" /> Ver perfil
             </a>
+          )}
+          {puedeReasignar && (
+            <button type="button" onClick={() => setReasignando((v) => !v)} aria-expanded={reasignando} className={BOTON_SECUNDARIO}>
+              <Repeat size={14} aria-hidden="true" /> Reasignar
+            </button>
           )}
           {puedeEditarCita(cita) && onEditar && (
             <button type="button" onClick={() => onEditar(cita)} className={BOTON_SECUNDARIO}>
@@ -261,6 +303,11 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
             </button>
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            {puedeTomar && (
+              <button type="button" onClick={() => onTomar(cita)} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/70 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
+                <UserRoundPlus size={14} aria-hidden="true" /> Tomar esta cita
+              </button>
+            )}
             {puedeAgendarOtra && (
               <button type="button" onClick={() => onAgendarOtra(cita)} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/70 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
                 <CalendarPlus size={14} aria-hidden="true" /> Agendar otra cita

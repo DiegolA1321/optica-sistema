@@ -40,7 +40,8 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
 import { colorDe } from "../componentes/calendarioComun"
-import { etiquetaMiembro } from "../utilidades/equipo"
+import { etiquetaMiembro, miembrosActivos } from "../utilidades/equipo"
+import { puedeReasignar, ausenteEnHorario } from "../utilidades/reasignacion"
 import { lineaProfesional as textoProfesional, mostrarProfesional } from "../utilidades/profesionalCita"
 import SelectorAsignado from "../componentes/SelectorAsignado"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
@@ -811,6 +812,46 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     setCpGuardando(false)
     cerrarCompletarRegistro()
     onAtender?.(nuevoPaciente, citaId, motivoCita)
+  }
+
+  // ── Reasignar y tomar (reunión del 7 oct., R18) ──
+  // Reasignar pasa por la función reasignar_cita (0100): valida permiso y alcance en la base y deja el registro en la actividad.
+  // Cada reasignación ofrece "Deshacer", que es la misma llamada de vuelta a quien la tenía.
+  const personasAsignables = miembrosActivos(equipo).filter((m) => m.esOptometra)
+  const reasignarCita = async (cita, nuevoId, { esDeshacer = false } = {}) => {
+    if (!supabase || !opticaId) return
+    const anterior = cita.asignadoA || null
+    const { data, error } = await supabase.rpc("reasignar_cita", { p_cita_id: cita.id, p_nuevo: nuevoId })
+    if (error) {
+      onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : (error.message || "No se pudo reasignar la cita. Revisa tu conexión e intenta de nuevo."))
+      return
+    }
+    const fila = Array.isArray(data) ? data[0] : data
+    setCitas((previas) => previas.map((c) => (c.id === cita.id ? { ...c, asignadoA: fila?.nuevo_asignado ?? nuevoId, asignadoOriginal: fila?.nuevo_original ?? c.asignadoOriginal } : c)))
+    setDetalleCitaId(null)
+    const destino = nuevoId ? etiquetaMiembro(equipo, nuevoId) : "nadie (sin asignar)"
+    onAviso?.(esDeshacer
+      ? { texto: "Reasignación deshecha." }
+      : { texto: `Cita de ${cita.paciente} pasada a ${destino}.`, accion: { etiqueta: "Deshacer", onClick: () => reasignarCita({ ...cita, asignadoA: nuevoId }, anterior, { esDeshacer: true }) } })
+  }
+
+  // "Tomar esta cita": solo si sigue sin responsable y abierta. La condición va en la propia actualización, así que si otra
+  // persona la tomó un segundo antes no se pisa: no cambia ninguna fila y se avisa.
+  const tomarCita = async (cita) => {
+    if (!supabase || !opticaId || !usuario?.id) return
+    const { data, error } = await supabase.from("citas").update({ asignado_a: usuario.id })
+      .eq("id", cita.id).is("asignado_a", null).is("atendido_por", null).in("estado", ["Pendiente", "En Espera"]).select()
+    if (fueBloqueadoPorPermiso({ error, data })) { onAviso?.(MENSAJE_SIN_PERMISO); return }
+    if (error) { onAviso?.("No se pudo tomar la cita. Revisa tu conexión e intenta de nuevo."); return }
+    if (!data || data.length === 0) {
+      onAviso?.("Ya la tomó otra persona.")
+      setDetalleCitaId(null)
+      return
+    }
+    setCitas((previas) => previas.map((c) => (c.id === cita.id ? { ...c, asignadoA: usuario.id } : c)))
+    registrarLog(usuario, "citas", "Tomó una cita", `${cita.paciente} · ${fechaLegible(cita.fecha)}`)
+    setDetalleCitaId(null)
+    onAviso?.(`Tomaste la cita de ${cita.paciente}.`)
   }
 
   // ── Reagendar cita (solo el optómetra, desde aquí — no hay autoservicio del paciente) ──
@@ -2137,6 +2178,10 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             onNoLlego={puede(usuario, "citas", "editar") ? marcarNoLlego : undefined}
             onNoAsistio={marcarNoAsistio}
             onConfirmar={puede(usuario, "citas", "editar") ? (c) => marcarConfirmada(c.id) : undefined}
+            personasAsignables={personasAsignables}
+            ausenteEnLaHora={(id, c) => ausenteEnHorario(disponibilidad, id, c.fecha, c.hora)}
+            onReasignar={puedeReasignar(usuario, vistaPropia ? "propio" : "todo") ? reasignarCita : undefined}
+            onTomar={puede(usuario, "citas", "editar") ? tomarCita : undefined}
           />
         )
       })()}
