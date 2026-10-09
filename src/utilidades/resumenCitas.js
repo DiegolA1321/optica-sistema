@@ -1,7 +1,7 @@
 // Números de las citas de un paciente para la pestaña "Resumen" de su perfil.
+import { nombreMes } from "./formatoFecha"
 
 const PENDIENTES = ["Pendiente", "En Espera", "En Atención"]
-const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
 // Atendidas, no asistió, pendientes (incluye en espera y en atención) y canceladas.
 export function contarCitas(citas) {
@@ -23,7 +23,7 @@ export function citasPorMes(citas, hoy, meses = 12) {
   for (let i = meses - 1; i >= 0; i--) {
     const d = new Date(anio, mes - 1 - i, 1)
     const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-    lista.push({ clave, etiqueta: MESES_CORTOS[d.getMonth()], anio: d.getFullYear(), total: 0, atendidas: 0 })
+    lista.push({ clave, etiqueta: nombreMes(d.getMonth(), "corto"), anio: d.getFullYear(), total: 0, atendidas: 0 })
   }
   for (const c of citas) {
     if (c.estado === "Cancelada" || !c.fecha) continue
