@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
+import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, citasDelPeriodo, citasParaLista, creadosEsteMes, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
 import { hoyISO, fechaAISO } from "./disponibilidad"
 
 const hoy = hoyISO()
@@ -120,5 +120,35 @@ describe("fichas sin terminar", () => {
     const lista = fichasSinTerminar([...mias, cita({ estado: "En Atención", atendidoPor: "otra" }), cita({ estado: "Atendida", atendidoPor: "yo" }), cita({ estado: "Pendiente", asignadoA: "yo" })], "yo")
     expect(lista.map((c) => c.fecha)).toEqual(["2026-10-03", "2026-10-05"])
     expect(fichasSinTerminar(mias, null)).toEqual([])
+  })
+})
+
+describe("Períodos del desenlace y lista del Inicio", () => {
+  // Miércoles 7 de octubre de 2026: la semana va del lunes 5 al domingo 11
+  const ahora = new Date(2026, 9, 7, 10, 0)
+  const citas = [
+    { id: "a", fecha: "2026-10-07", hora: "09:00 AM", estado: "Atendida" },
+    { id: "b", fecha: "2026-10-07", hora: "08:00 AM", estado: "No Asistió" },
+    { id: "c", fecha: "2026-10-05", hora: "10:00 AM", estado: "Cancelada" },
+    { id: "d", fecha: "2026-10-11", hora: "10:00 AM", estado: "Pendiente" },
+    { id: "e", fecha: "2026-10-12", hora: "10:00 AM", estado: "Pendiente" },
+    { id: "f", fecha: "2026-09-30", hora: "10:00 AM", estado: "Atendida" },
+  ]
+  it("hoy, semana (lunes a domingo), mes y todas", () => {
+    expect(citasDelPeriodo(citas, "hoy", ahora).map((c) => c.id)).toEqual(["a", "b"])
+    expect(citasDelPeriodo(citas, "semana", ahora).map((c) => c.id)).toEqual(["a", "b", "c", "d"])
+    expect(citasDelPeriodo(citas, "mes", ahora)).toHaveLength(5)
+    expect(citasDelPeriodo(citas, "siempre", ahora)).toHaveLength(6)
+    expect(resumenPeriodo(citas, "hoy", ahora)).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, canceladas: 0 })
+  })
+  it("la lista sigue la tarjeta elegida y, sin tarjeta, deja fuera las canceladas", () => {
+    expect(citasParaLista(citas, "semana", null, ahora).map((c) => c.id)).toEqual(["b", "a", "d"])
+    expect(citasParaLista(citas, "semana", "cancelada", ahora).map((c) => c.id)).toEqual(["c"])
+    expect(citasParaLista(citas, "siempre", "atendida", ahora).map((c) => c.id)).toEqual(["a", "f"])
+    expect(citasParaLista(citas, "hoy", "noAsistio", ahora).map((c) => c.id)).toEqual(["b"])
+  })
+  it("cuenta lo dado de alta este mes y no cuenta lo que no trae fecha", () => {
+    const lista = [{ creadoEn: "2026-10-02T10:00:00Z" }, { creadoEn: "2026-09-02T10:00:00Z" }, {}]
+    expect(creadosEsteMes(lista, "creadoEn", ahora)).toBe(1)
   })
 })
