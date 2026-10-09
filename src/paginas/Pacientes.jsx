@@ -2034,7 +2034,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
                   {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
                       para después ("Más tarde" en el panel de cobro) ─── */}
-                  {cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
+                  {tabHistorial === "citas" && cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
                     <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
                       <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                         <Receipt size={16} className="shrink-0" />
