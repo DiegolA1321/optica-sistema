@@ -91,7 +91,7 @@ describe("bloquesDelDia", () => {
 
 describe("validarMovimiento", () => {
   // La validación de disponibilidad también mira el reloj real: se fija para que la prueba no dependa de la hora en que corre.
-  beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(AHORA) })
+  beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-05T08:00:00-05:00")) })
   afterAll(() => vi.useRealTimers())
   const cita = { id: 1, fecha: "2026-10-06", hora: "09:00 AM", estado: "Pendiente" }
   const otra = { id: 2, fecha: "2026-10-07", hora: "10:00 AM", estado: "Pendiente" }

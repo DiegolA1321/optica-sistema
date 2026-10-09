@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, afterEach } from "vitest"
 import { sumarDiasISO, diaHabilMasCercano, controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "./controles"
 
 const SESION = (activo, inicio, fin) => ({ activo, inicio, fin })
@@ -28,7 +28,11 @@ describe("diaHabilMasCercano", () => {
   it("un domingo cerrado sugiere el lunes, que está más cerca que el viernes", () => {
     expect(diaHabilMasCercano("2026-11-08", DISPONIBILIDAD, [], { hoy })).toBe("2026-11-09")
   })
+  afterEach(() => vi.useRealTimers())
   it("nunca sugiere un día anterior a hoy", () => {
+    // Hora fija (viernes 9 de octubre de 2026, 08:00 en Ecuador, antes de abrir): el resultado no depende de la hora real ni de la zona del equipo.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-10-09T08:00:00-05:00"))
     expect(diaHabilMasCercano("2026-10-10", DISPONIBILIDAD, [], { hoy: "2026-10-09" })).toBe("2026-10-09")
   })
   it("sin ningún día abierto cerca devuelve null", () => {

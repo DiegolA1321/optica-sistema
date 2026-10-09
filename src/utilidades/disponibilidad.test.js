@@ -146,7 +146,7 @@ describe("parseFechaFlexible", () => {
 describe("esHoy / esFutura / etiquetaFecha (con fecha fija)", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 2, 10, 12, 0, 0)) // 10 de marzo de 2026, mediodía
+    vi.setSystemTime(new Date("2026-03-10T12:00:00-05:00")) // 10 de marzo de 2026, mediodía
   })
   afterEach(() => vi.useRealTimers())
 
@@ -198,7 +198,7 @@ describe("slotsDisponibles / diaTieneCupo", () => {
   it("si la fecha es hoy, descarta los horarios que ya pasaron", () => {
     vi.useFakeTimers()
     // 2026-03-09 es lunes; fija "ahora" a las 09:30 AM ese mismo día.
-    vi.setSystemTime(new Date(2026, 2, 9, 9, 30, 0))
+    vi.setSystemTime(new Date("2026-03-09T09:30:00-05:00"))
     const slots = slotsDisponibles("2026-03-09", disponibilidad, [])
     expect(slots).toEqual([
       { hora: "09:00 AM", libre: false }, // ya pasó

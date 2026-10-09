@@ -14,7 +14,7 @@ import {
 describe("fidelizacion (con fecha fija: 10 de marzo de 2026)", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 2, 10, 12, 0, 0))
+    vi.setSystemTime(new Date("2026-03-10T12:00:00-05:00"))
   })
   afterEach(() => vi.useRealTimers())
 

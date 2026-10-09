@@ -23,7 +23,7 @@ const disponibilidad = {
 describe("SelectorFechaHora (hoy fijo: martes 10 de marzo de 2026)", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 2, 10, 8, 0, 0)) // antes de las 9am, ningún slot de hoy "ya pasó"
+    vi.setSystemTime(new Date("2026-03-10T08:00:00-05:00")) // antes de las 9am, ningún slot de hoy "ya pasó"
   })
   afterEach(() => vi.useRealTimers())
 

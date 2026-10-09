@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { leerContactadosHoy, marcarContactadoHoy, CLAVE_CONTACTOS_HOY } from "./contactosCrm"
 
 describe("contactosCrm", () => {
-  beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 9, 6, 12, 0, 0)) })
+  beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-06T12:00:00-05:00")) })
   afterEach(() => vi.useRealTimers())
 
   it("sin nada guardado no hay contactados", () => {
@@ -15,7 +15,7 @@ describe("contactosCrm", () => {
   })
   it("al día siguiente el límite se reinicia", () => {
     marcarContactadoHoy("p1")
-    vi.setSystemTime(new Date(2026, 9, 7, 8, 0, 0))
+    vi.setSystemTime(new Date("2026-10-07T08:00:00-05:00"))
     expect(leerContactadosHoy()).toEqual({})
   })
   it("sin id no cambia nada", () => {
