@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { X, Stethoscope, Printer, ClipboardList, Eye, ShieldAlert, Sparkles } from "lucide-react"
+import { X, Stethoscope, Printer, ClipboardList, Eye, ShieldAlert, Sparkles, IdCard, Pencil } from "lucide-react"
 import { INK, GOLD } from "@/lib/tema"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
@@ -120,6 +120,39 @@ export function ModalHistoriaClinica({ paciente, consultas, onCerrar }) {
       ) : (
         <SinInformacion Icono={ClipboardList} titulo="Aún no hay historia clínica" texto="Se registra en la primera ficha clínica del paciente." />
       )}
+    </Cascaron>
+  )
+}
+
+// ─── Datos del paciente: lo que se registró al darlo de alta, con acceso a editarlo ───
+export function ModalDatosPaciente({ paciente, onEditar, onCerrar }) {
+  const fn = paciente.fecha_nacimiento || paciente.fechaNacimiento
+  const real = (t) => (t && !/^sin /i.test(t) ? t : null)
+  return (
+    <Cascaron
+      titulo="Datos del paciente"
+      subtitulo={paciente.nombre}
+      Icono={IdCard}
+      onCerrar={onCerrar}
+      ancho="max-w-2xl"
+      pie={<>
+        {onEditar ? <button type="button" onClick={onEditar} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Pencil size={14} aria-hidden="true" /> Editar</button> : <span />}
+        <BotonCerrar onCerrar={onCerrar} />
+      </>}
+    >
+      <div className="grid grid-cols-1 gap-6 p-5 sm:grid-cols-2">
+        <Columna titulo="Contacto">
+          <Dato etiqueta="Cédula" vacio={!paciente.cedula}>{paciente.cedula || "Sin registrar"}</Dato>
+          <Dato etiqueta="Teléfono" vacio={!real(paciente.telefono)}>{real(paciente.telefono) || "Sin registrar"}</Dato>
+          <Dato etiqueta="Correo" vacio={!real(paciente.correo)}>{real(paciente.correo) || "Sin registrar"}</Dato>
+        </Columna>
+        <Columna titulo="Expediente">
+          <Dato etiqueta="Fecha de nacimiento" vacio={!fn}>{fn ? fechaLegible(fn) : "Sin registrar"}</Dato>
+          <Dato etiqueta="Registrado el" vacio={!paciente.fechaRegistro}>{fechaLegible(paciente.fechaRegistro) || "—"}</Dato>
+          {paciente.referidoPor && <Dato etiqueta="Referido por">{paciente.referidoPor}</Dato>}
+          <Dato etiqueta="Cuenta del portal">{paciente.tieneCuenta ? "Activa" : "Sin cuenta"}</Dato>
+        </Columna>
+      </div>
     </Cascaron>
   )
 }

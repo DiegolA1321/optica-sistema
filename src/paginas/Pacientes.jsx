@@ -87,7 +87,7 @@ import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidade
 import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
-import { ModalAtencion, ModalHistoriaClinica } from "../componentes/AtencionPaciente"
+import { ModalAtencion, ModalHistoriaClinica, ModalDatosPaciente } from "../componentes/AtencionPaciente"
 import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelCompras, PanelPuntaje, PanelReferidos, PanelCumple, PanelCitasEstado } from "../componentes/DetallesResumen"
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
@@ -1802,11 +1802,16 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       {pacienteHistorial && createPortal(
         <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 320ms ease-out" }}>
           {/* Barra superior de la vista — una sola forma de salir: "← Pacientes" (Escape también cierra). */}
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-white px-4 py-3 sm:px-8">
-            <button type="button" onClick={() => setPacienteHistorial(null)} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
+          {(() => {
+            const botonVolver = (
+              <button type="button" onClick={() => setPacienteHistorial(null)} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
               <ArrowLeft size={18} /> Pacientes
-            </button>
-          </div>
+              </button>
+            )
+            const slot = document.getElementById("encabezado-slot")
+            // Con el encabezado del panel disponible, "← Pacientes" sube allí (en lugar del saludo); sin él, queda la barra de siempre.
+            return slot ? createPortal(botonVolver, slot) : <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-white px-4 py-3 sm:px-8">{botonVolver}</div>
+          })()}
 
           {(() => {
             const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id)
@@ -1894,6 +1899,24 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
+                {(() => {
+                  const fn = pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento
+                  const ultima = consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion)[0]
+                  const corr = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
+                  const fila = (etiqueta, valor) => (
+                    <div>
+                      <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
+                      <dd className="mt-0.5 text-sm text-slate-800">{valor}</dd>
+                    </div>
+                  )
+                  return (
+                    <dl className="hidden shrink-0 space-y-2 border-l border-slate-100 pl-5 lg:block lg:self-center">
+                      {fila("Edad", edadPaciente != null ? <span className="font-semibold">{edadPaciente} años</span> : <span className="text-slate-400">Sin fecha de nacimiento</span>)}
+                      {fila("Última visita", ultima ? <span className="whitespace-nowrap font-semibold">{fechaLegible(ultima.fecha)}</span> : <span className="text-slate-400">Sin consultas</span>)}
+                      {fila("Corrección", corr ? <span title={etiquetaCorreccion(ultima.estadoCorreccion)} className={"inline-flex max-w-[10rem] items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + corr.clase}><corr.icon size={12} className="shrink-0" aria-hidden="true" /> <span className="truncate">{etiquetaCorreccion(ultima.estadoCorreccion)}</span></span> : <span className="text-slate-400">Sin consultas</span>)}
+                    </dl>
+                  )
+                })()}
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:max-w-[30rem] lg:shrink-0 lg:justify-end lg:border-t-0 lg:pt-0">
                   <button
                     type="button"
@@ -1930,12 +1953,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   )}
                   <button
                     type="button"
-                    onClick={() => setVerDatosPaciente((v) => !v)}
-                    aria-expanded={verDatosPaciente}
-                    aria-controls="datos-paciente"
-                    className={"flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (verDatosPaciente ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 text-slate-700 hover:bg-slate-50")}
+                    onClick={() => setVerDatosPaciente(true)}
+                    aria-haspopup="dialog"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
-                    <IdCard size={15} className="shrink-0" /> Datos <ChevronDown size={13} aria-hidden="true" className={"shrink-0 transition-transform " + (verDatosPaciente ? "rotate-180" : "")} />
+                    <IdCard size={15} className="shrink-0" /> Datos
                   </button>
                   {pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
                   <button
@@ -1949,35 +1971,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   )}
                 </div>
               </div>
-              {/* Datos del paciente: lo que se necesita saber de él sin abrir la edición. Editar datos cambia todo lo que se ve aquí y en el resto del sistema. */}
-              {(() => {
-                const fn = pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento
-                const ultima = consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion)[0]
-                const dato = (etiqueta, valor, vacio) => (
-                  <div className="min-w-0">
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
-                    <dd className={"mt-0.5 truncate text-sm " + (vacio ? "text-slate-400" : "font-semibold text-slate-800")}>{valor}</dd>
-                  </div>
-                )
-                return (
-                  verDatosPaciente && (
-                  <div id="datos-paciente" className="mt-4 flex flex-wrap items-start justify-between gap-4 border-t border-slate-100 pt-4" style={{ animation: "rise-in 220ms ease-out both" }}>
-                  <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-                    {fn ? dato("Fecha de nacimiento", fechaLegible(fn) + (edadPaciente != null ? " · " + edadPaciente + " años" : "")) : dato("Fecha de nacimiento", "Sin registrar", true)}
-                    {dato("Registrado el", fechaLegible(pacienteHistorial.fechaRegistro) || "—", !pacienteHistorial.fechaRegistro)}
-                    {ultima ? dato("Última visita", fechaLegible(ultima.fecha)) : dato("Última visita", "Sin consultas", true)}
-                    {/* "Referido por" solo existe si alguien lo registró: quien llegó por su cuenta no lleva este dato. */}
-                    {pacienteHistorial.referidoPor && dato("Referido por", pacienteHistorial.referidoPor)}
-                  </dl>
-                  {puedeEditarPaciente && (
-                    <button type="button" onClick={() => abrirEdicion(pacienteHistorial)} className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-                      <Pencil size={14} className="shrink-0" /> Editar
-                    </button>
-                  )}
-                  </div>
-                  )
-                )
-              })()}
               </div>
 
               {(() => {
@@ -2278,25 +2271,22 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         )}
                       </div>
                     ) : tabHistorial === "ordenes" ? (
-                      <div className="space-y-4">
-                      {puedeVender && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5">
-                          <p className="text-xs text-slate-500">Un pedido al laboratorio sale de una venta del paciente (lleva su montura y su luna).</p>
+                      <OrdenesLaboratorio
+                        accion={puedeVender ? (
                           <button
                             type="button"
+                            title="Un pedido al laboratorio sale de una venta del paciente (lleva su montura y su luna)"
                             onClick={() => {
                               const ventas = comprobantesPaciente.filter((c) => c.factura && c.factura.estado !== "anulada")
                               if (ventas.length === 1) setOrdenParaVenta({ factura: ventas[0].factura, paciente: pacienteHistorial })
                               else setElegirVentaOrden(true)
                             }}
-                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
                             style={{ background: GRAD }}
                           >
-                            <FlaskConical size={15} aria-hidden="true" /> Enviar a laboratorio
+                            <FlaskConical size={14} aria-hidden="true" /> Enviar a laboratorio
                           </button>
-                        </div>
-                      )}
-                      <OrdenesLaboratorio
+                        ) : null}
                         ordenes={ordenesLab}
                         setOrdenes={setOrdenesLab}
                         pacientes={pacientes}
@@ -2310,7 +2300,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         filtroInicial="todas"
                         onAviso={mostrarNotif}
                       />
-                      </div>
                     ) : null}
                   </div>
                 </>
@@ -2330,6 +2319,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           onElegir={(factura) => { setElegirVentaOrden(false); setOrdenParaVenta({ factura, paciente: pacienteHistorial }) }}
           onNuevaVenta={() => { setElegirVentaOrden(false); setTabHistorial("pagos"); setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
           onCerrar={() => setElegirVentaOrden(false)}
+        />
+      )}
+
+      {verDatosPaciente && pacienteHistorial && (
+        <ModalDatosPaciente
+          paciente={pacienteHistorial}
+          onEditar={puedeEditarPaciente ? () => { setVerDatosPaciente(false); abrirEdicion(pacienteHistorial) } : undefined}
+          onCerrar={() => setVerDatosPaciente(false)}
         />
       )}
 

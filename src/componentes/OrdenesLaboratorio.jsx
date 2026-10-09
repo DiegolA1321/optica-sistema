@@ -48,7 +48,7 @@ const aplicarFiltro = (ordenes, filtro) => {
 
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio, cambio de
 // estado con responsable, copias impresas y aviso al paciente por WhatsApp (R36-R37).
-export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", facturas = [], abonos = [], onAbonar, onAviso, onVerPerfil }) {
+export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", facturas = [], abonos = [], onAbonar, onAviso, onVerPerfil, accion = null }) {
   const puedeEditar = puede(usuario, "ventas", "editar")
   const puedeCrear = puede(usuario, "ventas", "crear")
   const propias = useMemo(() => (pacienteFijo ? ordenes.filter((o) => o.pacienteId === pacienteFijo.id) : ordenes), [ordenes, pacienteFijo])
@@ -143,6 +143,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
             {laboratorios.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         )}
+        {accion && <div className={laboratorios.length > 0 ? "" : "ml-auto"}>{accion}</div>}
       </div>
 
       {!pacienteFijo && propias.length > 0 && (

@@ -847,7 +847,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"} aria-label={colapsado ? "Expandir menú" : "Colapsar menú"}>
               {colapsado ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
             </button>
-            <div className="min-w-0">
+            {/* Una pantalla a pantalla completa (el perfil del paciente) pone aquí su botón de volver; mientras lo haga, el saludo se oculta. */}
+            <div id="encabezado-slot" className="min-w-0 empty:hidden" />
+            <div className="min-w-0 [#encabezado-slot:not(:empty)+&]:hidden">
               <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>
                 {saludo}, {nombreUsuario}
               </p>
