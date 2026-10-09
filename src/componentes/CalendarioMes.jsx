@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { createPortal } from "react-dom"
-import { Plus, CalendarClock, CalendarDays, X } from "lucide-react"
-import { fechaAISO, isoAFechaLocal, hoyISO, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
+import { useMemo, useRef, useState } from "react"
+import { Plus, CalendarClock } from "lucide-react"
+import { fechaAISO, hoyISO, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
 import { formatoFecha, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
@@ -25,7 +24,6 @@ const ALTO_CABECERA = 22
 const RELLENO_VERTICAL = 6
 const ALTO_FILA_MIN = RELLENO_VERTICAL + ALTO_CABECERA + MIN_ETIQUETAS * ALTO_ETIQUETA + (MIN_ETIQUETAS - 1) * SEPARACION
 
-const ANCHO_LISTA = 288
 const CLAVE_MODO = "citas_mes_modo"
 
 // Fondo de cada nivel de carga: el mismo tono de la marca, de más claro a más
@@ -33,76 +31,9 @@ const CLAVE_MODO = "citas_mes_modo"
 const FONDO_CARGA = ["transparent", "rgba(14,43,51,0.07)", "rgba(14,43,51,0.16)", "rgba(14,43,51,0.30)", "rgba(14,43,51,0.62)"]
 const leerModo = () => { try { return localStorage.getItem(CLAVE_MODO) === "carga" ? "carga" : "citas" } catch { return "citas" } }
 
-// "+N más": en vez de saltar a otra vista, se abre aquí mismo la lista completa
-// del día, con cada cita a un clic. Se cierra con Escape, clic fuera o scroll.
-function ListaDelDia({ iso, citas, ancla, onCerrar, onElegir, onVerSemana }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) onCerrar() }
-    const tecla = (e) => { if (e.key === "Escape") onCerrar() }
-    document.addEventListener("mousedown", fuera)
-    document.addEventListener("keydown", tecla)
-    window.addEventListener("scroll", onCerrar, true)
-    window.addEventListener("resize", onCerrar)
-    return () => {
-      document.removeEventListener("mousedown", fuera)
-      document.removeEventListener("keydown", tecla)
-      window.removeEventListener("scroll", onCerrar, true)
-      window.removeEventListener("resize", onCerrar)
-    }
-  }, [onCerrar])
-  const cabeDerecha = ancla.right + 6 + ANCHO_LISTA <= window.innerWidth - 8
-  const left = cabeDerecha ? ancla.left : Math.max(8, ancla.right - ANCHO_LISTA)
-  const top = Math.max(8, Math.min(ancla.top, window.innerHeight - 380))
-  const fecha = isoAFechaLocal(iso)
-  return createPortal(
-    <div
-      ref={ref}
-      role="dialog"
-      aria-label={`Citas del ${formatoFecha(fecha, "diaMes")}`}
-      className="fixed z-50 flex max-h-[360px] flex-col overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-xl"
-      style={{ top, left, width: ANCHO_LISTA, animation: "menu-in 160ms ease-out" }}
-    >
-      <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
-        <div>
-          <p className="text-sm font-bold" style={{ color: INK }}>{formatoFecha(fecha, "diaMes")}</p>
-          <p className="text-[11px] text-slate-500">{citas.length} {citas.length === 1 ? "cita" : "citas"}</p>
-        </div>
-        <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={14} /></button>
-      </div>
-      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
-        {citas.map((c) => {
-          const color = colorDe(c.estado)
-          return (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={(e) => onElegir(c, e.currentTarget.getBoundingClientRect())}
-                className="flex w-full items-center gap-2 rounded-lg border-l-4 px-2.5 py-1.5 text-left transition-shadow hover:shadow-md cursor-pointer"
-                style={{ backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto }}
-              >
-                <span className="shrink-0 text-xs font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-bold">{c.paciente}</span>
-                  <span className="block truncate text-[11px] opacity-80">{[color.etiqueta, c.motivo].filter(Boolean).join(" · ")}</span>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      <button type="button" onClick={onVerSemana} className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-3 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
-        <CalendarDays size={13} aria-hidden="true" /> Ver esa semana
-      </button>
-    </div>,
-    document.body,
-  )
-}
-
 export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick, onAbrirDetalle, onAgendar }) {
   const refSeccion = useRef(null)
   const altoSeccion = useAlturaDisponible(refSeccion)
-  const [lista, setLista] = useState(null) // { iso, ancla } | null
   const hoy = hoyISO()
   // "citas": cada cita como etiqueta de su estado. "carga": cada día sombreado
   // según cuántas citas tiene, para ver de un vistazo qué días hay más o menos
@@ -182,7 +113,7 @@ export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick
                   onClick={() => onDiaClick?.(iso)}
                   className={"min-w-0 overflow-hidden border-l border-slate-100 px-1 py-[3px] transition-colors first:border-l-0 cursor-pointer hover:bg-slate-50/80 " + (modo === "carga" ? "" : esHoy ? "bg-blue-50/40" : !delMes ? "bg-slate-50/60" : "")}
                   style={modo === "carga" ? { backgroundColor: delMes ? FONDO_CARGA[nivel] : undefined, boxShadow: esHoy ? "inset 0 0 0 2px #2563EB" : undefined } : undefined}
-                  title={modo === "carga" ? `${cuentan} ${cuentan === 1 ? "cita" : "citas"}` : undefined}
+                  title={modo === "carga" ? `${cuentan} ${cuentan === 1 ? "cita" : "citas"}` : "Ver las citas de este día"}
                 >
                   <div className="mb-0.5 flex h-5 items-center justify-between gap-1">
                     <span
@@ -192,18 +123,7 @@ export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick
                       {numero}
                     </span>
                     {modo === "citas" && resto > 0 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const r = e.currentTarget.getBoundingClientRect()
-                          setLista({ iso, ancla: { top: r.top, left: r.left, right: r.right } })
-                        }}
-                        title="Ver todas las citas del día"
-                        className="rounded px-1 text-[11px] font-bold leading-4 text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
-                      >
-                        +{resto} más
-                      </button>
+                      <span className="rounded px-1 text-[11px] font-bold leading-4 text-blue-700">+{resto} más</span>
                     )}
                   </div>
                   {modo === "carga" && (
@@ -254,16 +174,6 @@ export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick
         </div>
       )}
 
-      {lista && (
-        <ListaDelDia
-          iso={lista.iso}
-          citas={[...(citasPorFecha.get(lista.iso) || [])].sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))}
-          ancla={lista.ancla}
-          onCerrar={() => setLista(null)}
-          onElegir={(c) => { setLista(null); onAbrirDetalle?.(c) }}
-          onVerSemana={() => { const iso = lista.iso; setLista(null); onDiaClick?.(iso) }}
-        />
-      )}
 
     </section>
   )

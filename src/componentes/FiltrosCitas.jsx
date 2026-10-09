@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, nombreMes } from "../utilidades/formatoFecha"
 
 // Piezas de la barra de Citas: la barra única de búsqueda y filtros, el periodo de la Lista y el conteo.
 
@@ -199,8 +199,126 @@ export function PeriodoLista({ valor, onChange, opciones, sinActivo = false }) {
   )
 }
 
-// Flechas ‹ › con el título del periodo que se ve (igual en Lista, Semana y Mes).
-export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnterior, etiquetaSiguiente }) {
+// Selector del periodo: el título pasa a ser un botón que despliega un calendario para ir directo a un día, una semana o un mes.
+//   unidad: "dia" | "semana" | "mes" — qué se resalta al pasar el cursor y qué abarca lo elegido.
+//   visible: { desde, hasta } del periodo que se ve ahora (se resalta); onElegir(iso, tipo) con tipo "dia" | "mes".
+function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useCierre(abierto, () => setAbierto(false))
+  const hoy = hoyISO()
+  const ancla = visible?.desde || hoy
+  const [modo, setModo] = useState("dias")
+  const [mes, setMes] = useState(() => new Date(Number(ancla.slice(0, 4)), Number(ancla.slice(5, 7)) - 1, 1))
+  const [anio, setAnio] = useState(mes.getFullYear())
+  const [pasoPor, setPasoPor] = useState(null)
+  const alternar = () => {
+    if (!abierto) {
+      const m = new Date(Number(ancla.slice(0, 4)), Number(ancla.slice(5, 7)) - 1, 1)
+      setMes(m); setAnio(m.getFullYear()); setModo(unidad === "mes" ? "meses" : "dias"); setPasoPor(null)
+    }
+    setAbierto((v) => !v)
+  }
+  const elegir = (iso, tipo) => { onElegir(iso, tipo); setAbierto(false) }
+  const primero = new Date(mes.getFullYear(), mes.getMonth(), 1)
+  const celdas = [...Array((primero.getDay() + 6) % 7).fill(null), ...Array.from({ length: new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate() }, (_, i) => fechaAISO(new Date(mes.getFullYear(), mes.getMonth(), i + 1)))]
+  while (celdas.length % 7 !== 0) celdas.push(null)
+  const semanas = Array.from({ length: celdas.length / 7 }, (_, i) => celdas.slice(i * 7, i * 7 + 7))
+  const enVisible = (iso) => visible && iso >= visible.desde && iso <= (visible.hasta || visible.desde)
+  const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
+  const mesActual = (indice) => anio === Number(ancla.slice(0, 4)) && indice === Number(ancla.slice(5, 7)) - 1 && unidad === "mes"
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={alternar}
+        aria-haspopup="dialog"
+        aria-expanded={abierto}
+        title="Elegir otra fecha"
+        className={"inline-flex w-[11rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[13px] font-semibold transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-transparent hover:border-slate-200/60 hover:bg-white")}
+        style={abierto ? undefined : { color: INK }}
+      >
+        <span>{titulo}</span>
+        <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+      </button>
+      {abierto && (
+        <div role="dialog" aria-label="Elegir fecha" className="absolute right-0 top-full z-30 mt-2 w-72 rounded-2xl border border-slate-200/60 bg-white p-3.5 shadow-xl" style={{ animation: "rise-in 160ms ease-out both" }}>
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setModo((m) => (m === "dias" ? "meses" : "dias"))}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold transition-colors hover:bg-slate-200 cursor-pointer"
+              style={{ color: INK }}
+              aria-label={modo === "dias" ? "Elegir otro mes" : "Volver a los días"}
+            >
+              {modo === "dias" ? formatoFecha(mes, "mesAnio") : anio}
+              <ChevronDown size={12} className={modo === "meses" ? "rotate-180" : ""} aria-hidden="true" />
+            </button>
+            <div className="flex gap-0.5">
+              <button type="button" onClick={() => (modo === "dias" ? setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1)) : setAnio((a) => a - 1))} aria-label={modo === "dias" ? "Mes anterior" : "Año anterior"} className={flecha}><ChevronLeft size={14} /></button>
+              <button type="button" onClick={() => (modo === "dias" ? setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1)) : setAnio((a) => a + 1))} aria-label={modo === "dias" ? "Mes siguiente" : "Año siguiente"} className={flecha}><ChevronRight size={14} /></button>
+            </div>
+          </div>
+          {modo === "meses" ? (
+            <div className="grid grid-cols-3 gap-1.5">
+              {Array.from({ length: 12 }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => elegir(fechaAISO(new Date(anio, i, 1)), "mes")}
+                  aria-pressed={mesActual(i)}
+                  className={"rounded-xl py-2.5 text-xs font-semibold capitalize transition-colors cursor-pointer " + (mesActual(i) ? "text-white" : "bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700")}
+                  style={mesActual(i) ? { background: GRAD_MARCA } : undefined}
+                >
+                  {nombreMes(i, "corto")}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-bold text-slate-500">{DIAS_CORTOS.map((d, i) => <span key={i}>{d}</span>)}</div>
+              <div className="space-y-0.5" onMouseLeave={() => setPasoPor(null)}>
+                {semanas.map((fila, f) => {
+                  const dentro = fila.some((iso) => iso && enVisible(iso))
+                  const resaltarFila = unidad === "semana" && (dentro || pasoPor === f)
+                  return (
+                    <div key={f} onMouseEnter={() => setPasoPor(f)} className={"grid grid-cols-7 rounded-lg transition-colors " + (resaltarFila ? (dentro ? "bg-blue-100/80" : "bg-slate-100") : "")}>
+                      {fila.map((iso, c) => {
+                        if (!iso) return <span key={c} />
+                        const esHoyCelda = iso === hoy
+                        const activoDia = unidad === "dia" && enVisible(iso)
+                        return (
+                          <button
+                            key={iso}
+                            type="button"
+                            onClick={() => elegir(iso, "dia")}
+                            aria-label={formatoFecha(iso, "largo")}
+                            aria-pressed={activoDia}
+                            className={"h-8 rounded-lg text-xs font-semibold tabular-nums transition-colors cursor-pointer " + (activoDia ? "text-white" : (unidad === "semana" && dentro ? "text-blue-800" : "text-slate-700") + (unidad === "dia" ? " hover:bg-blue-50" : "")) + (esHoyCelda && !activoDia ? " ring-1 ring-inset ring-blue-400" : "")}
+                            style={activoDia ? { background: GRAD_MARCA } : undefined}
+                          >
+                            {Number(iso.slice(8))}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+          <div className="mt-3 border-t border-slate-100 pt-2.5">
+            <button type="button" onClick={() => elegir(hoy, unidad === "mes" ? "mes" : "dia")} className="rounded-full border border-slate-200/60 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              Ir a hoy
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Flechas ‹ › con el título del periodo que se ve (igual en Lista, Semana y Mes). Con `selector` el título abre el calendario para elegir otra fecha.
+export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnterior, etiquetaSiguiente, selector }) {
   const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
   return (
     <div className="flex min-w-0 items-center gap-2">
@@ -208,7 +326,11 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
         <button type="button" onClick={onAnterior} aria-label={etiquetaAnterior} title={etiquetaAnterior} className={flecha}><ChevronLeft size={14} /></button>
         <button type="button" onClick={onSiguiente} aria-label={etiquetaSiguiente} title={etiquetaSiguiente} className={flecha}><ChevronRight size={14} /></button>
       </div>
-      <h2 className="min-w-[7.9rem] shrink-0 whitespace-nowrap text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
+      {selector ? (
+        <SelectorPeriodo titulo={titulo} unidad={selector.unidad} visible={selector.visible} onElegir={selector.onElegir} />
+      ) : (
+        <h2 className="min-w-[7.9rem] shrink-0 whitespace-nowrap text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
+      )}
     </div>
   )
 }

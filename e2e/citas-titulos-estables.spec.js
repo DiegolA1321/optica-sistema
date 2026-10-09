@@ -18,7 +18,7 @@ test('las flechas y el selector no se mueven y los títulos usan el formato úni
   const medir = async (nombre) => {
     const flecha = Math.round((await anterior.boundingBox()).x)
     const selector = (await periodo.count()) ? Math.round((await periodo.boundingBox()).x) : null
-    const titulo = await anterior.locator('xpath=ancestor::div[2]/h2').innerText()
+    const titulo = (await anterior.locator('xpath=ancestor::div[2]').innerText()).trim()
     posiciones.push({ nombre, flecha, selector, titulo })
     return titulo
   }

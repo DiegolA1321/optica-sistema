@@ -1,6 +1,6 @@
 "use client"
 
-import { fechaLegible, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaCorta, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
@@ -38,6 +38,7 @@ import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
+import DiaCitasModal from "../componentes/DiaCitasModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
 import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro, miembrosActivos } from "../utilidades/equipo"
@@ -1022,6 +1023,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // día y abrir el detalle en un modal. ──
   const [vista, setVistaState] = useState(leerVistaGuardada) // lista | semana | mes
   const setVista = (v) => {
+    // El rango libre solo existe en la Lista: al pasar a Semana o Mes se quita (no se vería reflejado).
+    if (v !== "lista") { setRangoDesde(""); setRangoHasta("") }
     setVistaState(v)
     try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento: no se recuerda */ }
   }
@@ -1140,7 +1143,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     }
   }
 
-  const [diaModalMes, setDiaModalMes] = useState(null) // fecha (iso) del día clickeado, o null
+  const [diaModal, setDiaModal] = useState(null) // { iso, minutos } del día clicado (minutos: la hora libre sobre la que se hizo clic, o null)
 
   // Flechas de la Lista: mueven el día, la semana o el mes que se ve (o el rango libre, de a una semana).
   const moverLista = (sentido) => {
@@ -1167,13 +1170,35 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     if (filtro === "mes") return formatoFecha(refLista, "mesAnioCorto")
     return ""
   })()
+  // Selector de fecha del título del periodo: lleva directo a un día, una semana o un mes según la vista.
+  const selectorPeriodo = (() => {
+    if (vistaActiva === "semana") {
+      return { unidad: "semana", visible: { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }, onElegir: (iso) => setSemanaLunes(lunesDeSemana(iso)) }
+    }
+    if (vistaActiva === "mes") {
+      return { unidad: "mes", visible: { desde: fechaAISO(mesVista), hasta: fechaAISO(new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 0)) }, onElegir: (iso) => { const d = isoAFechaLocal(iso); setMesVista(new Date(d.getFullYear(), d.getMonth(), 1)) } }
+    }
+    const unidad = hayRango ? "dia" : filtro === "semana" ? "semana" : filtro === "mes" ? "mes" : "dia"
+    const visible = hayRango ? { desde: rangoDesde || rangoHasta, hasta: rangoHasta || rangoDesde } : rangos[filtro] || rangos.hoy
+    return {
+      unidad, visible,
+      onElegir: (iso, tipo) => {
+        setRangoDesde(""); setRangoHasta("")
+        if (tipo === "mes") { setFiltro("mes"); setRefLista(iso) }
+        else { if (hayRango || !["hoy", "semana", "mes"].includes(filtro)) setFiltro("hoy"); setRefLista(iso) }
+      },
+    }
+  })()
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
-  const citasDelDiaModal = diaModalMes ? (gruposCalendario.get(diaModalMes) || []) : []
-  const gruposEstadoModal = ORDEN_ESTADOS_MODAL
-    .map((estado) => [estado, citasDelDiaModal.filter((c) => c.estado === estado)])
-    .filter(([, arr]) => arr.length > 0)
+  // "Agendar" desde el modal del día: el formulario se abre con ese día (y la hora libre sobre la que se hizo clic, si la hubo).
+  const agendarDesdeDia = (iso, minutos) => {
+    setDiaModal(null)
+    if (minutos != null) { abrirModalEn(iso, minutos); return }
+    abrirModal()
+    setFecha(iso)
+  }
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — un hook por
   // modal, cada uno gateado por el mismo booleano/valor que ya controla su
@@ -1184,7 +1209,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const refModalReagendar = useModalAccesible(reagendando, cerrarReagendar)
   const refModalMover = useModalAccesible(!!moviendo, () => setMoviendo(null))
   const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
-  const refModalDiaMes = useModalAccesible(!!diaModalMes, () => setDiaModalMes(null))
 
   // Filtros elegidos en el panel "Filtrar", como etiquetas con su "x" dentro de la barra. El periodo (Hoy, Esta semana, Este mes…)
   // se ve en sus propios atajos y la búsqueda en su campo, así que no llevan etiqueta.
@@ -1195,7 +1219,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
     tareaActiva !== "ninguna" && { id: "tarea", texto: `Tarea: ${tareasFiltro(diaConfirmar).find((t) => t.id === tareaActiva)?.etiqueta}`, quitar: () => elegirPeriodo("hoy") },
     responsableFiltro !== "todos" && { id: "responsable", texto: `Profesional: ${nombreResponsableFiltro(responsableFiltro)}`, quitar: () => setResponsableFiltro("todos") },
-    vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${rangoDesde ? textoDia(rangoDesde) : "…"} – ${rangoHasta ? textoDia(rangoHasta) : "…"}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
+    vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${rangoDesde ? fechaCorta(rangoDesde) : "…"} – ${rangoHasta ? fechaCorta(rangoHasta) : "…"}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
   ].filter(Boolean)
 
   // "89 citas" sin filtros; "Mostrando 5 de 89 citas" cuando hay menos que el total (en Semana y Mes, del periodo visible).
@@ -1210,12 +1234,16 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
   const elegirPeriodo = (id) => { setFiltro(id); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
   const opcionesResponsable = [{ id: "todos", etiqueta: "Todos" }, { id: "ninguno", etiqueta: "Nadie" }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre }))]
+  // Un rango libre solo se puede mostrar como lista (Semana y Mes son una semana o un mes): al elegirlo desde otra vista, pasa a Lista.
+  // (El salto se hace cuando el rango está completo, para no cerrar el calendario después del primer clic.)
+  const elegirDesde = (v) => setRangoDesde(v)
+  const elegirHasta = (v) => { setRangoHasta(v); if (v && vistaActiva !== "lista") setVista("lista") }
   const seccionesFiltro = [
     { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
     { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
     { id: "tarea", titulo: "Tarea", valor: tareaActiva, onChange: (id) => (id === "ninguna" ? elegirPeriodo("hoy") : (setFiltro(id), setRangoDesde(""), setRangoHasta(""))), opciones: tareasFiltro(diaConfirmar) },
     { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
-    ...(vistaActiva === "lista" ? [{ id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta } }] : []),
+    { id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: elegirDesde, onHasta: elegirHasta } },
     ...(usuario?.rol === "admin" ? [
       { id: "responsable", titulo: "Profesional", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable },
     ] : []),
@@ -1404,7 +1432,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               <div className="flex min-w-0 items-center gap-3">
                 <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} />
                 {(hayRango || ["hoy", "semana", "mes"].includes(filtro)) && (
-                  <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" />
+                  <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" selector={selectorPeriodo} />
                 )}
               </div>
             )
@@ -1415,6 +1443,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
               onSiguiente={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
               etiquetaAnterior={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
               etiquetaSiguiente={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+              selector={selectorPeriodo}
             />
           )}
         </div>
@@ -1446,15 +1475,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           cobroPendienteIds={pendientesPorCita}
           citasVisibles={resultado}
           aviso={avisoBusquedaSemana}
-          onDiaClick={(iso) => {
-            // Un día de la semana → ese día en la lista.
-            setRangoDesde(iso)
-            setRangoHasta(iso)
-            setFiltro("todas")
-            setVista("lista")
-          }}
+          onDiaClick={(iso) => setDiaModal({ iso, minutos: null })}
           onAbrirDetalle={abrirDetalle}
-          onHuecoLibre={abrirModalEn}
+          onHuecoLibre={(iso, minutos) => setDiaModal({ iso, minutos })}
           onMover={pedirMovimiento}
           onAgendar={() => abrirModal()}
         />
@@ -1462,11 +1485,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         <CalendarioMes
           mes={mesVista}
           citasPorFecha={gruposCalendario}
-          onDiaClick={(iso) => {
-            // Un día del mes → esa semana en la vista Semana (si la pantalla
-            // es angosta y no cabe, se conserva el detalle del día en el modal).
-            if (cabeSemana) { setSemanaLunes(lunesDeSemana(iso)); setVista("semana") } else setDiaModalMes(iso)
-          }}
+          onDiaClick={(iso) => setDiaModal({ iso, minutos: null })}
           onAbrirDetalle={abrirDetalle}
           onAgendar={() => abrirModal()}
         />
@@ -1516,57 +1535,20 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         </div>
       )}
 
-      {/* ─── MODAL "CITAS DEL DÍA" (vista por mes) ─── */}
-      {diaModalMes && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setDiaModalMes(null)}>
-          <div ref={refModalDiaMes} role="dialog" aria-modal="true" aria-labelledby="citas-modal-dia-titulo" className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <h4 id="citas-modal-dia-titulo" className="text-lg font-bold" style={{ color: INK }}>{etiquetaFecha(diaModalMes)}</h4>
-                <p className="text-xs text-slate-500">{citasDelDiaModal.length} {citasDelDiaModal.length === 1 ? "cita" : "citas"} registradas</p>
-              </div>
-              <button type="button" onClick={() => setDiaModalMes(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              {citasDelDiaModal.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                  <p className="text-sm font-medium text-slate-500">Sin citas registradas este día.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {gruposEstadoModal.map(([estado, citasEstado]) => (
-                    <div key={estado}>
-                      <h5 className="mb-2.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                        {estado === "Atendida" ? "Atendidas" : estado === "En Atención" ? "En atención" : estado === "No Asistió" ? "No asistió" : estado}
-                        <span className="text-slate-400">· {citasEstado.length}</span>
-                      </h5>
-                      <div className="grid grid-cols-1 gap-4">
-                        {citasEstado.map((cita) => (
-                          <TarjetaCita
-                      key={cita.id}
-                      cita={cita}
-                      primeraVez={idsPrimeraVez.has(cita.id)}
-                      equipo={equipo}
-                      vistaPropia={vistaPropia}
-                      fechaRealPorCitaId={fechaRealPorCitaId}
-                      marcandoEstadoId={marcandoEstadoId}
-                      cobroPendiente={pendientesPorCita.has(cita.id)}
-                      onAbrirDetalle={abrirDetalle}
-                      onCobrar={cobrarCita}
-                      onAtender={puedeAtenderPacientes ? atenderCita : undefined}
-                    />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body,
+      {/* ─── MODAL "CITAS DEL DÍA" (clic en un día de Semana o Mes) ─── */}
+      {diaModal && (
+        <DiaCitasModal
+          iso={diaModal.iso}
+          minutos={diaModal.minutos}
+          citas={gruposCalendario.get(diaModal.iso) || []}
+          equipo={equipo}
+          vistaPropia={vistaPropia}
+          filtrado={hayFiltros}
+          onCerrar={() => setDiaModal(null)}
+          onAbrirDetalle={(c) => { setDiaModal(null); abrirDetalle(c) }}
+          onAgendar={puede(usuario, "citas", "crear") ? agendarDesdeDia : undefined}
+          onVerSemana={cabeSemana && vistaActiva !== "semana" ? () => { setSemanaLunes(lunesDeSemana(diaModal.iso)); setDiaModal(null); setVista("semana") } : undefined}
+        />
       )}
 
       {/* ─── MODAL AGENDAR ─── */}

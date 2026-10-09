@@ -120,7 +120,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 type="button"
                 key={iso}
                 onClick={() => onDiaClick?.(iso)}
-                title="Ver este día en la lista"
+                title="Ver las citas de este día"
                 className={"flex flex-col items-center justify-center border-l border-slate-100 text-xs font-semibold transition-colors cursor-pointer " + (esHoyCol ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "text-slate-600 hover:bg-slate-50")}
               >
                 <span className="uppercase tracking-wide">{diaSemanaCorto(f.getDay())}</span>
@@ -184,8 +184,10 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                   terminarArrastre()
                 }}
                 onClick={(e) => {
+                  // Clic en la columna: abre las citas de ese día; si fue sobre una hora libre, el modal ofrece agendar a esa hora.
                   const min = minutoBajoPuntero(e)
-                  if (min != null && celdaLibre(iso, min, disponibilidad, citas, new Date()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)) onHuecoLibre?.(iso, min)
+                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, new Date()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)
+                  onHuecoLibre?.(iso, libre ? min : null)
                 }}
               >
                 {hover && hover.iso === iso && (
