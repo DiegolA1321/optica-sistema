@@ -151,7 +151,7 @@ test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, des
   await expect(cuerpo.getByRole('group', { name: 'Atajos' }).getByRole('button', { name: 'Registrar paciente' })).toBeVisible()
   await expect(cuerpo.getByRole('group', { name: 'Atajos' }).getByRole('button', { name: 'Agendar cita' })).toBeVisible()
   await expect(cuerpo.getByRole('heading', { name: /Desenlace de mis citas · hoy/i })).toBeVisible()
-  const agenda = cuerpo.getByRole('region', { name: 'Mis citas de hoy' })
+  const agenda = cuerpo.getByRole('region', { name: 'Mi agenda de hoy' })
   await expect(agenda).toBeVisible()
   await expect(agenda.getByLabel('Siguiente paciente')).toBeVisible() // destacado arriba de la agenda
   // "Atender" es de quien atiende; Ventas no es un bloque suyo.
