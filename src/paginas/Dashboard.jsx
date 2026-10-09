@@ -191,6 +191,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [seccionActiva, setSeccionActiva] = useState(() => {
     // Enlace "Ver perfil" abierto en otra pestaña (?paciente=<id>): entra directo a Pacientes.
     if (new URLSearchParams(window.location.search).get('paciente') && opcionesVisibles.some((o) => o.id === 'pacientes')) return 'pacientes'
+    // La sección de la URL manda (recargar, o abrir un enlace): así no se ve otra pantalla un instante.
+    const deUrl = new URLSearchParams(window.location.search).get('seccion')
+    if (deUrl && opcionesVisibles.some((o) => o.id === deUrl)) return deUrl
     const guardada = localStorage.getItem('optica_seccion_activa')
     return opcionesVisibles.some((o) => o.id === guardada) ? guardada : "inicio"
   })

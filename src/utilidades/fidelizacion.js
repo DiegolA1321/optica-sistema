@@ -117,15 +117,16 @@ export function esClienteFrecuente(paciente, consultas = [], minimo = MINIMO_CLI
 // real en este proyecto (Cuarta Mirada) — si el paciente que refirió
 // cambia de nombre, el conteo por nombre se rompe silenciosamente; por id
 // no.
-export function contarReferidos(paciente, pacientes = []) {
+export function listarReferidos(paciente, pacientes = []) {
   const nombre = (paciente.nombre || "").trim().toLowerCase()
-  if (!nombre && paciente.id == null) return 0
+  if (!nombre && paciente.id == null) return []
   return pacientes.filter((p) => {
     if (paciente.id != null && p.referidoPorId === paciente.id) return true
     if (p.referidoPorId) return false // ya resuelto a OTRO paciente, no cae al respaldo por nombre
     return nombre && (p.referidoPor || "").trim().toLowerCase() === nombre
-  }).length
+  })
 }
+export const contarReferidos = (paciente, pacientes = []) => listarReferidos(paciente, pacientes).length
 
 export { UMBRAL_INACTIVO_DIAS, MINIMO_CLIENTE_FRECUENTE }
 

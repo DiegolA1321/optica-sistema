@@ -146,7 +146,7 @@ function mapPaciente(p) {
   return {
     id: p.id, nombre: p.nombre, cedula: p.cedula, telefono: p.telefono, correo: p.correo,
     fecha_nacimiento: p.fecha_nacimiento, ultimaConsulta: p.ultima_consulta, estadoClinico: p.estado_clinico,
-    referidoPor: p.referido_por, referidoPorId: p.referido_por_id, evolucion: p.evolucion, estadoCorreccion: p.estado_correccion,
+    referidoPor: p.referido_por, referidoPorId: p.referido_por_id, ultimoSaludoCumpleAnio: p.ultimo_saludo_cumple_anio ?? null, evolucion: p.evolucion, estadoCorreccion: p.estado_correccion,
     fechaRegistro: p.fecha_registro, tieneCuenta: p.tiene_cuenta, usuario: p.usuario, claveTemporal: p.clave_temporal,
     ultimoSaludoCumpleAnio: p.ultimo_saludo_cumple_anio,
     // origen (migración 0067, "creado por staff" vs. "por el paciente/sistema")
