@@ -1888,40 +1888,31 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
                         </span>
                       )}
-                      {/* Origen: quién generó el registro — el paciente desde
-                          la web pública (migración 0067) o el personal desde
-                          Recepción/Citas. Antes solo un ícono con title en el
-                          nombre (fácil de pasar por alto); ahora un badge
-                          explícito igual de visible que el resto. */}
-                      <span className={"flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.origen === "paciente" ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500")}>
-                        {pacienteHistorial.origen === "paciente" ? <Globe size={12} /> : <Building2 size={12} />}
-                        Origen: {pacienteHistorial.origen === "paciente" ? "Web" : "Recepción"}
-                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:min-w-[22rem] lg:max-w-[40rem] lg:flex-1 lg:grid-cols-2 lg:border-t-0 lg:pt-0 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:justify-end lg:border-t-0 lg:pt-0">
                   {puedeAgendar && <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
-                    className="flex items-center justify-center gap-2 rounded-xl px-4 border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
-                    <CalendarPlus size={16} /> Agendar cita
+                    <CalendarPlus size={15} /> Agendar cita
                   </button>}
                   {puedeMensaje && <button
                     type="button"
                     onClick={() => abrirMensaje(pacienteHistorial)}
                     disabled={!pacienteHistorial.telefono}
                     title={pacienteHistorial.telefono ? undefined : "Este paciente no tiene teléfono registrado"}
-                    className="flex items-center justify-center gap-2 rounded-xl px-4 border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <MessageCircle size={16} /> Enviar mensaje
+                    <MessageCircle size={15} /> Enviar mensaje
                   </button>}
                   {!pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
                   <button
                     type="button"
                     onClick={() => abrirCuenta(pacienteHistorial)}
-                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
                     <KeyRound size={15} className="shrink-0" /> Crear acceso
                   </button>
