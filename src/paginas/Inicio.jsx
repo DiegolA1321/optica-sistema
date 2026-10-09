@@ -36,12 +36,12 @@ import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
-import RequiereAtencion from "../componentes/RequiereAtencion"
 import RequiereAtencionPorArea from "../componentes/RequiereAtencionPorArea"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
 import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO } from "../utilidades/logs"
+import { saldoFactura } from "../utilidades/abonos"
 import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
 import { INK } from "@/lib/tema"
 
@@ -92,6 +92,8 @@ export default function Inicio({
   const [periodo, setPeriodo] = useState("hoy")
   // Tarjeta del desenlace elegida (atendida | noAsistio | cancelada): la lista de citas de abajo muestra solo esas. Volver a tocarla la quita.
   const [tarjeta, setTarjeta] = useState(null)
+  // Tarjeta de "Para vender" elegida (listos | proformas | saldos): la lista de abajo muestra esa.
+  const [tarjetaVenta, setTarjetaVenta] = useState("listos")
 
   // "Actividad reciente" (sección 6 del pedido de UI: qué cambió, no solo
   // el número actual) — reusa logs_optica, la misma fuente que ya
@@ -264,6 +266,7 @@ export default function Inicio({
   const citasLista = useMemo(() => citasParaLista(citasVista, periodo, tarjeta), [citasVista, periodo, tarjeta])
   const sinAtender = useMemo(() => pacientesSinAtender(pacientes, consultas).length, [pacientes, consultas])
   const saldos = useMemo(() => saldosPorCobrar(facturasVenta, abonos), [facturasVenta, abonos])
+  const facturasConSaldo = useMemo(() => facturasVenta.map((f) => ({ f, saldo: saldoFactura(f, abonos) })).filter((x) => x.saldo > 0).sort((a, b) => (a.f.creadoEn < b.f.creadoEn ? -1 : 1)), [facturasVenta, abonos])
   const listos = useMemo(() => pasesListos(pases), [pases])
   const proformas = useMemo(() => proformasEnSeguimiento(pases), [pases])
   const atencionesVista = esVistaOptometra ? atencionesAntiguas.filter(({ cita }) => esCitaPropia(cita, usuario?.id)) : atencionesAntiguas
@@ -356,7 +359,7 @@ export default function Inicio({
   const bCitasPeriodo = (
     <section aria-label={TITULO_LISTA[periodo]} className="space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_LISTA[periodo]}{tarjeta ? ` · ${NOMBRE_TARJETA[tarjeta]}` : ""}{esVistaOptometra && periodo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_LISTA[periodo]}{tarjeta ? ` · ${NOMBRE_TARJETA[tarjeta]}` : ""}{esVistaOptometra && periodo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}{plantilla === "recepcion" && periodo === "hoy" ? ` · ${hoyVista.pendientes} por llegar · ${hoyVista.enEspera} en sala de espera` : ""}</h2>
         {citasLista.length > 0 && <p className="text-xs text-slate-400">{citasLista.length > LIMITE_LISTA ? `Primeras ${LIMITE_LISTA} de ${citasLista.length}` : `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"}`}</p>}
         {citasLista.length > 0 && <button type="button" onClick={verTodasEnCitas} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
@@ -372,69 +375,73 @@ export default function Inicio({
       </div>
     </section>
   )
-  const filaHoyRecepcion = (
-    <FilaTarjetas
-      titulo="Hoy"
-      descripcion="El movimiento del día"
-      tarjetas={[
-        { id: "hoy", titulo: "Citas de hoy", valor: hoyVista.total, desc: hoyVista.total === 1 ? "cita agendada" : "citas agendadas", icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
-        { id: "porLlegar", titulo: "Por llegar", valor: hoyVista.pendientes, desc: "Pendientes", icono: Clock, color: "slate", onClick: () => onVerCitas?.("pendiente", "hoy") },
-        { id: "espera", titulo: "En sala de espera", valor: hoyVista.enEspera, desc: "Ya llegaron", icono: Users, color: "violet", onClick: () => onVerCitas?.("enEspera", "hoy") },
-        { id: "noAsistieron", titulo: "No asistieron", valor: hoyVista.noAsistieron, desc: "Hoy", icono: UserX, color: "red", onClick: () => onVerCitas?.("noAsistio", "hoy") },
-      ]}
-    />
-  )
   const filaVender = (
     <FilaTarjetas
       titulo="Para vender"
       descripcion="Lo que espera a quien vende"
+      acciones={atajosAdmin}
       tarjetas={[
-        { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", onClick: () => onVerCola?.() },
-        { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "blue", onClick: () => onVerCola?.() },
-        { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.cantidad === 0 ? "Nada pendiente" : `en ${saldos.cantidad} ${saldos.cantidad === 1 ? "venta" : "ventas"}`, icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", onClick: () => setVista?.("pacientes") },
+        { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", seleccionada: tarjetaVenta === "listos", onClick: () => setTarjetaVenta("listos") },
+        { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "blue", seleccionada: tarjetaVenta === "proformas", onClick: () => setTarjetaVenta("proformas") },
+        { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.cantidad === 0 ? "Nada pendiente" : `en ${saldos.cantidad} ${saldos.cantidad === 1 ? "venta" : "ventas"}`, icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", seleccionada: tarjetaVenta === "saldos", onClick: () => setTarjetaVenta("saldos") },
       ]}
     />
   )
-  const atajosRecepcion = (
-    <div className="flex flex-wrap gap-3" role="group" aria-label="Atajos">
-      {puede(usuario, "pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Users size={16} aria-hidden="true" /> Registrar paciente</button>}
-      {puede(usuario, "citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}><Calendar size={16} aria-hidden="true" /> Agendar cita</button>}
-    </div>
-  )
-  const bColaVender = (
-    <section aria-label="Pacientes por vender" className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-      <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><ShoppingBag size={18} aria-hidden="true" /></div>
-          <div>
-            <h4 className="text-sm font-bold" style={{ color: INK }}>Listos para venta</h4>
-            <p className="text-[11px] text-slate-500">{listos.length === 0 ? "Nadie espera por ahora" : `${listos.length} ${listos.length === 1 ? "paciente espera" : "pacientes esperan"}, el más antiguo primero`}</p>
-          </div>
-        </div>
-        <button type="button" onClick={() => onVerCola?.()} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver la cola <ArrowRight size={14} aria-hidden="true" /></button>
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
+  // Lo que la tarjeta elegida de "Para vender" lista abajo. Del diagnóstico solo se muestra lo clínico (lo que va antes de " — "):
+  // el texto del tratamiento es el mismo en todas las filas.
+  const TITULO_VENDER = { listos: "Listos para venta", proformas: "Proformas en seguimiento", saldos: "Saldos por cobrar" }
+  const pasesDeLaLista = (tarjetaVenta === "proformas" ? proformas : listos).slice().sort((a, b) => (a.pasadaEn < b.pasadaEn ? -1 : 1))
+  const esListaSaldos = tarjetaVenta === "saldos"
+  const nVender = esListaSaldos ? facturasConSaldo.length : pasesDeLaLista.length
+  const bListaVender = (
+    <section aria-label={TITULO_VENDER[tarjetaVenta]} className="space-y-2.5">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_VENDER[tarjetaVenta]}</h2>
+        {nVender > 0 && (
+          <p className="text-xs text-slate-400">
+            {esListaSaldos ? `${plural(nVender, "venta", "ventas")} · ${dinero(saldos.total)}` : `${plural(nVender, "paciente espera", "pacientes esperan")}, el más antiguo primero`}
+            {nVender > LIMITE_LISTA ? ` · primeras ${LIMITE_LISTA}` : ""}
+          </p>
+        )}
+        {nVender > 0 && <button type="button" onClick={() => (esListaSaldos ? onVerSaldos?.() : onVerCola?.())} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">{esListaSaldos ? "Ver saldos" : "Ver la cola"} <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
-      {listos.length === 0 ? (
-        <EstadoVacio icon={ShoppingBag} texto="Cuando el optómetra pase a un paciente a la óptica, aparece aquí." />
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {listos.slice().sort((a, b) => (a.pasadaEn < b.pasadaEn ? -1 : 1)).slice(0, 5).map((pase) => {
-            const paciente = pacientes.find((x) => x.id === pase.pacienteId)
-            const consulta = consultas.find((x) => x.id === pase.consultaId)
-            const diagnostico = textoDiagnostico(consulta)
-            return (
-              <li key={pase.id}>
-                <button type="button" onClick={() => onVerCola?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold text-slate-800">{paciente?.nombre || "Paciente"}</span>
-                    <span className="block truncate text-[11px] text-slate-500">{diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
-                  </span>
-                  <span className="shrink-0 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">{textoEspera(diasEnEspera(pase))}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        {nVender === 0 ? (
+          <EstadoVacio icon={esListaSaldos ? Wallet : ShoppingBag} texto={esListaSaldos ? "No hay saldos por cobrar." : tarjetaVenta === "proformas" ? "Nadie tiene una proforma en seguimiento." : "Cuando el optómetra pase a un paciente a la óptica, aparece aquí."} />
+        ) : (
+          <ul className="divide-y divide-slate-100 px-5 py-2">
+            {esListaSaldos
+              ? facturasConSaldo.slice(0, LIMITE_LISTA).map(({ f, saldo }) => (
+                <li key={f.id}>
+                  <button type="button" onClick={() => onVerSaldos?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold text-slate-800">{pacientes.find((x) => x.id === f.pacienteId)?.nombre || "Paciente"}</span>
+                      <span className="block truncate text-[11px] text-slate-500">Venta del {fechaLegible(f.creadoEn)} · total {dinero(f.montoTotal)}</span>
+                    </span>
+                    <span className="shrink-0 rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">Saldo {dinero(saldo)}</span>
+                  </button>
+                </li>
+              ))
+              : pasesDeLaLista.slice(0, LIMITE_LISTA).map((pase) => {
+                const paciente = pacientes.find((x) => x.id === pase.pacienteId)
+                const consulta = consultas.find((x) => x.id === pase.consultaId)
+                const diagnostico = String(textoDiagnostico(consulta) || "").split(" — ")[0]
+                return (
+                  <li key={pase.id}>
+                    <button type="button" onClick={() => onVerCola?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-slate-800">{paciente?.nombre || "Paciente"}</span>
+                        <span className="block truncate text-[11px] text-slate-500">{diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
+                      </span>
+                      <span className="shrink-0 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">{textoEspera(diasEnEspera(pase))}</span>
+                    </button>
+                  </li>
+                )
+              })}
+          </ul>
+        )}
+      </div>
     </section>
   )
   // Mismo criterio que Citas/Pacientes/Inventario (cargaInicial && sin datos
@@ -449,12 +456,9 @@ export default function Inicio({
     return <InicioSkeleton />
   }
 
-  // ─── 1. Resumen del día: una sola línea ───
-  const enAtencionAhora = (esVistaOptometra ? pacientesEnAtencion.filter((c) => esCitaPropia(c, usuario?.id)) : pacientesEnAtencion)
-  const agenda = agendaHoyOProximas(citasVista)
   const hayInactivos = inactivos.length > 0
 
-  // ─── 4. Requiere tu atención: todo lo pendiente, en un solo bloque ───
+  // ─── Requiere tu atención: todo lo pendiente, en un solo bloque ───
   const incAtenciones = ["administrador", "optometra", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incOrdenes = ["administrador", "ventas"].includes(plantilla) || (plantilla === "general" && veVentas)
   const incControles = (["administrador", "optometra", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
@@ -466,9 +470,8 @@ export default function Inicio({
   const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const incSaldos = veVentas && plantilla !== "optometra"
-  const incSinConsulta = puede(usuario, "pacientes", "ver")
+  const incSinConsulta = puede(usuario, "pacientes", "ver") && plantilla !== "ventas"
   const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
-  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
   // Los avisos de "Requiere tu atención", cada uno con su área (citas, pacientes, ventas, inventario) y, si agrupa varios, su cantidad.
   // nuevo = Inicio del administrador y del optómetra: salen todos, sin recortes ni filas "Y N más" (cada bloque muestra los tres primeros),
@@ -614,9 +617,6 @@ export default function Inicio({
     })
     return filas
   }
-  const filasAtencion = construirAvisos(false)
-  const bRequiere = <RequiereAtencion filas={filasAtencion} />
-
   // Inicio del administrador y del optómetra: un bloque por área, solo los que le corresponden por sus permisos.
   const avisosPorArea = construirAvisos(true)
   const filasDe = (area) => avisosPorArea.filter((f) => f.area === area)
@@ -625,34 +625,19 @@ export default function Inicio({
     if (paraReagendar.length > 0 || atencionesVista.length === 0) onVerCitas("todas", "reagendar")
     else onVerCitas("enAtencion", "siempre")
   }
+  // Un bloque solo existe si el rol tiene avisos de esa área; el que existe y está vacío dice "todo en orden".
+  const aplicaCitas = incAtenciones || incControlesPorAgendar || incCanceladas || puedeReasignarCitas
+  const aplicaPacientes = incPorConfirmar || incControles || incSinConsulta || incCumple
+  const aplicaVentas = incOrdenes || incSaldos
   const bloquesAtencion = [
-    veCitas && { id: "citas", titulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: irACitas },
-    puede(usuario, "pacientes", "ver") && { id: "pacientes", titulo: "Pacientes", icono: Users, filas: filasDe("pacientes"), onVerTodo: () => (filasDe("pacientes")[0]?.verTodo ?? (() => setVista?.("pacientes")))() },
-    veVentas && plantilla === "administrador" && { id: "ventas", titulo: "Ventas", icono: ShoppingBag, filas: filasDe("ventas"), onVerTodo: () => (filasDe("ventas")[0]?.verTodo ?? (() => setVista?.("ventas")))() },
+    veCitas && aplicaCitas && { id: "citas", titulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: irACitas },
+    puede(usuario, "pacientes", "ver") && aplicaPacientes && { id: "pacientes", titulo: "Pacientes", icono: Users, filas: filasDe("pacientes"), onVerTodo: () => (filasDe("pacientes")[0]?.verTodo ?? (() => setVista?.("pacientes")))() },
+    veVentas && aplicaVentas && { id: "ventas", titulo: "Ventas", icono: ShoppingBag, filas: filasDe("ventas"), onVerTodo: () => (filasDe("ventas")[0]?.verTodo ?? (() => setVista?.("ventas")))() },
     veInventario && { id: "inventario", titulo: "Inventario", icono: Package, filas: filasDe("inventario"), onVerTodo: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
   ].filter(Boolean)
   const bRequiereAreas = <RequiereAtencionPorArea bloques={bloquesAtencion} />
 
-  const segmentosDia = []
-  if (plantilla === "administrador") segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"), `${enAtencionAhora.length} en atención ahora`)
-  else if (plantilla === "recepcion" || (plantilla === "general" && veCitas)) segmentosDia.push(plural(hoyVista.total, "cita hoy", "citas hoy"))
-  else if (plantilla === "optometra") segmentosDia.push(plural(hoyVista.total, "cita tuya hoy", "citas tuyas hoy"), ...(sinTerminar.length > 0 ? [plural(sinTerminar.length, "ficha sin terminar", "fichas sin terminar")] : []))
-  else if (plantilla === "ventas" || (plantilla === "general" && veVentas)) segmentosDia.push(plural(listos.length, "paciente espera su venta", "pacientes esperan su venta"))
-  const bResumenDia = (
-    <p aria-label="Resumen del día" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
-      {segmentosDia.map((s, i) => (<span key={i} className="font-medium">{s}<span className="ml-2 text-slate-300" aria-hidden="true">·</span></span>))}
-      {filasAtencion.length > 0 ? (
-        <button type="button" onClick={() => document.getElementById("requiere-atencion")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="font-bold text-amber-700 underline-offset-2 hover:underline cursor-pointer">
-          {plural(filasAtencion.length, "pendiente que requiere tu atención", "pendientes que requieren tu atención")}
-        </button>
-      ) : (
-        <span className="font-bold text-emerald-700">Todo en orden</span>
-      )}
-      {!opticaActiva && <span className="rounded-full border border-red-200/60 bg-red-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700">Óptica suspendida</span>}
-    </p>
-  )
-
-  // Administrador y optómetra ya no llevan la línea de resumen (repetía lo de más abajo); solo queda el aviso de óptica suspendida.
+  // Ningún Inicio lleva línea de resumen (repetía lo de más abajo); solo queda el aviso de óptica suspendida.
   const bSuspendida = !opticaActiva && (
     <p role="status" className="flex items-center gap-2 text-sm"><span className="rounded-full border border-red-200/60 bg-red-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700">Óptica suspendida</span></p>
   )
@@ -693,45 +678,6 @@ export default function Inicio({
     />
   )
 
-  // ─── 5. Hoy: quién está en atención ahora y la agenda del día (o las próximas si hoy no hay) ───
-  // conFilaHoy: el rol ya tiene una fila de tarjetas titulada "Hoy"; así la agenda no repite el título.
-  const bHoy = (conAtencion, conFilaHoy = false) => (
-    <section aria-label={conFilaHoy ? (agenda.modo === "hoy" ? "Agenda de hoy" : "Próximas citas") : "Hoy"} className="space-y-2.5">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{conFilaHoy ? (agenda.modo === "hoy" ? "Agenda de hoy" : "Próximas citas") : "Hoy"}</h2>
-        <p className="text-xs text-slate-400">{agenda.modo === "hoy" ? "En orden de hora" : "Hoy no hay citas: estas son las próximas"}</p>
-        <button type="button" onClick={() => setVista?.("citas")} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver agenda completa <ArrowRight size={14} aria-hidden="true" /></button>
-      </div>
-      <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-        {conAtencion && (
-          <div aria-label="En atención ahora" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 px-5 py-3.5">
-            <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: INK }}>
-              <Activity size={17} className="text-blue-600" aria-hidden="true" /> En atención ahora
-              <span className="font-serif text-lg" aria-live="polite">{enAtencionAhora.length}</span>
-            </span>
-            {enAtencionAhora.length === 0 ? (
-              <span className="text-sm text-slate-500">Nadie está en atención en este momento.</span>
-            ) : (
-              enAtencionAhora.map((c) => (
-                <span key={c.id} className="flex max-w-full items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  <span className="truncate">{c.paciente}</span>
-                  <span className="shrink-0 font-normal text-blue-600/80">· {etiquetaMiembro(equipo, c.atendidoPor) || "Sin registro"}</span>
-                </span>
-              ))
-            )}
-          </div>
-        )}
-        <div className="divide-y divide-slate-100 px-5 py-4">
-          {agenda.citas.length === 0 ? (
-            <EstadoVacio icon={Calendar} texto="No hay citas hoy ni próximas." />
-          ) : (
-            agenda.citas.map((cita, idx) => renderFilaCita(cita, idx, agenda.modo === "proximas"))
-          )}
-        </div>
-      </div>
-    </section>
-  )
-
   // ─── 6. Registro de actividad, compacto: las últimas 5 acciones (solo el administrador) ───
   const bActividad = actividadReciente.length > 0 && (
     <section aria-label="Registro de actividad" className="space-y-2.5">
@@ -763,7 +709,7 @@ export default function Inicio({
         @media (prefers-reduced-motion: reduce) { .in-rise { animation: none !important; } }
       `}</style>
 
-      {plantilla === "administrador" || plantilla === "optometra" ? bSuspendida : bResumenDia}
+      {bSuspendida}
       {bDejarCita}
       {bConfirmarPaciente}
       {bReasignar}
@@ -789,28 +735,28 @@ export default function Inicio({
 
       {plantilla === "recepcion" && (
         <>
-          {filaHoyRecepcion}
-          {atajosRecepcion}
-          {bRequiere}
-          {bHoy(false, true)}
+          <div className="flex justify-end">{atajosAdmin}</div>
+          {bRequiereAreas}
+          {filaDesenlace}
+          {bCitasPeriodo}
         </>
       )}
 
       {plantilla === "ventas" && (
         <>
           {filaVender}
-          {bRequiere}
-          {bColaVender}
+          {bRequiereAreas}
+          {bListaVender}
         </>
       )}
 
       {plantilla === "general" && (
         <>
-          {veCitas && filaHoyRecepcion}
-          {veVentas && filaVender}
-          {bRequiere}
-          {veCitas && bHoy(false, true)}
-          {veVentas && bColaVender}
+          {veVentas ? filaVender : <div className="flex justify-end">{atajosAdmin}</div>}
+          {bRequiereAreas}
+          {veCitas && filaDesenlace}
+          {veCitas && bCitasPeriodo}
+          {veVentas && bListaVender}
           {!veCitas && !veVentas && !veInventario && !veCrm && (
             <EstadoVacio icon={Users} texto="Tu rol no tiene un resumen propio: usa el menú para entrar a tus módulos." />
           )}

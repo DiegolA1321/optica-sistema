@@ -32,7 +32,7 @@ describe("Inicio por rol", () => {
     expect(within(totales).getByText("Productos en inventario")).toBeInTheDocument()
     expect(within(totales).getByText("+2 este mes")).toBeInTheDocument() // los dos pacientes se registraron hoy
     expect(within(totales).queryByText("Pacientes sin atender")).not.toBeInTheDocument()
-    for (const area of ["Citas", "Pacientes", "Ventas", "Inventario"]) expect(screen.getByRole("region", { name: `Requiere tu atención: ${area}` })).toBeInTheDocument()
+    for (const area of ["Citas", "Pacientes", "Ventas", "Inventario"]) expect(screen.getByLabelText(`Requiere tu atención: ${area}`)).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Desenlace de las citas · hoy" })).toBeInTheDocument()
     expect(screen.getByRole("group", { name: "Período del desenlace" })).toHaveTextContent("HoyEsta semanaEste mesTodas")
     expect(screen.getByRole("button", { name: "Hoy" })).toHaveAttribute("aria-pressed", "true")
@@ -119,12 +119,17 @@ describe("Inicio por rol", () => {
     expect(screen.getByRole("heading", { name: "Mi agenda de hoy · 2 en espera" })).toBeInTheDocument()
   })
 
-  it("recepción: el movimiento del día y atajos para agendar y registrar", () => {
+  it("recepción: misma estructura que el administrador (avisos por área, desenlace y citas del día), sin línea de resumen ni tarjetas aparte de Hoy", () => {
     render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente" }} vista={vistaRol("recepcion")} />)
-    expect(screen.getByText("Citas de hoy")).toBeInTheDocument()
-    expect(screen.getByText("En sala de espera")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Agendar cita/ })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Registrar paciente/ })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Requiere tu atención" })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Desenlace de las citas · hoy" })).toBeInTheDocument()
+    // Por llegar y sala de espera van en la cabecera de la lista, no en tarjetas aparte
+    const lista = screen.getByRole("region", { name: "Citas del día" })
+    expect(within(lista).getByRole("heading", { level: 2 })).toHaveTextContent("1 por llegar · 1 en sala de espera")
+    expect(screen.queryByText("Citas de hoy")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
   })
 
@@ -134,12 +139,26 @@ describe("Inicio por rol", () => {
     expect(screen.getByText("Listos para venta", { selector: "span" })).toBeInTheDocument()
     expect(screen.getByText("Saldos por cobrar")).toBeInTheDocument()
     expect(screen.getByText("$60.00")).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Pacientes por vender" })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Listos para venta" })).toBeInTheDocument()
     const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
     expect(atencion).toHaveTextContent(/1 orden atrasada/)
     expect(screen.queryByRole("region", { name: "Órdenes de laboratorio" })).not.toBeInTheDocument()
     expect(screen.getByText("Paciente Uno", { selector: "span" })).toBeInTheDocument()
     expect(screen.getAllByText(/1 producto con stock bajo/i)).toHaveLength(1)
+    // Los saldos por cobrar también son un aviso (por ítem), igual que en el administrador
+    expect(atencion).toHaveTextContent(/1 venta con saldo pendiente/)
+  })
+
+  it("ventas: la tarjeta elegida de 'Para vender' cambia la lista de abajo", () => {
+    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { ventas: ["ver", "crear"], inventario: ["ver"] } }} vista={vistaRol("ventas")} />)
+    expect(screen.getByRole("button", { name: /^Listos para venta:/ })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByText("Saldo $60.00")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /^Saldos por cobrar:/ }))
+    expect(screen.getByRole("region", { name: "Saldos por cobrar", hidden: false })).toBeInTheDocument()
+    expect(screen.getByText("Saldo $60.00")).toBeInTheDocument()
+    // el texto del tratamiento ya no se repite en cada fila
+    fireEvent.click(screen.getByRole("button", { name: /^Listos para venta:/ }))
+    expect(screen.queryByText(/Corrección óptica indicada/)).not.toBeInTheDocument()
   })
 
   it("rol propio: solo los bloques de los módulos que puede ver", () => {
@@ -151,13 +170,17 @@ describe("Inicio por rol", () => {
 
   it("sin nada pendiente: cada bloque dice \"Todo en orden\"", () => {
     render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} facturasVenta={[]} abonos={[]} />)
-    const bloque = screen.getByRole("region", { name: "Requiere tu atención" })
-    expect(within(bloque).getAllByText("Todo en orden").length).toBeGreaterThanOrEqual(4)
+    // Sin avisos no hay tarjetas altas y vacías: las cuatro áreas van en una franja compacta
+    const franja = screen.getByRole("list", { name: "Áreas sin avisos" })
+    expect(within(franja).getAllByRole("listitem")).toHaveLength(4)
+    expect(franja).toHaveTextContent(/todo en orden/i)
+    expect(screen.queryByText("Ver todo", { exact: false })).not.toBeInTheDocument()
   })
 
-  it("recepción conserva la línea de resumen con \"Todo en orden\"", () => {
+  it("recepción sin nada pendiente: franja de 'todo en orden' y sin línea de resumen", () => {
     render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} usuario={{ ...base.usuario, rol: "asistente" }} vista={vistaRol("recepcion")} />)
-    expect(screen.getByLabelText("Resumen del día")).toHaveTextContent("Todo en orden")
+    expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
+    expect(screen.getByRole("list", { name: "Áreas sin avisos" })).toHaveTextContent(/todo en orden/i)
   })
 
   it("administrador: quien no asistió también aparece para reagendar, igual que en Citas", () => {
