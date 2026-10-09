@@ -1886,9 +1886,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {/* Cuenta Portal — pedido explícito de Diego: etiqueta
                           "Cuenta Portal: Activa/Sin cuenta" en vez del
                           "Con cuenta"/"Sin cuenta" genérico de antes. */}
-                      <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
+                      {/* Al hacer clic se abren las opciones de la cuenta del portal (restablecer la clave, o crear el acceso). */}
+                      <button
+                        type="button"
+                        onClick={() => abrirCuenta(pacienteHistorial)}
+                        title={pacienteHistorial.tieneCuenta ? "Opciones de la cuenta del portal" : "Crear el acceso al portal"}
+                        className={"rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                      >
                         Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
-                      </span>
+                      </button>
                       {/* Origen: quién generó el registro — el paciente desde
                           la web pública (migración 0067) o el personal desde
                           Recepción/Citas. Antes solo un ícono con title en el
@@ -1939,13 +1945,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <Receipt size={16} /> Vender receta
                     </button>
                   )}
+                  {!pacienteHistorial.tieneCuenta && (
                   <button
                     type="button"
                     onClick={() => abrirCuenta(pacienteHistorial)}
                     className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
-                    <KeyRound size={15} className="shrink-0" /> {pacienteHistorial.tieneCuenta ? "Restablecer clave" : "Crear acceso"}
+                    <KeyRound size={15} className="shrink-0" /> Crear acceso
                   </button>
+                  )}
                 </div>
               </div>
 
