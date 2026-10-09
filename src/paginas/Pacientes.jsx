@@ -385,6 +385,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Venta abierta desde la lista de pacientes: el cobro se abre encima de la lista, sin entrar al perfil.
   const [ventaRapidaPara, setVentaRapidaPara] = useState(null)
   const [elegirVentaOrden, setElegirVentaOrden] = useState(false)
+  const [verDatosPaciente, setVerDatosPaciente] = useState(false)
+  useEffect(() => { setVerDatosPaciente(false) }, [pacienteHistorial?.id])
   useEffect(() => { if (!pacienteHistorial) setElegirVentaOrden(false) }, [pacienteHistorial])
   const pacienteVenta = ventaRapidaPara || pacienteHistorial
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
@@ -1926,15 +1928,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     <KeyRound size={15} className="shrink-0" /> Crear acceso
                   </button>
                   )}
-                  {puedeEditarPaciente && (
                   <button
                     type="button"
-                    onClick={() => abrirEdicion(pacienteHistorial)}
-                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                    onClick={() => setVerDatosPaciente((v) => !v)}
+                    aria-expanded={verDatosPaciente}
+                    aria-controls="datos-paciente"
+                    className={"flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (verDatosPaciente ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 text-slate-700 hover:bg-slate-50")}
                   >
-                    <Pencil size={15} className="shrink-0" /> Editar datos
+                    <IdCard size={15} className="shrink-0" /> Datos <ChevronDown size={13} aria-hidden="true" className={"shrink-0 transition-transform " + (verDatosPaciente ? "rotate-180" : "")} />
                   </button>
-                  )}
                   {pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
                   <button
                     type="button"
@@ -1958,12 +1960,22 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   </div>
                 )
                 return (
-                  <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-slate-100 pt-4 sm:grid-cols-4">
+                  verDatosPaciente && (
+                  <div id="datos-paciente" className="mt-4 flex flex-wrap items-start justify-between gap-4 border-t border-slate-100 pt-4" style={{ animation: "rise-in 220ms ease-out both" }}>
+                  <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
                     {fn ? dato("Fecha de nacimiento", fechaLegible(fn) + (edadPaciente != null ? " · " + edadPaciente + " años" : "")) : dato("Fecha de nacimiento", "Sin registrar", true)}
                     {dato("Registrado el", fechaLegible(pacienteHistorial.fechaRegistro) || "—", !pacienteHistorial.fechaRegistro)}
                     {ultima ? dato("Última visita", fechaLegible(ultima.fecha)) : dato("Última visita", "Sin consultas", true)}
-                    {pacienteHistorial.referidoPor ? dato("Referido por", pacienteHistorial.referidoPor) : dato("Referido por", "Llegó por su cuenta", true)}
+                    {/* "Referido por" solo existe si alguien lo registró: quien llegó por su cuenta no lleva este dato. */}
+                    {pacienteHistorial.referidoPor && dato("Referido por", pacienteHistorial.referidoPor)}
                   </dl>
+                  {puedeEditarPaciente && (
+                    <button type="button" onClick={() => abrirEdicion(pacienteHistorial)} className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                      <Pencil size={14} className="shrink-0" /> Editar
+                    </button>
+                  )}
+                  </div>
+                  )
                 )
               })()}
               </div>
