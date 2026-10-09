@@ -158,7 +158,7 @@ test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, des
   await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención: Ventas' })).toHaveCount(0)
   // Con inventario: ver, el aviso de stock bajo está en su bloque, con un botón para ver el inventario (solo lectura).
   const inventario = atencion(page).getByRole('region', { name: 'Requiere tu atención: Inventario' })
-  if (await inventario.count()) {
+  if (await inventario.getByRole('listitem').count()) {
     await expect(inventario.getByText(/productos? con stock bajo/)).toHaveCount(1)
     await expect(inventario.getByRole('button', { name: 'Reabastecer' })).toHaveCount(0)
   }
