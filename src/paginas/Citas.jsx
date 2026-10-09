@@ -27,7 +27,6 @@ import {
   Mail,
   Cake,
   Loader2,
-  Zap,
   Receipt,
   List,
 } from "lucide-react"
@@ -238,6 +237,8 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // las 3:40?") y pidió una manera de registrar la hora real + cuánto va a
   // durar, en vez de forzar todo a los slots de 30/40 minutos por defecto.
   const [horaPersonalizada, setHoraPersonalizada] = useState(false)
+  // Un paciente que llegó (hora real) y la cita es de hoy: al confirmar pasa directo a "En Atención" y abre la ficha clínica
+  // (antes era un botón aparte, "Atender ahora"; es lo mismo que "Llegó en un horario diferente").
   const [horaCustom, setHoraCustom] = useState("") // "HH:MM" 24h, del <input type="time">
   const [duracionCustom, setDuracionCustom] = useState(disponibilidad?.duracionCita || 40)
   const [errorHorarioCustom, setErrorHorarioCustom] = useState("")
@@ -246,7 +247,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // bloque de la grilla de horarios: precarga la hora real y, al confirmar,
   // pasa la cita directo a "En Atención" y abre la ficha clínica, en vez de
   // quedar "Pendiente" esperando que alguien la atienda después.
-  const [atenderInmediato, setAtenderInmediato] = useState(false)
+  const atenderInmediato = horaPersonalizada && fecha === hoyISO() && puede(usuario, "consultas", "crear")
   const [mensajeExito, setMensajeExito] = useState(null)
   // Con overlaySolo (formulario abierto sobre Inicio) el aviso sale como toast del panel: esta vista queda oculta.
   const mostrarExito = (mensaje) => {
@@ -394,6 +395,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // Pacientes.jsx al elegir una cita desde el perfil del paciente) en vez de
   // duplicar el formulario acá.
   const [confirmarDatosPara, setConfirmarDatosPara] = useState(null)
+  const [confirmarSoloPara, setConfirmarSoloPara] = useState(null) // paciente web sin confirmar, desde el detalle de su cita
 
   // Inserta un paciente nuevo con el mismo shape que usa Pacientes.jsx —
   // reutilizado tanto por "+ Añadir nuevo paciente" (Gestionar) como por
@@ -595,7 +597,6 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
     setHoraCustom("")
     setDuracionCustom(disponibilidad?.duracionCita || 40)
     setErrorHorarioCustom("")
-    setAtenderInmediato(false)
     setMostrarNuevoPaciente(false)
     setNpNombre("")
     setNpCedula("")
@@ -742,8 +743,36 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // agendada desde la web pública), pide completar su registro primero. Si
   // el paciente es web y no está confirmado por recepción (D2), pide
   // confirmar/completar sus datos antes de la ficha. ──
-  const ingresarAFicha = (cita) => {
+  // Una cita de otro día que se atiende hoy se mueve a hoy, con la hora real: el calendario y los reportes la ven en el día en que
+  // ocurrió. La hora se prueba minuto a minuto por si ya hay otra cita a esa hora (un horario por óptica, fecha y hora).
+  const moverCitaAHoy = async (cita) => {
+    const hoy = hoyISO()
+    const ahora = new Date()
+    let hora = null
+    for (let extra = 0; extra < 30 && !hora; extra++) {
+      const t = new Date(ahora.getTime() + extra * 60_000)
+      if (t.getDate() !== ahora.getDate()) break
+      const candidata = horaA12(`${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`)
+      if (!citas.some((c) => c.id !== cita.id && c.fecha === hoy && c.hora === candidata && c.estado !== "Cancelada")) hora = candidata
+    }
+    if (!hora) hora = horaA12(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
+    if (supabase && opticaId) {
+      const { data, error } = await supabase.from("citas").update({ fecha: hoy, hora }).eq("id", cita.id).select()
+      if (fueBloqueadoPorPermiso({ error, data })) { setBannerError(MENSAJE_SIN_PERMISO); return null }
+      if (error) { setBannerError(esErrorHoraInvalida(error) ? MENSAJE_HORA_INVALIDA : "No se pudo mover la cita al día de hoy. Revisa tu conexión e intenta de nuevo."); return null }
+    }
+    setCitas((prev) => prev.map((c) => (c.id === cita.id ? { ...c, fecha: hoy, hora } : c)))
+    registrarLog(usuario, "citas", "Movió una cita al día en que se atiende", `${cita.paciente} · de ${fechaLegible(cita.fecha)} a hoy, ${hora}`)
+    return { ...cita, fecha: hoy, hora }
+  }
+
+  const ingresarAFicha = async (citaOriginal) => {
     if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
+    let cita = citaOriginal
+    if (cita.estado !== "En Atención" && cita.fecha && cita.fecha !== hoyISO()) {
+      cita = await moverCitaAHoy(cita)
+      if (!cita) return
+    }
     if (cita.pacienteId) {
       const paciente = pacientes.find((p) => p.id === cita.pacienteId)
       if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
@@ -1762,43 +1791,13 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
 
                 <SelectorAsignado id="citas-asignado" valor={asignadoA} onChange={setAsignadoA} equipo={equipo} />
 
-                {/* Atajo para un paciente que ya está en el local ahora mismo
-                    (walk-in o llegó antes/después de su turno) — precarga la
-                    hora real y marca la cita para pasar directo a "En
-                    Atención" al confirmar, sin forzarlo a elegir un bloque de
-                    la grilla de 30/40 min. Pedido explícito: "Atender Ahora /
-                    Hora Actual", cero fricción cuando el paciente ya llegó. */}
-                {puedeAtenderPacientes && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const ahora = new Date()
-                      const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
-                      setFecha(hoyISO())
-                      setHoraPersonalizada(true)
-                      setHoraCustom(hhmm)
-                      setAtenderInmediato(true)
-                      setErrorHorarioCustom("")
-                    }}
-                    className={"flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition cursor-pointer " + (atenderInmediato ? "border-blue-300 bg-blue-50/60" : "border-slate-200/60 bg-white hover:border-blue-200/60 hover:bg-blue-50/30")}
-                  >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
-                      <Zap size={16} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-bold" style={{ color: INK }}>Atender ahora (hora actual)</span>
-                      <span className="block text-xs text-slate-500">El paciente ya está aquí — usa la hora de este momento y pasa directo a la ficha clínica al confirmar.</span>
-                    </span>
-                  </button>
-                )}
-
                 <SelectorFechaHora
                   disponibilidad={disponibilidad}
                   citas={citas}
                   fecha={fecha}
                   hora={horaPersonalizada ? "" : hora}
                   onCambiarFecha={setFecha}
-                  onCambiarHora={(h) => { setHora(h); setAtenderInmediato(false) }}
+                  onCambiarHora={(h) => { setHora(h); setHoraPersonalizada(false) }}
                   mesesAdelante={14}
                 />
 
@@ -1811,11 +1810,20 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
                     <input
                       type="checkbox"
                       checked={horaPersonalizada}
-                      onChange={(e) => { setHoraPersonalizada(e.target.checked); setErrorHorarioCustom(""); if (!e.target.checked) setAtenderInmediato(false) }}
+                      onChange={(e) => {
+                        setHoraPersonalizada(e.target.checked)
+                        setErrorHorarioCustom("")
+                        if (e.target.checked) {
+                          const ahora = new Date()
+                          if (!fecha) setFecha(hoyISO())
+                          if (!horaCustom) setHoraCustom(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
+                        }
+                      }}
                       className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
                     />
                     Llegó en un horario diferente al de la grilla
                   </label>
+                  {atenderInmediato && <p className="mt-1.5 pl-[1.625rem] text-xs text-slate-500">Es de hoy: al confirmar pasa directo a la ficha clínica.</p>}
                   {horaPersonalizada && (
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       <div>
@@ -2008,6 +2016,18 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
             onAtender?.(pacienteConfirmado, cita.id, cita.motivo)
           }}
           onCerrar={() => setConfirmarDatosPara(null)}
+        />
+      )}
+
+      {confirmarSoloPara && (
+        <ConfirmarDatosPacienteModal
+          soloConfirmar
+          usuario={usuario}
+          paciente={confirmarSoloPara}
+          pacientes={pacientes}
+          setPacientes={setPacientes}
+          onConfirmado={(p) => { setConfirmarSoloPara(null); onAviso?.(`Datos de ${p.nombre} confirmados.`) }}
+          onCerrar={() => setConfirmarSoloPara(null)}
         />
       )}
 
@@ -2222,6 +2242,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
             ausenteEnLaHora={(id, c) => ausenteEnHorario(disponibilidad, id, c.fecha, c.hora)}
             onReasignar={puedeReasignar(usuario, vistaPropia ? "propio" : "todo") ? reasignarCita : undefined}
             onTomar={puede(usuario, "citas", "editar") ? tomarCita : undefined}
+            onConfirmarDatos={puede(usuario, "pacientes", "editar") ? (c) => { const p = pacientes.find((x) => x.id === c.pacienteId); if (p) { setDetalleCitaId(null); setConfirmarSoloPara(p) } } : undefined}
             onRegistrarPaciente={puede(usuario, "pacientes", "crear") && puede(usuario, "citas", "editar") ? registrarPacienteDeCita : undefined}
           />
         )
