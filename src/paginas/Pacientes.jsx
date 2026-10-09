@@ -40,6 +40,7 @@ import {
   MoreVertical,
   RefreshCw,
   Image as ImageIcon,
+  ClipboardList,
   Wallet,
   ShoppingCart,
   Receipt,
@@ -89,7 +90,7 @@ import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidade
 import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { ModalAtencion, ModalHistoriaClinica } from "../componentes/AtencionPaciente"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -314,6 +315,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     return e
   }, [pacienteHistorial])
   const [tabHistorial, setTabHistorial] = useState("citas")
+  const [verHistoriaClinica, setVerHistoriaClinica] = useState(false)
   // Escape cierra la vista de perfil del paciente (atajo de teclado).
   useEffect(() => {
     if (!pacienteHistorial) return
@@ -1891,6 +1893,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:justify-end lg:border-t-0 lg:pt-0">
+                  <button
+                    type="button"
+                    onClick={() => setVerHistoriaClinica(true)}
+                    aria-haspopup="dialog"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer"
+                  >
+                    <ClipboardList size={15} /> Historia clínica
+                  </button>
                   {puedeAgendar && <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
@@ -2022,35 +2032,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   )}
 
-                  {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
-                      para después ("Más tarde" en el panel de cobro) ─── */}
-                  {tabHistorial === "citas" && cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
-                    <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
-                      <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                        <Receipt size={16} className="shrink-0" />
-                        Cobro pendiente de la consulta del {fechaLegible(consulta.fecha)}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
-                      </p>
-                      {puedeVender && <button
-                        type="button"
-                        onClick={() => setCobrandoPendiente({ consulta, cita })}
-                        className="rounded-lg bg-amber-600 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer"
-                      >
-                        Cobrar
-                      </button>}
-                    </div>
-                  ))}
-
-                  {deudaTotal > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setTabHistorial("pagos")}
-                      className="mt-5 flex w-full items-center gap-2.5 rounded-xl border border-amber-200/60 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
-                    >
-                      <Wallet size={16} className="shrink-0 text-amber-600" />
-                      <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
-                      <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
-                    </button>
-                  )}
                   {/* Segmented control tipo píldora — mismo lenguaje que el
                       resto del sistema para "esto está activo" (ver filtros
                       de Citas.jsx), en vez del subrayado recto que tenía
@@ -2152,10 +2133,20 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         onDejarDeAtender={puedeEditarCita ? setDejarCita : undefined}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
+                        cobros={cobrosPendientes(consultasPaciente, facturasVenta, citas)}
+                        onCobrar={puedeVender ? setCobrandoPendiente : undefined}
+                        paciente={pacienteHistorial}
+                        usuario={usuario}
+                        parametrizacion={parametrizacion}
                       />
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
+                        {deudaTotal > 0 && (
+                          <p role="status" className="flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
+                            <Wallet size={16} className="shrink-0 text-amber-600" aria-hidden="true" /> Saldo pendiente de ventas: ${deudaTotal.toFixed(2)}
+                          </p>
+                        )}
                         {/* Para las ventas sin receta (un líquido, un estuche...). La venta de la receta sale solo de la alerta "Listo para venta". */}
                         {puedeVender && <button
                           type="button"
@@ -2249,6 +2240,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           </div>
         </div>,
         document.getElementById("vista-completa-root") || document.body
+      )}
+
+      {verHistoriaClinica && pacienteHistorial && (
+        <ModalHistoriaClinica
+          paciente={pacienteHistorial}
+          consultas={consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion)}
+          onCerrar={() => setVerHistoriaClinica(false)}
+        />
       )}
 
       {cobrandoPendiente && pacienteHistorial && (
@@ -2475,7 +2474,7 @@ function BadgeEstadoCita({ estado }) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender, onAgendar }) {
+function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender, onAgendar, cobros = [], onCobrar, paciente, usuario, parametrizacion }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
   // Buscador del historial: rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
@@ -2519,8 +2518,8 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
       <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
       <BadgeEstadoCita estado={c.estado} />
       {!conIngresar && consultaDe(c) && (
-        <button type="button" onClick={() => setCitaAbierta(c)} aria-haspopup="dialog" aria-label={"Ver el diagnóstico de la cita del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
-          Ver diagnóstico <ChevronRight size={14} aria-hidden="true" />
+        <button type="button" onClick={() => setCitaAbierta(c)} aria-haspopup="dialog" aria-label={"Ver la atención del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
+          Ver atención <ChevronRight size={14} aria-hidden="true" />
         </button>
       )}
       {conIngresar && onIngresar && (
@@ -2532,29 +2531,47 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
   )
   return (
     <div className="space-y-5">
-      {proxima ? (
-        <section aria-label="Próxima cita" className="flex flex-wrap items-center gap-4 rounded-2xl border border-blue-200/60 bg-blue-50/50 p-5">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Calendar size={22} aria-hidden="true" /></div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
-            {diasAtencionAbierta(proxima) !== null && <p className="text-xs font-bold text-amber-700">{textoAtencionAbierta(diasAtencionAbierta(proxima))}</p>}
-            <p className="text-lg font-bold" style={{ color: INK }}>{fechaLegible(proxima.fecha) || "Sin fecha"} · {proxima.hora}</p>
-            <p className="truncate text-sm text-slate-600">{proxima.motivo || "Consulta general"}</p>
-          </div>
-          <BadgeEstadoCita estado={proxima.estado} />
-          {diasAtencionAbierta(proxima) !== null && onDejarDeAtender && (
-            <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
+      {/* Dos bloques pequeños, juntos en una fila; cada uno ocupa lo que necesita. Sin ninguno, no aparece nada. */}
+      {(proxima || cobros.length > 0) && (
+        <div className="flex flex-wrap items-stretch gap-3">
+          {proxima && (
+            <section aria-label="Próxima cita" className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 px-3.5 py-2.5">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Calendar size={16} aria-hidden="true" /></div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
+                {diasAtencionAbierta(proxima) !== null && <p className="text-[11px] font-bold text-amber-700">{textoAtencionAbierta(diasAtencionAbierta(proxima))}</p>}
+                <p className="text-sm font-bold" style={{ color: INK }}>{fechaLegible(proxima.fecha) || "Sin fecha"} · {proxima.hora}</p>
+                <p className="truncate text-xs text-slate-600">{proxima.motivo || "Consulta general"}</p>
+              </div>
+              <BadgeEstadoCita estado={proxima.estado} />
+              {diasAtencionAbierta(proxima) !== null && onDejarDeAtender && (
+                <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
+              )}
+              {onIngresar && (
+                <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                  <Stethoscope size={14} aria-hidden="true" /> Ingresar
+                </button>
+              )}
+            </section>
           )}
-          {onIngresar && (
-          <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-            <Stethoscope size={15} aria-hidden="true" /> Ingresar
-          </button>
-          )}
-        </section>
-      ) : (
-        <section aria-label="Sin citas pendientes" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-          <p className="flex items-center gap-2 text-sm font-medium text-slate-600"><Calendar size={16} className="text-slate-400" aria-hidden="true" /> {historialCompleto.length === 0 ? "Este paciente no tiene citas" : "Este paciente no tiene citas pendientes"}</p>
-          {onAgendar && <button type="button" onClick={onAgendar} className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}><CalendarPlus size={15} aria-hidden="true" /> Agendar cita</button>}
+          {cobros.map(({ consulta, cita }) => (
+            <section key={consulta.id} role="status" aria-label="Cobro pendiente" className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200/60 bg-amber-50 px-3.5 py-2.5">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-600 text-white"><Receipt size={16} aria-hidden="true" /></div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Cobro pendiente</p>
+                <p className="text-sm font-bold text-amber-950">Consulta del {fechaLegible(consulta.fecha)}</p>
+                {consulta.motivo && <p className="truncate text-xs text-amber-900/80">{consulta.motivo}</p>}
+              </div>
+              {onCobrar && <button type="button" onClick={() => onCobrar({ consulta, cita })} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Cobrar</button>}
+            </section>
+          ))}
+        </div>
+      )}
+
+      {!proxima && cobros.length === 0 && historialCompleto.length === 0 && (
+        <section aria-label="Sin citas" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
+          <p className="flex items-center gap-2 text-sm font-medium text-slate-600"><Calendar size={16} className="text-slate-400" aria-hidden="true" /> Este paciente no tiene citas</p>
+          {onAgendar && <button type="button" onClick={onAgendar} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}><CalendarPlus size={15} aria-hidden="true" /> Agendar cita</button>}
         </section>
       )}
 
@@ -2601,7 +2618,22 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{historial.map((c) => fila(c, false))}</ul>
         )}
       </section>}
-      {citaAbierta && consultaDe(citaAbierta) && <ModalDiagnosticoCita cita={citaAbierta} consulta={consultaDe(citaAbierta)} onCerrar={() => setCitaAbierta(null)} />}
+      {citaAbierta && consultaDe(citaAbierta) && (
+        <ModalAtencion
+          cita={citaAbierta}
+          consulta={consultaDe(citaAbierta)}
+          paciente={paciente}
+          usuario={usuario}
+          parametrizacion={parametrizacion}
+          adjuntos={consultaDe(citaAbierta).imagenes?.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
+              <div className="flex flex-wrap gap-2">{consultaDe(citaAbierta).imagenes.map((img) => <MiniaturaAdjunto key={img.path} path={img.path} />)}</div>
+            </div>
+          )}
+          onCerrar={() => setCitaAbierta(null)}
+        />
+      )}
     </div>
   )
 }
@@ -2750,111 +2782,3 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
     </div>
   )
 }
-
-// Ficha de una cita ya atendida, en una ventana encima del perfil: fecha, estado, diagnóstico y todo lo registrado ese día.
-function ModalDiagnosticoCita({ cita, consulta, onCerrar }) {
-  const refModal = useModalAccesible(true, onCerrar)
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="diagnostico-cita-titulo" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Stethoscope size={20} aria-hidden="true" /></div>
-            <div className="min-w-0">
-              <h2 id="diagnostico-cita-titulo" className="text-lg font-bold" style={{ color: INK }}>Diagnóstico de la cita</h2>
-              <p className="text-xs text-slate-500">{fechaLegible(cita.fecha) || "Sin fecha"} · {cita.hora}{cita.motivo ? " · " + cita.motivo : ""}</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <BadgeEstadoCita estado={cita.estado} />
-            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <p className="text-base font-bold text-slate-800">{textoDiagnostico(consulta) || "Sin diagnóstico registrado"}</p>
-          {consulta.lenteRecomendado && <p className="mt-0.5 text-sm text-slate-600">Lente recomendado: <span className="font-semibold">{consulta.lenteRecomendado}</span></p>}
-          <DetalleFichaConsulta c={consulta} />
-        </div>
-        <div className="shrink-0 border-t border-slate-100 p-4">
-          <button type="button" onClick={onCerrar} className="w-full rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
-// ─── Perfil del paciente: sección Diagnósticos ───
-// Una fila por atención con su motivo y su diagnóstico; al abrirla se ve la
-// ficha clínica completa de ese día.
-function DetalleFichaConsulta({ c }) {
-  return (
-        <div className="mt-2 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-sm" style={{ animation: "rise-in 200ms ease-out both" }}>
-          {c.motivo && (
-            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Motivo:</span> {c.motivo}</p>
-          )}
-          {c.usaLentes && (
-            <p className="flex items-center gap-1.5 text-sm text-slate-600">
-              <Glasses size={13} className="text-slate-400" />
-              <span className="font-semibold text-slate-700">¿Usa lentes?</span> {c.usaLentes === "si" ? "Sí" : "No"}
-            </p>
-          )}
-          {c.antecedentes && (
-            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-700">Antecedentes:</span> {c.antecedentes}</p>
-          )}
-          {(c.alergias || c.antecedentesFamiliares) && (
-            <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-              {c.alergias && <p><span className="font-semibold">Alergias:</span> {c.alergias}</p>}
-              {c.antecedentesFamiliares && <p><span className="font-semibold">Ant. familiares:</span> {c.antecedentesFamiliares}</p>}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2.5 font-mono text-xs">
-            <div>
-              <span className="font-bold text-blue-700">OD:</span> {c.od?.esfera || c.od?.cilindro || c.od?.eje ? `${c.od?.esfera || "—"} | ${c.od?.cilindro || "—"} | ${c.od?.eje || "—"}°` : "No registrada"}
-              <br /><span className="text-slate-500">AV: {c.od?.avCc || "—"}</span>
-            </div>
-            <div>
-              <span className="font-bold text-cyan-600">OI:</span> {c.oi?.esfera || c.oi?.cilindro || c.oi?.eje ? `${c.oi?.esfera || "—"} | ${c.oi?.cilindro || "—"} | ${c.oi?.eje || "—"}°` : "No registrada"}
-              <br /><span className="text-slate-500">AV: {c.oi?.avCc || "—"}</span>
-            </div>
-          </div>
-          {c.productoNombre && (
-            <p className="flex items-center gap-1.5 text-xs text-blue-600"><CheckCircle size={12} /> Vinculado a bodega: <span className="font-semibold">{c.productoNombre}</span> (1 unidad descontada)</p>
-          )}
-          {c.indicaciones && (
-            <p><span className="font-semibold text-slate-700">Indicaciones:</span> <span className="text-slate-600">{c.indicaciones}</span></p>
-          )}
-          {(c.examen?.testMotor || c.examen?.oftalmoscopia || (c.examen?.testColor && c.examen.testColor !== "Normal") || c.examen?.pioOd || c.examen?.pioOi || (c.examen?.coverTestLejos && c.examen.coverTestLejos !== "Ortoforia") || (c.examen?.coverTestCerca && c.examen.coverTestCerca !== "Ortoforia")) && (
-            <div className="rounded-lg bg-slate-100/70 p-2 text-xs text-slate-500">
-              {c.examen?.testMotor && <p><span className="font-semibold text-slate-600">Motilidad ocular:</span> {c.examen.testMotor}</p>}
-              {((c.examen?.coverTestLejos && c.examen.coverTestLejos !== "Ortoforia") || (c.examen?.coverTestCerca && c.examen.coverTestCerca !== "Ortoforia")) && (
-                <p><span className="font-semibold text-slate-600">Cover test:</span> lejos {c.examen?.coverTestLejos || "—"} · cerca {c.examen?.coverTestCerca || "—"}</p>
-              )}
-              {c.examen?.oftalmoscopia && <p><span className="font-semibold text-slate-600">Oftalmoscopia:</span> {c.examen.oftalmoscopia}</p>}
-              {c.examen?.testColor && c.examen.testColor !== "Normal" && <p><span className="font-semibold text-slate-600">Test de color:</span> {c.examen.testColor}</p>}
-              {(c.examen?.pioOd || c.examen?.pioOi) && <p><span className="font-semibold text-slate-600">PIO:</span> OD {c.examen?.pioOd || "—"} · OI {c.examen?.pioOi || "—"} mmHg</p>}
-            </div>
-          )}
-          {(c.examen?.biomicroscopia?.parpados || c.examen?.biomicroscopia?.cornea || c.examen?.biomicroscopia?.camara) && (
-            <div className="rounded-lg bg-slate-100/70 p-2 text-xs text-slate-500">
-              <p className="mb-0.5 font-semibold text-slate-600">Biomicroscopía:</p>
-              {c.examen.biomicroscopia?.parpados && <p>Párpados/conjuntiva: {c.examen.biomicroscopia.parpados}</p>}
-              {c.examen.biomicroscopia?.cornea && <p>Córnea: {c.examen.biomicroscopia.cornea}</p>}
-              {c.examen.biomicroscopia?.camara && <p>Cámara anterior/cristalino: {c.examen.biomicroscopia.camara}</p>}
-            </div>
-          )}
-          {(c.retinoscopia?.od || c.retinoscopia?.oi) && (
-            <p className="text-xs text-slate-500"><span className="font-semibold text-slate-600">Retinoscopía:</span> OD {c.retinoscopia?.od || "—"} · OI {c.retinoscopia?.oi || "—"}</p>
-          )}
-          {c.imagenes?.length > 0 && (
-            <div>
-              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
-              <div className="flex flex-wrap gap-2">
-                {c.imagenes.map((img) => <MiniaturaAdjunto key={img.path} path={img.path} />)}
-              </div>
-            </div>
-          )}
-        </div>
-  )
-}
-
