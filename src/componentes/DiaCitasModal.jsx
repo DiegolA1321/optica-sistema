@@ -17,9 +17,9 @@ import { profesionalDeCita, mostrarProfesional } from "../utilidades/profesional
 // es de atención y todavía quedan horarios (hoy, si la jornada ya terminó, no se puede agendar).
 // Un día cerrado se puede abrir solo para esa fecha (quien tiene "Mi horario: editar"): elige mañana y/o tarde y si admite reservas web.
 // Un día abierto así se puede volver a cerrar mientras no tenga citas por atender.
-export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTodas = [], disponibilidad, equipo = [], vistaPropia = false, filtrado = false, puedeEditarHorario = false, onCerrar, onAbrirDetalle, onAgendar, onAbrirDia, onCerrarDia }) {
+export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTodas = [], disponibilidad, equipo = [], vistaPropia = false, filtrado = false, puedeEditarHorario = false, abrirDirecto = false, onCerrar, onAbrirDetalle, onAgendar, onAbrirDia, onCerrarDia }) {
   const refModal = useModalAccesible(true, onCerrar)
-  const [abriendo, setAbriendo] = useState(false)
+  const [abriendo, setAbriendo] = useState(abrirDirecto && puedeEditarHorario)
   const [guardando, setGuardando] = useState(false)
   const hoy = hoyISO()
   const ordenadas = [...citas].sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))

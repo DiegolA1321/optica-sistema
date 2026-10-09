@@ -19,11 +19,9 @@ describe("lunesDeSemana / diasDeSemana", () => {
     expect(lunesDeSemana("2026-10-08")).toBe("2026-10-05")
     expect(lunesDeSemana("2026-10-11")).toBe("2026-10-05")
   })
-  it("muestra lunes a sábado y el domingo solo si abre o hay cita", () => {
-    expect(diasDeSemana("2026-10-05", disp(), [])).toHaveLength(6)
+  it("muestra siempre los siete días, de lunes a domingo, aunque el domingo esté cerrado", () => {
+    expect(diasDeSemana("2026-10-05", disp(), [])).toEqual(["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"])
     expect(diasDeSemana("2026-10-05", disp(), [{ fecha: "2026-10-11" }])).toHaveLength(7)
-    const abreDomingo = disp({ excepciones: { "2026-10-11": { manana: sesion("09:00", "12:00"), tarde: { activo: false } } } })
-    expect(diasDeSemana("2026-10-05", abreDomingo, [])).toHaveLength(7)
   })
 })
 

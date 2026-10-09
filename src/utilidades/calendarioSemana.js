@@ -7,7 +7,6 @@ import {
   fechaAISO,
   isoAFechaLocal,
   horarioEfectivo,
-  diaAbierto,
   ausenciasDeFecha,
   minutosDesde24h,
   minutosDesdeMedianoche,
@@ -33,13 +32,10 @@ export function minutosAHHMM(min) {
   return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`
 }
 
-// Lunes a sábado siempre; el domingo solo si la óptica atiende ese día
-// (horario semanal o excepción) o ya hay una cita agendada.
-export function diasDeSemana(lunesISO, disponibilidad, citas = []) {
-  const dias = Array.from({ length: 6 }, (_, i) => sumarDiasISO(lunesISO, i))
-  const domingo = sumarDiasISO(lunesISO, 6)
-  if (diaAbierto(horarioEfectivo(domingo, disponibilidad)) || citas.some((c) => c.fecha === domingo)) dias.push(domingo)
-  return dias
+// Los siete días, de lunes a domingo: un día cerrado se ve en gris con "Cerrado" y, quien puede, lo abre con un clic (excepción de
+// esa fecha). Los parámetros se conservan por compatibilidad.
+export function diasDeSemana(lunesISO) {
+  return Array.from({ length: 7 }, (_, i) => sumarDiasISO(lunesISO, i))
 }
 
 // Sesiones de atención de una fecha, en minutos desde medianoche.

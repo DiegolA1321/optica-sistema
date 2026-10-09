@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Eye,
   UserPlus,
+  LockOpen,
   IdCard,
   Phone,
   Mail,
@@ -48,7 +49,7 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado } from "../utilidades/disponibilidad"
+import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
@@ -1292,6 +1293,8 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   const periodoDeLaVista = vistaActiva !== "lista" ? vistaActiva : buscando ? null : hayRango ? "rango" : filtro
   const sufijoPeriodo = { semana: " en la semana", mes: " en el mes", rango: " en el rango", hoy: refLista === hoyISO() ? " hoy" : " ese día" }[periodoDeLaVista] || ""
   // Hoy sin citas (y sin otros filtros): nunca una lista vacía, se avisa y se ofrece ver lo que viene.
+  // Lista de un solo día que está cerrado (domingo, y más adelante feriados): en lugar del vacío genérico, se ofrece abrirlo.
+  const diaCerradoEnLista = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !hayFiltros && mostradas === 0 && !diaAbierto(horarioEfectivo(refLista, disponibilidad))
   const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && refLista === hoyISO() && !hayRango && !hayFiltros && mostradas === 0
   const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
   const elegirPeriodo = (id) => { setFiltro(id); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
@@ -1555,8 +1558,16 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />
           </div>
-          <p className="mt-4 text-base font-semibold text-slate-600">{hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : totalAlcance > 0 ? "Ninguna cita en este periodo" : "Todavía no hay citas"}</p>
-          {hoySinCitas ? (
+          <p className="mt-4 text-base font-semibold text-slate-600">{diaCerradoEnLista ? `${formatoFecha(refLista, "calendario")}: la óptica no atiende` : hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : totalAlcance > 0 ? "Ninguna cita en este periodo" : "Todavía no hay citas"}</p>
+          {diaCerradoEnLista ? (
+            puedeEditarHorario && refLista >= hoyISO() ? (
+              <button type="button" onClick={() => setDiaModal({ iso: refLista, minutos: null, abrirDirecto: true })} className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
+                <LockOpen size={14} aria-hidden="true" /> Abrir este día
+              </button>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">{refLista >= hoyISO() ? "Pídele a un administrador que abra este día." : "No hubo atención ese día."}</p>
+            )
+          ) : hoySinCitas ? (
             <button type="button" onClick={() => setFiltro("semana")} className="mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>Ver esta semana</button>
           ) : hayFiltros ? (
             <button type="button" onClick={limpiarFiltrosPanel} className="mt-3 rounded-xl border border-slate-200/60 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">Limpiar filtros</button>
@@ -1611,6 +1622,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
           onAbrirDetalle={(c) => { setDiaModal(null); abrirDetalle(c, true) }}
           onAgendar={puede(usuario, "citas", "crear") ? agendarDesdeDia : undefined}
           puedeEditarHorario={puedeEditarHorario}
+          abrirDirecto={!!diaModal.abrirDirecto}
           onAbrirDia={abrirDia}
           onCerrarDia={cerrarDiaAbierto}
         />

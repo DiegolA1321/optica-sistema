@@ -10,7 +10,7 @@ async function irAlDomingo(page, rol) {
   await iniciarSesion(page, rol, 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Mes' }).click()
-  await page.getByRole('button', { name: /\d{4}/ }).filter({ has: page.locator('svg') }).last().click()
+  await page.getByTitle('Elegir otra fecha').click()
   const selector = page.getByRole('dialog', { name: 'Elegir fecha' })
   await selector.getByRole('button', { name: 'dic', exact: true }).click()
   // Domingo 20 de diciembre de 2026
@@ -55,7 +55,7 @@ test('el administrador abre un domingo solo para esa fecha, aparece en Mi horari
   // Volver a cerrarlo desde Citas
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Mes' }).click()
-  await page.getByRole('button', { name: /\d{4}/ }).filter({ has: page.locator('svg') }).last().click()
+  await page.getByTitle('Elegir otra fecha').click()
   await page.getByRole('dialog', { name: 'Elegir fecha' }).getByRole('button', { name: 'dic', exact: true }).click()
   await page.getByTitle('Ver las citas de este día').filter({ hasText: /^20/ }).first().click({ position: { x: 6, y: 4 } })
   await page.getByRole('dialog').getByRole('button', { name: 'Volver a cerrarlo' }).click()
@@ -86,4 +86,26 @@ test('"Abrir y agendar" deja el formulario de agendar con ese día; el personal 
     await expect(ventas.getByRole('button', { name: 'Abrir este día' })).toHaveCount(0)
   }
   await ventas.close()
+})
+
+test('Semana y Lista muestran el domingo cerrado y permiten abrirlo desde ahí', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN', 'E2E')
+  await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
+  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Semana' }).click()
+  // Siete columnas: el domingo siempre aparece, aunque esté cerrado
+  await expect(page.getByTitle('Ver las citas de este día')).toHaveCount(7)
+  await expect(page.getByText('Cerrado').first()).toBeVisible()
+  await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/abrir-5-semana-con-domingo.png' })
+
+  // Lista: un domingo cerrado, con el botón para abrirlo (abre el formulario directo)
+  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Lista' }).click()
+  await page.getByTitle('Elegir otra fecha').click()
+  const selector = page.getByRole('dialog', { name: 'Elegir fecha' })
+  await selector.getByRole('button', { name: 'Mes siguiente' }).click()
+  await selector.getByRole('button', { name: /de noviembre/ }).filter({ hasText: /^8$/ }).click()
+  await expect(page.getByText(/la óptica no atiende/)).toBeVisible()
+  await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/abrir-6-lista-cerrado.png' })
+  await page.getByRole('button', { name: 'Abrir este día' }).click()
+  await expect(page.getByRole('dialog').getByRole('heading', { name: /Abrir el domingo/i })).toBeVisible()
+  await page.keyboard.press('Escape')
 })
