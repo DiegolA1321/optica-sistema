@@ -378,6 +378,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   // agendada desde la web pública, o registrada como visita rápida) — pide
   // completar el registro antes de abrir la ficha clínica ──
   const [completarPara, setCompletarPara] = useState(null) // la cita, o null
+  const [cpSolo, setCpSolo] = useState(false) // true: solo registrar y vincular al paciente (desde el detalle), sin atender ni cambiar el estado
   const [cpNombre, setCpNombre] = useState("")
   const [cpCedula, setCpCedula] = useState("")
   const [cpTelefono, setCpTelefono] = useState("")
@@ -765,8 +766,22 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     setCpErrores({})
   }
 
+  // Desde el detalle: registrar al paciente de una cita "Por registrar" y vincularlo, sin atenderla ni tocar su estado.
+  const registrarPacienteDeCita = (cita) => {
+    setDetalleCitaId(null)
+    setCpSolo(true)
+    setCompletarPara(cita)
+    setCpNombre(cita.paciente || "")
+    setCpCedula(cita.cedula || "")
+    setCpTelefono(cita.telefono || "")
+    setCpCorreo(cita.correo && cita.correo !== "Sin Correo" ? cita.correo : "")
+    setCpFechaNacimiento("")
+    setCpErrores({})
+  }
+
   const cerrarCompletarRegistro = () => {
     setCompletarPara(null)
+    setCpSolo(false)
     setCpNombre("")
     setCpCedula("")
     setCpTelefono("")
@@ -794,7 +809,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
     const citaId = completarPara.id
     const motivoCita = completarPara.motivo
-    const cambiosCita = { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" }
+    const cambiosCita = { paciente_id: nuevoPaciente.id, cedula: nuevoPaciente.cedula, ...(cpSolo ? {} : { estado: "En Atención" }) }
     if (supabase && opticaId) {
       const { data: citaVinculada, error: errorCita } = await supabase.from("citas").update(cambiosCita).eq("id", citaId).select()
       if (fueBloqueadoPorPermiso({ error: errorCita, data: citaVinculada })) {
@@ -808,9 +823,15 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         return
       }
     }
-    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, estado: "En Atención" } : c)))
+    setCitas(citas.map((c) => (c.id === citaId ? { ...c, pacienteId: nuevoPaciente.id, cedula: nuevoPaciente.cedula, ...(cpSolo ? {} : { estado: "En Atención" }) } : c)))
     setCpGuardando(false)
+    const soloRegistro = cpSolo
     cerrarCompletarRegistro()
+    if (soloRegistro) {
+      registrarLog(usuario, "citas", "Registró al paciente de una cita", `${nuevoPaciente.nombre || cpNombre} · ${fechaLegible(completarPara.fecha)}`)
+      onAviso?.(`Paciente registrado y vinculado a la cita.`)
+      return
+    }
     onAtender?.(nuevoPaciente, citaId, motivoCita)
   }
 
@@ -1868,9 +1889,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>Completar registro</h4>
+                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpSolo ? "Registrar paciente" : "Completar registro"}</h4>
                   <p className="text-xs text-slate-500">
-                    Antes de abrir la ficha clínica, confirma sus datos.
+                    {cpSolo ? "Quedará vinculado a esta cita." : "Antes de abrir la ficha clínica, confirma sus datos."}
                   </p>
                 </div>
               </div>
@@ -1945,8 +1966,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
                   Cancelar
                 </button>
                 <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {cpGuardando ? "Guardando…" : "Registrar y atender"}
-                  <ChevronRight size={16} />
+                  {cpGuardando ? "Guardando…" : cpSolo ? "Registrar paciente" : "Registrar y atender"}
+                  {!cpSolo && <ChevronRight size={16} />}
                 </button>
               </div>
             </form>
@@ -2182,6 +2203,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             ausenteEnLaHora={(id, c) => ausenteEnHorario(disponibilidad, id, c.fecha, c.hora)}
             onReasignar={puedeReasignar(usuario, vistaPropia ? "propio" : "todo") ? reasignarCita : undefined}
             onTomar={puede(usuario, "citas", "editar") ? tomarCita : undefined}
+            onRegistrarPaciente={puede(usuario, "pacientes", "crear") && puede(usuario, "citas", "editar") ? registrarPacienteDeCita : undefined}
           />
         )
       })()}

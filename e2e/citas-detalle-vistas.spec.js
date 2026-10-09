@@ -20,7 +20,7 @@ for (const vista of ['Semana', 'Mes']) {
     const detalle = page.getByRole('dialog')
     await expect(detalle.getByRole('region', { name: 'La cita', exact: true })).toBeVisible()
     await expect(detalle.getByRole('region', { name: 'Seguimiento', exact: true })).toBeVisible()
-    await expect(detalle.getByRole('region', { name: 'Estado de la cita' })).toBeVisible()
+    await expect(detalle.getByRole('status', { name: /Estado: / })).toBeVisible()
     expect(errores, 'sin errores de JavaScript').toEqual([])
   })
 }

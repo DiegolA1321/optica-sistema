@@ -34,9 +34,9 @@ test('Llegó pasa la cita a "En espera", se ve en Inicio y Atender entra directo
   // La tarjeta ya no lleva el menú ⋮ ni el ojo; todo está en el detalle.
   await expect(recepcion.getByRole('button', { name: 'Más acciones' })).toHaveCount(0)
   await expect(recepcion.getByTitle(/Ver perfil del paciente/)).toHaveCount(0)
-  await expect(detalle.getByRole('region', { name: 'Estado de la cita' }).getByText('Pendiente')).toBeVisible()
+  await expect(detalle.getByRole('status', { name: /Estado: / }).filter({ hasText: 'Pendiente' })).toBeVisible()
   await detalle.getByRole('button', { name: 'Llegó' }).click()
-  await expect(detalle.getByRole('region', { name: 'Estado de la cita' }).getByText('En espera')).toBeVisible({ timeout: 15_000 })
+  await expect(detalle.getByRole('status', { name: /Estado: / }).filter({ hasText: 'En espera' })).toBeVisible({ timeout: 15_000 })
   await expect(recepcion.getByText(/llegó: la cita pasa a "En espera"/)).toBeVisible()
   // Recepción no atiende: sin "Atender" en el detalle, y "Aún no llegó" deshace la marca.
   await expect(detalle.getByRole('button', { name: /^(Atender|Retomar)$/ })).toHaveCount(0)
@@ -56,7 +56,7 @@ test('Llegó pasa la cita a "En espera", se ve en Inicio y Atender entra directo
   await expect(optometra.getByRole('region', { name: 'Hoy' }).getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible()
 
   detalle = await abrirDetalle(optometra, nombre)
-  await expect(detalle.getByRole('region', { name: 'Estado de la cita' }).getByText('En espera')).toBeVisible()
+  await expect(detalle.getByRole('status', { name: /Estado: / }).filter({ hasText: 'En espera' })).toBeVisible()
   await detalle.getByRole('button', { name: 'Atender', exact: true }).click()
   await expect(optometra.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
   await expect(optometra.getByText('Resumen de la cita')).toHaveCount(0)

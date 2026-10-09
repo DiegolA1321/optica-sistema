@@ -84,7 +84,7 @@ export const puedeAtenderCita = (cita) => ["Pendiente", "En Espera", "En Atenci�
 // ficha: se atiende hoy y su fecha agendada no cambia. Las de hoy entran directo, y retomar una atenci처n abierta no pregunta.
 export const requiereConfirmarOtroDia = (cita, hoy) => cita.estado !== "En Atenci처n" && Boolean(cita.fecha) && cita.fecha !== hoy
 export const puedeEditarCita = (cita) => !["Atendida", "Cancelada", "No Asisti처"].includes(cita.estado)
-export const puedeAgendarOtraCita = (cita) => cita.estado === "No Asisti처"
+export const puedeAgendarOtraCita = (cita) => ["No Asisti처", "Atendida"].includes(cita.estado)
 
 export function coincideEstado(cita, estado) {
   switch (estado) {

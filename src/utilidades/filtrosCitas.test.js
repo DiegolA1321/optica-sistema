@@ -104,6 +104,7 @@ describe("acciones según el estado de la cita", () => {
   })
   it("quien no asistió ofrece agendar otra cita; el resto no", () => {
     expect(puedeAgendarOtraCita(c("No Asistió"))).toBe(true)
+    expect(puedeAgendarOtraCita(c("Atendida"))).toBe(true)
     expect(puedeAgendarOtraCita(c("Pendiente"))).toBe(false)
   })
 })

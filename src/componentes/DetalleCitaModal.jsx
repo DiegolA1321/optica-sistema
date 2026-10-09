@@ -61,7 +61,7 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // final, TODAS las acciones de la cita. "Atender"/"Retomar" entran directo a la ficha; "Llegó" pasa la cita a
 // "En espera" (lo usa recepción, que no atiende) y "Ver perfil" abre el paciente en otra pestaña para no perder el
 // lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está en un estado que la admite.
-export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar }) {
+export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente }) {
   const refModal = useModalAccesible(true, onCerrar)
   // Cita de otro día: "Atender" pide un clic más ("¿Atenderla hoy?"); las de hoy entran directo a la ficha.
   const [confirmandoOtroDia, setConfirmandoOtroDia] = useState(preguntarOtroDia)
@@ -120,9 +120,12 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
               <p className="truncate text-xs text-slate-500">Detalle de la cita{cita.codigo && <> · <span className="font-mono">{cita.codigo}</span></>}</p>
             </div>
           </div>
-          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-            <X size={20} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <span role="status" aria-label={"Estado: " + etiquetaEstado} className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{etiquetaEstado}</span>
+            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -196,11 +199,9 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
             </div>
           )}
 
-          <section aria-label="Estado de la cita" className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5 rounded-xl border border-slate-200/60 bg-slate-50/60 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Estado</span>
-              <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{etiquetaEstado}</span>
-            </div>
+          {hayCambioDeEstado && (
+          <section aria-label="Cambiar el estado de la cita" className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5 rounded-xl border border-slate-200/60 bg-slate-50/60 px-4 py-3">
+            <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Estado</span>
             {hayCambioDeEstado && (
               <div className="flex flex-wrap items-center gap-2 sm:ml-auto" role="group" aria-label="Cambiar el estado">
                 {marcandoEstado && <Loader2 size={15} className="animate-spin text-slate-500" aria-hidden="true" />}
@@ -227,6 +228,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
               </div>
             )}
           </section>
+          )}
         </div>
 
         {confirmandoOtroDia && otroDia && puedeIngresar && (
@@ -281,6 +283,11 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
             <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
               <ExternalLink size={14} aria-hidden="true" /> Ver perfil
             </a>
+          )}
+          {!cita.pacienteId && onRegistrarPaciente && (
+            <button type="button" onClick={() => onRegistrarPaciente(cita)} className={BOTON_SECUNDARIO}>
+              <UserRoundPlus size={14} aria-hidden="true" /> Registrar paciente
+            </button>
           )}
           {puedeReasignar && (
             <button type="button" onClick={() => setReasignando((v) => !v)} aria-expanded={reasignando} className={BOTON_SECUNDARIO}>
