@@ -7,7 +7,7 @@ import { INK } from "@/lib/tema"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
-// Paso previo a "Ficha clínica" desde el perfil del paciente (pedido del ing,
+// Paso previo a "Atender ahora" desde la lista de pacientes del paciente (pedido del ing,
 // reunión 29 sept.): si tiene citas pendientes o en atención, hay que elegir
 // cuál se está atendiendo en vez de abrir la ficha sin vínculo. Al elegir una,
 // el llamador la pasa como citaIdInicial a ConsultaMedica.jsx — mismo camino
@@ -41,7 +41,7 @@ export default function SeleccionarCitaModal({ paciente, citas, onSeleccionar, o
             <CalendarClock size={22} />
           </div>
           <h2 id="seleccionar-cita-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Qué cita vas a atender?</h2>
-          <p className="mt-1.5 text-sm text-slate-500">{paciente} tiene {citas.length === 1 ? "una cita" : `${citas.length} citas`} sin terminar. Elige una para vincularla a la ficha clínica.</p>
+          <p className="mt-1.5 text-sm text-slate-500">{paciente} tiene {citas.length === 1 ? "una cita" : `${citas.length} citas`} sin terminar. Elige una para atenderla.</p>
 
           <div className="mt-4 space-y-2">
             {citas.map((cita) => (
@@ -86,7 +86,7 @@ export default function SeleccionarCitaModal({ paciente, citas, onSeleccionar, o
             onClick={onAbrirSinCita}
             className="w-full py-1 text-center text-xs font-medium text-slate-400 transition-colors hover:text-slate-600 cursor-pointer"
           >
-            Abrir sin vincular a una cita
+            Es otra visita: atender ahora
           </button>
         </div>
       </div>

@@ -723,13 +723,23 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       })
       return
     }
-    irAFichaConfirmandoSiHaceFalta(paciente)
+    abrirAtenderAhora(paciente)
+  }
+
+  // "Atender ahora": toda atención pasa por una cita. Abre el mismo modal "Agendar cita" del perfil con "Llegó en un
+  // horario diferente" ya marcado y la hora actual; al confirmar crea la cita "En Atención" y entra a la ficha.
+  const abrirAtenderAhora = (paciente) => {
+    abrirAgendar(paciente, "")
+    setAgendarFecha(hoyISO())
+    setAgendarHoraPersonalizada(true)
+    const ahora = ahoraEcuador()
+    setAgendarHoraCustom(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
   }
 
   // D2 (reunión 29 sept.): mismo chequeo que "Atender" en Citas médicas —
   // un paciente de origen web sin confirmar por recepción no entra directo a
   // la ficha clínica, tenga o no una cita vinculada (elegida en
-  // SeleccionarCitaModal, "Abrir sin vincular", o sin ninguna cita
+  // SeleccionarCitaModal o "Atender ahora"
   // pendiente). Un solo punto de entrada para no repetir el chequeo en cada
   // callback de arriba.
   const irAFichaConfirmandoSiHaceFalta = (paciente, citaId, motivo) => {
@@ -1689,7 +1699,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               onClick={() => { setMenuAccionesId(null); abrirFichaClinica(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
             >
-              <Stethoscope size={15} /> Nueva ficha clínica
+              <Stethoscope size={15} /> Atender ahora
             </button>
             {puedeVender && <button
               type="button"
@@ -2543,7 +2553,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           paciente={seleccionCitaPara.paciente.nombre}
           citas={seleccionCitaPara.citas}
           onSeleccionar={(citaId) => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); irAFichaConfirmandoSiHaceFalta(p, citaId) }}
-          onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); irAFichaConfirmandoSiHaceFalta(p) }}
+          onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); abrirAtenderAhora(p) }}
           onCerrar={() => setSeleccionCitaPara(null)}
         />
       )}
