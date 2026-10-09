@@ -7,9 +7,16 @@
 -- a la vista (al final, para que `create or replace view` conserve permisos y triggers) y a los dos triggers de escritura.
 -- La vista y las funciones parten de las definiciones que hay HOY en la base (pg_get_viewdef / pg_get_functiondef).
 --
+-- Quién lo registra: un TRIGGER de citas_base (registrar_asignado_original), no la función. Así queda igual si el profesional
+-- se cambia con la función reasignar_cita, con el "Editar cita" de la versión publicada o a mano:
+--   · de una persona a OTRA persona, con el original vacío  → el original pasa a ser la persona anterior;
+--   · de vuelta a la persona original (p. ej. "Deshacer")    → el original vuelve a quedar vacío (la cita no cambió de manos);
+--   · desde "sin asignar" (Tomar) o hacia "sin asignar"      → no se registra nada.
+--
 -- Compatibilidad con la versión publicada del front: no conoce la columna nueva. Sus inserts y updates nombran columnas
 -- explícitas, así que `asignado_original` llega como null en un insert y, en un update, con el valor que ya tenía
--- (la vista lo devuelve al leer y el trigger lo conserva). Un `select *` sobre la vista solo trae una columna más.
+-- (la vista lo devuelve al leer y el trigger de arriba lo ajusta si cambió el profesional). Un `select *` sobre la vista solo
+-- trae una columna más.
 --
 -- La función reasignar_cita es la única vía para cambiar de profesional una cita ya creada: valida el permiso y el alcance
 -- por PERMISO (no por el nombre del rol): editar citas con alcance "todo".
@@ -95,6 +102,33 @@ end;
 $$;
 
 -- ════════════════════════════════════════════════════════════════
+-- Registro de asignado_original (trigger sobre la tabla, corre con cualquier vía de escritura)
+-- ════════════════════════════════════════════════════════════════
+create or replace function public.registrar_asignado_original()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.asignado_a is not distinct from old.asignado_a then
+    return new;
+  end if;
+  if new.asignado_a is not null and new.asignado_a is not distinct from old.asignado_original then
+    -- volvió a la persona original: ya no figura como reasignada
+    new.asignado_original := null;
+  elsif old.asignado_a is not null and new.asignado_a is not null and new.asignado_original is null then
+    new.asignado_original := old.asignado_a;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists registrar_asignado_original_trigger on public.citas_base;
+create trigger registrar_asignado_original_trigger
+  before update on public.citas_base
+  for each row execute function public.registrar_asignado_original();
+
+-- ════════════════════════════════════════════════════════════════
 -- Reasignar una cita
 -- ════════════════════════════════════════════════════════════════
 create or replace function public.reasignar_cita(p_cita_id uuid, p_nuevo uuid)
@@ -137,9 +171,9 @@ begin
   end if;
 
   if p_nuevo is distinct from v_cita.asignado_a then
+    -- asignado_original lo ajusta el trigger registrar_asignado_original
     update citas_base
-       set asignado_original = coalesce(v_cita.asignado_original, v_cita.asignado_a),
-           asignado_a = p_nuevo
+       set asignado_a = p_nuevo
      where id = p_cita_id
     returning asignado_a, asignado_original into nuevo_asignado, nuevo_original;
 
