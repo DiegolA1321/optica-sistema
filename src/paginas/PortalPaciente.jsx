@@ -862,6 +862,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                   </select>
                 </div>
                 <SelectorFechaHora
+                  publico
                   disponibilidad={disponibilidad}
                   citas={horasOcupadas}
                   fecha={fecha}

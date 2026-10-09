@@ -271,9 +271,10 @@ export function ausenciasDeFecha(fechaISO, disponibilidad) {
 // Si la fecha es hoy, también descarta los horarios que ya pasaron — antes se
 // podía agendar (desde cualquiera de los 4 flujos que comparten esta función)
 // una cita a una hora anterior a la actual del mismo día.
-export function slotsDisponibles(fechaISO, disponibilidad, citas = []) {
+export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico = false } = {}) {
   const horario = horarioEfectivo(fechaISO, disponibilidad)
   if (!diaAbierto(horario)) return []
+  if (publico && !reservasWebPermitidas(fechaISO, disponibilidad)) return []
   const duracionDefault = disponibilidad?.duracionCita || 40
   const todos = generarSlots({ manana: horario.manana, tarde: horario.tarde, duracion: duracionDefault })
   const esHoyFecha = fechaISO === hoyISO()
@@ -320,6 +321,40 @@ export function conflictoHorarioPersonalizado(fechaISO, horaAMPM, duracionMinuto
 }
 
 // ¿Hay al menos un cupo libre ese día? (para pintar el calendario de agendamiento)
-export function diaTieneCupo(fechaISO, disponibilidad, citas = []) {
-  return slotsDisponibles(fechaISO, disponibilidad, citas).some((s) => s.libre)
+export function diaTieneCupo(fechaISO, disponibilidad, citas = [], opciones = {}) {
+  return slotsDisponibles(fechaISO, disponibilidad, citas, opciones).some((s) => s.libre)
 }
+
+// ─── Abrir un día cerrado (excepción de una sola fecha) ───
+// Un día que normalmente no se atiende (domingo, y más adelante un feriado) se abre guardando una excepción de esa fecha en
+// disponibilidad.excepciones; no cambia el horario semanal. La excepción lleva `reservasWeb` (¿también se reserva por la página pública?),
+// que solo se escribe al abrir un día así: las excepciones anteriores no lo traen y siguen admitiendo reservas web.
+export const reservasWebPermitidas = (fechaISO, disponibilidad) => disponibilidad?.excepciones?.[fechaISO]?.reservasWeb !== false
+
+// Horas para proponer al abrir un día: las del horario habitual de la óptica. Mañana y tarde parten del día de la semana de esa fecha
+// (aunque esté apagado conserva sus horas); si no las tiene, las de cualquier día de atención. Mañana encendida, tarde apagada.
+export function horarioPropuestoParaAbrir(fechaISO, disponibilidad) {
+  const semanal = disponibilidad?.horarioSemanal || {}
+  const del = semanal[DIAS_SEMANA[isoAFechaLocal(fechaISO).getDay()]] || {}
+  const otro = Object.values(semanal).find((d) => diaAbierto(d)) || {}
+  const horas = (sesion, porDefecto) => {
+    const s = del[sesion]?.inicio && del[sesion]?.fin ? del[sesion] : otro[sesion]?.inicio && otro[sesion]?.fin ? otro[sesion] : porDefecto
+    return { inicio: s.inicio, fin: s.fin }
+  }
+  return {
+    manana: { activo: true, ...horas("manana", { inicio: "09:00", fin: "13:00" }) },
+    tarde: { activo: false, ...horas("tarde", { inicio: "14:00", fin: "18:00" }) },
+  }
+}
+
+// ¿El día se abrió por una excepción (normalmente cerrado y hoy con alguna sesión activa)?
+export function abiertoPorExcepcion(fechaISO, disponibilidad) {
+  const exc = disponibilidad?.excepciones?.[fechaISO]
+  if (!exc || !diaAbierto(exc)) return false
+  return !diaAbierto(disponibilidad?.horarioSemanal?.[DIAS_SEMANA[isoAFechaLocal(fechaISO).getDay()]])
+}
+
+// Citas que impiden volver a cerrar un día: las que todavía están por atender o en curso.
+export const ESTADOS_QUE_BLOQUEAN_CIERRE = ["Pendiente", "En Espera", "En Atención"]
+export const citasQueBloqueanCierre = (citas = [], fechaISO) => citas.filter((c) => c.fecha === fechaISO && ESTADOS_QUE_BLOQUEAN_CIERRE.includes(c.estado))
+export const mensajeCierreBloqueado = (n) => `Tiene ${n} ${n === 1 ? "cita" : "citas"}: reagéndalas o cancélalas primero.`

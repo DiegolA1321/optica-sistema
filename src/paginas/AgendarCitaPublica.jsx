@@ -504,6 +504,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                 </div>
 
                 <SelectorFechaHora
+                  publico
                   disponibilidad={disponibilidad}
                   citas={horasOcupadas}
                   fecha={formData.fecha}

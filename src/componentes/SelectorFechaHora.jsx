@@ -14,7 +14,7 @@ const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 // Calendario + horarios reutilizable: solo deja elegir fechas con cupo real
 // (según el horario del optómetra) y horas que aún no están ocupadas.
 // mesInicial (ISO): mes que se muestra mientras todavía no hay fecha elegida (por ejemplo el de una fecha recomendada).
-export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2, mesInicial = "" }) {
+export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2, mesInicial = "", publico = false }) {
   const hoy = hoyISO()
   const mesHoy = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   const referencia = fecha || mesInicial
@@ -32,13 +32,13 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
       const d = new Date(mesVista.getFullYear(), mesVista.getMonth(), n)
       const iso = fechaAISO(d)
       const pasado = iso < hoy
-      const disponible = !pasado && diaTieneCupo(iso, disponibilidad, citas)
+      const disponible = !pasado && diaTieneCupo(iso, disponibilidad, citas, { publico })
       arr.push({ numero: n, iso, disponible })
     }
     return arr
-  }, [mesVista, disponibilidad, citas, hoy])
+  }, [mesVista, disponibilidad, citas, hoy, publico])
 
-  const slots = useMemo(() => (fecha ? slotsDisponibles(fecha, disponibilidad, citas) : []), [fecha, disponibilidad, citas])
+  const slots = useMemo(() => (fecha ? slotsDisponibles(fecha, disponibilidad, citas, { publico }) : []), [fecha, disponibilidad, citas, publico])
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))

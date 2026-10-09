@@ -9,6 +9,7 @@ import {
   diaAbierto,
   horarioEfectivo,
   resumenHorarioSemanal,
+  reservasWebPermitidas, horarioPropuestoParaAbrir, abiertoPorExcepcion, citasQueBloqueanCierre, mensajeCierreBloqueado,
   parseFechaFlexible,
   esHoy,
   esFutura,
@@ -264,5 +265,55 @@ describe("conflictoHorarioPersonalizado", () => {
     expect(conflictoHorarioPersonalizado("2026-03-09", "09:00 AM", 20, disponibilidad, citas)).toBe(false)
     // Reagendar la propia c2 al mismo horario no debe marcarse como conflicto consigo misma.
     expect(conflictoHorarioPersonalizado("2026-03-09", "09:30 AM", 40, disponibilidad, citas, "c2")).toBe(false)
+  })
+})
+
+describe("abrir un día cerrado (excepción de una fecha)", () => {
+  const semanal = {
+    lunes: { manana: { activo: true, inicio: "08:30", fin: "12:30" }, tarde: { activo: true, inicio: "15:00", fin: "19:00" } },
+    sabado: { manana: { activo: true, inicio: "09:00", fin: "13:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } },
+    domingo: { manana: { activo: false, inicio: "10:00", fin: "12:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } },
+  }
+  const disp = (excepciones = {}) => ({ horarioSemanal: semanal, excepciones, duracionCita: 40 })
+  const abierto = (extra = {}) => ({ manana: { activo: true, inicio: "09:00", fin: "11:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" }, ...extra })
+
+  it("reservas web: solo se niegan cuando la excepción lo dice explícitamente", () => {
+    expect(reservasWebPermitidas("2026-10-11", disp())).toBe(true)
+    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto() }))).toBe(true) // excepciones anteriores
+    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto({ reservasWeb: false }) }))).toBe(false)
+    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto({ reservasWeb: true }) }))).toBe(true)
+  })
+  it("el público no ve horarios en un día abierto sin reservas web; el personal sí", () => {
+    const d = disp({ "2026-10-11": abierto({ reservasWeb: false }) })
+    expect(slotsDisponibles("2026-10-11", d, [], { publico: true })).toEqual([])
+    expect(diaTieneCupo("2026-10-11", d, [], { publico: true })).toBe(false)
+    expect(slotsDisponibles("2026-10-11", d, []).length).toBeGreaterThan(0)
+    expect(diaTieneCupo("2026-10-11", d, [])).toBe(true)
+  })
+  it("un día abierto con reservas web también se ve para el público", () => {
+    const d = disp({ "2026-10-11": abierto({ reservasWeb: true }) })
+    expect(diaTieneCupo("2026-10-11", d, [], { publico: true })).toBe(true)
+  })
+  it("propone las horas habituales: las del día de la semana (aunque esté apagado) o, si no, las de un día de atención", () => {
+    const dom = horarioPropuestoParaAbrir("2026-10-11", disp())
+    expect(dom.manana).toEqual({ activo: true, inicio: "10:00", fin: "12:00" })
+    expect(dom.tarde.activo).toBe(false)
+    const vacio = horarioPropuestoParaAbrir("2026-10-04", { horarioSemanal: { lunes: semanal.lunes }, excepciones: {} })
+    expect(vacio.manana).toMatchObject({ inicio: "08:30", fin: "12:30" })
+    expect(horarioPropuestoParaAbrir("2026-10-04", { horarioSemanal: {}, excepciones: {} }).manana).toMatchObject({ inicio: "09:00", fin: "13:00" })
+  })
+  it("sabe si un día está abierto por excepción", () => {
+    expect(abiertoPorExcepcion("2026-10-11", disp({ "2026-10-11": abierto() }))).toBe(true)
+    expect(abiertoPorExcepcion("2026-10-10", disp({ "2026-10-10": abierto() }))).toBe(false) // el sábado ya abre normalmente
+    expect(abiertoPorExcepcion("2026-10-11", disp())).toBe(false)
+  })
+  it("las citas por atender o en curso bloquean volver a cerrar el día", () => {
+    const citas = [
+      { id: 1, fecha: "2026-10-11", estado: "Pendiente" }, { id: 2, fecha: "2026-10-11", estado: "Cancelada" },
+      { id: 3, fecha: "2026-10-11", estado: "En Espera" }, { id: 4, fecha: "2026-10-12", estado: "Pendiente" }, { id: 5, fecha: "2026-10-11", estado: "Atendida" },
+    ]
+    expect(citasQueBloqueanCierre(citas, "2026-10-11").map((c) => c.id)).toEqual([1, 3])
+    expect(mensajeCierreBloqueado(1)).toBe("Tiene 1 cita: reagéndalas o cancélalas primero.")
+    expect(mensajeCierreBloqueado(2)).toBe("Tiene 2 citas: reagéndalas o cancélalas primero.")
   })
 })
