@@ -9,7 +9,7 @@ import {
   diaAbierto,
   horarioEfectivo,
   resumenHorarioSemanal,
-  reservasWebPermitidas, horarioPropuestoParaAbrir, abiertoPorExcepcion, citasQueBloqueanCierre, mensajeCierreBloqueado,
+  reservasWebPermitidas, nombreDeDiaCerrado, horarioPropuestoParaAbrir, abiertoPorExcepcion, citasQueBloqueanCierre, mensajeCierreBloqueado,
   parseFechaFlexible,
   esHoy,
   esFutura,
@@ -277,22 +277,33 @@ describe("abrir un día cerrado (excepción de una fecha)", () => {
   const disp = (excepciones = {}) => ({ horarioSemanal: semanal, excepciones, duracionCita: 40 })
   const abierto = (extra = {}) => ({ manana: { activo: true, inicio: "09:00", fin: "11:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" }, ...extra })
 
-  it("reservas web: solo se niegan cuando la excepción lo dice explícitamente", () => {
-    expect(reservasWebPermitidas("2026-10-11", disp())).toBe(true)
-    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto() }))).toBe(true) // excepciones anteriores
-    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto({ reservasWeb: false }) }))).toBe(false)
-    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto({ reservasWeb: true }) }))).toBe(true)
+  it("reservas web: un día abierto por excepción (normalmente cerrado) es solo para el personal", () => {
+    expect(reservasWebPermitidas("2026-10-11", disp({ "2026-10-11": abierto() }))).toBe(false) // domingo cerrado, abierto a mano
+    expect(reservasWebPermitidas("2026-10-11", disp())).toBe(true) // sin excepción: no hay nada que ofrecer, igual
+    expect(reservasWebPermitidas("2026-10-12", disp({ "2026-10-12": abierto() }))).toBe(true) // lunes normal con otras horas
+    expect(reservasWebPermitidas("2026-10-10", disp({ "2026-10-10": abierto() }))).toBe(true) // sábado normal
   })
-  it("el público no ve horarios en un día abierto sin reservas web; el personal sí", () => {
-    const d = disp({ "2026-10-11": abierto({ reservasWeb: false }) })
+  it("el público no ve horarios en un día abierto por excepción; el personal sí", () => {
+    const d = disp({ "2026-10-11": abierto() })
     expect(slotsDisponibles("2026-10-11", d, [], { publico: true })).toEqual([])
     expect(diaTieneCupo("2026-10-11", d, [], { publico: true })).toBe(false)
     expect(slotsDisponibles("2026-10-11", d, []).length).toBeGreaterThan(0)
     expect(diaTieneCupo("2026-10-11", d, [])).toBe(true)
   })
-  it("un día abierto con reservas web también se ve para el público", () => {
-    const d = disp({ "2026-10-11": abierto({ reservasWeb: true }) })
-    expect(diaTieneCupo("2026-10-11", d, [], { publico: true })).toBe(true)
+  it("un día del horario habitual abierto con otras horas sí se ve para el público", () => {
+    const d = disp({ "2026-10-12": abierto() })
+    expect(diaTieneCupo("2026-10-12", d, [], { publico: true })).toBe(true)
+  })
+  it("un domingo que está en el horario habitual de la óptica admite reservas web", () => {
+    const conDomingo = { horarioSemanal: { ...semanal, domingo: { manana: { activo: true, inicio: "09:00", fin: "13:00" }, tarde: { activo: false } } }, excepciones: {}, duracionCita: 40 }
+    expect(diaTieneCupo("2026-10-11", conDomingo, [], { publico: true })).toBe(true)
+  })
+  it("el nombre de un día cerrado a mano se lee solo si el día está cerrado", () => {
+    const cerrado = { manana: { activo: false }, tarde: { activo: false }, nombre: "  Feriado: Día de los Difuntos " }
+    expect(nombreDeDiaCerrado("2026-11-02", disp({ "2026-11-02": cerrado }))).toBe("Feriado: Día de los Difuntos")
+    expect(nombreDeDiaCerrado("2026-11-02", disp({ "2026-11-02": { ...cerrado, manana: { activo: true, inicio: "09:00", fin: "10:00" } } }))).toBe("")
+    expect(nombreDeDiaCerrado("2026-11-02", disp({ "2026-11-02": { manana: { activo: false }, tarde: { activo: false } } }))).toBe("")
+    expect(nombreDeDiaCerrado("2026-11-03", disp())).toBe("")
   })
   it("propone las horas habituales: las del día de la semana (aunque esté apagado) o, si no, las de un día de atención", () => {
     const dom = horarioPropuestoParaAbrir("2026-10-11", disp())

@@ -8,6 +8,7 @@ import {
   isoAFechaLocal,
   horarioEfectivo,
   ausenciasDeFecha,
+  nombreDeDiaCerrado,
   minutosDesde24h,
   minutosDesdeMedianoche,
   conflictoHorarioPersonalizado,
@@ -88,6 +89,9 @@ export function franjasSombreadas(fechaISO, disponibilidad, rango) {
   const sesiones = sesionesDelDia(fechaISO, disponibilidad)
   if (sesiones.length === 0) {
     recortar(rango.inicio, rango.fin, "cerrado")
+    // Un día cerrado con nombre ("Feriado: Día de los Difuntos") lo muestra en lugar de solo "Cerrado".
+    const nombre = nombreDeDiaCerrado(fechaISO, disponibilidad)
+    if (nombre && franjas[0]) franjas[0].etiqueta = nombre
   } else {
     recortar(rango.inicio, sesiones[0].inicio, "cerrado")
     for (let i = 0; i < sesiones.length - 1; i++) recortar(sesiones[i].fin, sesiones[i + 1].inicio, "almuerzo")

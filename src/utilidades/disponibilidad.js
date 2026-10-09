@@ -326,10 +326,19 @@ export function diaTieneCupo(fechaISO, disponibilidad, citas = [], opciones = {}
 }
 
 // ─── Abrir un día cerrado (excepción de una sola fecha) ───
-// Un día que normalmente no se atiende (domingo, y más adelante un feriado) se abre guardando una excepción de esa fecha en
-// disponibilidad.excepciones; no cambia el horario semanal. La excepción lleva `reservasWeb` (¿también se reserva por la página pública?),
-// que solo se escribe al abrir un día así: las excepciones anteriores no lo traen y siguen admitiendo reservas web.
-export const reservasWebPermitidas = (fechaISO, disponibilidad) => disponibilidad?.excepciones?.[fechaISO]?.reservasWeb !== false
+// Un día que normalmente no se atiende (domingo o un feriado) se abre guardando una excepción de esa fecha en
+// disponibilidad.excepciones; no cambia el horario semanal. Un día abierto así es SOLO para el personal: la página pública y el
+// portal no lo ofrecen. Los días del horario habitual (incluido el domingo, si la óptica lo tiene en su horario) siguen admitiendo
+// reservas web, también con una excepción que solo cambia sus horas. (El servidor aplica la misma regla: migración 0103.)
+export const reservasWebPermitidas = (fechaISO, disponibilidad) => !abiertoPorExcepcion(fechaISO, disponibilidad)
+
+// Nombre de un día cerrado a mano ("Feriado: Día de los Difuntos"): se guarda en la excepción de esa fecha y se muestra en los
+// calendarios en lugar de solo "Cerrado". Vacío si el día no está cerrado por excepción o no tiene nombre.
+export function nombreDeDiaCerrado(fechaISO, disponibilidad) {
+  const exc = disponibilidad?.excepciones?.[fechaISO]
+  if (!exc || diaAbierto(exc)) return ""
+  return String(exc.nombre || "").trim()
+}
 
 // Horas para proponer al abrir un día: las del horario habitual de la óptica. Mañana y tarde parten del día de la semana de esa fecha
 // (aunque esté apagado conserva sus horas); si no las tiene, las de cualquier día de atención. Mañana encendida, tarde apagada.

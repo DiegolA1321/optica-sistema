@@ -25,6 +25,16 @@ describe("lunesDeSemana / diasDeSemana", () => {
   })
 })
 
+describe("franjasSombreadas: día cerrado con nombre", () => {
+  it("un feriado cerrado a mano lleva su nombre en la franja", () => {
+    const d = disp({ excepciones: { "2026-11-02": { manana: { activo: false }, tarde: { activo: false }, nombre: "Feriado: Día de los Difuntos" } } })
+    const franjas = franjasSombreadas("2026-11-02", d, { inicio: 480, fin: 1080 })
+    expect(franjas).toHaveLength(1)
+    expect(franjas[0]).toMatchObject({ tipo: "cerrado", etiqueta: "Feriado: Día de los Difuntos" })
+    expect(franjasSombreadas("2026-11-03", d, { inicio: 480, fin: 1080 })[0].etiqueta).toBeUndefined()
+  })
+})
+
 describe("rangoHoras", () => {
   it("va de la apertura al cierre", () => {
     expect(rangoHoras(["2026-10-05"], disp())).toEqual({ inicio: 540, fin: 1080 })
