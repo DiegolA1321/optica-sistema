@@ -59,6 +59,7 @@ import {
   FlaskConical,
 } from "lucide-react"
 import CamposCita from "../componentes/CamposCita"
+import { SeccionRango } from "../componentes/FiltrosCitas"
 import { contarCitas, citasPorMes, diaMasFrecuente } from "../utilidades/resumenCitas"
 import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -1797,15 +1798,10 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       {/* ─── MODAL HISTORIAL CLÍNICO ─── */}
       {pacienteHistorial && createPortal(
         <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 320ms ease-out" }}>
-          {/* Barra superior de la vista — volver (breadcrumb) y cerrar (X) llevan
-              al mismo lugar: la lista de pacientes. Se ofrecen los dos porque
-              son gestos distintos con los que la gente ya está familiarizada. */}
+          {/* Barra superior de la vista — una sola forma de salir: "← Pacientes" (Escape también cierra). */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-white px-4 py-3 sm:px-8">
             <button type="button" onClick={() => setPacienteHistorial(null)} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
               <ArrowLeft size={18} /> Pacientes
-            </button>
-            <button type="button" onClick={() => setPacienteHistorial(null)} aria-label="Cerrar" className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-              <X size={20} />
             </button>
           </div>
 
@@ -1901,11 +1897,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         {pacienteHistorial.origen === "paciente" ? <Globe size={12} /> : <Building2 size={12} />}
                         Origen: {pacienteHistorial.origen === "paciente" ? "Web" : "Recepción"}
                       </span>
-                      {!citas.some((c) => (c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre) && ESTADOS_PENDIENTES.includes(c.estado)) && (
-                        <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                          <Calendar size={12} aria-hidden="true" /> Sin cita
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -2180,6 +2171,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         citas={citasPaciente}
                         consultas={consultasPaciente}
                         onDejarDeAtender={puedeEditarCita ? setDejarCita : undefined}
+                        onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
                       />
                       </div>
@@ -2539,7 +2531,7 @@ function BadgeEstadoCita({ estado }) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender }) {
+function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender, onAgendar }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
   // Buscador del historial: rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
@@ -2615,7 +2607,12 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
           </button>
           )}
         </section>
-      ) : null}
+      ) : (
+        <section aria-label="Sin citas pendientes" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
+          <p className="flex items-center gap-2 text-sm font-medium text-slate-600"><Calendar size={16} className="text-slate-400" aria-hidden="true" /> {historialCompleto.length === 0 ? "Este paciente no tiene citas" : "Este paciente no tiene citas pendientes"}</p>
+          {onAgendar && <button type="button" onClick={onAgendar} className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}><CalendarPlus size={15} aria-hidden="true" /> Agendar cita</button>}
+        </section>
+      )}
 
       {otras.length > 0 && (
         <section aria-label="Otras citas pendientes">
@@ -2632,9 +2629,9 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
         </section>
       )}
 
-      <section aria-label="Historial de citas">
+      {(proxima || historialCompleto.length > 0) && <section aria-label="Historial de citas">
         <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Historial de citas · {hayFiltro ? historial.length + " de " + historialCompleto.length : historialCompleto.length}</h3>
-        {historialCompleto.length > 1 && (
+        {historialCompleto.length > 5 && (
           <div role="search" aria-label="Buscar en el historial de citas" className="mb-3 flex flex-wrap items-end gap-x-3 gap-y-2 rounded-2xl border border-slate-200/60 bg-white p-3">
             <label className="min-w-0 flex-1 basis-48 text-xs font-semibold text-slate-500">
               Buscar
@@ -2643,14 +2640,9 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
                 <input type="search" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Motivo o diagnóstico" className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
               </span>
             </label>
-            <label className="text-xs font-semibold text-slate-500">
-              Desde
-              <input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
-            </label>
-            <label className="text-xs font-semibold text-slate-500">
-              Hasta
-              <input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
-            </label>
+            <div className="w-56 shrink-0">
+              <SeccionRango rango={{ desde, hasta, onDesde: setDesde, onHasta: setHasta }} />
+            </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {[["Último mes", 1], ["6 meses", 6], ["Último año", 12]].map(([etiqueta, meses]) => (
                 <button key={meses} type="button" onClick={() => rangoReciente(meses)} className="rounded-full border border-slate-200/60 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 cursor-pointer">{etiqueta}</button>
@@ -2664,7 +2656,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{historial.map((c) => fila(c, false))}</ul>
         )}
-      </section>
+      </section>}
       {citaAbierta && consultaDe(citaAbierta) && <ModalDiagnosticoCita cita={citaAbierta} consulta={consultaDe(citaAbierta)} onCerrar={() => setCitaAbierta(null)} />}
     </div>
   )

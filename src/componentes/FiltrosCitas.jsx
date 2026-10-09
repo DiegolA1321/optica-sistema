@@ -339,8 +339,8 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
   )
 }
 
-// Sección "Fechas" del panel: un botón con el rango elegido que despliega el calendario.
-function SeccionRango({ rango }) {
+// Sección "Fechas" del panel: un botón con el rango elegido que despliega el calendario. También la usa el historial del perfil del paciente.
+export function SeccionRango({ rango }) {
   const [abierto, setAbierto] = useState(Boolean(rango.desde))
   const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const texto = rango.desde && rango.hasta ? `${corta(rango.desde)} – ${corta(rango.hasta)}` : rango.desde ? `Desde el ${corta(rango.desde)}` : "Elegir rango de fechas…"
