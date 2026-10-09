@@ -24,17 +24,49 @@ const base = {
 const vistaRol = (inicio) => ({ id: "r", nombre: "Rol", tipo: "rol", inicio, permisos: {}, alcance: {} })
 
 describe("Inicio por rol", () => {
-  it("administrador: totales y desenlace con su período en el título, y el stock bajo dicho como productos, una sola vez", () => {
+  it("administrador: Totales con el mes, Requiere tu atención por área, desenlace de hoy y la lista; el stock bajo una sola vez", () => {
     render(<Inicio {...base} />)
-    expect(screen.getByRole("region", { name: "Totales" })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Desenlace de las citas · este mes" })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Requiere tu atención" })).toBeInTheDocument()
+    const totales = screen.getByRole("region", { name: "Totales" })
+    expect(within(totales).getByText("Pacientes registrados")).toBeInTheDocument()
+    expect(within(totales).getByText("Citas registradas")).toBeInTheDocument()
+    expect(within(totales).getByText("Productos en inventario")).toBeInTheDocument()
+    expect(within(totales).getByText("+2 este mes")).toBeInTheDocument() // los dos pacientes se registraron hoy
+    expect(within(totales).queryByText("Pacientes sin atender")).not.toBeInTheDocument()
+    for (const area of ["Citas", "Pacientes", "Ventas", "Inventario"]) expect(screen.getByRole("region", { name: `Requiere tu atención: ${area}` })).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Desenlace de las citas · hoy" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Período del desenlace" })).toHaveTextContent("HoyEsta semanaEste mesTodas")
+    expect(screen.getByRole("button", { name: "Hoy" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("region", { name: "Citas del día" })).toBeInTheDocument()
+    expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
     expect(screen.queryByText(/¡Bienvenido/)).not.toBeInTheDocument()
-    expect(screen.queryByText("Módulo clínico activo")).not.toBeInTheDocument()
-    expect(screen.getByText("Pacientes registrados")).toBeInTheDocument()
-    expect(screen.getByText("Pacientes sin atender")).toBeInTheDocument()
     expect(screen.getAllByText(/1 producto con stock bajo/i)).toHaveLength(1)
     expect(screen.queryByText(/alertas? de stock bajo/i)).not.toBeInTheDocument()
+  })
+
+  it("administrador: el orden es Totales, Requiere tu atención, Desenlace y Citas del día", () => {
+    render(<Inicio {...base} />)
+    const orden = ["Totales", "Requiere tu atención", "Desenlace de las citas · hoy", "Citas del día"].map((n) => screen.getByRole("region", { name: n }))
+    for (let i = 0; i < orden.length - 1; i++) expect(orden[i].compareDocumentPosition(orden[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("administrador: cada bloque muestra sus tres avisos más importantes y 'Ver todo (N)'", () => {
+    const abiertas = [1, 2, 3, 4, 5].map((n) => ({ id: "ab" + n, fecha: "2020-01-0" + n, hora: "09:00 AM", estado: "En Atención", paciente: "Abierta " + n, pacienteId: "x" + n }))
+    render(<Inicio {...base} citas={[...base.citas, ...abiertas]} />)
+    const bloque = screen.getByRole("region", { name: "Requiere tu atención: Citas" })
+    expect(within(bloque).getAllByText(/^Atención abierta de un día anterior/)).toHaveLength(3)
+    expect(within(bloque).getByRole("button", { name: /^Ver todo \(5\)/ })).toBeInTheDocument()
+  })
+
+  it("administrador: Ventas incluye los saldos por cobrar y su 'Ver todo' lleva a Saldos; Inventario lleva al stock bajo", () => {
+    const saldos = []
+    const stock = []
+    render(<Inicio {...base} onVerSaldos={() => saldos.push("saldos")} onVerStockBajo={() => stock.push("bajo")} onVerOrdenes={() => {}} />)
+    const ventas = screen.getByRole("region", { name: "Requiere tu atención: Ventas" })
+    expect(ventas).toHaveTextContent("1 venta con saldo pendiente: $60.00")
+    fireEvent.click(within(ventas).getByRole("button", { name: "Ver saldos" }))
+    expect(saldos).toEqual(["saldos"])
+    fireEvent.click(within(screen.getByRole("region", { name: "Requiere tu atención: Inventario" })).getByRole("button", { name: /^Ver todo/ }))
+    expect(stock).toEqual(["bajo"])
   })
 
   it("administrador y recepción: aviso de \"Control sin agendar\" con su botón Agendar; la cita del control lo quita", () => {
@@ -60,17 +92,18 @@ describe("Inicio por rol", () => {
     expect(screen.queryByText(/Control sin agendar:/)).not.toBeInTheDocument()
   })
 
-  it("optómetra: solo lo de hoy y sus citas (sin las asignadas a otra persona), sin totales ni stock", () => {
+  it("optómetra: sus citas (sin las asignadas a otra persona), atajos, siguiente paciente, sin totales ni stock ni resumen", () => {
     render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
-    expect(screen.getByRole("region", { name: "Hoy" })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Agenda de hoy" })).toBeInTheDocument()
-    expect(screen.getByText("Mis citas de hoy")).toBeInTheDocument()
-    expect(screen.getByText("Siguiente paciente")).toBeInTheDocument()
-    expect(screen.queryByText("En atención ahora")).not.toBeInTheDocument() // quien atiende está en la ficha: esa tarjeta es del administrador
-    expect(screen.queryByText("Fichas sin terminar")).not.toBeInTheDocument() // sin atenciones abiertas, la tarjeta no aparece
+    const lista = screen.getByRole("region", { name: "Mis citas de hoy" })
+    expect(within(lista).getByLabelText("Siguiente paciente")).toBeInTheDocument()
+    expect(within(lista).getAllByText("Paciente Uno").length).toBeGreaterThan(0)
+    expect(within(lista).queryByText("Paciente Dos")).not.toBeInTheDocument() // asignada a otra persona
+    expect(screen.getByRole("region", { name: "Desenlace de mis citas · hoy" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Atajos" })).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
-    expect(screen.getByLabelText("Resumen del día")).toHaveTextContent(/2 citas tuyas hoy/)
+    expect(screen.queryByRole("region", { name: "Requiere tu atención: Ventas" })).not.toBeInTheDocument()
   })
 
   it("recepción: el movimiento del día y atajos para agendar y registrar", () => {
@@ -103,10 +136,14 @@ describe("Inicio por rol", () => {
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
   })
 
-  it("sin nada pendiente: una línea \"Todo en orden\" en el bloque y en el resumen", () => {
-    render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} />)
+  it("sin nada pendiente: cada bloque dice \"Todo en orden\"", () => {
+    render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} facturasVenta={[]} abonos={[]} />)
     const bloque = screen.getByRole("region", { name: "Requiere tu atención" })
-    expect(bloque).toHaveTextContent("Todo en orden")
+    expect(within(bloque).getAllByText("Todo en orden").length).toBeGreaterThanOrEqual(4)
+  })
+
+  it("recepción conserva la línea de resumen con \"Todo en orden\"", () => {
+    render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} usuario={{ ...base.usuario, rol: "asistente" }} vista={vistaRol("recepcion")} />)
     expect(screen.getByLabelText("Resumen del día")).toHaveTextContent("Todo en orden")
   })
 
@@ -137,27 +174,46 @@ describe("Inicio por rol", () => {
     expect(screen.getByRole("button", { name: "Todas" })).toHaveAttribute("aria-pressed", "true")
   })
 
-  it("cada tarjeta del desenlace manda su estado y su período a Citas", () => {
+  it("la tarjeta del desenlace filtra la lista de abajo y el enlace lleva a Citas con el mismo estado y período", () => {
     const llamadas = []
     render(<Inicio {...base} onVerCitas={(...a) => llamadas.push(a)} />)
+    const lista = () => screen.getByRole("region", { name: /^(Citas del día|Todas las citas)$/ })
+    expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ }))
+    expect(screen.getByRole("button", { name: /^Atendidas:/ })).toHaveAttribute("aria-pressed", "true")
+    expect(within(lista()).queryByText("En Espera")).not.toBeInTheDocument()
+    expect(within(lista()).getByText("Atendida")).toBeInTheDocument()
+    fireEvent.click(within(lista()).getByRole("button", { name: "Ver todas en Citas" }))
+    fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ })) // volver a tocarla la quita
+    expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Todas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
-    expect(llamadas).toEqual([["atendida", "mes"], ["cancelada", "siempre"]])
+    fireEvent.click(within(lista()).getByRole("button", { name: "Ver todas en Citas" }))
+    expect(llamadas).toEqual([["atendida", "hoy"], ["cancelada", "siempre"]])
   })
 
-  it("optómetra: 'Siguiente paciente' trae Atender y las fichas sin terminar traen Retomar", () => {
+  it("las tarjetas del desenlace se llaman Atendidas, No asistieron y Canceladas", () => {
+    render(<Inicio {...base} />)
+    expect(screen.getByRole("button", { name: /^No asistieron:/ })).toBeInTheDocument()
+    expect(screen.queryByText("No atendidas")).not.toBeInTheDocument()
+  })
+
+  it("optómetra: el siguiente paciente trae Atender y las fichas abiertas traen Retomar (en el aviso y en la agenda)", () => {
     const atender = []
     const retomar = []
     const citas = [
       { id: "c1", fecha: hoy, hora: "09:00 AM", estado: "Pendiente", paciente: "Paciente Uno", pacienteId: "p1" },
-      { id: "c9", fecha: "2020-01-01", hora: "09:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" },
+      { id: "c8", fecha: hoy, hora: "08:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" },
+      { id: "c9", fecha: "2020-01-01", hora: "09:00 AM", estado: "En Atención", paciente: "Paciente Tres", pacienteId: "p3", atendidoPor: "u1" },
     ]
     render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} onAtenderEnCitas={(c) => atender.push(c.id)} onAtenderCita={(c) => retomar.push(c.id)} />)
-    fireEvent.click(screen.getByRole("button", { name: /^Atender/ }))
-    fireEvent.click(screen.getByRole("button", { name: /^Retomar/ }))
+    fireEvent.click(within(screen.getByLabelText("Siguiente paciente")).getByRole("button", { name: /^Atender/ }))
     expect(atender).toEqual(["c1"])
-    expect(retomar).toEqual(["c9"])
+    const retomarBtns = screen.getAllByRole("button", { name: "Retomar" })
+    expect(retomarBtns).toHaveLength(2) // el aviso "Ficha sin terminar" y la fila de la agenda
+    retomarBtns.forEach((b) => fireEvent.click(b))
+    fireEvent.click(screen.getByRole("button", { name: "Ingresar" })) // la de un día anterior
+    expect(retomar).toEqual(["c8", "c8", "c9"])
   })
 
   it("quien solo puede mirar el inventario ve '1 producto con stock bajo' y 'Ver inventario', sin 'Reabastecer'", () => {
@@ -186,10 +242,11 @@ describe("Inicio por rol", () => {
     expect(screen.queryByText(/Datos sin confirmar:/)).not.toBeInTheDocument()
   })
 
-  it("Pacientes sin atender abre Pacientes ya filtrado por Sin consulta", () => {
+  it("administrador: 'N pacientes registrados sin ninguna consulta' es un aviso del bloque Pacientes y abre Pacientes ya filtrado", () => {
     const pedidos = []
     render(<Inicio {...base} onVerPacientes={(f) => pedidos.push(f)} />)
-    fireEvent.click(screen.getByText("Pacientes sin atender"))
+    const fila = screen.getByText(/1 paciente registrado sin ninguna consulta/).closest("li")
+    fireEvent.click(within(fila).getByRole("button", { name: "Ver pacientes" }))
     expect(pedidos).toEqual([{ correccion: "Sin evaluación" }])
   })
   it("el stock mínimo sale del umbral que le pasa Configuración", () => {
@@ -197,11 +254,13 @@ describe("Inicio por rol", () => {
     expect(screen.getAllByText(/2 productos con stock bajo/i)).toHaveLength(1)
   })
 
-  it("optómetra: Fichas sin terminar aparece solo cuando hay una atención abierta suya", () => {
+  it("optómetra: la ficha sin terminar de hoy aparece como aviso solo cuando hay una atención abierta suya", () => {
     const citas = [...base.citas, { id: "c9", fecha: hoy, hora: "08:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" }]
-    render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
-    expect(screen.getByText("Fichas sin terminar")).toBeInTheDocument()
-    expect(screen.queryByText("Ninguna atención abierta")).not.toBeInTheDocument()
+    const { unmount } = render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
+    expect(screen.getByText("Ficha sin terminar: Paciente Dos")).toBeInTheDocument()
+    unmount()
+    render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
+    expect(screen.queryByText(/Ficha sin terminar:/)).not.toBeInTheDocument()
   })
 
   it("administrador: crear va en los atajos y las tarjetas de totales solo llevan a su lista", () => {
