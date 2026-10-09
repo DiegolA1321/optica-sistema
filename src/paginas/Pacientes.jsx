@@ -2033,13 +2033,80 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
               return (
                 <>
+                  {/* ─── ALERTAS: lo que conviene saber de este paciente, justo debajo de la cabecera y antes de las pestañas ─── */}
+                  {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
+                      El próximo control vive aquí (y en el historial clínico),
+                      no en Fidelización. ─── */}
+                  {(paseListo || abiertasPaciente.length > 0 || (proximoControl && consultasPaciente.length === 0) || (diasCumple != null && diasCumple <= 30)) && (
+                    <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
+                      {paseListo && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
+                          <ShoppingBag size={13} aria-hidden="true" /> Listo para venta · desde {fechaLegible(paseListo.pasadaEn)}
+                          <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="ml-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-white transition-colors hover:bg-emerald-700 cursor-pointer">Tomar datos</button>
+                        </span>
+                      )}
+                      {abiertasPaciente.map(({ cita, dias }) => (
+                        <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
+                          <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
+                          {puedeAtender && <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>}
+                          <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
+                        </span>
+                      ))}
+                      {proximoControl && consultasPaciente.length === 0 && (inactivo ? (
+                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} title="Agendar su próximo control" className="inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer">
+                          <AlertTriangle size={13} aria-hidden="true" /> Control vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} · Agendar
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                          <Calendar size={13} className="text-slate-500" aria-hidden="true" />
+                          Próximo control: {fechaLegible(proximoControl)}
+                          <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
+                        </span>
+                      ))}
+                      {diasCumple != null && diasCumple <= 30 && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "rgba(200,162,78,0.4)", backgroundColor: "rgba(200,162,78,0.1)", color: "#7c5e14" }}>
+                          <Cake size={13} aria-hidden="true" /> {diasCumple === 0 ? "Hoy cumple años" : `Cumple años en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
+                      para después ("Más tarde" en el panel de cobro) ─── */}
+                  {cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
+                    <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                        <Receipt size={16} className="shrink-0" />
+                        Cobro pendiente de la consulta del {fechaLegible(consulta.fecha)}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCobrandoPendiente({ consulta, cita })}
+                        className="rounded-lg bg-amber-600 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer"
+                      >
+                        Cobrar
+                      </button>
+                    </div>
+                  ))}
+
+                  {deudaTotal > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTabHistorial("pagos")}
+                      className="mt-5 flex w-full items-center gap-2.5 rounded-xl border border-amber-200/60 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
+                    >
+                      <Wallet size={16} className="shrink-0 text-amber-600" />
+                      <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
+                      <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
+                    </button>
+                  )}
                   {/* Segmented control tipo píldora — mismo lenguaje que el
                       resto del sistema para "esto está activo" (ver filtros
                       de Citas.jsx), en vez del subrayado recto que tenía
                       antes. role="tablist"/"tab"/aria-selected para que un
                       lector de pantalla las anuncie como pestañas, no como
                       4 botones sueltos. */}
-                  <div role="tablist" aria-label="Secciones del paciente" className="mt-4 flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+                  <div role="tablist" aria-label="Secciones del paciente" className="mt-5 flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
                     {[
                       { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
                     ].map(({ id, etiqueta, Icono, cuenta }) => (
@@ -2111,61 +2178,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </button>
                   </div>
 
-                  {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
-                      El próximo control vive aquí (y en el historial clínico),
-                      no en Fidelización. ─── */}
-                  {(paseListo || abiertasPaciente.length > 0 || (proximoControl && consultasPaciente.length === 0) || (diasCumple != null && diasCumple <= 30)) && (
-                    <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
-                      {paseListo && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
-                          <ShoppingBag size={13} aria-hidden="true" /> Listo para venta · desde {fechaLegible(paseListo.pasadaEn)}
-                          <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="ml-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-white transition-colors hover:bg-emerald-700 cursor-pointer">Tomar datos</button>
-                        </span>
-                      )}
-                      {abiertasPaciente.map(({ cita, dias }) => (
-                        <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
-                          <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
-                          {puedeAtender && <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>}
-                          <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
-                        </span>
-                      ))}
-                      {proximoControl && consultasPaciente.length === 0 && (inactivo ? (
-                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} title="Agendar su próximo control" className="inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer">
-                          <AlertTriangle size={13} aria-hidden="true" /> Control vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} · Agendar
-                        </button>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
-                          <Calendar size={13} className="text-slate-500" aria-hidden="true" />
-                          Próximo control: {fechaLegible(proximoControl)}
-                          <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
-                        </span>
-                      ))}
-                      {diasCumple != null && diasCumple <= 30 && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "rgba(200,162,78,0.4)", backgroundColor: "rgba(200,162,78,0.1)", color: "#7c5e14" }}>
-                          <Cake size={13} aria-hidden="true" /> {diasCumple === 0 ? "Hoy cumple años" : `Cumple años en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ─── COBRO PENDIENTE: la ficha se guardó pero el cobro quedó
-                      para después ("Más tarde" en el panel de cobro) ─── */}
-                  {cobrosPendientes(consultasPaciente, facturasVenta, citas).map(({ consulta, cita }) => (
-                    <div key={consulta.id} role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5">
-                      <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                        <Receipt size={16} className="shrink-0" />
-                        Cobro pendiente de la consulta del {fechaLegible(consulta.fecha)}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setCobrandoPendiente({ consulta, cita })}
-                        className="rounded-lg bg-amber-600 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer"
-                      >
-                        Cobrar
-                      </button>
-                    </div>
-                  ))}
-
                   {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
                       tener que entrar a ninguna pestaña ─── */}
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -2186,17 +2198,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
 
-                  {deudaTotal > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setTabHistorial("pagos")}
-                      className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-amber-200/60 bg-amber-50 px-5 py-3 text-left transition hover:bg-amber-100 cursor-pointer"
-                    >
-                      <Wallet size={16} className="shrink-0 text-amber-600" />
-                      <p className="text-sm font-semibold text-amber-800">Este paciente tiene ${deudaTotal.toFixed(2)} pendientes de pago.</p>
-                      <span className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline">Ver detalle</span>
-                    </button>
-                  )}
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
                       pestaña para que "rise-in" (ya estándar en el resto del
                       sistema, 320ms) se dispare de nuevo — antes el
