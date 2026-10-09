@@ -170,13 +170,13 @@ test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, des
 test('Inicio de Paula con un paciente en espera: el siguiente paciente es quien ya llegó y el título de la agenda lo cuenta', async ({ page }) => {
   test.skip(ENTORNO !== 'E2E', 'Crea citas: solo en la óptica de pruebas')
   const pendiente = await crearCitaDeHoyParaPaula('E2E') // todavía no llega
-  const enEspera = await crearCitaDeHoyParaPaula('E2E', { estado: 'En Espera' }) // ya llegó, aunque su hora sea posterior
+  await crearCitaDeHoyParaPaula('E2E', { estado: 'En Espera' }) // ya llegó, aunque su hora sea posterior
   await entrar(page, 'OPTOMETRA')
   const agenda = main(page).getByRole('region', { name: 'Mi agenda de hoy' })
   await expect(agenda).toBeVisible({ timeout: 20_000 })
-  await expect(agenda.getByLabel('Siguiente paciente')).toContainText(enEspera)
-  await expect(agenda.getByLabel('Siguiente paciente')).not.toContainText(pendiente)
+  // Quien ya llegó va primero (puede haber otros en espera de pruebas anteriores, por eso no se compara el nombre exacto).
   await expect(agenda.getByLabel('Siguiente paciente')).toContainText('ya llegó')
+  await expect(agenda.getByLabel('Siguiente paciente')).not.toContainText(pendiente)
   await expect(main(page).getByRole('heading', { name: /^Mi agenda de hoy · [0-9]+ en espera$/i })).toBeVisible()
   await expect(agenda.getByRole('button', { name: 'Atender', exact: true }).first()).toBeVisible()
   await capturar(page, 'paula-en-espera')
@@ -196,7 +196,7 @@ test('Inicio de Ventas', async ({ page }) => {
   const cuerpo = main(page)
   await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
   await expect(cuerpo.getByText(/productos? con stock bajo/)).toHaveCount(1)
-  await expect(cuerpo.getByText(/[oó]rdenes? atrasadas?/).first()).toBeVisible()
+  await expect(cuerpo.getByText(/[oó]rden(es)? atrasadas?/).first()).toBeVisible()
   await capturar(page, 'ventas')
 })
 
