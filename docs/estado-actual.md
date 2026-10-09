@@ -1,8 +1,12 @@
-# Estado actual — módulo de Citas cerrado (nota de traspaso, 8 oct 2026)
+# Estado actual — Citas, Inicio y perfil del paciente cerrados (nota de traspaso, 9 oct 2026)
 
 Para retomar en una sesión nueva sin leer la conversación anterior.
 
-## Estado: el módulo de Citas está cerrado y publicado
+## Estado: Citas, el Inicio de todos los roles y el perfil del paciente están cerrados y publicados
+
+**9 oct 2026:** el Inicio de los cuatro roles (administrador, optómetra, Recepción y Ventas, más el rol general) y el perfil del paciente quedaron terminados según la reunión del 7 de octubre y **publicados** (último commit `0253680` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito). Detalle en "Inicio y perfil del paciente" más abajo. Verificación previa: Vitest 466 de 466 y Playwright con `--workers=2`: 80 pasaron, 1 omitida (`crear-cuentas`, que ya se omitía), 0 fallos.
+
+### Citas (publicado el 8 oct 2026)
 
 El módulo de **Citas médicas** quedó terminado, revisado por Diego en localhost y **publicado el 8 oct 2026** (último commit `86f31b0` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito: https://optica-sistema-zeta.vercel.app). Las migraciones **0100 a 0103** están aplicadas en la base. Lo siguiente son **los otros módulos de la reunión del 7 de octubre** (`feedback-ing/requisitos-reunion-07oct-citas.md` y las transcripciones ING1 e ING2): se retoman empezando por leer este documento.
 
@@ -112,19 +116,6 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 - **Efecto secundario conocido:** la búsqueda por `CIT-` (que usa el e2e de roles para contar todas las citas) solo sirve en la Demo; en `v8twzq` da 0 porque sus citas no llevan código.
 - **No verificado en pantalla:** "Ver más" con más de 30 citas en una lista real; "Hoy no hay citas" + "Ver esta semana"; el filtro Responsable con un optómetra concreto.
 
-## Pendiente
-
-- **IMPORTANTE (se corregirá después): la ausencia de una persona bloquea esas horas para toda la óptica**, aunque otro profesional esté disponible. Las ausencias de "Mi horario" viven en la disponibilidad de la óptica (`disponibilidad.excepciones[fecha].ausencias`) y el calendario, la reserva en línea y el índice único (óptica + fecha + hora) tratan la agenda como una sola. Con dos o más profesionales eso hace perder citas. Falta modelar la agenda por profesional.
-- **Mejora futura:** una cita pendiente cuya hora ya pasó, o cuyo profesional registró una ausencia, debe aparecer a los demás optómetras como "Sin atender: disponible para tomar" (hoy solo pueden tomar las que están sin asignar).
-- **Feriados automáticos (mejora futura):** hoy los feriados se cierran a mano, día por día. En Ecuador varios feriados se trasladan cada año por decreto, así que una lista fija sería incorrecta; habría que cargarla cada año o consultar una fuente oficial. La lógica prevista es la misma: un día cerrado por defecto con su nombre, que se puede abrir (excepción > feriado > horario semanal).
-- **Aviso de `frame-ancestors`:** pendiente de revisar. El repositorio no define ninguna política de seguridad de contenido (ni en `index.html` ni en `vercel.json`). Si el aviso aparece en la consola, lo probable es que `frame-ancestors` se declare en una etiqueta `<meta>`, donde el navegador la ignora: esa directiva solo funciona como cabecera HTTP (se configuraría en `vercel.json`). Falta confirmar de dónde viene el aviso antes de tocar nada.
-- **Siguiente trabajo:** los demás módulos de la reunión del 7 de octubre (ver `feedback-ing/requisitos-reunion-07oct-citas.md` y las transcripciones ING1 e ING2).
-- **Inicio, reunión del 7 de octubre (I6), segunda etapa:** cada módulo (Citas, Pacientes, Ventas e Inventario) tendrá su propia sección "requiere tu atención", de la que el Inicio tomará los tres avisos más relevantes. Decisión de Diego: en la primera etapa el "Ver todo" de cada bloque del Inicio lleva a la vista que ya existe en el módulo (Citas con "Para reagendar", Ventas con las órdenes atrasadas, Inventario con el stock bajo); la sección propia dentro de cada módulo queda para después.
-- **Inicios de Recepción y de Ventas (pendiente, misma lógica):** el Inicio del administrador y el del optómetra ya siguen la reunión del 7 de octubre (Totales con el mes, "Requiere tu atención" en un bloque por área, desenlace con selector Hoy · Esta semana · Este mes · Todas conectado a la lista de citas). Los Inicios de **Recepción** y **Ventas** (y el del rol "general") todavía usan el diseño anterior: línea de resumen, lista única de "Requiere tu atención" y filas de tarjetas propias. Deben actualizarse después con la misma lógica: avisos por área con tres por bloque y "Ver todo (N)", sin línea de resumen, y la lista de citas del día atada al desenlace.
-- **Inicio del 7 de octubre, decisiones de la implementación:** "Pacientes sin atender" salió de Totales y es un aviso del bloque Pacientes. Cada bloque muestra solo sus tres avisos más importantes, así que un aviso de menor prioridad (p. ej. "N pacientes registrados sin ninguna consulta" cuando hay tres avisos más urgentes en Pacientes) no se ve en el Inicio aunque cuenta en el "Ver todo (N)". El "Ver todo" de Citas abre "Para reagendar"; el de Inventario, el stock bajo; el de Ventas, el primer aviso del bloque (saldos, órdenes atrasadas o listas). Los productos ahora guardan su fecha de alta (`creadoEn`, de `created_at`) para el "+N este mes" de Totales. Las pruebas e2e de Inicio se pueden correr contra la óptica de pruebas con `E2E_ENTORNO=E2E` (por defecto, la Demo en solo lectura) y guardar capturas con `E2E_CAPTURAS=1 E2E_CAPTURAS_DIR=<carpeta>`.
-- **"Ver todo" del bloque Citas del Inicio (pendiente, segunda etapa):** por ahora abre solo "Para reagendar" (o, si no hay nada por reagendar pero sí atenciones abiertas, esas atenciones). No cubre los demás avisos del bloque (atenciones abiertas, controles sin agendar, ausencias por reasignar). Se resolverá en la segunda etapa, con la sección propia de "requiere tu atención" dentro de cada módulo, a la que cada "Ver todo" llevará.
-- **Pruebas e2e de Inicio:** corren por defecto en la óptica de pruebas y crean sus propios datos (`prepararAvisosInicio` en `e2e/ayudas.js`: producto "E Dos E Montura agotada" con stock 0, paciente "E Dos E Control Vencido" y una orden de laboratorio atrasada "Lab E Dos E"; todo con prefijo reconocible y sin repetirse). Con `E2E_ENTORNO=DEMO` corren en solo lectura contra la Demo.
-
 ## Inicio terminado del administrador y del optómetra (9 oct.)
 
 - **Hecho y publicado.** El Inicio del administrador y el del optómetra siguen la reunión del 7 de octubre:
@@ -134,17 +125,32 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 - **Zonas horarias (revisión hecha).** "Hoy" y "ahora" salían de la hora local del equipo; con un equipo en otra zona (o en el CI, que corre en UTC) cambiaban el día y la hora de corte de cupos, controles vencidos, órdenes atrasadas y períodos del Inicio. Ahora todo pasa por `ahoraEcuador()` (`src/utilidades/horaEcuador.js`, America/Guayaquil, UTC-5 sin horario de verano). Las pruebas con reloj usan instantes fijos en hora de Ecuador y las 457 pasan con `TZ=UTC`, `America/Guayaquil`, `Asia/Tokyo` y `America/Los_Angeles`. Regla para código nuevo: no usar `new Date()` para "hoy" o "ahora"; usar `ahoraEcuador()` (las marcas de tiempo que se guardan siguen con `new Date().toISOString()`). Falta revisar el lado del servidor (funciones y migraciones SQL que calculan "hoy"), que no se tocó en esta revisión.
 - **Pruebas e2e.** Playwright limpia la óptica de pruebas antes de cada corrida (`e2e/limpieza-global.js`, solo esa óptica) y las pruebas de Inicio crean sus propios datos. Suite completa con `--workers=2`: 75 pasan, 1 se salta (`crear-cuentas`, ya se saltaba).
 
-## Inicio y perfil del paciente: revisión del 9 oct. (hecho, sin publicar)
+## Inicio y perfil del paciente (9 oct., publicado)
 
-- **Inicio de los cuatro roles con la misma estructura** (administrador, optómetra, Recepción, Ventas y el rol general): atajos arriba a la derecha, "Requiere tu atención" en bloques por área (tres avisos y "Ver todo (N)", contados por ítem), desenlace con selector de periodo y lista de citas conectada. Sin línea de resumen. Las áreas sin avisos van en una franja compacta de "todo en orden"; los bloques con avisos se reparten en dos columnas por su alto. Ventas: las tarjetas de "Para vender" (Listos, Proformas, Saldos) eligen la lista de abajo.
-- **Recepción:** "Por llegar" y "En sala de espera" van en la cabecera de la lista "Citas del día" (ya no hay tarjetas aparte). No se agregó un botón "Llegó" en el Inicio: marcar la llegada sigue solo en el detalle de la cita (un solo camino).
-- **Números del Inicio:** el conteo del periodo no incluye canceladas (igual que la lista y Citas); bajo Atendidas dice "· N en atención en este momento". Texto único de la atención abierta: "Abierta hace N días" (también en Citas).
-- **Campanita:** solo lo que no está en "Requiere tu atención" (consultas de soporte, avisos y solicitudes de medidas), según el permiso del rol.
-- **Perfil:** el control vencido o sin agendar es una alerta arriba con su botón; las acciones respetan el permiso del rol (agendar, mensaje, crear acceso, cobrar...); compras por comprobante con líneas desplegables; "Nueva venta" solo para quien vende (ventas sin receta); la receta se vende solo desde "Listo para venta"; el puntaje de fidelidad vive solo en Fidelización; sin citas hay mensaje y acción; el buscador del historial solo con más de 5 citas; una sola forma de salir.
-- **Datos:** los 20 productos de la Demo tenían la misma fecha de alta; se repartieron (script con ensayo , ejecutado). Todas las fechas anteriores eran 2026-10-07 01:56:39 UTC.
-- **Reglas de diseño:**  (28 reglas y lista de revisión); CLAUDE.md obliga a leerlo antes de tocar una pantalla.
+Según la reunión del 7 de octubre (`feedback-ing/requisitos-reunion-07oct-pacientes.md`, P1 a P10) y las reglas de `docs/principios-diseno.md`.
+
+**Inicio, los cuatro roles con la misma estructura**
+- Atajos arriba a la derecha; "Requiere tu atención" en bloques por área (tres avisos y "Ver todo (N)", contados por ítem); desenlace con selector Hoy · Esta semana · Este mes · Todas; lista de citas conectada. Sin línea de resumen en ningún rol.
+- Las áreas sin avisos van en una franja compacta de "todo en orden"; los bloques con avisos se reparten en dos columnas por su alto, sin huecos. Las listas vacías son una línea.
+- **Recepción:** "Por llegar" y "En sala de espera" van en la cabecera de "Citas del día". No hay botón "Llegó" en el Inicio: marcar la llegada sigue solo en el detalle de la cita (un solo camino).
+- **Ventas:** las tarjetas de "Para vender" (Listos, Proformas, Saldos por cobrar) eligen la lista de abajo; los saldos también son un aviso del bloque Ventas.
+- **Números:** el conteo del periodo no incluye canceladas (igual que la lista y que Citas); bajo Atendidas dice "· N en atención en este momento". Texto único de la atención abierta en todo el sistema, también en Citas: "Abierta hace N días".
+- **Campanita:** solo lo que no está en "Requiere tu atención" (consultas de soporte, avisos generales y solicitudes de medidas), según el permiso del rol.
+
+**Perfil del paciente**
+- Cabecera sin "Ficha clínica": se entra por la cita ("Ingresar") o con "Atender ahora", que es el mismo modal de Agendar cita con "Llegó en un horario diferente" (Citas y el perfil comparten `CamposCita` y `agendarCita.js`). El menú de la lista trae "Atender ahora" en lugar de "Nueva ficha clínica": toda atención pasa por una cita.
+- Alertas debajo de la cabecera y antes de las pestañas (incluido el control vencido o sin agendar, con su botón). Toda acción respeta el permiso del rol (agendar, mensaje, crear acceso, cobrar, tomar datos, dejar de atender).
+- Pestañas: Citas (la cita actual o próxima con "Ingresar", "+N citas pendientes más" y el historial; el buscador solo con más de 5 citas), Resumen (información general, conteos de citas, citas por mes, tendencia de graduación), Productos y servicios (cada venta una vez, por comprobante con sus líneas desplegables; "Nueva venta" solo para ventas sin receta, y la receta se vende solo desde "Listo para venta"), Órdenes de laboratorio y Fidelización (el puntaje vive solo aquí). "Crear acceso" solo si no tiene cuenta; "Cuenta Portal" se pulsa solo si ya la tiene.
+- Sin citas hay un mensaje con "Agendar cita". Una sola forma de salir ("← Pacientes").
+
+**Datos y reglas**
+- Los 20 productos de la Demo tenían la misma fecha de alta (2026-10-07 01:56:39 UTC); se repartieron con el script con ensayo `scripts/corregir-fecha-alta-productos-demo.mjs` (ejecutado). El "+N este mes" de Productos ahora es +3.
+- `docs/principios-diseno.md`: 28 reglas con ejemplos de Citas y una lista de revisión; CLAUDE.md obliga a leerlo antes de diseñar o cambiar una pantalla.
 
 ## Pendiente
 
-- **Segunda etapa de "requiere tu atención" en cada módulo:** una sección propia dentro de Citas, Pacientes, Ventas e Inventario, de la que el Inicio toma los tres avisos y a la que lleva cada "Ver todo".
-- **Revisión de zonas horarias, lo que falta:** el lado del servidor (SQL) y revisar que no queden  nuevos que midan "hoy" o "ahora".
+- **Segunda etapa de "requiere tu atención" en cada módulo:** una sección propia dentro de Citas, Pacientes, Ventas e Inventario, de la que el Inicio toma los tres avisos más relevantes y a la que lleva cada "Ver todo". Hoy el "Ver todo" del bloque Citas abre "Para reagendar" (o, sin nada por reagendar, las atenciones abiertas), y el de Ventas, el primer aviso del bloque.
+- **Revisión de zonas horarias, lado del servidor:** "hoy" y "ahora" ya salen de `ahoraEcuador()` en la aplicación, pero falta revisar las funciones y migraciones SQL que calculan "hoy". Regla para código nuevo: no usar `new Date()` para "hoy" o "ahora".
+- **IMPORTANTE: la ausencia de una persona bloquea esas horas para toda la óptica**, aunque otro profesional esté disponible. Las ausencias de "Mi horario" viven en la disponibilidad de la óptica (`disponibilidad.excepciones[fecha].ausencias`) y el calendario, la reserva en línea y el índice único (óptica + fecha + hora) tratan la agenda como una sola. Con dos o más profesionales eso hace perder citas. Falta modelar la agenda por profesional. Relacionado: una cita pendiente cuya hora ya pasó, o cuyo profesional registró una ausencia, debería aparecer a los demás optómetras como "Sin atender: disponible para tomar" (hoy solo pueden tomar las sin asignar).
+- **Feriados automáticos:** hoy los feriados se cierran a mano, día por día. En Ecuador varios feriados se trasladan cada año por decreto, así que una lista fija sería incorrecta; habría que cargarla cada año o consultar una fuente oficial. La lógica prevista es la misma: un día cerrado por defecto con su nombre, que se puede abrir (excepción > feriado > horario semanal).
+- **Aviso de `frame-ancestors`:** pendiente de revisar. El repositorio no define ninguna política de seguridad de contenido (ni en `index.html` ni en `vercel.json`). Si el aviso aparece en la consola, lo probable es que `frame-ancestors` se declare en una etiqueta `<meta>`, donde el navegador la ignora: esa directiva solo funciona como cabecera HTTP (se configuraría en `vercel.json`). Falta confirmar de dónde viene el aviso antes de tocar nada.
