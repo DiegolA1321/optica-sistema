@@ -90,6 +90,14 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 - **Seleccionado en azul:** degradado de la marca con `backgroundOrigin: border-box` (con borde transparente el degradado se repetía y el extremo izquierdo se veía cortado).
 - **Guarda:** `sinVariablesNoDefinidas.test.js` corre el linter con `no-undef` sobre todo `src`.
 
+## Abrir días cerrados y últimos ajustes de Citas (8 oct, noche)
+
+- **Abrir un día cerrado** (domingo; después feriados): clic en el día en Semana, Mes o Lista → "Abrir este día" → mañana y/o tarde (horas del horario habitual), casilla "Permitir también reservas por la web" (desmarcada) → "Solo abrir" o "Abrir y agendar". Es una excepción de esa fecha en `disponibilidad.excepciones[fecha]` con `reservasWeb` y `abiertoPor`; no cambia el horario semanal. Se ve en Mi horario (etiqueta Solo personal / También web), se registra en la actividad y se puede volver a cerrar solo si no tiene citas por atender ("Tiene N citas: reagéndalas o cancélalas primero", también desde Mi horario). Quién puede: administrador o cualquier rol con "Mi horario: editar" (la base ya lo exigía; Horario.jsx ahora también lo respeta).
+- **Semana** muestra siempre los 7 días (el domingo cerrado en gris). **Lista** de un día cerrado ofrece abrirlo.
+- **Página pública:** un día abierto sin reservas web no aparece (`slotsDisponibles(..., { publico: true })`). Las excepciones anteriores siguen admitiendo reservas web.
+- **Atender una cita de otro día la mueve a hoy** con la hora real (queda en la actividad). "Atender ahora" y "Llegó en un horario diferente" son una sola casilla. Los horarios del selector de fecha ya no llevan scroll interno. Detalle: "Confirmar datos" para pacientes web sin confirmar.
+- **Migración 0103 (escrita y ensayada, NO aplicada):** `crear_cita_publica` rechaza días cerrados, días abiertos sin reservas web y horas fuera de una sesión activa. Backup: `pre-reserva-web-horario-2026-10-08.dump`. Pendiente aparte: `reagendar_cita_publica` (portal del paciente) no aplica aún la misma regla.
+
 ## Cómo se verificó
 
 - **Pruebas unitarias:** `npx vitest run` → 401 pasan (`filtrosCitas.test.js`, `FiltrosCitas.test.jsx`, `controles.test.js`, `Inicio.test.jsx`).
