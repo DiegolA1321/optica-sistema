@@ -37,7 +37,7 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   // Sin "Ficha clínica" en la cabecera; "Crear acceso" porque todavía no tiene acceso
   await expect(page.getByRole('button', { name: 'Ficha clínica' })).toHaveCount(0)
   await expect(botonAgendar(page)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Enviar mensaje' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enviar mensaje' }), 'el optómetra no tiene CRM: crear').toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Crear acceso' })).toBeVisible()
   // Pestañas en orden: Citas, Resumen, Productos y servicios...
   const pestanas = page.getByRole('tablist', { name: 'Secciones del paciente' }).getByRole('tab')
@@ -109,7 +109,7 @@ test('atender a un paciente sin cita desde su perfil con "Llegó en un horario d
 
   await abrirPerfil(page, nombre)
   await expect(page.getByRole('button', { name: 'Ficha clínica' })).toHaveCount(0)
-  await expect(page.getByText('Este paciente no tiene citas', { exact: true })).toBeVisible()
+  await expect(page.getByText('Este paciente no tiene citas pendientes', { exact: true })).toBeVisible()
   await botonAgendar(page).click()
   const form = page.locator('form').filter({ has: page.getByLabel('Motivo del examen') })
   await form.locator('select').first().selectOption({ index: 1 })
