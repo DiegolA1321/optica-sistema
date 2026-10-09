@@ -81,6 +81,15 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 - **Migración 0101 (código en toda cita): aplicada el 8 oct.** Antes solo las citas de la web tenían `CIT-AAAA-XXXXXX`; ahora un trigger lo pone a toda cita nueva (si el generado ya existe, prueba con más caracteres del id) y se rellenaron las que no lo tenían. Índice único `citas_codigo_idx` (ignora vacíos). `crear_cita_publica` ya usa el mismo generador (migración 0102, aplicada el 8 oct; el generador y el trigger son security definer para ver los códigos de todas las ópticas). Ensayo: `scripts/ensayo-0101.mjs`. Backup: `pre-codigo-cita-2026-10-08.dump`.
 - **Detalle:** el estado va junto al nombre en la cabecera; las citas sin paciente ofrecen "Registrar paciente" (vincula sin cambiar el estado); las Atendidas también ofrecen "Agendar otra cita".
 
+## Calendarios y barra de periodo (8 oct, noche)
+
+- **Modal "Citas del día"** (`DiaCitasModal.jsx`): clic en el encabezado o en una zona libre de la columna (Semana) o en un día (Mes). Lista las citas por hora con el color de su estado; sin citas, mensaje amable según el caso (despejado, hoy libre, jornada terminada, día sin atención, pasado). "Agendar" solo si el día es laborable y quedan horarios (`diaTieneCupo`); "Ver esta semana" solo si el día tiene citas; con un solo botón va centrado. Al abrir "Agendar" desde aquí el fondo no se vuelve a animar (sin parpadeo).
+- **Selector de fecha:** el título del periodo es un botón (con borde y ▾) que abre un calendario para ir a un día, semana o mes. Títulos de mes con el nombre completo ("Octubre 2026"); semana y día siguen con el mes abreviado.
+- **Filtro "Fechas"** vuelve al panel de las tres vistas (desde Semana o Mes pasa a la Lista). Estuvo roto por una variable inexistente (`textoDia`).
+- **Vista Mes:** se quitó el interruptor Citas/Carga y el conteo repetido.
+- **Seleccionado en azul:** degradado de la marca con `backgroundOrigin: border-box` (con borde transparente el degradado se repetía y el extremo izquierdo se veía cortado).
+- **Guarda:** `sinVariablesNoDefinidas.test.js` corre el linter con `no-undef` sobre todo `src`.
+
 ## Cómo se verificó
 
 - **Pruebas unitarias:** `npx vitest run` → 401 pasan (`filtrosCitas.test.js`, `FiltrosCitas.test.jsx`, `controles.test.js`, `Inicio.test.jsx`).

@@ -60,12 +60,12 @@ test('El título del periodo abre un selector de fecha en Semana, Mes y Lista', 
   await expect(page.getByRole('button', { name: /19 – 25 oct 2026/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Mes', exact: true }).first().click()
-  await page.getByRole('button', { name: /oct 2026/ }).first().click()
+  await page.getByRole('button', { name: /Octubre 2026/ }).first().click()
   await page.getByRole('dialog', { name: 'Elegir fecha' }).getByRole('button', { name: 'ene', exact: true }).click()
-  await expect(page.getByRole('button', { name: /ene 2026/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enero 2026/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Lista', exact: true }).first().click()
-  await page.getByRole('button', { name: /Hoy|oct 2026|ene 2026/ }).filter({ hasText: /\d{4}/ }).first().click()
+  await page.getByRole('button', { name: /Hoy|Enero 2026/ }).filter({ hasText: /\d{4}/ }).first().click()
   await expect(page.getByRole('dialog', { name: 'Elegir fecha' })).toBeVisible()
 })
 
@@ -78,4 +78,34 @@ test('El filtro "Fechas" está en el panel de las tres vistas y, desde Semana, p
   await page.getByRole('button', { name: '20/10/2026' }).click()
   await expect(page.getByText(/Fechas: .*–/)).toBeVisible()
   await expect(page.getByText(/citas? en el rango/)).toBeVisible()
+})
+
+test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; día vacío sin "Ver esta semana" y el modal de un día con citas sí lo ofrece', async ({ page }) => {
+  await irACitas(page, 'Mes')
+  await expect(page.getByRole('button', { name: 'Carga', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Qué mostrar en el calendario' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Octubre 2026/ }).first()).toBeVisible()
+
+  // Un martes futuro sin citas (21 de octubre es miércoles; 27 de octubre, martes)
+  await page.getByTitle('Ver las citas de este día').filter({ hasText: /^27/ }).first().click({ position: { x: 6, y: 4 } })
+  const dia = page.getByRole('dialog')
+  await expect(dia.getByText('Un día despejado')).toBeVisible()
+  await expect(dia.getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
+  await expect(dia.getByRole('button', { name: /Agendar en este día/ })).toBeVisible()
+  await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/dia-vacio-centrado.png' })
+  await page.keyboard.press('Escape')
+
+  // Un día con citas (martes 6): ofrece ver la semana; es pasado, no ofrece agendar
+  await page.getByTitle('Ver las citas de este día').filter({ hasText: /^6/ }).first().click({ position: { x: 6, y: 4 } })
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Agendar/ })).toHaveCount(0)
+})
+
+test('Panel Filtrar: lo seleccionado se ve completo (sin extremo cortado)', async ({ page }) => {
+  await irACitas(page, 'Mes')
+  await page.getByRole('button', { name: /Filtrar/ }).click()
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: 'Todas', exact: true }).first().screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/chip-todas.png' })
+  const origen = await page.getByRole('button', { name: 'Todas', exact: true }).first().evaluate((el) => getComputedStyle(el).backgroundOrigin)
+  expect(origen).toBe('border-box')
 })

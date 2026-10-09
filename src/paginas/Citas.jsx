@@ -580,6 +580,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   }
 
   const cerrarModal = () => {
+    setSinAnimarFondo(false)
     setModalAbierto(false)
     setConfirmando(false)
     setPacienteId(null)
@@ -1167,7 +1168,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
     if (hayRango) return rangoDesde && rangoHasta ? tituloSemana(rangoDesde, rangoHasta) : rangoDesde ? `Desde el ${formatoFecha(rangoDesde, "medio")}` : `Hasta el ${formatoFecha(rangoHasta, "medio")}`
     if (filtro === "hoy") return `${refLista === hoyISO() ? "Hoy · " : ""}${formatoFecha(refLista, "corto")}`
     if (filtro === "semana") return tituloSemana(rangos.semana.desde, rangos.semana.hasta)
-    if (filtro === "mes") return formatoFecha(refLista, "mesAnioCorto")
+    if (filtro === "mes") return formatoFecha(refLista, "mesAnio")
     return ""
   })()
   // Selector de fecha del título del periodo: lleva directo a un día, una semana o un mes según la vista.
@@ -1193,7 +1194,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
   // "Agendar" desde el modal del día: el formulario se abre con ese día (y la hora libre sobre la que se hizo clic, si la hubo).
+  const [sinAnimarFondo, setSinAnimarFondo] = useState(false)
   const agendarDesdeDia = (iso, minutos) => {
+    setSinAnimarFondo(true)
     setDiaModal(null)
     if (minutos != null) { abrirModalEn(iso, minutos); return }
     abrirModal()
@@ -1438,7 +1441,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
             )
           ) : (
             <NavegadorPeriodo
-              titulo={vistaActiva === "semana" ? tituloSemana(diasSemanaVisible[0], diasSemanaVisible[6]) : formatoFecha(mesVista, "mesAnioCorto")}
+              titulo={vistaActiva === "semana" ? tituloSemana(diasSemanaVisible[0], diasSemanaVisible[6]) : formatoFecha(mesVista, "mesAnio")}
               onAnterior={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
               onSiguiente={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
               etiquetaAnterior={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
@@ -1541,6 +1544,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           iso={diaModal.iso}
           minutos={diaModal.minutos}
           citas={gruposCalendario.get(diaModal.iso) || []}
+          citasTodas={citas}
+          disponibilidad={disponibilidad}
           equipo={equipo}
           vistaPropia={vistaPropia}
           filtrado={hayFiltros}
@@ -1553,7 +1558,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
       {/* ─── MODAL AGENDAR ─── */}
       {modalAbierto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
           <div ref={refModalAgendar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-agendar-titulo" className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-3">

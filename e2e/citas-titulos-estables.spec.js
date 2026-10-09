@@ -28,7 +28,7 @@ test('las flechas y el selector no se mueven y los títulos usan el formato úni
   await periodo.getByRole('button', { name: 'Semana' }).click()
   expect(await medir('Lista · Semana')).toMatch(/^\d{1,2} (\d{1,2} )?[a-z]{3,4} (– \d{1,2} [a-z]{3,4} )?\d{4}$|^\d{1,2} – \d{1,2} [a-z]{3,4} \d{4}$|^\d{1,2} [a-z]{3,4} – \d{1,2} [a-z]{3,4} \d{4}$/)
   await periodo.getByRole('button', { name: 'Mes' }).click()
-  expect(await medir('Lista · Mes')).toMatch(/^[a-z]{3,4} \d{4}$/)
+  expect(await medir('Lista · Mes')).toMatch(/^[A-Za-zñé]+ \d{4}$/)
   await periodo.getByRole('button', { name: 'Hoy' }).click()
   await page.getByRole('button', { name: 'Periodo siguiente' }).click()
   expect(await medir('Lista · Hoy, un día después')).toMatch(/^[a-zñé]{3} \d{1,2} [a-z]{3,4} \d{4}$/) // sin "Hoy · "

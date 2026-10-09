@@ -6,6 +6,10 @@ import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
 import { formatoFecha, nombreMes } from "../utilidades/formatoFecha"
 
+// Fondo de lo seleccionado: el degradado de la marca. `backgroundOrigin: border-box` porque con un borde transparente el degradado
+// se repetía bajo el borde y dejaba el extremo izquierdo con el color contrario (se veía como cortado).
+const ESTILO_ACTIVO = { background: GRAD_MARCA, backgroundOrigin: "border-box" }
+
 // Piezas de la barra de Citas: la barra única de búsqueda y filtros, el periodo de la Lista y el conteo.
 
 // Cierra un popover con Escape o al hacer clic fuera.
@@ -41,7 +45,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
         >
           <SlidersHorizontal size={14} aria-hidden="true" /> Filtrar
-          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-[11px] font-bold text-white" style={{ background: GRAD_MARCA }}>{etiquetas.length}</span>}
+          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-[11px] font-bold text-white" style={ESTILO_ACTIVO}>{etiquetas.length}</span>}
           <ChevronDown size={13} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
         </button>
         {etiquetas.map((e) => (
@@ -83,7 +87,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
                   value={s.valor}
                   onChange={(e) => s.onChange(e.target.value)}
                   className={"w-full rounded-lg border px-2.5 py-1.5 text-xs font-semibold outline-none transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-100 " + (s.valor === s.opciones[0].id ? "border-slate-200/60 bg-white text-slate-600" : "border-transparent text-white")}
-                  style={s.valor === s.opciones[0].id ? undefined : { background: GRAD_MARCA }}
+                  style={s.valor === s.opciones[0].id ? undefined : ESTILO_ACTIVO}
                 >
                   {s.opciones.map((o) => <option key={o.id} value={o.id} className="text-slate-800">{o.etiqueta}{o.conteo != null ? ` (${o.conteo})` : ""}</option>)}
                 </select>
@@ -98,7 +102,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
                         onClick={() => s.onChange(activo ? s.opciones[0].id : o.id)} title={activo && o.id !== s.opciones[0].id ? "Clic de nuevo para quitar este filtro" : undefined}
                         aria-pressed={activo}
                         className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")}
-                        style={activo ? { background: GRAD_MARCA } : undefined}
+                        style={activo ? ESTILO_ACTIVO : undefined}
                       >
                         {o.etiqueta}
                         {o.conteo != null && <span className={"rounded-full px-1.5 text-[11px] font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
@@ -160,7 +164,7 @@ function CalendarioRango({ rango }) {
                 aria-pressed={extremo}
                 aria-label={formatoFecha(iso, "numerico")}
                 className={"h-7 text-xs font-semibold tabular-nums transition-colors cursor-pointer " + (extremo ? "rounded-lg text-white" : dentro ? "bg-slate-200/70 text-slate-800" : "rounded-lg text-slate-700 hover:bg-slate-200/70") + (!extremo && iso === hoy ? " ring-1 ring-inset ring-slate-400 rounded-lg" : "")}
-                style={extremo ? { background: GRAD_MARCA } : undefined}
+                style={extremo ? ESTILO_ACTIVO : undefined}
               >
                 {Number(iso.slice(8))}
               </button>
@@ -189,7 +193,7 @@ export function PeriodoLista({ valor, onChange, opciones, sinActivo = false }) {
             onClick={() => onChange(o.id)}
             aria-pressed={activo}
             className={"inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")}
-            style={activo ? { background: GRAD_MARCA } : undefined}
+            style={activo ? ESTILO_ACTIVO : undefined}
           >
             {o.etiqueta}
           </button>
@@ -234,11 +238,11 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
         aria-haspopup="dialog"
         aria-expanded={abierto}
         title="Elegir otra fecha"
-        className={"inline-flex w-[11rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[13px] font-semibold transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-transparent hover:border-slate-200/60 hover:bg-white")}
+        className={"inline-flex w-44 shrink-0 items-center justify-between gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[13px] font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50")}
         style={abierto ? undefined : { color: INK }}
       >
         <span>{titulo}</span>
-        <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+        <ChevronDown size={14} className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180 text-blue-600" : "")} aria-hidden="true" />
       </button>
       {abierto && (
         <div role="dialog" aria-label="Elegir fecha" className="absolute right-0 top-full z-30 mt-2 w-72 rounded-2xl border border-slate-200/60 bg-white p-3.5 shadow-xl" style={{ animation: "rise-in 160ms ease-out both" }}>
@@ -267,7 +271,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
                   onClick={() => elegir(fechaAISO(new Date(anio, i, 1)), "mes")}
                   aria-pressed={mesActual(i)}
                   className={"rounded-xl py-2.5 text-xs font-semibold capitalize transition-colors cursor-pointer " + (mesActual(i) ? "text-white" : "bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700")}
-                  style={mesActual(i) ? { background: GRAD_MARCA } : undefined}
+                  style={mesActual(i) ? ESTILO_ACTIVO : undefined}
                 >
                   {nombreMes(i, "corto")}
                 </button>
@@ -294,7 +298,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
                             aria-label={formatoFecha(iso, "largo")}
                             aria-pressed={activoDia}
                             className={"h-8 rounded-lg text-xs font-semibold tabular-nums transition-colors cursor-pointer " + (activoDia ? "text-white" : (unidad === "semana" && dentro ? "text-blue-800" : "text-slate-700") + (unidad === "dia" ? " hover:bg-blue-50" : "")) + (esHoyCelda && !activoDia ? " ring-1 ring-inset ring-blue-400" : "")}
-                            style={activoDia ? { background: GRAD_MARCA } : undefined}
+                            style={activoDia ? ESTILO_ACTIVO : undefined}
                           >
                             {Number(iso.slice(8))}
                           </button>
@@ -348,7 +352,7 @@ function SeccionRango({ rango }) {
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
         className={"flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (hay ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
-        style={hay ? { background: GRAD_MARCA } : undefined}
+        style={hay ? ESTILO_ACTIVO : undefined}
       >
         <span className="truncate">{texto}</span>
         <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
