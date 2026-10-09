@@ -21,7 +21,7 @@ export function atencionesAbiertasAntiguas(citas = [], hoy = ahoraEcuador()) {
     .sort((a, b) => b.dias - a.dias)
 }
 
-export const textoAtencionAbierta = (dias) => `Atención abierta desde hace ${dias} día${dias === 1 ? "" : "s"}`
+export const textoAtencionAbierta = (dias) => `Abierta hace ${dias} día${dias === 1 ? "" : "s"}`
 
 // Deja de atender la cita: vuelve a Pendiente y deja de figurar quien atendía.
 // Si su fecha ya pasó, el sistema la marcará como "No asistió" solo.

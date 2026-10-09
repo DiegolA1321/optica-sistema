@@ -183,7 +183,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
           )}
           {diasAtencionAbierta(cita) !== null && (
             <span title={textoAtencionAbierta(diasAtencionAbierta(cita))} className="flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300/70 bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-              <AlertTriangle size={11} aria-hidden="true" /> Abierta hace {diasAtencionAbierta(cita)} d
+              <AlertTriangle size={11} aria-hidden="true" /> {textoAtencionAbierta(diasAtencionAbierta(cita))}
             </span>
           )}
           {cobroPendiente && (

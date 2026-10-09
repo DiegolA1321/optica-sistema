@@ -27,7 +27,7 @@ describe("atención abierta antigua", () => {
     expect(atencionesAbiertasAntiguas(citas, hoy).map((x) => x.cita.id)).toEqual([2, 1])
   })
   it("el texto va en singular y plural", () => {
-    expect(textoAtencionAbierta(1)).toBe("Atención abierta desde hace 1 día")
-    expect(textoAtencionAbierta(26)).toBe("Atención abierta desde hace 26 días")
+    expect(textoAtencionAbierta(1)).toBe("Abierta hace 1 día")
+    expect(textoAtencionAbierta(26)).toBe("Abierta hace 26 días")
   })
 })
