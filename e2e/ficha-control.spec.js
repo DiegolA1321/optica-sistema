@@ -3,7 +3,7 @@
 // Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/perfil-capturas/.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { iniciarSesion } from './ayudas.js'
+import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 const foto = async (page, nombre) => {
   if (!process.env.E2E_CAPTURAS) return
@@ -15,21 +15,23 @@ const foto = async (page, nombre) => {
 test.use({ viewport: { width: 1366, height: 768 } })
 
 test('ficha clínica: el control exige elegir agendar ahora o después', async ({ page }) => {
-  await iniciarSesion(page, 'ADMIN')
+  // Óptica de pruebas: la atención se abre desde la cita del paciente ("Ingresar"), que queda "En Atención".
+  const nombre = await crearCitaDeHoyParaPaula('E2E')
+  await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill('Karla Párraga Vera')
+  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
   // Se espera a que los datos estén cargados (no un tiempo fijo): primero la fila del paciente y luego su perfil, con holgura para un equipo cargado.
-  const fila = page.getByText('Karla Párraga Vera').first()
-  await expect(fila).toBeVisible({ timeout: 45_000 })
-  // El perfil ya no trae el botón "Ficha clínica" (se entra por la cita); sin cita se usa la acción de la lista.
-  await page.locator('tr', { hasText: 'Karla Párraga Vera' }).getByRole('button', { name: 'Más acciones' }).click()
-  await page.getByRole('button', { name: 'Nueva ficha clínica' }).click()
-  // Si el paciente tiene citas pendientes se pregunta por cuál entrar; Karla no tiene.
-  await expect(page.getByLabel(/Motivo de la consulta/i)).toBeVisible({ timeout: 20_000 })
-  await page.getByLabel(/Motivo de la consulta/i).selectOption({ index: 1 })
+  await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
+  await page.getByText(nombre).first().click()
+  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
+  await page.getByRole('button', { name: 'Ingresar' }).first().click()
+  // Un paciente sin antecedentes ve primero su resumen
+  const antecedentes = page.getByRole('button', { name: 'Entendido, completar antecedentes' })
+  if (await antecedentes.waitFor({ timeout: 8_000 }).then(() => true, () => false)) await antecedentes.click()
+  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: /^Siguiente$/i }).click()
   await page.getByRole('button', { name: /^Siguiente$/i }).click()
-  await page.getByRole('button', { name: 'Miopía' }).first().click()
+  await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
 
   const ahora = page.getByRole('radio', { name: /Agendar ahora/ })
   const despues = page.getByRole('radio', { name: /Agendar después/ })
