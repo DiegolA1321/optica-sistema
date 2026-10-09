@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
-import { INK } from "@/lib/tema"
+import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
 import { formatoFecha } from "../utilidades/formatoFecha"
 
@@ -41,7 +41,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
         >
           <SlidersHorizontal size={14} aria-hidden="true" /> Filtrar
-          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-[11px] font-bold text-white" style={{ backgroundColor: INK }}>{etiquetas.length}</span>}
+          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-[11px] font-bold text-white" style={{ background: GRAD_MARCA }}>{etiquetas.length}</span>}
           <ChevronDown size={13} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
         </button>
         {etiquetas.map((e) => (
@@ -83,7 +83,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
                   value={s.valor}
                   onChange={(e) => s.onChange(e.target.value)}
                   className={"w-full rounded-lg border px-2.5 py-1.5 text-xs font-semibold outline-none transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-100 " + (s.valor === s.opciones[0].id ? "border-slate-200/60 bg-white text-slate-600" : "border-transparent text-white")}
-                  style={s.valor === s.opciones[0].id ? undefined : { backgroundColor: INK }}
+                  style={s.valor === s.opciones[0].id ? undefined : { background: GRAD_MARCA }}
                 >
                   {s.opciones.map((o) => <option key={o.id} value={o.id} className="text-slate-800">{o.etiqueta}{o.conteo != null ? ` (${o.conteo})` : ""}</option>)}
                 </select>
@@ -98,7 +98,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
                         onClick={() => s.onChange(activo ? s.opciones[0].id : o.id)} title={activo && o.id !== s.opciones[0].id ? "Clic de nuevo para quitar este filtro" : undefined}
                         aria-pressed={activo}
                         className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50")}
-                        style={activo ? { backgroundColor: INK } : undefined}
+                        style={activo ? { background: GRAD_MARCA } : undefined}
                       >
                         {o.etiqueta}
                         {o.conteo != null && <span className={"rounded-full px-1.5 text-[11px] font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
@@ -160,7 +160,7 @@ function CalendarioRango({ rango }) {
                 aria-pressed={extremo}
                 aria-label={formatoFecha(iso, "numerico")}
                 className={"h-7 text-xs font-semibold tabular-nums transition-colors cursor-pointer " + (extremo ? "rounded-lg text-white" : dentro ? "bg-slate-200/70 text-slate-800" : "rounded-lg text-slate-700 hover:bg-slate-200/70") + (!extremo && iso === hoy ? " ring-1 ring-inset ring-slate-400 rounded-lg" : "")}
-                style={extremo ? { backgroundColor: INK } : undefined}
+                style={extremo ? { background: GRAD_MARCA } : undefined}
               >
                 {Number(iso.slice(8))}
               </button>
@@ -189,7 +189,7 @@ export function PeriodoLista({ valor, onChange, opciones, sinActivo = false }) {
             onClick={() => onChange(o.id)}
             aria-pressed={activo}
             className={"inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")}
-            style={activo ? { backgroundColor: INK } : undefined}
+            style={activo ? { background: GRAD_MARCA } : undefined}
           >
             {o.etiqueta}
           </button>
@@ -226,7 +226,7 @@ function SeccionRango({ rango }) {
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
         className={"flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (hay ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
-        style={hay ? { backgroundColor: INK } : undefined}
+        style={hay ? { background: GRAD_MARCA } : undefined}
       >
         <span className="truncate">{texto}</span>
         <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />

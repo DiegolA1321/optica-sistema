@@ -6,6 +6,7 @@
 export const INK = "#0E2B33"       // navy profundo — texto principal, fondos oscuros, hero
 export const PORCELAIN = "#F7F5F0" // fondo cálido claro — texto sobre INK, secciones claras
 export const GOLD = "#C8A24E"      // dorado — acento óptico premium, usar con moderación
+export const GRAD_MARCA = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul: lo seleccionado/activo (pestañas, filtros, botones principales)
 
 // Tonos canónicos para acciones de fila (ver, editar, confirmar/agendar,
 // eliminar) — extraídos del patrón real ya mayoritario en Usuarios.jsx,
