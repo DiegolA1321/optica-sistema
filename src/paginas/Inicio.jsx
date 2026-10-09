@@ -296,7 +296,7 @@ export default function Inicio({
   // ─── Desenlace de las citas + lista: un solo control (el período y, si se quiere, la tarjeta) para las dos cosas ───
   const ETIQUETA_PERIODO = { hoy: "hoy", semana: "esta semana", mes: "este mes", siempre: "todas" }
   const NOMBRE_TARJETA = { atendida: "Atendidas", noAsistio: "No asistieron", cancelada: "Canceladas" }
-  const enAtencionN = (esVistaOptometra ? pacientesEnAtencion.filter((c) => esCitaPropia(c, usuario?.id)) : pacientesEnAtencion).length
+  const enAtencionN = desenlace.enAtencion
   const elegirTarjeta = (id) => setTarjeta((actual) => (actual === id ? null : id))
   const selectorPeriodo = (
     <div role="group" aria-label="Período del desenlace" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
@@ -308,10 +308,10 @@ export default function Inicio({
   const filaDesenlace = (
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
-      descripcion={`${desenlace.registradas} ${desenlace.registradas === 1 ? "cita" : "citas"} en el período`}
+      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : `${desenlace.registradas} ${desenlace.registradas === 1 ? "cita" : "citas"} en el período`}
       acciones={selectorPeriodo}
       tarjetas={[
-        { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : "Ver en la lista", icono: CheckCircle2, color: "green", seleccionada: tarjeta === "atendida", onClick: () => elegirTarjeta("atendida") },
+        { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `Ver en la lista · ${enAtencionN} en atención en este momento` : "Ver en la lista", icono: CheckCircle2, color: "green", seleccionada: tarjeta === "atendida", onClick: () => elegirTarjeta("atendida") },
         { id: "noAsistieron", titulo: "No asistieron", valor: desenlace.noAtendidas, desc: "Ver en la lista", icono: UserX, color: "red", seleccionada: tarjeta === "noAsistio", onClick: () => elegirTarjeta("noAsistio") },
         { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Ver en la lista", icono: Ban, color: "slate", seleccionada: tarjeta === "cancelada", onClick: () => elegirTarjeta("cancelada") },
       ]}
@@ -357,14 +357,14 @@ export default function Inicio({
     <section aria-label={TITULO_LISTA[periodo]} className="space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_LISTA[periodo]}{tarjeta ? ` · ${NOMBRE_TARJETA[tarjeta]}` : ""}{esVistaOptometra && periodo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}</h2>
-        <p className="text-xs text-slate-400">{citasLista.length === 0 ? "Sin citas en el período" : citasLista.length > LIMITE_LISTA ? `Primeras ${LIMITE_LISTA} de ${citasLista.length}` : `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"}`}</p>
-        <button type="button" onClick={verTodasEnCitas} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>
+        {citasLista.length > 0 && <p className="text-xs text-slate-400">{citasLista.length > LIMITE_LISTA ? `Primeras ${LIMITE_LISTA} de ${citasLista.length}` : `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"}`}</p>}
+        {citasLista.length > 0 && <button type="button" onClick={verTodasEnCitas} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-        {esVistaOptometra && bSiguiente}
+        {esVistaOptometra && (siguiente || citasLista.length > 0) && bSiguiente}
         <div className="divide-y divide-slate-100 px-5 py-4">
           {citasLista.length === 0 ? (
-            <EstadoVacio icon={Calendar} texto={tarjeta ? "Ninguna cita con ese resultado en el período." : "No hay citas en el período."} />
+            <EstadoVacio icon={Calendar} texto={tarjeta ? "Ninguna cita con ese resultado en el período." : periodo === "hoy" ? (esVistaOptometra ? "Hoy no tienes citas." : "Hoy no hay citas.") : "No hay citas en el período."} />
           ) : (
             citasLista.slice(0, LIMITE_LISTA).map((cita, idx) => renderFilaCita(cita, idx, periodo !== "hoy", accionFila(cita)))
           )}
@@ -465,7 +465,7 @@ export default function Inicio({
   // Pacientes que se registraron solos al agendar por la web (R15) y cuyos datos recepción todavía no confirma (R22).
   const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
-  const incSaldos = veVentas && plantilla === "administrador"
+  const incSaldos = veVentas && plantilla !== "optometra"
   const incSinConsulta = puede(usuario, "pacientes", "ver")
   const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
   const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`

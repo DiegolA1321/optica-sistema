@@ -201,8 +201,10 @@ describe("Inicio por rol", () => {
     expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Todas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
-    fireEvent.click(within(lista()).getByRole("button", { name: "Ver todas en Citas" }))
-    expect(llamadas).toEqual([["atendida", "hoy"], ["cancelada", "siempre"]])
+    // Sin canceladas no hay nada que ver: un solo mensaje y ningún enlace a Citas
+    expect(within(lista()).getByText("Ninguna cita con ese resultado en el período.")).toBeInTheDocument()
+    expect(within(lista()).queryByRole("button", { name: "Ver todas en Citas" })).not.toBeInTheDocument()
+    expect(llamadas).toEqual([["atendida", "hoy"]])
   })
 
   it("las tarjetas del desenlace se llaman Atendidas, No asistieron y Canceladas", () => {
