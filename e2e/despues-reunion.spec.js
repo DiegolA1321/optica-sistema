@@ -8,7 +8,7 @@ test.use({ viewport: { width: 1366, height: 768 } })
 
 test('el aviso de citas canceladas por pacientes ofrece Reagendar y abre el formulario precargado', async ({ page }) => {
   await iniciarSesion(page, 'RECEPCION')
-  const bloque = page.getByRole('region', { name: 'Requiere tu atención' })
+  const bloque = page.getByRole('region', { name: 'Requiere tu atención', exact: true })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
   const fila = bloque.getByRole('listitem').filter({ hasText: 'Cita cancelada por el paciente' }).first()
   await expect(fila).toBeVisible()
@@ -22,10 +22,14 @@ test('el aviso de citas canceladas por pacientes ofrece Reagendar y abre el form
   await page.keyboard.press('Escape')
 })
 
-test('el aviso también lo ve el administrador', async ({ page }) => {
+test('el administrador ve las citas por reagendar desde el "Ver todo" del bloque Citas', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
-  const bloque = page.getByRole('region', { name: 'Requiere tu atención' })
-  await expect(bloque.getByText('Cita cancelada por el paciente').first()).toBeVisible({ timeout: 20_000 })
+  const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
+  await expect(bloque).toBeVisible({ timeout: 20_000 })
+  // El bloque muestra solo los tres avisos más importantes; el resto está tras "Ver todo", que abre Citas en "Para reagendar".
+  await bloque.getByRole('button', { name: /^Ver todo/ }).click()
+  await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
 })
 
 test('agudeza visual: el estado se llama "Sin agudeza visual con lentes registrada" y se explica al pasar el cursor', async ({ page }) => {
