@@ -516,7 +516,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setFacturasVenta={setFacturasVenta}
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
-            onIrAFichaClinica={(paciente, citaId) => irAFichaClinica(paciente, { citaId, origen: "pacientes" })}
+            onIrAFichaClinica={(paciente, citaId, motivo) => irAFichaClinica(paciente, { citaId, origen: "pacientes", motivo })}
             onAviso={mostrarAviso}
             pases={pases}
             setPases={setPases}

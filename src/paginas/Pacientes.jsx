@@ -57,7 +57,8 @@ import {
   MessageCircle,
   FlaskConical,
 } from "lucide-react"
-import SelectorFechaHora from "../componentes/SelectorFechaHora"
+import CamposCita from "../componentes/CamposCita"
+import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
@@ -66,7 +67,7 @@ import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPend
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { lineaLunaDeTexto } from "../utilidades/comprobantes"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
-import { minutosDesdeMedianoche, esHoy, etiquetaFecha } from "../utilidades/disponibilidad"
+import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
@@ -77,7 +78,6 @@ import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta }
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion, AYUDA_CORRECCION } from "../utilidades/correccion"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
-import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
@@ -88,7 +88,6 @@ import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidade
 import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
-import SelectorAsignado from "../componentes/SelectorAsignado"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
@@ -396,6 +395,12 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // A quién se asigna la cita; con "Control sin agendar" arranca en quien atendió la consulta.
   const [agendarAsignado, setAgendarAsignado] = useState("")
   const [errorAgendar, setErrorAgendar] = useState("")
+  // "Llegó en un horario diferente": hora real y duración. Con la cita de hoy, al confirmar pasa directo a la ficha.
+  const [agendarHoraPersonalizada, setAgendarHoraPersonalizada] = useState(false)
+  const [agendarHoraCustom, setAgendarHoraCustom] = useState("")
+  const [agendarDuracion, setAgendarDuracion] = useState(disponibilidad?.duracionCita || 40)
+  const [errorHorarioAgendar, setErrorHorarioAgendar] = useState("")
+  const atenderInmediato = esAtencionInmediata({ horaPersonalizada: agendarHoraPersonalizada, fecha: agendarFecha, puedeAtender })
   const [confirmandoCita, setConfirmandoCita] = useState(false)
   const [guardandoCita, setGuardandoCita] = useState(false)
 
@@ -725,13 +730,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // SeleccionarCitaModal, "Abrir sin vincular", o sin ninguna cita
   // pendiente). Un solo punto de entrada para no repetir el chequeo en cada
   // callback de arriba.
-  const irAFichaConfirmandoSiHaceFalta = (paciente, citaId) => {
+  const irAFichaConfirmandoSiHaceFalta = (paciente, citaId, motivo) => {
     if (!puedeAtender) { onAviso?.("No tienes permiso para atender pacientes."); return }
     if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
-      setConfirmarDatosPara({ paciente, citaId })
+      setConfirmarDatosPara({ paciente, citaId, motivo })
       return
     }
-    onIrAFichaClinica?.(paciente, citaId)
+    onIrAFichaClinica?.(paciente, citaId, motivo)
   }
 
   // Venta rápida desde la tabla — abre el perfil 360° directo en la pestaña
@@ -767,6 +772,10 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     setAgendarHora("")
     setAgendarMotivo(fechaSugerida ? motivosConsulta.find((m) => /control/i.test(m)) || "" : "")
     setErrorAgendar("")
+    setAgendarHoraPersonalizada(false)
+    setAgendarHoraCustom("")
+    setAgendarDuracion(disponibilidad?.duracionCita || 40)
+    setErrorHorarioAgendar("")
     setConfirmandoCita(false)
   }
 
@@ -776,60 +785,43 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       setErrorAgendar("Selecciona el motivo del examen.")
       return
     }
-    if (!agendarFecha || !agendarHora) {
-      setErrorAgendar("Selecciona fecha y hora para la cita.")
-      return
-    }
+    const { error: errorGeneral, errorHorario } = validarHorarioCita({ fecha: agendarFecha, hora: agendarHora, horaPersonalizada: agendarHoraPersonalizada, horaCustom: agendarHoraCustom, duracionCustom: agendarDuracion, disponibilidad, citas })
+    if (errorGeneral) { setErrorAgendar(errorGeneral); return }
+    if (errorHorario) { setErrorHorarioAgendar(errorHorario); return }
+    setErrorHorarioAgendar("")
     setErrorAgendar("")
+    // "Atender ahora": el formulario ya es la confirmación, se salta el segundo diálogo.
+    if (atenderInmediato) { confirmarAgendarCita(); return }
     setConfirmandoCita(true)
   }
 
   const confirmarAgendarCita = async () => {
     setGuardandoCita(true)
-    const partes = agendarPara.nombre.trim().split(" ").filter(Boolean)
-    const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || "P").toUpperCase()
-    const nuevaCita = {
-      pacienteId: agendarPara.id,
-      paciente: agendarPara.nombre,
-      cedula: agendarPara.cedula,
-      telefono: agendarPara.telefono,
+    const paciente = agendarPara
+    const { cita: nuevaCita, error } = await registrarCita(supabase, opticaId, paciente, {
       fecha: agendarFecha,
-      hora: agendarHora,
+      hora: agendarHoraPersonalizada ? horaA12(agendarHoraCustom) : agendarHora,
+      duracionMinutos: agendarHoraPersonalizada ? (Number(agendarDuracion) || disponibilidad?.duracionCita || 40) : null,
       motivo: agendarMotivo,
-      iniciales,
-      asignadoA: agendarAsignado || null,
-      estado: "Pendiente",
-    }
-    if (supabase && opticaId) {
-      const { data, error } = await supabase
-        .from("citas")
-        .insert({
-          optica_id: opticaId,
-          paciente_id: typeof agendarPara.id === "string" ? agendarPara.id : null,
-          paciente: nuevaCita.paciente,
-          cedula: nuevaCita.cedula,
-          telefono: nuevaCita.telefono,
-          fecha: nuevaCita.fecha,
-          hora: nuevaCita.hora,
-          motivo: nuevaCita.motivo,
-          estado: nuevaCita.estado,
-          asignado_a: nuevaCita.asignadoA,
-        })
-        .select()
-        .single()
-      if (error) {
-        setGuardandoCita(false)
-        mostrarError(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : esErrorHoraInvalida(error) ? MENSAJE_HORA_INVALIDA : "No se pudo agendar la cita. Revisa tu conexión e intenta de nuevo.")
-        return
-      }
-      if (data) nuevaCita.id = data.id
-    }
-    if (nuevaCita.id == null) nuevaCita.id = Date.now()
-    setCitas?.([...citas, nuevaCita])
-    mostrarNotif(`Cita agendada para ${agendarPara.nombre}.`)
+      asignadoA: agendarAsignado,
+      estado: atenderInmediato ? "En Atención" : "Pendiente",
+    })
     setGuardandoCita(false)
+    if (error) {
+      setConfirmandoCita(false)
+      setErrorAgendar(error)
+      return
+    }
+    setCitas?.([...citas, nuevaCita])
+    registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
     setConfirmandoCita(false)
     setAgendarPara(null)
+    if (atenderInmediato) {
+      setPacienteHistorial(null)
+      irAFichaConfirmandoSiHaceFalta(paciente, nuevaCita.id, nuevaCita.motivo)
+      return
+    }
+    mostrarNotif(`Cita agendada para ${paciente.nombre}.`)
   }
 
   // Pacientes con algún saldo pendiente (venta puntual sin completar, o
@@ -1915,27 +1907,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:min-w-[22rem] lg:max-w-[40rem] lg:flex-1 lg:grid-cols-2 lg:border-t-0 lg:pt-0 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
-                  {/* Acción primaria primero — antes quedaba al final de la
-                      pila, después de hasta 3 botones secundarios (outline),
-                      obligando a escanear toda la columna para llegar a la
-                      única acción con relleno sólido. Único punto de entrada
-                      a la ficha clínica desde acá — ya no existe "Ficha
-                      clínica" como sección aparte del sidebar. Si el
-                      paciente tiene citas pendientes o en atención, primero
-                      pide elegir cuál (ver abrirFichaClinica/
-                      SeleccionarCitaModal) — igual que entrar por "Atender"
-                      en Citas médicas — para que guardar la ficha también la
-                      marque "Atendida" sin un paso aparte. */}
-                  {puedeAtender && (
-                  <button
-                    type="button"
-                    onClick={() => abrirFichaClinica(pacienteHistorial)}
-                    className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                    style={{ background: GRAD }}
-                  >
-                    <Stethoscope size={16} /> Ficha clínica
-                  </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
@@ -2562,29 +2533,16 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   </div>
                 )}
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo del examen</label>
-                  <select
-                    value={agendarMotivo}
-                    onChange={(e) => setAgendarMotivo(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  >
-                    <option value="" disabled>Seleccione el motivo del examen</option>
-                    {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
-                  </select>
-                </div>
-
-                <SelectorAsignado id="pacientes-agendar-asignado" valor={agendarAsignado} onChange={setAgendarAsignado} equipo={equipo} />
-
-                <SelectorFechaHora
+                <CamposCita
+                  prefijoId="pacientes-agendar"
+                  motivosConsulta={motivosConsulta}
+                  equipo={equipo}
                   disponibilidad={disponibilidad}
                   citas={citas}
-                  fecha={agendarFecha}
-                  hora={agendarHora}
-                  onCambiarFecha={setAgendarFecha}
-                  onCambiarHora={setAgendarHora}
-                  mesesAdelante={14}
+                  atenderInmediato={atenderInmediato}
+                  errorHorarioCustom={errorHorarioAgendar}
+                  valores={{ motivo: agendarMotivo, asignadoA: agendarAsignado, fecha: agendarFecha, hora: agendarHora, horaPersonalizada: agendarHoraPersonalizada, horaCustom: agendarHoraCustom, duracionCustom: agendarDuracion }}
+                  cambiar={{ setMotivo: setAgendarMotivo, setAsignadoA: setAgendarAsignado, setFecha: setAgendarFecha, setHora: setAgendarHora, setHoraPersonalizada: setAgendarHoraPersonalizada, setHoraCustom: setAgendarHoraCustom, setDuracionCustom: setAgendarDuracion, limpiarErrorHorario: () => setErrorHorarioAgendar("") }}
                 />
               </div>
 
@@ -2593,7 +2551,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   Cancelar
                 </button>
                 <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  Confirmar cita <ChevronRight size={16} />
+                  {atenderInmediato ? "Atender ahora" : "Confirmar cita"} <ChevronRight size={16} />
                 </button>
               </div>
             </form>
@@ -2608,7 +2566,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           paciente={agendarPara.nombre}
           motivo={agendarMotivo}
           fecha={agendarFecha ? formatoFecha(agendarFecha, "largoSinDia") : ""}
-          hora={agendarHora}
+          hora={agendarHoraPersonalizada ? `${horaA12(agendarHoraCustom)} (personalizada, ~${agendarDuracion} min)` : agendarHora}
           onCancelar={() => setConfirmandoCita(false)}
           onConfirmar={confirmarAgendarCita}
           guardando={guardandoCita}
@@ -2635,9 +2593,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           pacientes={pacientes}
           setPacientes={setPacientes}
           onConfirmado={(pacienteConfirmado) => {
-            const { citaId } = confirmarDatosPara
+            const { citaId, motivo } = confirmarDatosPara
             setConfirmarDatosPara(null)
-            onIrAFichaClinica?.(pacienteConfirmado, citaId)
+            onIrAFichaClinica?.(pacienteConfirmado, citaId, motivo)
           }}
           onCerrar={() => setConfirmarDatosPara(null)}
         />
