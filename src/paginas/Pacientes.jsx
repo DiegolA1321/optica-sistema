@@ -202,6 +202,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Atender = abrir la ficha clínica para registrar una consulta: exige consultas "crear".
   const puedeAtender = puede(usuario, "consultas", "crear")
   const puedeVender = puede(usuario, "ventas", "crear")
+  const puedeEditarCita = puede(usuario, "citas", "editar")
+  // Enviar un mensaje al paciente es una acción del CRM: pide "CRM: crear".
+  const puedeMensaje = puede(usuario, "crm", "crear")
   const puedeEditarVentas = puede(usuario, "ventas", "editar")
   const puedeAnular = puede(usuario, "ventas", "eliminar")
   const [eliminandoPaciente, setEliminandoPaciente] = useState(false)
@@ -1694,13 +1697,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
           >
-            <button
+            {puedeAtender && puedeAgendar && <button
               type="button"
               onClick={() => { setMenuAccionesId(null); abrirFichaClinica(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
             >
               <Stethoscope size={15} /> Atender ahora
-            </button>
+            </button>}
             {puedeVender && <button
               type="button"
               onClick={() => { setMenuAccionesId(null); abrirVentaRapida(paciente) }}
@@ -1708,14 +1711,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             >
               <ShoppingCart size={15} /> Nueva venta
             </button>}
-            <div className="my-1 border-t border-slate-100" />
-            <button
+            {puedeEditarPaciente && <button
               type="button"
               onClick={() => { setMenuAccionesId(null); abrirCuenta(paciente) }}
               className={"flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer " + (paciente.tieneCuenta ? "text-slate-600 hover:bg-slate-50" : "text-blue-600 hover:bg-blue-50")}
             >
               <KeyRound size={15} /> {paciente.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
-            </button>
+            </button>}
             {puedeEditarPaciente && <button
               type="button"
               onClick={() => { setMenuAccionesId(null); abrirEdicion(paciente) }}
@@ -1925,14 +1927,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:min-w-[22rem] lg:max-w-[40rem] lg:flex-1 lg:grid-cols-2 lg:border-t-0 lg:pt-0 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
-                  <button
+                  {puedeAgendar && <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
                     className="flex items-center justify-center gap-2 rounded-xl px-4 border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
                     <CalendarPlus size={16} /> Agendar cita
-                  </button>
-                  <button
+                  </button>}
+                  {puedeMensaje && <button
                     type="button"
                     onClick={() => abrirMensaje(pacienteHistorial)}
                     disabled={!pacienteHistorial.telefono}
@@ -1940,7 +1942,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     className="flex items-center justify-center gap-2 rounded-xl px-4 border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <MessageCircle size={16} /> Enviar mensaje
-                  </button>
+                  </button>}
                   {/* Flujo consulta→venta sin fricción: solo aparece cuando la
                       última consulta dejó un lente recomendado, para no
                       ofrecer facturar algo que todavía no existe. Un clic
@@ -1957,7 +1959,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <Receipt size={16} /> Vender receta
                     </button>
                   )}
-                  {!pacienteHistorial.tieneCuenta && (
+                  {!pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
                   <button
                     type="button"
                     onClick={() => abrirCuenta(pacienteHistorial)}
@@ -2058,14 +2060,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
                           <ShoppingBag size={13} aria-hidden="true" /> Listo para venta · desde {fechaLegible(paseListo.pasadaEn)}
-                          <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="ml-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-white transition-colors hover:bg-emerald-700 cursor-pointer">Tomar datos</button>
+                          {puedeVender && <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="ml-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-white transition-colors hover:bg-emerald-700 cursor-pointer">Tomar datos</button>}
                         </span>
                       )}
                       {abiertasPaciente.map(({ cita, dias }) => (
                         <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
                           <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
                           {puedeAtender && <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>}
-                          <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
+                          {puedeEditarCita && <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>}
                         </span>
                       ))}
                       {alertaControl && (() => {
@@ -2101,13 +2103,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         <Receipt size={16} className="shrink-0" />
                         Cobro pendiente de la consulta del {fechaLegible(consulta.fecha)}{consulta.motivo ? ` (${consulta.motivo})` : ""}.
                       </p>
-                      <button
+                      {puedeVender && <button
                         type="button"
                         onClick={() => setCobrandoPendiente({ consulta, cita })}
                         className="rounded-lg bg-amber-600 px-3.5 py-1.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer"
                       >
                         Cobrar
-                      </button>
+                      </button>}
                     </div>
                   ))}
 
@@ -2233,7 +2235,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         <PanelCitasPaciente
                         citas={citasPaciente}
                         consultas={consultasPaciente}
-                        onDejarDeAtender={setDejarCita}
+                        onDejarDeAtender={puedeEditarCita ? setDejarCita : undefined}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
                       />
                       </div>
@@ -2732,7 +2734,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
             <p className="truncate text-sm text-slate-600">{proxima.motivo || "Consulta general"}</p>
           </div>
           <BadgeEstadoCita estado={proxima.estado} />
-          {diasAtencionAbierta(proxima) !== null && (
+          {diasAtencionAbierta(proxima) !== null && onDejarDeAtender && (
             <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
           )}
           {onIngresar && (
