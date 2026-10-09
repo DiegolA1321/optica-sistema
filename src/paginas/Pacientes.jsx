@@ -346,7 +346,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     notificar: (m) => mostrarNotif(m), avisarError: (m) => mostrarError(m),
   })
   const { registrarFactura } = ventasApi
-  const { setAbonoPara, setAnularPara, setOrdenParaVenta, setFacturaElectronicaPara } = ventasApi
+  const { setAbonoPara, setAnularPara, setOrdenParaVenta, setFacturaElectronicaPara, setVentaCola } = ventasApi
 
   // Cobro pendiente (Ronda 4): ficha guardada con "Más tarde" en el panel de
   // cobro. Se cobra con el mismo panel; al cobrar, la cita (si la hay) pasa a

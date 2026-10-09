@@ -660,9 +660,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setDiagnostico("")
     setRecomendarLente(false)
     setLenteRecomendado("")
-    setLenteRecomendadoProductoId(null)
-    setLenteBusquedaProducto("")
-    setLenteMostrarDropdown(false)
     setIndicaciones("")
     setProximoControlDias(180)
     setControlModo("")
@@ -2024,8 +2021,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                             setRecomendarLente(e.target.checked)
                             if (!e.target.checked) {
                               setLenteRecomendado("")
-                              setLenteRecomendadoProductoId(null)
-                              setLenteBusquedaProducto("")
                             }
                           }}
                           className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"

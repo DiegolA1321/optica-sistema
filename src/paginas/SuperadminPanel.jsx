@@ -1391,7 +1391,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       const anterior = detalle.nombre
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
-      setCampoMarca((p) => ({ ...p, nombreMarca: nuevo }))
       await registrarAuditoria("renombrar_optica", { opticaId: detalle.id, opticaNombre: nuevo, detalle: anterior })
       cargarAuditoria(true)
       setRenombrando(false)
