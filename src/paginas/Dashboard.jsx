@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Bell,
-  Cake,
   CheckCircle2,
   ChevronDown,
   ChevronsLeft,
@@ -29,7 +28,6 @@ import {
   Settings,
   MessageSquare,
   Loader2,
-  UserX,
   ShoppingBag,
 } from "lucide-react"
 
@@ -53,9 +51,7 @@ const Reportes = lazyConReintento(() => import("./Reportes"), "Reportes")
 const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
 const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
-import { esHoy } from "../utilidades/disponibilidad"
-import { esStockBajo, umbralStock } from "../utilidades/inventario"
-import { diasVencido } from "../utilidades/fidelizacion"
+import { umbralStock } from "../utilidades/inventario"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
@@ -113,26 +109,6 @@ const OPCIONES = [
   { id: "usuarios", nombre: "Usuarios y permisos", icono: ShieldCheck, soloAdmin: true },
   { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true, delegable: true },
 ]
-
-// Ventana de cumpleaños (-5 a +7 días) → diferencia en días o null
-const diasACumple = (fn) => {
-  if (!fn) return null
-  const partes = String(fn).split(/[-/T]/)
-  const mes = Number(partes[1])
-  const dia = Number(partes[2])
-  if (!mes || !dia) return null
-  const hoy0 = ahoraEcuador()
-  hoy0.setHours(0, 0, 0, 0)
-  const y = hoy0.getFullYear()
-  let mejor = null
-  for (const yr of [y - 1, y, y + 1]) {
-    const c = new Date(yr, mes - 1, dia)
-    c.setHours(0, 0, 0, 0)
-    const d = Math.round((c - hoy0) / 86400000)
-    if (d >= -5 && d <= 7 && (mejor === null || Math.abs(d) < Math.abs(mejor))) mejor = d
-  }
-  return mejor
-}
 
 export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
@@ -433,45 +409,21 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     return () => { vigente = false }
   }, [esAdmin, usuario?.opticaId, seccionActiva])
 
-  // Centro de notificaciones (alertas reales del sistema)
+  // Centro de notificaciones: solo lo que NO está ya en "Requiere tu atención" del Inicio (el stock bajo, las citas, los cumpleaños y los
+  // controles viven allí): consultas de soporte, avisos generales y solicitudes de medidas del portal. Cada una según el permiso del rol.
   const alertas = useMemo(() => {
     const arr = []
-    inventario.forEach((p) => {
-      if (esStockBajo(p, umbralStock(parametrizacion))) arr.push({ icon: Package, color: "#d97706", bg: "#fffbeb", texto: `Stock bajo: ${p.nombre}`, sub: `${p.stock} u. disponibles`, destino: "inventario" })
-    })
-    const citasDeHoy = citas.filter((c) => esHoy(c.fecha))
-    if (citasDeHoy.length) arr.push({ icon: Calendar, color: "#2563eb", bg: "#eff6ff", texto: `${citasDeHoy.length} cita${citasDeHoy.length > 1 ? "s" : ""} para hoy`, sub: "Revisa la agenda del día", destino: "citas" })
-    // No asistió (pendiente 2.2, opción A) — solo del día, con el mismo
-    // patrón que el resto de este arreglo; reutiliza el auto no-show que ya
-    // marca la cita a los 10 min de su horario (migraciones 0071/0076).
-    const noAsistioHoy = citas.filter((c) => c.estado === "No Asistió" && esHoy(c.fecha))
-    if (noAsistioHoy.length) arr.push({ icon: UserX, color: "#dc2626", bg: "#fef2f2", texto: `${noAsistioHoy.length} paciente${noAsistioHoy.length > 1 ? "s" : ""} no asistió hoy`, sub: "Revisa si conviene reagendar", destino: "citas" })
-    if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: `Le escribiste al equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
-    if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: `Publicado por el equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
-    // Solicitud de medidas completas desde el portal (migración 0080) — el
-    // paciente pide ver esfera/cilindro/eje y hasta ahora nadie del lado
-    // óptica se enteraba; se surge acá con el mismo patrón que el resto de
-    // este arreglo, en vez de solo mostrarla al entrar al perfil.
-    const conMedidasPendientes = pacientes.filter((p) => p.medidasSolicitadasEn)
-    if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas completas`, sub: "Un paciente pidió ver su receta completa", destino: "pacientes" })
-    pacientes.forEach((p) => {
-      const d = diasACumple(p.fechaNacimiento || p.fecha_nacimiento)
-      if (d !== null) {
-        const t = d === 0 ? "cumple años hoy" : d > 0 ? `cumple en ${d} día${d > 1 ? "s" : ""}` : `cumplió hace ${Math.abs(d)} día${Math.abs(d) > 1 ? "s" : ""}`
-        arr.push({ icon: Cake, color: "#b45309", bg: "#fef3c7", texto: `${p.nombre} ${t}`, sub: "Envíale un saludo desde el CRM", destino: "crm" })
-      }
-      // Próximo control recién vencido (ventana de 7 días, igual que
-      // cumpleaños) — feedback del asesor: el optómetra debe enterarse solo,
-      // no ir a buscarlo a CRM. Los vencidos de hace más tiempo ya están en
-      // el bucket "Sin visitar hace tiempo" de CRM, no hace falta repetirlos
-      // aquí indefinidamente.
-      const dv = diasVencido(p, consultas)
-      if (dv !== null && dv >= 0 && dv <= 7) {
-        arr.push({ icon: CalendarClock, color: "#2563eb", bg: "#eff6ff", texto: `Control vencido: ${p.nombre}`, sub: dv === 0 ? "Vence hoy" : `Venció hace ${dv} día${dv > 1 ? "s" : ""}`, destino: "crm" })
-      }
-    })
+    if (puede(usuario, "mensajes", "ver")) {
+      if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: `Le escribiste al equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
+      if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: `Publicado por el equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
+    }
+    // Solicitud de medidas completas desde el portal (migración 0080): el paciente pide ver esfera/cilindro/eje.
+    if (puede(usuario, "pacientes", "ver")) {
+      const conMedidasPendientes = pacientes.filter((p) => p.medidasSolicitadasEn)
+      if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas completas`, sub: "Un paciente pidió ver su receta completa", destino: "pacientes" })
+    }
     return arr
-  }, [inventario, citas, pacientes, consultas, mensajesResumen, parametrizacion])
+  }, [usuario, pacientes, mensajesResumen])
 
   const hora = ahoraEcuador().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
