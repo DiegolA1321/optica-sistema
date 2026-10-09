@@ -336,7 +336,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
   const aplicarAusencia = async (fecha, inicio, fin, motivo) => {
     const { error } = await setDisponibilidad((prev) => {
       const base = prev.excepciones?.[fecha] || horarioEfectivo(fecha, prev)
-      const nuevaExcepcion = { ...base, ausencias: [...(base.ausencias || []), { inicio, fin, motivo }] }
+      const nuevaExcepcion = { ...base, ausencias: [...(base.ausencias || []), { inicio, fin, motivo, usuarioId: usuario?.id, usuarioNombre: usuario?.nombre }] }
       return { ...prev, excepciones: { ...prev.excepciones, [fecha]: nuevaExcepcion } }
     })
     if (error) {
