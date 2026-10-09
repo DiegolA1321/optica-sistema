@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { fechaLegible, fechaHoraLegible, formatoFecha, MESES_CORTOS, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -100,7 +102,7 @@ const diasHasta = (fechaISO) => {
   const partes = String(fechaISO).split(/[-/T]/)
   const y = Number(partes[0]), m = Number(partes[1]), d = Number(partes[2])
   if (!y || !m || !d) return null
-  const hoy0 = new Date()
+  const hoy0 = ahoraEcuador()
   hoy0.setHours(0, 0, 0, 0)
   const objetivo = new Date(y, m - 1, d)
   objetivo.setHours(0, 0, 0, 0)
@@ -113,7 +115,7 @@ const diasACumple = (fn) => {
   const mes = Number(partes[1])
   const dia = Number(partes[2])
   if (!mes || !dia) return null
-  const hoy0 = new Date()
+  const hoy0 = ahoraEcuador()
   hoy0.setHours(0, 0, 0, 0)
   const y = hoy0.getFullYear()
   let mejor = null
@@ -146,7 +148,7 @@ const AUDITORIA_PAGINA = 20
 
 
 function ultimosNMeses(n) {
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   const arr = []
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
@@ -156,7 +158,7 @@ function ultimosNMeses(n) {
 }
 
 function ultimosNDias(n) {
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   const arr = []
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i)
@@ -172,7 +174,7 @@ function ultimosNDias(n) {
 // repetidas serían ilegibles en el eje X.
 function diasParaRangoActividad(rango) {
   if (rango === "mes") {
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     const n = hoy.getDate()
     const arr = []
     for (let i = 0; i < n; i++) {
@@ -702,7 +704,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // elegido acá. "mes" usa el día 1 del mes calendario actual, igual que
   // Reportes.jsx (fmtFecha/calcularRango).
   const cargarActividadResumen = async (rango) => {
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     const dias = rango === "30d" ? 30 : rango === "mes" ? null : 7
     const desde = dias
       ? new Date(Date.now() - dias * 24 * 60 * 60 * 1000)
@@ -1512,7 +1514,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const registrarPago = async () => {
     if (!detalle) return
     setActualizandoPago(true)
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     // fechaAISO() arma la fecha con los componentes locales, no vía
     // toISOString() (convierte a UTC primero) — hoy no cambia el resultado
     // porque Ecuador está detrás de UTC, pero es el mismo patrón de bug de
@@ -1535,7 +1537,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const generarFactura = async () => {
     if (!detalle) return
     setGenerandoFactura(true)
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     const periodo = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`
     const numero = `FACT-${detalle.slug.slice(0, 6).toUpperCase()}-${periodo.replace("-", "")}`
     const { data, error } = await supabase
@@ -1745,7 +1747,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Secciones ───
 
-  const hoyFechaResumen = formatoFecha(new Date(), "largo")
+  const hoyFechaResumen = formatoFecha(ahoraEcuador(), "largo")
 
   // Solo se muestra en la primerísima carga (cargaInicial) — evita el "flash"
   // de tarjetas en 0 y gráficos vacíos antes de que responda Supabase, sin

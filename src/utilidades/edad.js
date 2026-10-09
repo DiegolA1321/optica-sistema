@@ -1,5 +1,6 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Edad en años cumplidos a partir de una fecha de nacimiento ("AAAA-MM-DD" o Date). null si no hay fecha válida.
-export function edadEnAnios(nacimiento, hoy = new Date()) {
+export function edadEnAnios(nacimiento, hoy = ahoraEcuador()) {
   if (!nacimiento) return null
   const n = nacimiento instanceof Date ? nacimiento : (() => { const [a, m, d] = String(nacimiento).slice(0, 10).split("-").map(Number); return a && m && d ? new Date(a, m - 1, d) : null })()
   if (!n || Number.isNaN(n.getTime())) return null

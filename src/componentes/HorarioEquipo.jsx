@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { fechaCorta } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Users, CalendarRange, Loader2 } from "lucide-react"
@@ -51,7 +53,7 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
   const horarioDe = (id) => (id === usuario?.id ? horarioPersonal?.horarioSemanal : horarios?.[id]) || {}
   const miembros = esAdmin ? miembrosActivos(equipo) : equipo.filter((m) => m.id === usuario?.id)
   const nombreVisto = miembros.find((m) => m.id === verId)?.nombre || usuario?.nombre
-  const ahora = new Date()
+  const ahora = ahoraEcuador()
 
   const semana = useMemo(
     () => resumenSemana({ lunes, horarioSemanal: horarioDe(verId), disponibilidad, citas: citasDePersona(citas, verId), duracion }),

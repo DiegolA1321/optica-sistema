@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { MESES_CORTOS } from "../utilidades/formatoFecha"
 import { etiquetaCorreccion } from "../utilidades/correccion"
 import { useMemo, useState } from "react"
@@ -44,7 +46,7 @@ const COLOR_CORRECCION = {
 }
 
 function ultimosNMeses(n) {
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   const arr = []
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
@@ -65,7 +67,7 @@ function ultimosNMeses(n) {
 const fmtFecha = fechaAISO
 
 function calcularRango(periodo, inicioPersonalizado, finPersonalizado) {
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   const y = hoy.getFullYear(), m = hoy.getMonth()
   if (periodo === "personalizado") {
     return { inicio: inicioPersonalizado || fmtFecha(new Date(y, m, 1)), fin: finPersonalizado || fmtFecha(hoy), etiqueta: "el período elegido" }
@@ -106,7 +108,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const [motivo, setMotivo] = useState("")
   const motivos = useMemo(() => motivosEnConsultas(consultasTodas), [consultasTodas])
   const consultas = useMemo(() => filtrarPorMotivo(consultasTodas, motivo), [consultasTodas, motivo])
-  const [anioDx, setAnioDx] = useState(new Date().getFullYear())
+  const [anioDx, setAnioDx] = useState(ahoraEcuador().getFullYear())
   const [verTodosDx, setVerTodosDx] = useState(false)
   const [periodo, setPeriodo] = useState("mes")
   const [inicioPersonalizado, setInicioPersonalizado] = useState("")

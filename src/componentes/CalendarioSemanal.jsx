@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Receipt, CalendarClock, Plus } from "lucide-react"
 import { isoAFechaLocal, hoyISO, horaA12 } from "../utilidades/disponibilidad"
@@ -54,9 +55,9 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
   const hoy = hoyISO()
 
   // Reloj para la línea de la hora actual (se refresca cada minuto).
-  const [ahora, setAhora] = useState(() => new Date())
+  const [ahora, setAhora] = useState(() => ahoraEcuador())
   useEffect(() => {
-    const id = setInterval(() => setAhora(new Date()), 60000)
+    const id = setInterval(() => setAhora(ahoraEcuador()), 60000)
     return () => clearInterval(id)
   }, [])
   const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes()
@@ -69,7 +70,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
     const el = refScroll.current
     if (!el) return
     const esSemanaActual = dias.includes(hoy)
-    const m = new Date().getHours() * 60 + new Date().getMinutes()
+    const m = ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes()
     if (esSemanaActual && m >= rango.inicio && m <= rango.fin) {
       el.scrollTop = Math.max(0, (m - rango.inicio) * PX_POR_MIN - el.clientHeight / 3)
     } else {
@@ -161,7 +162,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 style={{ height: alto, ...fondoLineas }}
                 onMouseMove={(e) => {
                   const min = minutoBajoPuntero(e)
-                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, new Date()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)
+                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, ahoraEcuador()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)
                   setHover((h) => (libre ? (h && h.iso === iso && h.min === min ? h : { iso, min }) : h ? null : h))
                 }}
                 onMouseLeave={() => setHover(null)}
@@ -172,7 +173,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                   const r = e.currentTarget.getBoundingClientRect()
                   const crudo = rango.inicio + (e.clientY - r.top) / PX_POR_MIN - arrastre.offsetMin
                   const min = Math.round(crudo / PASO_MINUTOS) * PASO_MINUTOS
-                  const v = validarMovimiento(cita, iso, min, disponibilidad, citas, new Date())
+                  const v = validarMovimiento(cita, iso, min, disponibilidad, citas, ahoraEcuador())
                   setDestino((d) => (d && d.iso === iso && d.min === min && d.ok === v.ok ? d : { iso, min, ok: v.ok, motivo: v.motivo }))
                   if (v.ok) { e.preventDefault(); e.dataTransfer.dropEffect = "move" }
                 }}
@@ -186,7 +187,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 onClick={(e) => {
                   // Clic en la columna: abre las citas de ese día; si fue sobre una hora libre, el modal ofrece agendar a esa hora.
                   const min = minutoBajoPuntero(e)
-                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, new Date()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)
+                  const libre = min != null && celdaLibre(iso, min, disponibilidad, citas, ahoraEcuador()) && !bloques.some((b) => min < b.fin && min + PASO_MINUTOS > b.inicio)
                   onHuecoLibre?.(iso, libre ? min : null)
                 }}
               >

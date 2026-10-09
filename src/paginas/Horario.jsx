@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -73,7 +75,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
   // Editar el horario general y sus excepciones: el administrador o quien tenga "Mi horario: editar" (la base lo exige igual).
   const puedeEditarHorario = esAdmin || puede(usuario, "horario", "editar")
   const [tab, setTab] = useState("general")
-  const [mesVista, setMesVista] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [mesVista, setMesVista] = useState(new Date(ahoraEcuador().getFullYear(), ahoraEcuador().getMonth(), 1))
   const [fechaEditando, setFechaEditando] = useState(null)
   // Citas que quedarían fuera del horario si se aplica un cambio pendiente —
   // antes cerrar un día o acortar el horario no avisaba nada, el paciente
@@ -140,7 +142,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       const guardado = JSON.parse(localStorage.getItem("optica_horario_dias_abiertos"))
       if (Array.isArray(guardado)) return new Set(guardado)
     } catch {}
-    return new Set([DIAS_SEMANA[new Date().getDay()]])
+    return new Set([DIAS_SEMANA[ahoraEcuador().getDay()]])
   })
   useEffect(() => {
     localStorage.setItem("optica_horario_dias_abiertos", JSON.stringify([...diasAbiertos]))
@@ -387,7 +389,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     const inicioMin = minutosDesde24h(inicio)
     const finMin = minutosDesde24h(fin)
     const esHoyFecha = fechaAusencia === hoy
-    const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
+    const ahoraMin = esHoyFecha ? ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes() : null
     const afectadas = citas.filter((c) => {
       if (c.fecha !== fechaAusencia) return false
       if (["Atendida", "No Asistió", "Cancelada"].includes(c.estado)) return false
@@ -894,7 +896,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
     setBorrador((prev) => ({ ...prev, [dia]: { ...prev[dia], [sesion]: { ...prev[dia][sesion], ...cambios } } }))
   }
 
-  const [diasAbiertos, setDiasAbiertos] = useState(() => new Set([DIAS_SEMANA[new Date().getDay()]]))
+  const [diasAbiertos, setDiasAbiertos] = useState(() => new Set([DIAS_SEMANA[ahoraEcuador().getDay()]]))
   const alternarDiaAbierto = (dia) => setDiasAbiertos((prev) => {
     const s = new Set(prev)
     s.has(dia) ? s.delete(dia) : s.add(dia)

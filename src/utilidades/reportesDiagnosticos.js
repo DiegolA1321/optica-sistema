@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Reportes de diagnósticos (R60) y filtro por motivo de consulta (R61): lógica pura.
 // Se cuentan PACIENTES distintos por diagnóstico (no fichas): "cuántos pacientes tuvieron miopía".
 const clave2 = (n) => String(n).padStart(2, "0")
@@ -33,7 +34,7 @@ export function motivosEnConsultas(consultas = []) {
 export const filtrarPorMotivo = (consultas, motivo) => (motivo ? consultas.filter((c) => (c.motivo || "").trim() === motivo) : consultas)
 
 // Años con consultas (el más reciente primero); siempre incluye el año dado.
-export function aniosConConsultas(consultas = [], anioActual = new Date().getFullYear()) {
+export function aniosConConsultas(consultas = [], anioActual = ahoraEcuador().getFullYear()) {
   const s = new Set([anioActual])
   for (const c of consultas) { const a = Number((c.fecha || "").slice(0, 4)); if (a) s.add(a) }
   return [...s].sort((a, b) => b - a)

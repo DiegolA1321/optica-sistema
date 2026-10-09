@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Órdenes de laboratorio (R36-R37, migración 0087): lógica pura. Cuando una venta
 // incluye lentes se genera una orden por par; pasa por enviada → lista →
 // entregada (o cancelada si se anula la venta). "Atrasada" no es un estado
@@ -25,23 +26,23 @@ export const numeroOrden = (n) => `OL-${String(n ?? 0).padStart(4, "0")}`
 
 const iso = fechaAISO
 
-export const estaAtrasada = (orden, hoy = new Date()) => orden?.estado === "enviada" && !!orden.fechaPrometida && orden.fechaPrometida < iso(hoy)
+export const estaAtrasada = (orden, hoy = ahoraEcuador()) => orden?.estado === "enviada" && !!orden.fechaPrometida && orden.fechaPrometida < iso(hoy)
 
 // El estado que se muestra: una enviada vencida se ve como "atrasada".
-export const estadoVisible = (orden, hoy = new Date()) => (estaAtrasada(orden, hoy) ? "atrasada" : orden?.estado)
+export const estadoVisible = (orden, hoy = ahoraEcuador()) => (estaAtrasada(orden, hoy) ? "atrasada" : orden?.estado)
 
-export const diasDeAtraso = (orden, hoy = new Date()) => {
+export const diasDeAtraso = (orden, hoy = ahoraEcuador()) => {
   if (!estaAtrasada(orden, hoy)) return 0
   const [a, m, d] = orden.fechaPrometida.split("-").map(Number)
   return Math.round((new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()) - new Date(a, m - 1, d)) / 86400000)
 }
 
-export const ordenesAtrasadas = (ordenes, hoy = new Date()) => ordenes.filter((o) => estaAtrasada(o, hoy))
+export const ordenesAtrasadas = (ordenes, hoy = ahoraEcuador()) => ordenes.filter((o) => estaAtrasada(o, hoy))
 export const ordenesListasSinAvisar = (ordenes) => ordenes.filter((o) => o.estado === "lista" && !o.pacienteAvisadoEn)
 export const ordenesAbiertas = (ordenes) => ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")
 
 // Cuántas atrasadas tiene cada laboratorio (las órdenes sin laboratorio van juntas).
-export function atrasosPorLaboratorio(ordenes, hoy = new Date()) {
+export function atrasosPorLaboratorio(ordenes, hoy = ahoraEcuador()) {
   const mapa = new Map()
   for (const o of ordenesAtrasadas(ordenes, hoy)) {
     const lab = o.laboratorio || "Sin laboratorio"

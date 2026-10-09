@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { fechaLegible, fechaCorta, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
@@ -749,7 +751,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // ocurrió. La hora se prueba minuto a minuto por si ya hay otra cita a esa hora (un horario por óptica, fecha y hora).
   const moverCitaAHoy = async (cita) => {
     const hoy = hoyISO()
-    const ahora = new Date()
+    const ahora = ahoraEcuador()
     let hora = null
     for (let extra = 0; extra < 30 && !hora; extra++) {
       const t = new Date(ahora.getTime() + extra * 60_000)
@@ -1071,7 +1073,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // La preferencia guardada se respeta, pero en pantallas angostas la semana
   // se muestra como lista (sin pisar lo que la persona eligió).
   const vistaActiva = vista === "semana" && !cabeSemana ? "lista" : vista
-  const [mesVista, setMesVista] = useState(() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1) })
+  const [mesVista, setMesVista] = useState(() => { const h = ahoraEcuador(); return new Date(h.getFullYear(), h.getMonth(), 1) })
 
   // Semana visible en la vista Semana (lunes, ISO); la usa también el aviso de búsqueda.
   const [semanaLunes, setSemanaLunes] = useState(() => lunesDeSemana(hoyISO()))
@@ -1844,7 +1846,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
                         setHoraPersonalizada(e.target.checked)
                         setErrorHorarioCustom("")
                         if (e.target.checked) {
-                          const ahora = new Date()
+                          const ahora = ahoraEcuador()
                           if (!fecha) setFecha(hoyISO())
                           if (!horaCustom) setHoraCustom(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
                         }

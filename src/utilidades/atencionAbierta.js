@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Atenciones abiertas de días anteriores: una cita que quedó "En atención" y
 // cuya fecha ya pasó (se abrió la ficha y nadie la cerró). Lógica pura, más la
 // operación de dejarla de atender.
@@ -5,7 +6,7 @@ import { supabase } from "../lib/supabaseClient"
 import { fechaAISO, isoAFechaLocal } from "./disponibilidad"
 
 // Días que lleva abierta (mínimo 1), o null si no es una atención abierta antigua.
-export function diasAtencionAbierta(cita, hoy = new Date()) {
+export function diasAtencionAbierta(cita, hoy = ahoraEcuador()) {
   if (!cita || cita.estado !== "En Atención" || !cita.fecha) return null
   const hoyISO = fechaAISO(hoy)
   if (cita.fecha >= hoyISO) return null
@@ -13,7 +14,7 @@ export function diasAtencionAbierta(cita, hoy = new Date()) {
   return Math.max(1, dias)
 }
 
-export function atencionesAbiertasAntiguas(citas = [], hoy = new Date()) {
+export function atencionesAbiertasAntiguas(citas = [], hoy = ahoraEcuador()) {
   return citas
     .map((c) => ({ cita: c, dias: diasAtencionAbierta(c, hoy) }))
     .filter((x) => x.dias !== null)

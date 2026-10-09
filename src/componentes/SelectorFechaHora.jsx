@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
 import { fechaAISO, hoyISO, diaTieneCupo, slotsDisponibles } from "../utilidades/disponibilidad"
@@ -16,7 +18,7 @@ const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 // mesInicial (ISO): mes que se muestra mientras todavía no hay fecha elegida (por ejemplo el de una fecha recomendada).
 export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2, mesInicial = "", publico = false }) {
   const hoy = hoyISO()
-  const mesHoy = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const mesHoy = new Date(ahoraEcuador().getFullYear(), ahoraEcuador().getMonth(), 1)
   const referencia = fecha || mesInicial
   const mesArranque = referencia ? new Date(Number(referencia.slice(0, 4)), Number(referencia.slice(5, 7)) - 1, 1) : mesHoy
   const [mesVista, setMesVista] = useState(mesArranque)

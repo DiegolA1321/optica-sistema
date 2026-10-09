@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 import { formatoFecha, hora } from "./formatoFecha"
 // ─── Utilidades de disponibilidad y horario del optómetra ───
 // Toda la lógica de "qué días/horas puede reservar un paciente" vive aquí,
@@ -73,7 +74,7 @@ export function isoAFechaLocal(iso) {
 }
 
 export function hoyISO() {
-  return fechaAISO(new Date())
+  return fechaAISO(ahoraEcuador())
 }
 
 // "09:00 AM" a partir de "09:00" (24 h): es hora() del módulo único de fechas y horas, con el nombre que ya usa el código.
@@ -103,7 +104,7 @@ export function diaAbierto(horario) {
 // sola oración se pasaba desapercibido en el hero, con el mismo peso visual
 // que un aviso legal. Esto da una frase corta y accionable en su lugar; el
 // horario completo se queda donde ya estaba, en el pie de página.
-export function estadoAtencionHoy(disponibilidad, ahora = new Date()) {
+export function estadoAtencionHoy(disponibilidad, ahora = ahoraEcuador()) {
   const horario = horarioEfectivo(fechaAISO(ahora), disponibilidad)
   const sesiones = [horario?.manana, horario?.tarde]
     .filter((s) => s?.activo && s.inicio && s.fin)
@@ -193,7 +194,7 @@ export function parseFechaFlexible(f) {
 export function esHoy(f) {
   const fecha = parseFechaFlexible(f)
   if (!fecha) return false
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   return (
     fecha.getDate() === hoy.getDate() &&
     fecha.getMonth() === hoy.getMonth() &&
@@ -205,7 +206,7 @@ export function esHoy(f) {
 export function esFutura(f) {
   const fecha = parseFechaFlexible(f)
   if (!fecha) return false
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   hoy.setHours(0, 0, 0, 0)
   const fechaLimpia = new Date(fecha)
   fechaLimpia.setHours(0, 0, 0, 0)
@@ -215,7 +216,7 @@ export function esFutura(f) {
 export function etiquetaFecha(f) {
   const fecha = parseFechaFlexible(f)
   if (!fecha) return f || "Sin fecha"
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   hoy.setHours(0, 0, 0, 0)
   const fechaLimpia = new Date(fecha)
   fechaLimpia.setHours(0, 0, 0, 0)
@@ -278,7 +279,7 @@ export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico
   const duracionDefault = disponibilidad?.duracionCita || 40
   const todos = generarSlots({ manana: horario.manana, tarde: horario.tarde, duracion: duracionDefault })
   const esHoyFecha = fechaISO === hoyISO()
-  const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
+  const ahoraMin = esHoyFecha ? ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes() : null
   // "Cancelada" no debe bloquear el horario — el hallazgo E7 encontró que
   // una cita cancelada por el paciente (que se marca así, no se borra —
   // ver cancelar_cita_publica) dejaba el horario inutilizable para
@@ -311,7 +312,7 @@ export function conflictoHorarioPersonalizado(fechaISO, horaAMPM, duracionMinuto
   const inicio = minutosDesdeMedianoche(horaAMPM)
   const fin = inicio + duracion
   const esHoyFecha = fechaISO === hoyISO()
-  const ahoraMin = esHoyFecha ? new Date().getHours() * 60 + new Date().getMinutes() : null
+  const ahoraMin = esHoyFecha ? ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes() : null
   const chocaConCita = citas
     .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada" && c.id !== citaIdExcluir)
     .some((c) => haySolapamiento(inicio, fin, minutosDesdeMedianoche(c.hora), finCitaMinutos(c, duracionDefault, ahoraMin)))

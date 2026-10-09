@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Horarios ocupados y disponibles de una persona del equipo (R19).
 //
 // Su horario personal (el de "Mi horario") dice cuándo atiende; sus citas
@@ -18,7 +19,7 @@ const diaDeFecha = (iso) => DIAS_SEMANA[new Date(`${iso}T12:00:00`).getDay()]
 // pasaron). Si la persona no configuró ese día, se usa el horario general de la
 // óptica (con sus cierres y excepciones) y el resultado lo marca con
 // `segunGeneral`.
-export function resumenDia({ fecha, horarioSemanal, disponibilidad, citas, duracion = 40, ahora = new Date() }) {
+export function resumenDia({ fecha, horarioSemanal, disponibilidad, citas, duracion = 40, ahora = ahoraEcuador() }) {
   let dia = horarioSemanal?.[diaDeFecha(fecha)]
   let segunGeneral = false
   if (!diaAbierto(dia) && disponibilidad) {
@@ -43,12 +44,12 @@ export function resumenDia({ fecha, horarioSemanal, disponibilidad, citas, durac
 }
 
 // Los 7 días desde `lunes`, con su resumen.
-export function resumenSemana({ lunes, horarioSemanal, disponibilidad, citas, duracion = 40, ahora = new Date() }) {
+export function resumenSemana({ lunes, horarioSemanal, disponibilidad, citas, duracion = 40, ahora = ahoraEcuador() }) {
   return Array.from({ length: 7 }, (_, i) => resumenDia({ fecha: sumarDiasISO(lunes, i), horarioSemanal, disponibilidad, citas, duracion, ahora }))
 }
 
 // Estado de la persona en este momento, para el panel del equipo.
-export function estadoAhora({ horarioSemanal, disponibilidad, citas, duracion = 40, ahora = new Date() }) {
+export function estadoAhora({ horarioSemanal, disponibilidad, citas, duracion = 40, ahora = ahoraEcuador() }) {
   const hoy = fechaAISO(ahora)
   const dia = resumenDia({ fecha: hoy, horarioSemanal, disponibilidad, citas, duracion, ahora })
   if (dia.cerrado) return "sinHorario"

@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Lógica pura de la vista Semana de Citas: qué días mostrar, qué rango de
 // horas, qué franjas sombrear, cómo repartir los bloques de cada día y si una
 // cita se puede soltar en un destino. Sin React ni acceso a datos: todo sale
@@ -146,7 +147,7 @@ export function dentroDeHorario(fechaISO, inicioMin, duracion, disponibilidad) {
 // Reglas para soltar una cita (arrastrar y soltar): solo reutiliza la
 // validación real de disponibilidad (cruce con otras citas y ausencias) y le
 // suma las dos que ahí no existen — no al pasado y dentro del horario abierto.
-export function validarMovimiento(cita, fechaISO, inicioMin, disponibilidad, citas = [], ahora = new Date()) {
+export function validarMovimiento(cita, fechaISO, inicioMin, disponibilidad, citas = [], ahora = ahoraEcuador()) {
   const duracion = duracionDe(cita, disponibilidad?.duracionCita || 40)
   if (fechaISO === cita.fecha && inicioMin === minutosDesdeMedianoche(cita.hora)) return { ok: false, motivo: "Es el mismo horario." }
   const hoy = fechaAISO(ahora)
@@ -166,7 +167,7 @@ export function validarMovimiento(cita, fechaISO, inicioMin, disponibilidad, cit
 // ¿Se puede agendar al hacer clic en esta celda de la grilla? Debe estar
 // dentro de una sesión de atención, fuera de las ausencias, no ser pasada y no
 // caer sobre una cita que sigue en agenda (las canceladas dejan el horario libre).
-export function celdaLibre(fechaISO, inicioMin, disponibilidad, citas = [], ahora = new Date()) {
+export function celdaLibre(fechaISO, inicioMin, disponibilidad, citas = [], ahora = ahoraEcuador()) {
   const hoy = fechaAISO(ahora)
   if (fechaISO < hoy) return false
   if (fechaISO === hoy && inicioMin <= ahora.getHours() * 60 + ahora.getMinutes()) return false

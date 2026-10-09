@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -38,7 +40,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 // Ventana de cumpleaños: devuelve la diferencia en días si cae entre -5 y +7 (si no, null)
 const diffCumpleEnVentana = (mes, dia) => {
   if (!mes || !dia) return null
-  const hoy0 = new Date()
+  const hoy0 = ahoraEcuador()
   hoy0.setHours(0, 0, 0, 0)
   const y = hoy0.getFullYear()
   const candidatos = [new Date(y - 1, mes - 1, dia), new Date(y, mes - 1, dia), new Date(y + 1, mes - 1, dia)]
@@ -122,7 +124,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         dias,
         numConsultas,
         cumpleHoy: esCumple && dias === "Hoy",
-        saludoEnviadoEsteAnio: p.ultimoSaludoCumpleAnio === new Date().getFullYear(),
+        saludoEnviadoEsteAnio: p.ultimoSaludoCumpleAnio === ahoraEcuador().getFullYear(),
         ordenValor,
       }
     })
@@ -224,7 +226,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
       const aviso = {
         texto: nuevoAviso.trim(),
-        fecha: fechaLegible(new Date()),
+        fecha: fechaLegible(ahoraEcuador()),
         destinatarioId: destinatario?.id || null,
         destinatarioNombre: destinatario?.nombre || null,
         destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",

@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
@@ -59,7 +61,7 @@ export default function OrdenLaboratorioModal({
       }
       if (!vivo) return
       const base = datosInicialesOrden(c, { montura, luna })
-      const entrega = new Date(); entrega.setDate(entrega.getDate() + 7)
+      const entrega = ahoraEcuador(); entrega.setDate(entrega.getDate() + 7)
       setD({ ...base, fechaPrometida: iso(entrega) })
     }
     if (consulta || !consultaId || !supabase) { armar(consulta); return () => { vivo = false } }

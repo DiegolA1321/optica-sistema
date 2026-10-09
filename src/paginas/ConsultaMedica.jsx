@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { useState, useEffect, useMemo, useRef } from "react"
 import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
@@ -1099,7 +1101,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     if (!fn) return null
     const nac = new Date(fn)
     if (isNaN(nac.getTime())) return null
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     let e = hoy.getFullYear() - nac.getFullYear()
     const m = hoy.getMonth() - nac.getMonth()
     if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--

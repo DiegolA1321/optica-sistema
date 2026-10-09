@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Proforma de venta (R35): un presupuesto para imprimir y entregar. No se guarda
 // como documento (el pase solo anota cuándo se entregó y por cuánto) y NO es una
 // factura: no descuenta stock, no tiene forma de pago ni numeración y no cierra
@@ -37,7 +38,7 @@ const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 const medida = (o) => (o && (o.esfera || o.cilindro || o.eje) ? `${o.esfera || "—"} | ${o.cilindro || "—"} | ${o.eje || "—"}°` : "No registrada")
 
 // datos: { opticaNombre, paciente: { nombre, cedula }, diagnostico: {...consulta}, lineas: [{ descripcion, cantidad, precioUnitario }], incluirMedidas, fecha }
-export function armarHtmlProforma({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, diagnostico = null, lineas = [], incluirMedidas = false, fecha = new Date() }) {
+export function armarHtmlProforma({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, diagnostico = null, lineas = [], incluirMedidas = false, fecha = ahoraEcuador() }) {
   const vigenciaDias = opticaDatos.vigenciaDias || VIGENCIA_PROFORMA_DIAS
   const validaHasta = new Date(new Date(fecha).getTime() + vigenciaDias * 86400000)
   const contacto = [opticaDatos.direccion, opticaDatos.telefono && `Tel. ${opticaDatos.telefono}`, opticaDatos.ruc && `RUC ${opticaDatos.ruc}`].filter(Boolean).map(escapar).join(" · ")

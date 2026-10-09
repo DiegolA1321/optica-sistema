@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Cálculos del Inicio por rol (R52-R56). Cada fila de tarjetas habla de una sola cosa y lo dice en su título:
 // "Totales", "Hoy", "Este mes" o "Para vender". Funciones puras, con los datos que ya carga la aplicación.
 import { esHoy, hoyISO, fechaAISO, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
@@ -44,7 +45,7 @@ export function resumenHoy(citas) {
 export const PERIODOS_DESENLACE = [["hoy", "Hoy"], ["semana", "Esta semana"], ["mes", "Este mes"], ["siempre", "Todas"]]
 
 // Las citas que caen dentro del período.
-export function citasDelPeriodo(citas, periodo = "mes", ahora = new Date()) {
+export function citasDelPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) {
   if (periodo === "siempre") return citas
   const hoy = fechaAISO(ahora)
   const isoDe = (c) => { const f = parseFechaFlexible(c.fecha); return f ? fechaAISO(f) : null }
@@ -57,7 +58,7 @@ export function citasDelPeriodo(citas, periodo = "mes", ahora = new Date()) {
 }
 
 // Desenlace de las citas en un período. Cuenta atendidas, no asistieron y canceladas.
-export function resumenPeriodo(citas, periodo = "mes", ahora = new Date()) {
+export function resumenPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) {
   const delPeriodo = citasDelPeriodo(citas, periodo, ahora)
   const cuenta = (estado) => delPeriodo.filter((c) => c.estado === estado).length
   return { registradas: delPeriodo.length, atendidas: cuenta("Atendida"), noAtendidas: cuenta("No Asistió"), canceladas: cuenta("Cancelada") }
@@ -66,7 +67,7 @@ export function resumenPeriodo(citas, periodo = "mes", ahora = new Date()) {
 // Las citas del período para la lista del Inicio, según la tarjeta del desenlace elegida (atendida | noAsistio | cancelada | null).
 // Sin tarjeta elegida no entran las canceladas (igual que "Todas" en Citas). Hoy y la semana van en orden de agenda; el mes y "Todas", las más recientes primero.
 const ESTADO_POR_TARJETA = { atendida: "Atendida", noAsistio: "No Asistió", cancelada: "Cancelada" }
-export function citasParaLista(citas, periodo, tarjeta = null, ahora = new Date()) {
+export function citasParaLista(citas, periodo, tarjeta = null, ahora = ahoraEcuador()) {
   const delPeriodo = citasDelPeriodo(citas, periodo, ahora)
   const filtradas = tarjeta ? delPeriodo.filter((c) => c.estado === ESTADO_POR_TARJETA[tarjeta]) : delPeriodo.filter(sinCancelar)
   const clave = (c) => { const f = parseFechaFlexible(c.fecha); return (f ? fechaAISO(f) : "") + String(minutosDesdeMedianoche(c.hora)).padStart(5, "0") }
@@ -75,13 +76,13 @@ export function citasParaLista(citas, periodo, tarjeta = null, ahora = new Date(
 }
 
 // Cuántos registros se dieron de alta este mes (para el "+N este mes" de los Totales). Sin fecha de alta no cuenta.
-export function creadosEsteMes(lista, campo, ahora = new Date()) {
+export function creadosEsteMes(lista, campo, ahora = ahoraEcuador()) {
   return lista.filter((x) => { const f = x[campo] ? new Date(x[campo]) : null; return f && !isNaN(f) && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth() }).length
 }
 export const resumenMes = (citas, ahora) => resumenPeriodo(citas, "mes", ahora)
 
 // Primer y último día del mes en curso, en ISO (para abrir Citas filtrada por el mismo período).
-export function rangoDelMes(ahora = new Date()) {
+export function rangoDelMes(ahora = ahoraEcuador()) {
   const y = ahora.getFullYear(), m = ahora.getMonth()
   return { desde: fechaAISO(new Date(y, m, 1)), hasta: fechaAISO(new Date(y, m + 1, 0)) }
 }

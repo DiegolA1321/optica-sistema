@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
@@ -108,7 +110,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     if (cita.estado !== "Pendiente") return false
     const fechaHora = new Date(`${cita.fecha}T${(cita.hora || "00:00").padStart(5, "0")}:00`)
     if (isNaN(fechaHora.getTime())) return false
-    const horasRestantes = (fechaHora.getTime() - Date.now()) / 3600000
+    const horasRestantes = (fechaHora.getTime() - ahoraEcuador().getTime()) / 3600000
     return horasRestantes >= horasAntesPermitidas
   }
   const abrirReagendar = (cita) => {
@@ -398,9 +400,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
   const navegar = (id) => { setSeccion(id); setMenuAbierto(false) }
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
-  const hora24 = new Date().getHours()
+  const hora24 = ahoraEcuador().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = formatoFecha(new Date(), "largo")
+  const hoyFecha = formatoFecha(ahoraEcuador(), "largo")
 
   return (
     <div className="flex h-screen font-sans text-slate-800" style={{ backgroundColor: "#F7F5F0" }}>

@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "../utilidades/horaEcuador"
 import React, { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
 import { resumenHorarioSemanal, estadoAtencionHoy } from "../utilidades/disponibilidad"
@@ -649,7 +650,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
   }, [opticaPublica?.id])
 
   if (soloModal) {
-    const hora = new Date().getHours()
+    const hora = ahoraEcuador().getHours()
     const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
 
     // Recordarme: presentacional a propósito — Supabase ya persiste la

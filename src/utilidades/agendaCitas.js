@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Lógica pura de la agenda de Citas (propuesta de flujo de atención, Ronda 1):
 // la lista abre en hoy y lo próximo; lo pasado se consulta aparte.
 import { fechaAISO, isoAFechaLocal, minutosDesdeMedianoche } from "./disponibilidad"
@@ -47,7 +48,7 @@ export function desplazarRango(desde, hasta, sentido, hoy) {
 
 // ¿Ya pasó la hora agendada de la cita? (para ofrecer "No asistió" manual
 // solo mientras la cita sigue pendiente tras su hora)
-export function yaPasoLaHora(cita, ahora = new Date()) {
+export function yaPasoLaHora(cita, ahora = ahoraEcuador()) {
   const hoy = fechaAISO(ahora)
   if (cita.fecha < hoy) return true
   if (cita.fecha > hoy) return false

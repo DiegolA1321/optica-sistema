@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // ─── Utilidades de fidelización: inactividad, frecuencia y referidos ───
 // Centraliza la lógica que usan CRM.jsx e Inicio.jsx para no duplicarla.
 
@@ -45,7 +46,7 @@ export function ultimaVisita(paciente, consultas = []) {
 export function diasDesdeUltimaVisita(paciente, consultas = []) {
   const fecha = ultimaVisita(paciente, consultas)
   if (!fecha) return null
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   hoy.setHours(0, 0, 0, 0)
   fecha.setHours(0, 0, 0, 0)
   return Math.round((hoy - fecha) / 86400000)
@@ -88,7 +89,7 @@ export function fechaProximoControl(paciente, consultas = []) {
 export function diasVencido(paciente, consultas = []) {
   const objetivo = fechaProximoControl(paciente, consultas)
   if (!objetivo) return null
-  const hoy = new Date()
+  const hoy = ahoraEcuador()
   hoy.setHours(0, 0, 0, 0)
   objetivo.setHours(0, 0, 0, 0)
   return Math.round((hoy - objetivo) / 86400000)
@@ -131,7 +132,7 @@ export { UMBRAL_INACTIVO_DIAS, MINIMO_CLIENTE_FRECUENTE }
 // Días que faltan para el próximo cumpleaños (0 = hoy), o null si no hay fecha
 // de nacimiento válida. Quien nació un 29 de febrero celebra el 28 en los años
 // que no son bisiestos. `fechaNacimiento` es "AAAA-MM-DD" (o con hora).
-export function diasParaCumpleanos(fechaNacimiento, hoy = new Date()) {
+export function diasParaCumpleanos(fechaNacimiento, hoy = ahoraEcuador()) {
   if (!fechaNacimiento) return null
   const [, mes, dia] = String(fechaNacimiento).split(/[-/T]/).map(Number)
   if (!mes || !dia) return null

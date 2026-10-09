@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
 import {
@@ -119,7 +121,7 @@ const diasACumple = (fn) => {
   const mes = Number(partes[1])
   const dia = Number(partes[2])
   if (!mes || !dia) return null
-  const hoy0 = new Date()
+  const hoy0 = ahoraEcuador()
   hoy0.setHours(0, 0, 0, 0)
   const y = hoy0.getFullYear()
   let mejor = null
@@ -471,9 +473,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     return arr
   }, [inventario, citas, pacientes, consultas, mensajesResumen, parametrizacion])
 
-  const hora = new Date().getHours()
+  const hora = ahoraEcuador().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = formatoFecha(new Date(), "largo")
+  const hoyFecha = formatoFecha(ahoraEcuador(), "largo")
 
   const nombreUsuario = usuario?.nombre || (esAsistente ? "Asistente" : "Administrador")
   const rolUsuario = vistas.length > 1 && vista ? vista.nombre : esAsistente ? (vista?.nombre || "Asistente") : "Administrador"

@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
@@ -124,7 +126,7 @@ export default function Inicio({
   // cuanto pasaba la medianoche del día siguiente).
   useEffect(() => {
     const obtenerCumpleaneros = () => {
-      const hoy = new Date()
+      const hoy = ahoraEcuador()
       hoy.setHours(0, 0, 0, 0)
 
       return pacientes
@@ -192,7 +194,7 @@ export default function Inicio({
   // número del momento, sin ningún punto de comparación) — cuántos se
   // registraron este mes calendario, contra fechaRegistro real.
   const pacientesEsteMes = useMemo(() => {
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     return pacientes.filter((p) => {
       const f = parseFechaFlexible(p.fechaRegistro)
       return f && f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth()

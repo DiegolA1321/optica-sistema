@@ -1,3 +1,4 @@
+import { ahoraEcuador } from "./horaEcuador"
 // Reportes de laboratorio y de lunas: lógica pura.
 import { estaAtrasada } from "./ordenesLaboratorio"
 import { TIPOS_LENTE } from "./ordenesLaboratorio"
@@ -21,7 +22,7 @@ export const diasDeEntrega = (o) => {
 
 // Por laboratorio: abiertas, atrasadas y tiempo promedio de entrega (en días) de las entregadas.
 // `enRango(fechaISO)` limita las ENTREGADAS al período (por fecha de entrega); las atrasadas son el estado actual.
-export function resumenPorLaboratorio(ordenes = [], { hoy = new Date(), enRango = () => true } = {}) {
+export function resumenPorLaboratorio(ordenes = [], { hoy = ahoraEcuador(), enRango = () => true } = {}) {
   const mapa = new Map()
   const fila = (lab) => {
     if (!mapa.has(lab)) mapa.set(lab, { laboratorio: lab, abiertas: 0, atrasadas: 0, entregadas: 0, sumaDias: 0 })

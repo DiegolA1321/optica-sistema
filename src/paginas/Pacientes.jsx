@@ -1,5 +1,7 @@
 "use client"
 
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+
 import { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -302,7 +304,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     if (!fn) return null
     const nac = new Date(fn)
     if (isNaN(nac.getTime())) return null
-    const hoy = new Date()
+    const hoy = ahoraEcuador()
     let e = hoy.getFullYear() - nac.getFullYear()
     const m = hoy.getMonth() - nac.getMonth()
     if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
@@ -2751,7 +2753,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
   const limpiarFiltro = () => { setDesde(""); setHasta(""); setTexto("") }
   // Atajos de rango: terminan hoy y empiezan hace 1, 6 o 12 meses.
   const rangoReciente = (meses) => {
-    const f = new Date()
+    const f = ahoraEcuador()
     f.setMonth(f.getMonth() - meses)
     setDesde(fechaAISO(f))
     setHasta(hoyISO())
