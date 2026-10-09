@@ -209,7 +209,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     {/* Por qué está bloqueado: etiqueta discreta que se queda
                         pegada bajo el encabezado mientras la franja está a la vista. */}
                     {(f.fin - f.inicio) * PX_POR_MIN >= 18 && (
-                      <span className="pointer-events-none sticky ml-1.5 inline-block max-w-[calc(100%-12px)] truncate rounded px-1 text-[10px] font-semibold uppercase leading-4 tracking-wide text-slate-400" style={{ top: ALTO_ENCABEZADO + 4 }}>
+                      <span className={"pointer-events-none sticky ml-1.5 inline-block max-w-[calc(100%-12px)] rounded px-1 text-[10px] font-semibold leading-4 " + (f.etiqueta ? "whitespace-normal break-words text-slate-500" : "truncate uppercase tracking-wide text-slate-400")} style={{ top: ALTO_ENCABEZADO + 4 }}>
                         {f.etiqueta || ETIQUETA_FRANJA[f.tipo]}{f.tipo === "ausencia" && f.motivo ? ` · ${f.motivo}` : ""}
                       </span>
                     )}

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
-import { INK, GRAD_MARCA } from "@/lib/tema"
+import { GRAD_MARCA } from "@/lib/tema"
 import { horaA12, horarioPropuestoParaAbrir, minutosDesde24h } from "../utilidades/disponibilidad"
 
 // Horas del selector: cada 30 minutos, de 5:00 AM a 10:00 PM, siempre en formato de 12 h.
@@ -58,13 +58,7 @@ export default function AbrirDiaForm({ iso, disponibilidad, puedeAgendar = false
         <Sesion nombre="Mañana" valor={sesiones.manana} onChange={(manana) => setSesiones((s) => ({ ...s, manana }))} />
         <Sesion nombre="Tarde" valor={sesiones.tarde} onChange={(tarde) => setSesiones((s) => ({ ...s, tarde }))} />
       </div>
-      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-slate-50 px-3.5 py-3">
-        <input type="checkbox" checked={reservasWeb} onChange={(e) => setReservasWeb(e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer accent-blue-600" />
-        <span>
-          <span className="block text-sm font-bold" style={{ color: INK }}>Permitir también reservas por la web</span>
-          <span className="block text-xs text-slate-500">Desmarcado: solo el personal agenda ese día y los pacientes no lo ven en la página pública.</span>
-        </span>
-      </label>
+      <p className="mt-4 rounded-xl bg-slate-50 px-3.5 py-3 text-xs text-slate-500">Un día abierto así es solo para el personal: no aparece en la página pública ni en el portal de los pacientes.</p>
       {error && <p role="alert" className="mt-3 text-sm font-medium text-red-600">{error}</p>}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
         <button type="button" onClick={onCancelar} disabled={guardando} className="rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
