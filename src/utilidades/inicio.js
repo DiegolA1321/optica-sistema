@@ -57,11 +57,13 @@ export function citasDelPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) 
   return citas.filter((c) => { const f = parseFechaFlexible(c.fecha); return f && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth() })
 }
 
-// Desenlace de las citas en un período. Cuenta atendidas, no asistieron y canceladas.
+// Desenlace de las citas en un período. Cuenta atendidas, no asistieron y canceladas. "registradas" son las citas del período sin
+// las canceladas (las mismas que lista el Inicio y que muestra Citas por defecto); las canceladas se cuentan aparte.
+// "enAtencion" son las que, dentro del período, están en atención en este momento.
 export function resumenPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) {
   const delPeriodo = citasDelPeriodo(citas, periodo, ahora)
   const cuenta = (estado) => delPeriodo.filter((c) => c.estado === estado).length
-  return { registradas: delPeriodo.length, atendidas: cuenta("Atendida"), noAtendidas: cuenta("No Asistió"), canceladas: cuenta("Cancelada") }
+  return { registradas: delPeriodo.filter(sinCancelar).length, atendidas: cuenta("Atendida"), noAtendidas: cuenta("No Asistió"), canceladas: cuenta("Cancelada"), enAtencion: cuenta("En Atención") }
 }
 
 // Las citas del período para la lista del Inicio, según la tarjeta del desenlace elegida (atendida | noAsistio | cancelada | null).

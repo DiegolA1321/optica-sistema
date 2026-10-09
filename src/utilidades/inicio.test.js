@@ -57,7 +57,7 @@ describe("resúmenes del día y del mes", () => {
       cita({ fecha: "2026-10-04", estado: "No Asistió" }), cita({ fecha: "2026-10-05", estado: "Cancelada" }),
       cita({ fecha: "2026-09-30", estado: "Atendida" }),
     ], ahora)
-    expect(r).toEqual({ registradas: 4, atendidas: 2, noAtendidas: 1, canceladas: 1 })
+    expect(r).toEqual({ registradas: 3, atendidas: 2, noAtendidas: 1, canceladas: 1, enAtencion: 0 })
   })
   it("los pacientes sin atender son los que nunca tuvieron consulta", () => {
     expect(pacientesSinAtender([{ id: "a" }, { id: "b" }], [{ pacienteId: "a" }]).map((p) => p.id)).toEqual(["b"])
@@ -85,9 +85,9 @@ describe("desenlace por período", () => {
     cita({ estado: "Atendida", fecha: "2020-01-15" }), cita({ estado: "Cancelada", fecha: "2020-01-16" }),
   ]
   it("'mes' cuenta solo el mes en curso y 'siempre' todo lo registrado", () => {
-    expect(resumenPeriodo(citas, "mes")).toEqual({ registradas: 3, atendidas: 1, noAtendidas: 1, canceladas: 1 })
-    expect(resumenPeriodo(citas, "siempre")).toEqual({ registradas: 5, atendidas: 2, noAtendidas: 1, canceladas: 2 })
-    expect(resumenMes(citas).registradas).toBe(3)
+    expect(resumenPeriodo(citas, "mes")).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, canceladas: 1, enAtencion: 0 })
+    expect(resumenPeriodo(citas, "siempre")).toEqual({ registradas: 3, atendidas: 2, noAtendidas: 1, canceladas: 2, enAtencion: 0 })
+    expect(resumenMes(citas).registradas).toBe(2)
   })
   it("el rango del mes va del primer al último día", () => {
     expect(rangoDelMes(new Date(2026, 1, 10))).toEqual({ desde: "2026-02-01", hasta: "2026-02-28" })
@@ -139,7 +139,7 @@ describe("Períodos del desenlace y lista del Inicio", () => {
     expect(citasDelPeriodo(citas, "semana", ahora).map((c) => c.id)).toEqual(["a", "b", "c", "d"])
     expect(citasDelPeriodo(citas, "mes", ahora)).toHaveLength(5)
     expect(citasDelPeriodo(citas, "siempre", ahora)).toHaveLength(6)
-    expect(resumenPeriodo(citas, "hoy", ahora)).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, canceladas: 0 })
+    expect(resumenPeriodo(citas, "hoy", ahora)).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, canceladas: 0, enAtencion: 0 })
   })
   it("la lista sigue la tarjeta elegida y, sin tarjeta, deja fuera las canceladas", () => {
     expect(citasParaLista(citas, "semana", null, ahora).map((c) => c.id)).toEqual(["b", "a", "d"])
