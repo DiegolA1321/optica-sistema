@@ -168,8 +168,8 @@ test('5 · El administrador ve el resultado en Reportes y la cita quedó atendid
 test('6 · Paula ve "Siguiente paciente" con "Atender", que entra directo a la ficha clínica', async ({ page }) => {
   await crearCitaDeHoyParaPaula('E2E')
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
-  const tarjeta = page.locator('main').first().getByRole('region', { name: 'Hoy' })
-  await expect(tarjeta.getByText('Siguiente paciente')).toBeVisible({ timeout: 20_000 })
+  const tarjeta = page.locator('main').first().getByLabel('Siguiente paciente')
+  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
   await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
   // Sin el modal "Resumen de la cita": Atender lleva directo a la ficha (reunión 7 oct., C16).
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })

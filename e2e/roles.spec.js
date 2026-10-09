@@ -110,9 +110,9 @@ test.describe('Ventas', () => {
 test.describe('Optómetra', () => {
   test('menú, Inicio y alcance propio', async ({ page }) => {
     await iniciarSesion(page, 'OPTOMETRA')
-    await expect(page.getByText('Tu agenda del día')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('region', { name: 'Mis citas de hoy' })).toBeVisible({ timeout: 15_000 })
     expect.soft(await menuVisible(page)).toEqual(TODOS)
-    await expect.soft(page.getByText('MIS CITAS DE HOY')).toBeVisible()
+    await expect.soft(page.getByRole('heading', { name: /Mis citas de hoy/i })).toBeVisible()
 
     const propias = await totalAgendadas(page)
     expect.soft(propias, 'alcance propio: menos citas que Recepción').toBeLessThan(totalRecepcion ?? 1e9)
