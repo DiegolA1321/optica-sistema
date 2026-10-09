@@ -90,8 +90,9 @@ import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
 import { ModalAtencion, ModalHistoriaClinica } from "../componentes/AtencionPaciente"
+import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelCompras, PanelPuntaje, PanelReferidos, PanelCumple, PanelCitasEstado } from "../componentes/DetallesResumen"
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
-import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
+import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
@@ -335,6 +336,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const sincronizarUrl = !overlaySolo
   const idPerfil = pacienteHistorial?.id ?? null
   const perfilVisto = useRef(false)
+  const [perfilNoEncontrado, setPerfilNoEncontrado] = useState(false)
+  // Al recargar con un perfil en la URL, se espera a los datos mostrando el esqueleto del perfil, no un instante la lista.
+  const abriendoPerfil = sincronizarUrl && !!leerParam("paciente") && !pacienteHistorial && !perfilVisto.current && !perfilNoEncontrado
   useEffect(() => {
     if (!sincronizarUrl) return
     const enUrl = leerParam("paciente")
@@ -357,7 +361,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       const id = leerParam("paciente")
       if (!id) { setPacienteHistorial(null); return }
       const paciente = pacientes.find((x) => String(x.id) === id)
-      if (!paciente) return
+      if (!paciente) {
+        // Ya cargó la lista y ese paciente no existe (o no se puede ver): se vuelve a la lista.
+        if (!cargaInicial) { escribirParam("paciente", null); setPerfilNoEncontrado(true) }
+        return
+      }
       const tab = leerParam("tab")
       setPacienteHistorial(paciente)
       setTabHistorial(["citas", "resumen", "pagos", "ordenes"].includes(tab) ? tab : "citas")
@@ -365,7 +373,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     if (!perfilVisto.current && !pacienteHistorial) abrirSegunUrl()
     window.addEventListener("popstate", abrirSegunUrl)
     return () => window.removeEventListener("popstate", abrirSegunUrl)
-  }, [pacientes]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pacientes, cargaInicial]) // eslint-disable-line react-hooks/exhaustive-deps
   // "Nueva venta" (Ronda 4 del flujo de atención): antes había dos botones,
   // "Vender producto" (un producto, pago directo, tabla `ventas`) y "Nueva
   // factura" (varias líneas, cuotas, tabla `facturas_venta`). Una venta de un
@@ -1084,7 +1092,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         </div>
       )}
 
-      {!overlaySolo && (
+      {!overlaySolo && abriendoPerfil && (
+        <div role="status" aria-label="Abriendo el perfil del paciente" className="space-y-4">
+          <div className="h-28 animate-pulse rounded-2xl border border-slate-200/60 bg-white" />
+          <div className="h-12 w-96 max-w-full animate-pulse rounded-xl border border-slate-200/60 bg-white" />
+          <div className="h-40 animate-pulse rounded-2xl border border-slate-200/60 bg-white" />
+        </div>
+      )}
+      {!overlaySolo && !abriendoPerfil && (
       <>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1870,7 +1885,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:grid lg:max-w-[36rem] lg:shrink-0 lg:justify-end lg:border-t-0 lg:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:max-w-[36rem] lg:shrink-0 lg:flex-nowrap lg:justify-end lg:border-t-0 lg:pt-0">
                   <button
                     type="button"
                     onClick={() => setVerHistoriaClinica(true)}
@@ -2101,6 +2116,16 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         diasControl={diasControl}
                         diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
                         compras={{ cantidad: totalComprasCount, monto: totalComprasMonto }}
+                        equipo={equipo}
+                        comprobantes={comprobantesPaciente}
+                        referidosLista={listarReferidos(pacienteHistorial, pacientes)}
+                        paciente={pacienteHistorial}
+                        usuario={usuario}
+                        parametrizacion={parametrizacion}
+                        adjuntosDe={adjuntosConsulta}
+                        onAbrirPaciente={(p) => { setTabHistorial("citas"); setPacienteHistorial(p) }}
+                        onVerProductos={() => setTabHistorial("pagos")}
+                        onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "citas" ? (
@@ -2452,6 +2477,17 @@ function BadgeEstadoCita({ estado }) {
   )
 }
 
+// Imágenes adjuntas de una consulta (el bucket es privado: cada miniatura pide su URL firmada).
+function adjuntosConsulta(consulta) {
+  if (!consulta?.imagenes?.length) return null
+  return (
+    <div className="mt-3">
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
+      <div className="flex flex-wrap gap-2">{consulta.imagenes.map((img) => <MiniaturaAdjunto key={img.path} path={img.path} />)}</div>
+    </div>
+  )
+}
+
 function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender, onAgendar, cobros = [], onCobrar, paciente, usuario, parametrizacion }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
@@ -2619,109 +2655,182 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 // ─── Perfil del paciente: pestaña Resumen ───
 // Lo que antes se mezclaba con las citas: cómo va el paciente (corrección, próximo control, compras, fidelidad),
 // la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
-function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad }) {
+// Un cuadro que se puede tocar: mismo aspecto que antes, con una flecha que indica que se despliega.
+function Cuadro({ clave, abierto, alternar, className = "", style, children }) {
+  return (
+    <button
+      type="button"
+      onClick={() => alternar(clave)}
+      aria-expanded={abierto === clave}
+      className={"group relative w-full text-left transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-500 " + (abierto === clave ? "ring-2 ring-blue-500/60 " : "hover:border-slate-300 ") + className}
+      style={style}
+    >
+      {children}
+      <ChevronDown size={14} aria-hidden="true" className={"absolute right-3 top-3 text-slate-400 transition-transform " + (abierto === clave ? "rotate-180 text-blue-600" : "group-hover:text-slate-600")} />
+    </button>
+  )
+}
+
+const TENDENCIA_TEXTO = {
+  Disminuyó: "La graduación medida disminuyó respecto a la consulta anterior.",
+  Aumentó: "La graduación medida aumentó respecto a la consulta anterior.",
+  "Sin cambios": "La graduación medida se mantiene estable.",
+}
+
+function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad, equipo, comprobantes, referidosLista, paciente, usuario, parametrizacion, adjuntosDe, onAbrirPaciente, onVerProductos, onAgendar }) {
   const ultima = consultas[0]
+  // Cada cuadro se despliega al tocarlo (uno a la vez) y muestra de dónde sale su número.
+  const [abierto, setAbierto] = useState(null)
+  const [citaVentana, setCitaVentana] = useState(null)
+  const alternar = (clave) => setAbierto((a) => (a === clave ? null : clave))
   // "Control recomendado" es lo que dice la ficha; "Próxima cita" es la fecha ya agendada. Dos datos distintos, dos nombres.
   const citaPendiente = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0]
+  const citaDeUltima = ultima ? citas.find((c) => c.id === ultima.citaId) : null
+  const consultaDe = (cita) => consultas.find((k) => k.citaId === cita.id)
   const correccion = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
   const IconoCorreccion = correccion?.icon
   const colorEstado = ultima ? CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"] : null
-  const tendencia = TENDENCIA[tendenciaEntreConsultas(consultas)?.verdicto]
+  const infoTendencia = tendenciaEntreConsultas(consultas)
+  const tendencia = TENDENCIA[infoTendencia?.verdicto]
   const conteo = contarCitas(citas)
   const meses = citasPorMes(citas, hoyISO(), 12)
   const maximo = Math.max(1, ...meses.map((m) => m.total))
   const totalMeses = meses.reduce((a, m) => a + m.total, 0)
   const frecuente = diaMasFrecuente(citas)
+  const porFecha = (lista) => lista.slice().sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? 1 : -1) : minutosDesdeMedianoche(b.hora) - minutosDesdeMedianoche(a.hora)))
+  const citasDe = {
+    pendientes: porFecha(citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado))),
+    atendidas: porFecha(citas.filter((c) => c.estado === "Atendida")),
+    noAsistio: porFecha(citas.filter((c) => c.estado === "No Asistió")),
+    canceladas: porFecha(citas.filter((c) => c.estado === "Cancelada")),
+  }
   const tarjetas = [
     { clave: "pendientes", etiqueta: "Pendientes", valor: conteo.pendientes, clase: "text-amber-700", punto: "bg-amber-500" },
     { clave: "atendidas", etiqueta: "Atendidas", valor: conteo.atendidas, clase: "text-emerald-700", punto: "bg-emerald-500" },
     { clave: "noAsistio", etiqueta: "No asistió", valor: conteo.noAsistio, clase: "text-red-700", punto: "bg-red-500" },
     { clave: "canceladas", etiqueta: "Canceladas", valor: conteo.canceladas, clase: "text-slate-600", punto: "bg-slate-400" },
   ]
+  const titulosCita = { pendientes: "Citas pendientes", atendidas: "Citas atendidas", noAsistio: "Citas a las que no asistió", canceladas: "Citas canceladas" }
+  const consultaVentana = citaVentana ? consultaDe(citaVentana) || citaVentana._consulta : null
   return (
     <div className="space-y-4">
-      <section aria-label="Información general" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
-          <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
-          {ultima && diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
-        </div>
-        {ultima ? (
-          <div className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={18} /></div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
-              <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{etiquetaCorreccion(ultima.estadoCorreccion)}</p>
-              <p className="text-[11px] text-slate-500">Medido el {fechaLegible(ultima.fecha)}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
-            <p className="mt-1 text-sm text-slate-500">Todavía sin consultas.</p>
-          </div>
-        )}
-        <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Control recomendado</p>
-          {proximoControl ? (
-            <>
-              <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>{fechaLegible(proximoControl)}</p>
-              <p className={"text-[11px] " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
-                {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
-                {citaPendiente ? ` · Cita agendada: ${fechaLegible(citaPendiente.fecha)}` : ""}
-              </p>
-            </>
+      <section aria-label="Información general" className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Cuadro abierto={abierto} alternar={alternar} clave="ultima" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
+            <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
+            {ultima && diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
+          </Cuadro>
+          {ultima ? (
+            <Cuadro abierto={abierto} alternar={alternar} clave="correccion" className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={18} /></div>
+              <div className="min-w-0 pr-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
+                <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{etiquetaCorreccion(ultima.estadoCorreccion)}</p>
+                <p className="text-[11px] text-slate-500">Medido el {fechaLegible(ultima.fecha)}</p>
+              </div>
+            </Cuadro>
           ) : (
-            <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
+            <Cuadro abierto={abierto} alternar={alternar} clave="correccion" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
+              <p className="mt-1 text-sm text-slate-500">Todavía sin consultas.</p>
+            </Cuadro>
           )}
+          <Cuadro abierto={abierto} alternar={alternar} clave="control" className={"rounded-xl border p-3.5 " + (inactivo && !citaPendiente ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> {citaPendiente ? "Próximo control" : "Control recomendado"}</p>
+            {citaPendiente ? (
+              <>
+                <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(citaPendiente.fecha)}</p>
+                <p className="text-[11px] text-slate-500">Cita agendada{proximoControl ? " · recomendado: " + fechaLegible(proximoControl) : ""}</p>
+              </>
+            ) : proximoControl ? (
+              <>
+                <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>{fechaLegible(proximoControl)}</p>
+                <p className={"text-[11px] " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
+                  {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`} · sin cita agendada
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
+            )}
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="compras" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
+            <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
+            <p className="text-[11px] text-slate-500">${compras.monto.toFixed(2)} en total</p>
+          </Cuadro>
         </div>
-        <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
-          <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
-          <p className="text-[11px] text-slate-500">${compras.monto.toFixed(2)} en total</p>
-        </div>
+        {abierto === "ultima" && (
+          <Despliegue titulo="Última consulta" onCerrar={() => setAbierto(null)}>
+            <PanelUltimaConsulta consulta={ultima} cita={citaDeUltima} equipo={equipo} adjuntos={ultima && adjuntosDe(ultima)} onAbrirVentana={() => setCitaVentana(citaDeUltima || { id: "consulta-" + ultima.id, fecha: ultima.fecha, hora: "Sin cita", motivo: ultima.motivo, estado: "Atendida", _consulta: ultima })} />
+          </Despliegue>
+        )}
+        {abierto === "correccion" && (
+          <Despliegue titulo="Estado de corrección" onCerrar={() => setAbierto(null)}>
+            <PanelCorreccion consulta={ultima} etiqueta={ultima ? etiquetaCorreccion(ultima.estadoCorreccion) : ""} estado={ultima?.estadoCorreccion} tendencia={infoTendencia?.verdicto ? { txt: TENDENCIA_TEXTO[infoTendencia.verdicto] || tendencia?.label } : null} />
+          </Despliegue>
+        )}
+        {abierto === "control" && (
+          <Despliegue titulo="Control del paciente" onCerrar={() => setAbierto(null)}>
+            <PanelControl proximoControl={proximoControl} diasControl={diasControl} inactivo={inactivo} ultima={ultima} citaPendiente={citaPendiente} onAgendar={onAgendar} />
+          </Despliegue>
+        )}
+        {abierto === "compras" && (
+          <Despliegue titulo="Compras y lentes" onCerrar={() => setAbierto(null)}>
+            <PanelCompras comprobantes={comprobantes} onVerProductos={onVerProductos} />
+          </Despliegue>
+        )}
       </section>
 
-      <section aria-label="Fidelización" className="rounded-2xl border border-slate-200/60 bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <section aria-label="Fidelización" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
           <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
             Gestionar recordatorios en CRM <ChevronRight size={13} />
           </button>
         </div>
-        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
-            <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</dt>
-            <dd className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</dd>
-            <dd className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consulta${Math.max(0, 3 - fidelidad.consultas) === 1 ? "" : "s"} para ser cliente frecuente`}</dd>
-          </div>
-          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
-            <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</dt>
-            <dd className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</dd>
-            <dd className="text-xs text-slate-500">
-              {fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}
-              {fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}
-            </dd>
-          </div>
-          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
-            <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</dt>
-            <dd className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</dd>
-            <dd className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</dd>
-          </div>
-        </dl>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
+            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consulta${Math.max(0, 3 - fidelidad.consultas) === 1 ? "" : "s"} para ser cliente frecuente`}</p>
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</p>
+            <p className="text-xs text-slate-500">{fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}{fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}</p>
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</p>
+            <p className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
+          </Cuadro>
+        </div>
+        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} frecuente={fidelidad.frecuente} /></Despliegue>}
+        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={fidelidad.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
+        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={fidelidad.diasCumple} edad={fidelidad.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={parametrizacion?.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={fidelidad.onCrm} /></Despliegue>}
       </section>
 
-      <section aria-label="Citas del paciente" className="rounded-2xl border border-slate-200/60 bg-white p-4">
-        <h3 className="mb-3 text-sm font-bold" style={{ color: INK }}>Citas del paciente</h3>
+      <section aria-label="Citas del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+        <h3 className="text-sm font-bold" style={{ color: INK }}>Citas del paciente</h3>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {tarjetas.map((t) => (
-            <div key={t.clave} className="rounded-xl bg-slate-50 px-3.5 py-3">
+            <Cuadro key={t.clave} abierto={abierto} alternar={alternar} clave={t.clave} className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
               <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className={"h-2 w-2 rounded-full " + t.punto} aria-hidden="true" />{t.etiqueta}</dt>
               <dd className={"mt-0.5 text-2xl font-bold " + t.clase}>{t.valor}</dd>
-            </div>
+            </Cuadro>
           ))}
         </dl>
+        {titulosCita[abierto] && (
+          <Despliegue titulo={titulosCita[abierto]} onCerrar={() => setAbierto(null)}>
+            <PanelCitasEstado estado={abierto} citas={citasDe[abierto]} equipo={equipo} consultaDe={consultaDe} onVerAtencion={setCitaVentana} />
+          </Despliegue>
+        )}
       </section>
+
+      {citaVentana && consultaVentana && (
+        <ModalAtencion cita={citaVentana} consulta={consultaVentana} paciente={paciente} usuario={usuario} parametrizacion={parametrizacion} adjuntos={adjuntosDe(consultaVentana)} onCerrar={() => setCitaVentana(null)} />
+      )}
 
       <section aria-label="Citas por mes" className="rounded-2xl border border-slate-200/60 bg-white p-4">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
