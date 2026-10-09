@@ -237,10 +237,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     window.addEventListener("aviso-global", alAviso)
     return () => window.removeEventListener("aviso-global", alAviso)
   }, [])
+  // Acepta un texto o { texto, accion: { etiqueta, onClick } } (p. ej. "Deshacer"): con acción dura más para dar tiempo a usarla.
   const mostrarAviso = (mensaje) => {
     setAviso(mensaje)
     clearTimeout(timeoutAviso.current)
-    timeoutAviso.current = setTimeout(() => setAviso(null), 4000)
+    timeoutAviso.current = setTimeout(() => setAviso(null), mensaje?.accion ? 8000 : 4000)
   }
   // Destino pendiente cuando navegar() necesita confirmar que se van a
   // perder cambios sin guardar de la ficha clínica (antes: window.confirm
@@ -1042,8 +1043,17 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             })}
           </Suspense>
           {aviso && (
-            <div role="status" className="fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold shadow-xl" style={{ color: INK, animation: "rise-in 240ms ease-out both" }}>
-              {aviso}
+            <div role="status" className="fixed bottom-6 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold shadow-xl" style={{ color: INK, animation: "rise-in 240ms ease-out both" }}>
+              {aviso.texto ?? aviso}
+              {aviso.accion && (
+                <button
+                  type="button"
+                  onClick={() => { const accion = aviso.accion.onClick; setAviso(null); clearTimeout(timeoutAviso.current); accion() }}
+                  className="rounded-md px-2 py-0.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer"
+                >
+                  {aviso.accion.etiqueta}
+                </button>
+              )}
             </div>
           )}
         </div>
