@@ -367,7 +367,7 @@ export default function Inicio({
         {esVistaOptometra && (siguiente || citasLista.length > 0) && bSiguiente}
         <div className="divide-y divide-slate-100 px-5 py-4">
           {citasLista.length === 0 ? (
-            <EstadoVacio icon={Calendar} texto={tarjeta ? "Ninguna cita con ese resultado en el período." : periodo === "hoy" ? (esVistaOptometra ? "Hoy no tienes citas." : "Hoy no hay citas.") : "No hay citas en el período."} />
+            <EstadoVacio compacto icon={Calendar} texto={tarjeta ? "Ninguna cita con ese resultado en el período." : periodo === "hoy" ? (esVistaOptometra ? "Hoy no tienes citas." : "Hoy no hay citas.") : "No hay citas en el período."} />
           ) : (
             citasLista.slice(0, LIMITE_LISTA).map((cita, idx) => renderFilaCita(cita, idx, periodo !== "hoy", accionFila(cita)))
           )}
@@ -408,7 +408,7 @@ export default function Inicio({
       </div>
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         {nVender === 0 ? (
-          <EstadoVacio icon={esListaSaldos ? Wallet : ShoppingBag} texto={esListaSaldos ? "No hay saldos por cobrar." : tarjetaVenta === "proformas" ? "Nadie tiene una proforma en seguimiento." : "Cuando el optómetra pase a un paciente a la óptica, aparece aquí."} />
+          <EstadoVacio compacto icon={esListaSaldos ? Wallet : ShoppingBag} texto={esListaSaldos ? "No hay saldos por cobrar." : tarjetaVenta === "proformas" ? "Nadie tiene una proforma en seguimiento." : "Cuando el optómetra pase a un paciente a la óptica, aparece aquí."} />
         ) : (
           <ul className="divide-y divide-slate-100 px-5 py-2">
             {esListaSaldos
@@ -802,7 +802,12 @@ function InicioSkeleton() {
   )
 }
 
-function EstadoVacio({ icon: Icon, texto }) {
+function EstadoVacio({ icon: Icon, texto, compacto = false }) {
+  if (compacto) {
+    return (
+      <p className="flex items-center gap-2.5 px-5 py-4 text-sm font-medium text-slate-500"><Icon size={16} className="shrink-0 text-slate-400" aria-hidden="true" /> {texto}</p>
+    )
+  }
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
       <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300">

@@ -15,6 +15,15 @@ export default function RequiereAtencionPorArea({ bloques }) {
   // Los bloques con avisos van en columnas (cada uno con su alto, sin huecos); los que no tienen nada, en una franja de una línea.
   const conAvisos = bloques.filter((b) => b.filas.length > 0)
   const enOrden = bloques.filter((b) => b.filas.length === 0)
+  // Dos columnas repartidas por el alto de cada bloque (cada uno con su alto, sin huecos debajo del más corto): cada bloque va a la
+  // columna que lleva menos alto. En pantallas angostas las dos columnas se apilan.
+  const columnas = [[], []]
+  const altos = [0, 0]
+  for (const b of conAvisos) {
+    const i = altos[0] <= altos[1] ? 0 : 1
+    columnas[i].push(b)
+    altos[i] += 1 + Math.min(b.filas.length, AVISOS_POR_BLOQUE)
+  }
   return (
     <section id="requiere-atencion" aria-label="Requiere tu atención" className="scroll-mt-4 space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -22,8 +31,10 @@ export default function RequiereAtencionPorArea({ bloques }) {
         {total === 0 && <p className="text-xs text-slate-400">Todo en orden</p>}
       </div>
       {conAvisos.length > 0 && (
-        <div className="gap-3 md:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid">
-          {conAvisos.map((b) => {
+        <div className="flex flex-col gap-3 md:flex-row md:items-start">
+          {columnas.map((col, i) => (
+            <div key={i} className="flex min-w-0 flex-col gap-3 md:flex-1">
+              {col.map((b) => {
             const IconoBloque = b.icono
             const cantidad = cantidadDe(b)
             return (
@@ -60,6 +71,8 @@ export default function RequiereAtencionPorArea({ bloques }) {
               </section>
             )
           })}
+            </div>
+          ))}
         </div>
       )}
       {enOrden.length > 0 && (
