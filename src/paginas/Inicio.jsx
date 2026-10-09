@@ -1,6 +1,6 @@
 "use client"
 
-import { fechaHoraLegible, fechaCorta, fechaLegible } from "../utilidades/formatoFecha"
+import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
   Users,
@@ -18,11 +18,15 @@ import {
   UserX,
   Ban,
   UserCheck,
+  CalendarOff,
 } from "lucide-react"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
 import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
-import { fechaAISO } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { citasPorReasignar } from "../utilidades/reasignacion"
+import { miembrosActivos } from "../utilidades/equipo"
+import ReasignarCitasModal from "../componentes/ReasignarCitasModal"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
@@ -75,6 +79,8 @@ export default function Inicio({
   onVerCitas,
   nombreUsuario = "Diego",
   opticaNombre,
+  disponibilidad,
+  puedeReasignarCitas = false,
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
   // Período del "Desenlace de las citas": el mes en curso o todo lo registrado.
@@ -175,6 +181,7 @@ export default function Inicio({
   // Atenciones que se abrieron un día anterior y nadie cerró.
   const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
   const [dejarCita, setDejarCita] = useState(null)
+  const [reasignarGrupo, setReasignarGrupo] = useState(null) // { fecha, personaId, personaNombre, citas } de una ausencia con citas por pasar
   const [confirmarPaciente, setConfirmarPaciente] = useState(null) // paciente de la web cuyos datos recepción aún no confirma
   // Señal de "qué cambió" en el KPI de pacientes (antes solo mostraba el
   // número del momento, sin ningún punto de comparación) — cuántos se
@@ -446,6 +453,16 @@ export default function Inicio({
       acciones: [{ etiqueta: "Ver pacientes", onClick: () => onVerPacientes ? onVerPacientes({ rapido: "ControlSinAgendar" }) : setVista?.("pacientes") }],
     })
   }
+  // Ausencias registradas en "Mi horario" con citas abiertas de esa persona: solo para quien puede reasignar (permiso, no rol).
+  if (puedeReasignarCitas) {
+    citasPorReasignar(citas, disponibilidad, hoyISO()).slice(0, 3).forEach((g) => filasAtencion.push({
+      id: "ausencia-" + g.personaId + "-" + g.fecha,
+      icono: CalendarOff,
+      titulo: `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} estará ausente el ${formatoFecha(g.fecha, "largo")}`,
+      detalle: plural(g.citas.length, "cita por reasignar", "citas por reasignar"),
+      acciones: [{ etiqueta: "Reasignar citas", principal: true, onClick: () => setReasignarGrupo(g) }],
+    }))
+  }
   if (incCanceladas) {
     paraReagendar.slice(0, 3).forEach((cita) => filasAtencion.push({
       id: "reagendar-" + cita.id,
@@ -529,6 +546,20 @@ export default function Inicio({
       setCitas={setCitas}
       onCancelar={() => setDejarCita(null)}
       onHecho={(mensaje) => { setDejarCita(null); onAviso?.(mensaje) }}
+    />
+  )
+
+  const bReasignar = reasignarGrupo && (
+    <ReasignarCitasModal
+      grupo={reasignarGrupo}
+      personas={miembrosActivos(equipo).filter((m) => m.esOptometra)}
+      disponibilidad={disponibilidad}
+      onCerrar={() => setReasignarGrupo(null)}
+      onHecho={(hechas, completo) => {
+        setCitas?.((previas) => previas.map((c) => { const h = hechas.find((x) => x.id === c.id); return h ? { ...c, asignadoA: h.asignadoA, asignadoOriginal: h.asignadoOriginal } : c }))
+        if (completo) setReasignarGrupo(null)
+        onAviso?.(`${plural(hechas.length, "cita reasignada", "citas reasignadas")}.`)
+      }}
     />
   )
 
@@ -617,6 +648,7 @@ export default function Inicio({
       {bResumenDia}
       {bDejarCita}
       {bConfirmarPaciente}
+      {bReasignar}
 
       {plantilla === "administrador" && (
         <>

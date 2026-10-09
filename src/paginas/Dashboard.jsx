@@ -62,6 +62,7 @@ import { INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
+import { puedeReasignar } from "../utilidades/reasignacion"
 import { citasPropias } from "../utilidades/inicio"
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
@@ -671,6 +672,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inicio":
         return (
           <Inicio
+            disponibilidad={disponibilidad}
+            puedeReasignarCitas={puedeReasignar(usuario, alcanceDeVista("citas"))}
             setPacientes={setPacientes}
             onVerPacientes={(filtro) => { setAccionPacienteInicio({ accion: "filtrar", ...filtro }); navegar("pacientes") }}
             umbralStock={umbralStock(parametrizacion)}
