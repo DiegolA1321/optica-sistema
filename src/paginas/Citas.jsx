@@ -49,7 +49,7 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles } from "../utilidades/disponibilidad"
+import { isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
@@ -218,7 +218,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
 const FILTRO_POR_DEFECTO = "hoy"
 const PAGINA_LISTA = 30
 
-export default function Citas({ usuario, onAviso, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -1194,6 +1194,35 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
   // "Agendar" desde el modal del día: el formulario se abre con ese día (y la hora libre sobre la que se hizo clic, si la hubo).
+  // Abrir (o volver a cerrar) un día no laborable: una excepción de esa fecha en el horario. Solo con "Mi horario: editar"; la base
+  // también lo exige. Queda en la actividad con quién lo hizo, y la excepción guarda quién la abrió.
+  const puedeEditarHorario = puede(usuario, "horario", "editar") && !!setDisponibilidad
+  const abrirDia = async (iso, sesiones, reservasWeb, agendar) => {
+    const horas = [["manana", sesiones.manana], ["tarde", sesiones.tarde]].filter(([, s]) => s.activo).map(([, s]) => `${horaA12(s.inicio)}–${horaA12(s.fin)}`).join(" y ")
+    const excepcion = { ...(disponibilidad?.excepciones?.[iso] || {}), manana: sesiones.manana, tarde: sesiones.tarde, reservasWeb, abiertoPor: { id: usuario?.id || null, nombre: usuario?.nombre || "", en: new Date().toISOString() } }
+    const { error } = await setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [iso]: excepcion } }))
+    if (error) { onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo abrir el día. Revisa tu conexión e intenta de nuevo."); return false }
+    registrarLog(usuario, "horario", "Abrió un día cerrado", `${formatoFecha(iso, "calendario")} · ${horas} · ${reservasWeb ? "también reservas web" : "solo personal"}`)
+    onAviso?.(`${formatoFecha(iso, "calendario")} abierto (${horas}).`)
+    if (agendar) agendarDesdeDia(iso, null)
+    return true
+  }
+  const cerrarDiaAbierto = async (iso) => {
+    const n = citasQueBloqueanCierre(citas, iso).length
+    if (n > 0) { onAviso?.(mensajeCierreBloqueado(n)); return }
+    const previa = disponibilidad?.excepciones?.[iso] || {}
+    const { error } = await setDisponibilidad((prev) => {
+      const excepciones = { ...prev.excepciones }
+      if ((previa.ausencias || []).length > 0) {
+        const { reservasWeb: _w, abiertoPor: _a, ...resto } = previa
+        excepciones[iso] = { ...resto, manana: { ...resto.manana, activo: false }, tarde: { ...resto.tarde, activo: false } }
+      } else delete excepciones[iso]
+      return { ...prev, excepciones }
+    })
+    if (error) { onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo cerrar el día. Revisa tu conexión e intenta de nuevo."); return }
+    registrarLog(usuario, "horario", "Volvió a cerrar un día abierto", formatoFecha(iso, "calendario"))
+    onAviso?.(`${formatoFecha(iso, "calendario")} vuelve a estar cerrado.`)
+  }
   const [sinAnimarFondo, setSinAnimarFondo] = useState(false)
   const [detalleSinAnimar, setDetalleSinAnimar] = useState(false) // el detalle se abre desde el modal del día: el fondo ya está, no se anima otra vez
   const agendarDesdeDia = (iso, minutos) => {
@@ -1552,6 +1581,9 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           onCerrar={() => setDiaModal(null)}
           onAbrirDetalle={(c) => { setDiaModal(null); abrirDetalle(c, true) }}
           onAgendar={puede(usuario, "citas", "crear") ? agendarDesdeDia : undefined}
+          puedeEditarHorario={puedeEditarHorario}
+          onAbrirDia={abrirDia}
+          onCerrarDia={cerrarDiaAbierto}
         />
       )}
 

@@ -617,6 +617,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <Citas
             usuario={usuario}
+            setDisponibilidad={setDisponibilidad}
             cargaInicial={cargaInicialStaff}
             citas={citas}
             setCitas={setCitas}
