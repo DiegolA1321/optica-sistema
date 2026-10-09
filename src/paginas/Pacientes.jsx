@@ -2641,13 +2641,13 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 
       {(proxima || historialCompleto.length > 0) && <section aria-label="Historial de citas">
         <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Historial de citas · {hayFiltro ? historial.length + " de " + historialCompleto.length : historialCompleto.length}</h3>
-        {historialCompleto.length > 5 && (
-          <div role="search" aria-label="Buscar en el historial de citas" className="mb-3 flex flex-wrap items-end gap-x-3 gap-y-2 rounded-2xl border border-slate-200/60 bg-white p-3">
-            <label className="min-w-0 flex-1 basis-48 text-xs font-semibold text-slate-500">
-              Buscar
-              <span className="relative mt-1 block">
+        {historialCompleto.length > 0 && (
+          <div role="search" aria-label="Buscar en el historial de citas" className="mb-3 flex flex-wrap items-start gap-x-2 gap-y-2 rounded-2xl border border-slate-200/60 bg-white p-2">
+            <label className="min-w-0 flex-1 basis-48">
+              <span className="sr-only">Buscar por motivo o diagnóstico</span>
+              <span className="relative block">
                 <Search size={14} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="search" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Motivo o diagnóstico" className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
+                <input type="search" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Motivo o diagnóstico" className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500" />
               </span>
             </label>
             <div className="w-56 shrink-0">
