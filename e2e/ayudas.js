@@ -150,6 +150,18 @@ export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0
   return nombre
 }
 
+// Cancela las citas de prueba de esos pacientes (con la sesión de Recepción). Una prueba que deja a alguien "En Espera" la usa al
+// terminar, para no alterar quién es el "Siguiente paciente" de las pruebas que corren después en la misma óptica.
+export async function cancelarCitasDePrueba(nombres, entorno = 'E2E') {
+  const { createClient } = await import('@supabase/supabase-js')
+  const { correo, clave } = credencial('RECEPCION', entorno)
+  const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { error: errorSesion } = await cliente.auth.signInWithPassword({ email: correo, password: clave })
+  if (errorSesion) throw new Error('No se pudo iniciar la sesión de Recepción para limpiar las citas de prueba.')
+  const { error } = await cliente.from('citas').update({ estado: 'Cancelada' }).in('paciente', nombres)
+  if (error) throw new Error(`No se pudieron cancelar las citas de prueba: ${error.message}`)
+}
+
 // ── Datos propios del Inicio (avisos de "Requiere tu atención") en la óptica de pruebas ──
 // Deja, de forma idempotente (no repite lo que ya existe), lo que las pruebas del Inicio necesitan ver y no deben pedirle
 // prestado a la Demo: un producto con stock bajo, un paciente con el control vencido y una orden de laboratorio atrasada.
