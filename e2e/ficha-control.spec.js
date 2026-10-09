@@ -21,9 +21,9 @@ test('ficha clínica: el control exige elegir agendar ahora o después', async (
   // Se espera a que los datos estén cargados (no un tiempo fijo): primero la fila del paciente y luego su perfil, con holgura para un equipo cargado.
   const fila = page.getByText('Karla Párraga Vera').first()
   await expect(fila).toBeVisible({ timeout: 45_000 })
-  await fila.click()
-  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
-  await page.getByRole('button', { name: 'Ficha clínica' }).first().click()
+  // El perfil ya no trae el botón "Ficha clínica" (se entra por la cita); sin cita se usa la acción de la lista.
+  await page.locator('tr', { hasText: 'Karla Párraga Vera' }).getByRole('button', { name: 'Más acciones' }).click()
+  await page.getByRole('button', { name: 'Nueva ficha clínica' }).click()
   // Si el paciente tiene citas pendientes se pregunta por cuál entrar; Karla no tiene.
   await expect(page.getByLabel(/Motivo de la consulta/i)).toBeVisible({ timeout: 20_000 })
   await page.getByLabel(/Motivo de la consulta/i).selectOption({ index: 1 })
