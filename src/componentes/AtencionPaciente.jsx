@@ -31,10 +31,10 @@ export function SinInformacion({ Icono = Sparkles, titulo, texto, children }) {
 }
 
 // Ventana del sistema: cabecera blanca con el ícono de marca, igual que el detalle de la cita.
-function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope }) {
+function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50" }) {
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+    <div className={"fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm " + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
       <div ref={refModal} role="dialog" aria-modal="true" aria-label={titulo} className={"flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl " + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -133,6 +133,7 @@ export function ModalDatosPaciente({ paciente, onEditar, onCerrar }) {
       titulo="Datos del paciente"
       subtitulo={paciente.nombre}
       Icono={IdCard}
+      capa="z-40"
       onCerrar={onCerrar}
       ancho="max-w-2xl"
       pie={<>

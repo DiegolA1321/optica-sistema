@@ -1800,7 +1800,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
       {/* ─── MODAL HISTORIAL CLÍNICO ─── */}
       {pacienteHistorial && createPortal(
-        <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 320ms ease-out" }}>
+        <div className="absolute inset-0 z-20 flex flex-col overflow-hidden" style={{ backgroundColor: "#F7F5F0", animation: "rise-in 320ms ease-out" }}>
           {/* Barra superior de la vista — una sola forma de salir: "← Pacientes" (Escape también cierra). */}
           {(() => {
             const botonVolver = (
@@ -1899,24 +1899,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                {(() => {
-                  const fn = pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento
-                  const ultima = consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion)[0]
-                  const corr = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
-                  const fila = (etiqueta, valor) => (
-                    <div>
-                      <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
-                      <dd className="mt-0.5 text-sm text-slate-800">{valor}</dd>
-                    </div>
-                  )
-                  return (
-                    <dl className="hidden shrink-0 space-y-2 border-l border-slate-100 pl-5 lg:block lg:self-center">
-                      {fila("Edad", edadPaciente != null ? <span className="font-semibold">{edadPaciente} años</span> : <span className="text-slate-400">Sin fecha de nacimiento</span>)}
-                      {fila("Última visita", ultima ? <span className="whitespace-nowrap font-semibold">{fechaLegible(ultima.fecha)}</span> : <span className="text-slate-400">Sin consultas</span>)}
-                      {fila("Corrección", corr ? <span title={etiquetaCorreccion(ultima.estadoCorreccion)} className={"inline-flex max-w-[10rem] items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold " + corr.clase}><corr.icon size={12} className="shrink-0" aria-hidden="true" /> <span className="truncate">{etiquetaCorreccion(ultima.estadoCorreccion)}</span></span> : <span className="text-slate-400">Sin consultas</span>)}
-                    </dl>
-                  )
-                })()}
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:max-w-[30rem] lg:shrink-0 lg:justify-end lg:border-t-0 lg:pt-0">
                   <button
                     type="button"
@@ -2325,7 +2307,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       {verDatosPaciente && pacienteHistorial && (
         <ModalDatosPaciente
           paciente={pacienteHistorial}
-          onEditar={puedeEditarPaciente ? () => { setVerDatosPaciente(false); abrirEdicion(pacienteHistorial) } : undefined}
+          onEditar={puedeEditarPaciente ? () => abrirEdicion(pacienteHistorial) : undefined}
           onCerrar={() => setVerDatosPaciente(false)}
         />
       )}
