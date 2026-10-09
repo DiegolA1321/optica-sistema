@@ -52,12 +52,14 @@ import {
   Globe,
   Clock,
   Star,
+  BarChart3,
   Building2,
   HelpCircle,
   MessageCircle,
   FlaskConical,
 } from "lucide-react"
 import CamposCita from "../componentes/CamposCita"
+import { contarCitas, citasPorMes, diaMasFrecuente } from "../utilidades/resumenCitas"
 import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
@@ -2131,6 +2133,18 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     <button
                       type="button"
                       role="tab"
+                      id="tab-resumen"
+                      aria-selected={tabHistorial === "resumen"}
+                      aria-controls="panel-paciente"
+                      onClick={() => setTabHistorial("resumen")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "resumen" ? { background: GRAD } : undefined}
+                    >
+                      <BarChart3 size={14} /> Resumen
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
                       id="tab-pagos"
                       aria-selected={tabHistorial === "pagos"}
                       aria-controls="panel-paciente"
@@ -2178,87 +2192,27 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </button>
                   </div>
 
-                  {/* ─── RESUMEN VISUAL: métricas clave de un vistazo, sin
-                      tener que entrar a ninguna pestaña ─── */}
-                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
-                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(consultasPaciente[0]?.fecha) || "—"}</p>
-                      {diasDesdeUltimaVisita(pacienteHistorial, consultas) !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita(pacienteHistorial, consultas)} día{diasDesdeUltimaVisita(pacienteHistorial, consultas) === 1 ? "" : "s"}</p>}
-                    </div>
-                    <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
-                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{totalComprasCount}</p>
-                      <p className="text-[11px] text-slate-500">${totalComprasMonto.toFixed(2)} en total</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-                      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Star size={12} /> Puntaje de fidelidad</p>
-                      <p className="mt-1 text-base font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
-                      <p className="text-[11px] text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
-                    </div>
-                  </div>
-
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
                       pestaña para que "rise-in" (ya estándar en el resto del
                       sistema, 320ms) se dispare de nuevo — antes el
                       contenido cambiaba de golpe sin ninguna transición. */}
                   <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
-                    {tabHistorial === "citas" ? (
+                    {tabHistorial === "resumen" ? (
+                      <PanelResumenPaciente
+                        consultas={consultasPaciente}
+                        citas={citasPaciente}
+                        inactivo={inactivo}
+                        proximoControl={proximoControl}
+                        diasControl={diasControl}
+                        diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
+                        controlPorAgendar={controlPorAgendar}
+                        compras={{ cantidad: totalComprasCount, monto: totalComprasMonto }}
+                        fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste }}
+                        onAgendar={puedeAgendar ? (fecha, asignado) => abrirAgendar(pacienteHistorial, fecha, asignado) : undefined}
+                        equipo={equipo}
+                      />
+                    ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
-                        {consultasPaciente.length > 0 && (() => {
-                          const ultima = consultasPaciente[0]
-                          const correccion = CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"]
-                          const IconoCorreccion = correccion.icon
-                          const tendencia = TENDENCIA[tendenciaEntreConsultas(consultasPaciente)?.verdicto]
-                          const colorEstado = CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"]
-                          return (
-                            <>
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
-                                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={20} /></div>
-                                  <div>
-                                    <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{etiquetaCorreccion(ultima.estadoCorreccion)}</p>
-                                    <p className="text-xs text-slate-500">Estado de corrección más reciente · {fechaLegible(ultima.fecha)}</p>
-                                  </div>
-                                </div>
-                                <div className={"rounded-2xl border p-4 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
-                                  <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={13} /> Próximo control</p>
-                                  {proximoControl ? (
-                                    <>
-                                      <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>
-                                        {fechaLegible(proximoControl)}
-                                      </p>
-                                      <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
-                                        {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
-                                      </p>
-                                      {(controlPorAgendar || inactivo) && (
-                                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial, fechaAISO(proximoControl), asignadoDelControl(controlPorAgendar?.consulta || ultima, equipo))} title="Agendar su control recomendado" className={"mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer " + (inactivo ? "border-red-200 bg-white text-red-700 hover:bg-red-50" : "border-amber-300/70 bg-amber-50 text-amber-800 hover:bg-amber-100")}>
-                                          <CalendarPlus size={13} aria-hidden="true" /> {controlPorAgendar ? "Control sin agendar · Agendar" : "Agendar control"}
-                                        </button>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl border border-slate-200/60 bg-white p-4">
-                                <div className="mb-3 flex flex-wrap items-center gap-3">
-                                  <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-                                  {tendencia && (
-                                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
-                                      <tendencia.icon size={12} /> {tendencia.label}
-                                    </span>
-                                  )}
-                                </div>
-                                <TendenciaGraduacion consultas={[...consultasPaciente].reverse()} />
-                              </div>
-
-                              <p className="flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
-                            </>
-                          )
-                        })()}
                         <PanelCitasPaciente
                         citas={citasPaciente}
                         consultas={consultasPaciente}
@@ -2821,6 +2775,129 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
         )}
       </section>
       {citaAbierta && consultaDe(citaAbierta) && <ModalDiagnosticoCita cita={citaAbierta} consulta={consultaDe(citaAbierta)} onCerrar={() => setCitaAbierta(null)} />}
+    </div>
+  )
+}
+
+// ─── Perfil del paciente: pestaña Resumen ───
+// Lo que antes se mezclaba con las citas: cómo va el paciente (corrección, próximo control, compras, fidelidad),
+// la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
+function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, controlPorAgendar, compras, fidelidad, onAgendar, equipo }) {
+  const ultima = consultas[0]
+  const correccion = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
+  const IconoCorreccion = correccion?.icon
+  const colorEstado = ultima ? CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"] : null
+  const tendencia = TENDENCIA[tendenciaEntreConsultas(consultas)?.verdicto]
+  const conteo = contarCitas(citas)
+  const meses = citasPorMes(citas, hoyISO(), 12)
+  const maximo = Math.max(1, ...meses.map((m) => m.total))
+  const totalMeses = meses.reduce((a, m) => a + m.total, 0)
+  const frecuente = diaMasFrecuente(citas)
+  const tarjetas = [
+    { clave: "pendientes", etiqueta: "Pendientes", valor: conteo.pendientes, clase: "text-amber-700", punto: "bg-amber-500" },
+    { clave: "atendidas", etiqueta: "Atendidas", valor: conteo.atendidas, clase: "text-emerald-700", punto: "bg-emerald-500" },
+    { clave: "noAsistio", etiqueta: "No asistió", valor: conteo.noAsistio, clase: "text-red-700", punto: "bg-red-500" },
+    { clave: "canceladas", etiqueta: "Canceladas", valor: conteo.canceladas, clase: "text-slate-600", punto: "bg-slate-400" },
+  ]
+  return (
+    <div className="space-y-4">
+      <section aria-label="Información general" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
+          <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
+          {diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
+        </div>
+        {ultima ? (
+          <div className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={18} /></div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
+              <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{etiquetaCorreccion(ultima.estadoCorreccion)}</p>
+              <p className="text-[11px] text-slate-500">Medido el {fechaLegible(ultima.fecha)}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
+            <p className="mt-1 text-sm text-slate-500">Todavía sin consultas.</p>
+          </div>
+        )}
+        <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Próximo control</p>
+          {proximoControl ? (
+            <>
+              <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>{fechaLegible(proximoControl)}</p>
+              <p className={"text-[11px] " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
+                {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
+              </p>
+              {onAgendar && (controlPorAgendar || inactivo) && (
+                <button type="button" onClick={() => onAgendar(fechaAISO(proximoControl), asignadoDelControl(controlPorAgendar?.consulta || ultima, equipo))} className={"mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer " + (inactivo ? "border-red-200 bg-white text-red-700 hover:bg-red-50" : "border-amber-300/70 bg-amber-50 text-amber-800 hover:bg-amber-100")}>
+                  <CalendarPlus size={13} aria-hidden="true" /> {controlPorAgendar ? "Control sin agendar · Agendar" : "Agendar control"}
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
+          )}
+        </div>
+        <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
+          <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
+          <p className="text-[11px] text-slate-500">${compras.monto.toFixed(2)} en total</p>
+        </div>
+        <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Star size={12} /> Puntaje de fidelidad</p>
+          <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
+          <p className="text-[11px] text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"}</p>
+        </div>
+      </section>
+
+      <section aria-label="Citas del paciente" className="rounded-2xl border border-slate-200/60 bg-white p-4">
+        <h3 className="mb-3 text-sm font-bold" style={{ color: INK }}>Citas del paciente</h3>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {tarjetas.map((t) => (
+            <div key={t.clave} className="rounded-xl bg-slate-50 px-3.5 py-3">
+              <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className={"h-2 w-2 rounded-full " + t.punto} aria-hidden="true" />{t.etiqueta}</dt>
+              <dd className={"mt-0.5 text-2xl font-bold " + t.clase}>{t.valor}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section aria-label="Citas por mes" className="rounded-2xl border border-slate-200/60 bg-white p-4">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h3 className="text-sm font-bold" style={{ color: INK }}>Citas por mes <span className="font-normal text-slate-500">· últimos 12 meses</span></h3>
+          {frecuente && <p className="text-xs text-slate-500">Suele venir los <span className="font-semibold text-slate-700">{frecuente.dia}</span> ({frecuente.veces} de sus {conteo.atendidas} citas atendidas)</p>}
+        </div>
+        {totalMeses === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-sm text-slate-500">Sin citas en los últimos 12 meses.</p>
+        ) : (
+          <div role="img" aria-label={"Citas por mes: " + meses.filter((m) => m.total > 0).map((m) => m.etiqueta + " " + m.anio + ": " + m.total).join(", ")} className="flex h-40 items-end gap-1.5 sm:gap-2">
+            {meses.map((m) => (
+              <div key={m.clave} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={m.etiqueta + " " + m.anio + ": " + m.total + (m.total === 1 ? " cita" : " citas")}>
+                <span className="text-[11px] font-semibold text-slate-600">{m.total > 0 ? m.total : ""}</span>
+                <div className="w-full max-w-9 rounded-t-md" style={{ height: m.total > 0 ? Math.max(6, (m.total / maximo) * 100) + "px" : "2px", background: m.total > 0 ? GRAD : "#e2e8f0" }} />
+                <span className="text-[11px] text-slate-500">{m.etiqueta}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {consultas.length > 0 && (
+        <section aria-label="Tendencia de graduación" className="rounded-2xl border border-slate-200/60 bg-white p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
+            {tendencia && (
+              <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
+                <tendencia.icon size={12} /> {tendencia.label}
+              </span>
+            )}
+          </div>
+          <TendenciaGraduacion consultas={[...consultas].reverse()} />
+          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
+        </section>
+      )}
     </div>
   )
 }
