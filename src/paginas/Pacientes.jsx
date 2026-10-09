@@ -2177,11 +2177,21 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
+                        {/* Para las ventas sin receta (un líquido, un estuche...). La venta de la receta sale solo de la alerta "Listo para venta". */}
+                        {puedeVender && <button
+                          type="button"
+                          onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
+                          className="flex w-full flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer"
+                          style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+                        >
+                          <span className="flex items-center gap-2"><Receipt size={16} /> Nueva venta</span>
+                          <span className="text-[11px] font-medium opacity-90">Venta sin receta: productos y servicios, con pago directo, tarjeta o cuotas</span>
+                        </button>}
                         {comprobantesPaciente.length === 0 ? (
                           <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
-                            <p className="max-w-sm text-xs text-slate-400">Cuando una ficha deje una receta, aparece arriba "Listo para venta". Las demás ventas se registran en Ventas.</p>
+                            <p className="max-w-sm text-xs text-slate-400">Cuando una ficha deje una receta, aparece arriba "Listo para venta".</p>
                           </div>
                         ) : (
                           <section aria-label="Compras del paciente">
