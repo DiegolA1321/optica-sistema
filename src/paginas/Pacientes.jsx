@@ -2042,6 +2042,10 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               const paseListo = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
               const controlPorAgendar = sinAgendarPorPaciente.get(pacienteHistorial.id)
+              // Control del paciente: vencido, o recomendado y todavía sin cita. Es una alerta de arriba, con su botón para agendar,
+              // para cualquier paciente (con o sin consultas) mientras no tenga una cita pendiente.
+              const hayCitaPendiente = citasPaciente.some((c) => ESTADOS_PENDIENTES.includes(c.estado))
+              const alertaControl = proximoControl && !hayCitaPendiente ? (inactivo ? "vencido" : controlPorAgendar ? "sinAgendar" : null) : null
 
               return (
                 <>
@@ -2049,7 +2053,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(paseListo || abiertasPaciente.length > 0 || (proximoControl && consultasPaciente.length === 0) || (diasCumple != null && diasCumple <= 30)) && (
+                  {(paseListo || abiertasPaciente.length > 0 || (alertaControl || (proximoControl && !inactivo && consultasPaciente.length === 0)) || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
@@ -2064,17 +2068,23 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>
                         </span>
                       ))}
-                      {proximoControl && consultasPaciente.length === 0 && (inactivo ? (
-                        <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} title="Agendar su próximo control" className="inline-flex items-center gap-1.5 rounded-full border border-red-200/60 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer">
-                          <AlertTriangle size={13} aria-hidden="true" /> Control vencido hace {diasControl} día{diasControl === 1 ? "" : "s"} · Agendar
-                        </button>
-                      ) : (
+                      {alertaControl && (() => {
+                        const texto = alertaControl === "vencido" ? `Control vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Control sin agendar para el ${fechaLegible(proximoControl)}`
+                        const clase = alertaControl === "vencido" ? "border-red-200/60 bg-red-50 text-red-700" : "border-amber-300/70 bg-amber-50 text-amber-800"
+                        if (!puedeAgendar) return <span className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold " + clase}><AlertTriangle size={13} aria-hidden="true" /> {texto}</span>
+                        return (
+                          <button type="button" onClick={() => abrirAgendar(pacienteHistorial, controlPorAgendar ? fechaAISO(proximoControl) : "", controlPorAgendar ? asignadoDelControl(controlPorAgendar.consulta, equipo) : "")} title="Agendar su próximo control" className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors hover:brightness-95 cursor-pointer " + clase}>
+                            <AlertTriangle size={13} aria-hidden="true" /> {texto} · Agendar
+                          </button>
+                        )
+                      })()}
+                      {!alertaControl && proximoControl && !inactivo && consultasPaciente.length === 0 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
                           <Calendar size={13} className="text-slate-500" aria-hidden="true" />
                           Próximo control: {fechaLegible(proximoControl)}
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
-                      ))}
+                      )}
                       {diasCumple != null && diasCumple <= 30 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "rgba(200,162,78,0.4)", backgroundColor: "rgba(200,162,78,0.1)", color: "#7c5e14" }}>
                           <Cake size={13} aria-hidden="true" /> {diasCumple === 0 ? "Hoy cumple años" : `Cumple años en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`}
@@ -2215,11 +2225,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         proximoControl={proximoControl}
                         diasControl={diasControl}
                         diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
-                        controlPorAgendar={controlPorAgendar}
                         compras={{ cantidad: totalComprasCount, monto: totalComprasMonto }}
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste }}
-                        onAgendar={puedeAgendar ? (fecha, asignado) => abrirAgendar(pacienteHistorial, fecha, asignado) : undefined}
-                        equipo={equipo}
                       />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
@@ -2792,7 +2799,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 // ─── Perfil del paciente: pestaña Resumen ───
 // Lo que antes se mezclaba con las citas: cómo va el paciente (corrección, próximo control, compras, fidelidad),
 // la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
-function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, controlPorAgendar, compras, fidelidad, onAgendar, equipo }) {
+function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad }) {
   const ultima = consultas[0]
   const correccion = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
   const IconoCorreccion = correccion?.icon
@@ -2840,11 +2847,6 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
               <p className={"text-[11px] " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
                 {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
               </p>
-              {onAgendar && (controlPorAgendar || inactivo) && (
-                <button type="button" onClick={() => onAgendar(fechaAISO(proximoControl), asignadoDelControl(controlPorAgendar?.consulta || ultima, equipo))} className={"mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer " + (inactivo ? "border-red-200 bg-white text-red-700 hover:bg-red-50" : "border-amber-300/70 bg-amber-50 text-amber-800 hover:bg-amber-100")}>
-                  <CalendarPlus size={13} aria-hidden="true" /> {controlPorAgendar ? "Control sin agendar · Agendar" : "Agendar control"}
-                </button>
-              )}
             </>
           ) : (
             <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
