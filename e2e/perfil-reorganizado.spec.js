@@ -16,7 +16,7 @@ const foto = async (page, nombre) => {
 }
 
 // El de la cabecera del perfil (con texto); el de la fila de la lista, detrás, solo tiene ícono.
-const botonAgendar = (page) => page.getByRole('button', { name: 'Agendar cita' }).filter({ hasText: 'Agendar cita' })
+const botonAgendar = (page) => page.getByRole('button', { name: 'Agendar cita' }).filter({ hasText: 'Agendar cita' }).first()
 
 async function abrirPerfil(page, nombre, prefijo = 'OPTOMETRA') {
   await iniciarSesion(page, prefijo, 'E2E')
@@ -82,7 +82,7 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(conteos.locator('dd').nth(1)).toHaveText('0') // atendidas
   await expect(page.getByRole('img', { name: /^Citas por mes:/ })).toBeVisible()
   await expect(page.getByText('Última consulta')).toBeVisible()
-  await expect(page.getByText('Puntaje de fidelidad')).toBeVisible()
+  await expect(page.getByText('Puntaje de fidelidad'), 'la fidelidad vive solo en su pestaña').toHaveCount(0)
   await foto(page, 'reorganizado-4-resumen')
   await page.getByRole('img', { name: /^Citas por mes:/ }).scrollIntoViewIfNeeded()
   await foto(page, 'reorganizado-4b-resumen-grafico')
