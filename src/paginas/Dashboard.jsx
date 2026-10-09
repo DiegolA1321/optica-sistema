@@ -265,6 +265,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [citaParaAtender, setCitaParaAtender] = useState(null)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
+  const [verStockBajoAlEntrar, setVerStockBajoAlEntrar] = useState(false)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
   const [fichaClinicaMotivoInicial, setFichaClinicaMotivoInicial] = useState(null)
   // Viaja junto a fichaClinicaPacienteInicial cuando la ficha se abre desde
@@ -608,6 +609,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onModalAlEntrarConsumido={() => setAbrirCrearProductoAlEntrar(false)}
             productoIdParaReabastecer={productoIdParaReabastecer}
             onProductoParaReabastecerConsumido={() => setProductoIdParaReabastecer(null)}
+            verStockBajoAlEntrar={verStockBajoAlEntrar}
+            onVerStockBajoConsumido={() => setVerStockBajoAlEntrar(false)}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAviso={mostrarAviso}
             {...extra}
@@ -705,6 +708,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
+            onVerSaldos={() => { setAccionVentasInicio({ tab: "saldos" }); navegar("ventas") }}
+            onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
             onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}

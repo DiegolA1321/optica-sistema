@@ -66,6 +66,8 @@ export default function Inventario({
   onAviso,
   productoIdParaReabastecer = null,
   onProductoParaReabastecerConsumido,
+  verStockBajoAlEntrar = false,
+  onVerStockBajoConsumido,
   onVerPerfil,
 }) {
   const opticaId = usuario?.opticaId
@@ -195,9 +197,10 @@ export default function Inventario({
         setErroresForm({ general: esErrorSinPermiso(errorInsert) ? MENSAJE_SIN_PERMISO : "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo." })
         return
       }
-      if (data) nuevo.id = data.id
+      if (data) { nuevo.id = data.id; nuevo.creadoEn = data.created_at }
     }
     if (nuevo.id == null) nuevo.id = Date.now()
+    if (!nuevo.creadoEn) nuevo.creadoEn = new Date().toISOString()
 
     setProductos([nuevo, ...productos])
     registrarLog(usuario, "inventario", "Agregó un producto al inventario", nuevo.nombre)
@@ -313,6 +316,15 @@ export default function Inventario({
     onProductoParaReabastecerConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productoIdParaReabastecer])
+
+  // Desde "Ver todo" del bloque Inventario del Inicio: abre la lista ya acotada al stock bajo.
+  useEffect(() => {
+    if (!verStockBajoAlEntrar) return
+    setSoloBajo(true)
+    setFiltroCategoria("Todas")
+    onVerStockBajoConsumido?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verStockBajoAlEntrar])
 
   // Atajo: suma unidades al campo de existencia sin salir del modal — no
   // hace un guardado aparte, solo actualiza el número que se persiste junto

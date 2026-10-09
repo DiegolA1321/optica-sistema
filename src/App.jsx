@@ -164,7 +164,7 @@ function mapPaciente(p) {
 }
 // Un producto del inventario tal como lo usa la pantalla (se usa al cargar y al refrescar cada 20 s).
 function mapProducto(p) {
-  return { id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false }
+  return { id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false, creadoEn: p.created_at }
 }
 
 function mapCita(c) {
