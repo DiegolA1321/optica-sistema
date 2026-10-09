@@ -2805,7 +2805,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
         <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
           <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
-          {diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
+          {ultima && diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
         </div>
         {ultima ? (
           <div className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
