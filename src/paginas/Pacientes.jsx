@@ -2156,7 +2156,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       style={tabHistorial === "fidelizacion" ? { background: GRAD } : undefined}
                     >
                       <Heart size={14} /> Fidelización
-                      {inactivo && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "fidelizacion" ? "bg-white/25 text-white" : "bg-red-100 text-red-700")}>Vencido</span>}
                     </button>
                   </div>
 
@@ -2174,7 +2173,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         diasControl={diasControl}
                         diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
                         compras={{ cantidad: totalComprasCount, monto: totalComprasMonto }}
-                        fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste }}
                       />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
@@ -2266,7 +2264,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         {/* El bloque clínico (estado de corrección, tendencia y próximo control) vive
                             en "Historial"; el próximo control también se ve en la cabecera del perfil.
                             Acá queda solo lo que habla de la relación con el paciente. */}
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
+                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
+                            <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
+                          </div>
+
 
                           <div className="rounded-xl border border-slate-200/60 bg-white p-4">
                             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Award size={13} /> Cliente frecuente</p>
@@ -2669,7 +2673,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 // ─── Perfil del paciente: pestaña Resumen ───
 // Lo que antes se mezclaba con las citas: cómo va el paciente (corrección, próximo control, compras, fidelidad),
 // la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
-function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad }) {
+function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras }) {
   const ultima = consultas[0]
   const correccion = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
   const IconoCorreccion = correccion?.icon
@@ -2688,7 +2692,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
   ]
   return (
     <div className="space-y-4">
-      <section aria-label="Información general" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-label="Información general" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
           <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
@@ -2726,11 +2730,6 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
           <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
           <p className="text-[11px] text-slate-500">${compras.monto.toFixed(2)} en total</p>
-        </div>
-        <div className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Star size={12} /> Puntaje de fidelidad</p>
-          <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
-          <p className="text-[11px] text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"}</p>
         </div>
       </section>
 
