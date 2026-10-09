@@ -32,12 +32,13 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones }
           const accionable = typeof t.onClick === "function"
           const Contenedor = accionable ? "button" : "div"
           return (
-            <div key={t.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-4 text-left shadow-sm transition-colors hover:border-slate-300">
+            <div key={t.id} className={"flex flex-col justify-between rounded-2xl border bg-white p-4 text-left shadow-sm transition-colors " + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : "border-slate-200/60 hover:border-slate-300")}>
               <Contenedor
                 type={accionable ? "button" : undefined}
                 onClick={accionable ? t.onClick : undefined}
                 className={"flex w-full items-start justify-between gap-3 text-left " + (accionable ? "cursor-pointer" : "")}
                 aria-label={accionable ? `${t.titulo}: ${t.valor}. ${t.desc || ""}` : undefined}
+                aria-pressed={accionable && t.seleccionada !== undefined ? t.seleccionada : undefined}
               >
                 <span className="min-w-0 space-y-0.5">
                   <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
