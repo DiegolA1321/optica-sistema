@@ -18,8 +18,11 @@ test('ficha clínica: el control exige elegir agendar ahora o después', async (
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill('Karla Párraga Vera')
-  await page.getByText('Karla Párraga Vera').first().click()
-  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
+  // Se espera a que los datos estén cargados (no un tiempo fijo): primero la fila del paciente y luego su perfil, con holgura para un equipo cargado.
+  const fila = page.getByText('Karla Párraga Vera').first()
+  await expect(fila).toBeVisible({ timeout: 45_000 })
+  await fila.click()
+  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
   await page.getByRole('button', { name: 'Ficha clínica' }).first().click()
   // Si el paciente tiene citas pendientes se pregunta por cuál entrar; Karla no tiene.
   await expect(page.getByLabel(/Motivo de la consulta/i)).toBeVisible({ timeout: 20_000 })
