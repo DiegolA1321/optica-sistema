@@ -69,6 +69,16 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 - **Quedan a propósito:** `etiquetaFecha` (Hoy / Mañana / Ayer y, si no, el formato `calendario`), y las iniciales de una letra (L M X J V S D) de los calendarios pequeños. Las gráficas de Reportes y superadmin usan "sept" (4 letras) como en el resto.
 - Pruebas: `formatoFecha.test.js` y `e2e/citas-titulos-estables.spec.js`.
 
+## Profesional, Reasignar, Tomar y Ausencias (8 oct)
+
+- **Detalle de la cita:** tres columnas por significado: La cita (fecha, hora, motivo, origen), Seguimiento (profesional, atendida/agendada/confirmada/cancelada por) y Paciente (cédula, teléfono, edad, correo). El código va en la cabecera.
+- **Un solo "Profesional"** (`utilidades/profesionalCita.js`): "Paula", "Reasignada de Paula" o "Atendida por Rosa (en lugar de Paula)". Con alcance "propio" se oculta, salvo en las citas sin asignar ("Sin asignar").
+- **"Editar cita" ya no cambia el profesional.** Al crear se elige; después solo con **Reasignar**.
+- **Reasignar** (solo Pendiente o En espera): lo puede hacer quien tenga permiso de editar citas con alcance "todo" (por permiso, no por nombre de rol). Un clic en la persona, marca "ausente a esa hora", toast con **Deshacer** y registro en la actividad. Va por la función `reasignar_cita` de la migración **0100**.
+- **Tomar esta cita:** botón para las citas sin asignar; la condición va en el propio update, así que si otra persona la toma antes avisa "Ya la tomó otra persona".
+- **Ausencias con autor:** "Mi horario" guarda `usuarioId` y `usuarioNombre` en cada ausencia (las anteriores no tienen autor y no generan avisos). En "Requiere tu atención" aparece "Paula estará ausente el …: N citas por reasignar" y abre la reasignación en bloque (`ReasignarCitasModal`).
+- **Migración 0100 (`asignado_original` + `reasignar_cita`): escrita y ensayada con rollback (`scripts/ensayo-0100.mjs`), NO aplicada.** Backup previo: `C:Usersdiegoackups-opticapre-asignado-original-2026-10-08.dump`. Hasta aplicarla, "Reasignar" falla (la función no existe) y `asignadoOriginal` llega vacío.
+
 ## Cómo se verificó
 
 - **Pruebas unitarias:** `npx vitest run` → 401 pasan (`filtrosCitas.test.js`, `FiltrosCitas.test.jsx`, `controles.test.js`, `Inicio.test.jsx`).
