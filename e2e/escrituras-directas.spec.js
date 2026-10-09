@@ -30,6 +30,13 @@ const fechaEn = (dias) => {
   d.setDate(d.getDate() + dias)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+// Una fecha lejana que sea día de semana (lunes a viernes): un domingo está cerrado y no admite registrar una ausencia.
+const diaHabilEn = (dias) => {
+  const d = new Date()
+  d.setDate(d.getDate() + dias)
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const confirmarEliminar = (page) => page.getByRole('dialog').last().getByRole('button', { name: 'Sí, eliminar' })
 
 test('Inventario: crear, editar y eliminar un producto (inventario: insert, update y delete)', async ({ page }) => {
@@ -110,7 +117,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
 })
 
 test('Mi horario: registrar y quitar una ausencia lejana (disponibilidad: upsert)', async ({ page }) => {
-  const fecha = fechaEn(500)
+  const fecha = diaHabilEn(500)
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await irA(page, 'Mi horario')
   await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
@@ -272,13 +279,11 @@ test('Citas y pacientes: corregir los datos de un paciente y cancelar su cita (p
   await page.locator('#p-telefono').fill('0999999999')
   await conEscritura(page, 'pacientes', 'editar paciente', () => page.getByRole('button', { name: 'Guardar cambios' }).click(), ['PATCH'])
 
-  // Citas: cancelar la cita de hoy desde "Más acciones" de su tarjeta
+  // Citas: cancelar la cita de hoy desde su detalle (la tarjeta ya no lleva el menú "Más acciones")
   await irA(page, 'Citas médicas')
-  await page.getByPlaceholder(/Buscar paciente o código/).fill(nombre)
-  const tarjeta = page.locator('main').getByText(nombre).first()
-  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
-  await page.locator('main').getByRole('button', { name: 'Más acciones' }).first().click()
-  await page.getByRole('button', { name: 'Cancelar cita' }).dispatchEvent('click')
+  await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
+  await page.getByTitle('Ver el detalle de la cita').first().click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click()
   await conEscritura(page, 'citas', 'cancelar cita', () => page.getByRole('dialog').last().getByRole('button', { name: /Cancelar cita|Sí/ }).last().click(), ['PATCH'])
 })
 

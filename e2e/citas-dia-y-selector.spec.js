@@ -20,7 +20,7 @@ test('Semana: el encabezado y una zona libre abren las citas del día (con mensa
   await expect(dia.getByRole('heading', { name: /Hoy/ })).toBeVisible()
   await expect(dia.getByText(/\d+ citas? ·/)).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/dia-con-citas.png' })
-  await dia.getByRole('button', { name: 'Cerrar' }).click()
+  await dia.getByRole('button', { name: 'Cerrar', exact: true }).click()
 
   // lunes pasado sin citas
   await page.getByTitle('Ver las citas de este día').nth(0).click()
