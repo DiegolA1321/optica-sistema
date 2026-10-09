@@ -1961,34 +1961,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                 .filter((f) => f.pacienteId === pacienteHistorial.id)
                 .slice()
                 .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1))
-              // "Productos y servicios" (reunión 29 sept., punto 1): separa por
-              // tipo de LÍNEA, no por factura completa — una factura mixta
-              // (ej. "Consulta" + un armazón) aparece con una fila en cada
-              // tabla. Una venta rápida (VentaProductoModal) siempre es
-              // producto, nunca tiene líneas de servicio.
-              const lineasProductos = []
-              const lineasServicios = []
-              for (const v of ventasPaciente) {
-                lineasProductos.push({
-                  key: "venta-" + v.id, descripcion: v.productoNombre, cantidad: v.cantidad,
-                  montoTotal: Number(v.montoTotal), metodoPago: v.metodoPago, estado: v.estado,
-                  cuotasTotales: v.cuotasTotales, cuotasPagadas: v.cuotasPagadas, fecha: v.creadoEn,
-                  origen: "venta", venta: v,
-                })
-              }
-              for (const f of facturasPaciente) {
-                for (const l of f.lineas || []) {
-                  const fila = {
-                    key: "factura-" + f.id + "-" + l.id, descripcion: l.descripcion, cantidad: l.cantidad,
-                    montoTotal: l.cantidad * Number(l.precioUnitario), metodoPago: f.metodoPago, estado: f.estado,
-                    cuotasTotales: f.cuotasTotales, cuotasPagadas: f.cuotasPagadas, fecha: f.creadoEn,
-                    origen: "factura", factura: f,
-                  }
-                  ;(l.tipo === "servicio" ? lineasServicios : lineasProductos).push(fila)
-                }
-              }
-              lineasProductos.sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
-              lineasServicios.sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+              // Cada venta aparece una sola vez: por comprobante (con sus líneas desplegables). El número del título
+              // y el de la pestaña son el mismo: las compras no anuladas.
+              const comprobantesPaciente = [
+                ...facturasPaciente.map((f) => ({ clave: "factura-" + f.id, fecha: f.creadoEn, factura: f })),
+                ...ventasPaciente.map((v) => ({ clave: "venta-" + v.id, fecha: v.creadoEn, venta: v })),
+              ].sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+              const comprobantesAnulados = facturasPaciente.filter((f) => f.estado === "anulada").length
               const deudaTotal = ventasPendientesPaciente(ventas, pacienteHistorial.id).reduce((a, v) => a + saldoVenta(v), 0) + saldoPacienteFacturas(pacienteHistorial.id, facturasVenta, abonos)
               const diasControl = diasVencido(pacienteHistorial, consultas)
               const proximoControl = fechaProximoControl(pacienteHistorial, consultas)
@@ -2208,142 +2187,64 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
-                        {facturasPaciente.length > 0 && (
-                          <div>
-                            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Receipt size={13} /> Ventas <span className="font-normal normal-case text-slate-400">· {facturasPaciente.length}</span></h3>
-                            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60" aria-label="Ventas del paciente">
-                              {facturasPaciente.map((f) => (
+                        {comprobantesPaciente.length === 0 ? (
+                          <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
+                            <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
+                            <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
+                            <p className="max-w-sm text-xs text-slate-400">Cuando una ficha deje una receta, aparece arriba "Listo para venta". Las demás ventas se registran en Ventas.</p>
+                          </div>
+                        ) : (
+                          <section aria-label="Compras del paciente">
+                            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Receipt size={13} /> Compras <span className="font-normal normal-case text-slate-400">· {totalComprasCount}{comprobantesAnulados > 0 ? ` · ${comprobantesAnulados} anulada${comprobantesAnulados === 1 ? "" : "s"}` : ""}</span></h3>
+                            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60" aria-label="Compras del paciente">
+                              {comprobantesPaciente.map((c) => c.factura ? (
                                 <FilaComprobante
-                                  key={f.id} factura={f} abonos={abonos} ordenes={ordenesLab.filter((o) => o.facturaId === f.id)}
-                                  puedeEditar={puedeEditarVentas} puedeVender={puedeVender} puedeAnular={puedeAnular}
+                                  key={c.clave} factura={c.factura} abonos={abonos} ordenes={ordenesLab.filter((o) => o.facturaId === c.factura.id)}
+                                  puedeEditar={puedeEditarVentas} puedeVender={puedeVender} puedeAnular={puedeAnular} lineasDesplegables
                                   onAbonar={(fac) => setAbonoPara({ factura: fac, paciente: pacienteHistorial })}
                                   onOrden={(fac) => setOrdenParaVenta({ factura: fac, paciente: pacienteHistorial })}
                                   onAnular={(fac) => setAnularPara({ factura: fac, paciente: pacienteHistorial })}
                                   onFacturaElectronica={(fac) => setFacturaElectronicaPara({ factura: fac, paciente: pacienteHistorial })}
                                 />
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {puedeVender && <button
-                          type="button"
-                          onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
-                          className="flex w-full flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer"
-                          style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
-                        >
-                          <span className="flex items-center gap-2"><Receipt size={16} /> Nueva venta</span>
-                          <span className="text-[11px] font-medium opacity-90">Productos y servicios, con pago directo, tarjeta o cuotas</span>
-                        </button>}
-                        {(() => {
-                          // Fila compartida entre "Productos" y "Servicios" —
-                          // mismo diseño y jerarquía de badges que ya existían
-                          // (Pagada/Debe $X/Anulada para facturas; Pagado/Debe
-                          // $X + acciones de cuota para ventas rápidas).
-                          const renderFila = (fila) => {
-                            if (fila.origen === "venta") {
-                              const v = fila.venta
-                              const saldo = saldoVenta(v)
-                              return (
-                                <div key={fila.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-800">{fila.descripcion}</p>
-                                    <p className="text-[11px] text-slate-500">
-                                      {fila.cantidad} u. · ${fila.montoTotal.toFixed(2)} · {METODOS_PAGO[fila.metodoPago] || fila.metodoPago}
-                                      {fila.metodoPago === "cuotas" && fila.cuotasTotales ? ` (${fila.cuotasPagadas || 0}/${fila.cuotasTotales})` : ""}
-                                      {" · "}{fechaLegible(fila.fecha)}
-                                    </p>
-                                  </div>
-                                  {v.estado === "completado" ? (
-                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                                      <CheckCircle size={12} /> Pagado
-                                    </span>
-                                  ) : (
-                                    <div className="flex items-center gap-2">
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                                        <CreditCard size={12} /> Debe ${saldo.toFixed(2)}
-                                      </span>
-                                      {v.metodoPago === "cuotas" && v.cuotasTotales ? (
-                                        <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200/60 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                                          Registrar cuota
-                                        </button>
-                                      ) : null}
-                                      <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
-                                        Marcar pagado
-                                      </button>
+                              ) : (() => {
+                                // Venta rápida de un producto (el mecanismo anterior a las facturas): se sigue cobrando en cuotas como siempre.
+                                const v = c.venta
+                                const saldo = saldoVenta(v)
+                                return (
+                                  <li key={c.clave} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                      <p className="text-sm font-semibold text-slate-800">{v.productoNombre}</p>
+                                      <p className="text-[11px] text-slate-500">
+                                        {v.cantidad} u. · ${Number(v.montoTotal).toFixed(2)} · {METODOS_PAGO[v.metodoPago] || v.metodoPago}
+                                        {v.metodoPago === "cuotas" && v.cuotasTotales ? ` (${v.cuotasPagadas || 0}/${v.cuotasTotales})` : ""}
+                                        {" · "}{fechaLegible(v.creadoEn)}
+                                      </p>
                                     </div>
-                                  )}
-                                </div>
-                              )
-                            }
-                            const f = fila.factura
-                            const anulada = f.estado === "anulada"
-                            const saldoDeFactura = saldoFactura(f, abonos)
-                            return (
-                              <div key={fila.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                  <p className={"text-sm font-semibold " + (anulada ? "text-slate-400 line-through" : "text-slate-800")}>
-                                    {fila.descripcion}{fila.cantidad > 1 ? ` (${fila.cantidad})` : ""}
-                                  </p>
-                                  <p className="text-[11px] text-slate-500">
-                                    ${fila.montoTotal.toFixed(2)} · {METODOS_PAGO[fila.metodoPago] || fila.metodoPago}
-                                    {fila.metodoPago === "cuotas" && fila.cuotasTotales ? ` (${fila.cuotasPagadas || 0}/${fila.cuotasTotales})` : ""}
-                                    {" · "}{fechaLegible(fila.fecha)}
-                                  </p>
-                                </div>
-                                {anulada ? (
-                                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
-                                    Anulada
-                                  </span>
-                                ) : f.estado === "pagada" ? (
-                                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                                    <CheckCircle size={12} /> Pagada
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                                    <CreditCard size={12} /> Debe ${saldoDeFactura.toFixed(2)} (de la venta completa)
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          }
-
-                          if (lineasProductos.length === 0 && lineasServicios.length === 0) {
-                            return (
-                              <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
-                                <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
-                                <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
-                              </div>
-                            )
-                          }
-                          return (
-                            <>
-                              <div>
-                                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                  <Glasses size={13} /> Productos <span className="font-normal normal-case text-slate-400">· {lineasProductos.length}</span>
-                                </h3>
-                                {lineasProductos.length === 0 ? (
-                                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-sm text-slate-500">Sin productos vendidos todavía.</p>
-                                ) : (
-                                  <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/60">
-                                    {lineasProductos.map(renderFila)}
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                  <Stethoscope size={13} /> Servicios <span className="font-normal normal-case text-slate-400">· {lineasServicios.length}</span>
-                                </h3>
-                                {lineasServicios.length === 0 ? (
-                                  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-sm text-slate-500">Sin servicios cobrados todavía (consulta, limpieza, ajustes...).</p>
-                                ) : (
-                                  <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/60">
-                                    {lineasServicios.map(renderFila)}
-                                  </div>
-                                )}
-                              </div>
-                            </>
-                          )
-                        })()}
+                                    {v.estado === "completado" ? (
+                                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                        <CheckCircle size={12} /> Pagada
+                                      </span>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                          <CreditCard size={12} /> Saldo ${saldo.toFixed(2)}
+                                        </span>
+                                        {v.metodoPago === "cuotas" && v.cuotasTotales ? (
+                                          <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200/60 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                                            Registrar cuota
+                                          </button>
+                                        ) : null}
+                                        <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
+                                          Marcar pagada
+                                        </button>
+                                      </div>
+                                    )}
+                                  </li>
+                                )
+                              })())}
+                            </ul>
+                          </section>
+                        )}
                       </div>
                     ) : tabHistorial === "ordenes" ? (
                       <OrdenesLaboratorio
