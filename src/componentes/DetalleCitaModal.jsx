@@ -116,16 +116,16 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
               {cita.iniciales || <User size={18} />}
             </div>
             <div className="min-w-0">
-              <h4 id="detalle-cita-titulo" className="truncate text-lg font-bold" style={{ color: INK }}>{cita.paciente}</h4>
+              <div className="flex min-w-0 items-center gap-2">
+                <h4 id="detalle-cita-titulo" className="min-w-0 truncate text-lg font-bold" style={{ color: INK }}>{cita.paciente}</h4>
+                <span role="status" aria-label={"Estado: " + etiquetaEstado} className={"shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{etiquetaEstado}</span>
+              </div>
               <p className="truncate text-xs text-slate-500">Detalle de la cita{cita.codigo && <> · <span className="font-mono">{cita.codigo}</span></>}</p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span role="status" aria-label={"Estado: " + etiquetaEstado} className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{etiquetaEstado}</span>
-            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-              <X size={20} />
-            </button>
-          </div>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+            <X size={20} />
+          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
