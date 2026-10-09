@@ -46,12 +46,13 @@ import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro, miembrosActivos } from "../utilidades/equipo"
 import { puedeReasignar, ausenteEnHorario } from "../utilidades/reasignacion"
 import { lineaProfesional as textoProfesional, mostrarProfesional } from "../utilidades/profesionalCita"
-import SelectorAsignado from "../componentes/SelectorAsignado"
+import CamposCita from "../componentes/CamposCita"
+import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
+import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
@@ -250,7 +251,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // bloque de la grilla de horarios: precarga la hora real y, al confirmar,
   // pasa la cita directo a "En Atención" y abre la ficha clínica, en vez de
   // quedar "Pendiente" esperando que alguien la atienda después.
-  const atenderInmediato = horaPersonalizada && fecha === hoyISO() && puede(usuario, "consultas", "crear")
+  const atenderInmediato = esAtencionInmediata({ horaPersonalizada, fecha, puedeAtender: puede(usuario, "consultas", "crear") })
   const [mensajeExito, setMensajeExito] = useState(null)
   // Con overlaySolo (formulario abierto sobre Inicio) el aviso sale como toast del panel: esta vista queda oculta.
   const mostrarExito = (mensaje) => {
@@ -460,17 +461,9 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
       setError("Selecciona el motivo del examen.")
       return
     }
-    if (!fecha || (horaPersonalizada ? !horaCustom : !hora)) {
-      setError(horaPersonalizada ? "Selecciona fecha y escribe la hora personalizada." : "Selecciona fecha y hora en el calendario.")
-      return
-    }
-    if (horaPersonalizada) {
-      const horaAMPM = horaA12(horaCustom)
-      if (conflictoHorarioPersonalizado(fecha, horaAMPM, duracionCustom, disponibilidad, citas)) {
-        setErrorHorarioCustom("Ese horario se cruza con otra cita que sigue en agenda — elige otra hora o duración.")
-        return
-      }
-    }
+    const { error: errorGeneral, errorHorario: cruce } = validarHorarioCita({ fecha, hora, horaPersonalizada, horaCustom, duracionCustom, disponibilidad, citas })
+    if (errorGeneral) { setError(errorGeneral); return }
+    if (cruce) { setErrorHorarioCustom(cruce); return }
     setErrorHorarioCustom("")
     setError("")
     // "Atender ahora": el formulario ya es la confirmación — se salta el
@@ -484,62 +477,18 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
 
   const agendarCita = async () => {
     const paciente = pacienteSeleccionado
-    const partesNombre = paciente.nombre.trim().split(" ").filter(Boolean)
-    const iniciales =
-      partesNombre.length > 1
-        ? (partesNombre[0][0] + partesNombre[1][0]).toUpperCase()
-        : partesNombre[0][0].toUpperCase()
-
-    const horaFinal = horaPersonalizada ? horaA12(horaCustom) : hora
-    const nuevaCita = {
-      pacienteId: paciente.id,
-      paciente: paciente.nombre,
-      cedula: paciente.cedula,
-      telefono: paciente.telefono,
+    const { cita: nuevaCita, error: errorInsert } = await registrarCita(supabase, opticaId, paciente, {
       fecha,
-      hora: horaFinal,
+      hora: horaPersonalizada ? horaA12(horaCustom) : hora,
       duracionMinutos: horaPersonalizada ? (Number(duracionCustom) || disponibilidad?.duracionCita || 40) : null,
       motivo,
-      asignadoA: asignadoA || null,
-      atendidoPor: null,
-      iniciales: iniciales || "P",
+      asignadoA,
       estado: atenderInmediato ? "En Atención" : "Pendiente",
-    }
-
-    if (supabase && opticaId) {
-      // Antes esta llamada descartaba el error (solo desestructuraba
-      // `data`) — si el insert fallaba (red, RLS, o el índice único que
-      // evita doble reserva, hallazgo E7), igual se mostraba "cita
-      // guardada correctamente" con un id inventado en el cliente, sin que
-      // nadie se enterara de que nunca llegó al servidor.
-      const { data, error: errorInsert } = await supabase
-        .from("citas")
-        .insert({
-          optica_id: opticaId,
-          paciente_id: typeof paciente.id === "string" ? paciente.id : null,
-          paciente: nuevaCita.paciente, cedula: nuevaCita.cedula, telefono: nuevaCita.telefono,
-          fecha: nuevaCita.fecha, hora: nuevaCita.hora, duracion_minutos: nuevaCita.duracionMinutos, motivo: nuevaCita.motivo, estado: nuevaCita.estado,
-          asignado_a: nuevaCita.asignadoA,
-        })
-        .select()
-        .single()
-      if (errorInsert) {
-        setError(
-          errorInsert.code === "23505"
-            ? "Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro."
-            : esErrorHoraInvalida(errorInsert)
-              ? MENSAJE_HORA_INVALIDA
-            : esErrorSinPermiso(errorInsert)
-              ? MENSAJE_SIN_PERMISO
-              : "No se pudo registrar la cita. Revisa tu conexión e intenta de nuevo."
-        )
-        setConfirmando(false)
-        return
-      }
-      nuevaCita.id = data.id
-      nuevaCita.creadoEn = data.created_at
-    } else {
-      nuevaCita.id = Date.now()
+    })
+    if (errorInsert) {
+      setError(errorInsert)
+      setConfirmando(false)
+      return
     }
 
     setCitas([...citas, nuevaCita])
@@ -1806,84 +1755,17 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
                     )}
                   </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo del examen</label>
-                  <select
-                    value={motivo}
-                    onChange={(e) => setMotivo(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  >
-                    <option value="" disabled>Seleccione el motivo del examen</option>
-                    {motivosConsulta.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <SelectorAsignado id="citas-asignado" valor={asignadoA} onChange={setAsignadoA} equipo={equipo} />
-
-                <SelectorFechaHora
+                <CamposCita
+                  prefijoId="citas"
+                  motivosConsulta={motivosConsulta}
+                  equipo={equipo}
                   disponibilidad={disponibilidad}
                   citas={citas}
-                  fecha={fecha}
-                  hora={horaPersonalizada ? "" : hora}
-                  onCambiarFecha={setFecha}
-                  onCambiarHora={(h) => { setHora(h); setHoraPersonalizada(false) }}
-                  mesesAdelante={14}
+                  atenderInmediato={atenderInmediato}
+                  errorHorarioCustom={errorHorarioCustom}
+                  valores={{ motivo, asignadoA, fecha, hora, horaPersonalizada, horaCustom, duracionCustom }}
+                  cambiar={{ setMotivo, setAsignadoA, setFecha, setHora, setHoraPersonalizada, setHoraCustom, setDuracionCustom, limpiarErrorHorario: () => setErrorHorarioCustom("") }}
                 />
-
-                {/* Horario personalizado — para un paciente que llega fuera de
-                    la grilla de horarios fijos (walk-in, o alguien a quien se
-                    decide atender antes/después de su turno). El ing lo probó
-                    en vivo preguntando "¿qué pasa si te atiendo a las 3:40?". */}
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
-                  <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={horaPersonalizada}
-                      onChange={(e) => {
-                        setHoraPersonalizada(e.target.checked)
-                        setErrorHorarioCustom("")
-                        if (e.target.checked) {
-                          const ahora = ahoraEcuador()
-                          if (!fecha) setFecha(hoyISO())
-                          if (!horaCustom) setHoraCustom(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
-                        }
-                      }}
-                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
-                    />
-                    Llegó en un horario diferente al de la grilla
-                  </label>
-                  {atenderInmediato && <p className="mt-1.5 pl-[1.625rem] text-xs text-slate-500">Es de hoy: al confirmar pasa directo a la ficha clínica.</p>}
-                  {horaPersonalizada && (
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-slate-500">Hora real</label>
-                        <input
-                          type="time"
-                          value={horaCustom}
-                          onChange={(e) => { setHoraCustom(e.target.value); setErrorHorarioCustom("") }}
-                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-slate-500">Duración estimada (min)</label>
-                        <input
-                          type="number"
-                          min={5}
-                          step={5}
-                          value={duracionCustom}
-                          onChange={(e) => { setDuracionCustom(e.target.value); setErrorHorarioCustom("") }}
-                          className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                        />
-                      </div>
-                      {errorHorarioCustom && (
-                        <p className="col-span-2 text-xs font-medium text-red-600">{errorHorarioCustom}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
