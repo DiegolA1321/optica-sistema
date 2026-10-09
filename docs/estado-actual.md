@@ -77,7 +77,9 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 - **Reasignar** (solo Pendiente o En espera): lo puede hacer quien tenga permiso de editar citas con alcance "todo" (por permiso, no por nombre de rol). Un clic en la persona, marca "ausente a esa hora", toast con **Deshacer** y registro en la actividad. Va por la función `reasignar_cita` de la migración **0100**.
 - **Tomar esta cita:** botón para las citas sin asignar; la condición va en el propio update, así que si otra persona la toma antes avisa "Ya la tomó otra persona".
 - **Ausencias con autor:** "Mi horario" guarda `usuarioId` y `usuarioNombre` en cada ausencia (las anteriores no tienen autor y no generan avisos). En "Requiere tu atención" aparece "Paula estará ausente el …: N citas por reasignar" y abre la reasignación en bloque (`ReasignarCitasModal`).
-- **Migración 0100 (`asignado_original` + `reasignar_cita`): escrita y ensayada con rollback (`scripts/ensayo-0100.mjs`), NO aplicada.** Backup previo: `C:Usersdiegoackups-opticapre-asignado-original-2026-10-08.dump`. Hasta aplicarla, "Reasignar" falla (la función no existe) y `asignadoOriginal` llega vacío.
+- **Migración 0100 (`asignado_original` + `reasignar_cita`): aplicada el 8 oct.** `asignado_original` lo registra un trigger de `citas_base` (también desde el "Editar cita" publicado) y se vacía al volver a la persona original. Ensayo: `scripts/ensayo-0100.mjs`. Backup: `C:Usersdiegoackups-opticapre-asignado-original-2026-10-08.dump`.
+- **Migración 0101 (código en toda cita): aplicada el 8 oct.** Antes solo las citas de la web tenían `CIT-AAAA-XXXXXX`; ahora un trigger lo pone a toda cita nueva (si el generado ya existe, prueba con más caracteres del id) y se rellenaron las que no lo tenían. Índice único `citas_codigo_idx` (ignora vacíos). `crear_cita_publica` sigue calculando el suyo. Ensayo: `scripts/ensayo-0101.mjs`. Backup: `pre-codigo-cita-2026-10-08.dump`.
+- **Detalle:** el estado va junto al nombre en la cabecera; las citas sin paciente ofrecen "Registrar paciente" (vincula sin cambiar el estado); las Atendidas también ofrecen "Agendar otra cita".
 
 ## Cómo se verificó
 
