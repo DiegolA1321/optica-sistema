@@ -1,5 +1,7 @@
 # Guía de Arquitectura, Usabilidad y UI/UX del Sistema
 
+> **Antes de diseñar o cambiar cualquier pantalla, lee `docs/principios-diseno.md` y cumple sus reglas** (posiciones estables, un concepto = un número y un nombre, sin información repetida, agrupar por significado, números que coinciden con lo que se ve, ocultar por rol, un solo camino por acción, fechas desde una sola función, ninguna pantalla vacía sin mensaje y acción, diseñar desde el flujo de quien la usa). Al terminar, repasa su lista de revisión. Citas es el ejemplo de cómo debe quedar.
+
 ## 1. Principios de Arquitectura y Código
 - **KISS & DRY:** Mantén la menor cantidad de abstracciones posibles. Evita reescribir utilidades nativas o instalar librerías innecesarias.
 - **Componentes Modulares & Reutilizables:** Reutiliza componentes UI de `@/components/ui` (patrón shadcn/Tailwind) para mantener consistencia visual en todas las vistas.
