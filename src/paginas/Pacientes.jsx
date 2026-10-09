@@ -2701,6 +2701,8 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
   const [desde, setDesde] = useState("")
   const [hasta, setHasta] = useState("")
   const [texto, setTexto] = useState("")
+  // Arriba va solo la cita actual o próxima; las demás pendientes se despliegan con "+N citas pendientes más".
+  const [verOtras, setVerOtras] = useState(false)
   const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   const pendientes = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.estado === "En Atención" ? -1 : b.estado === "En Atención" ? 1 : porFechaHora(a, b)))
@@ -2772,8 +2774,16 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 
       {otras.length > 0 && (
         <section aria-label="Otras citas pendientes">
-          <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Otras citas pendientes · {otras.length}</h3>
-          <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{otras.map((c) => fila(c, true))}</ul>
+          <button
+            type="button"
+            onClick={() => setVerOtras((v) => !v)}
+            aria-expanded={verOtras}
+            className="flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"
+          >
+            <ChevronRight size={14} aria-hidden="true" className={"transition-transform " + (verOtras ? "rotate-90" : "")} />
+            {verOtras ? "Ocultar" : "+" + otras.length} {otras.length === 1 ? "cita pendiente más" : "citas pendientes más"}
+          </button>
+          {verOtras && <ul className="mt-1 divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-4">{otras.map((c) => fila(c, true))}</ul>}
         </section>
       )}
 
