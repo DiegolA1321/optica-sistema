@@ -183,7 +183,7 @@ function CalendarioRango({ rango }) {
 // Periodo de la Lista: Hoy · Semana · Mes. Con un rango de fechas elegido en el panel "Filtrar" ninguno queda marcado.
 export function PeriodoLista({ valor, onChange, opciones, sinActivo = false }) {
   return (
-    <div role="group" aria-label="Periodo de las citas" className="flex shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+    <div role="group" aria-label="Periodo de las citas" className="flex h-9 shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
       {opciones.map((o) => {
         const activo = !sinActivo && valor === o.id
         return (
@@ -238,7 +238,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
         aria-haspopup="dialog"
         aria-expanded={abierto}
         title="Elegir otra fecha"
-        className={"inline-flex w-44 shrink-0 items-center justify-between gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[13px] font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50")}
+        className={"inline-flex h-9 w-44 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-[13px] font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50")}
         style={abierto ? undefined : { color: INK }}
       >
         <span>{titulo}</span>
@@ -323,7 +323,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
 
 // Flechas ‹ › con el título del periodo que se ve (igual en Lista, Semana y Mes). Con `selector` el título abre el calendario para elegir otra fecha.
 export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnterior, etiquetaSiguiente, selector }) {
-  const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+  const flecha = "grid h-full w-8 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
   return (
     <div className="flex min-w-0 items-center gap-2">
       {selector ? (
@@ -331,7 +331,7 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
       ) : (
         <h2 className="min-w-[7.9rem] shrink-0 whitespace-nowrap text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
       )}
-      <div className="flex shrink-0 items-center rounded-lg border border-slate-200/60 bg-white p-0.5 shadow-sm">
+      <div className="flex h-9 shrink-0 items-center rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
         <button type="button" onClick={onAnterior} aria-label={etiquetaAnterior} title={etiquetaAnterior} className={flecha}><ChevronLeft size={14} /></button>
         <button type="button" onClick={onSiguiente} aria-label={etiquetaSiguiente} title={etiquetaSiguiente} className={flecha}><ChevronRight size={14} /></button>
       </div>

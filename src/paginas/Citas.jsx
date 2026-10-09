@@ -1245,7 +1245,6 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const seccionesFiltro = [
     { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
     { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
-    { id: "tarea", titulo: "Tarea", valor: tareaActiva, onChange: (id) => (id === "ninguna" ? elegirPeriodo("hoy") : (setFiltro(id), setRangoDesde(""), setRangoHasta(""))), opciones: tareasFiltro(diaConfirmar) },
     { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
     { id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: elegirDesde, onHasta: elegirHasta } },
     ...(usuario?.rol === "admin" ? [

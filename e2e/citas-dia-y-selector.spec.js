@@ -121,3 +121,19 @@ test('Del modal del día al detalle de una cita: el fondo no se vuelve a animar 
   await expect(page.getByRole('dialog').getByText('Detalle de la cita')).toBeVisible()
   expect(await fondo.evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
 })
+
+test('Periodo, título y flechas tienen la misma altura en Lista, Semana y Mes, y el título no deja huecos', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN', 'DEMO')
+  await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
+  await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
+  await page.waitForTimeout(1000)
+  for (const vista of ['Lista', 'Semana', 'Mes']) {
+    await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: vista }).click()
+    await page.waitForTimeout(500)
+    const flechas = page.getByRole('button', { name: /anterior$/ }).first().locator('xpath=..')
+    const titulo = page.getByRole('button', { name: /\d{4}/ }).filter({ has: page.locator('svg') }).last()
+    const alturas = [(await flechas.boundingBox()).height, (await titulo.boundingBox()).height]
+    if (vista === 'Lista') alturas.push((await page.getByRole('group', { name: 'Periodo de las citas' }).boundingBox()).height)
+    expect(new Set(alturas.map((h) => Math.round(h))).size, `${vista}: ${alturas}`).toBe(1)
+  }
+})
