@@ -40,7 +40,7 @@ let totalRecepcion
 test.describe('Recepción', () => {
   test('menú, Inicio y permisos', async ({ page }) => {
     await iniciarSesion(page, 'RECEPCION')
-    await expect(page.getByText('El movimiento del día')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 15_000 })
     expect.soft(await menuVisible(page)).toEqual(TODOS.filter((n) => n !== 'Reportes'))
     await expect.soft(page.getByText('MIS CITAS DE HOY')).toHaveCount(0)
 

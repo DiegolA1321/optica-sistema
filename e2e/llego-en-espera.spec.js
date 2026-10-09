@@ -7,11 +7,12 @@ import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
-const valorTarjeta = async (page, titulo) => {
-  const tarjeta = page.locator('main').first().getByRole('button', { name: new RegExp(titulo, 'i') }).first()
-  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
-  const texto = await tarjeta.innerText()
-  return Number((texto.match(/\n\s*(\d+)\s*\n/) || texto.match(/(\d+)/))?.[1] ?? 'NaN')
+// Cuántos esperan en la sala: el número va en la cabecera de la lista "Citas del día" (ya no hay tarjetas aparte).
+const valorTarjeta = async (page) => {
+  const cabecera = page.getByRole('region', { name: 'Citas del día' }).getByRole('heading', { level: 2 })
+  await expect(cabecera).toBeVisible({ timeout: 20_000 })
+  const texto = await cabecera.innerText()
+  return Number(texto.match(/(d+) en sala de espera/i)?.[1] ?? 'NaN')
 }
 
 async function abrirDetalle(page, nombre) {
@@ -27,8 +28,8 @@ test('Llegó pasa la cita a "En espera", se ve en Inicio y Atender entra directo
   // ── Recepción: marca que el paciente llegó ──
   const recepcion = await browser.newPage({ viewport: { width: 1366, height: 768 } })
   await iniciarSesion(recepcion, 'RECEPCION', 'E2E')
-  await expect(recepcion.getByText('El movimiento del día')).toBeVisible({ timeout: 20_000 })
-  const esperandoAntes = await valorTarjeta(recepcion, 'En sala de espera')
+  await expect(recepcion.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
+  const esperandoAntes = await valorTarjeta(recepcion)
 
   let detalle = await abrirDetalle(recepcion, nombre)
   // La tarjeta ya no lleva el menú ⋮ ni el ojo; todo está en el detalle.
@@ -44,7 +45,7 @@ test('Llegó pasa la cita a "En espera", se ve en Inicio y Atender entra directo
   await detalle.getByRole('button', { name: 'Cerrar' }).click()
 
   await recepcion.getByRole('button', { name: 'Inicio', exact: true }).first().click()
-  await expect.poll(() => valorTarjeta(recepcion, 'En sala de espera'), { timeout: 15_000 }).toBe(esperandoAntes + 1)
+  await expect.poll(() => valorTarjeta(recepcion), { timeout: 15_000 }).toBe(esperandoAntes + 1)
   await recepcion.close()
 
   // ── Optómetra: la ve esperando y la atiende ──

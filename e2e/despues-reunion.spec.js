@@ -8,9 +8,10 @@ test.use({ viewport: { width: 1366, height: 768 } })
 
 test('el aviso de citas canceladas por pacientes ofrece Reagendar y abre el formulario precargado', async ({ page }) => {
   await iniciarSesion(page, 'RECEPCION')
-  const bloque = page.getByRole('region', { name: 'Requiere tu atención', exact: true })
+  // Recepción ve el mismo bloque Citas que el administrador: sus tres avisos más importantes, y el resto tras "Ver todo".
+  const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  const fila = bloque.getByRole('listitem').filter({ hasText: 'Cita cancelada por el paciente' }).first()
+  const fila = bloque.getByRole('listitem').filter({ hasText: 'todavía sin reagendar' }).first()
   await expect(fila).toBeVisible()
   await expect(fila).toContainText('todavía sin reagendar')
   await expect(fila.getByRole('button', { name: 'Ver en Citas' })).toBeVisible()
