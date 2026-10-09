@@ -12,6 +12,8 @@ const BASE = `http://localhost:${PUERTO}`
 
 export default defineConfig({
   testDir: './e2e',
+  // Deja limpia la óptica de pruebas antes de cada corrida (solo esa óptica; ver e2e/limpieza-global.js).
+  globalSetup: './e2e/limpieza-global.js',
   timeout: 60_000,
   workers: 1,
   fullyParallel: false,
