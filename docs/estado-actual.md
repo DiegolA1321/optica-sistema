@@ -6,6 +6,8 @@ Para retomar en una sesión nueva sin leer la conversación anterior.
 
 **9 oct 2026:** el Inicio de los cuatro roles (administrador, optómetra, Recepción y Ventas, más el rol general) y el perfil del paciente quedaron terminados según la reunión del 7 de octubre y **publicados** (último commit `0253680` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito). Detalle en "Inicio y perfil del paciente" más abajo. Verificación previa: Vitest 466 de 466 y Playwright con `--workers=2`: 80 pasaron, 1 omitida (`crear-cuentas`, que ya se omitía), 0 fallos.
 
+**Ventas (9 oct 2026):** la revisión del módulo contra `docs/principios-diseno.md` está en `docs/revision-ventas.md`, pendiente de implementar; falta verla en pantalla con cada rol.
+
 ### Citas (publicado el 8 oct 2026)
 
 El módulo de **Citas médicas** quedó terminado, revisado por Diego en localhost y **publicado el 8 oct 2026** (último commit `86f31b0` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito: https://optica-sistema-zeta.vercel.app). Las migraciones **0100 a 0103** están aplicadas en la base. Lo siguiente son **los otros módulos de la reunión del 7 de octubre** (`feedback-ing/requisitos-reunion-07oct-citas.md` y las transcripciones ING1 e ING2): se retoman empezando por leer este documento.
