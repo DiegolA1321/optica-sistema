@@ -15,25 +15,32 @@ test('Semana: el encabezado y una zona libre abren las citas del día (con mensa
   const errores = []
   page.on('pageerror', (e) => errores.push(e.message))
   await irACitas(page, 'Semana')
-  await page.getByTitle('Ver las citas de este día').nth(3).click() // jueves
+  // Las columnas de la semana van de lunes a domingo: la de hoy depende del día en que se corra la prueba.
+  const hoyIdx = await page.evaluate(() => (new Date().getDay() + 6) % 7)
+  const otroIdx = hoyIdx === 0 ? 1 : 0
+  const dias = page.getByTitle('Ver las citas de este día')
+  await dias.nth(hoyIdx).click()
   const dia = page.getByRole('dialog')
   await expect(dia.getByRole('heading', { name: /Hoy/ })).toBeVisible()
-  await expect(dia.getByText(/\d+ citas? ·/)).toBeVisible()
+  // Hoy puede tener citas o no (la Demo cambia): se dice cuántas hay o se avisa que no hay.
+  await expect(dia.getByText(/\d+ citas? ·|Sin citas|Un día despejado|Cerrado · día sin atención/).first()).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/dia-con-citas.png' })
   await dia.getByRole('button', { name: 'Cerrar', exact: true }).click()
 
-  // lunes pasado sin citas
-  await page.getByTitle('Ver las citas de este día').nth(0).click()
-  await expect(page.getByRole('dialog').getByText('Sin citas este día')).toBeVisible()
+  // otro día de la misma semana: abre su propio modal, que no es "Hoy"
+  await dias.nth(otroIdx).click()
+  await expect(page.getByRole('dialog').getByText(/\d+ citas? ·|Sin citas|Un día despejado|Cerrado · día sin atención/).first()).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('heading', { name: /Hoy/ })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   // una semana lejana: día futuro sin citas, con el mensaje amable y "Agendar"
-  await page.getByRole('button', { name: /oct 2026/ }).first().click()
+  await page.getByRole('button', { name: /\p{L}{3,4} \d{4}/u }).first().click()
   const selector = page.getByRole('dialog', { name: 'Elegir fecha' })
   await selector.getByRole('button', { name: 'Mes siguiente' }).click()
   await selector.getByRole('button', { name: 'Mes siguiente' }).click()
-  await selector.getByRole('button', { name: /23 de diciembre/ }).click()
+  const dosMesesDespues = await page.evaluate(() => new Date(new Date().getFullYear(), new Date().getMonth() + 2, 1).toLocaleDateString('es-EC', { month: 'long' }))
+  await selector.getByRole('button', { name: new RegExp(`23 de ${dosMesesDespues}`) }).click()
   await page.getByTitle('Ver las citas de este día').nth(1).click()
   await expect(page.getByRole('dialog').getByText('Un día despejado')).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/dia-vacio.png' })
