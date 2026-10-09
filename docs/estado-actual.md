@@ -1,24 +1,28 @@
-# Estado actual — barra de Citas (nota de traspaso, 8 oct 2026)
+# Estado actual — módulo de Citas cerrado (nota de traspaso, 8 oct 2026)
 
 Para retomar en una sesión nueva sin leer la conversación anterior.
 
-## Regla vigente
+## Estado: el módulo de Citas está cerrado y publicado
 
-Diego aprobó y mandó publicar el 8 oct 2026: `main` está en `origin/main` y Vercel desplegó (https://optica-sistema-zeta.vercel.app). Desde aquí, **cada publicación nueva la pide Diego**; no se hace push sin que lo diga.
-Un commit por tema, agregando solo archivos concretos. Sin sub-agentes en paralelo ni `git stash`.
+El módulo de **Citas médicas** quedó terminado, revisado por Diego en localhost y **publicado el 8 oct 2026** (último commit `86f31b0` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito: https://optica-sistema-zeta.vercel.app). Las migraciones **0100 a 0103** están aplicadas en la base. Lo siguiente son **los otros módulos de la reunión del 7 de octubre** (`feedback-ing/requisitos-reunion-07oct-citas.md` y las transcripciones ING1 e ING2): se retoman empezando por leer este documento.
 
-## Ramas y commits
+**Reglas de trabajo vigentes:** cada publicación nueva (push, Vercel) la pide Diego; un commit por tema, agregando solo archivos concretos; sin sub-agentes en paralelo ni `git stash`; migraciones con el protocolo de siempre (backup con `pg_dump`, ensayo en transacción con rollback, SQL a la vista, verificación con sesión real); las capturas de revisión van a `C:\Users\diego\Downloads\citas-capturas\v4\` y las borra Diego.
 
-`main` y `citas-barra-v3` apuntan al mismo commit (`a52cf17`, publicado). Lo último, de más nuevo a más viejo:
+## Decisiones tomadas en Citas (resumen)
 
-| Commit | Qué hace |
-|---|---|
-| `a52cf17` | Periodos Hoy / Semana / Mes con flechas, rango libre como filtro del panel, "Ver más", un solo filtro "Responsable", fila 2 igual en las tres vistas |
-| `45a8370` | Ajustes de la barra tras revisión: atajo "Mañana", sin números en el panel, etiquetas desglosadas, calendario propio del rango, se quita el aviso de atenciones abiertas en Citas |
-| `eba73c9` | Se quitan el buscador global de la cabecera y la paleta Ctrl + K; el contenido sube y reserva el espacio de la barra de desplazamiento; `CLAUDE.md` actualizado |
-| `978eefc` … `c9a3275` | Barra única de búsqueda y filtros, "Para reagendar", confirmada en la tarjeta, fila de Inicio con datos sin confirmar (R22) |
+- **Un solo "Profesional" por cita** (quien la atendió o, si no, a quien está asignada); con alcance "propio" se oculta salvo en las citas sin asignar. "Reasignar" y "Tomar esta cita" por permiso y alcance, no por nombre de rol; `asignado_original` lo registra un trigger.
+- **Formato único de fechas y horas** (`formatoFecha.js`): "sept" con 4 letras, mes completo en el título del Mes, hora en 12 h.
+- **Código de cita único en toda cita** (no solo las de la web) y generado en un solo lugar (`generar_codigo_cita`).
+- **Sin buscador global ni Ctrl + K** (decisión del 8 oct); cada módulo tiene su buscador.
+- **Modal "Citas del día"** al clicar un día (Semana y Mes); "Agendar" solo si el día es laborable y quedan horarios; sin "Ver esta semana".
+- **Abrir un día cerrado** es una excepción de esa fecha y es **siempre solo para el personal** (sin casilla de reservas web); los días del horario habitual, incluido el domingo si la óptica lo atiende, admiten reservas web. Cerrar un día puntual lleva **nombre opcional** (feriados a mano) y no se permite con citas por atender. Lo hace quien tenga "Mi horario: editar".
+- **Atender una cita de otro día la mueve a hoy** con la hora real; "Atender ahora" y "Llegó en un horario diferente" son una sola casilla.
+- **El servidor valida el horario de la reserva web y del reagendado del portal** (0103); las ópticas sin horario configurado (`karla-vision`, `3pldf1`) no se validan.
+- **Lo seleccionado se ve en azul** (degradado de la marca), no en negro.
 
-Sin cambios de base de datos en nada de esto.
+## Publicación
+
+Todo lo anterior —incluidas las migraciones 0100 a 0103— está en `origin/main`. Verificación previa: Vitest 448 de 448, build y lint sin errores, Playwright 72 pasaron (1 omitida) en la óptica de pruebas y la Demo (solo lectura).
 
 ## Cómo quedó la barra de Citas
 
@@ -112,8 +116,6 @@ Todo el sistema formatea fechas con `formatoFecha(valor, nombre)` y horas con `h
 
 - **IMPORTANTE (se corregirá después): la ausencia de una persona bloquea esas horas para toda la óptica**, aunque otro profesional esté disponible. Las ausencias de "Mi horario" viven en la disponibilidad de la óptica (`disponibilidad.excepciones[fecha].ausencias`) y el calendario, la reserva en línea y el índice único (óptica + fecha + hora) tratan la agenda como una sola. Con dos o más profesionales eso hace perder citas. Falta modelar la agenda por profesional.
 - **Mejora futura:** una cita pendiente cuya hora ya pasó, o cuyo profesional registró una ausencia, debe aparecer a los demás optómetras como "Sin atender: disponible para tomar" (hoy solo pueden tomar las que están sin asignar).
-- **E2E (`e2e/roles.spec.js`):** `totalAgendadas` leía el número del botón "Todas" de Citas; ahora cuenta con la búsqueda `CIT-` (mira todas las fechas). **No se ha corrido.** `e2e/inicio.spec.js` usa "Todas" del período del desenlace de Inicio, que no cambió.
-- **Capturas del bug de Diagnóstico:** se restauraron (commit de esta nota) porque `docs/feedback-ing/bug-diagnostico-receta.md` las enlaza; sin ellas el documento tenía imágenes rotas.
-- **Las 2 citas antiguas de la Demo sin paciente: resueltas el 8 oct.** Lorena Mero Vélez (`8a14467d-…`) y Rafael Cedeño Pibaque (`4650a523-…`) no se pudieron ligar con certeza a ningún paciente de la Demo (41): sin cédula, y sin coincidencia por nombre, teléfono ni correo. Con ensayo previo (transacción deshecha), se **cancelaron** (`estado = Cancelada`, `cancelada_por = recepcion`, con su registro en la actividad). La de Rafael estaba en "No asistió"; ya no hay citas activas sin paciente en la Demo.
-- **`CLAUDE.md`, sección 2:** ya refleja que no hay buscador global ni Ctrl + K.
-- **Capturas de revisión:** `C:\Users\diego\Downloads\citas-capturas\` (rondas anteriores) las borra Diego.
+- **Feriados automáticos (mejora futura):** hoy los feriados se cierran a mano, día por día. En Ecuador varios feriados se trasladan cada año por decreto, así que una lista fija sería incorrecta; habría que cargarla cada año o consultar una fuente oficial. La lógica prevista es la misma: un día cerrado por defecto con su nombre, que se puede abrir (excepción > feriado > horario semanal).
+- **Aviso de `frame-ancestors`:** pendiente de revisar. El repositorio no define ninguna política de seguridad de contenido (ni en `index.html` ni en `vercel.json`). Si el aviso aparece en la consola, lo probable es que `frame-ancestors` se declare en una etiqueta `<meta>`, donde el navegador la ignora: esa directiva solo funciona como cabecera HTTP (se configuraría en `vercel.json`). Falta confirmar de dónde viene el aviso antes de tocar nada.
+- **Siguiente trabajo:** los demás módulos de la reunión del 7 de octubre (ver `feedback-ing/requisitos-reunion-07oct-citas.md` y las transcripciones ING1 e ING2).
