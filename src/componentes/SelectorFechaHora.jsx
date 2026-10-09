@@ -135,7 +135,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
             <p className="text-xs font-medium text-slate-500">No hay horarios disponibles para este día.</p>
           </div>
         ) : (
-          <div className="grid max-h-36 grid-cols-3 gap-1.5 overflow-y-auto pr-0.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {slots.map((s) => {
               const sel = hora === s.hora
               return (
