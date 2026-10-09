@@ -1,7 +1,7 @@
 "use client"
 
 import { createPortal } from "react-dom"
-import { X, CalendarPlus, CalendarDays, Sparkles } from "lucide-react"
+import { X, CalendarPlus, Sparkles } from "lucide-react"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import { hoyISO, etiquetaFecha, minutosDesdeMedianoche, horaA12, diaTieneCupo, horarioEfectivo, diaAbierto } from "../utilidades/disponibilidad"
@@ -12,8 +12,8 @@ import { profesionalDeCita, mostrarProfesional } from "../utilidades/profesional
 // Modal "Citas del día": se abre al hacer clic en un día (encabezado o zona libre de la Semana, o una casilla del Mes). Muestra
 // las citas en orden de hora, con el color de su estado; un clic en una abre su detalle. Sin citas, un mensaje amable.
 // "Agendar" abre el formulario con ese día (y la hora, si se hizo clic en una hora libre) ya elegidos; solo se ofrece si el día
-// es de atención y todavía quedan horarios (hoy, si la jornada ya terminó, no se puede agendar). "Ver esta semana" solo si el día tiene citas.
-export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTodas = [], disponibilidad, equipo = [], vistaPropia = false, filtrado = false, onCerrar, onAbrirDetalle, onAgendar, onVerSemana }) {
+// es de atención y todavía quedan horarios (hoy, si la jornada ya terminó, no se puede agendar).
+export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTodas = [], disponibilidad, equipo = [], vistaPropia = false, filtrado = false, onCerrar, onAbrirDetalle, onAgendar }) {
   const refModal = useModalAccesible(true, onCerrar)
   const hoy = hoyISO()
   const ordenadas = [...citas].sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
@@ -24,7 +24,6 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
   const diaLaborable = diaAbierto(horarioEfectivo(iso, disponibilidad))
   const hayCupo = diaTieneCupo(iso, disponibilidad, citasTodas)
   const puedeAgendar = !!onAgendar && !esPasado && hayCupo
-  const puedeVerSemana = !!onVerSemana && ordenadas.length > 0
   const porEstado = ordenadas.reduce((acc, c) => { const k = colorDe(c.estado).etiqueta; acc[k] = (acc[k] || { n: 0, color: colorDe(c.estado) }); acc[k].n++; return acc }, {})
   const resumenHoras = ordenadas.length > 0 ? ` · de ${ordenadas[0].hora} a ${ordenadas[ordenadas.length - 1].hora}` : ""
   const horaSugerida = minutos != null ? horaA12(`${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`) : null
@@ -121,18 +120,11 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
           )}
         </div>
 
-        {(puedeVerSemana || puedeAgendar) && (
-          <div className={"flex shrink-0 flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-4 " + (puedeVerSemana && puedeAgendar ? "justify-between" : "justify-center")}>
-            {puedeVerSemana && (
-              <button type="button" onClick={onVerSemana} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-                <CalendarDays size={14} aria-hidden="true" /> Ver esta semana
-              </button>
-            )}
-            {puedeAgendar && (
-              <button type="button" onClick={() => onAgendar(iso, minutos)} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD_MARCA }}>
-                <CalendarPlus size={14} aria-hidden="true" /> {horaSugerida ? `Agendar a las ${horaSugerida}` : "Agendar en este día"}
-              </button>
-            )}
+        {puedeAgendar && (
+          <div className="flex shrink-0 items-center justify-center border-t border-slate-100 px-5 py-4">
+            <button type="button" onClick={() => onAgendar(iso, minutos)} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD_MARCA }}>
+              <CalendarPlus size={14} aria-hidden="true" /> {horaSugerida ? `Agendar a las ${horaSugerida}` : "Agendar en este día"}
+            </button>
           </div>
         )}
       </div>

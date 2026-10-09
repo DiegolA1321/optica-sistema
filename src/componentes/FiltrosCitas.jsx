@@ -245,7 +245,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
         <ChevronDown size={14} className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180 text-blue-600" : "")} aria-hidden="true" />
       </button>
       {abierto && (
-        <div role="dialog" aria-label="Elegir fecha" className="absolute right-0 top-full z-30 mt-2 w-72 rounded-2xl border border-slate-200/60 bg-white p-3.5 shadow-xl" style={{ animation: "rise-in 160ms ease-out both" }}>
+        <div role="dialog" aria-label="Elegir fecha" className="absolute left-0 top-full z-30 mt-2 w-72 rounded-2xl border border-slate-200/60 bg-white p-3.5 shadow-xl" style={{ animation: "rise-in 160ms ease-out both" }}>
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
@@ -326,15 +326,15 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
   const flecha = "rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <div className="flex shrink-0 items-center rounded-lg border border-slate-200/60 bg-white p-0.5 shadow-sm">
-        <button type="button" onClick={onAnterior} aria-label={etiquetaAnterior} title={etiquetaAnterior} className={flecha}><ChevronLeft size={14} /></button>
-        <button type="button" onClick={onSiguiente} aria-label={etiquetaSiguiente} title={etiquetaSiguiente} className={flecha}><ChevronRight size={14} /></button>
-      </div>
       {selector ? (
         <SelectorPeriodo titulo={titulo} unidad={selector.unidad} visible={selector.visible} onElegir={selector.onElegir} />
       ) : (
         <h2 className="min-w-[7.9rem] shrink-0 whitespace-nowrap text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>
       )}
+      <div className="flex shrink-0 items-center rounded-lg border border-slate-200/60 bg-white p-0.5 shadow-sm">
+        <button type="button" onClick={onAnterior} aria-label={etiquetaAnterior} title={etiquetaAnterior} className={flecha}><ChevronLeft size={14} /></button>
+        <button type="button" onClick={onSiguiente} aria-label={etiquetaSiguiente} title={etiquetaSiguiente} className={flecha}><ChevronRight size={14} /></button>
+      </div>
     </div>
   )
 }

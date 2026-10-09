@@ -363,7 +363,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
   const [preguntarOtroDia, setPreguntarOtroDia] = useState(false) // el detalle se abre con "¿Atenderla hoy?" ya planteado
   // Atención abierta de un día anterior que se quiere dejar de atender (desde el menú o el detalle).
   const [dejarCita, setDejarCita] = useState(null)
-  const abrirDetalle = (cita) => { setPreguntarOtroDia(false); setDetalleCitaId(cita.id) }
+  const abrirDetalle = (cita, sinAnimarFondo = false) => { setDetalleSinAnimar(sinAnimarFondo); setPreguntarOtroDia(false); setDetalleCitaId(cita.id) }
   const alCobrarCita = async (factura) => {
     const cita = cobrandoCita
     setFacturasVenta?.((prev) => [factura, ...prev])
@@ -1195,6 +1195,7 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
 
   // "Agendar" desde el modal del día: el formulario se abre con ese día (y la hora libre sobre la que se hizo clic, si la hubo).
   const [sinAnimarFondo, setSinAnimarFondo] = useState(false)
+  const [detalleSinAnimar, setDetalleSinAnimar] = useState(false) // el detalle se abre desde el modal del día: el fondo ya está, no se anima otra vez
   const agendarDesdeDia = (iso, minutos) => {
     setSinAnimarFondo(true)
     setDiaModal(null)
@@ -1550,9 +1551,8 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
           vistaPropia={vistaPropia}
           filtrado={hayFiltros}
           onCerrar={() => setDiaModal(null)}
-          onAbrirDetalle={(c) => { setDiaModal(null); abrirDetalle(c) }}
+          onAbrirDetalle={(c) => { setDiaModal(null); abrirDetalle(c, true) }}
           onAgendar={puede(usuario, "citas", "crear") ? agendarDesdeDia : undefined}
-          onVerSemana={cabeSemana && vistaActiva !== "semana" ? () => { setSemanaLunes(lunesDeSemana(diaModal.iso)); setDiaModal(null); setVista("semana") } : undefined}
         />
       )}
 
@@ -2168,12 +2168,13 @@ export default function Citas({ usuario, onAviso, estadoInicial = null, onEstado
         return (
           <DetalleCitaModal
             cita={cita}
+            sinAnimarFondo={detalleSinAnimar}
             paciente={pacientes.find((p) => p.id === cita.pacienteId) || null}
             vistaPropia={vistaPropia}
             equipo={equipo}
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}
-            onCerrar={() => setDetalleCitaId(null)}
+            onCerrar={() => { setDetalleCitaId(null); setDetalleSinAnimar(false) }}
             onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); ingresarAFicha(c) } : undefined}
             preguntarOtroDia={preguntarOtroDia}
             onAgendarOtra={(c) => { setDetalleCitaId(null); agendarOtraCita(c) }}

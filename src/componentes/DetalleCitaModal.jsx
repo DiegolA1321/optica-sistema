@@ -61,7 +61,7 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // final, TODAS las acciones de la cita. "Atender"/"Retomar" entran directo a la ficha; "Llegó" pasa la cita a
 // "En espera" (lo usa recepción, que no atiende) y "Ver perfil" abre el paciente en otra pestaña para no perder el
 // lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está en un estado que la admite.
-export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente }) {
+export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, preguntarOtroDia = false, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, onConfirmar, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente, sinAnimarFondo = false }) {
   const refModal = useModalAccesible(true, onCerrar)
   // Cita de otro día: "Atender" pide un clic más ("¿Atenderla hoy?"); las de hoy entran directo a la ficha.
   const [confirmandoOtroDia, setConfirmandoOtroDia] = useState(preguntarOtroDia)
@@ -98,7 +98,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"
-      style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
+      style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }}
       onClick={onCerrar}
     >
       <div

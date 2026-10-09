@@ -47,7 +47,7 @@ test('Mes: un clic en un día abre el modal del día', async ({ page }) => {
   await irACitas(page, 'Mes')
   await page.getByTitle('Ver las citas de este día').nth(10).click({ position: { x: 6, y: 4 } })
   await expect(page.getByRole('dialog', { name: /./ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Ver esta semana/ })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
 })
 
 test('El título del periodo abre un selector de fecha en Semana, Mes y Lista', async ({ page }) => {
@@ -80,7 +80,7 @@ test('El filtro "Fechas" está en el panel de las tres vistas y, desde Semana, p
   await expect(page.getByText(/citas? en el rango/)).toBeVisible()
 })
 
-test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; día vacío sin "Ver esta semana" y el modal de un día con citas sí lo ofrece', async ({ page }) => {
+test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; el modal del día nunca ofrece "Ver esta semana"', async ({ page }) => {
   await irACitas(page, 'Mes')
   await expect(page.getByRole('button', { name: 'Carga', exact: true })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Qué mostrar en el calendario' })).toHaveCount(0)
@@ -97,7 +97,7 @@ test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; día vacío sin
 
   // Un día con citas (martes 6): ofrece ver la semana; es pasado, no ofrece agendar
   await page.getByTitle('Ver las citas de este día').filter({ hasText: /^6/ }).first().click({ position: { x: 6, y: 4 } })
-  await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
   await expect(page.getByRole('dialog').getByRole('button', { name: /Agendar/ })).toHaveCount(0)
 })
 
@@ -108,4 +108,16 @@ test('Panel Filtrar: lo seleccionado se ve completo (sin extremo cortado)', asyn
   await page.getByRole('button', { name: 'Todas', exact: true }).first().screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/chip-todas.png' })
   const origen = await page.getByRole('button', { name: 'Todas', exact: true }).first().evaluate((el) => getComputedStyle(el).backgroundOrigin)
   expect(origen).toBe('border-box')
+})
+
+test('Del modal del día al detalle de una cita: el fondo no se vuelve a animar (sin parpadeo) y el título va a la izquierda de las flechas', async ({ page }) => {
+  await irACitas(page, 'Mes')
+  const anterior = page.getByRole('button', { name: 'Mes anterior' })
+  const titulo = page.getByRole('button', { name: /Octubre 2026/ }).first()
+  expect((await titulo.boundingBox()).x).toBeLessThan((await anterior.boundingBox()).x)
+  await page.getByTitle('Ver las citas de este día').filter({ hasText: /^8/ }).first().click({ position: { x: 6, y: 4 } })
+  await page.getByRole('dialog').getByRole('button', { name: /Rafael Cedeño/ }).click()
+  const fondo = page.locator('div.fixed.inset-0').filter({ has: page.getByRole('dialog') }).first()
+  await expect(page.getByRole('dialog').getByText('Detalle de la cita')).toBeVisible()
+  expect(await fondo.evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
 })
