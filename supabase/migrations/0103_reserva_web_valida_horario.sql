@@ -1,15 +1,17 @@
--- La reserva web ya no confía solo en la pantalla: crear_cita_publica rechaza una fecha u hora que la óptica no atiende.
--- Hasta ahora el horario (y los días cerrados) solo se respetaban en la página pública; una llamada directa a la función podía
--- reservar cualquier día y hora. Reglas, en este orden, con el horario de `disponibilidad` de esa óptica:
---   1. El día debe tener la mañana o la tarde activa (la excepción de esa fecha manda sobre el horario semanal).
---   2. Si la fecha es una excepción con `reservasWeb: false` (día abierto solo para el personal), no admite reservas en línea.
+-- La reserva web (y el reagendado del portal) ya no confían solo en la pantalla: crear_cita_publica y reagendar_cita_publica
+-- rechazan una fecha u hora que la óptica no atiende. Hasta ahora el horario (y los días cerrados) solo se respetaban en la
+-- página pública; una llamada directa a la función podía reservar cualquier día y hora. Reglas, en este orden, con el horario de
+-- `disponibilidad` de esa óptica (la excepción de una fecha manda sobre el horario semanal):
+--   1. El día debe tener la mañana o la tarde activa.
+--   2. Un día abierto de forma excepcional (la fecha tiene una excepción abierta y su día de la semana está cerrado en el horario
+--      habitual, p. ej. un domingo abierto a mano) es SOLO para el personal: no admite reservas en línea. Los días del horario
+--      habitual —incluido el domingo, si la óptica lo atiende— siguen admitiéndolas, también con una excepción que solo cambia sus horas.
 --   3. La hora de inicio debe caer dentro de una sesión activa: desde su inicio, antes de su fin.
 -- Sin fila en `disponibilidad` (óptica que aún no configuró su horario) no se valida nada, como hasta ahora.
--- Las excepciones anteriores (sin la marca `reservasWeb`) siguen admitiendo reservas web.
 --
--- El resto de crear_cita_publica es idéntico a la definición que hay hoy en la base (pg_get_functiondef, tras la 0102): misma
--- firma, sin overload. La validación vive en una función aparte, que no se puede llamar desde fuera.
--- (Pendiente aparte: reagendar_cita_publica, el reagendado del portal, aún no aplica esta misma regla.)
+-- El resto de crear_cita_publica y de reagendar_cita_publica es idéntico a la definición que hay hoy en la base
+-- (pg_get_functiondef, tras la 0102): misma firma, sin overload. La validación vive en una función aparte, que no se puede llamar
+-- desde fuera.
 
 create or replace function public.validar_horario_reserva_web(p_optica_id uuid, p_fecha date, p_hora text)
 returns void
@@ -21,6 +23,7 @@ declare
   v_semanal jsonb;
   v_excs jsonb;
   v_exc jsonb;
+  v_base jsonb;
   v_dia jsonb;
   v_partes text[];
   v_min int;
@@ -34,14 +37,17 @@ begin
   end if;
 
   v_exc := v_excs -> p_fecha::text;
-  v_dia := coalesce(v_exc, v_semanal -> (array['domingo','lunes','martes','miercoles','jueves','viernes','sabado'])[extract(dow from p_fecha)::int + 1]);
+  v_base := v_semanal -> (array['domingo','lunes','martes','miercoles','jueves','viernes','sabado'])[extract(dow from p_fecha)::int + 1];
+  v_dia := coalesce(v_exc, v_base);
 
   if v_dia is null
      or not (coalesce((v_dia -> 'manana' ->> 'activo')::boolean, false) or coalesce((v_dia -> 'tarde' ->> 'activo')::boolean, false)) then
     raise exception 'Ese día la óptica no atiende. Elige otro.';
   end if;
 
-  if v_exc is not null and (v_exc ->> 'reservasWeb') = 'false' then
+  -- Abierto por excepción en un día que el horario habitual tiene cerrado: solo para el personal.
+  if v_exc is not null
+     and not (coalesce((v_base -> 'manana' ->> 'activo')::boolean, false) or coalesce((v_base -> 'tarde' ->> 'activo')::boolean, false)) then
     raise exception 'Ese día no admite reservas en línea. Elige otro.';
   end if;
 
@@ -154,5 +160,39 @@ begin
   end;
 
   return query select v_id, v_codigo;
+end;
+$function$;
+
+-- ════════════════════════════════════════════════════════════════
+-- reagendar_cita_publica (portal del paciente): misma validación
+-- ════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.reagendar_cita_publica(p_cita_id uuid, p_paciente_id uuid, p_fecha date, p_hora text, p_token text DEFAULT NULL::text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_optica uuid;
+begin
+  if not sesion_paciente_valida(p_paciente_id, p_token) then
+    return false;
+  end if;
+
+  -- Horario de atención (0103): la nueva fecha y hora deben cumplir las mismas reglas que una reserva nueva.
+  select optica_id into v_optica from citas_base where id = p_cita_id and paciente_id = p_paciente_id;
+  if v_optica is not null then
+    perform public.validar_horario_reserva_web(v_optica, p_fecha, trim(p_hora));
+  end if;
+
+  begin
+    update citas
+    set fecha = p_fecha, hora = p_hora, estado = 'Pendiente', updated_at = now()
+    where id = p_cita_id and paciente_id = p_paciente_id;
+  exception
+    when unique_violation then
+      raise exception 'Ese horario ya no está disponible. Elige otro.';
+  end;
+  return found;
 end;
 $function$;
