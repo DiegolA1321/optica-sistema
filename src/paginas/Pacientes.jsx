@@ -67,7 +67,6 @@ import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteMo
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
-import { lineaLunaDeTexto } from "../utilidades/comprobantes"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
@@ -314,16 +313,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
     return e
   }, [pacienteHistorial])
-  // Última consulta del paciente abierto — memo liviano y aparte del cálculo
-  // más completo que ya hace consultasPaciente más abajo (ese vive dentro de
-  // un IIFE junto con ventas/facturas y no está disponible en el encabezado,
-  // donde vive el botón "Facturar receta").
-  const ultimaConsultaPerfil = useMemo(() => {
-    if (!pacienteHistorial) return null
-    const delPaciente = consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
-    if (delPaciente.length === 0) return null
-    return delPaciente.slice().sort(ordenarPorFechaYCreacion)[0]
-  }, [pacienteHistorial, consultas])
   const [tabHistorial, setTabHistorial] = useState("citas")
   // Escape cierra la vista de perfil del paciente (atajo de teclado).
   useEffect(() => {
@@ -764,18 +753,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     setFacturaLineaInicial(undefined)
     setMostrarFactura(true)
     mostrarNotif(`Nueva venta lista para ${paciente.nombre}.`)
-  }
-
-  // Vender directo desde el encabezado del perfil, con la receta de la última
-  // consulta ya cargada: si el optómetra recomendó un lente, la venta abre con la
-  // luna como texto (R57: las lunas no son productos de inventario) y el precio por
-  // llenar; la montura se elige del inventario. Mismo patrón que ConsultaMedica.jsx.
-  const abrirFacturaConReceta = (consulta) => {
-    setTabHistorial("pagos")
-    const lente = (consulta?.lenteRecomendado || "").trim()
-    setFacturaLineaInicial(lente ? [lineaLunaDeTexto(lente)] : undefined)
-    setMostrarFactura(true)
-    mostrarNotif(lente ? `Venta precargada con "${lente}".` : `Abriendo la venta de ${pacienteHistorial?.nombre}.`)
   }
 
   // ── Agendar cita desde el perfil del paciente ──
@@ -1943,22 +1920,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   >
                     <MessageCircle size={16} /> Enviar mensaje
                   </button>}
-                  {/* Flujo consulta→venta sin fricción: solo aparece cuando la
-                      última consulta dejó un lente recomendado, para no
-                      ofrecer facturar algo que todavía no existe. Un clic
-                      abre ComprobanteVentaModal con esa receta ya cargada (ver
-                      abrirFacturaConReceta) en vez de mandar a buscar el
-                      mismo producto de nuevo en la pestaña Lentes/Productos. */}
-                  {ultimaConsultaPerfil?.lenteRecomendado && (
-                    <button
-                      type="button"
-                      onClick={() => abrirFacturaConReceta(ultimaConsultaPerfil)}
-                      className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                      style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
-                    >
-                      <Receipt size={16} /> Vender receta
-                    </button>
-                  )}
                   {!pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
                   <button
                     type="button"
