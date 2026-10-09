@@ -115,6 +115,41 @@ Una pantalla no está terminada hasta que se vio con cada rol, vacía, con mucho
 
 ---
 
+## F. Reglas que salieron de la revisión del Inicio y del perfil del paciente (9 oct. 2026)
+
+### 21. Un mismo hecho se avisa igual en todas las pantallas que lo muestran
+Si el Inicio avisa que un control está vencido, el perfil de ese paciente también lo avisa, con la misma acción. Una pantalla no puede ocultar lo que otra anuncia.
+- **Citas:** una cita con la atención abierta de un día anterior dice lo mismo en la tarjeta, en el detalle, en el Inicio y en el perfil: "Abierta hace 2 días".
+
+### 22. Una alerta viaja con su acción, y esa acción respeta el permiso
+Una alerta sin botón obliga a buscar; un botón que el rol no puede usar es peor. Cada botón se oculta si el rol no tiene el permiso del módulo al que lleva (agendar: citas crear; vender y cobrar: ventas crear; enviar mensaje: CRM crear; crear acceso: pacientes editar).
+- **Citas:** Reasignar y Tomar esta cita aparecen por permiso y alcance, no por nombre de rol.
+
+### 23. Un conteo y la lista que abre usan el mismo criterio, incluidas las canceladas
+Las canceladas no cuentan como citas del día ni del periodo: se cuentan aparte y solo se listan cuando se pide. Si una tarjeta dice "3 citas", la lista tiene 3.
+- **Citas:** "Todas" son las citas activas; las canceladas se ven solo con Estado: Canceladas.
+
+### 24. Cada indicador vive en un solo lugar
+Si el puntaje, un estado o un total ya aparece en un bloque, no se repite en otro de la misma pantalla. El detalle va dentro de su padre, desplegable, no en una segunda lista.
+- **Citas:** la tarjeta no repite lo del detalle. **Perfil:** cada venta aparece una vez, por comprobante, con sus líneas desplegables.
+
+### 25. Un control que no aporta con pocos datos no aparece
+Un buscador sobre 2 filas es ruido. Los controles de filtrado salen cuando hay volumen que filtrar.
+- **Perfil:** el buscador del historial de citas aparece con más de 5 citas.
+
+### 26. Un solo mensaje por lista vacía, y sin enlaces a lo que no existe
+Una lista vacía dice una vez qué pasa y, si hay una acción útil, la ofrece. No repite el mismo hecho en tres textos ni ofrece "Ver todas" cuando no hay nada que ver.
+- **Citas:** "Hoy no hay citas" con su acción; un día cerrado explica por qué y ofrece abrirlo.
+
+### 27. Lo que toca otro módulo cerrado se avisa antes de dejarlo
+Si un cambio comparte un componente o un criterio con un módulo ya aprobado (Citas), se dice qué cambia allí y por qué, y se espera la aprobación antes de dejarlo.
+- **Ejemplo:** unificar el texto "Abierta hace N días" cambia la etiqueta de la tarjeta de Citas; se pidió aprobación.
+
+### 28. Las pruebas crean sus propios datos y leen la Demo solo para mirar
+Una prueba que escribe corre en la óptica de pruebas y crea lo que necesita (paciente con historial, cita de hoy). La Demo es de solo lectura.
+
+---
+
 ## Lista de revisión antes de dar una pantalla por terminada
 
 Cada pregunta remite a una regla; la respuesta debe ser "sí".
@@ -134,3 +169,7 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 13. ¿Cada lista, gráfico y bloque vacío dice qué pasa y qué hacer? (17)
 14. ¿Se reutilizó la pieza existente en lugar de copiarla? (18)
 15. ¿Se vio con otro rol, vacía, con muchos datos y en otra zona horaria? (19)
+16. ¿Lo que una pantalla avisa también lo avisan las demás que muestran ese hecho, con la misma acción y el permiso correcto? (21, 22)
+17. ¿Cada conteo coincide con su lista, canceladas incluidas, y cada indicador vive en un solo lugar? (23, 24)
+18. ¿Los controles de más (buscadores, enlaces "Ver todas") aparecen solo cuando hay algo que filtrar o ver? (25, 26)
+19. ¿El cambio toca otro módulo cerrado? Si sí, se avisó y se aprobó. (27)
