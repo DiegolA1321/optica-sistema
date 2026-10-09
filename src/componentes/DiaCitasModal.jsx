@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { createPortal } from "react-dom"
-import { X, CalendarPlus, Sparkles, Moon, LockOpen, Lock } from "lucide-react"
+import { X, CalendarPlus, Sparkles, Moon, LockOpen, Lock, Loader2 } from "lucide-react"
 import AbrirDiaForm from "./AbrirDiaForm"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { formatoFecha } from "../utilidades/formatoFecha"
-import { hoyISO, etiquetaFecha, minutosDesdeMedianoche, horaA12, diaTieneCupo, horarioEfectivo, diaAbierto, abiertoPorExcepcion, citasQueBloqueanCierre, mensajeCierreBloqueado } from "../utilidades/disponibilidad"
+import { hoyISO, etiquetaFecha, minutosDesdeMedianoche, horaA12, diaTieneCupo, horarioEfectivo, diaAbierto, abiertoPorExcepcion, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { colorDe } from "./calendarioComun"
 import { profesionalDeCita, mostrarProfesional } from "../utilidades/profesionalCita"
@@ -17,10 +17,12 @@ import { profesionalDeCita, mostrarProfesional } from "../utilidades/profesional
 // es de atención y todavía quedan horarios (hoy, si la jornada ya terminó, no se puede agendar).
 // Un día cerrado se puede abrir solo para esa fecha (quien tiene "Mi horario: editar"): elige mañana y/o tarde y si admite reservas web.
 // Un día abierto así se puede volver a cerrar mientras no tenga citas por atender.
-export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTodas = [], disponibilidad, equipo = [], vistaPropia = false, filtrado = false, puedeEditarHorario = false, abrirDirecto = false, onCerrar, onAbrirDetalle, onAgendar, onAbrirDia, onCerrarDia }) {
+export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTodas = [], disponibilidad, equipo = [], vistaPropia = false, filtrado = false, puedeEditarHorario = false, abrirDirecto = false, onCerrar, onAbrirDetalle, onAgendar, onAbrirDia, onCerrarDia, onCerrarDiaConNombre }) {
   const refModal = useModalAccesible(true, onCerrar)
   const [abriendo, setAbriendo] = useState(abrirDirecto && puedeEditarHorario)
   const [guardando, setGuardando] = useState(false)
+  const [cerrando, setCerrando] = useState(false) // cerrar un día de atención solo por esa fecha (feriado, por ejemplo)
+  const [nombreCierre, setNombreCierre] = useState("")
   const hoy = hoyISO()
   const ordenadas = [...citas].sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   const [diaSem] = formatoFecha(iso, "diaNumero").split(" ")
@@ -34,11 +36,19 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
   const cerradoSinPermiso = !puedeEditarHorario && !esPasado && !diaLaborable
   const bloquean = citasQueBloqueanCierre(citasTodas, iso)
   const puedeVolverACerrar = puedeEditarHorario && !!onCerrarDia && !esPasado && abiertoPorExcepcion(iso, disponibilidad)
-  const confirmarApertura = async (sesiones, reservasWeb, agendar) => {
+  const nombreDelDia = nombreDeDiaCerrado(iso, disponibilidad)
+  const puedeCerrarPuntual = puedeEditarHorario && !!onCerrarDiaConNombre && !esPasado && diaLaborable && !abiertoPorExcepcion(iso, disponibilidad)
+  const confirmarApertura = async (sesiones, agendar) => {
     setGuardando(true)
-    const ok = await onAbrirDia(iso, sesiones, reservasWeb, agendar)
+    const ok = await onAbrirDia(iso, sesiones, agendar)
     setGuardando(false)
     if (ok) setAbriendo(false)
+  }
+  const confirmarCierre = async () => {
+    setGuardando(true)
+    const ok = await onCerrarDiaConNombre(iso, nombreCierre.trim())
+    setGuardando(false)
+    if (ok) { setCerrando(false); setNombreCierre("") }
   }
   const porEstado = ordenadas.reduce((acc, c) => { const k = colorDe(c.estado).etiqueta; acc[k] = (acc[k] || { n: 0, color: colorDe(c.estado) }); acc[k].n++; return acc }, {})
   const resumenHoras = ordenadas.length > 0 ? ` · de ${ordenadas[0].hora} a ${ordenadas[ordenadas.length - 1].hora}` : ""
@@ -49,7 +59,7 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
     : esPasado
       ? { titulo: "Sin citas este día", texto: "No hubo pacientes agendados en esta fecha." }
       : !diaLaborable
-        ? { titulo: "Día sin atención", texto: "La óptica no atiende este día, así que no hay pacientes agendados." }
+        ? { titulo: nombreDelDia || "Día sin atención", texto: "La óptica no atiende este día, así que no hay pacientes agendados." }
         : iso === hoy && !hayCupo
           ? { titulo: "La jornada de hoy ya terminó", texto: "No hubo pacientes agendados en lo que quedaba del día. Puedes agendar desde mañana." }
           : iso === hoy
@@ -79,11 +89,11 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
           </div>
           <div className="min-w-0 flex-1">
             <h4 id="citas-modal-dia-titulo" className="flex flex-wrap items-center gap-x-2 text-lg font-bold" style={{ color: INK }}>
-              {abriendo ? `Abrir el ${formatoFecha(iso, "calendario").toLowerCase()}` : formatoFecha(iso, "calendario")}
-              {!abriendo && caption && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD_MARCA }}>{caption}</span>}
+              {abriendo ? `Abrir el ${formatoFecha(iso, "calendario").toLowerCase()}` : cerrando ? `Cerrar el ${formatoFecha(iso, "calendario").toLowerCase()}` : formatoFecha(iso, "calendario")}
+              {!abriendo && !cerrando && caption && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD_MARCA }}>{caption}</span>}
             </h4>
             <p className="text-xs text-slate-500">
-              {abriendo ? "Solo este día · no cambia el horario de los demás días" : !diaLaborable && ordenadas.length === 0 ? "Cerrado · día sin atención" : ordenadas.length === 0 ? "Sin citas" : `${ordenadas.length} ${ordenadas.length === 1 ? "cita" : "citas"}${resumenHoras}`}
+              {abriendo || cerrando ? "Solo este día · no cambia el horario de los demás días" : !diaLaborable && ordenadas.length === 0 ? (nombreDelDia ? `Cerrado · ${nombreDelDia}` : "Cerrado · día sin atención") : ordenadas.length === 0 ? "Sin citas" : `${ordenadas.length} ${ordenadas.length === 1 ? "cita" : "citas"}${resumenHoras}`}
             </p>
           </div>
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
@@ -92,7 +102,34 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {abriendo ? (
+          {cerrando ? (
+            <div className="px-5 py-5">
+              {bloquean.length > 0 ? (
+                <p role="alert" className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm font-medium text-amber-800">{mensajeCierreBloqueado(bloquean.length)}</p>
+              ) : (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre del día <span className="font-normal text-slate-500">(opcional)</span></span>
+                  <input
+                    type="text"
+                    value={nombreCierre}
+                    maxLength={60}
+                    onChange={(e) => setNombreCierre(e.target.value)}
+                    placeholder="Ej.: Feriado: Día de los Difuntos"
+                    className="w-full rounded-xl border border-slate-200/60 bg-white px-3.5 py-2.5 text-sm outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                  />
+                  <span className="mt-1.5 block text-xs text-slate-500">Se muestra en el calendario y en Mi horario en lugar de solo «Cerrado».</span>
+                </label>
+              )}
+              <div className="mt-5 flex items-center justify-between gap-2">
+                <button type="button" onClick={() => setCerrando(false)} disabled={guardando} className="rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
+                {bloquean.length === 0 && (
+                  <button type="button" onClick={confirmarCierre} disabled={guardando} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                    {guardando ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Lock size={14} aria-hidden="true" />} Cerrar este día
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : abriendo ? (
             <AbrirDiaForm iso={iso} disponibilidad={disponibilidad} puedeAgendar={!!onAgendar} guardando={guardando} onConfirmar={confirmarApertura} onCancelar={() => setAbriendo(false)} />
           ) : ordenadas.length === 0 ? (
             <div className="px-8 py-10 text-center">
@@ -148,7 +185,15 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
           )}
         </div>
 
-        {!abriendo && puedeVolverACerrar && (
+        {!abriendo && !cerrando && puedeCerrarPuntual && (
+          <div className="flex shrink-0 items-center justify-center border-t border-slate-100 px-5 py-3">
+            <button type="button" onClick={() => setCerrando(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 underline-offset-2 transition-colors hover:text-slate-800 hover:underline cursor-pointer">
+              <Lock size={12} aria-hidden="true" /> Cerrar este día (feriado u otro motivo)…
+            </button>
+          </div>
+        )}
+
+        {!abriendo && !cerrando && puedeVolverACerrar && (
           <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-slate-100 px-5 py-3 text-xs">
             <span className="text-slate-500">Este día se abrió solo para esta fecha.</span>
             <button
@@ -163,7 +208,7 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
           </div>
         )}
 
-        {!abriendo && puedeAgendar && (
+        {!abriendo && !cerrando && puedeAgendar && (
           <div className="flex shrink-0 items-center justify-center border-t border-slate-100 px-5 py-4">
             <button type="button" onClick={() => onAgendar(iso, minutos)} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD_MARCA }}>
               <CalendarPlus size={14} aria-hidden="true" /> {horaSugerida ? `Agendar a las ${horaSugerida}` : "Agendar en este día"}

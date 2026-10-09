@@ -32,10 +32,9 @@ function Sesion({ nombre, valor, onChange }) {
 }
 
 // Abrir un día cerrado: qué sesiones (mañana y/o tarde) y si también admite reservas por la web. Parte de las horas del horario
-// habitual de la óptica. onConfirmar({ manana, tarde }, reservasWeb, agendar).
+// habitual de la óptica. Un día abierto así es solo para el personal. onConfirmar({ manana, tarde }, agendar).
 export default function AbrirDiaForm({ iso, disponibilidad, puedeAgendar = false, guardando = false, onConfirmar, onCancelar }) {
   const [sesiones, setSesiones] = useState(() => horarioPropuestoParaAbrir(iso, disponibilidad))
-  const [reservasWeb, setReservasWeb] = useState(false)
   const [error, setError] = useState("")
 
   const validar = () => {
@@ -50,7 +49,7 @@ export default function AbrirDiaForm({ iso, disponibilidad, puedeAgendar = false
   const confirmar = (agendar) => {
     const problema = validar()
     setError(problema)
-    if (!problema) onConfirmar(sesiones, reservasWeb, agendar)
+    if (!problema) onConfirmar(sesiones, agendar)
   }
 
   return (

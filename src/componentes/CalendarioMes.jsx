@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react"
 import { Plus, CalendarClock } from "lucide-react"
-import { fechaAISO, hoyISO, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO, nombreDeDiaCerrado, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
 import { formatoFecha, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
@@ -23,7 +23,7 @@ const ALTO_CABECERA = 22
 const RELLENO_VERTICAL = 6
 const ALTO_FILA_MIN = RELLENO_VERTICAL + ALTO_CABECERA + MIN_ETIQUETAS * ALTO_ETIQUETA + (MIN_ETIQUETAS - 1) * SEPARACION
 
-export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick, onAbrirDetalle, onAgendar }) {
+export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coincide, onDiaClick, onAbrirDetalle, onAgendar }) {
   const refSeccion = useRef(null)
   const altoSeccion = useAlturaDisponible(refSeccion)
   const hoy = hoyISO()
@@ -67,6 +67,7 @@ export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick
               const caben = Math.min(ordenadas.length, maxEtiquetas)
               const resto = ordenadas.length - caben
               const esHoy = iso === hoy
+              const nombreDia = nombreDeDiaCerrado(iso, disponibilidad)
               return (
                 <div
                   key={iso}
@@ -85,6 +86,7 @@ export default function CalendarioMes({ mes, citasPorFecha, coincide, onDiaClick
                       <span className="rounded px-1 text-[11px] font-bold leading-4 text-blue-700">+{resto} más</span>
                     )}
                   </div>
+                  {nombreDia && <span title={nombreDia} className="mb-0.5 block truncate rounded bg-slate-100 px-1 text-[10px] font-semibold leading-4 text-slate-600">{nombreDia}</span>}
                   <div className="space-y-0.5">
                     {ordenadas.slice(0, caben).map((c) => {
                       const color = colorDe(c.estado)

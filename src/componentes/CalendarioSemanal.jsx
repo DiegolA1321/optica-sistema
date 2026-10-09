@@ -202,7 +202,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                 {franjas.map((f, i) => (
                   <div
                     key={i}
-                    title={f.tipo === "ausencia" && f.motivo ? `Ausencia: ${f.motivo}` : TITULO_FRANJA[f.tipo]}
+                    title={f.tipo === "ausencia" && f.motivo ? `Ausencia: ${f.motivo}` : f.etiqueta || TITULO_FRANJA[f.tipo]}
                     className="absolute inset-x-0"
                     style={{ top: (f.inicio - rango.inicio) * PX_POR_MIN, height: (f.fin - f.inicio) * PX_POR_MIN, ...ESTILO_FRANJA[f.tipo] }}
                   >
@@ -210,7 +210,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         pegada bajo el encabezado mientras la franja está a la vista. */}
                     {(f.fin - f.inicio) * PX_POR_MIN >= 18 && (
                       <span className="pointer-events-none sticky ml-1.5 inline-block max-w-[calc(100%-12px)] truncate rounded px-1 text-[10px] font-semibold uppercase leading-4 tracking-wide text-slate-400" style={{ top: ALTO_ENCABEZADO + 4 }}>
-                        {ETIQUETA_FRANJA[f.tipo]}{f.tipo === "ausencia" && f.motivo ? ` · ${f.motivo}` : ""}
+                        {f.etiqueta || ETIQUETA_FRANJA[f.tipo]}{f.tipo === "ausencia" && f.motivo ? ` · ${f.motivo}` : ""}
                       </span>
                     )}
                   </div>

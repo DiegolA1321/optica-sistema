@@ -49,7 +49,7 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
-import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado } from "../utilidades/disponibilidad"
+import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, conflictoHorarioPersonalizado, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
@@ -1227,12 +1227,13 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // Abrir (o volver a cerrar) un día no laborable: una excepción de esa fecha en el horario. Solo con "Mi horario: editar"; la base
   // también lo exige. Queda en la actividad con quién lo hizo, y la excepción guarda quién la abrió.
   const puedeEditarHorario = puede(usuario, "horario", "editar") && !!setDisponibilidad
-  const abrirDia = async (iso, sesiones, reservasWeb, agendar) => {
+  const abrirDia = async (iso, sesiones, agendar) => {
     const horas = [["manana", sesiones.manana], ["tarde", sesiones.tarde]].filter(([, s]) => s.activo).map(([, s]) => `${horaA12(s.inicio)}–${horaA12(s.fin)}`).join(" y ")
-    const excepcion = { ...(disponibilidad?.excepciones?.[iso] || {}), manana: sesiones.manana, tarde: sesiones.tarde, reservasWeb, abiertoPor: { id: usuario?.id || null, nombre: usuario?.nombre || "", en: new Date().toISOString() } }
+    const excepcion = { ...(disponibilidad?.excepciones?.[iso] || {}), manana: sesiones.manana, tarde: sesiones.tarde, abiertoPor: { id: usuario?.id || null, nombre: usuario?.nombre || "", en: new Date().toISOString() } }
+    delete excepcion.nombre // un día abierto ya no es un feriado
     const { error } = await setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [iso]: excepcion } }))
     if (error) { onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo abrir el día. Revisa tu conexión e intenta de nuevo."); return false }
-    registrarLog(usuario, "horario", "Abrió un día cerrado", `${formatoFecha(iso, "calendario")} · ${horas} · ${reservasWeb ? "también reservas web" : "solo personal"}`)
+    registrarLog(usuario, "horario", "Abrió un día cerrado", `${formatoFecha(iso, "calendario")} · ${horas} · solo personal`)
     onAviso?.(`${formatoFecha(iso, "calendario")} abierto (${horas}).`)
     if (agendar) agendarDesdeDia(iso, null)
     return true
@@ -1244,7 +1245,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
     const { error } = await setDisponibilidad((prev) => {
       const excepciones = { ...prev.excepciones }
       if ((previa.ausencias || []).length > 0) {
-        const { reservasWeb: _w, abiertoPor: _a, ...resto } = previa
+        const { abiertoPor: _a, ...resto } = previa
         excepciones[iso] = { ...resto, manana: { ...resto.manana, activo: false }, tarde: { ...resto.tarde, activo: false } }
       } else delete excepciones[iso]
       return { ...prev, excepciones }
@@ -1252,6 +1253,20 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
     if (error) { onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo cerrar el día. Revisa tu conexión e intenta de nuevo."); return }
     registrarLog(usuario, "horario", "Volvió a cerrar un día abierto", formatoFecha(iso, "calendario"))
     onAviso?.(`${formatoFecha(iso, "calendario")} vuelve a estar cerrado.`)
+  }
+  // Cerrar un día de atención solo por esa fecha (un feriado, por ejemplo), con un nombre opcional que se ve en los calendarios.
+  const cerrarDiaConNombre = async (iso, nombre) => {
+    const n = citasQueBloqueanCierre(citas, iso).length
+    if (n > 0) { onAviso?.(mensajeCierreBloqueado(n)); return false }
+    const previa = disponibilidad?.excepciones?.[iso] || {}
+    const base = horarioEfectivo(iso, disponibilidad)
+    const excepcion = { ...previa, manana: { ...base.manana, activo: false }, tarde: { ...base.tarde, activo: false }, ...(nombre ? { nombre } : {}) }
+    if (!nombre) delete excepcion.nombre
+    const { error } = await setDisponibilidad((prev) => ({ ...prev, excepciones: { ...prev.excepciones, [iso]: excepcion } }))
+    if (error) { onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo cerrar el día. Revisa tu conexión e intenta de nuevo."); return false }
+    registrarLog(usuario, "horario", "Cerró un día puntual", `${formatoFecha(iso, "calendario")}${nombre ? ` · ${nombre}` : ""}`)
+    onAviso?.(`${formatoFecha(iso, "calendario")} cerrado${nombre ? `: ${nombre}` : ""}.`)
+    return true
   }
   const [sinAnimarFondo, setSinAnimarFondo] = useState(false)
   const [detalleSinAnimar, setDetalleSinAnimar] = useState(false) // el detalle se abre desde el modal del día: el fondo ya está, no se anima otra vez
@@ -1548,6 +1563,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
       ) : vistaActiva === "mes" ? (
         <CalendarioMes
           mes={mesVista}
+          disponibilidad={disponibilidad}
           citasPorFecha={gruposCalendario}
           onDiaClick={(iso) => setDiaModal({ iso, minutos: null })}
           onAbrirDetalle={abrirDetalle}
@@ -1558,7 +1574,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">
             <Calendar size={30} />
           </div>
-          <p className="mt-4 text-base font-semibold text-slate-600">{diaCerradoEnLista ? `${formatoFecha(refLista, "calendario")}: la óptica no atiende` : hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : totalAlcance > 0 ? "Ninguna cita en este periodo" : "Todavía no hay citas"}</p>
+          <p className="mt-4 text-base font-semibold text-slate-600">{diaCerradoEnLista ? (nombreDeDiaCerrado(refLista, disponibilidad) ? `${formatoFecha(refLista, "calendario")}: ${nombreDeDiaCerrado(refLista, disponibilidad)}` : `${formatoFecha(refLista, "calendario")}: la óptica no atiende`) : hoySinCitas ? "Hoy no hay citas" : hayFiltros ? "Ninguna cita coincide con estos filtros" : totalAlcance > 0 ? "Ninguna cita en este periodo" : "Todavía no hay citas"}</p>
           {diaCerradoEnLista ? (
             puedeEditarHorario && refLista >= hoyISO() ? (
               <button type="button" onClick={() => setDiaModal({ iso: refLista, minutos: null, abrirDirecto: true })} className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
@@ -1625,6 +1641,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
           abrirDirecto={!!diaModal.abrirDirecto}
           onAbrirDia={abrirDia}
           onCerrarDia={cerrarDiaAbierto}
+          onCerrarDiaConNombre={cerrarDiaConNombre}
         />
       )}
 
