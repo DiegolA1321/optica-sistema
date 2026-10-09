@@ -2020,7 +2020,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {!alertaControl && proximoControl && !inactivo && consultasPaciente.length === 0 && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
                           <Calendar size={13} className="text-slate-500" aria-hidden="true" />
-                          Próximo control: {fechaLegible(proximoControl)}
+                          Control recomendado: {fechaLegible(proximoControl)}
                           <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
                         </span>
                       )}
@@ -2677,6 +2677,8 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 // la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
 function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras }) {
   const ultima = consultas[0]
+  // "Control recomendado" es lo que dice la ficha; "Próxima cita" es la fecha ya agendada. Dos datos distintos, dos nombres.
+  const citaPendiente = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0]
   const correccion = ultima ? CORRECCION[ultima.estadoCorreccion] || CORRECCION["Sin evaluación"] : null
   const IconoCorreccion = correccion?.icon
   const colorEstado = ultima ? CORRECCION_COLOR[ultima.estadoCorreccion] || CORRECCION_COLOR["Sin evaluación"] : null
@@ -2716,12 +2718,13 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           </div>
         )}
         <div className={"rounded-xl border p-3.5 " + (inactivo ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
-          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Próximo control</p>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> Control recomendado</p>
           {proximoControl ? (
             <>
               <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>{fechaLegible(proximoControl)}</p>
               <p className={"text-[11px] " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
                 {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}
+                {citaPendiente ? ` · Cita agendada: ${fechaLegible(citaPendiente.fecha)}` : ""}
               </p>
             </>
           ) : (
