@@ -821,7 +821,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             paciente, y cualquier otra a futuro) — position:relative en <main>
             de arriba es lo que hace que "absolute inset-0" adentro cubra
             justo este panel y no el sidebar. */}
-        <div id="vista-completa-root" />
 
         {/* Franja de impersonación — visible mientras un superadmin está
             "entrado como" el administrador de esta óptica (caso #8 de la
@@ -972,7 +971,10 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </div>
         </header>
 
-        {/* Espacio de trabajo */}
+        {/* Espacio de trabajo. El perfil de paciente a pantalla completa se ancla aquí (Pacientes.jsx lo porta a #vista-completa-root):
+            cubre el espacio de trabajo pero deja a la vista la barra de arriba (campanita y usuario). */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+        <div id="vista-completa-root" />
         <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-8 pt-3 sm:pt-3 lg:pt-4">
           {/* Hallazgo real 2026-09-10: suspender una óptica no cortaba el
               acceso de una sesión ya abierta, y tampoco avisaba nada — la
@@ -1040,6 +1042,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               )}
             </div>
           )}
+        </div>
         </div>
       </main>
 

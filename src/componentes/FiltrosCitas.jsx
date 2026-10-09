@@ -341,13 +341,14 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
 }
 
 // Sección "Fechas" del panel: un botón con el rango elegido que despliega el calendario. También la usa el historial del perfil del paciente.
-export function SeccionRango({ rango }) {
-  const [abierto, setAbierto] = useState(Boolean(rango.desde))
+export function SeccionRango({ rango, flotante = false }) {
+  const [abierto, setAbierto] = useState(!flotante && Boolean(rango.desde))
+  const refFlotante = useCierre(flotante && abierto, () => setAbierto(false))
   const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const texto = rango.desde && rango.hasta ? `${corta(rango.desde)} – ${corta(rango.hasta)}` : rango.desde ? `Desde el ${corta(rango.desde)}` : "Elegir rango de fechas…"
   const hay = Boolean(rango.desde || rango.hasta)
   return (
-    <div className="space-y-2">
+    <div ref={flotante ? refFlotante : undefined} className={flotante ? "relative" : "space-y-2"}>
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
@@ -358,7 +359,9 @@ export function SeccionRango({ rango }) {
         <span className="truncate">{texto}</span>
         <ChevronDown size={13} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>
-      {abierto && <CalendarioRango rango={rango} />}
+      {abierto && (flotante
+        ? <div data-popover-abierto className="absolute right-0 top-full z-30 mt-1.5 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/60 bg-white p-2.5 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}><CalendarioRango rango={rango} /></div>
+        : <CalendarioRango rango={rango} />)}
     </div>
   )
 }

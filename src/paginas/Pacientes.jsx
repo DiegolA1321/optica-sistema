@@ -48,11 +48,9 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  Globe,
   Clock,
   Star,
   BarChart3,
-  Building2,
   HelpCircle,
   MessageCircle,
   FlaskConical,
@@ -92,6 +90,8 @@ import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../
 import { ModalAtencion, ModalHistoriaClinica } from "../componentes/AtencionPaciente"
 import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelCompras, PanelPuntaje, PanelReferidos, PanelCumple, PanelCitasEstado } from "../componentes/DetallesResumen"
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
+import SelectorBuscable from "../componentes/SelectorBuscable"
+import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -328,9 +328,10 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // Escape cierra la vista de perfil del paciente (atajo de teclado).
   useEffect(() => {
     if (!pacienteHistorial) return
-    const onKeyDown = (e) => { if (e.key === "Escape") setPacienteHistorial(null) }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
+    // Con una ventana abierta encima (atención, mensaje...), Escape cierra solo esa ventana, no el perfil.
+    const onKeyDown = (e) => { if (e.key === "Escape" && !document.querySelector("[aria-modal=\"true\"], [data-popover-abierto]")) setPacienteHistorial(null) }
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
   }, [pacienteHistorial])
   // El perfil abierto y su pestaña viven en la URL: recargar deja el perfil abierto, y "atrás" vuelve a la lista.
   const sincronizarUrl = !overlaySolo
@@ -381,6 +382,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // abre el mismo panel de cobro que usa la ficha clínica. Las ventas viejas
   // (tabla `ventas`) se siguen mostrando y cobrando en cuotas como siempre.
   const [mostrarFactura, setMostrarFactura] = useState(false)
+  // Venta abierta desde la lista de pacientes: el cobro se abre encima de la lista, sin entrar al perfil.
+  const [ventaRapidaPara, setVentaRapidaPara] = useState(null)
+  const [elegirVentaOrden, setElegirVentaOrden] = useState(false)
+  useEffect(() => { if (!pacienteHistorial) setElegirVentaOrden(false) }, [pacienteHistorial])
+  const pacienteVenta = ventaRapidaPara || pacienteHistorial
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
   // Líneas a precargar en ComprobanteVentaModal cuando se vende la receta
   // directo desde el encabezado del perfil (undefined = abre vacía, como el
@@ -476,6 +482,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const abrirMensaje = (paciente) => {
     setMensajePara(paciente)
     setTextoMensaje(plantillasMensaje(paciente)[0].texto)
+  }
+  const tieneCorreoValido = (pa) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pa?.correo || "")
+  const enviarMensajeGmail = () => {
+    const asunto = `Mensaje de ${nombreOptica}`
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(mensajePara.correo)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoMensaje)}`, "_blank")
+    marcarContactadoHoy(mensajePara.id)
+    registrarLog(usuario, "crm", "Escribió un correo desde el perfil del paciente", mensajePara.nombre)
+    setMensajePara(null)
   }
   const enviarMensajeWhatsApp = () => {
     window.open(linkWhatsApp(mensajePara.telefono, textoMensaje), "_blank")
@@ -685,6 +699,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         }
       }
       setPacientes(pacientes.map((p) => (p.id === idEditando ? { ...p, ...cambios } : p)))
+      // Las citas y consultas guardan una copia del nombre y los datos de contacto: se actualizan para que se vea igual en todas las pantallas.
+      setCitas?.((prev) => prev.map((c) => (c.pacienteId === idEditando ? { ...c, paciente: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo } : c)))
+      setConsultas?.((prev) => prev.map((c) => (c.pacienteId === idEditando ? { ...c, paciente: cambios.nombre } : c)))
       registrarLog(usuario, "pacientes", "Editó el expediente de un paciente", cambios.nombre)
       mostrarNotif("Expediente del paciente actualizado correctamente.")
     } else {
@@ -801,11 +818,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   // intermedio de entrar al perfil y navegar hasta ahí (regla de "cero
   // fricción" de la guía: precargar y saltar directo al cobro).
   const abrirVentaRapida = (paciente) => {
-    setPacienteHistorial(paciente)
-    setTabHistorial("pagos")
     setFacturaLineaInicial(undefined)
-    setMostrarFactura(true)
-    mostrarNotif(`Nueva venta lista para ${paciente.nombre}.`)
+    setVentaRapidaPara(paciente)
   }
 
   // ── Agendar cita desde el perfil del paciente ──
@@ -1306,10 +1320,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                               <span className="flex items-center gap-1 rounded-full border border-slate-200/60 px-2 py-0.5 text-xs font-medium text-slate-500">
                                 {paciente.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
                               </span>
-                              <span className="flex items-center gap-1 rounded-full border border-slate-200/60 px-2 py-0.5 text-xs font-medium text-slate-500">
-                                {paciente.origen === "paciente" ? <Globe size={11} /> : <Building2 size={11} />}
-                                Origen: {paciente.origen === "paciente" ? "Web" : "Recepción"}
-                              </span>
                               {(paciente.fecha_nacimiento || paciente.fechaNacimiento) && (
                                 <span className="flex items-center gap-1 text-xs text-slate-500">
                                   <Cake size={11} />
@@ -1580,18 +1590,15 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                 <label htmlFor="p-referido" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   Referido por <span className="normal-case text-slate-500">(opcional)</span>
                 </label>
-                <div className="relative">
-                  <Heart className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                  <select
-                    id="p-referido" value={referidoPor} onChange={(e) => setReferidoPor(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  >
-                    <option value="">Nadie / llegó por su cuenta</option>
-                    {pacientes.filter((p) => p.nombre !== nombre).map((p) => (
-                      <option key={p.id} value={p.nombre}>{p.nombre}</option>
-                    ))}
-                  </select>
-                </div>
+                <SelectorBuscable
+                  id="p-referido"
+                  valor={referidoPor}
+                  onChange={setReferidoPor}
+                  icono={Heart}
+                  placeholder="Escribe un nombre…"
+                  etiquetaNinguno="Nadie / llegó por su cuenta"
+                  options={pacientes.filter((x) => x.nombre !== nombre).map((x) => ({ id: x.nombre, etiqueta: x.nombre, detalle: x.cedula }))}
+                />
                 <p className="mt-1 text-xs text-slate-500">Si vino recomendado por otro paciente, selecciónalo aquí para reconocerlo en el CRM.</p>
               </div>
               </div>
@@ -1845,7 +1852,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 py-6 sm:px-8 sm:py-8">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
-              <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+              <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
@@ -1858,7 +1866,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
                       {pacienteHistorial.telefono && <span className="flex items-center gap-1.5"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
                       {pacienteHistorial.correo && <span className="flex items-center gap-1.5"><Mail size={14} /> {pacienteHistorial.correo}</span>}
-                      {edadPaciente != null && <span className="flex items-center gap-1.5"><Cake size={14} /> {edadPaciente} años</span>}
                     </div>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
                       <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + claseBadgeEstadoClinico(pacienteHistorial.estadoClinico)}>
@@ -1885,19 +1892,19 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:max-w-[36rem] lg:shrink-0 lg:flex-nowrap lg:justify-end lg:border-t-0 lg:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:max-w-[30rem] lg:shrink-0 lg:justify-end lg:border-t-0 lg:pt-0">
                   <button
                     type="button"
                     onClick={() => setVerHistoriaClinica(true)}
                     aria-haspopup="dialog"
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer"
                   >
                     <ClipboardList size={15} /> Historia clínica
                   </button>
                   {puedeAgendar && <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
                   >
                     <CalendarPlus size={15} /> Agendar cita
                   </button>}
@@ -1906,7 +1913,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     onClick={() => abrirMensaje(pacienteHistorial)}
                     disabled={!pacienteHistorial.telefono}
                     title={pacienteHistorial.telefono ? undefined : "Este paciente no tiene teléfono registrado"}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <MessageCircle size={15} /> Enviar mensaje
                   </button>}
@@ -1919,7 +1926,46 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     <KeyRound size={15} className="shrink-0" /> Crear acceso
                   </button>
                   )}
+                  {puedeEditarPaciente && (
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicion(pacienteHistorial)}
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Pencil size={15} className="shrink-0" /> Editar datos
+                  </button>
+                  )}
+                  {pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
+                  <button
+                    type="button"
+                    onClick={() => abrirCuenta(pacienteHistorial)}
+                    title="Genera una clave temporal nueva para el portal del paciente"
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+                  >
+                    <KeyRound size={15} className="shrink-0" /> Restablecer clave
+                  </button>
+                  )}
                 </div>
+              </div>
+              {/* Datos del paciente: lo que se necesita saber de él sin abrir la edición. Editar datos cambia todo lo que se ve aquí y en el resto del sistema. */}
+              {(() => {
+                const fn = pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento
+                const ultima = consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion)[0]
+                const dato = (etiqueta, valor, vacio) => (
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
+                    <dd className={"mt-0.5 truncate text-sm " + (vacio ? "text-slate-400" : "font-semibold text-slate-800")}>{valor}</dd>
+                  </div>
+                )
+                return (
+                  <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-slate-100 pt-4 sm:grid-cols-4">
+                    {fn ? dato("Fecha de nacimiento", fechaLegible(fn) + (edadPaciente != null ? " · " + edadPaciente + " años" : "")) : dato("Fecha de nacimiento", "Sin registrar", true)}
+                    {dato("Registrado el", fechaLegible(pacienteHistorial.fechaRegistro) || "—", !pacienteHistorial.fechaRegistro)}
+                    {ultima ? dato("Última visita", fechaLegible(ultima.fecha)) : dato("Última visita", "Sin consultas", true)}
+                    {pacienteHistorial.referidoPor ? dato("Referido por", pacienteHistorial.referidoPor) : dato("Referido por", "Llegó por su cuenta", true)}
+                  </dl>
+                )
+              })()}
               </div>
 
               {(() => {
@@ -2220,6 +2266,24 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         )}
                       </div>
                     ) : tabHistorial === "ordenes" ? (
+                      <div className="space-y-4">
+                      {puedeVender && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5">
+                          <p className="text-xs text-slate-500">Un pedido al laboratorio sale de una venta del paciente (lleva su montura y su luna).</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ventas = comprobantesPaciente.filter((c) => c.factura && c.factura.estado !== "anulada")
+                              if (ventas.length === 1) setOrdenParaVenta({ factura: ventas[0].factura, paciente: pacienteHistorial })
+                              else setElegirVentaOrden(true)
+                            }}
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+                            style={{ background: GRAD }}
+                          >
+                            <FlaskConical size={15} aria-hidden="true" /> Enviar a laboratorio
+                          </button>
+                        </div>
+                      )}
                       <OrdenesLaboratorio
                         ordenes={ordenesLab}
                         setOrdenes={setOrdenesLab}
@@ -2234,6 +2298,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         filtroInicial="todas"
                         onAviso={mostrarNotif}
                       />
+                      </div>
                     ) : null}
                   </div>
                 </>
@@ -2243,6 +2308,17 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           </div>
         </div>,
         document.getElementById("vista-completa-root") || document.body
+      )}
+
+      {elegirVentaOrden && pacienteHistorial && (
+        <ElegirVentaOrdenModal
+          paciente={pacienteHistorial}
+          comprobantes={facturasVenta.filter((f) => f.pacienteId === pacienteHistorial.id).map((f) => ({ clave: "factura-" + f.id, factura: f }))}
+          ordenes={ordenesLab}
+          onElegir={(factura) => { setElegirVentaOrden(false); setOrdenParaVenta({ factura, paciente: pacienteHistorial }) }}
+          onNuevaVenta={() => { setElegirVentaOrden(false); setTabHistorial("pagos"); setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
+          onCerrar={() => setElegirVentaOrden(false)}
+        />
       )}
 
       {verHistoriaClinica && pacienteHistorial && (
@@ -2278,23 +2354,23 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       />
 
       {/* ─── PANEL DE COBRO / NUEVA VENTA (desde el perfil del paciente) ─── */}
-      {mostrarFactura && pacienteHistorial && (
+      {((mostrarFactura && pacienteHistorial) || ventaRapidaPara) && (
         <ComprobanteVentaModal
           usuario={usuario}
           inventario={inventario}
           setInventario={setInventario}
           categorias={categoriasInventario}
           setCategorias={setCategoriasInventario}
-          pacienteFijo={pacienteHistorial}
+          pacienteFijo={pacienteVenta}
           lineasIniciales={facturaLineaInicial}
           vinculoSugerido={(() => {
-            const p = pases.find((x) => x.pacienteId === pacienteHistorial.id && x.estado === "listo")
+            const p = pases.find((x) => x.pacienteId === pacienteVenta.id && x.estado === "listo")
             if (!p) return null
             const c = consultas.find((k) => k.id === p.consultaId)
             return { consultaId: p.consultaId, citaId: p.citaId, etiqueta: `¿Esta venta es de la consulta del ${fechaLegible(c?.fecha) || "paciente"}? (listo para venta)` }
           })()}
           onGuardado={registrarFactura}
-          onCerrar={() => setMostrarFactura(false)}
+          onCerrar={() => { setMostrarFactura(false); setVentaRapidaPara(null) }}
         />
       )}
 
@@ -2414,7 +2490,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                 </div>
                 <div>
                   <h3 className="text-lg font-bold" style={{ color: INK }}>Enviar mensaje por CRM</h3>
-                  <p className="text-xs text-slate-500">Para {mensajePara.nombre} · {mensajePara.telefono}</p>
+                  <p className="text-xs text-slate-500">Para {mensajePara.nombre} · {mensajePara.telefono}{tieneCorreoValido(mensajePara) ? " · " + mensajePara.correo : ""}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setMensajePara(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -2437,8 +2513,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   onChange={(e) => setTextoMensaje(e.target.value)}
                   className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
-                <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp con este texto ya escrito: tú lo revisas y lo mandas ahí. Funciona aunque los envíos automáticos estén apagados, y queda marcado como contactado hoy en el CRM.</p>
+                <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp o Gmail con este texto ya escrito: tú lo revisas y lo mandas ahí. Funciona aunque los envíos automáticos estén apagados, y queda marcado como contactado hoy en el CRM.</p>
               </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={enviarMensajeWhatsApp}
@@ -2448,6 +2525,16 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               >
                 <MessageCircle size={15} /> Enviar por WhatsApp
               </button>
+                <button
+                  type="button"
+                  onClick={enviarMensajeGmail}
+                  disabled={!textoMensaje.trim() || !tieneCorreoValido(mensajePara)}
+                  title={tieneCorreoValido(mensajePara) ? "Abre Gmail con el mensaje escrito" : "Este paciente no tiene correo registrado"}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Mail size={15} /> Abrir en Gmail
+                </button>
+              </div>
             </div>
           </div>
         </div>,
@@ -2524,7 +2611,11 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
   const proxima = pendientes[0]
   const otras = pendientes.slice(1)
   const fila = (c, conIngresar) => (
-    <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
+    <li
+      key={c.id}
+      className={"flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 " + (!conIngresar && consultaDe(c) ? "-mx-2 cursor-pointer rounded-lg px-2 transition-colors hover:bg-slate-50" : "")}
+      onClick={!conIngresar && consultaDe(c) ? () => setCitaAbierta(c) : undefined}
+    >
       <div className="w-40 shrink-0">
         <p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p>
         <p className="text-xs text-slate-500">{c.hora}</p>
@@ -2532,7 +2623,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
       <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
       <BadgeEstadoCita estado={c.estado} />
       {!conIngresar && consultaDe(c) && (
-        <button type="button" onClick={() => setCitaAbierta(c)} aria-haspopup="dialog" aria-label={"Ver la atención del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
+        <button type="button" onClick={(e) => { e.stopPropagation(); setCitaAbierta(c) }} aria-haspopup="dialog" aria-label={"Ver la atención del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
           Ver atención <ChevronRight size={14} aria-hidden="true" />
         </button>
       )}
@@ -2616,7 +2707,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
               </span>
             </label>
             <div className="w-56 shrink-0">
-              <SeccionRango rango={{ desde, hasta, onDesde: setDesde, onHasta: setHasta }} />
+              <SeccionRango flotante rango={{ desde, hasta, onDesde: setDesde, onHasta: setHasta }} />
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {[["Último mes", 1], ["6 meses", 6], ["Último año", 12]].map(([etiqueta, meses]) => (
@@ -2714,6 +2805,35 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
   const consultaVentana = citaVentana ? consultaDe(citaVentana) || citaVentana._consulta : null
   return (
     <div className="space-y-4">
+      <section aria-label="Fidelización" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
+          <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+            Gestionar recordatorios en CRM <ChevronRight size={13} />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
+            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consulta${Math.max(0, 3 - fidelidad.consultas) === 1 ? "" : "s"} para ser cliente frecuente`}</p>
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</p>
+            <p className="text-xs text-slate-500">{fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}{fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}</p>
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</p>
+            <p className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
+          </Cuadro>
+        </div>
+        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} frecuente={fidelidad.frecuente} /></Despliegue>}
+        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={fidelidad.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
+        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={fidelidad.diasCumple} edad={fidelidad.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={parametrizacion?.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={fidelidad.onCrm} /></Despliegue>}
+      </section>
+
       <section aria-label="Información general" className="space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Cuadro abierto={abierto} alternar={alternar} clave="ultima" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
@@ -2780,35 +2900,6 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
             <PanelCompras comprobantes={comprobantes} onVerProductos={onVerProductos} />
           </Despliegue>
         )}
-      </section>
-
-      <section aria-label="Fidelización" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
-          <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-            Gestionar recordatorios en CRM <ChevronRight size={13} />
-          </button>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
-            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consulta${Math.max(0, 3 - fidelidad.consultas) === 1 ? "" : "s"} para ser cliente frecuente`}</p>
-          </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</p>
-            <p className="text-xs text-slate-500">{fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}{fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}</p>
-          </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</p>
-            <p className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
-          </Cuadro>
-        </div>
-        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} frecuente={fidelidad.frecuente} /></Despliegue>}
-        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={fidelidad.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
-        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={fidelidad.diasCumple} edad={fidelidad.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={parametrizacion?.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={fidelidad.onCrm} /></Despliegue>}
       </section>
 
       <section aria-label="Citas del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
