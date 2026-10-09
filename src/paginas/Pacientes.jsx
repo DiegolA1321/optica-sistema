@@ -1877,15 +1877,21 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {/* Cuenta Portal — pedido explícito de Diego: etiqueta
                           "Cuenta Portal: Activa/Sin cuenta" en vez del
                           "Con cuenta"/"Sin cuenta" genérico de antes. */}
-                      {/* Al hacer clic se abren las opciones de la cuenta del portal (restablecer la clave, o crear el acceso). */}
-                      <button
-                        type="button"
-                        onClick={() => abrirCuenta(pacienteHistorial)}
-                        title={pacienteHistorial.tieneCuenta ? "Opciones de la cuenta del portal" : "Crear el acceso al portal"}
-                        className={"rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
-                      >
-                        Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
-                      </button>
+                      {/* Con cuenta, un clic abre sus opciones (restablecer la clave). Sin cuenta es solo la etiqueta: el acceso se crea con "Crear acceso". */}
+                      {pacienteHistorial.tieneCuenta && puedeEditarPaciente ? (
+                        <button
+                          type="button"
+                          onClick={() => abrirCuenta(pacienteHistorial)}
+                          title="Opciones de la cuenta del portal"
+                          className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
+                        >
+                          Cuenta Portal: Activa
+                        </button>
+                      ) : (
+                        <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
+                          Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
+                        </span>
+                      )}
                       {/* Origen: quién generó el registro — el paciente desde
                           la web pública (migración 0067) o el personal desde
                           Recepción/Citas. Antes solo un ícono con title en el
