@@ -320,7 +320,7 @@ export default function Inicio({
   // La lista de citas sigue el período y la tarjeta del desenlace: se ven las primeras y el resto está en Citas.
   const LIMITE_LISTA = 8
   const TITULO_LISTA = esVistaOptometra
-    ? { hoy: "Mis citas de hoy", semana: "Mis citas de la semana", mes: "Mis citas del mes", siempre: "Todas mis citas" }
+    ? { hoy: "Mi agenda de hoy", semana: "Mis citas de la semana", mes: "Mis citas del mes", siempre: "Todas mis citas" }
     : { hoy: "Citas del día", semana: "Citas de la semana", mes: "Citas del mes", siempre: "Todas las citas" }
   const verTodasEnCitas = () => (onVerCitas ? onVerCitas(tarjeta || "todas", periodo) : setVista?.("citas"))
   const accionFila = (cita) => {
@@ -354,7 +354,7 @@ export default function Inicio({
   const bCitasPeriodo = (
     <section aria-label={TITULO_LISTA[periodo]} className="space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_LISTA[periodo]}{tarjeta ? ` · ${NOMBRE_TARJETA[tarjeta]}` : ""}</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_LISTA[periodo]}{tarjeta ? ` · ${NOMBRE_TARJETA[tarjeta]}` : ""}{esVistaOptometra && periodo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}</h2>
         <p className="text-xs text-slate-400">{citasLista.length === 0 ? "Sin citas en el período" : citasLista.length > LIMITE_LISTA ? `Primeras ${LIMITE_LISTA} de ${citasLista.length}` : `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"}`}</p>
         <button type="button" onClick={verTodasEnCitas} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>
       </div>

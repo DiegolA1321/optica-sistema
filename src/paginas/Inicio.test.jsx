@@ -94,7 +94,7 @@ describe("Inicio por rol", () => {
 
   it("optómetra: sus citas (sin las asignadas a otra persona), atajos, siguiente paciente, sin totales ni stock ni resumen", () => {
     render(<Inicio {...base} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
-    const lista = screen.getByRole("region", { name: "Mis citas de hoy" })
+    const lista = screen.getByRole("region", { name: "Mi agenda de hoy" })
     expect(within(lista).getByLabelText("Siguiente paciente")).toBeInTheDocument()
     expect(within(lista).getAllByText("Paciente Uno").length).toBeGreaterThan(0)
     expect(within(lista).queryByText("Paciente Dos")).not.toBeInTheDocument() // asignada a otra persona
@@ -104,6 +104,19 @@ describe("Inicio por rol", () => {
     expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Requiere tu atención: Ventas" })).not.toBeInTheDocument()
+  })
+
+  it("optómetra: el siguiente paciente es quien ya llegó (En espera) aunque otro tenga hora antes, y el título de la agenda cuenta cuántos esperan", () => {
+    const citas = [
+      { id: "c1", fecha: hoy, hora: "08:00 AM", estado: "Pendiente", paciente: "Aún No Llega", pacienteId: "p1" },
+      { id: "c2", fecha: hoy, hora: "11:00 AM", estado: "En Espera", paciente: "Ya Llegó Uno", pacienteId: "p2" },
+      { id: "c3", fecha: hoy, hora: "12:00 PM", estado: "En Espera", paciente: "Ya Llegó Dos", pacienteId: "p3" },
+    ]
+    render(<Inicio {...base} citas={citas} usuario={{ ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver"], consultas: ["ver", "crear"] } }} vista={vistaRol("optometra")} />)
+    const destacado = screen.getByLabelText("Siguiente paciente")
+    expect(destacado).toHaveTextContent("Ya Llegó Uno")
+    expect(destacado).toHaveTextContent("ya llegó")
+    expect(screen.getByRole("heading", { name: "Mi agenda de hoy · 2 en espera" })).toBeInTheDocument()
   })
 
   it("recepción: el movimiento del día y atajos para agendar y registrar", () => {
