@@ -206,3 +206,28 @@ export async function prepararAvisosInicio(entorno = 'E2E') {
     falla('orden atrasada', (await cliente.rpc('crear_orden_laboratorio', { p_factura_id: facturaId, p_datos: { tipo_lente: 'monofocal', fecha_prometida: '2020-01-20', laboratorio: LAB } })).error)
   }
 }
+
+// Crea un paciente "E Dos E ..." con `n` citas ya atendidas en meses pasados (para probar el historial largo del perfil).
+// Devuelve su nombre. Usa la sesión de Recepción de la óptica de pruebas.
+export async function crearPacienteConHistorial(n = 6, entorno = 'E2E') {
+  const { createClient } = await import('@supabase/supabase-js')
+  const { correo, clave } = credencial('RECEPCION', entorno)
+  const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { data: sesion, error: errorSesion } = await cliente.auth.signInWithPassword({ email: correo, password: clave })
+  if (errorSesion) throw new Error('No se pudo iniciar la sesión de Recepción para preparar los datos.')
+  const { data: perfil } = await cliente.from('perfiles').select('optica_id').eq('id', sesion.user.id).single()
+  const nombre = nombrePrueba()
+  const { data: paciente, error } = await cliente.from('pacientes').insert({
+    optica_id: perfil.optica_id, nombre, cedula: cedulaValida(), telefono: telefonoPrueba(), correo: 'Sin Correo', fecha_nacimiento: '1990-05-15',
+    evolucion: 'Sin evaluación', ultima_consulta: 'Pendiente', fecha_registro: hoyLocalISO(), estado_clinico: 'Activo',
+  }).select().single()
+  if (error) throw new Error(`No se pudo crear el paciente de prueba: ${error.message}`)
+  for (let i = 1; i <= n; i++) {
+    const { error: errorCita } = await cliente.from('citas').insert({
+      optica_id: perfil.optica_id, paciente_id: paciente.id, paciente: nombre, cedula: paciente.cedula, telefono: paciente.telefono,
+      fecha: hoyLocalISO(-30 * i), hora: '09:00 AM', duracion_minutos: null, motivo: 'Consulta General', estado: 'Atendida',
+    })
+    if (errorCita) throw new Error(`No se pudo crear la cita ${i} del historial: ${errorCita.message}`)
+  }
+  return nombre
+}

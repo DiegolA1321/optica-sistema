@@ -69,7 +69,7 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await foto(page, 'reorganizado-2-mas-pendientes')
 
   // "Cuenta Portal" abre las opciones de la cuenta
-  await page.getByRole('button', { name: /Cuenta Portal: Sin cuenta/ }).click()
+  await page.getByRole('button', { name: 'Crear acceso' }).click()
   await expect(page.getByRole('heading', { name: /Crear cuenta de acceso/ })).toBeVisible()
   await foto(page, 'reorganizado-3-cuenta-portal')
   await page.getByRole('button', { name: 'Cerrar' }).last().click()
@@ -109,7 +109,7 @@ test('atender a un paciente sin cita desde su perfil con "Llegó en un horario d
 
   await abrirPerfil(page, nombre)
   await expect(page.getByRole('button', { name: 'Ficha clínica' })).toHaveCount(0)
-  await expect(page.getByText('Sin cita')).toBeVisible()
+  await expect(page.getByText('Este paciente no tiene citas', { exact: true })).toBeVisible()
   await botonAgendar(page).click()
   const form = page.locator('form').filter({ has: page.getByLabel('Motivo del examen') })
   await form.locator('select').first().selectOption({ index: 1 })
