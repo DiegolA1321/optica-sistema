@@ -45,7 +45,6 @@ import {
   Receipt,
   CreditCard,
   Gift,
-  Award,
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
@@ -2127,18 +2126,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       {ordenesPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{ordenesPaciente.length}</span>}
                       {ordenesPaciente.some((o) => o.estado === "lista" && !o.pacienteAvisadoEn) && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>Avisar</span>}
                     </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-fidelizacion"
-                      aria-selected={tabHistorial === "fidelizacion"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("fidelizacion")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "fidelizacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "fidelizacion" ? { background: GRAD } : undefined}
-                    >
-                      <Heart size={14} /> Fidelización
-                    </button>
                   </div>
 
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
@@ -2155,6 +2142,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         diasControl={diasControl}
                         diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
                         compras={{ cantidad: totalComprasCount, monto: totalComprasMonto }}
+                        fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
@@ -2252,51 +2240,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         filtroInicial="todas"
                         onAviso={mostrarNotif}
                       />
-                    ) : tabHistorial === "fidelizacion" ? (
-                      <div className="space-y-4">
-                        {/* El bloque clínico (estado de corrección, tendencia y próximo control) vive
-                            en "Historial"; el próximo control también se ve en la cabecera del perfil.
-                            Acá queda solo lo que habla de la relación con el paciente. */}
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
-                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{puntajeFidelidad} pts</p>
-                            <p className="text-xs text-slate-500">{totalConsultasFidelizacion} consulta{totalConsultasFidelizacion === 1 ? "" : "s"} + {referidosPorEste} referido{referidosPorEste === 1 ? "" : "s"}</p>
-                          </div>
-
-
-                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Award size={13} /> Cliente frecuente</p>
-                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{frecuente ? "Sí" : "Todavía no"}</p>
-                            <p className="text-xs text-slate-500">{frecuente ? "3 o más consultas registradas" : `Le faltan ${Math.max(0, 3 - totalConsultasFidelizacion)} para calificar`}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Gift size={13} /> Referidos</p>
-                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>{referidosPorEste} paciente{referidosPorEste === 1 ? "" : "s"}</p>
-                            <p className="text-xs text-slate-500">
-                              {referidosPorEste > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}
-                              {pacienteHistorial.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{pacienteHistorial.referidoPor}</span></>}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl border border-slate-200/60 bg-white p-4">
-                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Cake size={13} /> Cumpleaños</p>
-                            <p className="mt-1.5 text-lg font-bold" style={{ color: INK }}>
-                              {diasCumple == null ? "—" : diasCumple === 0 ? "Hoy" : `${diasCumple} día${diasCumple === 1 ? "" : "s"} para su cumpleaños`}
-                            </p>
-                            <p className="text-xs text-slate-500">{diasCumple == null ? "Sin fecha de nacimiento registrada." : edadPaciente != null ? `Cumple ${edadPaciente + (diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setVista?.("crm")}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer"
-                        >
-                          Gestionar recordatorios en CRM <ChevronRight size={13} />
-                        </button>
-                      </div>
                     ) : null}
                   </div>
                 </>
@@ -2666,7 +2609,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 // ─── Perfil del paciente: pestaña Resumen ───
 // Lo que antes se mezclaba con las citas: cómo va el paciente (corrección, próximo control, compras, fidelidad),
 // la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
-function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras }) {
+function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad }) {
   const ultima = consultas[0]
   // "Control recomendado" es lo que dice la ficha; "Próxima cita" es la fecha ya agendada. Dos datos distintos, dos nombres.
   const citaPendiente = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0]
@@ -2727,6 +2670,35 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
           <p className="text-[11px] text-slate-500">${compras.monto.toFixed(2)} en total</p>
         </div>
+      </section>
+
+      <section aria-label="Fidelización" className="rounded-2xl border border-slate-200/60 bg-white p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
+          <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+            Gestionar recordatorios en CRM <ChevronRight size={13} />
+          </button>
+        </div>
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
+            <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</dt>
+            <dd className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</dd>
+            <dd className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consulta${Math.max(0, 3 - fidelidad.consultas) === 1 ? "" : "s"} para ser cliente frecuente`}</dd>
+          </div>
+          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
+            <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</dt>
+            <dd className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</dd>
+            <dd className="text-xs text-slate-500">
+              {fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}
+              {fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
+            <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</dt>
+            <dd className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</dd>
+            <dd className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</dd>
+          </div>
+        </dl>
       </section>
 
       <section aria-label="Citas del paciente" className="rounded-2xl border border-slate-200/60 bg-white p-4">
