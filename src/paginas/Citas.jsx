@@ -298,6 +298,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
       setVistaState("lista") // la tarjeta promete una lista filtrada; no se pisa la vista guardada
       if (periodo === "mes") { setFiltro("mes"); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
       else if (periodo === "hoy") { setFiltro("hoy"); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") } // las tarjetas de "Hoy" de Inicio
+      else if (periodo === "semana") { setFiltro("semana"); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") } // el desenlace del Inicio, de lunes a domingo
       else if (periodo === "siempre") { setRangoDesde(""); setRangoHasta("") }
       else if (periodo === "reagendar") { setFiltro("reagendar"); setRangoDesde(""); setRangoHasta("") } // el atajo "Para reagendar" de la Lista
       onEstadoInicialConsumido?.()
