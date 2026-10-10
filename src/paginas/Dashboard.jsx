@@ -681,7 +681,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             abonos={abonos}
             onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
-            onVerCitas={(estado, periodo) => { setEstadoCitasInicial(periodo ? { estado, periodo } : estado); navegar("citas") }}
+            onVerCitas={(estado, periodo, fecha) => { setEstadoCitasInicial(periodo ? { estado, periodo, fecha } : estado); navegar("citas") }}
+            onVerComprobantes={() => { setAccionVentasInicio({ tab: "ventas" }); navegar("ventas") }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerSaldos={() => { setAccionVentasInicio({ tab: "saldos" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
