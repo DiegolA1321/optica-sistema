@@ -72,14 +72,13 @@ describe("Inicio del administrador", () => {
     expect(fondo).not.toContain("14, 43, 51")
   })
 
-  it("Requiere tu atención: una línea por tipo con su número, sus nombres y una sola acción; el total una sola vez y 'Ver todo' sin número", () => {
+  it("Requiere tu atención: cada aviso es una línea con su número y sus nombres; las acciones viven en la ventana, no sueltas en la tarjeta; 'Ver todo' sin número", () => {
     const abiertas = [1, 2, 3, 4, 5].map((n) => ({ id: "ab" + n, fecha: "2020-01-0" + n, hora: "09:00 AM", estado: "En Atención", paciente: "Abierta " + n, pacienteId: "x" + n }))
     render(<Inicio {...base} citas={[...base.citas, ...abiertas]} />)
     const citas = area("Citas")
     expect(within(citas).getAllByRole("listitem")).toHaveLength(1) // las 5 atenciones abiertas son UNA línea
     expect(citas).toHaveTextContent("5 atenciones abiertas de días anteriores · Abierta 1, Abierta 2, Abierta 3 y 2 más")
-    expect(within(citas).getAllByRole("button")).toHaveLength(2) // su acción y "Ver todo"
-    expect(within(citas).getByRole("button", { name: "Ver" })).toBeInTheDocument()
+    expect(within(citas).queryByRole("button", { name: "Ingresar" })).not.toBeInTheDocument()
     expect(within(citas).getByRole("button", { name: "Ver todo en Citas" })).toHaveTextContent(/^Ver todo$/)
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
   })
@@ -98,40 +97,56 @@ describe("Inicio del administrador", () => {
     expect(within(tarjeta).getAllByRole("listitem")).toHaveLength(3) // máximo tres avisos
     expect(tarjeta).toHaveTextContent("1 elemento más") // el cuarto (el cumpleaños) queda tras "Ver todo →"
     const suma = within(tarjeta).getAllByRole("listitem").reduce((n, li) => n + Number(li.querySelector("p span.font-bold").textContent), 0) + 1
-    expect(within(tarjeta).getByRole("banner")).toHaveTextContent(String(suma)) // el número de la tarjeta cuenta todos sus avisos
+    expect(within(tarjeta).getByRole("button", { name: "Abrir los avisos de Pacientes" })).toHaveTextContent(String(suma)) // el número de la tarjeta cuenta todos sus avisos
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
+    // la ventana trae los cuatro tipos, también el que no cabía en la tarjeta
+    fireEvent.click(within(tarjeta).getByRole("button", { name: "Ver todo en Pacientes" }))
+    const ventana = screen.getByRole("dialog", { name: `Pacientes · ${suma} avisos` })
+    expect(within(ventana).getAllByRole("heading", { level: 3 })).toHaveLength(4)
+    expect(ventana).toHaveTextContent("Cumple Hoy")
   })
 
-  it("un aviso con un solo caso trae la acción que lo resuelve; con varios, abre la lista", () => {
+  it("un aviso, también el de un solo caso, abre la ventana con sus casos y la acción de cada uno; el enlace 'Abrir en …' dice adónde lleva y con qué número", () => {
     const reagendadas = []
     const pedidos = []
     const una = { id: "cn", fecha: hoy, hora: "02:00 PM", estado: "No Asistió", paciente: "Paciente Cuatro", pacienteId: "p4", motivo: "Control" }
     const { unmount } = render(<Inicio {...base} citas={[...base.citas, una]} onReagendarCancelada={(c) => reagendadas.push(c.id)} />)
-    expect(area("Citas")).toHaveTextContent("1 cita por reagendar (cancelada o sin asistir) · Paciente Cuatro")
-    fireEvent.click(within(area("Citas")).getByRole("button", { name: "Reagendar" }))
+    expect(area("Citas")).toHaveTextContent("1 cita por reagendar · Paciente Cuatro")
+    fireEvent.click(within(area("Citas")).getByRole("button", { name: /1 cita por reagendar/ }))
+    const ventana = screen.getByRole("dialog", { name: "Citas · 1 aviso" })
+    expect(ventana).toHaveTextContent("Paciente Cuatro")
+    expect(ventana).toHaveTextContent("No asistió")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Reagendar" }))
     expect(reagendadas).toEqual(["cn"])
+    expect(screen.getByRole("dialog", { name: "Citas · 1 aviso" })).toBeInTheDocument() // resolver un caso no cierra la lista
     unmount()
     const otra = { ...una, id: "cx", estado: "Cancelada", canceladaPor: "paciente", paciente: "Paciente Tres", pacienteId: "p3" }
     render(<Inicio {...base} citas={[...base.citas, una, otra]} onReagendarCancelada={(c) => reagendadas.push(c.id)} onVerCitas={(...a) => pedidos.push(a)} />)
-    expect(area("Citas")).toHaveTextContent("2 citas por reagendar (canceladas o sin asistir) · Paciente Cuatro y Paciente Tres")
-    fireEvent.click(within(area("Citas")).getByRole("button", { name: "Ver" }))
-    expect(pedidos).toEqual([["todas", "reagendar"]])
-    expect(reagendadas).toEqual(["cn"])
+    expect(area("Citas")).toHaveTextContent("2 citas por reagendar · Paciente Cuatro y Paciente Tres")
+    fireEvent.click(within(area("Citas")).getByRole("button", { name: /2 citas por reagendar/ }))
+    const dos = screen.getByRole("dialog", { name: "Citas · 2 avisos" })
+    expect(within(dos).getAllByRole("button", { name: "Reagendar" })).toHaveLength(2)
+    expect(dos).toHaveTextContent("Canceló el paciente")
+    fireEvent.click(within(dos).getByRole("button", { name: /^Abrir en Citas · Para reagendar \(2\)/ }))
+    expect(pedidos).toEqual([["todas", "reagendar", undefined]])
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument() // el enlace sale a Citas y cierra la ventana
   })
 
-  it("Ventas incluye los saldos por cobrar; cada área tiene su 'Ver todo →' hacia su módulo", () => {
+  it("Ventas incluye los saldos por cobrar; sus enlaces llevan a donde dicen y las áreas en orden llevan a su módulo", () => {
     const saldos = []
     const stock = []
-    const vistas = []
-    render(<Inicio {...base} onVerSaldos={() => saldos.push("saldos")} onVerStockBajo={() => stock.push("bajo")} onVerOrdenes={() => {}} setVista={(v) => vistas.push(v)} />)
-    const ventas = area("Ventas")
-    expect(ventas).toHaveTextContent("1 venta con saldo pendiente · $60.00")
+    render(<Inicio {...base} onVerSaldos={() => saldos.push("saldos")} onVerStockBajo={() => stock.push("bajo")} onVerOrdenes={() => {}} />)
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /ventas? con saldo pendiente/ }))
+    const ventas = screen.getByRole("dialog", { name: /^Ventas · / })
+    expect(ventas).toHaveTextContent("1 venta con saldo pendiente")
+    expect(ventas).toHaveTextContent("Venta del") // cada caso con su detalle
+    expect(ventas).toHaveTextContent("saldo $60.00")
     fireEvent.click(within(ventas).getByRole("button", { name: "Ver saldos" }))
     expect(saldos).toEqual(["saldos"])
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument() // la acción que sale del Inicio cierra la ventana
     fireEvent.click(within(area("Inventario")).getByRole("button", { name: "Ver todo en Inventario" }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: /^Inventario · / })).getByRole("button", { name: "Abrir en Inventario · Stock bajo (1)" }))
     expect(stock).toEqual(["bajo"])
-    fireEvent.click(within(ventas).getByRole("button", { name: "Ver todo en Ventas" }))
-    expect(vistas).toEqual(["ventas"])
   })
 
   it("el stock bajo sale una sola vez y su umbral viene de Configuración", () => {
@@ -143,14 +158,17 @@ describe("Inicio del administrador", () => {
     expect(area("Inventario")).toHaveTextContent(/2 productos con stock bajo/)
   })
 
-  it("Control sin agendar: una línea con su botón Agendar; la cita del control la quita", () => {
+  it("Control sin agendar: la línea abre el caso con su botón Agendar; la cita del control lo quita", () => {
     const consultas = [{ id: "k1", pacienteId: "p1", paciente: "Paciente Uno", fecha: hoy, motivo: "Control", proximoControlDias: 30, controlAgenda: "despues" }]
     const citasSinControl = base.citas.filter((c) => c.pacienteId !== "p1")
     const agendados = []
     const equipo = [{ id: "u7", nombre: "Ana" }]
     const { unmount } = render(<Inicio {...base} equipo={equipo} consultas={consultas.map((c) => ({ ...c, profesionalNombre: "Ana" }))} citas={citasSinControl} onAgendarControl={(p, f, a) => agendados.push([p.id, f, a])} />)
     expect(area("Citas")).toHaveTextContent("1 control sin agendar · Paciente Uno")
-    fireEvent.click(within(area("Citas")).getByRole("button", { name: "Agendar" }))
+    fireEvent.click(within(area("Citas")).getByRole("button", { name: /1 control sin agendar/ }))
+    const ventana = screen.getByRole("dialog", { name: "Citas · 1 aviso" })
+    expect(ventana).toHaveTextContent("Control recomendado para el")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Agendar" }))
     expect(agendados).toHaveLength(1)
     expect(agendados[0][0]).toBe("p1")
     expect(agendados[0][2]).toBe("u7") // la cita se asigna por defecto a quien atendió la consulta
@@ -163,7 +181,7 @@ describe("Inicio del administrador", () => {
     expect(screen.queryByText(/control sin agendar/)).not.toBeInTheDocument()
   })
 
-  it("pacientes de la web con datos sin confirmar: 'Confirmar datos'; el optómetra no los ve", () => {
+  it("pacientes de la web con datos sin confirmar: la ventana ofrece 'Confirmar datos'; el optómetra no los ve", () => {
     const pacientes = [
       ...base.pacientes,
       { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
@@ -174,19 +192,25 @@ describe("Inicio del administrador", () => {
     const fila = area("Pacientes")
     expect(fila).toHaveTextContent("1 paciente de la web con los datos sin confirmar · Web Sin Confirmar")
     expect(fila).not.toHaveTextContent(/Web Ya Confirmado|Registrado Por Recepción/)
-    fireEvent.click(within(fila).getByRole("button", { name: "Confirmar datos" }))
-    expect(screen.getByRole("dialog", { name: "Confirmar datos del paciente" })).toBeInTheDocument()
+    fireEvent.click(within(fila).getByRole("button", { name: /datos sin confirmar/ }))
+    const ventana = screen.getByRole("dialog", { name: /^Pacientes · / })
+    expect(ventana).toHaveTextContent("Cédula 1710034065")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Confirmar datos" }))
+    expect(screen.getByRole("dialog", { name: "Confirmar datos del paciente" })).toBeInTheDocument() // encima de la lista, que sigue abierta
     unmount()
     render(<Inicio {...base} pacientes={pacientes} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
     expect(screen.queryByText(/datos sin confirmar/)).not.toBeInTheDocument()
   })
 
-  it("'N pacientes registrados sin ninguna consulta' es una línea del área Pacientes y abre Pacientes ya filtrado", () => {
+  it("'N pacientes registrados sin ninguna consulta' abre sus casos y el enlace abre Pacientes ya filtrado con el mismo número", () => {
     const pedidos = []
     render(<Inicio {...base} onVerPacientes={(f) => pedidos.push(f)} />)
     const fila = screen.getByText(/paciente registrado sin ninguna consulta/).closest("li")
     expect(fila).toHaveTextContent(/^1 paciente registrado sin ninguna consulta/)
-    fireEvent.click(within(fila).getByRole("button", { name: "Ver" }))
+    fireEvent.click(within(fila).getByRole("button"))
+    const ventana = screen.getByRole("dialog", { name: /^Pacientes · / })
+    expect(ventana).toHaveTextContent("Paciente Dos")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Pacientes · Sin consulta (1)" }))
     expect(pedidos).toEqual([{ correccion: "Sin evaluación" }])
   })
 
@@ -200,13 +224,16 @@ describe("Inicio del administrador", () => {
     expect(pedidos).toEqual(["pacientes", "crear"])
   })
 
-  it("sin nada pendiente: las cuatro tarjetas siguen ahí, del mismo tamaño, y dicen 'Todo en orden'", () => {
-    render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} facturasVenta={[]} abonos={[]} />)
+  it("sin nada pendiente: las cuatro tarjetas siguen ahí, del mismo tamaño, dicen 'Todo en orden' y ofrecen abrir su módulo", () => {
+    const vistas = []
+    render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} facturasVenta={[]} abonos={[]} setVista={(v) => vistas.push(v)} />)
     for (const nombre of ["Citas", "Pacientes", "Ventas", "Inventario"]) {
       expect(area(nombre)).toHaveTextContent("Todo en orden")
-      expect(within(area(nombre)).getByRole("button", { name: `Ver todo en ${nombre}` })).toBeInTheDocument()
+      fireEvent.click(within(area(nombre)).getByRole("button", { name: `Abrir ${nombre}` }))
     }
+    expect(vistas).toEqual(["citas", "pacientes", "ventas", "inventario"])
   })
+
 })
 
 describe("Desenlace del administrador", () => {
@@ -247,22 +274,23 @@ describe("Desenlace del administrador", () => {
     expect(screen.getByRole("button", { name: "Todas" })).toHaveAttribute("aria-pressed", "true")
   })
 
-  it("la tarjeta filtra la lista de abajo y el enlace lleva a Citas con el mismo estado y período", () => {
+  it("la tarjeta filtra la lista de abajo y el enlace lleva a Citas con el mismo estado y período, y dice qué abre", () => {
     const llamadas = []
     render(<Inicio {...base} onVerCitas={(...a) => llamadas.push(a)} />)
     const lista = () => screen.getByRole("region", { name: /^(Citas del día|Todas las citas)$/ })
     expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
+    expect(within(lista()).getByRole("button", { name: "Ver todas en Citas" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ }))
     expect(screen.getByRole("button", { name: /^Atendidas:/ })).toHaveAttribute("aria-pressed", "true")
     expect(within(lista()).queryByText("En Espera")).not.toBeInTheDocument()
     expect(within(lista()).getByText("Atendida")).toBeInTheDocument()
-    fireEvent.click(within(lista()).getByRole("button", { name: "Ver todas en Citas" }))
+    fireEvent.click(within(lista()).getByRole("button", { name: "Ver atendidas en Citas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ })) // volver a tocarla la quita
     expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Todas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
     expect(within(lista()).getByText("Ninguna cita con ese resultado en el período.")).toBeInTheDocument()
-    expect(within(lista()).queryByRole("button", { name: "Ver todas en Citas" })).not.toBeInTheDocument()
+    expect(within(lista()).queryByRole("button", { name: /en Citas$/ })).not.toBeInTheDocument()
     expect(llamadas).toEqual([["atendida", "hoy"]])
   })
 
@@ -343,7 +371,7 @@ describe("Inicio del optómetra", () => {
     expect(screen.getByRole("heading", { name: "Mi agenda de hoy · 3 citas · 2 en espera" })).toBeInTheDocument()
   })
 
-  it("el siguiente paciente trae Atender y las fichas abiertas traen Retomar (su tarjeta y la fila de la agenda) o Ingresar (un día anterior)", () => {
+  it("el siguiente paciente trae Atender y las fichas abiertas traen Retomar (su tarjeta y la fila de la agenda) o Ingresar (un día anterior, desde la ventana de avisos)", () => {
     const atender = []
     const retomar = []
     const citas = [
@@ -357,7 +385,8 @@ describe("Inicio del optómetra", () => {
     const retomarBtns = screen.getAllByRole("button", { name: "Retomar" })
     expect(retomarBtns).toHaveLength(2) // la tarjeta "Fichas sin terminar" y la fila de la agenda
     retomarBtns.forEach((b) => fireEvent.click(b))
-    fireEvent.click(screen.getByRole("button", { name: "Ingresar" })) // la de un día anterior
+    fireEvent.click(within(area("Citas")).getByRole("button", { name: /atención abierta de un día anterior/ }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Citas · 1 aviso" })).getByRole("button", { name: "Ingresar" })) // la de un día anterior
     expect(retomar).toEqual(["c8", "c8", "c9"])
   })
 
@@ -382,14 +411,19 @@ describe("Inicio del optómetra", () => {
     expect(screen.queryByText(/stock bajo/)).not.toBeInTheDocument() // el inventario no es suyo, aunque pueda verlo
     expect(screen.queryByRole("region", { name: "Requiere tu atención: Inventario" })).not.toBeInTheDocument()
     expect(screen.queryByText(/sin ninguna consulta/)).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument() // sin permiso de CRM para escribir
+    fireEvent.click(within(area("Pacientes")).getByRole("button", { name: /de tus pacientes con el control vencido/ }))
+    const ventana = screen.getByRole("dialog", { name: /^Pacientes · / })
+    expect(within(ventana).queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument() // sin permiso de CRM para escribir: solo ve al paciente
+    expect(within(ventana).getByRole("button", { name: "Ver paciente" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Añadir producto/ })).not.toBeInTheDocument()
     unmount()
     render(<Inicio {...props} {...rol("optometra", { citas: ["ver"], inventario: ["ver", "crear", "editar"], crm: ["ver", "crear"], pacientes: ["ver"] })} />)
-    expect(screen.getByRole("button", { name: "Ver en CRM" })).toBeInTheDocument()
+    fireEvent.click(within(area("Pacientes")).getByRole("button", { name: /de tus pacientes con el control vencido/ }))
+    expect(within(screen.getByRole("dialog", { name: /^Pacientes · / })).getByRole("button", { name: "Ver en CRM" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Añadir producto/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
+
 })
 
 describe("Inicio de recepción y ventas", () => {
