@@ -71,7 +71,11 @@ describe("estadoAhora", () => {
   it("cita ahora si una cita pendiente cubre este momento", () => {
     expect(estadoAhora({ horarioSemanal: horario, citas: [{ fecha: "2026-10-05", hora: "09:40 AM", estado: "Pendiente" }], ahora })).toBe("citaAhora")
   })
+  it("sin turnos si el día sigue abierto pero ya no le queda ningún espacio (no \"libre\")", () => {
+    const tarde = new Date(2026, 9, 5, 10, 50) // pasó el último espacio de la mañana
+    expect(estadoAhora({ horarioSemanal: horario, citas: [], ahora: tarde })).toBe("sinTurnos")
+  })
   it("libre si no tiene nada en este momento", () => {
-    expect(estadoAhora({ horarioSemanal: horario, citas: [{ fecha: "2026-10-05", hora: "10:20 AM", estado: "Pendiente" }], ahora })).toBe("libre")
+    expect(estadoAhora({ horarioSemanal: { lunes: dia("09:00", "12:00") }, citas: [{ fecha: "2026-10-05", hora: "10:20 AM", estado: "Pendiente" }], ahora })).toBe("libre") // le queda el espacio de las 11:00
   })
 })

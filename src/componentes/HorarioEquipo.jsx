@@ -18,6 +18,7 @@ const ESTADO_AHORA = {
   enAtencion: { texto: "En atención", clase: "border-blue-200/60 bg-blue-50 text-blue-700" },
   citaAhora: { texto: "Con cita ahora", clase: "border-amber-200/60 bg-amber-50 text-amber-700" },
   libre: { texto: "Libre", clase: "border-emerald-200/60 bg-emerald-50 text-emerald-700" },
+  sinTurnos: { texto: "Sin turnos hoy", clase: "border-slate-200/60 bg-slate-100 text-slate-500" },
   sinHorario: { texto: "Sin horario hoy", clase: "border-slate-200/60 bg-slate-100 text-slate-500" },
 }
 

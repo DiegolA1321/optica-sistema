@@ -60,5 +60,7 @@ export function estadoAhora({ horarioSemanal, disponibilidad, citas, duracion = 
     const inicio = minutosDesdeMedianoche(c.hora)
     return !["Atendida", "No Asistió"].includes(c.estado) && haySolapamiento(ahoraMin, ahoraMin + 1, inicio, finCitaMinutos(c, duracion))
   })) return "citaAhora"
+  // "Libre" solo si todavía le queda algún turno hoy: sin turnos se le acabó el día (la etiqueta y el número no se contradicen).
+  if (dia.libres === 0) return "sinTurnos"
   return "libre"
 }
