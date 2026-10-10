@@ -33,6 +33,7 @@ import {
   haySolapamiento, finCitaMinutos, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
+import { supabase } from "../lib/supabaseClient"
 import { puede } from "../utilidades/permisosUi"
 import HorarioEquipo from "../componentes/HorarioEquipo"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -71,12 +72,14 @@ const textoAbiertoPor = (exc) => (exc?.abiertoPor?.nombre ? `Abierto por ${exc.a
 const DIA_PERSONAL_VACIO = () => ({ manana: { activo: false, inicio: "09:00", fin: "13:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } })
 const SEMANA_PERSONAL_VACIA = () => Object.fromEntries(ORDEN_LV.map((d) => [d, DIA_PERSONAL_VACIO()]))
 
-export default function Horario({ usuario, disponibilidad, setDisponibilidad, horarioPersonal, setHorarioPersonal, citas = [], equipo = [] }) {
+export default function Horario({ usuario, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, citas = [], equipo = [] }) {
   const hoy = hoyISO()
   const esAdmin = usuario?.rol === "admin"
-  // Editar el horario general y sus excepciones: el administrador o quien tenga "Mi horario: editar" (la base lo exige igual).
-  const puedeEditarHorario = esAdmin || puede(usuario, "horario", "editar")
-  const [tab, setTab] = useParamUrl("tab", "general", ["general", "personal"])
+  // Editar el horario general de la óptica, sus días cerrados y la duración de las citas: el administrador o quien tenga "Horario de la óptica: editar"
+  // (la base lo exige igual). "Mi horario", el propio, lo edita cada persona sin ese permiso.
+  const puedeEditarHorario = esAdmin || puede(usuario, "horario_optica", "editar")
+  // Se abre en lo suyo: quien edita el horario de la óptica, en el general; el resto, en su propio horario.
+  const [tab, setTab] = useParamUrl("tab", puedeEditarHorario ? "general" : "personal", ["general", "personal"])
   const [mesVista, setMesVista] = useState(new Date(ahoraEcuador().getFullYear(), ahoraEcuador().getMonth(), 1))
   const [fechaEditando, setFechaEditando] = useState(null)
   // Citas que quedarían fuera del horario si se aplica un cambio pendiente —
@@ -257,7 +260,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     return Object.entries(disponibilidad.excepciones || {})
       .filter(([iso]) => iso >= hoy)
       .sort(([a], [b]) => (a < b ? -1 : 1))
-  }, [disponibilidad.excepciones, hoy])
+  }, [disponibilidad.excepciones, hoy, puedeEditarHorario, usuario?.id])
 
   const excepcionActual = fechaEditando ? disponibilidad.excepciones?.[fechaEditando] : null
   const horarioBaseFecha = fechaEditando
@@ -352,17 +355,15 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     const lista = []
     Object.entries(disponibilidad.excepciones || {}).forEach(([iso, exc]) => {
       if (iso < hoy) return
-      ;(exc?.ausencias || []).forEach((a, idx) => lista.push({ fecha: iso, idx, ...a }))
+      ;(exc?.ausencias || []).forEach((a, idx) => { if (puedeEditarHorario || a.usuarioId === usuario?.id) lista.push({ fecha: iso, idx, propia: a.usuarioId === usuario?.id, ...a }) })
     })
     return lista.sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesde24h(a.inicio) - minutosDesde24h(b.inicio)))
   }, [disponibilidad.excepciones, hoy])
 
+  // Una persona agrega o quita SOLO sus ausencias, por funciones de la base (no escribe el horario general: no lo necesita). El autor lo pone la base.
   const aplicarAusencia = async (fecha, inicio, fin, motivo) => {
-    const { error } = await setDisponibilidad((prev) => {
-      const base = prev.excepciones?.[fecha] || horarioEfectivo(fecha, prev)
-      const nuevaExcepcion = { ...base, ausencias: [...(base.ausencias || []), { inicio, fin, motivo, usuarioId: usuario?.id, usuarioNombre: usuario?.nombre }] }
-      return { ...prev, excepciones: { ...prev.excepciones, [fecha]: nuevaExcepcion } }
-    })
+    const { data, error } = await supabase.rpc("registrar_ausencia", { p_fecha: fecha, p_inicio: inicio, p_fin: fin, p_motivo: motivo || null })
+    if (!error) reemplazarExcepcionLocal?.(fecha, data)
     if (error) {
       setErrorAusencia("No se pudo guardar. Revisa tu conexión e intenta de nuevo.")
       return
@@ -405,29 +406,15 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
     aplicarAusencia(fechaAusencia, inicio, fin, motivo)
   }
 
-  const quitarAusencia = async (fecha, idx) => {
-    const { error } = await setDisponibilidad((prev) => {
-      const base = prev.excepciones?.[fecha]
-      if (!base) return prev
-      const restantes = (base.ausencias || []).filter((_, i) => i !== idx)
-      const excepciones = { ...prev.excepciones }
-      const diaSemana = DIAS_SEMANA[new Date(fecha + "T00:00:00").getDay()]
-      const horarioNormal = prev.horarioSemanal?.[diaSemana]
-      // Si la excepción solo existía para cargar esta ausencia (las horas
-      // mañana/tarde son iguales al horario normal de ese día de la
-      // semana), se borra entera en vez de dejar un registro vacío que de
-      // todas formas se comporta igual que no tener excepción.
-      const sinCustomizacion = restantes.length === 0
-        && JSON.stringify(base.manana) === JSON.stringify(horarioNormal?.manana)
-        && JSON.stringify(base.tarde) === JSON.stringify(horarioNormal?.tarde)
-      if (sinCustomizacion) delete excepciones[fecha]
-      else excepciones[fecha] = { ...base, ausencias: restantes }
-      return { ...prev, excepciones }
-    })
+  // La base quita la ausencia que coincide en fecha y horas (y, si no eres quien edita el horario de la óptica, solo si es tuya); si la excepción solo
+  // existía para cargarla, también la borra entera.
+  const quitarAusencia = async (fecha, a) => {
+    const { data, error } = await supabase.rpc("quitar_ausencia", { p_fecha: fecha, p_inicio: a.inicio, p_fin: a.fin })
     if (error) {
-      mostrarError("No se pudo quitar la ausencia. Revisa tu conexión e intenta de nuevo.")
+      mostrarError(/propias/.test(error.message) ? error.message : "No se pudo quitar la ausencia. Revisa tu conexión e intenta de nuevo.")
       return
     }
+    reemplazarExcepcionLocal?.(fecha, data)
     mostrarGuardado()
     registrarLog(usuario, "horario", "Canceló una ausencia registrada", fechaFormato(fecha))
   }
@@ -447,7 +434,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           <CalendarClock size={24} />
         </div>
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Horario</h1>
+          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>{tab === "general" ? "Horario de la óptica" : "Mi horario"}</h1>
           <p className="text-sm text-slate-500">
             {tab === "general"
               ? "El horario de atención de la óptica: pacientes y portal solo verán espacios reales, sincronizados con esto."
@@ -466,7 +453,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
           className={"flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition cursor-pointer " + (tab === "general" ? "text-white" : "text-slate-500 hover:bg-slate-50")}
           style={tab === "general" ? { background: GRAD } : undefined}
         >
-          <Building2 size={16} /> Horario general de la óptica
+          <Building2 size={16} /> Horario de la óptica
         </button>
         <button
           type="button"
@@ -500,6 +487,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
             setHorarioPersonal={setHorarioPersonal}
             ausenciasOrdenadas={ausenciasOrdenadas}
             quitarAusencia={quitarAusencia}
+            muestraAutor={puedeEditarHorario}
             abrirModalAusencia={abrirModalAusencia}
           />
         </div>
@@ -507,7 +495,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
             <Lock size={16} className="shrink-0" />
-            <p className="text-xs leading-relaxed">Solo el administrador puede editar el horario general de la óptica. Esto es de referencia.</p>
+            <p className="text-xs leading-relaxed">Solo el administrador, o quien tenga delegado el horario de la óptica, puede editarlo. Esto es de referencia.</p>
           </div>
           <h4 className="mb-3 text-sm font-bold" style={{ color: INK }}>Horario semanal habitual</h4>
           <div className="space-y-2">
@@ -883,7 +871,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
 // Caso de la reunión con el ing: horario propio de cada usuario, separado
 // del horario general de la óptica, más la posibilidad de marcar un día que
 // no podrá asistir (hoy eso solo se avisa por WhatsApp, informal).
-function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrdenadas, quitarAusencia, abrirModalAusencia }) {
+function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrdenadas, quitarAusencia, abrirModalAusencia, muestraAutor = false }) {
   const cargando = horarioPersonal === null
   const semanaGuardada = horarioPersonal?.horarioSemanal || {}
 
@@ -1052,9 +1040,10 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
                   <p className="text-sm font-semibold text-slate-700">
                     {fechaFormato(a.fecha)} <span className="font-mono text-xs font-normal text-slate-500">{horaA12(a.inicio)}–{horaA12(a.fin)}</span>
                   </p>
+                  {muestraAutor && !a.propia && <p className="truncate text-xs text-slate-500">{a.usuarioNombre || "Sin autor"}</p>}
                   {a.motivo && <p className="truncate text-xs text-slate-500">{a.motivo}</p>}
                 </div>
-                <button type="button" onClick={() => quitarAusencia(a.fecha, a.idx)} title="Quitar" aria-label={`Quitar ausencia del ${a.fecha}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
+                <button type="button" onClick={() => quitarAusencia(a.fecha, a)} title="Quitar" aria-label={`Quitar ausencia del ${a.fecha}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
                   <Trash2 size={15} />
                 </button>
               </div>

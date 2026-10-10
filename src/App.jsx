@@ -799,6 +799,17 @@ function App() {
     return Promise.resolve({ error: null })
   }
 
+  // Pone en pantalla la excepción de un día tal como la dejó la base (null = el día volvió a su horario normal). No escribe: las funciones
+  // registrar_ausencia / quitar_ausencia ya lo hicieron, solo con lo suyo de quien las llama.
+  const reemplazarExcepcionLocal = (fecha, excepcion) => {
+    setDisponibilidadState((prev) => {
+      const excepciones = { ...(prev.excepciones || {}) }
+      if (excepcion) excepciones[fecha] = excepcion
+      else delete excepciones[fecha]
+      return { ...prev, excepciones }
+    })
+  }
+
   // Mismo criterio que setDisponibilidad: acepta función o valor, persiste
   // en segundo plano (upsert porque la fila puede no existir todavía — es la
   // primera vez que este usuario toca "Mi horario") y devuelve el error si
@@ -1141,6 +1152,7 @@ function App() {
           marcarMedidasAtendidas={marcarMedidasAtendidas}
           disponibilidad={disponibilidad}
           setDisponibilidad={setDisponibilidad}
+          reemplazarExcepcionLocal={reemplazarExcepcionLocal}
           horarioPersonal={horarioPersonal}
           setHorarioPersonal={setHorarioPersonal}
           asistentes={asistentes}

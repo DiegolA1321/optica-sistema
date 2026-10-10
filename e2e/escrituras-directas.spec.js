@@ -91,7 +91,7 @@ test('CRM: publicar y eliminar un aviso (avisos: insert y delete)', async ({ pag
 test('Horario general: cambiar y restaurar la duración de cada cita (disponibilidad: upsert)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Mi horario')
-  await page.getByRole('button', { name: 'Horario general de la óptica' }).click()
+  await page.getByRole('button', { name: 'Horario de la óptica' }).click()
   const campo = () => page.locator('input[type=number][step="5"]').first()
   const guardar = page.getByRole('button', { name: 'Guardar', exact: true })
   await expect(campo()).toBeVisible({ timeout: 20_000 })
@@ -101,7 +101,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
     await conEscritura(page, 'disponibilidad', 'guardar duración', () => guardar.click())
     await page.reload()
     await irA(page, 'Mi horario')
-    await page.getByRole('button', { name: 'Horario general de la óptica' }).click()
+    await page.getByRole('button', { name: 'Horario de la óptica' }).click()
     await expect(campo()).toHaveValue(String(original + 5), { timeout: 25_000 })
   } finally {
     await page.waitForTimeout(500)
@@ -112,7 +112,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
   }
   await page.reload()
   await irA(page, 'Mi horario')
-  await page.getByRole('button', { name: 'Horario general de la óptica' }).click()
+  await page.getByRole('button', { name: 'Horario de la óptica' }).click()
   await expect(campo()).toHaveValue(String(original), { timeout: 25_000 })
 })
 

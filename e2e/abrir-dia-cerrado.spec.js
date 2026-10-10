@@ -1,4 +1,4 @@
-// Abrir un día no laborable desde Citas (8 oct): el modal del día cerrado ofrece "Abrir este día" (solo con "Mi horario: editar"),
+// Abrir un día no laborable desde Citas (8 oct): el modal del día cerrado ofrece "Abrir este día" (solo con "Horario de la óptica: editar"),
 // elige mañana y/o tarde (solo para el personal), queda como excepción de esa fecha (se ve en Mi horario) y se puede volver a cerrar si no tiene
 // citas. ESCRIBE datos: corre en la óptica de pruebas (E2E) y deja el día como estaba.
 import { test, expect } from '@playwright/test'
@@ -77,7 +77,7 @@ test('"Abrir y agendar" deja el formulario de agendar con ese día; el personal 
   await page.getByRole('dialog').getByRole('button', { name: 'Volver a cerrarlo' }).click()
   await expect(page.getByText(/vuelve a estar cerrado/)).toBeVisible({ timeout: 15_000 })
 
-  // Ventas no tiene "Mi horario: editar": ve el día cerrado pero sin botón
+  // Ventas no tiene "Horario de la óptica: editar": ve el día cerrado pero sin botón
   const ventas = await browser.newPage({ viewport: { width: 1366, height: 768 } })
   await iniciarSesion(ventas, 'VENTAS', 'E2E')
   const citasVisible = await ventas.getByRole('button', { name: 'Citas médicas', exact: true }).count()
