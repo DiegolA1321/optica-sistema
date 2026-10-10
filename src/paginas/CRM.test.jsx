@@ -49,3 +49,17 @@ describe("CRM sin pacientes", () => {
     expect(screen.queryByRole("button", { name: /Registrar el primer paciente/ })).not.toBeInTheDocument()
   })
 })
+
+describe("CRM: a quién se le escribe", () => {
+  it("WhatsApp solo donde hay un motivo (cumpleaños y control vencido), no en los que más refieren ni en los más atendidos", () => {
+    const pacientes = [
+      { id: "p1", nombre: "Ana Vencida", telefono: "0990000001", fechaRegistro: haceDias(500), fechaNacimiento: "1990-02-02" },
+      { id: "p2", nombre: "Beto Referidor", telefono: "0990000002", fechaRegistro: haceDias(10), fechaNacimiento: "1990-03-03" },
+      { id: "p3", nombre: "Carla Referida", telefono: "0990000003", fechaRegistro: haceDias(5), fechaNacimiento: "1990-04-04", referidoPor: "p2" },
+    ]
+    render(<CRM usuario={usuario} pacientes={pacientes} consultas={[]} />)
+    expect(within(lista("Control vencido")).getByRole("button", { name: /WhatsApp/ })).toBeInTheDocument()
+    expect(within(lista("Pacientes que más refieren")).queryByRole("button", { name: /WhatsApp/ })).not.toBeInTheDocument()
+    expect(within(lista("Pacientes más atendidos")).queryByRole("button", { name: /WhatsApp/ })).not.toBeInTheDocument()
+  })
+})

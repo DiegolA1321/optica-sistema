@@ -4,7 +4,6 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
-import { createPortal } from "react-dom"
 import {
   HeartHandshake,
   MessageSquare,
@@ -19,14 +18,13 @@ import {
   Trash2,
   Zap,
   CheckCircle2,
-  X,
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
   Loader2,
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import SinDatosAun from "../componentes/SinDatosAun"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
@@ -351,6 +349,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <BloqueContacto
           titulo="Pacientes que más refieren"
+          conContacto={false}
           icono={UserPlus}
           bgIcono="linear-gradient(135deg,#818cf8,#4f46e5)"
           lista={listaReferidos}
@@ -363,6 +362,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         />
         <BloqueContacto
           titulo="Pacientes más atendidos"
+          conContacto={false}
           icono={Star}
           bgIcono="linear-gradient(135deg,#34d399,#059669)"
           lista={listaFieles}
@@ -403,9 +403,9 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         <ModalDetalleCRM
           config={
             detalleAbierto === "referidos"
-              ? { titulo: "Pacientes que más refieren", icono: UserPlus, bgIcono: "linear-gradient(135deg,#818cf8,#4f46e5)", lista: listaReferidos, columnaLabel: "Referidos", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
+              ? { titulo: "Pacientes que más refieren", conContacto: false, icono: UserPlus, bgIcono: "linear-gradient(135deg,#818cf8,#4f46e5)", lista: listaReferidos, columnaLabel: "Referidos", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
               : detalleAbierto === "fieles"
-              ? { titulo: "Pacientes más atendidos", icono: Star, bgIcono: "linear-gradient(135deg,#34d399,#059669)", lista: listaFieles, columnaLabel: "Consultas", columnaValor: (p) => p.numConsultas, dirDefecto: "desc" }
+              ? { titulo: "Pacientes más atendidos", conContacto: false, icono: Star, bgIcono: "linear-gradient(135deg,#34d399,#059669)", lista: listaFieles, columnaLabel: "Consultas", columnaValor: (p) => p.numConsultas, dirDefecto: "desc" }
               : detalleAbierto === "cumpleanos"
               ? { titulo: "Cumpleaños próximos", icono: Cake, bgIcono: "linear-gradient(135deg,#e0b64e,#b45309)", lista: listaCumpleanos, columnaLabel: "Cuándo", columnaValor: (p) => p.dias, dirDefecto: "asc", ordenAbsoluto: true }
               : { titulo: "Control vencido", icono: Clock, bgIcono: "linear-gradient(135deg,#f87171,#dc2626)", lista: listaInactivos, columnaLabel: "Días sin visitar", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
@@ -541,7 +541,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 // ─── Bloque curado (top 5) — pacientes más atendidos / cumpleaños / inactivos ───
 // Mismo componente para los tres: la fila de contacto (nombre, estado,
 // WhatsApp) es idéntica, solo cambian los datos que recibe.
-function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, onVerPerfil, vacioTexto }) {
+function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, onVerPerfil, vacioTexto, conContacto = true }) {
   const top5 = lista.slice(0, 5)
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
@@ -566,13 +566,14 @@ function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, cont
             <p className="text-xs font-medium text-slate-500">{vacioTexto}</p>
           </div>
         ) : (
-          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} yaContactadoHoy={!!contactadosHoy[p.id]} onEnviar={onEnviar} onVerPerfil={onVerPerfil} />)
+          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} yaContactadoHoy={!!contactadosHoy[p.id]} onEnviar={conContacto ? onEnviar : null} onVerPerfil={onVerPerfil} />)
         )}
       </div>
     </div>
   )
 }
 
+// onEnviar null: la lista no es para escribirle a nadie (los que más refieren y los más atendidos): solo el paciente y su dato.
 function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar, onVerPerfil }) {
   return (
     <div className="flex items-center justify-between gap-2 p-3">
@@ -588,7 +589,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
         )}
         <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{p.estado}</p>
       </div>
-      {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
+      {!onEnviar ? null : p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
         <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
           <CheckCircle2 size={11} /> Enviado
         </span>
@@ -625,7 +626,7 @@ function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnv
 // con la tabla completa, ordenable (cercanía de cumpleaños, frecuencia de
 // atención, meses de inactividad).
 function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onVerPerfil, onCerrar }) {
-  const { titulo, icono: Icono, bgIcono, lista, columnaLabel, columnaValor, dirDefecto, ordenAbsoluto } = config
+  const { titulo, icono: Icono, lista, columnaLabel, columnaValor, dirDefecto, ordenAbsoluto, conContacto = true } = config
   const [orden, setOrden] = useState({ campo: "metrica", dir: dirDefecto })
 
   const ordenadas = useMemo(() => {
@@ -650,80 +651,64 @@ function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onVerPerfil, onCerrar }
     return orden.dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
   }
 
-  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-  const refModal = useModalAccesible(true, onCerrar)
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="crm-modal-detalle-titulo" className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: bgIcono }}>
-              <Icono size={20} />
-            </div>
-            <div>
-              <h2 id="crm-modal-detalle-titulo" className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
-              <p className="text-xs text-slate-500">{lista.length} paciente{lista.length === 1 ? "" : "s"}</p>
-            </div>
-          </div>
-          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead className="sticky top-0 bg-slate-50">
-              <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("paciente")}>
-                  <span className="flex items-center gap-1">Paciente <IconoOrden campo="paciente" /></span>
-                </th>
-                <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("metrica")}>
-                  <span className="flex items-center gap-1">{columnaLabel} <IconoOrden campo="metrica" /></span>
-                </th>
-                <th className="px-4 py-3 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {ordenadas.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50/70">
-                  <td className="px-4 py-2.5 font-semibold text-slate-800">
-                    {onVerPerfil ? (
-                      <button type="button" onClick={() => onVerPerfil(p.id)} className="underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
-                        {p.paciente}
-                      </button>
-                    ) : p.paciente}
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-                      <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                        <CheckCircle2 size={11} /> Enviado
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onEnviar(p)}
-                        disabled={!p.telefono}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                      >
-                        <MessageSquare size={11} /> WhatsApp
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="border-t border-slate-100 p-4">
-          <button type="button" onClick={onCerrar} className="w-full rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
+  // La ventana estándar del sistema (regla 43): misma cabecera, cierre y pie que las demás.
+  return (
+    <Cascaron
+      titulo={titulo}
+      subtitulo={`${lista.length} paciente${lista.length === 1 ? "" : "s"}`}
+      Icono={Icono}
+      onCerrar={onCerrar}
+      pie={<>
+        <span className="text-xs text-slate-500">Toca un encabezado para ordenar.</span>
+        <button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+      </>}
+    >
+      <table className="w-full border-collapse text-left text-sm">
+        <thead className="sticky top-0 bg-slate-50">
+          <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+            <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("paciente")}>
+              <span className="flex items-center gap-1">Paciente <IconoOrden campo="paciente" /></span>
+            </th>
+            <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("metrica")}>
+              <span className="flex items-center gap-1">{columnaLabel} <IconoOrden campo="metrica" /></span>
+            </th>
+            {conContacto && <th className="px-4 py-3 text-right">Acción</th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {ordenadas.map((p) => (
+            <tr key={p.id} className="hover:bg-slate-50/70">
+              <td className="px-4 py-2.5 font-semibold text-slate-800">
+                {onVerPerfil ? (
+                  <button type="button" onClick={() => onVerPerfil(p.id)} className="underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+                    {p.paciente}
+                  </button>
+                ) : p.paciente}
+              </td>
+              <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
+              {conContacto && (
+                <td className="px-4 py-2.5 text-right">
+                  {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                      <CheckCircle2 size={11} /> Enviado
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onEnviar(p)}
+                      disabled={!p.telefono}
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      title={p.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
+                    >
+                      <MessageSquare size={11} /> WhatsApp
+                    </button>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Cascaron>
   )
 }
