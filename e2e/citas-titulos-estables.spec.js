@@ -52,7 +52,7 @@ test('la cabecera y los encabezados de día no ponen "De" con mayúscula', async
   await page.getByRole('group', { name: 'Periodo de las citas' }).getByRole('button', { name: 'Semana' }).click()
   await page.waitForTimeout(800)
   const cabecera = await page.locator('header').first().innerText()
-  expect(cabecera).toMatch(/[A-ZÁÉÍÓÚ][a-zé]+, \d{1,2} de [a-zé]+ de \d{4}/)
+  expect(cabecera).toMatch(/[A-ZÁÉÍÓÚ][a-záéíóú]+, \d{1,2} de [a-záéíóú]+ de \d{4}/)
   expect(cabecera).not.toMatch(/ De /)
   const dias = await page.locator('main h4').allInnerTexts()
   for (const d of dias) expect(d, 'encabezado de día').not.toMatch(/ De /)
