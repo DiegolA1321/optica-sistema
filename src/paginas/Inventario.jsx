@@ -70,6 +70,7 @@ export default function Inventario({
   onProductoParaReabastecerConsumido,
   verStockBajoAlEntrar = false,
   verNuevosAlEntrar = false,
+  avisosDelModulo = null,
   onVerNuevosConsumido,
   onVerStockBajoConsumido,
   onVerPerfil,
@@ -459,6 +460,8 @@ export default function Inventario({
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2.5">
+        {avisosDelModulo}
         {puede(usuario, "inventario", "crear") && <button
           type="button"
           onClick={abrirModal}
@@ -468,6 +471,7 @@ export default function Inventario({
           <Plus size={18} />
           Agregar producto
         </button>}
+        </div>
       </div>
 
       {/* ─── ÉXITO ─── */}

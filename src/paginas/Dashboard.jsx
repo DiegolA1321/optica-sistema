@@ -468,6 +468,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "pacientes":
         return (
           <Pacientes
+            avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "pacientes" })}
             usuario={usuario}
             setVista={navegar}
             cargaInicial={cargaInicialStaff}
@@ -542,6 +543,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "ventas":
         return (
           <Ventas
+            avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "ventas" })}
             usuario={usuario}
             cargaInicial={cargaInicialStaff}
             parametrizacion={parametrizacion}
@@ -569,6 +571,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inventario":
         return (
           <Inventario
+            avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "inventario" })}
             usuario={usuario}
             umbralStock={umbralStock(parametrizacion)}
             cargaInicial={cargaInicialStaff}
@@ -597,6 +600,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "citas":
         return (
           <Citas
+            avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "citas" })}
             usuario={usuario}
             setDisponibilidad={setDisponibilidad}
             cargaInicial={cargaInicialStaff}
@@ -654,6 +658,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inicio":
         return (
           <Inicio
+            soloAvisosDe={extra.soloAvisosDe}
             disponibilidad={disponibilidad}
             puedeReasignarCitas={puedeReasignar(usuario, alcanceDeVista("citas"))}
             setPacientes={setPacientes}
@@ -1035,7 +1040,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </Suspense>
           {/* Con su propio Suspense (sin cargador): si el módulo aún se está bajando, el Inicio se queda tal cual en vez de taparse con un spinner. */}
           <Suspense fallback={null}>
-            {seccionActiva === "inicio" && atajoInicio && renderSeccion(atajoInicio, {
+            {atajoInicio && renderSeccion(atajoInicio, {
               overlaySolo: true,
               onOverlayCerrado: () => { setAtajoInicio(null); setControlParaAgendar(null) },
               ...(atajoInicio === "citas" && controlParaAgendar ? { controlParaAgendar } : {}),

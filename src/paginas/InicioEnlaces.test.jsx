@@ -177,3 +177,46 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     expect(llamadas).toEqual([["todas", "dia", dia(-1)]])
   })
 })
+
+describe("Botón 'Requieren atención' de cada módulo", () => {
+  const reag = (n) => Array.from({ length: n }, (_, i) => cita("r" + i, "No Asistió", { fecha: dia(-2) }))
+  const sinPagina = () => {
+    expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument() // en un módulo no se dibuja el Inicio, solo el botón
+    expect(screen.queryByRole("region", { name: "Requiere tu atención" })).not.toBeInTheDocument()
+  }
+
+  it("Citas: un botón con el número de avisos del área que abre la misma ventana del Inicio", () => {
+    render(<Inicio {...base} citas={reag(2)} soloAvisosDe="citas" />)
+    sinPagina()
+    fireEvent.click(screen.getByRole("button", { name: "Requieren atención: 2" }))
+    const ventana = screen.getByRole("dialog", { name: "Citas · 2 avisos" })
+    expect(within(ventana).getAllByRole("button", { name: "Reagendar" })).toHaveLength(2)
+    expect(within(ventana).getByRole("button", { name: "Abrir en Citas · Para reagendar (2)" })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: "Escape" })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("cada módulo muestra solo los avisos de su área, con el mismo número que la tarjeta del Inicio", () => {
+    const datos = {
+      citas: reag(2),
+      inventario: [{ id: "i1", nombre: "Montura A", stock: 0, stockMinimo: 3 }],
+      facturasVenta: [{ id: "f1", estado: "pendiente_pago", montoTotal: 100, pacienteId: "p1" }],
+      pacientes: [{ id: "p1", nombre: "Paciente Uno", fechaRegistro: hoy }],
+    }
+    const { unmount } = render(<Inicio {...base} {...datos} />)
+    const enInicio = {}
+    for (const nombre of ["Citas", "Pacientes", "Ventas", "Inventario"]) enInicio[nombre] = Number(within(area(nombre)).getAllByText(/^\d+$/)[0].textContent)
+    unmount()
+    for (const [id, nombre] of [["citas", "Citas"], ["pacientes", "Pacientes"], ["ventas", "Ventas"], ["inventario", "Inventario"]]) {
+      const { unmount: cerrar } = render(<Inicio {...base} {...datos} soloAvisosDe={id} />)
+      if (enInicio[nombre] > 0) expect(screen.getByRole("button", { name: `Requieren atención: ${enInicio[nombre]}` })).toBeInTheDocument()
+      cerrar()
+    }
+  })
+
+  it("sin avisos queda en su sitio como 'Todo en orden', sin botón", () => {
+    render(<Inicio {...base} soloAvisosDe="inventario" />)
+    expect(screen.getByRole("status")).toHaveTextContent("Todo en orden")
+    expect(screen.queryByRole("button", { name: /Requieren atención/ })).not.toBeInTheDocument()
+  })
+})

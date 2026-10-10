@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, ArrowRight, ChevronRight } from "lucide-react"
+import { CheckCircle2, ArrowRight, ChevronRight, AlertCircle } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron } from "./AtencionPaciente"
 
@@ -73,6 +73,27 @@ function VentanaAvisos({ bloque, filaId, onCerrar }) {
         </section>
       ))}
     </Cascaron>
+  )
+}
+
+// El botón "Requieren atención" de cada módulo (Citas, Pacientes, Ventas, Inventario): abre la MISMA ventana de avisos del Inicio, solo con
+// los de esa área, con los mismos números y las mismas acciones. Siempre está en su sitio: con avisos es un botón con su número; sin avisos
+// es una etiqueta "Todo en orden" (un control no aparece y desaparece, regla 1). bloque: el mismo { id, titulo, icono, filas } del Inicio.
+export function BotonRequierenAtencion({ bloque }) {
+  const [abierto, setAbierto] = useState(false)
+  const total = bloque.filas.reduce((n, f) => n + (f.cantidad ?? 1), 0)
+  return (
+    <>
+      {total > 0 ? (
+        <button type="button" onClick={() => setAbierto(true)} aria-label={`Requieren atención: ${total}`} className="flex items-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50 px-3.5 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
+          <AlertCircle size={16} aria-hidden="true" /> Requieren atención
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-amber-700">{total}</span>
+        </button>
+      ) : (
+        <span role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200/70 bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} aria-hidden="true" /> Todo en orden</span>
+      )}
+      {abierto && <VentanaAvisos bloque={bloque} filaId={null} onCerrar={() => setAbierto(false)} />}
+    </>
   )
 }
 

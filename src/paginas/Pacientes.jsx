@@ -182,7 +182,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1134,6 +1134,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2.5">
+        {avisosDelModulo}
         {puedeCrearPaciente && <button
           type="button"
           onClick={abrirCrear}
@@ -1143,6 +1145,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           <UserPlus size={18} />
           Crear paciente
         </button>}
+        </div>
       </div>
 
       {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}

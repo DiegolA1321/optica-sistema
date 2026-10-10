@@ -37,7 +37,7 @@ import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
-import RequiereAtencionPorArea from "../componentes/RequiereAtencionPorArea"
+import RequiereAtencionPorArea, { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
 import VentanaTotal from "../componentes/VentanaTotal"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
@@ -91,6 +91,7 @@ export default function Inicio({
   opticaNombre,
   disponibilidad,
   puedeReasignarCitas = false,
+  soloAvisosDe = null, // "citas" | "pacientes" | "ventas" | "inventario": en vez del Inicio, solo el botón "Requieren atención" de ese módulo
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
   // En una vista de rol manda el permiso de ese rol (igual que el menú); si no, el del usuario.
@@ -119,7 +120,7 @@ export default function Inicio({
   const esOptometra = !!usuario?.esOptometra
   const [actividadReciente, setActividadReciente] = useState([])
   useEffect(() => {
-    if (!esAdmin || !supabase || !usuario?.opticaId) return
+    if (!esAdmin || soloAvisosDe || !supabase || !usuario?.opticaId) return
     supabase
       .from("logs_optica")
       .select("*")
@@ -545,7 +546,7 @@ export default function Inicio({
   // Mientras hidrata no se calcula nada: con las consultas todavía vacías, todos los pacientes salían "sin atender"
   // y con el control vencido. Los datos en caché de pacientes/citas no bastan para los números del Inicio.
   if (cargaInicial) {
-    return <InicioSkeleton />
+    return soloAvisosDe ? null : <InicioSkeleton />
   }
 
   const hayInactivos = inactivos.length > 0
@@ -812,6 +813,19 @@ export default function Inicio({
       </ul>
     </section>
   )
+
+  // En un módulo: solo el botón con los avisos de esa área (los mismos números y acciones de aquí) y las ventanas que esas acciones abren.
+  if (soloAvisosDe) {
+    const bloque = bloquesAtencion.find((b) => b.id === soloAvisosDe)
+    return (
+      <>
+        {bloque && <BotonRequierenAtencion bloque={bloque} />}
+        {bDejarCita}
+        {bConfirmarPaciente}
+        {bReasignar}
+      </>
+    )
+  }
 
   return (
     <div className="w-full space-y-4 text-left">

@@ -222,7 +222,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
 const FILTRO_POR_DEFECTO = "hoy"
 const PAGINA_LISTA = 30
 
-export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -1381,6 +1381,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
           </div>
         </div>
         <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
+          {avisosDelModulo}
           {/* "Agendar cita" existía como botón aparte, más limitado (fecha en
               blanco, y sin forma de crear un paciente nuevo si no había
               ninguno todavía) — "Gestionar" ya cubre ese caso y más, así que

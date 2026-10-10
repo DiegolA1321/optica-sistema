@@ -30,7 +30,7 @@ export default function Ventas({
   usuario, cargaInicial = false, parametrizacion, pacientes = [], consultas = [], inventario = [], setInventario,
   categoriasInventario = [], setCategoriasInventario, ventas = [], facturasVenta = [], setFacturasVenta,
   pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [],
-  accionInicial, onAccionInicialConsumida, onVerPaciente, onAviso,
+  accionInicial, onAccionInicialConsumida, onVerPaciente, onAviso, avisosDelModulo = null,
 }) {
   const puedeVender = puede(usuario, "ventas", "crear")
   const puedeEditar = puede(usuario, "ventas", "editar")
@@ -99,11 +99,14 @@ export default function Ventas({
             <p className="text-sm text-slate-500">Pacientes por vender, comprobantes, órdenes de laboratorio y saldos.</p>
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {avisosDelModulo}
         {puedeVender && (
           <button type="button" onClick={() => setNuevaVenta(true)} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
             <ShoppingCart size={16} aria-hidden="true" /> Nueva venta
           </button>
         )}
+        </div>
       </div>
 
       {cargaInicial && facturasVenta.length === 0 && pases.length === 0 && ordenesLab.length === 0 ? (
