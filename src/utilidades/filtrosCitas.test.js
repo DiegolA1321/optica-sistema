@@ -234,3 +234,14 @@ describe("requiereConfirmarOtroDia", () => {
     expect(requiereConfirmarOtroDia({ estado: "Pendiente", fecha: "" }, "2026-10-08")).toBe(false)
   })
 })
+
+describe('filtro "Agendada": las citas dadas de alta este mes', () => {
+  const ahora = new Date().toISOString()
+  const antes = new Date(new Date().getFullYear(), new Date().getMonth() - 2, 10).toISOString()
+  const base = { estado: 'todas', origen: 'todos', seguimiento: 'todos', responsable: 'todos', texto: '', periodo: null }
+  it('con alta "mes" solo pasan las agendadas este mes (no importa la fecha de la cita); con "todas", todas', () => {
+    const citas = [{ id: 'a', fecha: '2026-01-05', estado: 'Atendida', creadoEn: ahora }, { id: 'b', fecha: '2026-10-05', estado: 'Pendiente', creadoEn: antes }]
+    expect(citas.filter((c) => citaPasaFiltros(c, { ...base, alta: 'mes' })).map((c) => c.id)).toEqual(['a'])
+    expect(citas.filter((c) => citaPasaFiltros(c, { ...base, alta: 'todas' })).map((c) => c.id)).toEqual(['a', 'b'])
+  })
+})

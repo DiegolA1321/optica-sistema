@@ -3,6 +3,7 @@
 import { esHoy, horarioEfectivo, diaAbierto } from "./disponibilidad"
 import { formatoFecha } from "./formatoFecha"
 import { sumarDiasISO } from "./controles"
+import { esDeEsteMes } from "./inicio"
 
 export const ESTADOS_FILTRO = [
   { id: "todas", etiqueta: "Todas" },
@@ -132,6 +133,12 @@ export function coincideTexto(cita, texto) {
 //   rangos: { hoy, semana, mes } — cada uno { desde, hasta }: el día, la semana y el mes que se están viendo en la Lista.
 //   periodo: { filtro: "hoy" | "semana" | "mes" | "reagendar" | "todas", desde, hasta } — solo la Lista; un rango (desde/hasta) manda sobre `filtro`.
 //   ventana: { desde, hasta } — el periodo visible de Semana y Mes; en Lista es null.
+// Cuándo se agendó la cita (no cuándo es): lo que cuenta el "+N este mes" de la tarjeta Citas del Inicio.
+export const ALTA_FILTRO = [
+  { id: "todas", etiqueta: "Todas" },
+  { id: "mes", etiqueta: "Este mes" },
+]
+
 export function citaPasaFiltros(cita, f, consultas = []) {
   if (f.ventana && (cita.fecha < f.ventana.desde || cita.fecha > f.ventana.hasta)) return false
   const p = f.periodo
@@ -139,6 +146,7 @@ export function citaPasaFiltros(cita, f, consultas = []) {
   // "Para reagendar" incluye canceladas y no asistidas aunque el estado esté en "Todas"; con búsqueda no rige el periodo.
   const paraReagendar = !f.ventana && !buscando && p && !p.desde && !p.hasta && p.filtro === "reagendar"
   if (!paraReagendar && !coincideEstadoVisible(cita, f.estado)) return false
+  if (f.alta === "mes" && !esDeEsteMes(cita.creadoEn)) return false
   if (!coincideOrigen(cita, f.origen)) return false
   if (!coincideSeguimiento(cita, f.seguimiento, consultas)) return false
   if (!coincideResponsable(cita, f.responsable)) return false

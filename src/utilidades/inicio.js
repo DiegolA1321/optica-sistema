@@ -86,14 +86,21 @@ export function citasParaLista(citas, periodo, tarjeta = null, ahora = ahoraEcua
 // Ventas (comprobantes internos sin anular): el total vendido y su número, y lo de este mes (cantidad y dólares), con la misma lógica que las demás tarjetas de Totales (el total y el '+N este mes').
 export function ventasDelMes(facturas, ahora = ahoraEcuador()) {
   const vigentes = facturas.filter((f) => f.estado !== "anulada")
-  const delMes = vigentes.filter((f) => { const d = f.creadoEn ? new Date(f.creadoEn) : null; return d && !isNaN(d) && d.getFullYear() === ahora.getFullYear() && d.getMonth() === ahora.getMonth() })
+  const delMes = vigentes.filter((f) => esDeEsteMes(f.creadoEn, ahora))
   const suma = (lista) => Math.round(lista.reduce((n, f) => n + (Number(f.montoTotal) || 0), 0) * 100) / 100
   return { cantidad: delMes.length, total: suma(delMes), cantidadTotal: vigentes.length, totalVendido: suma(vigentes) }
 }
 
-// Cuántos registros se dieron de alta este mes (para el "+N este mes" de los Totales). Sin fecha de alta no cuenta.
+// ¿Esta fecha de alta cae en el mes en curso? Es la única definición de "este mes" de los Totales: el Inicio cuenta con ella y cada módulo
+// filtra con ella al abrir "Nuevos este mes", así el número que se lee es el que se ve. Sin fecha no cuenta.
+export function esDeEsteMes(valor, ahora = ahoraEcuador()) {
+  const f = valor ? new Date(valor) : null
+  return Boolean(f) && !isNaN(f) && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth()
+}
+
+// Cuántos registros se dieron de alta este mes (para el "+N este mes" de los Totales).
 export function creadosEsteMes(lista, campo, ahora = ahoraEcuador()) {
-  return lista.filter((x) => { const f = x[campo] ? new Date(x[campo]) : null; return f && !isNaN(f) && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth() }).length
+  return lista.filter((x) => esDeEsteMes(x[campo], ahora)).length
 }
 export const resumenMes = (citas, ahora) => resumenPeriodo(citas, "mes", ahora)
 
