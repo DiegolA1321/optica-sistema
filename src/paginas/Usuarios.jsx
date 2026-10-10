@@ -2,17 +2,15 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
-import { createPortal } from "react-dom"
 import {
-  Users, UserPlus, KeyRound, Plus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Copy, Mail, Info, IdCard,
+  Users, UserPlus, KeyRound, Plus, Pencil, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Copy, Mail, Info, IdCard,
   History, Glasses, UserX, UserCheck, Lock,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, generarClaveTemporal } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
 import VentanaActividad from "../componentes/VentanaActividad"
-import { Cascaron } from "../componentes/AtencionPaciente"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
 import RolesPanel from "../componentes/RolesPanel"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
@@ -199,9 +197,6 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     cargar()
   }
 
-  const refModalUsuario = useModalAccesible(modal != null, cerrarModal)
-  const refModalDesactivar = useModalAccesible(aDesactivar != null, () => { if (!procesando) setADesactivar(null) })
-
   return (
     <div className="w-full space-y-6 text-left">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -366,102 +361,90 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
         <ModalMisRoles roles={rolesAsignables} elegidosIniciales={asignaciones.filter((a) => a.perfil_id === usuario.id).map((a) => a.rol_id)} onGuardar={guardarMisRoles} onCerrar={() => setMisRolesAbierto(false)} />
       )}
 
-      {modal != null && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div ref={refModalUsuario} role="dialog" aria-modal="true" aria-labelledby="usuarios-modal-titulo" className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><UserPlus size={20} /></div>
-                <div>
-                  <h2 id="usuarios-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{modal.id != null ? "Editar usuario" : "Crear usuario"}</h2>
-                  <p className="text-xs text-slate-500">{modal.id != null ? "Actualiza sus datos y sus roles." : "Cuenta de acceso con el rol que elijas."}</p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
-            </div>
-            <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertTriangle size={16} /> {error}</div>}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo <span className="text-red-500">*</span></span>
-                    <input type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))} placeholder="Ej. Ana Torres" autoComplete="name" className={CAMPO} autoFocus />
-                  </label>
-                  <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula {modal.id == null && <span className="text-red-500">*</span>}</span>
-                    <div className="relative"><IdCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-                      <input type="text" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10 dígitos" maxLength={10} className={CAMPO + " pl-9"} /></div>
-                  </label>
-                </div>
-                {modal.id != null ? (
-                  <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">El correo y la contraseña no se cambian desde aquí. Correo actual: <span className="font-mono font-semibold">{correo}</span></p></div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico <span className="text-red-500">*</span></span>
-                      <div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-                        <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="email" className={CAMPO + " pl-9"} /></div>
-                    </label>
-                    <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><p className="text-xs leading-relaxed">La contraseña la genera el sistema: la verás una sola vez al crear al usuario, y la persona elige la suya al entrar.</p></div>
-                  </div>
-                )}
-
-                <fieldset>
-                  <legend className="mb-2 text-sm font-semibold text-slate-700">Rol <span className="font-normal text-slate-500">· puedes elegir más de uno: los permisos se suman</span></legend>
-                  <div className="space-y-2">
-                    {rolesAsignables.map((r) => {
-                      const marcado = rolesElegidos.includes(r.id)
-                      return (
-                        <label key={r.id} className={"flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors " + (marcado ? "border-blue-300 bg-blue-50/50" : "border-slate-200/60 bg-slate-50 hover:border-blue-200")}>
-                          <input type="checkbox" checked={marcado} onChange={() => alternarRol(r.id)} className="mt-0.5 h-4 w-4 accent-blue-600" />
-                          <span className="min-w-0 text-sm">
-                            <span className="flex flex-wrap items-center gap-2 font-semibold text-slate-700">{r.nombre}{r.es_predefinido && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">Predefinido</span>}</span>
-                            {r.descripcion && <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{r.descripcion}</span>}
-                          </span>
-                        </label>
-                      )
-                    })}
-                    {!nivelesVigentes && roles.some((r) => r.es_predefinido) && <p className="text-xs text-amber-700">Los roles predefinidos se podrán asignar cuando los permisos por nivel estén activos.</p>}
-                  </div>
-                </fieldset>
-
-                {rolesSeleccionados.length > 0 && (
-                  <section aria-label="Vista previa de lo que verá" className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lo que verá y podrá hacer</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">Inicio</span>
-                      {vistaPrevia.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">{m}</span>)}
-                    </div>
-                    <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">{vistaPrevia.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
-                  </section>
-                )}
-              </div>
-              <div className="flex shrink-0 gap-3 border-t border-slate-100 p-5">
-                <button type="button" onClick={cerrarModal} disabled={guardando} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
-                <button type="submit" disabled={guardando} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>{guardando ? "Guardando…" : modal.id != null ? "Guardar cambios" : "Crear usuario"}</button>
-              </div>
-            </form>
+      {modal != null && (
+        <Cascaron titulo={modal.id != null ? "Editar usuario" : "Crear usuario"} subtitulo={modal.id != null ? "Actualiza sus datos y sus roles." : "Cuenta de acceso con el rol que elijas."} Icono={UserPlus} ancho="max-w-2xl" onCerrar={cerrarModal} formulario={{ onSubmit: guardar }}
+          pie={<PieFormulario onCancelar={cerrarModal} etiquetaGuardar={modal.id != null ? "Guardar cambios" : "Crear usuario"} guardando={guardando} />}>
+          <div className="space-y-4 p-5">
+        {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertTriangle size={16} /> {error}</div>}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo <span className="text-red-500">*</span></span>
+            <input type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))} placeholder="Ej. Ana Torres" autoComplete="name" className={CAMPO} autoFocus />
+          </label>
+          <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula {modal.id == null && <span className="text-red-500">*</span>}</span>
+            <div className="relative"><IdCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+              <input type="text" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10 dígitos" maxLength={10} className={CAMPO + " pl-9"} /></div>
+          </label>
+        </div>
+        {modal.id != null ? (
+          <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">El correo y la contraseña no se cambian desde aquí. Correo actual: <span className="font-mono font-semibold">{correo}</span></p></div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico <span className="text-red-500">*</span></span>
+              <div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="email" className={CAMPO + " pl-9"} /></div>
+            </label>
+            <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><p className="text-xs leading-relaxed">La contraseña la genera el sistema: la verás una sola vez al crear al usuario, y la persona elige la suya al entrar.</p></div>
           </div>
-        </div>,
-        document.body,
+        )}
+
+        <fieldset>
+          <legend className="mb-2 text-sm font-semibold text-slate-700">Rol <span className="font-normal text-slate-500">· puedes elegir más de uno: los permisos se suman</span></legend>
+          <div className="space-y-2">
+            {rolesAsignables.map((r) => {
+              const marcado = rolesElegidos.includes(r.id)
+              return (
+                <label key={r.id} className={"flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors " + (marcado ? "border-blue-300 bg-blue-50/50" : "border-slate-200/60 bg-slate-50 hover:border-blue-200")}>
+                  <input type="checkbox" checked={marcado} onChange={() => alternarRol(r.id)} className="mt-0.5 h-4 w-4 accent-blue-600" />
+                  <span className="min-w-0 text-sm">
+                    <span className="flex flex-wrap items-center gap-2 font-semibold text-slate-700">{r.nombre}{r.es_predefinido && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">Predefinido</span>}</span>
+                    {r.descripcion && <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{r.descripcion}</span>}
+                  </span>
+                </label>
+              )
+            })}
+            {!nivelesVigentes && roles.some((r) => r.es_predefinido) && <p className="text-xs text-amber-700">Los roles predefinidos se podrán asignar cuando los permisos por nivel estén activos.</p>}
+          </div>
+        </fieldset>
+
+        {rolesSeleccionados.length > 0 && (
+          <section aria-label="Vista previa de lo que verá" className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lo que verá y podrá hacer</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">Inicio</span>
+              {vistaPrevia.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">{m}</span>)}
+            </div>
+            <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">{vistaPrevia.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
+          </section>
+        )}
+          </div>
+        </Cascaron>
       )}
 
-      {aDesactivar && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => { if (!procesando) setADesactivar(null) }}>
-          <div ref={refModalDesactivar} role="dialog" aria-modal="true" aria-labelledby="desactivar-titulo" className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600"><UserX size={22} aria-hidden="true" /></div>
-            <h2 id="desactivar-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Desactivar a {aDesactivar.nombre}?</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
-              <li>Ya no podrá entrar ni ver datos de la óptica; si tiene la sesión abierta, se cierra en unos minutos.</li>
-              <li>Se conserva todo su historial: sus citas y atenciones siguen mostrando su nombre.</li>
-              <li>Deja de aparecer en "Asignado a". Puedes reactivarlo cuando quieras.</li>
-            </ul>
-            <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</span>
-              <input value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={120} placeholder="Ej. dejó de trabajar con nosotros" className={CAMPO} /></label>
-            <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setADesactivar(null)} disabled={procesando} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
-              <button type="button" onClick={desactivar} disabled={procesando} className="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 cursor-pointer disabled:opacity-60">{procesando ? "Desactivando…" : "Desactivar"}</button>
+      {aDesactivar && (
+        <Cascaron
+          titulo={`¿Desactivar a ${aDesactivar.nombre}?`}
+          subtitulo="Ya no podrá entrar; su historial se conserva."
+          Icono={UserX}
+          ancho="max-w-md"
+          onCerrar={() => { if (!procesando) setADesactivar(null) }}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setADesactivar(null)} disabled={procesando} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
+              <button type="button" onClick={desactivar} disabled={procesando} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 cursor-pointer disabled:opacity-60">{procesando ? "Desactivando…" : "Desactivar"}</button>
             </div>
+          </>}
+        >
+          <div className="p-6">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
+            <li>Ya no podrá entrar ni ver datos de la óptica; si tiene la sesión abierta, se cierra en unos minutos.</li>
+            <li>Se conserva todo su historial: sus citas y atenciones siguen mostrando su nombre.</li>
+            <li>Deja de aparecer en "Asignado a". Puedes reactivarlo cuando quieras.</li>
+          </ul>
+          <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</span>
+            <input value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={120} placeholder="Ej. dejó de trabajar con nosotros" className={CAMPO} /></label>
           </div>
-        </div>,
-        document.body,
+        </Cascaron>
       )}
     </div>
   )
