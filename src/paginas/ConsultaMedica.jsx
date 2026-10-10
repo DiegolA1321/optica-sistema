@@ -46,6 +46,7 @@ import { hoyISO, diaTieneCupo } from "../utilidades/disponibilidad"
 import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
 import { MENSAJE_HORA_INVALIDA, esErrorHoraInvalida } from "../utilidades/erroresCitas"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
+import { moverCitaAHoy, necesitaMoverseAHoy } from "../utilidades/moverCitaAHoy"
 import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
@@ -566,23 +567,32 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       // saltándose el estado intermedio sin que nadie lo pidiera así.
       const citaActual = citas.find((c) => c.id === citaIdInicial)
       aperturaCita.current = { estado: null, atendido: false }
-      if (citaActual && !["Atendida", "Cancelada", "No Asistió", "En Atención"].includes(citaActual.estado)) {
-        aperturaCita.current.estado = citaActual.estado
-        supabase?.from("citas").update({ estado: "En Atención" }).eq("id", citaIdInicial).then(({ error }) => {
-          if (!error) setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, estado: "En Atención" } : c)))
-        })
+      const abrirCita = async () => {
+        let cita = citaActual
+        // Una cita de otro día que se atiende hoy se mueve a hoy (igual que "Atender" en Citas): nunca queda "En atención" con fecha futura.
+        if (necesitaMoverseAHoy(cita)) {
+          const r = await moverCitaAHoy({ supabase, opticaId: usuario?.opticaId, cita, citas, setCitas, usuario })
+          if (r.error) { onAviso?.(r.error); return }
+          cita = r.cita
+          onAviso?.(`La cita era de otro día: se movió a hoy, a las ${cita.hora}.`)
+        }
+        if (cita && !["Atendida", "Cancelada", "No Asistió", "En Atención"].includes(cita.estado)) {
+          aperturaCita.current.estado = cita.estado
+          supabase?.from("citas").update({ estado: "En Atención" }).eq("id", citaIdInicial).then(({ error }) => {
+            if (!error) setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, estado: "En Atención" } : c)))
+          })
+        }
+        // "Atendido por" (R12, R18): quien abre la ficha de la cita queda registrado solo, sin pedirlo, si la cita aún no tiene a nadie.
+        // Al guardar la ficha se confirma con quien la guardó. Va en una llamada aparte para que un fallo aquí nunca impida el cambio de estado.
+        if (cita && usuario?.id && usuario.rol !== "superadmin" && !["Atendida", "Cancelada"].includes(cita.estado) && !cita.atendidoPor) {
+          aperturaCita.current.atendido = true
+          supabase?.from("citas").update({ atendido_por: usuario.id }).eq("id", citaIdInicial).then(({ error }) => {
+            if (error) console.warn("No se pudo registrar quién atiende la cita:", error.message)
+            else setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, atendidoPor: usuario.id } : c)))
+          })
+        }
       }
-      // "Atendido por" (R12, R18): quien abre la ficha de la cita queda
-      // registrado solo, sin pedirlo, si la cita aún no tiene a nadie. Al
-      // guardar la ficha se confirma con quien la guardó. Va en una llamada
-      // aparte para que un fallo aquí nunca impida el cambio de estado de arriba.
-      if (citaActual && usuario?.id && usuario.rol !== "superadmin" && !["Atendida", "Cancelada"].includes(citaActual.estado) && !citaActual.atendidoPor) {
-        aperturaCita.current.atendido = true
-        supabase?.from("citas").update({ atendido_por: usuario.id }).eq("id", citaIdInicial).then(({ error }) => {
-          if (error) console.warn("No se pudo registrar quién atiende la cita:", error.message)
-          else setCitas?.((prev) => prev.map((c) => (c.id === citaIdInicial ? { ...c, atendidoPor: usuario.id } : c)))
-        })
-      }
+      abrirCita()
     }
     // El motivo ya se eligió al agendar la cita (categoría fija) — el ing
     // probó "Atender" y esperaba verlo ya puesto acá, no volver a escribirlo:

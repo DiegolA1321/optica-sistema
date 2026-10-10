@@ -1,6 +1,7 @@
 import React from "react"
 import { describe, it, expect, beforeAll } from "vitest"
-import { render, screen, fireEvent, within } from "@testing-library/react"
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react"
+import { hoyISO } from "../utilidades/disponibilidad"
 import ConsultaMedica from "./ConsultaMedica"
 
 // jsdom no implementa scrollIntoView — el propio componente lo llama al
@@ -209,5 +210,34 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
       expect(screen.getByRole("button", { name: /Más tarde/i })).toBeInTheDocument()
       expect(screen.getByLabelText(/Precio de Consulta/i)).toHaveValue(15)
     })
+  })
+})
+
+describe("Entrar a la ficha desde una cita", () => {
+  const props = (citas, extra = {}) => ({
+    usuario: { id: "u1", nombre: "Optómetra de prueba", rol: "asistente" }, pacientes: [PACIENTE], consultas: [], inventario: [], parametrizacion: {},
+    diagnosticosRapidos: [], motivosConsulta: ["Consulta General"], citas, pacienteInicial: PACIENTE, citaIdInicial: "c1", motivoInicial: "Consulta General", ...extra,
+  })
+
+  it("una cita de otro día se mueve a hoy al abrir su ficha: nunca queda 'En atención' con fecha futura", async () => {
+    const futura = { id: "c1", paciente: PACIENTE.nombre, pacienteId: "p1", fecha: "2099-01-05", hora: "09:00 AM", estado: "Pendiente" }
+    const cambios = []
+    const avisos = []
+    render(<ConsultaMedica {...props([futura], { setCitas: (f) => cambios.push(f), onAviso: (m) => avisos.push(m) })} />)
+    await waitFor(() => expect(cambios.length).toBeGreaterThan(0))
+    const final = cambios.reduce((lista, f) => f(lista), [futura])
+    expect(final[0].fecha).toBe(hoyISO())
+    expect(final[0].hora).toMatch(/^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/)
+    expect(avisos.some((m) => /se movió a hoy/.test(m))).toBe(true)
+  })
+
+  it("una cita de hoy no se mueve ni avisa nada", async () => {
+    const deHoy = { id: "c1", paciente: PACIENTE.nombre, pacienteId: "p1", fecha: hoyISO(), hora: "09:00 AM", estado: "Pendiente" }
+    const cambios = []
+    const avisos = []
+    render(<ConsultaMedica {...props([deHoy], { setCitas: (f) => cambios.push(f), onAviso: (m) => avisos.push(m) })} />)
+    await new Promise((r) => setTimeout(r, 60))
+    expect(cambios.reduce((lista, f) => f(lista), [deHoy])[0].fecha).toBe(deHoy.fecha)
+    expect(avisos).toEqual([])
   })
 })
