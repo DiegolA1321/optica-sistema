@@ -68,3 +68,7 @@ export function validarDatosPaciente(pacientes, { nombre, cedula, telefono, corr
   if (correo && !esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
   return errs
 }
+
+// Primer nombre para saludar en un mensaje ("Hola Rosa"): la primera palabra del nombre guardado. Una sola función para el CRM,
+// la ficha del paciente y el aviso de lentes listos.
+export const primerNombre = (nombreCompleto) => String(nombreCompleto || "").trim().split(/\s+/)[0] || ""

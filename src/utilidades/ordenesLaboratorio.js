@@ -4,6 +4,7 @@ import { ahoraEcuador } from "./horaEcuador"
 // entregada (o cancelada si se anula la venta). "Atrasada" no es un estado
 // guardado: es una orden enviada cuya fecha prometida ya pasó.
 import { fechaAISO } from "./disponibilidad"
+import { primerNombre } from "./pacientes"
 import { fechaLegible } from "./formatoFecha"
 
 export const MATERIALES_LENTE = ["CR-39", "Policarbonato", "Alto índice 1.67", "Trivex", "Vidrio"]
@@ -115,7 +116,7 @@ export const tratamientos = (o) => [o.antirreflejo && "Antirreflejo", o.filtroAz
 const tipoLabel = (id) => TIPOS_LENTE.find((t) => t.id === id)?.label || id
 
 export function mensajeLentesListos({ paciente, opticaNombre, orden }) {
-  const nombre = (paciente?.nombre || "").split(" ")[0]
+  const nombre = primerNombre(paciente?.nombre)
   return `Hola${nombre ? ` ${nombre}` : ""}, te escribimos de ${opticaNombre || "tu óptica"}: tus lentes (orden ${numeroOrden(orden.numero)}) ya están listos para retirar. Te esperamos.`
 }
 
