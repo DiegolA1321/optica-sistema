@@ -1070,11 +1070,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
   // Etiquetas de seguimiento sobre la tabla (el filtro de corrección son las tarjetas de arriba). Cada una muestra cuántos pacientes
   // trae, contados con el mismo criterio con que filtran la lista; "Todos" no lleva número porque es el total de la página.
+  // Los números siguen a la tarjeta elegida: con "Bien corregidos" activa, cada etiqueta cuenta solo a los bien corregidos, que es lo que aparece al tocarla.
+  const deLaTarjeta = pacientes.filter((p) => filtroCorreccion === "Todos" || (p.estadoCorreccion || "Sin evaluación") === filtroCorreccion)
   const cuentaRapida = {
-    Recientes: pacientes.filter((p) => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS }).length,
-    PagosPendientes: pacientes.filter((p) => idsConDeuda.has(p.id)).length,
-    NoCompraron: pacientes.filter((p) => noCompraron.has(p.id)).length,
-    ControlSinAgendar: pacientes.filter((p) => sinAgendarPorPaciente.has(p.id)).length,
+    Recientes: deLaTarjeta.filter((p) => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS }).length,
+    PagosPendientes: deLaTarjeta.filter((p) => idsConDeuda.has(p.id)).length,
+    NoCompraron: deLaTarjeta.filter((p) => noCompraron.has(p.id)).length,
+    ControlSinAgendar: deLaTarjeta.filter((p) => sinAgendarPorPaciente.has(p.id)).length,
   }
   const badgesRapidos = [
     { key: "Todos", label: "Todos" },
@@ -1084,6 +1086,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     { key: "ControlSinAgendar", label: `Control sin agendar (${cuentaRapida.ControlSinAgendar})` },
   ]
   const badgeRapidoActivo = filtroRapido
+  // "120 pacientes" sin filtros; "Mostrando 5 de 120 pacientes" cuando la búsqueda o algún filtro dejan menos (igual que Citas).
+  const textoConteo = pacientesFiltrados.length === pacientes.length ? `${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}` : `Mostrando ${pacientesFiltrados.length} de ${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}`
   const activarBadgeRapido = (key) => setFiltroRapido((prev) => (prev === key ? "Todos" : key))
 
   return (
@@ -1208,6 +1212,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           )
         })}
       </div>
+
+      <p role="status" className="-mt-2 text-sm font-semibold text-slate-600">{textoConteo}</p>
 
       {/* ─── TABLA (o la cola de ventas cuando está activo "Listos para venta" / "No compraron") ─── */}
       {(
@@ -1441,8 +1447,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         {pacientesFiltrados.length > 0 && (
           <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              Mostrando <span className="font-semibold text-slate-700">{inicioPagina + 1}–{Math.min(inicioPagina + PACIENTES_POR_PAGINA, pacientesFiltrados.length)}</span> de <span className="font-semibold text-slate-700">{pacientesFiltrados.length}</span>
-              {pacientesFiltrados.length !== pacientes.length ? ` (de ${pacientes.length} en total)` : ""}
+              Filas <span className="font-semibold text-slate-700">{inicioPagina + 1}–{Math.min(inicioPagina + PACIENTES_POR_PAGINA, pacientesFiltrados.length)}</span> de <span className="font-semibold text-slate-700">{pacientesFiltrados.length}</span>
             </span>
             {totalPaginas > 1 && (
               <nav className="flex items-center gap-1" aria-label="Paginación de pacientes">
