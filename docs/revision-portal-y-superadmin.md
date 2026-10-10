@@ -2,7 +2,7 @@
 
 Revisión hecha **leyendo el código** (`PortalPaciente.jsx`, `Login.jsx` —la página pública de cada óptica y su ventana de inicio de sesión—, `AgendarCitaPublica.jsx`, `PaginaVenta.jsx`, `ConfirmarCita.jsx`, `EncuestaSatisfaccion.jsx`, `SuperadminPanel.jsx` y las utilidades que usan) y **mirando en localhost** las páginas públicas (Óptica Demo, sin iniciar sesión) y el panel del superadmin (con una sesión real, solo leyendo). Se comparó con el sistema del personal (Citas, Inicio y el perfil del paciente) y con las 28 reglas de `docs/principios-diseno.md`.
 
-**Estado: pendiente de implementar, después de Ventas. Nada se ha corregido ni publicado.**
+**Estado: pendiente de implementar, después de Ventas, salvo dos puntos que se corrigieron antes porque afectan al sistema publicado (P1 y S4, ver "Ya corregido"). Nada se ha publicado.**
 **No verificado en pantalla:**
 - El portal con datos reales (solo se vio el código y la pantalla "Mis datos" que se probó el mismo día). Los hallazgos del portal marcados como "por código" hay que confirmarlos con un paciente real en la óptica de pruebas.
 - Las páginas con la óptica vacía (`3pldf1`), con muchos datos, en celular (375 px) y en otra zona horaria (regla 19).
@@ -13,14 +13,20 @@ Revisión hecha **leyendo el código** (`PortalPaciente.jsx`, `Login.jsx` —la 
 
 Base del sistema del personal: menú lateral **claro**, tarjetas con esquinas `rounded-2xl` y borde suave, títulos de página en serif **sin cursiva**, el color de la marca (cian→azul) para lo seleccionado y la acción principal, estados de cita con un solo color cada uno (regla 14), fechas "8 oct 2026" y horas en 12 h desde `formatoFecha.js`, aviso flotante al guardar, esqueletos al cargar, y "ningún vacío sin mensaje y acción".
 
-## Decisiones que se piden a Diego
+## Decisiones de Diego (9 oct 2026)
 
-1. **Portal: ¿menú lateral claro como el del personal o se conserva el oscuro?** El portal es privado, así que la decisión de "sin héroe oscuro" (que es de las páginas públicas) no lo cubre. Propuesta: claro, con el logo y el color de acento de la óptica.
-2. **Páginas públicas: ¿la barra superior, la franja de preguntas frecuentes y el pie siguen oscuros?** El código reconoce que esa franja ya estaba "vetada". Propuesta: barra y ventana de inicio de sesión en claro; el pie puede quedar oscuro.
-3. **Recuperar la contraseña del paciente (punto P7):** ¿por correo (ya existe el envío con Resend) o avisando al personal para que use "Restablecer clave"?
-4. **Qué ve el paciente de sus órdenes de laboratorio y sus saldos (P3):** ¿todo el detalle o solo el estado ("En el laboratorio", "Lista para entrega", "Saldo $X")? Propuesta: solo el estado y el saldo.
-5. **Tocan módulos cerrados (regla 27):** unificar el estado de cita (P2) cambia el componente que hoy se repite en Citas y en el perfil del paciente. Hay que avisar y esperar aprobación antes de dejarlo.
-6. **Orden propuesto:** primero los puntos P1 a P4 (los que el paciente nota: reagendar, estados, lo que falta ver y lo repetido) y S1 a S3 del superadmin. Diego puede descartar o reordenar cualquiera.
+1. **Menú del portal: claro**, como el del sistema del personal (con el logo y el acento de la óptica). Aplica al punto P9.
+2. **Páginas públicas: barra y contenido claros y coherentes con el sistema; el pie puede quedar oscuro.** Se decide con una maqueta al implementar. Aplica a W4 (y a la ventana de inicio de sesión).
+3. **Recuperación de contraseña del paciente:** por ahora la hace el personal desde "Cuenta Portal" (Restablecer clave). El portal y la ventana de inicio de sesión muestran **"¿Olvidaste tu contraseña? Comunícate con la óptica"**. La recuperación por correo, cuando exista el dominio propio. Aplica a P7.
+4. **Órdenes y saldos (P3):** el paciente ve el **estado de sus órdenes y la fecha estimada de entrega**, y **cuánto debe y cuánto ha abonado**. **No ve el laboratorio ni los costos internos.**
+5. **Estados de cita en el portal:** los mismos colores y nombres que el sistema (P2). Si eso cambia algo visible en Citas, se muestra antes de dejarlo (regla 27).
+
+**Siguen abiertas (para cuando se implemente):** el orden de los puntos (propuesta: P1 a P4 y S1 a S3 primero); el color de la impersonación (S3); la función de la base para las órdenes y los saldos del portal (P3) requiere migración con el protocolo de siempre.
+
+## Ya corregido (no esperó, afecta al sistema publicado)
+
+- **P1 — Reagendar y cancelar (corregido, commit `7fac0a7`).** Se agregó `minutosHastaCita` (`agendaCitas.js`, con prueba unitaria) que usa las funciones únicas del sistema y la hora de Ecuador; el portal ya no arma una fecha con texto. Si la política lo permite pero faltan menos horas de las pedidas, la cita dice "Faltan menos de 2 horas: para cambiarla, comunícate con la óptica." Probado en el navegador con un paciente de la óptica de pruebas: se ven los botones solo donde corresponde, se reagendó y se canceló una cita, y el servidor sigue rechazando un día cerrado ("Ese día la óptica no atiende") y una hora fuera del horario (reglas de la 0103). Nota: el mínimo de horas de anticipación solo lo aplica la pantalla; el servidor valida el horario, pero no esa anticipación.
+- **S4 — Entrar como administrador (corregido en el código, commit `5c0e37d`; falta aplicar la migración `0105`).** Corrección a esta revisión: la **entrada ya quedaba** en la actividad de la propia óptica ("Entró como administrador de la óptica"); lo que no existía era la salida ni el registro en el panel "Actividad" del superadmin. Ahora entrada y salida —también al recargar la página estando dentro y al cerrar la sesión estando dentro— quedan en la actividad de la óptica y en la del superadmin (quién, qué óptica, cuándo). La del superadmin necesita `0105_auditoria_entrar_como_optica.sql` (amplía las acciones permitidas de `auditoria`); está ensayada con rollback y **sin aplicar**.
 
 ---
 
@@ -49,7 +55,7 @@ Base del sistema del personal: menú lateral **claro**, tarjetas con esquinas `r
 
 ## Alta
 
-### P1. Reagendar y cancelar no aparecen nunca
+### P1. Reagendar y cancelar no aparecen nunca — CORREGIDO (7fac0a7)
 - **Reglas:** 15 (no ofrecer lo que no se puede, y si no se puede, decir por qué), 12 (horas desde una sola función), 16.
 - **Qué pasa (por código):** `puedeReagendar` (`PortalPaciente.jsx:106`) arma `new Date("2026-11-06T09:40 AM:00")`. Las citas guardan la hora en 12 h ("09:40 AM"), así que la fecha sale inválida y la función devuelve `false` siempre. Se comprobó evaluando esa expresión con una hora "09:40 AM". Resultado: aunque la óptica active "permitir reagendar", el paciente nunca ve **Reagendar** ni **Cancelar**, y el aviso "Puedes cambiar el horario o cancelarla…" promete algo que no se puede hacer. Además, cuando la política está apagada o faltan menos horas de las permitidas, los botones desaparecen sin decir por qué.
 - **Propuesta:** calcular con `minutosDesdeMedianoche`/`yaPasoLaHora` y `ahoraEcuador()` (una sola función, la misma que valida el servidor en `reagendar_cita_publica`); decir "Puedes cambiarla hasta 2 horas antes" cuando se puede y "Faltan menos de 2 horas: llama a la óptica al 09…" cuando no. Agregar una prueba con horas "AM" y "PM". Verificar con un paciente real en la óptica de pruebas.
@@ -59,7 +65,7 @@ Base del sistema del personal: menú lateral **claro**, tarjetas con esquinas `r
 - **Qué pasa:** el portal pinta **Pendiente en verde** (en el sistema es naranja) y **Atendida en gris** (en el sistema es verde). Cualquier cita que no sea Atendida, No asistió o Cancelada cae en "Pendiente", así que **"En espera" no existe** para el paciente (el que ya llegó y espera sigue viendo "Pendiente"). "En atención" se llama "Te están atendiendo" y usa otro estilo. El badge de estado está escrito tres veces: en el portal, en `Pacientes.jsx` (`BadgeEstadoCita`) y en `DetalleCitaModal.jsx` (`BADGE_ESTADO`).
 - **Propuesta:** un solo componente de estado con los colores de siempre y un texto para el paciente por estado ("Pendiente", "Ya llegaste: te llamarán", "Te están atendiendo", "Atendida", "No asististe", "Cancelada"). **Toca Citas y el perfil** (regla 27): hay que avisar y esperar aprobación.
 
-### P3. Faltan las cosas que el paciente más pregunta
+### P3. Faltan las cosas que el paciente más pregunta — DECIDIDO: estado y fecha estimada de entrega de las órdenes, y saldo y abonos; sin laboratorio ni costos internos
 - **Reglas:** 10 (diseñar desde el flujo de quien lo usa), 21 (un mismo hecho se avisa igual en todas las pantallas que lo muestran).
 - **Qué pasa:** el paciente no puede ver (a) **cuándo debe volver a control** (el personal ve "Control recomendado" y la cita agendada; el portal no), (b) **el estado de sus lentes** (las órdenes de laboratorio existen y el personal las ve, pero el portal no tiene ninguna función para consultarlas; el aviso "tus lentes están listos" solo sale por mensaje del personal), (c) **cuánto debe y qué abonó** (hay comprobantes y abonos, y el portal no los consulta), ni (d) **lo que se hizo en cada visita**: "Recetas anteriores" solo lista fecha y diagnóstico.
 - **Propuesta:** en Resumen, un bloque "Tu control" con los dos datos que ya tiene el personal (fecha recomendada y cita agendada, con los mismos nombres); una sección "Mis pedidos" con el estado de cada orden ("En el laboratorio", "Lista para entrega", "Entregada") y otra "Mis pagos" con saldo y abonos; y el detalle de cada visita pasada en solo lectura. Requiere dos funciones nuevas en la base con el mismo token de sesión que las demás (migración con el protocolo de siempre) y respetar la política de las medidas. **Decisión 4.**
@@ -79,7 +85,7 @@ Base del sistema del personal: menú lateral **claro**, tarjetas con esquinas `r
 - **Qué pasa:** "Recetas anteriores" muestra la fecha cruda `2026-09-26` en letra monoespaciada; la fecha de nacimiento en "Mis datos" sale como "15 de mayo de 1990" (formato largo; el sistema usa "15 may 1990"); `etiquetaFecha` devuelve "Viernes, 6 de noviembre" **sin año**, así que una cita del año siguiente se lee igual que una de este año; la hora del reagendar se arma con `new Date()` (P1).
 - **Propuesta:** `fechaLegible`/`formatoFecha` en todo el portal, con año cuando no es el actual; "Hoy" y "Mañana" se mantienen.
 
-### P7. No hay forma de recuperar la contraseña
+### P7. No hay forma de recuperar la contraseña — DECIDIDO: mensaje "Comunícate con la óptica" y la hace el personal
 - **Reglas:** 10, 15.
 - **Qué pasa:** ni la ventana de inicio de sesión ni el portal tienen "Olvidé mi contraseña". El personal puede "Restablecer clave" desde el perfil, pero el paciente que olvidó la suya solo puede llamar. (El paciente entra con la cédula, no con el correo.)
 - **Propuesta:** botón "Olvidé mi contraseña" que pide la cédula y avisa al personal (aviso en el perfil y la campanita, con "Restablecer clave" a un clic), o que envía un enlace al correo registrado. **Decisión 3.**
@@ -199,7 +205,7 @@ Base del sistema del personal: menú lateral **claro**, tarjetas con esquinas `r
 - **Qué pasa:** el botón del detalle y de la lista, y la franja que se ve dentro de la óptica, son violeta. En Citas, el violeta es "En espera".
 - **Propuesta:** **Decisión de Diego** sobre el color. Un tono que no sea de estado (por ejemplo, el azul oscuro de la marca con un ícono de ojo) para todo lo de impersonación.
 
-### S4. El registro de actividad no cubre lo que más importa
+### S4. El registro de actividad no cubre lo que más importa — entrar/salir CORREGIDO en el código (5c0e37d), falta aplicar la 0105
 - **Reglas:** 16 (lo que se hace queda en la actividad).
 - **Qué pasa:** "Actividad" lista las acciones del superadmin (crear y suspender ópticas, avisos, altas y bajas de superadmins). La franja de impersonación dice "cualquier acción queda registrada", pero **por código entrar a una óptica no deja ningún registro** (las acciones que se registran son: crear óptica, renombrar, suspender y reactivar, agregar y quitar administradores, crear y quitar superadmins, actualizar pago, generar factura, publicar aviso y responder mensaje; no hay "entrar como"), y lo que se hace adentro queda como acción del administrador. No se probó en pantalla. Los encabezados de día salen "Lunes, 5 De Octubre" y "Sábado, 12 De Septiembre": mayúscula en "De" y mes completo, y el sistema usa "5 oct 2026" (regla 12).
 - **Propuesta:** registrar la entrada y la salida de cada impersonación, con la óptica, y que las acciones hechas dentro queden marcadas como hechas por el superadmin; fechas con `formatoFecha` (el "De" en mayúscula viene de la clase `capitalize`).

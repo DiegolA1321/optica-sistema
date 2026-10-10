@@ -8,7 +8,7 @@ Para retomar en una sesión nueva sin leer la conversación anterior.
 
 **Ventas (9 oct 2026):** la revisión del módulo contra `docs/principios-diseno.md` está en `docs/revision-ventas.md`, pendiente de implementar; falta verla en pantalla con cada rol.
 
-**Portal del paciente, páginas públicas y panel del superadmin (9 oct 2026):** la revisión contra `docs/principios-diseno.md` y contra lo que ya tiene el sistema del personal (apariencia, reglas y funciones) está en `docs/revision-portal-y-superadmin.md`, **pendiente de implementar después de Ventas**. Nada se ha corregido. Falta verla con un paciente real, con la óptica vacía y en celular. Decisiones que se piden a Diego, al principio de ese archivo.
+**Portal del paciente, páginas públicas y panel del superadmin (9 oct 2026):** la revisión contra `docs/principios-diseno.md` y contra lo que ya tiene el sistema del personal (apariencia, reglas y funciones) está en `docs/revision-portal-y-superadmin.md` con las decisiones de Diego del 9 oct, **pendiente de implementar después de Ventas**, salvo dos puntos ya corregidos por afectar al sistema publicado: el portal ya muestra Reagendar y Cancelar (`7fac0a7`) y entrar/salir de una óptica como administrador queda registrado (`5c0e37d`; falta aplicar la migración `0105`, ensayada, sin aplicar). Nada se ha corregido. Falta verla con un paciente real, con la óptica vacía y en celular. Decisiones que se piden a Diego, al principio de ese archivo.
 
 ### Citas (publicado el 8 oct 2026)
 
