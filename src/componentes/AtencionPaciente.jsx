@@ -133,7 +133,6 @@ export function ModalDatosPaciente({ paciente, onEditar, onCerrar }) {
       titulo="Datos del paciente"
       subtitulo={paciente.nombre}
       Icono={IdCard}
-      capa="z-40"
       onCerrar={onCerrar}
       ancho="max-w-2xl"
       pie={<>
