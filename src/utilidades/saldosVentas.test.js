@@ -40,3 +40,20 @@ describe("filtrarComprobantes", () => {
     expect(ids(filtrarComprobantes(facturas, { sinFacturaElectronica: true, pacientes }))).toEqual(["b"])
   })
 })
+
+describe("los comprobantes que abre la tarjeta Ventas del Inicio", () => {
+  const ahora = new Date().toISOString()
+  const antes = new Date(new Date().getFullYear(), new Date().getMonth() - 2, 10).toISOString()
+  const facturas = [
+    { id: "a", numero: 1, estado: "pagada", montoTotal: 10, creadoEn: ahora },
+    { id: "b", numero: 2, estado: "pagada", montoTotal: 20, creadoEn: antes },
+    { id: "c", numero: 3, estado: "anulada", montoTotal: 30, creadoEn: ahora },
+  ]
+  it("'vigentes' deja fuera las anuladas, igual que el total vendido del Inicio", () => {
+    expect(filtrarComprobantes(facturas, { estado: "vigentes" }).map((f) => f.id).sort()).toEqual(["a", "b"])
+  })
+  it("el período 'mes' deja solo las de este mes; con 'vigentes' coincide con el '+N este mes' del Inicio", () => {
+    expect(filtrarComprobantes(facturas, { estado: "vigentes", periodo: "mes" }).map((f) => f.id)).toEqual(["a"])
+    expect(filtrarComprobantes(facturas, { periodo: "mes" }).map((f) => f.id).sort()).toEqual(["a", "c"]) // sin 'vigentes' entra también la anulada
+  })
+})

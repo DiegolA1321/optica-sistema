@@ -42,6 +42,7 @@ export default function Ventas({
   const [texto, setTexto] = useState("")
   const [textoCola, setTextoCola] = useState("")
   const [estado, setEstado] = useState("todas")
+  const [periodo, setPeriodo] = useState("todo") // "mes": solo las de este mes (el "+N este mes" de Inicio)
   const [sinFE, setSinFE] = useState(false)
   const [visibles, setVisibles] = useState(POR_PAGINA)
   const [nuevaVenta, setNuevaVenta] = useState(false)
@@ -58,6 +59,7 @@ export default function Ventas({
     if (accionInicial.tab === "ordenes") setFiltroOrdenes(accionInicial.filtro || "abiertas")
     if (accionInicial.tab === "cola") setVerNoCompraron(false)
     if (accionInicial.texto != null) { setTexto(accionInicial.texto); setEstado("todas"); setSinFE(false) }
+    if (accionInicial.tab === "ventas") { setEstado(accionInicial.estado || "todas"); setPeriodo(accionInicial.periodo || "todo"); setSinFE(false) } // las tarjetas Ventas del Inicio piden vigentes, de siempre o de este mes
     onAccionInicialConsumida?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accionInicial])
@@ -67,8 +69,8 @@ export default function Ventas({
   const abiertas = ordenesAbiertas(ordenesLab).length
   const atrasadas = ordenesAtrasadas(ordenesLab).length
   const sinAvisar = ordenesListasSinAvisar(ordenesLab).length
-  const comprobantes = useMemo(() => filtrarComprobantes(facturasVenta, { texto, estado, sinFacturaElectronica: sinFE, pacientes, abonos }), [facturasVenta, texto, estado, sinFE, pacientes, abonos])
-  useEffect(() => { setVisibles(POR_PAGINA) }, [texto, estado, sinFE])
+  const comprobantes = useMemo(() => filtrarComprobantes(facturasVenta, { texto, estado, periodo, sinFacturaElectronica: sinFE, pacientes, abonos }), [facturasVenta, texto, estado, periodo, sinFE, pacientes, abonos])
+  useEffect(() => { setVisibles(POR_PAGINA) }, [texto, estado, periodo, sinFE])
 
   const pacienteDe = (id) => pacientes.find((p) => p.id === id) || null
   const verPaciente = (p) => p && onVerPaciente?.(p.id)
@@ -167,9 +169,14 @@ export default function Ventas({
                   </div>
                   <select aria-label="Estado del comprobante" value={estado} onChange={(e) => setEstado(e.target.value)} className="rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm text-slate-700">
                     <option value="todas">Todos los estados</option>
+                    <option value="vigentes">Vigentes (sin anuladas)</option>
                     <option value="pagadas">Pagadas</option>
                     <option value="saldo">Con saldo</option>
                     <option value="anuladas">Anuladas</option>
+                  </select>
+                  <select aria-label="Período del comprobante" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm text-slate-700">
+                    <option value="todo">Todo el tiempo</option>
+                    <option value="mes">Este mes</option>
                   </select>
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
                     <input type="checkbox" checked={sinFE} onChange={(e) => setSinFE(e.target.checked)} className="accent-emerald-600" /> Sin factura electrónica

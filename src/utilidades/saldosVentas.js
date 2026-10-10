@@ -4,6 +4,7 @@
 import { saldoFactura } from "./abonos"
 import { saldoVenta, ventasPendientesPaciente } from "./ventas"
 import { numeroComprobante } from "./comprobantes"
+import { esDeEsteMes } from "./inicio"
 
 const normalizar = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
@@ -34,11 +35,14 @@ export function saldosPorPaciente({ pacientes = [], facturas = [], abonos = [], 
 export const totalPorCobrar = (saldos) => Math.round(saldos.reduce((a, s) => a + s.saldo, 0) * 100) / 100
 
 // Búsqueda por paciente, cédula, número CV, número de factura electrónica o descripción de una línea.
-export function filtrarComprobantes(facturas, { texto = "", estado = "todas", sinFacturaElectronica = false, pacientes = [], abonos = [] } = {}) {
+// estado "vigentes" = todas menos las anuladas (lo que cuenta la tarjeta Ventas del Inicio); periodo "mes" = las de este mes.
+export function filtrarComprobantes(facturas, { texto = "", estado = "todas", periodo = "todo", sinFacturaElectronica = false, pacientes = [], abonos = [] } = {}) {
   const q = normalizar(texto).trim()
   const qCV = q.replace(/^cv-?/, "")
   return facturas
     .filter((f) => {
+      if (estado === "vigentes" && f.estado === "anulada") return false
+      if (periodo === "mes" && !esDeEsteMes(f.creadoEn)) return false
       if (estado === "pagadas" && f.estado !== "pagada") return false
       if (estado === "saldo" && saldoFactura(f, abonos) <= 0) return false
       if (estado === "anuladas" && f.estado !== "anulada") return false
