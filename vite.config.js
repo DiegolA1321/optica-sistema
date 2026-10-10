@@ -40,7 +40,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    setupFiles: './src/test-setup.js',
+    // Con HORA_SIMULADA (una fecha ISO en UTC) el reloj de las pruebas se fija en ese instante: ver scripts/probar-zonas-y-horas.mjs.
+    setupFiles: ['./src/test-setup.js', ...(process.env.HORA_SIMULADA ? ['./src/test-reloj.js'] : [])],
     // Las pruebas de pantalla (ConsultaMedica, Inicio, Ventas...) renderizan árboles grandes en jsdom: solas tardan 0,3-2,5 s,
     // pero con todos los archivos en paralelo (o con el servidor de desarrollo abierto) llegan a 7 s y el límite por defecto
     // de 5 s las marcaba como fallidas al azar. Una prueba síncrona no se interrumpe: el límite solo decide si falla al terminar.
