@@ -41,3 +41,13 @@ describe("ModalMisRoles", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/administrador principal/)
   })
 })
+
+describe("RolesPanel: el botón 'Nuevo rol' vive en la cabecera de la pantalla", () => {
+  it("no tiene su propio botón 'Nuevo rol' y abre el editor cuando la cabecera lo pide", () => {
+    const { rerender } = render(<RolesPanel {...base} roles={[]} pedidoNuevoRol={0} />)
+    expect(screen.queryByRole("button", { name: /Nuevo rol/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    rerender(<RolesPanel {...base} roles={[]} pedidoNuevoRol={1} />)
+    expect(screen.getByRole("dialog", { name: "Nuevo rol" })).toBeInTheDocument()
+  })
+})

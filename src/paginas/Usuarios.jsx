@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { createPortal } from "react-dom"
 import {
-  Users, UserPlus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Eye, EyeOff, Mail, Info, IdCard,
+  Users, UserPlus, Plus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Eye, EyeOff, Mail, Info, IdCard,
   History, Glasses, UserX, UserCheck, Lock,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
@@ -14,6 +14,7 @@ import VentanaActividad from "../componentes/VentanaActividad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
 import RolesPanel from "../componentes/RolesPanel"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import ModalMisRoles from "../componentes/ModalMisRoles"
 import { cargarMisPermisos } from "../utilidades/sesionPermisos"
 import { INK, ACCION_VER } from "@/lib/tema"
@@ -58,6 +59,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
 
   // Actividad (incluye los cambios de roles y permisos, que la base registra sola)
   const [mostrarActividad, setMostrarActividad] = useState(false)
+  const [pedidoNuevoRol, setPedidoNuevoRol] = useState(0) // el botón "Nuevo rol" de la cabecera le pide a la pantalla de Roles abrir el editor
   const alternarActividad = () => setMostrarActividad((v) => !v)
 
   // Modal crear / editar
@@ -208,8 +210,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             <p className="text-sm text-slate-500">Primero defines los roles; luego eliges el rol de cada persona.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={alternarActividad} className={"flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors cursor-pointer " + (mostrarActividad ? "border-blue-200/60 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}>
+        <AccionesDeCabecera>
+          <button type="button" onClick={alternarActividad} className={"flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors cursor-pointer " + "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50"}>
             <History size={17} /> Actividad
           </button>
           {pestana === "usuarios" && (
@@ -217,7 +219,12 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
               <UserPlus size={18} /> Crear usuario
             </button>
           )}
-        </div>
+          {pestana === "roles" && (
+            <button type="button" onClick={() => setPedidoNuevoRol((n) => n + 1)} disabled={cargando} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+              <Plus size={18} aria-hidden="true" /> Nuevo rol
+            </button>
+          )}
+        </AccionesDeCabecera>
       </div>
 
       <div role="tablist" aria-label="Secciones" className="flex w-fit gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
@@ -246,7 +253,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
           {[0, 1].map((i) => <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />)}
         </div>
       ) : pestana === "roles" ? (
-        <RolesPanel usuario={usuario} roles={roles} asignaciones={asignaciones} onCambio={cargar} onExito={mostrarExito} />
+        <RolesPanel usuario={usuario} roles={roles} asignaciones={asignaciones} onCambio={cargar} onExito={mostrarExito} pedidoNuevoRol={pedidoNuevoRol} />
       ) : asistentes.length === 0 && usuario?.rol !== "admin" ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300"><Users size={30} /></div>

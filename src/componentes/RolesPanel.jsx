@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Plus, Pencil, Trash2, RotateCcw, X, ShieldCheck, ShieldAlert, Lock, Users, Glasses, AlertTriangle, Eye } from "lucide-react"
+import { Pencil, Trash2, RotateCcw, X, ShieldCheck, ShieldAlert, Lock, Users, Glasses, AlertTriangle, Eye } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -20,8 +20,16 @@ const rolVacio = () => ({ id: null, nombre: "", descripcion: "", es_predefinido:
 
 // Pantalla de Roles (R46-R48): lista de roles con sus permisos y editor con matriz
 // Ver / Crear / Editar / Eliminar, alcance de los datos y vista previa de lo que verá la persona.
-export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onExito }) {
+// pedidoNuevoRol: el botón "Nuevo rol" está en la cabecera de la pantalla (junto a Actividad, como "Crear usuario"); cada pulsación sube este número.
+export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onExito, pedidoNuevoRol = 0 }) {
   const [editando, setEditando] = useState(null)
+  const ultimoPedido = useRef(pedidoNuevoRol)
+  useEffect(() => {
+    if (pedidoNuevoRol === ultimoPedido.current) return
+    ultimoPedido.current = pedidoNuevoRol
+    setErrorGlobal("")
+    setEditando(rolVacio())
+  }, [pedidoNuevoRol])
   const [porEliminar, setPorEliminar] = useState(null)
   const [eliminando, setEliminando] = useState(false)
   const [restaurando, setRestaurando] = useState(null)
@@ -60,9 +68,6 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
         <p className="max-w-2xl text-sm text-slate-600">
           Un rol define qué módulos ve una persona y qué puede hacer en cada uno. Al crear un usuario eliges su rol (o varios: los permisos se suman).
         </p>
-        <button type="button" onClick={() => { setErrorGlobal(""); setEditando(rolVacio()) }} className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-          <Plus size={16} aria-hidden="true" /> Nuevo rol
-        </button>
       </div>
       {errorGlobal && <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><AlertTriangle size={16} aria-hidden="true" /> {errorGlobal}</p>}
 
