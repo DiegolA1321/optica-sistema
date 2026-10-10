@@ -87,6 +87,7 @@ import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidade
 import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
+import CampoFecha from "../componentes/CampoFecha"
 import { ModalAtencion, ModalHistoriaClinica, ModalDatosPaciente } from "../componentes/AtencionPaciente"
 import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelCompras, PanelPuntaje, PanelReferidos, PanelCumple, PanelCitasEstado } from "../componentes/DetallesResumen"
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
@@ -1549,14 +1550,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
                 <div>
                   <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento *</label>
-                  <div className="relative">
-                    <Cake className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                    <input
-                      id="p-nacimiento" type="date" required autoComplete="bday"
-                      value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.fechaNacimiento ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                    />
-                  </div>
+                  <CampoFecha id="p-nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido placeholder="Elige la fecha" />
                   {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
                 </div>
               </div>
