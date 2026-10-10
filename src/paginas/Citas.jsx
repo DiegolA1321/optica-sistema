@@ -64,6 +64,8 @@ import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
+import { moverCitaAHoy as moverCitaAHoyCompartido } from "../utilidades/moverCitaAHoy"
+import { estadosCorregibles, estadoCorregibleEs } from "../utilidades/estadosCita"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK } from "@/lib/tema"
 
@@ -72,7 +74,6 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Orden de los grupos por estado dentro del modal "Citas del día" (vista por
 // mes) — lo más urgente de revisar primero.
-const ORDEN_ESTADOS_MODAL = ["En Atención", "Pendiente", "Atendida", "No Asistió", "Cancelada"]
 
 // La última vista elegida se recuerda en este navegador (solo una comodidad
 // por persona: si el almacenamiento no está disponible, se abre en Lista).
@@ -699,24 +700,9 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   // Una cita de otro día que se atiende hoy se mueve a hoy, con la hora real: el calendario y los reportes la ven en el día en que
   // ocurrió. La hora se prueba minuto a minuto por si ya hay otra cita a esa hora (un horario por óptica, fecha y hora).
   const moverCitaAHoy = async (cita) => {
-    const hoy = hoyISO()
-    const ahora = ahoraEcuador()
-    let hora = null
-    for (let extra = 0; extra < 30 && !hora; extra++) {
-      const t = new Date(ahora.getTime() + extra * 60_000)
-      if (t.getDate() !== ahora.getDate()) break
-      const candidata = horaA12(`${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`)
-      if (!citas.some((c) => c.id !== cita.id && c.fecha === hoy && c.hora === candidata && c.estado !== "Cancelada")) hora = candidata
-    }
-    if (!hora) hora = horaA12(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
-    if (supabase && opticaId) {
-      const { data, error } = await supabase.from("citas").update({ fecha: hoy, hora }).eq("id", cita.id).select()
-      if (fueBloqueadoPorPermiso({ error, data })) { setBannerError(MENSAJE_SIN_PERMISO); return null }
-      if (error) { setBannerError(esErrorHoraInvalida(error) ? MENSAJE_HORA_INVALIDA : "No se pudo mover la cita al día de hoy. Revisa tu conexión e intenta de nuevo."); return null }
-    }
-    setCitas((prev) => prev.map((c) => (c.id === cita.id ? { ...c, fecha: hoy, hora } : c)))
-    registrarLog(usuario, "citas", "Movió una cita al día en que se atiende", `${cita.paciente} · de ${fechaLegible(cita.fecha)} a hoy, ${hora}`)
-    return { ...cita, fecha: hoy, hora }
+    const r = await moverCitaAHoyCompartido({ supabase, opticaId, cita, citas, setCitas, usuario })
+    if (r.error) { setBannerError(r.error); return null }
+    return r.cita
   }
 
   const ingresarAFicha = async (citaOriginal) => {
@@ -896,6 +882,10 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
     // (deshacer un estado puesto por error). Si solo cambió eso (y/o el
     // motivo), no hace falta elegir una fecha nueva.
     const estadoCambiado = estadoCorregido && estadoCorregido !== reagendando.estado
+    if (estadoCambiado && !estadoCorregibleEs(reagendando, estadoCorregido)) {
+      setErrorReagendar("Esa cita es de un día que todavía no llega: solo puede estar pendiente o cancelada.")
+      return
+    }
     const sinNuevoHorario = !nuevaFecha && !nuevaHora
     if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo)) {
       const cancelaAhora = estadoCambiado && estadoCorregido === "Cancelada"
@@ -2064,7 +2054,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
                     onChange={(e) => setEstadoCorregido(e.target.value)}
                     className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                   >
-                    {ORDEN_ESTADOS_MODAL.map((e) => (
+                    {estadosCorregibles(reagendando).map((e) => (
                       <option key={e} value={e}>{e === "En Atención" ? "En atención" : e === "No Asistió" ? "No asistió" : e}</option>
                     ))}
                   </select>
