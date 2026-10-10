@@ -19,7 +19,7 @@ test('ficha clínica: el control exige elegir agendar ahora o después', async (
   const nombre = await crearCitaDeHoyParaPaula('E2E')
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   // Se espera a que los datos estén cargados (no un tiempo fijo): primero la fila del paciente y luego su perfil, con holgura para un equipo cargado.
   await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
   await page.getByText(nombre).first().click()

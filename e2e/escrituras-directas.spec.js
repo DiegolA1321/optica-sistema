@@ -271,7 +271,7 @@ test('Citas y pacientes: corregir los datos de un paciente y cancelar su cita (p
 
   // Pacientes: editar el teléfono desde "Más acciones" de su fila
   await irA(page, 'Pacientes')
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   const fila = page.locator('tr').filter({ hasText: nombre })
   await expect(fila).toHaveCount(1, { timeout: 20_000 })
   await fila.getByRole('button', { name: 'Más acciones' }).click()

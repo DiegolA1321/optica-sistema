@@ -21,7 +21,7 @@ const botonAgendar = (page) => page.getByRole('button', { name: 'Agendar cita' }
 async function abrirPerfil(page, nombre, prefijo = 'OPTOMETRA') {
   await iniciarSesion(page, prefijo, 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   await page.getByText(nombre).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 30_000 })
 }
@@ -90,7 +90,7 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   // Alertas: debajo de la cabecera y antes de las pestañas
   await page.goto('/?optica=v8twzq')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(conAlerta)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(conAlerta)
   await page.getByText(conAlerta).first().click()
   const alertas = page.getByLabel('Alertas del paciente')
   await expect(alertas).toBeVisible({ timeout: 30_000 })
@@ -132,7 +132,7 @@ test('atender a un paciente sin cita desde su perfil con "Llegó en un horario d
 test('Resumen de un paciente con historial (Demo, solo lectura)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill('Karla Párraga Vera')
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill('Karla Párraga Vera')
   await page.getByText('Karla Párraga Vera').first().click()
   await expect(page.getByRole('tab', { name: /Resumen/ })).toBeVisible({ timeout: 45_000 })
   await page.getByRole('tab', { name: /Resumen/ }).click()
@@ -150,7 +150,7 @@ test('"Atender ahora" del menú de la lista abre el mismo modal y entra a la fic
   await cancelarCitasDePrueba([nombre])
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Nueva ficha clínica' })).toHaveCount(0)
   await page.locator('tr', { hasText: nombre }).getByRole('button', { name: 'Más acciones' }).click()

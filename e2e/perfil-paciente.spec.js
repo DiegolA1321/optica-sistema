@@ -15,7 +15,7 @@ const foto = async (page, nombre) => {
 async function abrirPerfil(page, nombre) {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   await page.getByText(nombre, { exact: false }).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
 }
@@ -43,7 +43,7 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     const nombre = await crearPacienteConHistorial(6)
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-    await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(nombre)
+    await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
     await page.getByText(nombre).first().click()
     await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 30_000 })
     const buscador = page.getByRole('search', { name: 'Buscar en el historial de citas' })

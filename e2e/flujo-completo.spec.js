@@ -56,7 +56,7 @@ test('1 · Recepción agenda una cita para Paula con un paciente nuevo', async (
 test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ page }) => {
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  await page.getByPlaceholder(/Nombre, cédula, teléfono/).fill(datos.nombre)
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(datos.nombre)
   await page.getByText(datos.nombre).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
   // La cita actual o próxima trae "Ingresar": entra directo a su ficha.
