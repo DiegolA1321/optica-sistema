@@ -321,6 +321,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             const susRoles = rolesDe(a.id)
             const permisos = permisosDeRoles(susRoles)
             const menu = menuDePermisos(permisos)
+            const resumen = resumenPermisos(permisos) // los mismos módulos con su nivel, como en las tarjetas de los roles
             const administracion = menu.some((m) => m === "Mensajes" || m === "Configuración")
             return (
               <li key={a.id} className={"flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm " + (a.activo === false ? "border-slate-200 opacity-80" : "border-slate-200/60")}>
@@ -352,7 +353,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                   {a.activo === false && a.motivoDesactivacion && <p className="mt-2 text-xs text-slate-500">Motivo: {a.motivoDesactivacion}</p>}
                   {administracion && <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Tiene administración delegada (Mensajes y/o Configuración)</p>}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {menu.length === 0 ? <span className="text-xs text-slate-400">Solo ve el Inicio</span> : menu.map((m) => <span key={m} className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{m}</span>)}
+                    {resumen.length === 0 ? <span className="text-xs text-slate-400">Solo ve el Inicio</span> : resumen.map((r) => <span key={r.modulo} className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600" title={r.texto}>{r.modulo} <span className="font-normal text-slate-400">· {r.texto}</span></span>)}
                   </div>
                 </div>
               </li>
@@ -382,7 +383,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                 {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertTriangle size={16} /> {error}</div>}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</span>
+                  <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo <span className="text-red-500">*</span></span>
                     <input type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))} placeholder="Ej. Ana Torres" autoComplete="name" className={CAMPO} autoFocus />
                   </label>
                   <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula {modal.id == null && <span className="text-red-500">*</span>}</span>
@@ -394,7 +395,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                   <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">El correo y la contraseña no se cambian desde aquí. Correo actual: <span className="font-mono font-semibold">{correo}</span></p></div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</span>
+                    <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico <span className="text-red-500">*</span></span>
                       <div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                         <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="email" className={CAMPO + " pl-9"} /></div>
                     </label>
