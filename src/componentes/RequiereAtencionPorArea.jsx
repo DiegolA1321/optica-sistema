@@ -85,12 +85,12 @@ export function BotonRequierenAtencion({ bloque }) {
   return (
     <>
       {total > 0 ? (
-        <button type="button" onClick={() => setAbierto(true)} aria-label={`Requieren atención: ${total}`} className="flex items-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50 px-3.5 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
+        <button type="button" onClick={() => setAbierto(true)} aria-label={`Requieren atención: ${total}`} className="flex items-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
           <AlertCircle size={16} aria-hidden="true" /> Requieren atención
           <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-amber-700">{total}</span>
         </button>
       ) : (
-        <span className="flex items-center gap-2 rounded-xl border border-emerald-200/70 bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} aria-hidden="true" /> Todo en orden</span>
+        <span className="flex items-center gap-2 rounded-xl border border-emerald-200/70 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} aria-hidden="true" /> Todo en orden</span>
       )}
       {abierto && <VentanaAvisos bloque={bloque} filaId={null} onCerrar={() => setAbierto(false)} />}
     </>
@@ -151,8 +151,8 @@ export default function RequiereAtencionPorArea({ bloques }) {
                     Ver todo <ArrowRight size={14} aria-hidden="true" />
                   </button>
                 ) : (
-                  <button type="button" onClick={b.onVerTodo} aria-label={`Abrir ${b.modulo || b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-                    Abrir {b.modulo || b.titulo} <ArrowRight size={14} aria-hidden="true" />
+                  <button type="button" onClick={b.onVerTodo} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+                    Ver todo <ArrowRight size={14} aria-hidden="true" />
                   </button>
                 )}
               </footer>

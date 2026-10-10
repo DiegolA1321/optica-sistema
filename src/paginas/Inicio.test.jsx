@@ -225,12 +225,12 @@ describe("Inicio del administrador", () => {
     expect(pedidos).toEqual(["pacientes", "crear"])
   })
 
-  it("sin nada pendiente: las cuatro tarjetas siguen ahí, del mismo tamaño, dicen 'Todo en orden' y ofrecen abrir su módulo", () => {
+  it("sin nada pendiente: las cuatro tarjetas siguen ahí, del mismo tamaño, dicen 'Todo en orden' y ofrecen el mismo 'Ver todo' hacia su módulo", () => {
     const vistas = []
     render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} facturasVenta={[]} abonos={[]} setVista={(v) => vistas.push(v)} />)
     for (const nombre of ["Citas", "Pacientes", "Ventas", "Inventario"]) {
       expect(area(nombre)).toHaveTextContent("Todo en orden")
-      fireEvent.click(within(area(nombre)).getByRole("button", { name: `Abrir ${nombre}` }))
+      fireEvent.click(within(area(nombre)).getByRole("button", { name: `Ver todo en ${nombre}` }))
     }
     expect(vistas).toEqual(["citas", "pacientes", "ventas", "inventario"])
   })
@@ -280,15 +280,15 @@ describe("Desenlace del administrador", () => {
     const llamadas = []
     render(<Inicio {...base} onVerCitas={(...a) => llamadas.push(a)} />)
     const lista = () => screen.getByRole("region", { name: /^(Citas del día|Todas las citas)$/ })
-    expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
+    expect(within(lista()).getByText("En espera")).toBeInTheDocument()
     expect(within(lista()).getByRole("button", { name: "Ver todas en Citas" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ }))
     expect(screen.getByRole("button", { name: /^Atendidas:/ })).toHaveAttribute("aria-pressed", "true")
-    expect(within(lista()).queryByText("En Espera")).not.toBeInTheDocument()
+    expect(within(lista()).queryByText("En espera")).not.toBeInTheDocument()
     expect(within(lista()).getByText("Atendida")).toBeInTheDocument()
     fireEvent.click(within(lista()).getByRole("button", { name: "Ver atendidas en Citas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ })) // volver a tocarla la quita
-    expect(within(lista()).getByText("En Espera")).toBeInTheDocument()
+    expect(within(lista()).getByText("En espera")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Todas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
     expect(within(lista()).getByText("Ninguna cita con ese resultado en el período.")).toBeInTheDocument()
@@ -301,7 +301,7 @@ describe("Desenlace del administrador", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Pendientes:/ }))
     const lista = screen.getByRole("region", { name: "Citas del día" })
     expect(lista).toHaveTextContent("Citas del día · Pendientes")
-    expect(within(lista).getByText("En Espera")).toBeInTheDocument()
+    expect(within(lista).getByText("En espera")).toBeInTheDocument()
     expect(within(lista).getByText("Pendiente")).toBeInTheDocument()
     expect(within(lista).queryByText("Atendida")).not.toBeInTheDocument()
   })
