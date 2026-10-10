@@ -6,7 +6,6 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { sumarDiasISO } from "../utilidades/controles"
-import { createPortal } from "react-dom"
 import {
   Clock,
   CalendarClock,
@@ -38,7 +37,7 @@ import { supabase } from "../lib/supabaseClient"
 import { puede } from "../utilidades/permisosUi"
 import CampoFecha from "../componentes/CampoFecha"
 import HorarioEquipo from "../componentes/HorarioEquipo"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
 import { fechaLegible as fechaFormato, formatoFecha } from "../utilidades/formatoFecha"
 
@@ -425,8 +424,6 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-  const refModalAvisoConflicto = useModalAccesible(!!avisoConflicto, () => setAvisoConflicto(null))
-  const refModalAusencia = useModalAccesible(modalAusenciaAbierto, () => setModalAusenciaAbierto(false))
 
   return (
     <div className="w-full space-y-6 text-left">
@@ -776,93 +773,71 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
       )}
 
       {/* ─── AVISO: EL CAMBIO DEJA CITAS YA AGENDADAS FUERA DE HORARIO ─── */}
-      {avisoConflicto && createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAvisoConflicto(null)}>
-          <div ref={refModalAvisoConflicto} role="dialog" aria-modal="true" aria-labelledby="horario-modal-conflicto-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-5">
-              <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
-                <AlertTriangle size={22} />
-              </div>
-              <h2 id="horario-modal-conflicto-titulo" className="text-lg font-bold" style={{ color: INK }}>Hay citas fuera de este horario</h2>
-              <p className="mt-1.5 text-sm text-slate-500">
-                {avisoConflicto.citas.length === 1
-                  ? "Esta cita ya agendada quedaría fuera del horario si aplicas el cambio:"
-                  : `Estas ${avisoConflicto.citas.length} citas ya agendadas quedarían fuera del horario si aplicas el cambio:`}
-              </p>
-              <div className="mt-3 max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/60">
-                {avisoConflicto.citas.map((c) => (
-                  <div key={c.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <User size={13} className="shrink-0 text-slate-500" />
-                    <span className="truncate font-semibold text-slate-700">{c.paciente}</span>
-                    <span className="ml-auto shrink-0 font-mono text-xs text-slate-500">{c.fecha} · {c.hora}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-xs text-slate-500">Puedes aplicar el cambio igual y reprogramarlas tú mismo después, o cancelar y dejarlas como están.</p>
+      {avisoConflicto && (
+        <Cascaron titulo="Hay citas fuera de este horario" subtitulo="Revisa antes de aplicar el cambio" Icono={AlertTriangle} ancho="max-w-md" capa="z-[60]" onCerrar={() => setAvisoConflicto(null)}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setAvisoConflicto(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={() => { avisoConflicto.aplicar(); setAvisoConflicto(null) }} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 cursor-pointer">Aplicar de todas formas</button>
             </div>
-            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-              <button type="button" onClick={() => setAvisoConflicto(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => { avisoConflicto.aplicar(); setAvisoConflicto(null) }}
-                className="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 cursor-pointer"
-              >
-                Aplicar de todas formas
-              </button>
+          </>}>
+          <div className="space-y-3 p-6">
+            <p className="text-sm text-slate-600">
+              {avisoConflicto.citas.length === 1
+                ? "Esta cita ya agendada quedaría fuera del horario si aplicas el cambio:"
+                : `Estas ${avisoConflicto.citas.length} citas ya agendadas quedarían fuera del horario si aplicas el cambio:`}
+            </p>
+            <div className="max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/60">
+              {avisoConflicto.citas.map((c) => (
+                <div key={c.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <User size={13} className="shrink-0 text-slate-500" />
+                  <span className="truncate font-semibold text-slate-700">{c.paciente}</span>
+                  <span className="ml-auto shrink-0 font-mono text-xs text-slate-500">{c.fecha} · {c.hora}</span>
+                </div>
+              ))}
             </div>
+            <p className="text-xs text-slate-500">Puedes aplicar el cambio igual y reprogramarlas tú mismo después, o cancelar y dejarlas como están.</p>
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MODAL REGISTRAR AUSENCIA (Punto 07) ─── */}
-      {modalAusenciaAbierto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAusenciaAbierto(false)}>
-          <div ref={refModalAusencia} role="dialog" aria-modal="true" aria-labelledby="horario-modal-ausencia-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="border-b border-slate-100 px-6 py-4">
-              <h2 id="horario-modal-ausencia-titulo" className="text-lg font-bold" style={{ color: INK }}>No podré asistir</h2>
-              <p className="mt-1 text-xs text-slate-500">Bloquea ese rango de horas en la agenda pública y en la interna.</p>
+      {modalAusenciaAbierto && (
+        <Cascaron titulo="No podré asistir" subtitulo="Bloquea ese rango de horas en la agenda pública y en la interna." Icono={CalendarX} ancho="max-w-md" onCerrar={() => setModalAusenciaAbierto(false)} formulario={{ onSubmit: registrarAusencia }}
+          pie={<PieFormulario onCancelar={() => setModalAusenciaAbierto(false)} etiquetaGuardar="Registrar" />}>
+          <div className="space-y-3.5 p-6">
+            {errorAusencia && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {errorAusencia}
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
+              <CampoFecha id="ausencia-fecha" valor={fechaAusencia} onCambiar={setFechaAusencia} min={hoy} max={sumarDiasISO(hoy, 730)} requerido />
             </div>
-            <form onSubmit={registrarAusencia} className="space-y-3.5 px-6 py-5">
-              {errorAusencia && (
-                <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                  <AlertTriangle size={14} /> {errorAusencia}
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+              <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus-visible:ring-red-500" />
+              Todo el día
+            </label>
+            {!todoElDiaAusencia && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Desde</label>
+                  <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
                 </div>
-              )}
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-                <CampoFecha id="ausencia-fecha" valor={fechaAusencia} onCambiar={setFechaAusencia} min={hoy} max={sumarDiasISO(hoy, 730)} requerido />
-              </div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus-visible:ring-red-500" />
-                Todo el día
-              </label>
-              {!todoElDiaAusencia && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Desde</label>
-                    <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Hasta</label>
-                    <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
-                  </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Hasta</label>
+                  <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
                 </div>
-              )}
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
-                <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
               </div>
-              <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setModalAusenciaAbierto(false)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
-                <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}>Registrar</button>
-              </div>
-            </form>
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
+              <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
+            </div>
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
     </div>
   )
@@ -1079,122 +1054,107 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — siempre "abierto"
   // mientras este componente está montado, ya que su caller lo monta y
   // desmonta condicionalmente en vez de mantenerlo siempre presente.
-  const refModal = useModalAccesible(true, onCerrar)
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="horario-modal-excepcion-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-        <div className="shrink-0 border-b border-slate-100 px-6 py-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Excepción de horario</p>
-          <h2 id="horario-modal-excepcion-titulo" className="text-lg font-bold" style={{ color: INK }}>{fechaLegible}</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Normalmente este día: <span className="font-semibold">{resumenHorario(horarioBase)}</span>.
-          </p>
+  return (
+    <Cascaron titulo={fechaLegible} subtitulo={`Excepción de horario · normalmente este día: ${resumenHorario(horarioBase)}`} Icono={CalendarDays} ancho="max-w-md" capa="z-50" onCerrar={onCerrar}
+      pie={<>
+        {onQuitar ? (
+          <button type="button" onClick={onQuitar} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer"><RotateCcw size={14} aria-hidden="true" /> Volver al horario habitual</button>
+        ) : <span />}
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="button" onClick={() => onGuardar({ manana, tarde, nombre })} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}><CheckCircle2 size={15} aria-hidden="true" /> Guardar</button>
         </div>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-          {/* Citas registradas + horarios libres (reunión 29 sept., punto 9 del
-              plan) — informativo, no forma parte del formulario de abajo. */}
-          <div>
-            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-              <CalendarDays size={13} /> Citas registradas <span className="font-normal normal-case text-slate-400">· {citasDelDia.length}</span>
-            </h3>
-            {citasDelDia.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Sin citas registradas este día.</p>
-            ) : (
-              <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60">
-                {citasDelDia.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-700">{c.paciente}</p>
-                      <p className="text-xs text-slate-500">{c.hora}</p>
-                    </div>
-                    <span className={"shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
-                      {etiquetaEstadoCita(c.estado)}
-                    </span>
+      </>}>
+      <div className="space-y-4 px-6 py-5">
+        {/* Citas registradas + horarios libres (reunión 29 sept., punto 9 del
+            plan) — informativo, no forma parte del formulario de abajo. */}
+        <div>
+          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+            <CalendarDays size={13} /> Citas registradas <span className="font-normal normal-case text-slate-400">· {citasDelDia.length}</span>
+          </h3>
+          {citasDelDia.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Sin citas registradas este día.</p>
+          ) : (
+            <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60">
+              {citasDelDia.map((c) => (
+                <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-700">{c.paciente}</p>
+                    <p className="text-xs text-slate-500">{c.hora}</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
-              <Clock size={13} /> Horarios libres
-            </h3>
-            {!diaEstaAbierto ? (
-              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Día cerrado — no hay horarios que mostrar.</p>
-            ) : (
-              <>
-                <p className="mb-2 text-xs text-slate-500">{slotsOcupados} ocupados · {slotsLibres.length} disponibles</p>
-                {slotsLibres.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Sin horarios libres este día.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {slotsLibres.map((s) => (
-                      <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">{s.hora}</span>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="space-y-3 border-t border-slate-100 pt-4">
-            {[["manana", "Mañana", Sun, manana, setManana], ["tarde", "Tarde", Moon, tarde, setTarde]].map(([clave, etiqueta, Icono, valor, setValor]) => (
-              <div key={clave} className="rounded-xl border border-slate-200/60 p-3">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icono size={14} /> {etiqueta}</span>
-                  <button
-                    type="button" onClick={() => setValor((v) => ({ ...v, activo: !v.activo }))}
-                    role="switch"
-                    aria-checked={valor.activo}
-                    aria-label={valor.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
-                    className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
-                    style={{ backgroundColor: valor.activo ? "#059669" : "#e2e8f0" }}
-                  >
-                    <span className={"absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform " + (valor.activo ? "translate-x-[22px]" : "translate-x-0")} />
-                  </button>
+                  <span className={"shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
+                    {etiquetaEstadoCita(c.estado)}
+                  </span>
                 </div>
-                {valor.activo && (
-                  <div className="mt-2.5 grid grid-cols-2 gap-2">
-                    <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                    <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                  </div>
-                )}
-              </div>
-            ))}
-            {!manana.activo && !tarde.activo && (
-              <label className="block rounded-xl bg-slate-50 px-3 py-2.5">
-                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre del día <span className="font-normal text-slate-500">(opcional)</span></span>
-                <input
-                  type="text"
-                  value={nombre}
-                  maxLength={60}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Ej.: Feriado: Día de los Difuntos"
-                  className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none focus-visible:border-blue-500"
-                />
-              </label>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4">
-          {onQuitar && (
-            <button type="button" onClick={onQuitar} title="Volver al horario habitual" aria-label="Volver al horario habitual" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-3 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 cursor-pointer">
-              <RotateCcw size={14} />
-            </button>
+        <div>
+          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+            <Clock size={13} /> Horarios libres
+          </h3>
+          {!diaEstaAbierto ? (
+            <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Día cerrado — no hay horarios que mostrar.</p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-slate-500">{slotsOcupados} ocupados · {slotsLibres.length} disponibles</p>
+              {slotsLibres.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">Sin horarios libres este día.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {slotsLibres.map((s) => (
+                    <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">{s.hora}</span>
+                  ))}
+                </div>
+              )}
+            </>
           )}
-          <button type="button" onClick={onCerrar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
-          <button type="button" onClick={() => onGuardar({ manana, tarde, nombre })} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD }}>
-            <span className="flex items-center justify-center gap-1.5"><CheckCircle2 size={15} /> Guardar</span>
-          </button>
+        </div>
+
+        <div className="space-y-3 border-t border-slate-100 pt-4">
+          {[["manana", "Mañana", Sun, manana, setManana], ["tarde", "Tarde", Moon, tarde, setTarde]].map(([clave, etiqueta, Icono, valor, setValor]) => (
+            <div key={clave} className="rounded-xl border border-slate-200/60 p-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Icono size={14} /> {etiqueta}</span>
+                <button
+                  type="button" onClick={() => setValor((v) => ({ ...v, activo: !v.activo }))}
+                  role="switch"
+                  aria-checked={valor.activo}
+                  aria-label={valor.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
+                  className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
+                  style={{ backgroundColor: valor.activo ? "#059669" : "#e2e8f0" }}
+                >
+                  <span className={"absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform " + (valor.activo ? "translate-x-[22px]" : "translate-x-0")} />
+                </button>
+              </div>
+              {valor.activo && (
+                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
+                  <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
+                </div>
+              )}
+            </div>
+          ))}
+          {!manana.activo && !tarde.activo && (
+            <label className="block rounded-xl bg-slate-50 px-3 py-2.5">
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre del día <span className="font-normal text-slate-500">(opcional)</span></span>
+              <input
+                type="text"
+                value={nombre}
+                maxLength={60}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej.: Feriado: Día de los Difuntos"
+                className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none focus-visible:border-blue-500"
+              />
+            </label>
+          )}
         </div>
       </div>
-    </div>,
-    document.body
+    </Cascaron>
   )
 }

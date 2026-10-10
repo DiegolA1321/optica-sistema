@@ -65,7 +65,7 @@ describe("Horario: las ausencias de cada persona", () => {
     fireEvent.change(horas[0], { target: { value: "10:00" } })
     fireEvent.change(horas[1], { target: { value: "11:00" } })
     fireEvent.change(dialogo.querySelector("textarea"), { target: { value: "Cita médica" } })
-    fireEvent.submit(dialogo.querySelector("form"))
+    fireEvent.submit(dialogo) // la ventana estándar ES el formulario
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("registrar_ausencia", { p_fecha: en45.iso, p_inicio: "10:00", p_fin: "11:00", p_motivo: "Cita médica" }))
     await waitFor(() => expect(p.reemplazarExcepcionLocal).toHaveBeenCalledWith(en45.iso, devuelta))
     expect(p.setDisponibilidad).not.toHaveBeenCalled() // el horario general no se toca
