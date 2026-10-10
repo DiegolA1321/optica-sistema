@@ -39,3 +39,11 @@ describe("moduloDeRegistro", () => {
     expect(moduloDeRegistro({ modulo: "inventario", accion: "Agregó un producto al inventario" })).toBe("inventario")
   })
 })
+
+describe("nombres de módulo en la actividad", () => {
+  it("usa los mismos nombres que el menú: 'Horario' (no 'Mi horario', que es solo lo propio) y 'CRM y fidelización'", () => {
+    expect(NOMBRE_MODULO.horario).toBe("Horario")
+    expect(NOMBRE_MODULO.crm).toBe("CRM y fidelización")
+    expect(NOMBRE_MODULO.citas).toBe("Citas médicas")
+  })
+})
