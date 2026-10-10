@@ -536,9 +536,8 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
                 <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>
               )}
             </h4>
-            <p className="-mt-2 mb-3 text-xs text-slate-500">
-              Esto define la regla general: si apagas "Lunes" aquí, cierras <span className="font-semibold">todos</span> los lunes.
-              Para cerrar solo un día puntual (ej. un lunes feriado) sin tocar el resto, usa "Excepciones puntuales" en el calendario de al lado.
+            <p className="-mt-2 mb-3 text-xs text-slate-500" title={"Si apagas \"Lunes\" aquí, cierras todos los lunes. Para cerrar solo un día puntual (por ejemplo, un lunes feriado) sin tocar el resto, usa \"Excepciones puntuales\" en el calendario de al lado."}>
+              Cada día vale para todas las semanas. Para cerrar solo una fecha, usa «Excepciones puntuales».
             </p>
             <div className="space-y-2.5">
               {ORDEN_LV.map((dia) => {
