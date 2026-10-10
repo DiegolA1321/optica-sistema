@@ -34,3 +34,24 @@ describe("Reportes: Vendido y Cobrado, dos números con dos nombres", () => {
     expect(screen.queryByText("Solo tus consultas y tus citas")).not.toBeInTheDocument()
   })
 })
+
+describe("Reportes: óptica nueva y números que se explican", () => {
+  it("sin datos lo dice y lleva a registrar el primer paciente", () => {
+    const pedidos = []
+    render(<Reportes usuario={admin} onRegistrarPaciente={() => pedidos.push("crear")} />)
+    expect(screen.getByText("Todavía no hay datos para mostrar")).toBeInTheDocument()
+    screen.getByRole("button", { name: /Registrar el primer paciente/ }).click()
+    expect(pedidos).toEqual(["crear"])
+  })
+
+  it("con pacientes no aparece ese aviso", () => {
+    render(<Reportes usuario={admin} pacientes={[{ id: "p1", nombre: "Ana", fechaRegistro: "2026-01-01" }]} onRegistrarPaciente={() => {}} />)
+    expect(screen.queryByText("Todavía no hay datos para mostrar")).not.toBeInTheDocument()
+  })
+
+  it("'Citas → pacientes atendidos' aclara cuántas son sin las canceladas", () => {
+    const citas = [{ id: "1", estado: "Atendida", fecha: "2026-10-01" }, { id: "2", estado: "Cancelada", fecha: "2026-10-02" }, { id: "3", estado: "Pendiente", fecha: "2026-10-03" }]
+    render(<Reportes usuario={admin} citas={citas} />)
+    expect(screen.getByText("1 de 3 citas solicitadas (2 sin las canceladas)")).toBeInTheDocument()
+  })
+})

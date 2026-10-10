@@ -1,3 +1,4 @@
+import SinDatosAun from "../componentes/SinDatosAun"
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
@@ -95,7 +96,7 @@ const PERIODOS = [
   { id: "personalizado", label: "Personalizado" },
 ]
 
-export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], consultasCompletas = null, citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], ordenesLab = [], soloLoPropio = false, verMontos = true }) {
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], consultasCompletas = null, citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], ordenesLab = [], soloLoPropio = false, verMontos = true, onRegistrarPaciente }) {
   // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
   // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
   // atención — las métricas financieras (ingresos, conversión a venta,
@@ -355,11 +356,11 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
     { key: "vendido", label: "Vendido", valor: dinero(vendidoEsteMes), sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600", tooltip: "El monto total de las ventas del período, aunque todavía tengan saldo." },
     { key: "cobrado", label: "Cobrado", valor: dinero(cobradoEsteMes), sub: `de esos ${dinero(vendidoEsteMes)} vendidos · ${rango.etiqueta}`, icon: Wallet, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "Lo que de esas ventas ya se pagó: las pagadas completas y, en las que tienen saldo, sus abonos." },
-    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo)`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
+    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo). Cuenta solo las ventas hechas desde una consulta del período${cantidadVentas > embudo.compraron ? `; hay ${cantidadVentas - embudo.compraron} más sin consulta` : ""}.`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin agudeza visual con lentes registrada`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
     { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
     { key: "vencidos", label: "Control vencido", valor: controlesVencidos, sub: "pacientes, a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — excluye a los pacientes de alta. No cambia con el período seleccionado arriba." },
-    { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
+    { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas${citasCanceladas > 0 ? ` (${citas.length - citasCanceladas} sin las canceladas)` : ""}`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
     { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
   ]
 
@@ -401,6 +402,10 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
           {esOptometraNoAdmin && <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700"><Lock size={12} aria-hidden="true" /> Solo tus consultas y tus citas</p>}
         </div>
       </div>
+
+      {!cargaInicial && pacientes.length === 0 && consultasTodas.length === 0 && (
+        <SinDatosAun titulo="Todavía no hay datos para mostrar" texto="Los reportes se llenan con los pacientes, las consultas y las ventas que se registren." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />
+      )}
 
       {/* ─── SELECTOR DE PERÍODO — solo afecta Consultas, Pacientes nuevos,
           Ingresos y Conversión a venta (los 4 KPIs "de flujo"); los demás
