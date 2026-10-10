@@ -15,7 +15,7 @@ import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { useVentas } from "../utilidades/useVentas"
 import { puede } from "../utilidades/permisosUi"
 import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
-import { saldosPorPaciente, totalPorCobrar, filtrarComprobantes } from "../utilidades/saldosVentas"
+import { saldosPorPaciente, totalPorCobrar, resumenSaldos, textoSaldos, filtrarComprobantes } from "../utilidades/saldosVentas"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { numeroComprobante, LEYENDA_INTERNO } from "../utilidades/comprobantes"
 import { coincideTexto } from "../utilidades/busqueda"
@@ -67,6 +67,7 @@ export default function Ventas({
 
   const saldos = useMemo(() => saldosPorPaciente({ pacientes, facturas: facturasVenta, abonos, ventas }), [pacientes, facturasVenta, abonos, ventas])
   const porCobrar = totalPorCobrar(saldos)
+  const resumen = resumenSaldos(saldos)
   const abiertas = ordenesAbiertas(ordenesLab).length
   const atrasadas = ordenesAtrasadas(ordenesLab).length
   const sinAvisar = ordenesListasSinAvisar(ordenesLab).length
@@ -80,7 +81,7 @@ export default function Ventas({
     { id: "cola", etiqueta: "Por vender", valor: v.colaListos.length, icono: ShoppingBag, ayuda: "Pacientes que esperan su venta" },
     { id: "ventas", etiqueta: "Ventas", valor: facturasVenta.filter((f) => f.estado !== "anulada").length, icono: Receipt, ayuda: "Comprobantes de venta" },
     { id: "ordenes", etiqueta: "Órdenes de laboratorio", valor: abiertas, icono: FlaskConical, alerta: atrasadas + sinAvisar, ayuda: `${atrasadas} atrasada${atrasadas === 1 ? "" : "s"} · ${sinAvisar} lista${sinAvisar === 1 ? "" : "s"} sin avisar` },
-    { id: "saldos", etiqueta: "Saldos por cobrar", valor: dinero(porCobrar), icono: Wallet, alerta: porCobrar > 0 ? 1 : 0, ayuda: `${saldos.length} paciente${saldos.length === 1 ? "" : "s"} con saldo` },
+    { id: "saldos", etiqueta: "Saldos por cobrar", valor: dinero(porCobrar), icono: Wallet, alerta: porCobrar > 0 ? 1 : 0, ayuda: textoSaldos(resumen, { conTotal: false }) },
   ]
 
   return (
@@ -242,6 +243,8 @@ export default function Ventas({
                   <p className="max-w-sm text-xs text-slate-500">Cuando una venta quede con abonos pendientes, el paciente aparece aquí con lo que debe.</p>
                 </div>
               ) : (
+                <>
+                <p role="status" className="text-xs text-slate-500">{textoSaldos(resumen)}</p>
                 <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" aria-label="Saldos por cobrar">
                   {saldos.map((s) => (
                     <li key={s.pacienteId} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -263,6 +266,7 @@ export default function Ventas({
                     </li>
                   ))}
                 </ul>
+                </>
               )
             )}
           </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { saldosPorPaciente, totalPorCobrar, filtrarComprobantes } from "./saldosVentas"
+import { saldosPorPaciente, totalPorCobrar, filtrarComprobantes, resumenSaldos, textoSaldos, textoSaldosSinNumero } from "./saldosVentas"
 
 const pacientes = [{ id: "p1", nombre: "Ana Pérez", cedula: "0101" }, { id: "p2", nombre: "Luis Mora", cedula: "0202" }]
 const f = (id, extra = {}) => ({ id, pacienteId: "p1", numero: 1, estado: "pendiente_pago", montoTotal: 100, creadoEn: "2026-10-01T10:00:00Z", metodoPago: "abonos", lineas: [], facturaElectronica: "", ...extra })
@@ -55,5 +55,25 @@ describe("los comprobantes que abre la tarjeta Ventas del Inicio", () => {
   it("el período 'mes' deja solo las de este mes; con 'vigentes' coincide con el '+N este mes' del Inicio", () => {
     expect(filtrarComprobantes(facturas, { estado: "vigentes", periodo: "mes" }).map((f) => f.id)).toEqual(["a"])
     expect(filtrarComprobantes(facturas, { periodo: "mes" }).map((f) => f.id).sort()).toEqual(["a", "c"]) // sin 'vigentes' entra también la anulada
+  })
+})
+
+describe("los saldos se cuentan y se escriben igual en todas partes", () => {
+  const pacientes = [{ id: "p1", nombre: "Ana" }, { id: "p2", nombre: "Luis" }]
+  const facturas = [
+    { id: "f1", pacienteId: "p1", estado: "pendiente_pago", montoTotal: 100, numero: 1 },
+    { id: "f2", pacienteId: "p1", estado: "pendiente_pago", montoTotal: 50, numero: 2 },
+    { id: "f3", pacienteId: "p2", estado: "pendiente_pago", montoTotal: 25.5, numero: 3 },
+    { id: "f4", pacienteId: "p2", estado: "pagada", montoTotal: 80, numero: 4 },
+  ]
+  it("resumen: ventas con saldo, pacientes y total, con el criterio de Ventas", () => {
+    const r = resumenSaldos(saldosPorPaciente({ pacientes, facturas, abonos: [], ventas: [] }))
+    expect(r).toEqual({ ventas: 3, pacientes: 2, total: 175.5 })
+  })
+  it("el texto es 'N ventas con saldo · M pacientes · $X', con singulares", () => {
+    expect(textoSaldos({ ventas: 3, pacientes: 2, total: 175.5 })).toBe("3 ventas con saldo · 2 pacientes · $175.50")
+    expect(textoSaldos({ ventas: 1, pacientes: 1, total: 5 })).toBe("1 venta con saldo · 1 paciente · $5.00")
+    expect(textoSaldos({ ventas: 3, pacientes: 2, total: 175.5 }, { conTotal: false })).toBe("3 ventas con saldo · 2 pacientes")
+    expect(textoSaldosSinNumero({ ventas: 3, pacientes: 2, total: 175.5 })).toBe("ventas con saldo · 2 pacientes · $175.50")
   })
 })

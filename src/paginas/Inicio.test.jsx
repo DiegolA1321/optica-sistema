@@ -136,9 +136,9 @@ describe("Inicio del administrador", () => {
     const saldos = []
     const stock = []
     render(<Inicio {...base} onVerSaldos={() => saldos.push("saldos")} onVerStockBajo={() => stock.push("bajo")} onVerOrdenes={() => {}} />)
-    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /ventas? con saldo pendiente/ }))
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /ventas? con saldo/ }))
     const ventas = screen.getByRole("dialog", { name: /^Ventas · / })
-    expect(ventas).toHaveTextContent("1 venta con saldo pendiente")
+    expect(ventas).toHaveTextContent("1 venta con saldo · 1 paciente")
     expect(ventas).toHaveTextContent("Venta del") // cada caso con su detalle
     expect(ventas).toHaveTextContent("saldo $60.00")
     fireEvent.click(within(ventas).getByRole("button", { name: "Ver saldos" }))
@@ -459,7 +459,7 @@ describe("Inicio de recepción y ventas", () => {
     expect(screen.queryByRole("region", { name: "Órdenes de laboratorio" })).not.toBeInTheDocument()
     expect(screen.getByText("Paciente Uno", { selector: "span" })).toBeInTheDocument()
     expect(screen.getAllByText(/producto con stock bajo/i)).toHaveLength(1)
-    expect(atencion).toHaveTextContent(/1 venta con saldo pendiente/)
+    expect(atencion).toHaveTextContent(/1 venta con saldo · 1 paciente/)
   })
 
   it("ventas: la tarjeta elegida de 'Para vender' cambia la lista de abajo", () => {

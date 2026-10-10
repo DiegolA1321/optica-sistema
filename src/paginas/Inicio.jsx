@@ -43,10 +43,11 @@ import VentanaTotal from "../componentes/VentanaTotal"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
-import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
+import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
+import { saldosPorPaciente, resumenSaldos, textoSaldos, textoSaldosSinNumero } from "../utilidades/saldosVentas"
 import { ordenesAtrasadas, ordenesListasSinAvisar, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 
@@ -85,6 +86,7 @@ export default function Inicio({
   pases = [],
   facturasVenta = [],
   abonos = [],
+  ventas = [],
   onVerCola,
   onVerTotal,
   onVerCitas,
@@ -280,7 +282,8 @@ export default function Inicio({
   const citasLista = useMemo(() => citasParaLista(citasVista, periodo, tarjeta), [citasVista, periodo, tarjeta])
   const pacientesSinConsulta = useMemo(() => pacientesSinAtender(pacientes, consultas), [pacientes, consultas])
   const sinAtender = pacientesSinConsulta.length
-  const saldos = useMemo(() => saldosPorCobrar(facturasVenta, abonos), [facturasVenta, abonos])
+  // Los saldos con el criterio de Ventas, para que el Inicio y esa pantalla cuenten lo mismo: { ventas, pacientes, total }.
+  const saldos = useMemo(() => resumenSaldos(saldosPorPaciente({ pacientes, facturas: facturasVenta, abonos, ventas })), [pacientes, facturasVenta, abonos, ventas])
   const facturasConSaldo = useMemo(() => facturasVenta.map((f) => ({ f, saldo: saldoFactura(f, abonos) })).filter((x) => x.saldo > 0).sort((a, b) => (a.f.creadoEn < b.f.creadoEn ? -1 : 1)), [facturasVenta, abonos])
   const listos = useMemo(() => pasesListos(pases), [pases])
   const proformas = useMemo(() => proformasEnSeguimiento(pases), [pases])
@@ -477,7 +480,7 @@ export default function Inicio({
       tarjetas={[
         { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", seleccionada: tarjetaVenta === "listos", onClick: () => setTarjetaVenta("listos") },
         { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "blue", seleccionada: tarjetaVenta === "proformas", onClick: () => setTarjetaVenta("proformas") },
-        { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.cantidad === 0 ? "Nada pendiente" : `en ${saldos.cantidad} ${saldos.cantidad === 1 ? "venta" : "ventas"}`, icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", seleccionada: tarjetaVenta === "saldos", onClick: () => setTarjetaVenta("saldos") },
+        { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.ventas === 0 ? "Nada pendiente" : textoSaldos(saldos, { conTotal: false }), icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", seleccionada: tarjetaVenta === "saldos", onClick: () => setTarjetaVenta("saldos") },
       ]}
     />
   )
@@ -494,7 +497,7 @@ export default function Inicio({
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_VENDER[tarjetaVenta]}</h2>
         {nVender > 0 && (
           <p className="text-xs text-slate-400">
-            {esListaSaldos ? `${plural(nVender, "venta", "ventas")} · ${dinero(saldos.total)}` : `${plural(nVender, "paciente espera", "pacientes esperan")}, el más antiguo primero`}
+            {esListaSaldos ? textoSaldos(saldos) : `${plural(nVender, "paciente espera", "pacientes esperan")}, el más antiguo primero`}
             {nVender > LIMITE_LISTA ? ` · primeras ${LIMITE_LISTA}` : ""}
           </p>
         )}
@@ -710,13 +713,11 @@ export default function Inicio({
         accion: { etiqueta: "Ver", navega: true, onClick: () => onVerOrdenes?.("atrasadas") },
       })),
     })
-    if (incSaldos && saldos.cantidad > 0) {
-      const pacientesConSaldo = new Set(facturasConSaldo.map(({ f }) => f.pacienteId)).size
+    if (incSaldos && saldos.ventas > 0) {
       poner("ventas", {
-        id: "saldos", cantidad: saldos.cantidad,
-        texto: uno(saldos.cantidad, "venta con saldo pendiente", "ventas con saldo pendiente"),
-        nombres: dinero(saldos.total),
-        enlace: { texto: `Abrir en Ventas · Saldos por cobrar (${pacientesConSaldo} ${pacientesConSaldo === 1 ? "paciente" : "pacientes"})`, onClick: () => onVerSaldos?.() },
+        id: "saldos", cantidad: saldos.ventas,
+        texto: textoSaldosSinNumero(saldos),
+        enlace: { texto: `Abrir en Ventas · Saldos por cobrar (${saldos.pacientes} ${saldos.pacientes === 1 ? "paciente" : "pacientes"})`, onClick: () => onVerSaldos?.() },
         casos: facturasConSaldo.map(({ f, saldo }) => ({
           id: f.id, nombre: nombreDe(f.pacienteId),
           detalle: `Venta del ${fechaLegible(String(f.creadoEn).slice(0, 10))} · total ${dinero(f.montoTotal)} · saldo ${dinero(saldo)}`,

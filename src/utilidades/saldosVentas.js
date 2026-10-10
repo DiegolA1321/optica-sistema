@@ -5,6 +5,7 @@ import { saldoFactura } from "./abonos"
 import { saldoVenta, ventasPendientesPaciente } from "./ventas"
 import { numeroComprobante } from "./comprobantes"
 import { esDeEsteMes } from "./inicio"
+import { dinero } from "./formatoMoneda"
 
 const normalizar = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
@@ -25,14 +26,25 @@ export function saldosPorPaciente({ pacientes = [], facturas = [], abonos = [], 
     if (viejas.length === 0) continue
     const e = porPaciente.get(p.id) || { saldo: 0, ventasPendientes: [], masAntigua: null }
     e.saldo += viejas.reduce((a, v) => a + saldoVenta(v), 0)
+    e.ventasViejas = viejas.length
     porPaciente.set(p.id, e)
   }
   return [...porPaciente.entries()]
-    .map(([pacienteId, e]) => ({ paciente: pacientes.find((p) => p.id === pacienteId) || null, pacienteId, ...e, saldo: Math.round(e.saldo * 100) / 100 }))
+    .map(([pacienteId, e]) => ({ paciente: pacientes.find((p) => p.id === pacienteId) || null, pacienteId, ...e, cantidadVentas: e.ventasPendientes.length + (e.ventasViejas || 0), saldo: Math.round(e.saldo * 100) / 100 }))
     .sort((a, b) => b.saldo - a.saldo)
 }
 
 export const totalPorCobrar = (saldos) => Math.round(saldos.reduce((a, s) => a + s.saldo, 0) * 100) / 100
+
+// Los saldos por cobrar contados UNA sola vez, con el criterio de Ventas (comprobantes con saldo y ventas anteriores), para que el Inicio, la ventana
+// de avisos, las tarjetas y la pestaña de Ventas digan lo mismo: "N ventas con saldo · M pacientes · $X".
+export function resumenSaldos(saldos) {
+  return { ventas: saldos.reduce((n, s) => n + s.cantidadVentas, 0), pacientes: saldos.length, total: totalPorCobrar(saldos) }
+}
+const plural = (n, uno, varios) => (n === 1 ? uno : varios)
+// Sin el número de ventas del principio: "ventas con saldo · M pacientes · $X" (la ventana de avisos pone el número aparte, en negrita).
+export const textoSaldosSinNumero = (r, { conTotal = true } = {}) => `${plural(r.ventas, "venta con saldo", "ventas con saldo")} · ${r.pacientes} ${plural(r.pacientes, "paciente", "pacientes")}${conTotal ? ` · ${dinero(r.total)}` : ""}`
+export const textoSaldos = (r, opciones) => `${r.ventas} ${textoSaldosSinNumero(r, opciones)}`
 
 // Búsqueda por paciente, cédula, número CV, número de factura electrónica o descripción de una línea.
 // estado "vigentes" = todas menos las anuladas (lo que cuenta la tarjeta Ventas del Inicio); periodo "mes" = las de este mes.

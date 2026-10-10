@@ -13,7 +13,7 @@ describe("Ventas — módulo propio (Bloque E)", () => {
   it("muestra las cuatro secciones con sus indicadores y la cola vacía", () => {
     render(<Ventas {...base} />)
     expect(screen.getByRole("tab", { name: /Por vender/i })).toHaveAttribute("aria-selected", "true")
-    expect(screen.getByRole("tab", { name: /Ventas/i })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /^Ventas/ })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: /Órdenes de laboratorio/i })).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: /Saldos por cobrar/i })).toBeInTheDocument()
     expect(screen.getByText(/No hay pacientes esperando para venta/i)).toBeInTheDocument()
@@ -23,7 +23,7 @@ describe("Ventas — módulo propio (Bloque E)", () => {
   it("lista los comprobantes con su número y busca por CV y por factura electrónica", () => {
     const facturas = [factura("a", { numero: 1, facturaElectronica: "001-001-000000123" }), factura("b", { numero: 2, pacienteId: "p2" })]
     render(<Ventas {...base} facturasVenta={facturas} />)
-    fireEvent.click(screen.getByRole("tab", { name: /Ventas/i }))
+    fireEvent.click(screen.getByRole("tab", { name: /^Ventas/ }))
     expect(screen.getByText("CV-0001")).toBeInTheDocument()
     expect(screen.getByText("CV-0002")).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText("Buscar comprobante"), { target: { value: "000000123" } })

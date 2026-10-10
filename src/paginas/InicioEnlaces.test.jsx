@@ -162,7 +162,7 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     const ventas = screen.getByRole("dialog", { name: /^Ventas · / })
     expect(ventas).toHaveTextContent("1 orden de laboratorio lista sin avisar al paciente")
     expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Órdenes listas (2)" })).toBeInTheDocument()
-    expect(ventas).toHaveTextContent("2 ventas con saldo pendiente")
+    expect(ventas).toHaveTextContent("2 ventas con saldo · 1 paciente")
     expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Saldos por cobrar (1 paciente)" })).toBeInTheDocument()
   })
 

@@ -687,6 +687,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             pases={pases}
             facturasVenta={facturasVenta}
             abonos={abonos}
+            ventas={ventas}
             onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo, fecha) => { setEstadoCitasInicial(periodo ? { estado, periodo, fecha } : estado); navegar("citas") }}
