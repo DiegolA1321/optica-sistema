@@ -7,8 +7,11 @@
 //
 // E2E_SIN_LIMPIEZA=1 la omite (por ejemplo, para inspeccionar los datos que dejó una corrida).
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import { ARCHIVO_ESCRITURAS_DEMO } from './guardia-demo.js'
 
 export default async function limpiarOpticaDePruebas() {
+  fs.rmSync(ARCHIVO_ESCRITURAS_DEMO, { force: true }) // la guardia de la Demo empieza cada corrida sin anotaciones
   if (process.env.E2E_SIN_LIMPIEZA) {
     console.log('[limpieza] omitida (E2E_SIN_LIMPIEZA)')
     return

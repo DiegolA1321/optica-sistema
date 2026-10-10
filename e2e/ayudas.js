@@ -4,6 +4,7 @@
 // Las credenciales de cada una están en .env.test como DEMO_<ROL>_EMAIL/PASSWORD y E2E_<ROL>_EMAIL/PASSWORD.
 import { expect } from '@playwright/test'
 import fs from 'node:fs'
+import { protegerDemo } from './guardia-demo.js'
 
 export const SLUG_DEMO = 'qu7u2j'
 export const SLUG_PRUEBAS = 'v8twzq'
@@ -26,6 +27,7 @@ export async function escribirSecreto(page, locator, valor) {
 
 export async function iniciarSesion(page, prefijo, entorno = 'DEMO') {
   const { correo, clave } = credencial(prefijo, entorno)
+  if (entorno === 'DEMO') await protegerDemo(page) // la Demo es de solo lectura: cualquier escritura se cancela y falla la corrida
   await page.goto(`/?optica=${slugDe(entorno)}`)
   await page.getByRole('button', { name: 'Iniciar sesión' }).first().click()
   await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), correo)

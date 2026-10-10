@@ -14,6 +14,8 @@ export default defineConfig({
   testDir: './e2e',
   // Deja limpia la óptica de pruebas antes de cada corrida (solo esa óptica; ver e2e/limpieza-global.js).
   globalSetup: './e2e/limpieza-global.js',
+  // Falla la corrida si alguna prueba intentó escribir en la Óptica Demo (es de solo lectura).
+  globalTeardown: './e2e/verificar-demo.js',
   timeout: 60_000,
   workers: 1,
   fullyParallel: false,
