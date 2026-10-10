@@ -32,7 +32,7 @@ export function SinInformacion({ Icono = Sparkles, titulo, texto, children }) {
 }
 
 // Ventana del sistema: cabecera blanca con el ícono de marca, igual que el detalle de la cita.
-function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50" }) {
+export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50" }) {
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
     <div className={"fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm " + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>

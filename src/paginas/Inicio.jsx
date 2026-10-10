@@ -44,7 +44,7 @@ import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citas
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
-import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
+import { ordenesAtrasadas, ordenesListasSinAvisar, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
@@ -83,6 +83,7 @@ export default function Inicio({
   facturasVenta = [],
   abonos = [],
   onVerCola,
+  onVerComprobantes,
   onVerCitas,
   nombreUsuario = "Diego",
   opticaNombre,
@@ -271,7 +272,8 @@ export default function Inicio({
   const hoyVista = useMemo(() => resumenHoy(citasVista), [citasVista])
   const desenlace = useMemo(() => resumenPeriodo(citasVista, periodo), [citasVista, periodo])
   const citasLista = useMemo(() => citasParaLista(citasVista, periodo, tarjeta), [citasVista, periodo, tarjeta])
-  const sinAtender = useMemo(() => pacientesSinAtender(pacientes, consultas).length, [pacientes, consultas])
+  const pacientesSinConsulta = useMemo(() => pacientesSinAtender(pacientes, consultas), [pacientes, consultas])
+  const sinAtender = pacientesSinConsulta.length
   const saldos = useMemo(() => saldosPorCobrar(facturasVenta, abonos), [facturasVenta, abonos])
   const facturasConSaldo = useMemo(() => facturasVenta.map((f) => ({ f, saldo: saldoFactura(f, abonos) })).filter((x) => x.saldo > 0).sort((a, b) => (a.f.creadoEn < b.f.creadoEn ? -1 : 1)), [facturasVenta, abonos])
   const listos = useMemo(() => pasesListos(pases), [pases])
@@ -287,7 +289,8 @@ export default function Inicio({
     </div>
   )
   // Cuánto se dio de alta este mes: cada total lo dice junto al número, con la misma lógica en las tres tarjetas.
-  const citasEsteMes = useMemo(() => creadosEsteMes(citas, "creadoEn"), [citas])
+  const citasVigentes = useMemo(() => citas.filter((c) => c.estado !== "Cancelada"), [citas])
+  const citasEsteMes = useMemo(() => creadosEsteMes(citasVigentes, "creadoEn"), [citasVigentes])
   const productosEsteMes = useMemo(() => creadosEsteMes(inventario, "creadoEn"), [inventario])
   const ventasMes = useMemo(() => ventasDelMes(facturasVenta), [facturasVenta])
   const filaTotales = (
@@ -299,8 +302,8 @@ export default function Inicio({
       compacta
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setVista?.("pacientes") },
-        { id: "citas", titulo: "Citas", valor: citas.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setVista?.("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setVista?.("ventas") },
+        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => (onVerCitas ? onVerCitas("todas", "siempre") : setVista?.("citas")) },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => (onVerComprobantes ? onVerComprobantes() : setVista?.("ventas")) },
         { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setVista?.("inventario") },
       ].filter(Boolean)}
     />
@@ -342,7 +345,9 @@ export default function Inicio({
   const TITULO_LISTA = esVistaOptometra
     ? { hoy: "Mi agenda de hoy", semana: "Mis citas de la semana", mes: "Mis citas del mes", siempre: "Todas mis citas" }
     : { hoy: "Citas del día", semana: "Citas de la semana", mes: "Citas del mes", siempre: "Todas las citas" }
-  const verTodasEnCitas = () => (onVerCitas ? onVerCitas(tarjeta || "todas", periodo) : setVista?.("citas"))
+  // "Pendientes" agrupa tres estados que Citas no tiene juntos: ahí el enlace abre todas las del período y lo dice.
+  const textoVerEnCitas = !tarjeta ? "Ver todas en Citas" : tarjeta === "pendiente" ? "Ver todas las del período en Citas" : `Ver ${NOMBRE_TARJETA[tarjeta].toLowerCase()} en Citas`
+  const verTodasEnCitas = () => (onVerCitas ? onVerCitas(tarjeta && tarjeta !== "pendiente" ? tarjeta : "todas", periodo) : setVista?.("citas"))
   const accionFila = (cita) => {
     if (!esVistaOptometra || !puedeV("consultas", "crear") || !esHoy(cita.fecha)) return null
     if (cita.estado === "En Atención") return { etiqueta: "Retomar", onClick: () => onAtenderCita?.(cita) }
@@ -407,7 +412,7 @@ export default function Inicio({
     <section aria-label={tituloAgendaOpt} className="space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{tituloAgendaOpt}{nAgenda > 0 ? ` · ${textoCitas}` : ""}{agendaOpt.modo === "hoy" && esperaAgenda > 0 ? ` · ${esperaAgenda} en espera` : ""}</h2>
-        {nAgenda > 0 && <button type="button" onClick={() => (onVerCitas ? onVerCitas("todas", agendaOpt.modo === "hoy" ? "hoy" : "siempre") : setVista?.("citas"))} className="ml-auto flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>}
+        {nAgenda > 0 && <button type="button" onClick={() => (onVerCitas ? (agendaOpt.modo === "hoy" ? onVerCitas("todas", "hoy") : onVerCitas("todas", "dia", agendaOpt.fecha)) : setVista?.("citas"))} className="ml-auto flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver en Citas · {agendaOpt.modo === "hoy" ? "hoy" : formatoFecha(agendaOpt.fecha, "corto")} <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="divide-y divide-slate-100 px-5 py-4">
@@ -425,7 +430,7 @@ export default function Inicio({
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{TITULO_LISTA[periodo]}{tarjeta ? ` · ${NOMBRE_TARJETA[tarjeta]}` : ""}{esVistaOptometra && periodo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}{plantilla === "recepcion" && periodo === "hoy" ? ` · ${hoyVista.pendientes} por llegar · ${hoyVista.enEspera} en sala de espera` : ""}</h2>
         {citasLista.length > 0 && <p className="text-xs text-slate-400">{citasLista.length > LIMITE_LISTA ? `Primeras ${LIMITE_LISTA} de ${citasLista.length}` : `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"}`}</p>}
-        {citasLista.length > 0 && <button type="button" onClick={verTodasEnCitas} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>}
+        {citasLista.length > 0 && <button type="button" onClick={verTodasEnCitas} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">{textoVerEnCitas} <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="divide-y divide-slate-100 px-5 py-4">
@@ -534,30 +539,46 @@ export default function Inicio({
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const incSaldos = veVentas && plantilla !== "optometra"
   const incSinConsulta = puedeV("pacientes", "ver") && plantilla !== "ventas" && plantilla !== "optometra"
-  // Los avisos de "Requiere tu atención", cada uno con su área (citas, pacientes, ventas, inventario): UNA línea por tipo de aviso
-  // (regla 38) con su cantidad, los nombres resumidos y una sola acción. Con un solo caso la acción lo resuelve; con varios abre la lista.
+  // Los avisos de "Requiere tu atención", cada uno con su área (citas, pacientes, ventas, inventario): UNA línea por tipo de aviso (regla 38) y,
+  // detrás, la lista de sus casos con la acción de cada uno (ventana estándar, regla 43). El enlace "Abrir en …" lleva el número que se verá allí,
+  // calculado con la definición del propio módulo (regla 42).
   const construirAvisos = () => {
     const filas = []
     const poner = (area, fila) => filas.push({ area, ...fila })
     const uno = (n, singular, varios) => (n === 1 ? singular : varios)
+    const nombreDe = (id, respaldo = "Paciente") => pacientes.find((p) => p.id === id)?.nombre || respaldo
+    const enCitas = (estado, periodo, fecha) => () => (onVerCitas ? onVerCitas(estado, periodo, fecha) : setVista?.("citas"))
+    const enPacientes = (filtro) => () => (onVerPacientes ? onVerPacientes(filtro) : setVista?.("pacientes"))
+    const puedeAgendar = puedeV("citas", "crear")
+    const puedeAtenderAqui = puedeV("consultas", "crear")
     if (incAtenciones && atencionesVista.length > 0) {
       const n = atencionesVista.length
-      const unica = atencionesVista[0].cita
+      const abiertasEnCitas = citasVista.filter((c) => c.estado === "En Atención").length
       poner("citas", {
         id: "atenciones", cantidad: n, tono: "urgente",
         texto: uno(n, "atención abierta de un día anterior", "atenciones abiertas de días anteriores"),
         nombres: nombresResumidos(atencionesVista.map(({ cita }) => cita.paciente)),
-        accion: n === 1 && puedeV("consultas", "crear") ? { etiqueta: "Ingresar", onClick: () => onAtenderCita?.(unica) } : { etiqueta: "Ver", onClick: () => irACitas() },
+        enlace: { texto: `Abrir en Citas · En atención (${abiertasEnCitas})`, onClick: enCitas("enAtencion", "siempre") },
+        casos: atencionesVista.map(({ cita, dias }) => ({
+          id: cita.id, nombre: cita.paciente,
+          insignia: { texto: textoAtencionAbierta(dias), tono: "urgente" },
+          detalle: `${fechaLegible(cita.fecha)}, ${cita.hora} · ${cita.motivo || "Consulta general"}`,
+          accion: puedeAtenderAqui ? { etiqueta: "Ingresar", navega: true, onClick: () => onAtenderCita?.(cita) } : null,
+        })),
       })
     }
     if (incControlesPorAgendar && sinAgendar.length > 0) {
       const n = sinAgendar.length
-      const { paciente, fechaControl, consulta } = sinAgendar[0]
       poner("citas", {
         id: "controles-sin-agendar", cantidad: n,
         texto: uno(n, "control sin agendar", "controles sin agendar"),
         nombres: nombresResumidos(sinAgendar.map((x) => x.paciente.nombre)),
-        accion: n === 1 && puedeV("citas", "crear") ? { etiqueta: "Agendar", onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl), asignadoDelControl(consulta, equipo)) } : { etiqueta: "Ver", onClick: () => (onVerPacientes ? onVerPacientes({ rapido: "ControlSinAgendar" }) : setVista?.("pacientes")) },
+        enlace: { texto: `Abrir en Pacientes · Control sin agendar (${n})`, onClick: enPacientes({ rapido: "ControlSinAgendar" }) },
+        casos: sinAgendar.map(({ paciente, fechaControl, consulta }) => ({
+          id: paciente.id, nombre: paciente.nombre,
+          detalle: `Control recomendado para el ${fechaLegible(fechaAISO(fechaControl))} · consulta del ${fechaLegible(consulta.fecha)}`,
+          accion: puedeAgendar ? { etiqueta: "Agendar", onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl), asignadoDelControl(consulta, equipo)) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
+        })),
       })
     }
     // Ausencias registradas en "Mi horario" con citas abiertas de esa persona: solo para quien puede reasignar (permiso, no rol).
@@ -568,16 +589,27 @@ export default function Inicio({
         id: "ausencias", cantidad: n,
         texto: uno(n, "cita por reasignar por una ausencia", "citas por reasignar por ausencias"),
         nombres: nombresResumidos(grupos.map((g) => `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} el ${formatoFecha(g.fecha, "medioSinAnio")}`)),
-        accion: { etiqueta: "Reasignar", onClick: () => setReasignarGrupo(grupos[0]) },
+        casos: grupos.flatMap((g) => g.citas.map((c) => ({
+          id: c.id, nombre: c.paciente,
+          detalle: `${fechaLegible(c.fecha)}, ${c.hora} · ausencia de ${g.personaNombre || etiquetaMiembro(equipo, g.personaId)}`,
+          accion: { etiqueta: "Reasignar", onClick: () => setReasignarGrupo(g) },
+        }))),
       })
     }
     if (incCanceladas && paraReagendar.length > 0) {
       const n = paraReagendar.length
       poner("citas", {
         id: "reagendar", cantidad: n,
-        texto: uno(n, "cita por reagendar (cancelada o sin asistir)", "citas por reagendar (canceladas o sin asistir)"),
+        texto: uno(n, "cita por reagendar", "citas por reagendar"),
         nombres: nombresResumidos(paraReagendar.map((c) => c.paciente)),
-        accion: n === 1 && puedeV("citas", "crear") ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(paraReagendar[0]) } : { etiqueta: "Ver", onClick: () => onVerCitas?.("todas", "reagendar") },
+        enlace: { texto: `Abrir en Citas · Para reagendar (${n})`, onClick: enCitas("todas", "reagendar") },
+        casos: paraReagendar.map((c) => ({
+          id: c.id, nombre: c.paciente,
+          insignia: c.estado === "No Asistió" ? { texto: "No asistió", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
+          detalle: `${fechaLegible(c.fecha)}, ${c.hora}${c.motivo ? ` · ${c.motivo}` : ""}`,
+          // Una cita sin paciente registrado no se puede reagendar desde aquí: se abre en su día.
+          accion: c.pacienteId && puedeAgendar ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(c) } : { etiqueta: "Ver cita", navega: true, onClick: enCitas("todas", "dia", c.fecha) },
+        })),
       })
     }
     if (incPorConfirmar && porConfirmar.length > 0) {
@@ -586,74 +618,111 @@ export default function Inicio({
         id: "por-confirmar", cantidad: n,
         texto: uno(n, "paciente de la web con los datos sin confirmar", "pacientes de la web con los datos sin confirmar"),
         nombres: nombresResumidos(porConfirmar.map((p) => p.nombre)),
-        accion: n === 1
-          ? (puedeV("pacientes", "editar") ? { etiqueta: "Confirmar datos", onClick: () => setConfirmarPaciente(porConfirmar[0]) } : { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(porConfirmar[0].id) })
-          : { etiqueta: "Revisar", onClick: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) },
+        casos: porConfirmar.map((p) => ({
+          id: p.id, nombre: p.nombre,
+          detalle: `Se registró por la web el ${fechaLegible(p.fechaRegistro) || "—"} · Cédula ${p.cedula || "—"}`,
+          accion: puedeV("pacientes", "editar") ? { etiqueta: "Confirmar datos", onClick: () => setConfirmarPaciente(p) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
+        })),
       })
     }
     if (incControles && hayInactivos) poner("pacientes", {
       id: "controles", cantidad: inactivos.length,
       texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
       nombres: nombresResumidos(inactivos.map(({ paciente }) => paciente.nombre)),
-      accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", onClick: () => setVista?.("crm") } : null,
+      casos: inactivos.map(({ paciente, dias }) => ({
+        id: paciente.id, nombre: paciente.nombre,
+        detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
+        accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: () => setVista?.("crm") } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
+      })),
     })
     if (incSinConsulta && sinAtender > 0) poner("pacientes", {
-      id: "sin-consulta", cantidad: sinAtender, tono: "suave",
+      id: "sin-consulta", cantidad: sinAtender,
       texto: uno(sinAtender, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
-      accion: { etiqueta: "Ver", onClick: () => (onVerPacientes ? onVerPacientes({ correccion: "Sin evaluación" }) : setVista?.("pacientes")) },
+      enlace: { texto: `Abrir en Pacientes · Sin consulta (${sinAtender})`, onClick: enPacientes({ correccion: "Sin evaluación" }) },
+      casos: pacientesSinConsulta.map((p) => ({
+        id: p.id, nombre: p.nombre,
+        detalle: `Registrado el ${fechaLegible(p.fechaRegistro) || "—"}`,
+        accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
+      })),
     })
     if (incCumple && cumpleaneros.length > 0) {
       const hoyN = cumpleaneros.filter((c) => c.esHoy).length
       poner("pacientes", {
-        id: "cumple", cantidad: cumpleaneros.length, tono: "suave",
+        id: "cumple", cantidad: cumpleaneros.length,
         texto: hoyN === 0 ? uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos") : hoyN === cumpleaneros.length ? "cumpleaños hoy" : `cumpleaños (${hoyN} hoy)`,
         nombres: nombresResumidos(cumpleaneros.map((c) => c.nombre)),
-        accion: puedeV("crm", "crear") ? { etiqueta: "Saludar", onClick: () => setVista?.("crm") } : null,
+        casos: cumpleaneros.map((c) => ({
+          id: c.id, nombre: c.nombre,
+          detalle: c.esHoy ? "Cumple años hoy" : c.diasCumple > 0 ? `Cumple años en ${c.diasCumple} ${c.diasCumple === 1 ? "día" : "días"}` : `Cumplió años hace ${-c.diasCumple} ${c.diasCumple === -1 ? "día" : "días"}`,
+          accion: puedeV("crm", "crear") ? { etiqueta: "Saludar", navega: true, onClick: () => setVista?.("crm") } : null,
+        })),
       })
     }
-    if (incOrdenes && listasSinAvisar.length > 0) poner("ventas", {
-      id: "ordenes-listas", cantidad: listasSinAvisar.length,
-      texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
-      nombres: nombresResumidos(listasSinAvisar.map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente")),
-      accion: { etiqueta: puedeV("ventas", "editar") ? "Avisar" : "Ver", onClick: () => onVerOrdenes?.("listas") },
-    })
+    if (incOrdenes && listasSinAvisar.length > 0) {
+      const listasEnVentas = ordenesLab.filter((o) => o.estado === "lista").length
+      poner("ventas", {
+        id: "ordenes-listas", cantidad: listasSinAvisar.length,
+        texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
+        nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
+        enlace: { texto: `Abrir en Ventas · Órdenes listas (${listasEnVentas})`, onClick: () => onVerOrdenes?.("listas") },
+        casos: listasSinAvisar.map((o) => ({
+          id: o.id, nombre: nombreDe(o.pacienteId),
+          detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Laboratorio"} · lista para entregar`,
+          accion: { etiqueta: puedeV("ventas", "editar") ? "Avisar" : "Ver", navega: true, onClick: () => onVerOrdenes?.("listas") },
+        })),
+      })
+    }
     if (incOrdenes && atrasadas.length > 0) poner("ventas", {
       id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente",
       texto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
-      nombres: atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · "),
-      accion: { etiqueta: "Ver", onClick: () => onVerOrdenes?.("atrasadas") },
+      nombres: nombresResumidos([...new Set(atrasadas.map((o) => o.laboratorio || "Sin laboratorio"))]),
+      enlace: { texto: `Abrir en Ventas · Órdenes atrasadas (${atrasadas.length})`, onClick: () => onVerOrdenes?.("atrasadas") },
+      casos: atrasadas.map((o) => ({
+        id: o.id, nombre: nombreDe(o.pacienteId),
+        insignia: { texto: "Atrasada", tono: "urgente" },
+        detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Sin laboratorio"} · prometida el ${fechaLegible(o.fechaPrometida) || "—"}`,
+        accion: { etiqueta: "Ver", navega: true, onClick: () => onVerOrdenes?.("atrasadas") },
+      })),
     })
-    if (incSaldos && saldos.cantidad > 0) poner("ventas", {
-      id: "saldos", cantidad: saldos.cantidad,
-      texto: uno(saldos.cantidad, "venta con saldo pendiente", "ventas con saldo pendiente"),
-      nombres: dinero(saldos.total),
-      accion: { etiqueta: "Ver saldos", onClick: () => onVerSaldos?.() },
-    })
+    if (incSaldos && saldos.cantidad > 0) {
+      const pacientesConSaldo = new Set(facturasConSaldo.map(({ f }) => f.pacienteId)).size
+      poner("ventas", {
+        id: "saldos", cantidad: saldos.cantidad,
+        texto: uno(saldos.cantidad, "venta con saldo pendiente", "ventas con saldo pendiente"),
+        nombres: dinero(saldos.total),
+        enlace: { texto: `Abrir en Ventas · Saldos por cobrar (${pacientesConSaldo} ${pacientesConSaldo === 1 ? "paciente" : "pacientes"})`, onClick: () => onVerSaldos?.() },
+        casos: facturasConSaldo.map(({ f, saldo }) => ({
+          id: f.id, nombre: nombreDe(f.pacienteId),
+          detalle: `Venta del ${fechaLegible(String(f.creadoEn).slice(0, 10))} · total ${dinero(f.montoTotal)} · saldo ${dinero(saldo)}`,
+          accion: { etiqueta: "Ver saldos", navega: true, onClick: () => onVerSaldos?.() },
+        })),
+      })
+    }
     if (incStock && productosBajoStock.length > 0) poner("inventario", {
       id: "stock", cantidad: productosBajoStock.length,
       texto: uno(productosBajoStock.length, "producto con stock bajo", "productos con stock bajo"),
       nombres: nombresResumidos(productosBajoStock.map((p) => `${p.nombre} (${p.stock})`)),
-      accion: puedeV("inventario", "editar") ? { etiqueta: "Reabastecer", onClick: () => (onReabastecerProducto ? onReabastecerProducto(productosBajoStock[0].id) : setVista?.("inventario")) } : null,
+      enlace: { texto: `Abrir en Inventario · Stock bajo (${productosBajoStock.length})`, onClick: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
+      casos: productosBajoStock.map((p) => ({
+        id: p.id, nombre: p.nombre,
+        detalle: `Quedan ${p.stock} ${Number(p.stock) === 1 ? "unidad" : "unidades"}`,
+        accion: puedeV("inventario", "editar") ? { etiqueta: "Reabastecer", navega: true, onClick: () => (onReabastecerProducto ? onReabastecerProducto(p.id) : setVista?.("inventario")) } : null,
+      })),
     })
     return filas
   }
   // Inicio del administrador y del optómetra: un bloque por área, solo los que le corresponden por sus permisos.
   const avisosPorArea = construirAvisos()
   const filasDe = (area) => avisosPorArea.filter((f) => f.area === area)
-  const irACitas = () => {
-    if (!onVerCitas) return setVista?.("citas")
-    if (paraReagendar.length > 0 || atencionesVista.length === 0) onVerCitas("todas", "reagendar")
-    else onVerCitas("enAtencion", "siempre")
-  }
   // Un bloque solo existe si el rol tiene avisos de esa área; el que existe y está vacío dice "todo en orden".
   const aplicaCitas = incAtenciones || incControlesPorAgendar || incCanceladas || puedeReasignarCitas
   const aplicaPacientes = incPorConfirmar || incControles || incSinConsulta || incCumple
   const aplicaVentas = incOrdenes || incSaldos
   const bloquesAtencion = [
-    veCitas && aplicaCitas && { id: "citas", titulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: irACitas },
-    puedeV("pacientes", "ver") && aplicaPacientes && { id: "pacientes", titulo: "Pacientes", icono: Users, filas: filasDe("pacientes"), onVerTodo: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) },
-    veVentas && aplicaVentas && { id: "ventas", titulo: "Ventas", icono: ShoppingBag, filas: filasDe("ventas"), onVerTodo: () => setVista?.("ventas") },
-    veInventario && plantilla !== "optometra" && { id: "inventario", titulo: "Inventario", icono: Package, filas: filasDe("inventario"), onVerTodo: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
+    veCitas && aplicaCitas && { id: "citas", titulo: "Citas", modulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: () => setVista?.("citas") },
+    puedeV("pacientes", "ver") && aplicaPacientes && { id: "pacientes", titulo: "Pacientes", modulo: "Pacientes", icono: Users, filas: filasDe("pacientes"), onVerTodo: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) },
+    veVentas && aplicaVentas && { id: "ventas", titulo: "Ventas", modulo: "Ventas", icono: ShoppingBag, filas: filasDe("ventas"), onVerTodo: () => setVista?.("ventas") },
+    veInventario && plantilla !== "optometra" && { id: "inventario", titulo: "Inventario", modulo: "Inventario", icono: Package, filas: filasDe("inventario"), onVerTodo: () => setVista?.("inventario") },
   ].filter(Boolean)
   const bRequiereAreas = <RequiereAtencionPorArea bloques={bloquesAtencion} />
 
