@@ -39,11 +39,12 @@ import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea from "../componentes/RequiereAtencionPorArea"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
-import { plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
-import { NOMBRE_MODULO } from "../utilidades/logs"
+import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
+import { NOMBRE_MODULO, detalleActividad } from "../utilidades/logs"
+import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
 import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
-import { INK } from "@/lib/tema"
+import { INK, GRAD_MARCA } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -88,6 +89,8 @@ export default function Inicio({
   puedeReasignarCitas = false,
 }) {
   const [cumpleaneros, setCumpleaneros] = useState([])
+  // En una vista de rol manda el permiso de ese rol (igual que el menú); si no, el del usuario.
+  const puedeV = (modulo, nivel = "ver") => (vista?.tipo === "rol" ? puedeNivel(vista.permisos, modulo, nivel) : puede(usuario, modulo, nivel))
   // Período del "Desenlace de las citas" y de la lista de abajo: hoy, esta semana, este mes o todas.
   const [periodo, setPeriodo] = useState("hoy")
   // Tarjeta del desenlace elegida (atendida | noAsistio | cancelada): la lista de citas de abajo muestra solo esas. Volver a tocarla la quita.
@@ -255,10 +258,10 @@ export default function Inicio({
   // ─── Inicio por rol (R52-R56) ───
   // La vista activa decide qué Inicio se ve; cada fila de tarjetas habla de una sola cosa y lo dice en su título.
   const plantilla = plantillaInicio(vista, usuario)
-  const veCitas = puede(usuario, "citas", "ver")
-  const veVentas = puede(usuario, "ventas", "ver")
-  const veInventario = puede(usuario, "inventario", "ver")
-  const veCrm = puede(usuario, "crm", "ver")
+  const veCitas = puedeV("citas", "ver")
+  const veVentas = puedeV("ventas", "ver")
+  const veInventario = puedeV("inventario", "ver")
+  const veCrm = puedeV("crm", "ver")
   const esVistaOptometra = plantilla === "optometra"
   const citasVista = useMemo(() => (esVistaOptometra ? citasPropias(citas, usuario?.id) : citas), [citas, esVistaOptometra, usuario?.id])
   const hoyVista = useMemo(() => resumenHoy(citasVista), [citasVista])
@@ -275,61 +278,70 @@ export default function Inicio({
   // que una misma tarjeta no haga dos cosas distintas según dónde se toque.
   const atajosAdmin = (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Atajos">
-      {puede(usuario, "pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Users size={14} aria-hidden="true" /> Registrar paciente</button>}
-      {puede(usuario, "citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Calendar size={14} aria-hidden="true" /> Agendar cita</button>}
-      {puede(usuario, "inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Package size={14} aria-hidden="true" /> Añadir producto</button>}
+      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Users size={14} aria-hidden="true" /> Registrar paciente</button>}
+      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Calendar size={14} aria-hidden="true" /> Agendar cita</button>}
+      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Package size={14} aria-hidden="true" /> Añadir producto</button>}
     </div>
   )
   // Cuánto se dio de alta este mes: cada total lo dice junto al número, con la misma lógica en las tres tarjetas.
   const citasEsteMes = useMemo(() => creadosEsteMes(citas, "creadoEn"), [citas])
   const productosEsteMes = useMemo(() => creadosEsteMes(inventario, "creadoEn"), [inventario])
+  const ventasMes = useMemo(() => ventasDelMes(facturasVenta), [facturasVenta])
   const filaTotales = (
     <FilaTarjetas
       titulo="Totales"
       descripcion="Todo lo registrado y lo nuevo de este mes"
       acciones={atajosAdmin}
+      neutro
+      compacta
       tarjetas={[
-        { id: "pacientes", titulo: "Pacientes registrados", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, color: "slate", onClick: () => setVista?.("pacientes") },
-        { id: "citas", titulo: "Citas registradas", valor: citas.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, color: "blue", onClick: () => setVista?.("citas") },
-        { id: "productos", titulo: "Productos en inventario", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, color: "slate", onClick: () => setVista?.("inventario") },
-      ]}
+        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setVista?.("pacientes") },
+        { id: "citas", titulo: "Citas", valor: citas.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setVista?.("citas") },
+        veVentas && { id: "ventas", titulo: "Ventas del mes", valor: dinero(ventasMes.total), desc: `+${ventasMes.cantidad} este mes · ${ventasMes.cantidadTotal} en total`, icono: ShoppingBag, onClick: () => setVista?.("ventas") },
+        { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setVista?.("inventario") },
+      ].filter(Boolean)}
     />
   )
 
   // ─── Desenlace de las citas + lista: un solo control (el período y, si se quiere, la tarjeta) para las dos cosas ───
   const ETIQUETA_PERIODO = { hoy: "hoy", semana: "esta semana", mes: "este mes", siempre: "todas" }
-  const NOMBRE_TARJETA = { atendida: "Atendidas", noAsistio: "No asistieron", cancelada: "Canceladas" }
+  const NOMBRE_TARJETA = { atendida: "Atendidas", noAsistio: "No asistieron", pendiente: "Pendientes", cancelada: "Canceladas" }
   const enAtencionN = desenlace.enAtencion
   const elegirTarjeta = (id) => setTarjeta((actual) => (actual === id ? null : id))
   const selectorPeriodo = (
     <div role="group" aria-label="Período del desenlace" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
       {PERIODOS_DESENLACE.map(([id, etiqueta]) => (
-        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === id ? { background: INK } : undefined}>{etiqueta}</button>
+        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === id ? { background: GRAD_MARCA } : undefined}>{etiqueta}</button>
       ))}
     </div>
   )
+  // Quien atiende ve su desenlace sin lista debajo (su agenda ya está arriba): las tarjetas son informativas.
+  const tarjetaDe = (clave, extra) => ({ ...extra, ...(esVistaOptometra ? {} : { seleccionada: tarjeta === clave, onClick: () => elegirTarjeta(clave) }) })
+  const textoSuma = `${desenlace.registradas} ${desenlace.registradas === 1 ? "cita" : "citas"} = ${desenlace.atendidas} + ${desenlace.noAtendidas} + ${desenlace.pendientes}`
   const filaDesenlace = (
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
-      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : `${desenlace.registradas} ${desenlace.registradas === 1 ? "cita" : "citas"} en el período`}
+      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : `${textoSuma}${desenlace.canceladas > 0 ? ` · ${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : ""}`}
       acciones={selectorPeriodo}
+      compacta
       tarjetas={[
-        { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `Ver en la lista · ${enAtencionN} en atención en este momento` : "Ver en la lista", icono: CheckCircle2, color: "green", seleccionada: tarjeta === "atendida", onClick: () => elegirTarjeta("atendida") },
-        { id: "noAsistieron", titulo: "No asistieron", valor: desenlace.noAtendidas, desc: "Ver en la lista", icono: UserX, color: "red", seleccionada: tarjeta === "noAsistio", onClick: () => elegirTarjeta("noAsistio") },
-        { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Ver en la lista", icono: Ban, color: "slate", seleccionada: tarjeta === "cancelada", onClick: () => elegirTarjeta("cancelada") },
+        tarjetaDe("atendida", { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, icono: CheckCircle2, color: "green" }),
+        tarjetaDe("noAsistio", { id: "noAsistieron", titulo: "No asistieron", valor: desenlace.noAtendidas, icono: UserX, color: "red" }),
+        tarjetaDe("pendiente", { id: "pendientes", titulo: "Pendientes", valor: desenlace.pendientes, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : undefined, icono: Clock, color: "amber" }),
+        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte: no suman", icono: Ban, color: "slate", aparte: true }),
       ]}
     />
   )
   const sinTerminar = useMemo(() => fichasSinTerminar(citas, usuario?.id), [citas, usuario?.id])
 
   // La lista de citas sigue el período y la tarjeta del desenlace: se ven las primeras y el resto está en Citas.
-  const LIMITE_LISTA = 8
+  const LIMITE_LISTA = plantilla === "administrador" ? 5 : 8
   const TITULO_LISTA = esVistaOptometra
     ? { hoy: "Mi agenda de hoy", semana: "Mis citas de la semana", mes: "Mis citas del mes", siempre: "Todas mis citas" }
     : { hoy: "Citas del día", semana: "Citas de la semana", mes: "Citas del mes", siempre: "Todas las citas" }
   const verTodasEnCitas = () => (onVerCitas ? onVerCitas(tarjeta || "todas", periodo) : setVista?.("citas"))
   const accionFila = (cita) => {
-    if (!esVistaOptometra || !puede(usuario, "consultas", "crear") || !esHoy(cita.fecha)) return null
+    if (!esVistaOptometra || !puedeV("consultas", "crear") || !esHoy(cita.fecha)) return null
     if (cita.estado === "En Atención") return { etiqueta: "Retomar", onClick: () => onAtenderCita?.(cita) }
     if (cita.estado === "Pendiente" || cita.estado === "En Espera") return { etiqueta: "Atender", onClick: () => onAtenderEnCitas?.(cita) }
     return null
@@ -349,12 +361,33 @@ export default function Inicio({
           <p className="text-sm text-slate-500">No queda nadie por atender hoy.</p>
         )}
       </div>
-      {siguiente && puede(usuario, "consultas", "crear") && (
+      {siguiente && puedeV("consultas", "crear") && (
         <button type="button" onClick={() => onAtenderEnCitas?.(siguiente)} className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
           Atender <ArrowRight size={16} aria-hidden="true" />
         </button>
       )}
     </div>
+  )
+  const agendaOpt = agendaOptometra(citasVista)
+  const tituloAgendaOpt = agendaOpt.modo === "proxima" ? `Mi próxima jornada con citas · ${formatoFecha(agendaOpt.fecha, "calendario")}` : "Mi agenda de hoy"
+  const bAgendaOptometra = (
+    <section aria-label={tituloAgendaOpt} className="space-y-2">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{tituloAgendaOpt}{agendaOpt.modo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}</h2>
+        {agendaOpt.citas.length > 0 && <p className="text-xs text-slate-500">{agendaOpt.citas.length} {agendaOpt.citas.length === 1 ? "cita" : "citas"}</p>}
+        {agendaOpt.citas.length > 0 && <button type="button" onClick={() => (onVerCitas ? onVerCitas("todas", agendaOpt.modo === "hoy" ? "hoy" : "siempre") : setVista?.("citas"))} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>}
+      </div>
+      <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        {agendaOpt.modo === "hoy" && bSiguiente}
+        <div className="divide-y divide-slate-100 px-5 py-4">
+          {agendaOpt.modo === "vacia" ? (
+            <EstadoVacio compacto icon={Calendar} texto="No tienes citas por venir." />
+          ) : (
+            agendaOpt.citas.map((cita, idx) => renderFilaCita(cita, idx, false, accionFila(cita)))
+          )}
+        </div>
+      </div>
+    </section>
   )
   const bCitasPeriodo = (
     <section aria-label={TITULO_LISTA[periodo]} className="space-y-2.5">
@@ -470,155 +503,123 @@ export default function Inicio({
   const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const incSaldos = veVentas && plantilla !== "optometra"
-  const incSinConsulta = puede(usuario, "pacientes", "ver") && plantilla !== "ventas"
-  const nombresPaciente = (lista) => lista.slice(0, 3).map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente").join(", ") + (lista.length > 3 ? ` y ${lista.length - 3} más` : "")
-
-  // Los avisos de "Requiere tu atención", cada uno con su área (citas, pacientes, ventas, inventario) y, si agrupa varios, su cantidad.
-  // nuevo = Inicio del administrador y del optómetra: salen todos, sin recortes ni filas "Y N más" (cada bloque muestra los tres primeros),
-  // y se suman los avisos nuevos. Los demás roles siguen con la lista única recortada.
-  const construirAvisos = (nuevo) => {
-    const tope = (n) => (nuevo ? Infinity : n)
+  const incSinConsulta = puedeV("pacientes", "ver") && plantilla !== "ventas"
+  // Los avisos de "Requiere tu atención", cada uno con su área (citas, pacientes, ventas, inventario): UNA línea por tipo de aviso
+  // (regla 38) con su cantidad, los nombres resumidos y una sola acción. Con un solo caso la acción lo resuelve; con varios abre la lista.
+  const construirAvisos = () => {
     const filas = []
     const poner = (area, fila) => filas.push({ area, ...fila })
-    if (incAtenciones) {
-      atencionesVista.slice(0, tope(4)).forEach(({ cita, dias }) => poner("citas", {
-        id: "atencion-" + cita.id,
-        icono: Activity,
-        titulo: `Atención abierta de un día anterior: ${cita.paciente}`,
-        detalle: textoAtencionAbierta(dias) + (cita.atendidoPor ? ` · ${etiquetaMiembro(equipo, cita.atendidoPor)}` : ""),
-        acciones: [
-          ...(puede(usuario, "consultas", "crear") ? [{ etiqueta: "Ingresar", principal: true, onClick: () => onAtenderCita?.(cita) }] : []),
-          { etiqueta: "Dejar de atender", onClick: () => setDejarCita(cita) },
-        ],
-      }))
-      if (atencionesVista.length > tope(4)) poner("citas", { id: "atenciones-mas", icono: Activity, titulo: `Y ${plural(atencionesVista.length - 4, "atención abierta más", "atenciones abiertas más")}`, acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("enAtencion", "siempre") }] })
+    const uno = (n, singular, varios) => (n === 1 ? singular : varios)
+    if (incAtenciones && atencionesVista.length > 0) {
+      const n = atencionesVista.length
+      const unica = atencionesVista[0].cita
+      poner("citas", {
+        id: "atenciones", cantidad: n, tono: "urgente",
+        texto: uno(n, "atención abierta de un día anterior", "atenciones abiertas de días anteriores"),
+        nombres: nombresResumidos(atencionesVista.map(({ cita }) => cita.paciente)),
+        accion: n === 1 && puedeV("consultas", "crear") ? { etiqueta: "Ingresar", onClick: () => onAtenderCita?.(unica) } : { etiqueta: "Ver", onClick: () => irACitas() },
+      })
     }
     // Las fichas que el optómetra dejó abiertas hoy (las de días anteriores ya salen arriba).
-    if (nuevo && esVistaOptometra) {
+    if (esVistaOptometra) {
       const yaListadas = new Set(atencionesVista.map(({ cita }) => cita.id))
-      sinTerminar.filter((c) => !yaListadas.has(c.id)).forEach((cita) => poner("citas", {
-        id: "ficha-sin-terminar-" + cita.id,
-        icono: Activity,
-        titulo: `Ficha sin terminar: ${cita.paciente}`,
-        detalle: `Cita de las ${cita.hora}, todavía en atención`,
-        acciones: puede(usuario, "consultas", "crear") ? [{ etiqueta: "Retomar", principal: true, onClick: () => onAtenderCita?.(cita) }] : [],
-      }))
+      const fichas = sinTerminar.filter((c) => !yaListadas.has(c.id))
+      if (fichas.length > 0) poner("citas", {
+        id: "fichas", cantidad: fichas.length, tono: "urgente",
+        texto: uno(fichas.length, "ficha sin terminar", "fichas sin terminar"),
+        nombres: nombresResumidos(fichas.map((c) => c.paciente)),
+        accion: fichas.length === 1 && puedeV("consultas", "crear") ? { etiqueta: "Retomar", onClick: () => onAtenderCita?.(fichas[0]) } : { etiqueta: "Ver", onClick: () => (onVerCitas ? onVerCitas("enAtencion", "hoy") : setVista?.("citas")) },
+      })
     }
-    if (incOrdenes && listasSinAvisar.length > 0) poner("ventas", {
-      id: "ordenes-listas", icono: FlaskConical, cantidad: listasSinAvisar.length,
-      titulo: `${plural(listasSinAvisar.length, "orden de laboratorio lista", "órdenes de laboratorio listas")} sin avisar al paciente`,
-      detalle: nombresPaciente(listasSinAvisar),
-      acciones: [{ etiqueta: "Avisar", principal: true, onClick: () => onVerOrdenes?.("listas") }],
-      verTodo: () => onVerOrdenes?.("listas"),
-    })
-    if (incOrdenes && atrasadas.length > 0) poner("ventas", {
-      id: "ordenes-atrasadas", icono: FlaskConical, cantidad: atrasadas.length,
-      titulo: plural(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
-      detalle: atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · "),
-      acciones: [{ etiqueta: "Ver atrasadas", onClick: () => onVerOrdenes?.("atrasadas") }],
-      verTodo: () => onVerOrdenes?.("atrasadas"),
-    })
-    if (nuevo && incSaldos && saldos.cantidad > 0) poner("ventas", {
-      id: "saldos", icono: Wallet, cantidad: saldos.cantidad,
-      titulo: `${plural(saldos.cantidad, "venta con saldo pendiente", "ventas con saldo pendiente")}: ${dinero(saldos.total)}`,
-      acciones: [{ etiqueta: "Ver saldos", onClick: () => onVerSaldos?.() }],
-      verTodo: () => onVerSaldos?.(),
-    })
-    if (incControlesPorAgendar) {
-      sinAgendar.slice(0, tope(3)).forEach(({ paciente, fechaControl, consulta }) => poner("citas", {
-        id: "control-sin-agendar-" + paciente.id,
-        icono: Calendar,
-        titulo: `Control sin agendar: ${paciente.nombre}`,
-        detalle: `Control recomendado para el ${fechaLegible(fechaAISO(fechaControl))}, todavía sin cita`,
-        acciones: [
-          ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Agendar", principal: true, onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl), asignadoDelControl(consulta, equipo)) }] : []),
-          { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(paciente.id) },
-        ],
-      }))
-      if (sinAgendar.length > tope(3)) poner("citas", {
-        id: "controles-sin-agendar-mas", icono: Calendar,
-        titulo: `Y ${plural(sinAgendar.length - 3, "control sin agendar más", "controles sin agendar más")}`,
-        acciones: [{ etiqueta: "Ver pacientes", onClick: () => onVerPacientes ? onVerPacientes({ rapido: "ControlSinAgendar" }) : setVista?.("pacientes") }],
+    if (incControlesPorAgendar && sinAgendar.length > 0) {
+      const n = sinAgendar.length
+      const { paciente, fechaControl, consulta } = sinAgendar[0]
+      poner("citas", {
+        id: "controles-sin-agendar", cantidad: n,
+        texto: uno(n, "control sin agendar", "controles sin agendar"),
+        nombres: nombresResumidos(sinAgendar.map((x) => x.paciente.nombre)),
+        accion: n === 1 && puedeV("citas", "crear") ? { etiqueta: "Agendar", onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl), asignadoDelControl(consulta, equipo)) } : { etiqueta: "Ver", onClick: () => (onVerPacientes ? onVerPacientes({ rapido: "ControlSinAgendar" }) : setVista?.("pacientes")) },
       })
     }
     // Ausencias registradas en "Mi horario" con citas abiertas de esa persona: solo para quien puede reasignar (permiso, no rol).
     if (puedeReasignarCitas) {
-      citasPorReasignar(citas, disponibilidad, hoyISO()).slice(0, tope(3)).forEach((g) => poner("citas", {
-        id: "ausencia-" + g.personaId + "-" + g.fecha,
-        icono: CalendarOff,
-        titulo: `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} estará ausente el ${formatoFecha(g.fecha, "largo")}`,
-        detalle: plural(g.citas.length, "cita por reasignar", "citas por reasignar"),
-        acciones: [{ etiqueta: "Reasignar citas", principal: true, onClick: () => setReasignarGrupo(g) }],
-      }))
+      const grupos = citasPorReasignar(citas, disponibilidad, hoyISO())
+      const n = grupos.reduce((suma, g) => suma + g.citas.length, 0)
+      if (n > 0) poner("citas", {
+        id: "ausencias", cantidad: n,
+        texto: uno(n, "cita por reasignar por una ausencia", "citas por reasignar por ausencias"),
+        nombres: nombresResumidos(grupos.map((g) => `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} el ${formatoFecha(g.fecha, "medioSinAnio")}`)),
+        accion: { etiqueta: "Reasignar", onClick: () => setReasignarGrupo(grupos[0]) },
+      })
     }
-    if (incCanceladas) {
-      paraReagendar.slice(0, tope(3)).forEach((cita) => poner("citas", {
-        id: "reagendar-" + cita.id,
-        icono: cita.estado === "No Asistió" ? UserX : Ban,
-        titulo: cita.estado === "No Asistió" ? `No asistió a su cita: ${cita.paciente}` : `Cita cancelada por el paciente: ${cita.paciente}`,
-        detalle: `Era el ${fechaLegible(cita.fecha)} a las ${cita.hora}${cita.motivo ? ` · ${cita.motivo}` : ""}, todavía sin reagendar`,
-        acciones: [
-          ...(puede(usuario, "citas", "crear") ? [{ etiqueta: "Reagendar", principal: true, onClick: () => onReagendarCancelada?.(cita) }] : []),
-          { etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("todas", "reagendar") },
-        ],
-      }))
-      if (paraReagendar.length > tope(3)) poner("citas", {
-        id: "reagendar-mas", icono: Ban,
-        titulo: `Y ${plural(paraReagendar.length - 3, "cita para reagendar más", "citas para reagendar más")}`,
-        acciones: [{ etiqueta: "Ver en Citas", onClick: () => onVerCitas?.("todas", "reagendar") }],
+    if (incCanceladas && paraReagendar.length > 0) {
+      const n = paraReagendar.length
+      poner("citas", {
+        id: "reagendar", cantidad: n,
+        texto: uno(n, "cita por reagendar (cancelada o sin asistir)", "citas por reagendar (canceladas o sin asistir)"),
+        nombres: nombresResumidos(paraReagendar.map((c) => c.paciente)),
+        accion: n === 1 && puedeV("citas", "crear") ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(paraReagendar[0]) } : { etiqueta: "Ver", onClick: () => onVerCitas?.("todas", "reagendar") },
       })
     }
     if (incPorConfirmar && porConfirmar.length > 0) {
-      porConfirmar.slice(0, tope(3)).forEach((paciente) => poner("pacientes", {
-        id: "confirmar-paciente-" + paciente.id,
-        icono: UserCheck,
-        titulo: `Datos sin confirmar: ${paciente.nombre}`,
-        detalle: "Se registró solo al agendar por la web: revisa que su cédula, teléfono y correo estén bien",
-        acciones: [
-          ...(puede(usuario, "pacientes", "editar") ? [{ etiqueta: "Confirmar datos", principal: true, onClick: () => setConfirmarPaciente(paciente) }] : []),
-          { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(paciente.id) },
-        ],
-        verTodo: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")),
-      }))
-      if (porConfirmar.length > tope(3)) poner("pacientes", {
-        id: "confirmar-pacientes-mas", icono: UserCheck,
-        titulo: `Y ${plural(porConfirmar.length - 3, "paciente de la web por confirmar más", "pacientes de la web por confirmar más")}`,
-        acciones: [{ etiqueta: "Ver pacientes", onClick: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) }],
+      const n = porConfirmar.length
+      poner("pacientes", {
+        id: "por-confirmar", cantidad: n,
+        texto: uno(n, "paciente de la web con los datos sin confirmar", "pacientes de la web con los datos sin confirmar"),
+        nombres: nombresResumidos(porConfirmar.map((p) => p.nombre)),
+        accion: n === 1
+          ? (puedeV("pacientes", "editar") ? { etiqueta: "Confirmar datos", onClick: () => setConfirmarPaciente(porConfirmar[0]) } : { etiqueta: "Ver paciente", onClick: () => onVerPerfilPaciente?.(porConfirmar[0].id) })
+          : { etiqueta: "Revisar", onClick: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) },
       })
     }
     if (incControles && hayInactivos) poner("pacientes", {
-      id: "controles", icono: Clock, cantidad: inactivos.length,
-      titulo: plural(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
-      detalle: inactivos.slice(0, 3).map(({ paciente, dias }) => `${paciente.nombre} (hace ${dias} días)`).join(", ") + (inactivos.length > 3 ? ` y ${inactivos.length - 3} más` : ""),
-      acciones: [{ etiqueta: "Gestionar en CRM", onClick: () => setVista?.("crm") }],
-      verTodo: () => setVista?.("crm"),
+      id: "controles", cantidad: inactivos.length,
+      texto: uno(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
+      nombres: nombresResumidos(inactivos.map(({ paciente }) => paciente.nombre)),
+      accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", onClick: () => setVista?.("crm") } : null,
     })
-    if (nuevo && incSinConsulta && sinAtender > 0) poner("pacientes", {
-      id: "sin-consulta", icono: Users, cantidad: sinAtender,
-      titulo: `${plural(sinAtender, "paciente registrado", "pacientes registrados")} sin ninguna consulta`,
-      acciones: [{ etiqueta: "Ver pacientes", onClick: () => (onVerPacientes ? onVerPacientes({ correccion: "Sin evaluación" }) : setVista?.("pacientes")) }],
-      verTodo: () => (onVerPacientes ? onVerPacientes({ correccion: "Sin evaluación" }) : setVista?.("pacientes")),
+    if (incSinConsulta && sinAtender > 0) poner("pacientes", {
+      id: "sin-consulta", cantidad: sinAtender, tono: "suave",
+      texto: uno(sinAtender, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
+      accion: { etiqueta: "Ver", onClick: () => (onVerPacientes ? onVerPacientes({ correccion: "Sin evaluación" }) : setVista?.("pacientes")) },
+    })
+    if (incCumple && cumpleaneros.length > 0) {
+      const hoyN = cumpleaneros.filter((c) => c.esHoy).length
+      poner("pacientes", {
+        id: "cumple", cantidad: cumpleaneros.length, tono: "suave",
+        texto: hoyN === 0 ? uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos") : hoyN === cumpleaneros.length ? "cumpleaños hoy" : `cumpleaños (${hoyN} hoy)`,
+        nombres: nombresResumidos(cumpleaneros.map((c) => c.nombre)),
+        accion: puedeV("crm", "crear") ? { etiqueta: "Saludar", onClick: () => setVista?.("crm") } : null,
+      })
+    }
+    if (incOrdenes && listasSinAvisar.length > 0) poner("ventas", {
+      id: "ordenes-listas", cantidad: listasSinAvisar.length,
+      texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
+      nombres: nombresResumidos(listasSinAvisar.map((o) => pacientes.find((p) => p.id === o.pacienteId)?.nombre || "Paciente")),
+      accion: { etiqueta: puedeV("ventas", "editar") ? "Avisar" : "Ver", onClick: () => onVerOrdenes?.("listas") },
+    })
+    if (incOrdenes && atrasadas.length > 0) poner("ventas", {
+      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente",
+      texto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
+      nombres: atrasosPorLaboratorio(ordenesLab).map((a) => `${a.laboratorio}: ${a.atrasadas}`).join(" · "),
+      accion: { etiqueta: "Ver", onClick: () => onVerOrdenes?.("atrasadas") },
+    })
+    if (incSaldos && saldos.cantidad > 0) poner("ventas", {
+      id: "saldos", cantidad: saldos.cantidad,
+      texto: uno(saldos.cantidad, "venta con saldo pendiente", "ventas con saldo pendiente"),
+      nombres: dinero(saldos.total),
+      accion: { etiqueta: "Ver saldos", onClick: () => onVerSaldos?.() },
     })
     if (incStock && productosBajoStock.length > 0) poner("inventario", {
-      id: "stock", icono: Package, cantidad: productosBajoStock.length,
-      titulo: plural(productosBajoStock.length, "producto con stock bajo", "productos con stock bajo"),
-      detalle: productosBajoStock.slice(0, 3).map((p) => `${p.nombre} (${p.stock})`).join(", ") + (productosBajoStock.length > 3 ? ` y ${productosBajoStock.length - 3} más` : ""),
-      acciones: [
-        ...(puede(usuario, "inventario", "editar") ? [{ etiqueta: "Reabastecer", principal: true, onClick: () => (onReabastecerProducto ? onReabastecerProducto(productosBajoStock[0].id) : setVista?.("inventario")) }] : []),
-        { etiqueta: "Ver inventario", onClick: () => setVista?.("inventario") },
-      ],
-    })
-    if (incCumple && cumpleaneros.length > 0) poner("pacientes", {
-      id: "cumple", icono: Cake, cantidad: cumpleaneros.length,
-      titulo: cumpleaneros.some((c) => c.esHoy) ? `${plural(cumpleaneros.filter((c) => c.esHoy).length, "cumpleaños hoy", "cumpleaños hoy")} para saludar` : `${plural(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos")} para saludar`,
-      detalle: cumpleaneros.slice(0, 3).map((c) => c.nombre).join(", ") + (cumpleaneros.length > 3 ? ` y ${cumpleaneros.length - 3} más` : ""),
-      acciones: [{ etiqueta: "Saludar en CRM", onClick: () => setVista?.("crm") }],
-      verTodo: () => setVista?.("crm"),
+      id: "stock", cantidad: productosBajoStock.length,
+      texto: uno(productosBajoStock.length, "producto con stock bajo", "productos con stock bajo"),
+      nombres: nombresResumidos(productosBajoStock.map((p) => `${p.nombre} (${p.stock})`)),
+      accion: puedeV("inventario", "editar") ? { etiqueta: "Reabastecer", onClick: () => (onReabastecerProducto ? onReabastecerProducto(productosBajoStock[0].id) : setVista?.("inventario")) } : null,
     })
     return filas
   }
   // Inicio del administrador y del optómetra: un bloque por área, solo los que le corresponden por sus permisos.
-  const avisosPorArea = construirAvisos(true)
+  const avisosPorArea = construirAvisos()
   const filasDe = (area) => avisosPorArea.filter((f) => f.area === area)
   const irACitas = () => {
     if (!onVerCitas) return setVista?.("citas")
@@ -631,8 +632,8 @@ export default function Inicio({
   const aplicaVentas = incOrdenes || incSaldos
   const bloquesAtencion = [
     veCitas && aplicaCitas && { id: "citas", titulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: irACitas },
-    puede(usuario, "pacientes", "ver") && aplicaPacientes && { id: "pacientes", titulo: "Pacientes", icono: Users, filas: filasDe("pacientes"), onVerTodo: () => (filasDe("pacientes")[0]?.verTodo ?? (() => setVista?.("pacientes")))() },
-    veVentas && aplicaVentas && { id: "ventas", titulo: "Ventas", icono: ShoppingBag, filas: filasDe("ventas"), onVerTodo: () => (filasDe("ventas")[0]?.verTodo ?? (() => setVista?.("ventas")))() },
+    puedeV("pacientes", "ver") && aplicaPacientes && { id: "pacientes", titulo: "Pacientes", icono: Users, filas: filasDe("pacientes"), onVerTodo: () => (onVerPacientes ? onVerPacientes({}) : setVista?.("pacientes")) },
+    veVentas && aplicaVentas && { id: "ventas", titulo: "Ventas", icono: ShoppingBag, filas: filasDe("ventas"), onVerTodo: () => setVista?.("ventas") },
     veInventario && { id: "inventario", titulo: "Inventario", icono: Package, filas: filasDe("inventario"), onVerTodo: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
   ].filter(Boolean)
   const bRequiereAreas = <RequiereAtencionPorArea bloques={bloquesAtencion} />
@@ -683,7 +684,6 @@ export default function Inicio({
     <section aria-label="Registro de actividad" className="space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Registro de actividad</h2>
-        <p className="text-xs text-slate-400">Qué cambió y quién lo hizo</p>
         <button type="button" onClick={() => setVista?.("usuarios")} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todo <ArrowRight size={14} aria-hidden="true" /></button>
       </div>
       <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-5 py-1 shadow-sm">
@@ -691,7 +691,7 @@ export default function Inicio({
           <li key={l.id} className="flex items-baseline justify-between gap-3 py-2">
             <p className="min-w-0 truncate text-xs text-slate-600">
               <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
-              {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
+              {detalleActividad(l.detalle) && <span className="text-slate-500"> — {detalleActividad(l.detalle)}</span>}
               <span className="text-slate-400"> · {NOMBRE_MODULO[l.modulo] || l.modulo}</span>
             </p>
             <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
@@ -702,7 +702,7 @@ export default function Inicio({
   )
 
   return (
-    <div className="w-full space-y-6 text-left">
+    <div className="w-full space-y-5 text-left">
       <style>{`
         @keyframes inRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .in-rise { animation: inRise .5s ease-out both; }
@@ -717,9 +717,13 @@ export default function Inicio({
       {plantilla === "administrador" && (
         <>
           {filaTotales}
-          {bRequiereAreas}
-          {filaDesenlace}
-          {bCitasPeriodo}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+            <div className="min-w-0">{bRequiereAreas}</div>
+            <div className="min-w-0 space-y-4">
+              {filaDesenlace}
+              {bCitasPeriodo}
+            </div>
+          </div>
           {bActividad}
         </>
       )}
@@ -727,9 +731,9 @@ export default function Inicio({
       {plantilla === "optometra" && (
         <>
           <div className="flex justify-end">{atajosAdmin}</div>
+          {bAgendaOptometra}
           {bRequiereAreas}
           {filaDesenlace}
-          {bCitasPeriodo}
         </>
       )}
 

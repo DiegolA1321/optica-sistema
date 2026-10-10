@@ -3,92 +3,62 @@
 import { CheckCircle2, ArrowRight } from "lucide-react"
 import { INK } from "@/lib/tema"
 
-// "Requiere tu atención" del Inicio, separado por área (Citas, Pacientes, Ventas, Inventario): un bloque por área, todos con el mismo estilo,
-// cada uno con sus tres avisos más importantes y "Ver todo (N)" hacia la vista del módulo. Un bloque sin avisos dice "Todo en orden".
-// bloques: [{ id, titulo, icono, filas, onVerTodo }]; filas: [{ id, icono, titulo, detalle?, cantidad?, acciones }]. N suma la cantidad de cada aviso (1 por defecto).
-export const AVISOS_POR_BLOQUE = 3
+// "Requiere tu atención" del Inicio, compacto: un solo cuadro con un subtítulo por área (Citas, Pacientes, Ventas, Inventario) y una línea por
+// tipo de aviso: el número, qué pasa, los nombres resumidos y una sola acción. El total se escribe una vez, en el título; cada área
+// conserva su enlace "Ver todo →" hacia su módulo, sin repetir el número. Las áreas sin avisos se resumen en una línea de "todo en orden".
+// bloques: [{ id, titulo, icono, filas, onVerTodo }]; filas: [{ id, cantidad, texto, nombres?, tono?: "urgente" | "normal" | "suave", accion?: { etiqueta, onClick } }]
+const PUNTO = { urgente: "bg-red-500", normal: "bg-amber-500", suave: "bg-slate-300" }
 
 export default function RequiereAtencionPorArea({ bloques }) {
   if (bloques.length === 0) return null
   const cantidadDe = (b) => b.filas.reduce((n, f) => n + (f.cantidad ?? 1), 0)
   const total = bloques.reduce((n, b) => n + cantidadDe(b), 0)
-  // Los bloques con avisos van en columnas (cada uno con su alto, sin huecos); los que no tienen nada, en una franja de una línea.
   const conAvisos = bloques.filter((b) => b.filas.length > 0)
   const enOrden = bloques.filter((b) => b.filas.length === 0)
-  // Dos columnas repartidas por el alto de cada bloque (cada uno con su alto, sin huecos debajo del más corto): cada bloque va a la
-  // columna que lleva menos alto. En pantallas angostas las dos columnas se apilan.
-  const columnas = [[], []]
-  const altos = [0, 0]
-  for (const b of conAvisos) {
-    const i = altos[0] <= altos[1] ? 0 : 1
-    columnas[i].push(b)
-    altos[i] += 1 + Math.min(b.filas.length, AVISOS_POR_BLOQUE)
-  }
   return (
-    <section id="requiere-atencion" aria-label="Requiere tu atención" className="scroll-mt-4 space-y-2.5">
+    <section id="requiere-atencion" aria-label="Requiere tu atención" className="scroll-mt-4 space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Requiere tu atención</h2>
-        {total === 0 && <p className="text-xs text-slate-400">Todo en orden</p>}
+        {total > 0 ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">{total}</span> : <p className="text-xs text-slate-500">Todo en orden</p>}
       </div>
-      {conAvisos.length > 0 && (
-        <div className="flex flex-col gap-3 md:flex-row md:items-start">
-          {columnas.map((col, i) => (
-            <div key={i} className="flex min-w-0 flex-col gap-3 md:flex-1">
-              {col.map((b) => {
-            const IconoBloque = b.icono
-            const cantidad = cantidadDe(b)
-            return (
-              <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className="flex flex-col rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-                <header className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><IconoBloque size={16} aria-hidden="true" /></span>
-                  <h3 className="text-sm font-bold" style={{ color: INK }}>{b.titulo}</h3>
-                  <span className="ml-auto rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">{cantidad}</span>
-                </header>
-                <ul className="divide-y divide-slate-100">
-                  {b.filas.slice(0, AVISOS_POR_BLOQUE).map((f) => {
-                    const Icono = f.icono
-                    return (
-                      <li key={f.id} className="flex items-start gap-3 px-4 py-3">
-                        <span className="mt-0.5 shrink-0 text-slate-400"><Icono size={16} aria-hidden="true" /></span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold" style={{ color: INK }}>{f.titulo}</p>
-                          {f.detalle && <p className="truncate text-xs text-slate-500">{f.detalle}</p>}
-                          {f.acciones?.length > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-2">
-                              {f.acciones.map((a) => (
-                                <button key={a.etiqueta} type="button" onClick={a.onClick} className={"rounded-lg px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer " + (a.principal ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-slate-200/60 bg-white text-slate-700 hover:bg-slate-50")}>{a.etiqueta}</button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-                <button type="button" onClick={b.onVerTodo} className="flex items-center gap-1 border-t border-slate-100 px-4 py-2.5 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 hover:underline cursor-pointer">
-                  Ver todo ({cantidad}) <ArrowRight size={13} aria-hidden="true" />
-                </button>
-              </section>
-            )
-          })}
-            </div>
-          ))}
-        </div>
-      )}
-      {enOrden.length > 0 && (
-        <ul aria-label="Áreas sin avisos" className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-slate-200/60 bg-white px-4 py-2.5 shadow-sm">
-          {enOrden.map((b) => {
-            const IconoBloque = b.icono
-            return (
-              <li key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                <CheckCircle2 size={15} className="shrink-0 text-emerald-600" aria-hidden="true" />
+      <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        {conAvisos.map((b, i) => {
+          const IconoBloque = b.icono
+          return (
+            <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className={i > 0 ? "border-t border-slate-100" : ""}>
+              <header className="flex items-center gap-2 px-4 pb-1 pt-2.5">
                 <IconoBloque size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
-                <span className="font-semibold text-slate-700">{b.titulo}</span> · todo en orden
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{b.titulo}</h3>
+                <button type="button" onClick={b.onVerTodo} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+                  Ver todo <ArrowRight size={12} aria-hidden="true" />
+                </button>
+              </header>
+              <ul className="px-4 pb-2">
+                {b.filas.map((f) => (
+                  <li key={f.id} className="flex items-center gap-2.5 py-1.5">
+                    <span className={"h-2 w-2 shrink-0 rounded-full " + (PUNTO[f.tono || "normal"])} aria-hidden="true" />
+                    <p className="min-w-0 flex-1 truncate text-[13px] text-slate-700">
+                      <span className="font-bold" style={{ color: INK }}>{f.cantidad ?? 1}</span> {f.texto}
+                      {f.nombres && <span className="text-slate-500"> · {f.nombres}</span>}
+                    </p>
+                    {f.accion && (
+                      <button type="button" onClick={f.accion.onClick} className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                        {f.accion.etiqueta}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        })}
+        {enOrden.length > 0 && (
+          <p aria-label="Áreas sin avisos" className={"flex flex-wrap items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-slate-500 " + (conAvisos.length > 0 ? "border-t border-slate-100" : "")}>
+            <CheckCircle2 size={14} className="shrink-0 text-emerald-600" aria-hidden="true" />
+            <span className="font-semibold text-slate-700">{enOrden.map((b) => b.titulo).join(", ")}</span> · todo en orden
+          </p>
+        )}
+      </div>
     </section>
   )
 }
