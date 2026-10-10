@@ -2184,7 +2184,13 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
-                            <p className="max-w-sm text-xs text-slate-400">Cuando una ficha deje una receta, aparece arriba "Listo para venta".</p>
+                            {paseListo ? (
+                              puedeVender && <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                                <ShoppingBag size={14} aria-hidden="true" /> Vender la receta
+                              </button>
+                            ) : (
+                              <p className="max-w-sm text-xs text-slate-400">Cuando una ficha deje una receta, aparece arriba "Listo para venta".</p>
+                            )}
                           </div>
                         ) : (
                           <section aria-label="Compras del paciente">
