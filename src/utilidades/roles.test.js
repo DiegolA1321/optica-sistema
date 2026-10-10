@@ -63,3 +63,16 @@ describe("menú con Ventas (Bloque E)", () => {
     expect(menuDePermisos({ pacientes: ["ver"], inventario: ["ver"] })).toEqual(["Pacientes", "Inventario"])
   })
 })
+
+describe("Mi horario y Horario de la óptica son dos permisos distintos", () => {
+  it("'Mi horario' solo se ve (cada quien edita el suyo) y 'Horario de la óptica' se ve o se edita", async () => {
+    const { MODULOS_PERMISO } = await import("./roles")
+    const mio = MODULOS_PERMISO.find((m) => m.id === "horario")
+    const general = MODULOS_PERMISO.find((m) => m.id === "horario_optica")
+    expect(mio.nombre).toBe("Mi horario")
+    expect(mio.niveles).toEqual(["ver"])
+    expect(general.nombre).toBe("Horario de la óptica")
+    expect(general.niveles).toEqual(["ver", "editar"])
+    expect(general.sensible).toBe(true) // delegarlo es darle a alguien el horario de toda la óptica
+  })
+})

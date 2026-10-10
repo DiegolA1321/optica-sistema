@@ -1172,7 +1172,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // "Agendar" desde el modal del día: el formulario se abre con ese día (y la hora libre sobre la que se hizo clic, si la hubo).
   // Abrir (o volver a cerrar) un día no laborable: una excepción de esa fecha en el horario. Solo con "Mi horario: editar"; la base
   // también lo exige. Queda en la actividad con quién lo hizo, y la excepción guarda quién la abrió.
-  const puedeEditarHorario = puede(usuario, "horario", "editar") && !!setDisponibilidad
+  const puedeEditarHorario = puede(usuario, "horario_optica", "editar") && !!setDisponibilidad
   const abrirDia = async (iso, sesiones, agendar) => {
     const horas = [["manana", sesiones.manana], ["tarde", sesiones.tarde]].filter(([, s]) => s.activo).map(([, s]) => `${horaA12(s.inicio)}–${horaA12(s.fin)}`).join(" y ")
     const excepcion = { ...(disponibilidad?.excepciones?.[iso] || {}), manana: sesiones.manana, tarde: sesiones.tarde, abiertoPor: { id: usuario?.id || null, nombre: usuario?.nombre || "", en: new Date().toISOString() } }

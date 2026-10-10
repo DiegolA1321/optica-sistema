@@ -19,7 +19,8 @@ export const MODULOS_PERMISO = [
   { id: "ventas", nombre: "Ventas", grupo: "Gestión y operación", niveles: ["ver", "crear", "editar", "eliminar"], ayuda: "Crear = vender y proformas · Editar = abonos y órdenes · Eliminar = anular ventas." },
   { id: "inventario", nombre: "Inventario", grupo: "Gestión y operación", niveles: ["ver", "crear", "editar", "eliminar"], ayuda: "" },
   { id: "reportes", nombre: "Reportes", grupo: "Gestión y operación", niveles: ["ver"], ayuda: "El alcance decide si ve todo o solo lo suyo." },
-  { id: "horario", nombre: "Mi horario", grupo: "Gestión y operación", niveles: ["ver", "editar"], ayuda: "" },
+  { id: "horario", nombre: "Mi horario", grupo: "Gestión y operación", niveles: ["ver"], ayuda: "Ve su agenda y edita su propio horario y sus ausencias." },
+  { id: "horario_optica", nombre: "Horario de la óptica", grupo: "Gestión y operación", niveles: ["ver", "editar"], sensible: true, ayuda: "Ver: el horario general en lectura · Editar: cambiarlo, cerrar o abrir días y la duración de las citas. El administrador siempre puede." },
   { id: "mensajes", nombre: "Mensajes", grupo: "Administración", niveles: ["ver", "crear"], sensible: true, ayuda: "Mensajes con soporte." },
   { id: "configuracion", nombre: "Configuración", grupo: "Administración", niveles: ["ver", "editar"], sensible: true, ayuda: "Datos de la óptica y parámetros." },
 ]
