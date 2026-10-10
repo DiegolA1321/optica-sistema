@@ -318,19 +318,12 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
       )}
 
       {/* ─── SALUDO AUTOMÁTICO DE CUMPLEAÑOS (configurable por el administrador) ─── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}>
-            <Zap size={17} />
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-2.5 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3" title={cumpleAuto ? "El día del cumpleaños se manda un correo de saludo a quien tenga correo registrado, sin que tengas que hacerlo." : "Tú decides a quién saludar con el botón WhatsApp de la lista de cumpleaños."}>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}>
+            <Zap size={15} />
           </span>
-          <div>
-            <h4 className="text-sm font-bold" style={{ color: INK }}>Saludo automático de cumpleaños</h4>
-            <p className="text-[11px] text-slate-500">
-              {cumpleAuto
-                ? "Activo: el día del cumpleaños le mandamos un correo de saludo automático a quien tenga correo registrado, sin que tengas que hacerlo manualmente."
-                : "Apagado: tú decides a quién saludar con el botón \"Notificar WhatsApp\" de la lista."}
-            </p>
-          </div>
+          <h4 className="truncate text-sm font-bold" style={{ color: INK }}>Saludo automático de cumpleaños <span className={"ml-1.5 text-xs font-semibold " + (cumpleAuto ? "text-emerald-700" : "text-slate-500")}>{cumpleAuto ? "· Activo" : "· Apagado"}</span></h4>
         </div>
         <button
           type="button"
