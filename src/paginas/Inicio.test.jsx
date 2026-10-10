@@ -237,11 +237,12 @@ describe("Inicio del administrador", () => {
 })
 
 describe("Desenlace del administrador", () => {
-  it("las partes suman el total del título y las canceladas van aparte", () => {
+  it("las canceladas van aparte y no hay una cuenta escrita que repita los números de las tarjetas", () => {
     const cancelada = { id: "cx", fecha: hoy, hora: "03:00 PM", estado: "Cancelada", canceladaPor: "paciente", paciente: "Paciente Tres", pacienteId: "p3" }
     render(<Inicio {...base} citas={[...base.citas, cancelada]} />)
     const region = screen.getByRole("region", { name: "Desenlace de las citas · hoy" })
-    expect(region).toHaveTextContent("3 citas = 1 + 0 + 2 · 1 cancelada aparte")
+    expect(region).toHaveTextContent("1 cancelada aparte")
+    expect(region).not.toHaveTextContent(/citas? = /)
     expect(within(region).getByRole("button", { name: /^Atendidas: 1/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^No asistieron: 0/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^Pendientes: 2/ })).toBeInTheDocument()

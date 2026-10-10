@@ -323,11 +323,10 @@ export default function Inicio({
   )
   // Quien atiende ve su desenlace sin lista debajo (su agenda ya está arriba): las tarjetas son informativas.
   const tarjetaDe = (clave, extra) => ({ ...extra, ...(esVistaOptometra ? {} : { seleccionada: tarjeta === clave, onClick: () => elegirTarjeta(clave) }) })
-  const textoSuma = `${desenlace.registradas} ${desenlace.registradas === 1 ? "cita" : "citas"} = ${desenlace.atendidas} + ${desenlace.noAtendidas} + ${desenlace.pendientes}`
   const filaDesenlace = (
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
-      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : `${textoSuma}${desenlace.canceladas > 0 ? ` · ${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : ""}`}
+      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : desenlace.canceladas > 0 ? `${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : undefined}
       acciones={selectorPeriodo}
       compacta
       tarjetas={[
