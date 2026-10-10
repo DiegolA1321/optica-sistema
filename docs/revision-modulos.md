@@ -2,7 +2,7 @@
 
 Módulos revisados: Inventario, CRM y fidelización, Mi horario, Reportes, Mensajes, Usuarios y permisos y Configuración. **Ventas** tiene su propio documento, `docs/revision-ventas.md`, actualizado el mismo día.
 
-**Estado: solo revisión. No se corrigió nada de lo que está aquí** (lo que se corrigió el 10 oct en Citas, el Inicio, Pacientes, Inventario y Usuarios está en `docs/estado-actual.md`). Cada hallazgo cita la regla de `docs/principios-diseno.md` que rompe.
+**Estado (actualizado el 10 oct. por la tarde): lo de esta revisión se implementó según las decisiones de Diego; ver "Revisión de los demás módulos: implementada" en `docs/estado-actual.md`. Queda de T1 el resto de las ventanas propias. Lo que sigue aquí es la revisión original: solo revisión, no se corrigió nada de lo que está aquí** (lo que se corrigió el 10 oct en Citas, el Inicio, Pacientes, Inventario y Usuarios está en `docs/estado-actual.md`). Cada hallazgo cita la regla de `docs/principios-diseno.md` que rompe.
 
 ## Cómo se hizo
 
