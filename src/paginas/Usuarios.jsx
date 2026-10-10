@@ -1,16 +1,16 @@
 "use client"
 
-import { fechaHoraLegible } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { createPortal } from "react-dom"
 import {
   Users, UserPlus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Eye, EyeOff, Mail, Info, IdCard,
-  History, Loader2, Glasses, UserX, UserCheck, Lock,
+  History, Glasses, UserX, UserCheck, Lock,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, validarClaveNueva, MENSAJE_CLAVE_SEGURA } from "../utilidades/validaciones"
-import { registrarLog, NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
+import { registrarLog } from "../utilidades/logs"
+import VentanaActividad from "../componentes/VentanaActividad"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
 import RolesPanel from "../componentes/RolesPanel"
@@ -58,19 +58,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
 
   // Actividad (incluye los cambios de roles y permisos, que la base registra sola)
   const [mostrarActividad, setMostrarActividad] = useState(false)
-  const [logs, setLogs] = useState([])
-  const [cargandoLogs, setCargandoLogs] = useState(false)
-  const [filtroUsuarioLog, setFiltroUsuarioLog] = useState("todos")
-  const cargarActividad = async () => {
-    if (!supabase || !usuario?.opticaId) return
-    setCargandoLogs(true)
-    const { data } = await supabase.from("logs_optica").select("*").eq("optica_id", usuario.opticaId).order("created_at", { ascending: false }).limit(100)
-    setLogs(data || [])
-    setCargandoLogs(false)
-  }
-  const alternarActividad = () => { const abrir = !mostrarActividad; setMostrarActividad(abrir); if (abrir) cargarActividad() }
-  const usuariosEnLogs = [...new Set(logs.map((l) => l.usuario_nombre))]
-  const logsFiltrados = filtroUsuarioLog === "todos" ? logs : logs.filter((l) => l.usuario_nombre === filtroUsuarioLog)
+  const alternarActividad = () => setMostrarActividad((v) => !v)
 
   // Modal crear / editar
   const [modal, setModal] = useState(null) // { id|null }
@@ -244,41 +232,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
         <p role="status" className="flex items-start gap-2 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5 text-xs leading-relaxed text-amber-800"><ShieldAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" /> Los permisos por nivel todavía no están activos en la base de datos: por seguridad, por ahora no se pueden asignar roles predefinidos ni desactivar usuarios.</p>
       )}
 
-      {mostrarActividad && (
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}><History size={16} /> Actividad reciente</h4>
-              <p className="mt-0.5 text-xs text-slate-500">Qué hizo cada usuario, incluidos los cambios de roles y permisos — últimas 100 acciones.</p>
-            </div>
-            {usuariosEnLogs.length > 0 && (
-              <select value={filtroUsuarioLog} onChange={(e) => setFiltroUsuarioLog(e.target.value)} aria-label="Filtrar actividad por usuario" className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white">
-                <option value="todos">Todos los usuarios</option>
-                {usuariosEnLogs.map((n) => (<option key={n} value={n}>{n}</option>))}
-              </select>
-            )}
-          </div>
-          <div className="mt-4">
-            {cargandoLogs ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Cargando actividad...</div>
-            ) : logsFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-center"><div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={22} /></div><p className="text-sm font-medium text-slate-500">Todavía no hay actividad registrada.</p></div>
-            ) : (
-              <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
-                {logsFiltrados.map((l) => (
-                  <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm text-slate-700"><span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}{l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo}</p>
-                    </div>
-                    <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {mostrarActividad && <VentanaActividad opticaId={usuario?.opticaId} onCerrar={() => setMostrarActividad(false)} />}
 
       {mensajeExito && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900"><CheckCircle2 className="text-emerald-500" size={20} /><p className="text-sm font-semibold">{mensajeExito}</p></div>

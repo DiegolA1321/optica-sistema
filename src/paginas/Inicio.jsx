@@ -39,6 +39,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea from "../componentes/RequiereAtencionPorArea"
 import VentanaTotal from "../componentes/VentanaTotal"
+import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
@@ -195,6 +196,7 @@ export default function Inicio({
   const pacientesEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención" && diasAtencionAbierta(c) === null), [citas])
   // Atenciones que se abrieron un día anterior y nadie cerró.
   const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
+  const [actividadAbierta, setActividadAbierta] = useState(false) // la ventana del Registro de actividad
   const [totalAbierto, setTotalAbierto] = useState(null) // id de la tarjeta de Totales cuya ventana está abierta
   const [dejarCita, setDejarCita] = useState(null)
   const [reasignarGrupo, setReasignarGrupo] = useState(null) // { fecha, personaId, personaNombre, citas } de una ausencia con citas por pasar
@@ -794,7 +796,7 @@ export default function Inicio({
     <section aria-label="Registro de actividad" className="space-y-2.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Registro de actividad</h2>
-        <button type="button" onClick={() => setVista?.("usuarios")} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todo <ArrowRight size={14} aria-hidden="true" /></button>
+        <button type="button" onClick={() => setActividadAbierta(true)} aria-label="Abrir el registro de actividad" className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todo <ArrowRight size={14} aria-hidden="true" /></button>
       </div>
       <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white px-5 py-1 shadow-sm">
         {actividadReciente.map((l) => (
@@ -823,6 +825,7 @@ export default function Inicio({
       {bDejarCita}
       {bConfirmarPaciente}
       {bReasignar}
+      {actividadAbierta && <VentanaActividad opticaId={usuario?.opticaId} onCerrar={() => setActividadAbierta(false)} />}
       {totalAbierto && totalesVentana[totalAbierto] && <VentanaTotal total={totalesVentana[totalAbierto]} onCerrar={() => setTotalAbierto(null)} />}
 
       {plantilla === "administrador" && (
