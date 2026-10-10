@@ -540,7 +540,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {/* ─── DIAGNÓSTICOS MÁS FRECUENTES ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "170ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Diagnósticos más frecuentes</h3>
-          <p className="mb-5 text-xs text-slate-500">Top 5 · cuenta fichas clínicas (un paciente con varias fichas suma varias veces)</p>
+          <p className="mb-5 text-xs text-slate-500">Top 5 · cuenta fichas clínicas (un paciente con varias fichas suma varias veces) · no cambia con el período</p>
           {diagnosticosTop.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay diagnósticos registrados.</p>
           ) : (
@@ -650,7 +650,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {/* ─── ESTADO DE CORRECCIÓN ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "220ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Estado de corrección de pacientes</h3>
-          <p className="mb-5 text-xs text-slate-500">{pacientes.length} paciente{pacientes.length === 1 ? "" : "s"} en total</p>
+          <p className="mb-5 text-xs text-slate-500">{pacientes.length} paciente{pacientes.length === 1 ? "" : "s"} en total · hoy, no cambia con el período</p>
           {pacientes.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay pacientes registrados.</p>
           ) : (
@@ -690,7 +690,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {/* ─── CITAS: PENDIENTES / ATENDIDAS / NO ASISTIÓ ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "270ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, en espera, en atención, atendidas e inasistencias</h3>
-          <p className="mb-5 text-xs text-slate-500">{citas.length} cita{citas.length === 1 ? "" : "s"} en la agenda · desenlace marcado desde Citas médicas</p>
+          <p className="mb-5 text-xs text-slate-500">{citas.length} cita{citas.length === 1 ? "" : "s"} en la agenda · desenlace marcado desde Citas médicas · no cambia con el período</p>
           {citas.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Aún no hay citas agendadas.</p>
           ) : (
