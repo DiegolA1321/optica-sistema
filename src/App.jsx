@@ -1188,6 +1188,7 @@ function App() {
           parametrizacion={parametrizacion}
           motivosConsulta={motivosConsulta}
           onCerrarSesion={cerrarSesion}
+          alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
         />
       )}
 

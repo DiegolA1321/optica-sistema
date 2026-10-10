@@ -26,8 +26,6 @@ import {
   Lock,
   Printer,
   Menu,
-  Phone,
-  Mail,
   Cake,
   IdCard,
   ChevronsLeft,
@@ -42,7 +40,7 @@ import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
-import { validarClaveNueva } from "../utilidades/validaciones"
+import { validarClaveNueva, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 
 // ─── Paleta de firma (consistente con todo el sistema) ───
@@ -54,10 +52,10 @@ const OPCIONES = [
   { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
   { id: "citas", nombre: "Mis citas", icono: Calendar },
   { id: "receta", nombre: "Mi receta", icono: Glasses },
-  { id: "perfil", nombre: "Mi perfil", icono: User },
+  { id: "datos", nombre: "Mis datos", icono: User },
 ]
 
-export default function PortalPaciente({ usuario, citas = [], setCitas, consultas = [], disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = [], onCerrarSesion }) {
+export default function PortalPaciente({ usuario, citas = [], setCitas, consultas = [], disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = [], onCerrarSesion, alActualizarUsuario }) {
   const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "tu óptica"
   // Política de la óptica (configurable en Configuración > Políticas hacia el paciente)
   const mostrarMedidas = parametrizacion?.mostrarMedidasPaciente === true
@@ -739,11 +737,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           )}
 
           {/* ── MI PERFIL ── */}
-          {seccion === "perfil" && (
+          {seccion === "datos" && (
             <div className="space-y-6">
               <div>
-                <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mi perfil</h1>
-                <p className="text-sm text-slate-500">Tus datos personales y de acceso.</p>
+                <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mis datos</h1>
+                <p className="text-sm text-slate-500">Tus datos personales y de contacto.</p>
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -755,12 +753,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <DatoPerfil icon={IdCard} label="Cédula" valor={usuario?.cedula} />
-                  <DatoPerfil icon={Phone} label="Teléfono" valor={usuario?.telefono} />
-                  <DatoPerfil icon={Mail} label="Correo" valor={usuario?.correo} />
-                  <DatoPerfil icon={Cake} label="Nacimiento" valor={usuario?.fecha_nacimiento || usuario?.fechaNacimiento} />
-                </div>
+                <MisDatosContacto usuario={usuario} onActualizado={alActualizarUsuario} />
 
                 <div className="mt-6 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
                   <div>
@@ -1101,12 +1094,106 @@ function OjoReceta({ sigla, titulo, ojo = {}, color, mostrarMedidas }) {
   )
 }
 
-function DatoPerfil({ icon: Icon, label, valor }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-slate-500"><Icon size={16} /></div>
-      <div className="min-w-0"><p className="text-[11px] font-medium uppercase text-slate-500">{label}</p><p className="truncate text-sm font-semibold text-slate-700">{valor || "No registrado"}</p></div>
+// Teléfono y correo se pueden cambiar desde el portal; el resto (nombre, cédula, nacimiento) solo lo corrige la óptica.
+// El portal inicia sesión con la cédula (o el usuario), no con el correo: cambiar el correo no cambia cómo entra el paciente.
+const sinDato = (v) => !v || /^sin /i.test(String(v).trim())
+function MisDatosContacto({ usuario, onActualizado }) {
+  const [editando, setEditando] = useState(false)
+  const [telefono, setTelefono] = useState("")
+  const [correo, setCorreo] = useState("")
+  const [errores, setErrores] = useState({})
+  const [guardando, setGuardando] = useState(false)
+  const [aviso, setAviso] = useState("")
+  const [errorGeneral, setErrorGeneral] = useState("")
+  const telActual = sinDato(usuario?.telefono) ? "" : usuario.telefono
+  const corActual = sinDato(usuario?.correo) ? "" : usuario.correo
+  const nacimiento = usuario?.fecha_nacimiento || usuario?.fechaNacimiento
+  const empezar = () => { setTelefono(telActual); setCorreo(corActual); setErrores({}); setErrorGeneral(""); setAviso(""); setEditando(true) }
+  const cancelar = () => { setEditando(false); setErrores({}); setErrorGeneral("") }
+
+  const guardar = async (e) => {
+    e?.preventDefault()
+    const tel = telefono.trim()
+    const cor = correo.trim()
+    const errs = {}
+    if (!tel) errs.telefono = "Ingresa tu teléfono."
+    else if (!esTelefonoValido(tel, false)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos, sin espacios ni guiones."
+    if (!cor) errs.correo = "Ingresa tu correo."
+    else if (!esEmailValido(cor, false)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
+    setErrores(errs)
+    if (Object.keys(errs).length > 0) return
+    const cambiaTel = tel !== telActual
+    const cambiaCor = cor.toLowerCase() !== corActual.toLowerCase()
+    if (!cambiaTel && !cambiaCor) { setEditando(false); return }
+    setGuardando(true)
+    setErrorGeneral("")
+    let nuevoTel = tel
+    let nuevoCor = cor
+    if (supabase) {
+      const { data, error } = await supabase.rpc("actualizar_contacto_paciente", {
+        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
+        p_token: usuario?.token,
+        p_telefono: cambiaTel ? tel : null,
+        p_correo: cambiaCor ? cor : null,
+      })
+      setGuardando(false)
+      if (error || !data) { setErrorGeneral("No pudimos guardar tus cambios. Revisa tu conexión e intenta de nuevo."); return }
+      if (data.ok !== true) {
+        setErrorGeneral(data.error === "sesion" ? "Tu sesión venció. Cierra sesión y vuelve a entrar para cambiar tus datos." : data.error || "No pudimos guardar tus cambios.")
+        return
+      }
+      nuevoTel = data.telefono
+      nuevoCor = data.correo
+    } else {
+      setGuardando(false)
+    }
+    onActualizado?.({ telefono: nuevoTel, correo: nuevoCor })
+    setEditando(false)
+    setAviso(cambiaTel && cambiaCor ? "Listo: actualizamos tu teléfono y tu correo." : cambiaTel ? "Listo: actualizamos tu teléfono." : "Listo: actualizamos tu correo.")
+    setTimeout(() => setAviso(""), 6000)
+  }
+
+  const fijo = (icon, label, valor) => (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
+      <p className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">{label} <Lock size={11} aria-label="Solo la óptica puede cambiarlo" /></p>
+      <p className="mt-1 break-words text-sm font-semibold text-slate-700">{valor || "No registrado"}</p>
     </div>
+  )
+  const campo = (id, label, valor, setValor, error, props) => (
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+      <label htmlFor={id} className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</label>
+      <input id={id} value={valor} onChange={(e) => setValor(e.target.value)} aria-invalid={!!error} aria-describedby={error ? id + "-error" : undefined} className={"mt-1 w-full rounded-lg border px-2.5 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 " + (error ? "border-red-300 focus-visible:ring-red-100" : "border-blue-300 focus-visible:ring-blue-100")} style={{ color: INK }} {...props} />
+      {error && <p id={id + "-error"} role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={12} /> {error}</p>}
+    </div>
+  )
+  const editable = (label, valor) => (
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+      <p className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}
+        <button type="button" onClick={empezar} className="text-xs font-bold normal-case tracking-normal text-blue-700 hover:underline cursor-pointer">Editar</button>
+      </p>
+      <p className={"mt-1 break-all text-sm " + (valor ? "font-semibold" : "text-slate-400")} style={valor ? { color: INK } : undefined}>{valor || "Sin registrar"}</p>
+    </div>
+  )
+  return (
+    <form onSubmit={guardar} noValidate className="mt-5">
+      {aviso && <div role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} /> {aviso}</div>}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        {fijo(IdCard, "Nombre", usuario?.nombre)}
+        {fijo(IdCard, "Cédula", usuario?.cedula)}
+        {fijo(Cake, "Fecha de nacimiento", nacimiento ? formatoFecha(nacimiento, "largoSinDia") || nacimiento : "")}
+        {fijo(Calendar, "Paciente desde", usuario?.fechaRegistro ? formatoFecha(usuario.fechaRegistro, "largoSinDia") : "")}
+        {editando ? campo("mis-datos-telefono", "Teléfono", telefono, setTelefono, errores.telefono, { type: "tel", inputMode: "numeric", maxLength: 10, autoComplete: "tel" }) : editable("Teléfono", telActual)}
+        {editando ? campo("mis-datos-correo", "Correo", correo, setCorreo, errores.correo, { type: "email", autoComplete: "email" }) : editable("Correo", corActual)}
+      </div>
+      <p className="mt-3.5 flex items-start gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-500"><Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" /> Para corregir tu nombre, cédula o fecha de nacimiento, comunícate con la óptica. Tu teléfono y tu correo son donde te enviamos recordatorios y avisos.</p>
+      {errorGeneral && <p role="alert" className="mt-3 flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700"><AlertCircle size={14} className="shrink-0" /> {errorGeneral}</p>}
+      {editando && (
+        <div className="mt-3.5 flex justify-end gap-2">
+          <button type="button" onClick={cancelar} disabled={guardando} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
+          <button type="submit" disabled={guardando} className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>{guardando ? "Guardando…" : "Guardar cambios"}</button>
+        </div>
+      )}
+    </form>
   )
 }
 
