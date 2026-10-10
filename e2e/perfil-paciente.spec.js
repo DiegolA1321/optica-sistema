@@ -23,15 +23,15 @@ async function abrirPerfil(page, nombre) {
 test.describe('Perfil del paciente: pestaña Citas', () => {
   test.use({ viewport: { width: 1366, height: 768 } })
 
-  test('el diagnóstico se abre en una ventana y el historial se filtra por fechas', async ({ page }) => {
+  test('la atención se abre en una ventana y el historial lleva siempre su buscador', async ({ page }) => {
     await abrirPerfil(page, 'Karla Párraga Vera')
     await foto(page, 'perfil-1')
     // Aunque tenga pocas citas, el historial lleva siempre su buscador y sus filtros
     await expect(page.getByRole('search', { name: 'Buscar en el historial de citas' })).toBeVisible()
 
-    // Ver diagnóstico: ventana encima, la lista no cambia de alto
-    await page.getByRole('button', { name: /Ver el diagnóstico de la cita/ }).first().click()
-    const ventana = page.getByRole('dialog', { name: 'Diagnóstico de la cita' })
+    // Ver atención: ventana encima, la lista no cambia de alto
+    await page.getByRole('button', { name: /Ver la atención del/ }).first().click()
+    const ventana = page.getByRole('dialog', { name: /^Atención del/ })
     await expect(ventana).toBeVisible()
     await foto(page, 'perfil-2-ventana')
     await page.keyboard.press('Escape')
