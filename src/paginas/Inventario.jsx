@@ -1,6 +1,7 @@
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
+import { esDeEsteMes } from "../utilidades/inicio"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
@@ -68,6 +69,8 @@ export default function Inventario({
   productoIdParaReabastecer = null,
   onProductoParaReabastecerConsumido,
   verStockBajoAlEntrar = false,
+  verNuevosAlEntrar = false,
+  onVerNuevosConsumido,
   onVerStockBajoConsumido,
   onVerPerfil,
 }) {
@@ -93,6 +96,7 @@ export default function Inventario({
 
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
   const [soloBajo, setSoloBajo] = useState(false)
+  const [soloNuevos, setSoloNuevos] = useState(false) // altas de este mes (el "+N este mes" de Inicio)
   // Descontinuados (activo: false, migración 0081) ocultos por defecto — no
   // deben estorbar el catálogo del día a día, pero siguen siendo
   // encontrables/reactivables/con su reporte de ventas intacto.
@@ -322,10 +326,21 @@ export default function Inventario({
   useEffect(() => {
     if (!verStockBajoAlEntrar) return
     setSoloBajo(true)
+    setSoloNuevos(false)
     setFiltroCategoria("Todas")
     onVerStockBajoConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verStockBajoAlEntrar])
+
+  // Desde "Nuevos este mes" de la tarjeta Productos del Inicio: la lista ya acotada a las altas de este mes.
+  useEffect(() => {
+    if (!verNuevosAlEntrar) return
+    setSoloNuevos(true)
+    setSoloBajo(false)
+    setFiltroCategoria("Todas")
+    onVerNuevosConsumido?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verNuevosAlEntrar])
 
   // Atajo: suma unidades al campo de existencia sin salir del modal — no
   // hace un guardado aparte, solo actualiza el número que se persiste junto
@@ -376,8 +391,9 @@ export default function Inventario({
     const coincideTexto = p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q)
     const coincideCat = filtroCategoria === "Todas" || p.categoria === filtroCategoria
     const coincideBajo = !soloBajo || esStockBajo(p, umbralStock)
+    const coincideNuevo = !soloNuevos || esDeEsteMes(p.creadoEn)
     const coincideActivo = verDescontinuados ? p.activo === false : p.activo !== false
-    return coincideTexto && coincideCat && coincideBajo && coincideActivo
+    return coincideTexto && coincideCat && coincideBajo && coincideNuevo && coincideActivo
   })
   const descontinuados = productos.filter((p) => p.activo === false)
 
@@ -400,7 +416,7 @@ export default function Inventario({
 
   // Corte de rango — mismo criterio que Pacientes.jsx (feedback del ing).
   const [cantidadVisible, setCantidadVisible] = useState(25)
-  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo])
+  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo, soloNuevos])
   const productosVisibles = productosOrdenados.slice(0, cantidadVisible)
   // Barra de stock relativa a lo que se está viendo — misma idea visual que
   // el widget de Inicio.jsx, para que "cuánto queda" se lea de un vistazo.
@@ -411,7 +427,7 @@ export default function Inventario({
     const unidades = productos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
     const valor = productos.reduce((a, p) => a + (Number(p.stock) || 0) * (Number(p.precio) || 0), 0)
     const bajos = productos.filter((p) => esStockBajo(p, umbralStock))
-    return { total: productos.length, unidades, valor, bajos }
+    return { total: productos.length, unidades, valor, bajos, nuevos: productos.filter((p) => esDeEsteMes(p.creadoEn)).length }
   }, [productos])
 
   const reporteProducto = useMemo(() => (verReporte ? resumenVentasProducto(ventas, verReporte.id, facturasVenta) : null), [ventas, facturasVenta, verReporte])
@@ -519,10 +535,10 @@ export default function Inventario({
         {/* Filtros: categorías + stock bajo */}
         <div className="flex flex-wrap items-center gap-2">
           {["Todas", ...CATEGORIAS].map((c) => {
-            const activo = filtroCategoria === c && !soloBajo
+            const activo = filtroCategoria === c && !soloBajo && !soloNuevos
             const col = c === "Todas" ? { fg: "#2563EB" } : catColor(c)
             return (
-              <button key={c} type="button" onClick={() => { setFiltroCategoria(c); setSoloBajo(false) }}
+              <button key={c} type="button" onClick={() => { setFiltroCategoria(c); setSoloBajo(false); setSoloNuevos(false) }}
                 className="rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
                 style={activo ? { backgroundColor: col.fg, borderColor: col.fg, color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}>
                 {c}
@@ -532,12 +548,19 @@ export default function Inventario({
 
           <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
 
-          <button type="button" onClick={() => { const nuevo = !soloBajo; setSoloBajo(nuevo); if (nuevo) setFiltroCategoria("Todas") }}
+          <button type="button" onClick={() => { const nuevo = !soloBajo; setSoloBajo(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloNuevos(false) } }}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
             style={soloBajo ? { backgroundColor: "#d97706", borderColor: "#d97706", color: "#fff" } : { borderColor: "#fde68a", color: "#b45309", backgroundColor: "#fffbeb" }}
             title="Filtrar productos por agotarse">
             <AlertTriangle size={12} />
             Stock bajo{resumen.bajos.length ? ` (${resumen.bajos.length})` : ""}
+          </button>
+
+          <button type="button" onClick={() => { const nuevo = !soloNuevos; setSoloNuevos(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false) } }} aria-pressed={soloNuevos}
+            className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer"
+            style={soloNuevos ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
+            title="Productos dados de alta este mes">
+            Nuevos este mes ({resumen.nuevos})
           </button>
 
           {descontinuados.length > 0 && (
@@ -590,7 +613,7 @@ export default function Inventario({
                   <td colSpan={5} className="py-12 text-center">
                     <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Package size={22} /></div>
                     <p className="mt-2 text-sm font-medium text-slate-500">
-                      {busqueda || filtroCategoria !== "Todas" || soloBajo ? "Ningún producto coincide con el filtro." : "No hay productos en bodega."}
+                      {busqueda || filtroCategoria !== "Todas" || soloBajo || soloNuevos ? "Ningún producto coincide con el filtro." : "No hay productos en bodega."}
                     </p>
                     {productos.length === 0 && (
                       <button type="button" onClick={abrirModal} className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
