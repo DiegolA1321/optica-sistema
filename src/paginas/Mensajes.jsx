@@ -13,7 +13,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 // Modo anteproyecto: "el equipo de Diego Óptica" revela que hay un
 // proveedor atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se
 // muestra un texto neutral que no lo insinúa.
-const NOMBRE_EQUIPO = MODO_SAAS_VISIBLE ? "Diego Óptica" : "la óptica"
+const SOPORTE = MODO_SAAS_VISIBLE ? "el soporte de Diego Óptica" : "el soporte del sistema"
 
 const formatearFecha = (fecha) => fechaLegible(fecha)
 const formatearFechaHora = (fecha) =>
@@ -103,8 +103,8 @@ export default function Mensajes({ usuario }) {
           <MessageSquare size={22} />
         </div>
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mensajes</h1>
-          <p className="text-sm text-slate-500">Escribe al equipo de {NOMBRE_EQUIPO} y mira los avisos generales.</p>
+          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Soporte</h1>
+          <p className="text-sm text-slate-500">Escribe a {SOPORTE} y lee los avisos del sistema.</p>
         </div>
       </div>
 
@@ -115,7 +115,8 @@ export default function Mensajes({ usuario }) {
         </div>
       )}
 
-      {/* ─── Panel de control: tarjetas filtran la lista de abajo, mismo lenguaje visual que CRM.jsx ─── */}
+      {/* ─── Panel de control: tarjetas filtran la lista de abajo, solo cuando ya hay mensajes: sin ninguno serían dos números en cero ─── */}
+      {mensajes.length > 0 && (
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar tus mensajes</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -148,9 +149,9 @@ export default function Mensajes({ usuario }) {
             }}
           >
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avisos</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avisos del sistema</p>
               <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{totalAvisos}</p>
-              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">de {NOMBRE_EQUIPO}</p>
+              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">para tu óptica</p>
             </div>
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#FFF7E6", color: "#B45309" }}>
               <Megaphone size={22} />
@@ -158,6 +159,7 @@ export default function Mensajes({ usuario }) {
           </button>
         </div>
       </div>
+      )}
 
       {/* ─── Suscripción — solo ocupa espacio si hay algo que atender.
           Oculta mientras MODO_SAAS_VISIBLE esté apagado (ver src/lib/config.js). ─── */}
@@ -223,7 +225,7 @@ export default function Mensajes({ usuario }) {
           <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><MessageSquare size={18} /></span>
           <div>
             <h4 className="text-sm font-bold" style={{ color: INK }}>Escribir una consulta</h4>
-            <p className="text-[11px] text-slate-500">Le llega directo al equipo de {NOMBRE_EQUIPO}</p>
+            <p className="text-[11px] text-slate-500">Le llega directo a {SOPORTE}</p>
           </div>
         </div>
         <form onSubmit={enviarConsulta} className="space-y-3 p-4">
@@ -258,7 +260,7 @@ export default function Mensajes({ usuario }) {
       {/* ─── Historial ─── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
-          <h4 className="text-sm font-bold" style={{ color: INK }}>{filtro === "consulta" ? "Tus consultas" : filtro === "anuncio" ? "Avisos" : "Tus mensajes"}</h4>
+          <h4 className="text-sm font-bold" style={{ color: INK }}>{filtro === "consulta" ? "Tus consultas" : filtro === "anuncio" ? "Avisos del sistema" : "Tus mensajes"}</h4>
           {!cargando && <span className="text-xs font-semibold text-slate-500">{mensajesFiltrados.length} {mensajesFiltrados.length === 1 ? "mensaje" : "mensajes"}</span>}
         </div>
         {cargando ? (

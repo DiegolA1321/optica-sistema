@@ -262,10 +262,10 @@ test('Roles: crear, editar y eliminar un rol (roles: insert, update y delete)', 
   }
 })
 
-test('Mensajes: el administrador envía una consulta al equipo (mensajes: insert)', async ({ page }) => {
+test('Soporte: el administrador envía una consulta al soporte (mensajes: insert)', async ({ page }) => {
   const asunto = `${PREFIJO}consulta de prueba ${sufijo()}`
   await iniciarSesion(page, 'ADMIN', 'E2E')
-  await irA(page, 'Mensajes')
+  await irA(page, 'Soporte')
   await page.getByPlaceholder(/Asunto/).fill(asunto)
   await page.getByPlaceholder('Cuéntanos qué necesitas…').fill(`${PREFIJO}mensaje de prueba, no requiere respuesta`)
   await conEscritura(page, 'mensajes', 'enviar consulta', () => page.locator('form').filter({ has: page.getByPlaceholder(/Asunto/) }).locator('button[type=submit]').click())

@@ -11,7 +11,7 @@
 import { supabase } from "../lib/supabaseClient"
 import { formatoFecha } from "./formatoFecha"
 
-export const NOMBRE_MODULO = { pacientes: "Pacientes", consultas: "Ficha clínica", citas: "Citas médicas", crm: "CRM y fidelización", inventario: "Inventario", ventas: "Ventas", reportes: "Reportes", horario: "Horario", mensajes: "Mensajes", configuracion: "Configuración", usuarios: "Usuarios y permisos" }
+export const NOMBRE_MODULO = { pacientes: "Pacientes", consultas: "Ficha clínica", citas: "Citas médicas", crm: "CRM y fidelización", inventario: "Inventario", ventas: "Ventas", reportes: "Reportes", horario: "Horario", mensajes: "Soporte", configuracion: "Configuración", usuarios: "Usuarios y permisos" }
 
 // El detalle de una línea de actividad, solo si lo entiende quien administra la óptica: un nombre, una fecha, un valor. Las notas técnicas
 // (pruebas, scripts, migraciones, ids) no se muestran (regla 40).

@@ -322,7 +322,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             const permisos = permisosDeRoles(susRoles)
             const menu = menuDePermisos(permisos)
             const resumen = resumenPermisos(permisos) // los mismos módulos con su nivel, como en las tarjetas de los roles
-            const administracion = menu.some((m) => m === "Mensajes" || m === "Configuración")
+            const administracion = menu.some((m) => m === "Soporte" || m === "Configuración")
             return (
               <li key={a.id} className={"flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm " + (a.activo === false ? "border-slate-200 opacity-80" : "border-slate-200/60")}>
                 <div>
@@ -351,7 +351,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                     {a.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
                   </div>
                   {a.activo === false && a.motivoDesactivacion && <p className="mt-2 text-xs text-slate-500">Motivo: {a.motivoDesactivacion}</p>}
-                  {administracion && <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Tiene administración delegada (Mensajes y/o Configuración)</p>}
+                  {administracion && <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Tiene administración delegada (Soporte y/o Configuración)</p>}
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {resumen.length === 0 ? <span className="text-xs text-slate-400">Solo ve el Inicio</span> : resumen.map((r) => <span key={r.modulo} className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600" title={r.texto}>{r.modulo} <span className="font-normal text-slate-400">· {r.texto}</span></span>)}
                   </div>

@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 import { iniciarSesion } from './ayudas.js'
 
 const TODOS = ['Inicio', 'Citas médicas', 'Pacientes', 'Ventas', 'Inventario', 'CRM y fidelización', 'Mi horario', 'Reportes']
-const SOLO_ADMIN = ['Usuarios y permisos', 'Configuración', 'Mensajes']
+const SOLO_ADMIN = ['Usuarios y permisos', 'Configuración', 'Soporte']
 
 const modulo = (page, nombre) => page.getByRole('button', { name: nombre, exact: true })
 const abrir = async (page, nombre) => { await modulo(page, nombre).first().click(); await page.waitForTimeout(1800) }

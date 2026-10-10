@@ -21,7 +21,7 @@ export const MODULOS_PERMISO = [
   { id: "reportes", nombre: "Reportes", grupo: "Gestión y operación", niveles: ["ver"], ayuda: "El alcance decide si ve todo o solo lo suyo." },
   { id: "horario", nombre: "Mi horario", grupo: "Gestión y operación", niveles: ["ver"], ayuda: "Ve su agenda y edita su propio horario y sus ausencias." },
   { id: "horario_optica", nombre: "Horario de la óptica", grupo: "Gestión y operación", niveles: ["ver", "editar"], sensible: true, ayuda: "Ver: el horario general en lectura · Editar: cambiarlo, cerrar o abrir días y la duración de las citas. El administrador siempre puede." },
-  { id: "mensajes", nombre: "Mensajes", grupo: "Administración", niveles: ["ver", "crear"], sensible: true, ayuda: "Mensajes con soporte." },
+  { id: "mensajes", nombre: "Soporte", grupo: "Administración", niveles: ["ver", "crear"], sensible: true, ayuda: "Consultas al soporte del sistema y avisos del sistema." },
   { id: "configuracion", nombre: "Configuración", grupo: "Administración", niveles: ["ver", "editar"], sensible: true, ayuda: "Datos de la óptica y parámetros." },
 ]
 export const GRUPOS_MODULOS = [...new Set(MODULOS_PERMISO.map((m) => m.grupo))]
@@ -87,5 +87,5 @@ export function resumenPermisos(permisos) {
 }
 
 // Módulos que aparecen en el menú para este conjunto de permisos (en el orden del menú).
-export const NOMBRES_MENU = { citas: "Citas médicas", pacientes: "Pacientes", ventas: "Ventas", inventario: "Inventario", crm: "CRM y fidelización", horario: "Mi horario", reportes: "Reportes", mensajes: "Mensajes", configuracion: "Configuración" }
+export const NOMBRES_MENU = { citas: "Citas médicas", pacientes: "Pacientes", ventas: "Ventas", inventario: "Inventario", crm: "CRM y fidelización", horario: "Mi horario", reportes: "Reportes", mensajes: "Soporte", configuracion: "Configuración" }
 export const menuDePermisos = (permisos) => ["citas", "pacientes", "ventas", "inventario", "crm", "horario", "reportes", "mensajes", "configuracion"].filter((m) => puedeNivel(permisos, m, "ver")).map((m) => NOMBRES_MENU[m])

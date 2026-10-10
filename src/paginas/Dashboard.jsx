@@ -102,7 +102,7 @@ const OPCIONES = [
   // opticas.settings no distinguen rol en RLS, solo optica_id), así que esto
   // es una decisión de producto que el admin controla, no una restricción
   // técnica nueva.
-  { id: "mensajes", nombre: "Mensajes", icono: MessageSquare, soloAdmin: true, delegable: true },
+  { id: "mensajes", nombre: "Soporte", icono: MessageSquare, soloAdmin: true, delegable: true },
   // soloAdmin sin delegable: Usuarios y permisos sí requiere rol='admin' a
   // nivel de RLS (perfiles_admin_gestiona_asistentes) — delegarlo de verdad
   // necesitaría una policy nueva, no solo un permiso de interfaz, así que se
