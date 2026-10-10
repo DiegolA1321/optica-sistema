@@ -141,7 +141,7 @@ test.describe('Inicio del administrador', () => {
     await entrar(page, 'ADMIN')
     const atajos = page.getByRole("group", { name: "Atajos" })
     await expect(atajos).toBeVisible({ timeout: 20_000 })
-    for (const [boton, dialogo] of [["Registrar paciente", "Crear paciente"], ["Agendar cita", "Gestionar cita"], ["Añadir producto", "Ingresar montura o accesorio"]]) {
+    for (const [boton, dialogo] of [["Registrar paciente", "Crear paciente"], ["Agendar cita", "Gestionar cita"], ["Agregar producto", "Agregar producto"]]) {
       await atajos.getByRole("button", { name: boton }).click()
       await expect(page.getByRole("heading", { name: dialogo })).toBeVisible({ timeout: 10_000 })
       // Sigue en Inicio: los totales y los atajos siguen en la página

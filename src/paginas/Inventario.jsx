@@ -183,7 +183,7 @@ export default function Inventario({
       // que reactive en vez de crear uno nuevo.
       errs.nombre = duplicado.activo === false
         ? `"${duplicado.nombre}" ya existe pero está descontinuado. Actívalo desde "Ver descontinuados" en vez de crear uno nuevo.`
-        : `Ya existe "${duplicado.nombre}" en bodega (${duplicado.stock} u.). Usa el botón de editar de esa fila para sumar stock, en vez de crear un producto duplicado.`
+        : `Ya existe "${duplicado.nombre}" en el inventario (${duplicado.stock} u.). Usa el botón de editar de esa fila para sumar stock, en vez de crear un producto duplicado.`
     }
     setErroresForm(errs)
     if (Object.keys(errs).length > 0) return
@@ -364,7 +364,7 @@ export default function Inventario({
     if (edPrecio === "" || isNaN(precioNum) || precioNum < 0) errs.precio = "Ingresa un precio válido."
     const duplicado = productos.find((p) => p.id !== editando.id && p.nombre.trim().toLowerCase() === edNombre.trim().toLowerCase())
     if (!errs.nombre && duplicado) {
-      errs.nombre = `Ya existe "${duplicado.nombre}" en bodega. Usa un nombre distinto.`
+      errs.nombre = `Ya existe "${duplicado.nombre}" en el inventario. Usa un nombre distinto.`
     }
     setErroresEdicion(errs)
     if (Object.keys(errs).length > 0) return
@@ -456,7 +456,7 @@ export default function Inventario({
             <Package size={24} />
           </div>
           <div className="min-w-0">
-            <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Monturas y accesorios</h1>
+            <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Inventario</h1>
             <p className="text-sm text-slate-500">Existencias de armazones y accesorios. Las lunas se escriben en la venta.</p>
           </div>
         </div>
@@ -486,7 +486,7 @@ export default function Inventario({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ResumenCard icon={Package} valor={resumen.total} label="Productos" tile={GRAD} tileText="#fff" />
         <ResumenCard icon={Boxes} valor={resumen.unidades} label="Unidades en stock" tile="#f1f5f9" tileText="#475569" />
-        <ResumenCard icon={DollarSign} valor={`${dinero(resumen.valor)}`} label="Valor de bodega" tile="#ecfdf5" tileText="#059669" />
+        <ResumenCard icon={DollarSign} valor={`${dinero(resumen.valor)}`} label="Valor del inventario" tile="#ecfdf5" tileText="#059669" />
         {/* La tarjeta ES el filtro del stock bajo (R54: el stock bajo se dice una sola vez; el aviso amarillo y la píldora aparte se quitaron). */}
         <ResumenCard icon={AlertTriangle} valor={resumen.bajos.length} label="Stock bajo" tile="#fffbeb" tileText="#d97706" activo={soloBajo} ayuda="Filtra la lista a los productos por agotarse" onClick={() => { const nuevo = !soloBajo; setSoloBajo(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloNuevos(false) } }} />
       </div>
@@ -510,9 +510,9 @@ export default function Inventario({
               onClick={alternarCompacto}
               title={compacto ? "Vista normal" : "Vista compacta"}
               aria-pressed={compacto}
-              className={"shrink-0 rounded-xl border p-2 text-xs font-semibold transition cursor-pointer " + (compacto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 text-slate-500 hover:bg-slate-50")}
+              className={"flex shrink-0 items-center rounded-xl border px-2.5 py-2 text-xs font-semibold transition cursor-pointer " + (compacto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 text-slate-500 hover:bg-slate-50")}
             >
-              <Boxes size={16} />
+              <Boxes size={16} aria-hidden="true" /> <span className="ml-1.5 hidden sm:inline">{compacto ? "Vista normal" : "Vista compacta"}</span>
             </button>
           </div>
         </div>
@@ -533,12 +533,15 @@ export default function Inventario({
 
           <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
 
+          {/* Sin un solo producto este filtro no aporta nada: aparece cuando hay con qué filtrar (regla 25). */}
+          {resumen.total > 0 && (
           <button type="button" onClick={() => { const nuevo = !soloNuevos; setSoloNuevos(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false) } }} aria-pressed={soloNuevos}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer"
             style={soloNuevos ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
             title="Productos dados de alta este mes">
             Nuevos este mes ({resumen.nuevos})
           </button>
+          )}
 
           {descontinuados.length > 0 && (
             <button type="button" onClick={() => setVerDescontinuados((v) => !v)}
@@ -590,7 +593,7 @@ export default function Inventario({
                   <td colSpan={5} className="py-12 text-center">
                     <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Package size={22} /></div>
                     <p className="mt-2 text-sm font-medium text-slate-500">
-                      {busqueda || filtroCategoria !== "Todas" || soloBajo || soloNuevos ? "Ningún producto coincide con el filtro." : "No hay productos en bodega."}
+                      {busqueda || filtroCategoria !== "Todas" || soloBajo || soloNuevos ? "Ningún producto coincide con el filtro." : "No hay productos en el inventario."}
                     </p>
                     {productos.length === 0 && (
                       <button type="button" onClick={abrirModal} className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
@@ -698,7 +701,7 @@ export default function Inventario({
                   <Plus size={20} />
                 </div>
                 <div>
-                  <h2 id="inventario-modal-agregar-titulo" className="text-lg font-bold" style={{ color: INK }}>Ingresar montura o accesorio</h2>
+                  <h2 id="inventario-modal-agregar-titulo" className="text-lg font-bold" style={{ color: INK }}>Agregar producto</h2>
                   <p className="text-xs text-slate-500">Descríbela de forma genérica. Las lunas no van en el inventario: se escriben al vender.</p>
                 </div>
               </div>
@@ -734,7 +737,7 @@ export default function Inventario({
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — si lo dejas vacío usa el general: {umbralStock})</span></label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
                   <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(umbralStock)}
                     className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>
@@ -755,7 +758,7 @@ export default function Inventario({
                 </button>
                 <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
                   style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  Guardar en bodega
+                  Guardar producto
                 </button>
               </div>
             </form>
@@ -821,7 +824,7 @@ export default function Inventario({
                   {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional — si lo dejas vacío usa el general: {umbralStock})</span></label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
                   <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(umbralStock)}
                     className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
                 </div>

@@ -204,7 +204,7 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
         <Seccion titulo="Indicaciones y lente recomendado">
           {consulta.indicaciones && <p className="flex items-start gap-2 text-sm text-slate-700"><ClipboardList size={15} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />{consulta.indicaciones}</p>}
           {consulta.lenteRecomendado && <p className="mt-1.5 flex items-start gap-2 text-sm text-slate-700"><Eye size={15} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />Lente recomendado: <span className="font-semibold">{consulta.lenteRecomendado}</span></p>}
-          {consulta.productoNombre && <p className="mt-1.5 text-xs text-blue-700">Vinculado a bodega: <span className="font-semibold">{consulta.productoNombre}</span></p>}
+          {consulta.productoNombre && <p className="mt-1.5 text-xs text-blue-700">Vinculado al inventario: <span className="font-semibold">{consulta.productoNombre}</span></p>}
         </Seccion>
       )}
       {hayExamen && (

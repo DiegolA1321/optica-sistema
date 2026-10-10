@@ -417,12 +417,12 @@ describe("Inicio del optómetra", () => {
     const ventana = screen.getByRole("dialog", { name: /^Pacientes · / })
     expect(within(ventana).queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument() // sin permiso de CRM para escribir: solo ve al paciente
     expect(within(ventana).getByRole("button", { name: "Ver paciente" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /Añadir producto/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Agregar producto/ })).not.toBeInTheDocument()
     unmount()
     render(<Inicio {...props} {...rol("optometra", { citas: ["ver"], inventario: ["ver", "crear", "editar"], crm: ["ver", "crear"], pacientes: ["ver"] })} />)
     fireEvent.click(within(area("Pacientes")).getByRole("button", { name: /de tus pacientes con el control vencido/ }))
     expect(within(screen.getByRole("dialog", { name: /^Pacientes · / })).getByRole("button", { name: "Ver en CRM" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Añadir producto/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Agregar producto/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
 

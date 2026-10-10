@@ -188,7 +188,7 @@ export default function ComprobanteVentaModal({
     if (!productoSeleccionado) return
     const cant = parseInt(cantidadProducto, 10) || 0
     if (cant <= 0) { setError("Ingresa una cantidad válida."); return }
-    if (cant > (Number(productoSeleccionado.stock) || 0)) { setError(`Solo hay ${productoSeleccionado.stock} u. disponibles en bodega.`); return }
+    if (cant > (Number(productoSeleccionado.stock) || 0)) { setError(`Solo hay ${productoSeleccionado.stock} u. disponibles en el inventario.`); return }
     setLineas((prev) => [...prev, {
       tipo: "producto",
       productoId: productoSeleccionado.id,
@@ -254,7 +254,7 @@ export default function ComprobanteVentaModal({
     if (npPrecio === "" || isNaN(precioNum) || precioNum < 0) errs.precio = "Ingresa un precio válido."
     const duplicado = inventario.find((p) => p.nombre.trim().toLowerCase() === npNombre.trim().toLowerCase())
     if (!errs.nombre && duplicado) {
-      errs.nombre = `Ya existe "${duplicado.nombre}" en bodega (${duplicado.stock} u.). Búscalo arriba en vez de crearlo de nuevo.`
+      errs.nombre = `Ya existe "${duplicado.nombre}" en el inventario (${duplicado.stock} u.). Búscalo arriba en vez de crearlo de nuevo.`
     }
     setErroresNp(errs)
     if (Object.keys(errs).length > 0) return

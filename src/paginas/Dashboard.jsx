@@ -237,7 +237,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Destino pedido al módulo de Ventas: { tab: "cola" | "ventas" | "ordenes" | "saldos", filtro?, texto? }
   const [accionVentasInicio, setAccionVentasInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
-  // Atajos de Inicio (Registrar paciente, Agendar cita, Añadir producto): el formulario se abre encima del Inicio.
+  // Atajos de Inicio (Registrar paciente, Agendar cita, Agregar producto): el formulario se abre encima del Inicio.
   const [atajoInicio, setAtajoInicio] = useState(null)
   // Control a agendar desde el aviso de Inicio: { pacienteId, fecha, asignadoA } (fecha recomendada y quien atendió la consulta).
   const [controlParaAgendar, setControlParaAgendar] = useState(null)
