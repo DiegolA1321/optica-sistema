@@ -1307,7 +1307,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                   <ChevronDown size={15} className={"shrink-0 text-slate-500 transition-transform " + (diasColapsados.has(dia) ? "-rotate-90" : "")} />
                   <h4 className="text-sm font-bold" style={{ color: INK }}>{t.etiqueta}</h4>
                   {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
-                  <span className="text-xs text-slate-500">· {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}</span>
+                  {!unSoloDia && <span className="text-xs text-slate-500">· {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}</span>}
                 </button>
 
                 {!diasColapsados.has(dia) && (
@@ -1351,6 +1351,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     return { grupos: salida, n }
   }
   const cuantas = (gs) => gs.reduce((n, [, cs]) => n + cs.length, 0)
+  // Con un solo día en la lista, el número del grupo repetiría el conteo de arriba ("1 cita hoy"): solo se muestra cuando hay varios días.
+  const unSoloDia = grupos.length === 1 && totalAnteriores === 0
   const recorteListado = recortarGrupos(grupos, limiteLista)
   const recorteAnteriores = recortarGrupos(anterioresVisibles ? gruposAnteriores : [], limiteLista - recorteListado.n)
   const faltanListado = cuantas(grupos) - recorteListado.n
