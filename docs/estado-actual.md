@@ -4,6 +4,16 @@ Para retomar en una sesión nueva sin leer la conversación anterior.
 
 ## Estado: Citas, el Inicio de todos los roles y el perfil del paciente están cerrados y publicados
 
+**Publicado el 9 oct 2026 (último commit `33cc737` de `main`; el CI "build-and-test" y el despliegue de Vercel de producción terminaron con éxito, confirmados con la API de GitHub).** Incluye:
+
+- **Perfil del paciente:** botón Datos (ventana con Editar), Historia clínica, Ver atención con receta imprimible, Resumen con cuadros que se despliegan (Fidelización primero), buscador y filtros del historial siempre visibles, calendario flotante, Enviar a laboratorio, Referido por con buscador, correo (Gmail) además de WhatsApp, y el estado en la URL (recargar deja el perfil y la pestaña; "atrás" vuelve a la lista).
+- **Portal del paciente:** "Mis datos" (teléfono y correo editables; nombre, cédula y nacimiento solo los cambia la óptica) y Reagendar/Cancelar de nuevo visibles (`minutosHastaCita`).
+- **Superadmin:** entrar y salir de una óptica como administrador queda en Actividad.
+- **Migraciones aplicadas:** `0104` (editar un paciente actualiza sus citas y consultas; `actualizar_contacto_paciente` para el portal), `0105` (auditoría admite entrar/salir de una óptica) y `0106` (política y anticipación mínima para cambiar o cancelar citas desde el portal, validadas en el servidor con la hora de Ecuador; también impide reagendar una cita ya atendida o cancelada). Backups en `C:Usersdiegoackups-optica` (`pre-propagar-datos-paciente-…`, `pre-0105-0106-…`). Ensayos: `scripts/ensayo-0104.mjs`, `ensayo-0105.mjs`, `ensayo-0106.mjs`.
+- **Pruebas:** Vitest 474 de 474; Playwright (versión compilada, `--workers=1`) 81 pasadas y 1 omitida. Las pruebas del perfil, del buscador de Pacientes y de Inicio se actualizaron a las pantallas nuevas manteniendo lo que comprueban; las de Inicio crean sus propios avisos del área Citas. El CI de ese día falló una vez por una prueba que dependía de la hora (entre las 19:00 y las 24:00 de Ecuador); se corrigió y `scripts/probar-zonas-y-horas.mjs` corre todas las pruebas unitarias en UTC y en Ecuador a seis horas distintas (todas pasan).
+
+**Pendiente (no publicado todavía):** la implementación de `docs/revision-ventas.md` y de `docs/revision-portal-y-superadmin.md` (con las decisiones de Diego del 9 oct), en ese orden. Del portal quedan P2 a P13 y W1 a W9, y del superadmin S1 a S3 y S5 a S11.
+
 **9 oct 2026:** el Inicio de los cuatro roles (administrador, optómetra, Recepción y Ventas, más el rol general) y el perfil del paciente quedaron terminados según la reunión del 7 de octubre y **publicados** (último commit `0253680` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito). Detalle en "Inicio y perfil del paciente" más abajo. Verificación previa: Vitest 466 de 466 y Playwright con `--workers=2`: 80 pasaron, 1 omitida (`crear-cuentas`, que ya se omitía), 0 fallos.
 
 **Ventas (9 oct 2026):** la revisión del módulo contra `docs/principios-diseno.md` está en `docs/revision-ventas.md`, pendiente de implementar; falta verla en pantalla con cada rol.
