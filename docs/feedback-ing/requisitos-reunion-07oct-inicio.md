@@ -30,6 +30,7 @@ Fuente: transcripciones "Administrador_inicio" y "Optometra_Inicio" de la reuni�
 
 - I11. Es la misma línea de información que las citas de hoy: va junto a ellas, debajo de "Requiere tu atención".
 - I12. El selector de periodo debe ser "Este día · Esta semana · Este mes · Todas", con "Este día" por defecto (hoy solo tiene "Este mes / Todas").
+  - Decisión de Diego (10 oct.): el selector se queda como "Hoy", no "Este día": Citas ya usa "Hoy" para lo mismo y un concepto se llama igual en todo el sistema (regla 2 de `docs/principios-diseno.md`).
 - I13. Tarjetas: atendidas (con "N en atención ahora" como dato complementario), no atendidas y canceladas. Así "en atención ahora" deja de ser una fila aparte.
 
 ### Las citas del día
@@ -49,6 +50,7 @@ Fuente: transcripciones "Administrador_inicio" y "Optometra_Inicio" de la reuni�
 - I16. Es similar al del administrador, pero sin Totales.
 - I17. "Registrar paciente" y "Agendar cita" también son acciones del optómetra: deben estar, como atajos. Que sean pequeños está bien, porque no son lo principal: "la parte principal de esto es todo lo que está acá" (su atención y su agenda).
 - I18. "Faltaría darle al optómetra las opciones que le corresponden": atender, retomar, el registro de atención y su agenda de hoy.
+  - Aclaración de Diego (10 oct.): "el registro de atención" es "requiere tu atención" mal transcrito; ya está cubierto por las tarjetas de avisos del optómetra.
 
 ## Contradicciones con lo ya construido (decidir antes de implementar)
 

@@ -16,6 +16,7 @@ Lo que está bajo el mouse debe seguir ahí. Quien navega no debe volver a busca
 ### 2. Un mismo concepto da el mismo número y se llama igual en todo el sistema
 Si dos pantallas hablan de lo mismo, usan la misma palabra y el mismo cálculo (una sola función).
 - **Citas:** "Responsable" pasó a "Profesional" en todo el sistema, y es una sola persona por cita: quien atendió o, si no, la asignada (`4a6e4b5`, C11). "En espera" es un estado propio en Citas, en Inicio y en el gráfico de Reportes (`12c9d8b`, `bbeec5a`). "Para reagendar" usa un solo criterio compartido entre Inicio y Citas (`73fcb3a`). Una vista de "Pacientes" no puede decir "Atendida" donde Citas dice "Atendida" con otra regla.
+- **"Hoy" y no "Este día":** el selector de período del Inicio dice "Hoy · Esta semana · Este mes · Todas" porque Citas ya usa "Hoy" para lo mismo; el ingeniero escribió "Este día" (I12) y Diego decidió mantener "Hoy" por coherencia (10 oct. 2026).
 - **Cómo aplicarlo:** antes de escribir un número nuevo, busca si ya existe una función que lo calcula; si existe, úsala. Un nombre que no coincide con lo que hay detrás se cambia (el ing renombró "Pagos" a "Productos y servicios" por eso).
 
 ### 3. No repetir información en la misma pantalla
