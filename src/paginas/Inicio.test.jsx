@@ -221,6 +221,25 @@ describe("Desenlace del administrador", () => {
     expect(within(region).getByRole("button", { name: /^Canceladas: 1\. Aparte/ })).toBeInTheDocument()
   })
 
+  it("sin un filtro activo ninguna tarjeta del desenlace está seleccionada; al tocar una queda seleccionada solo esa", () => {
+    render(<Inicio {...base} />)
+    const region = screen.getByRole("region", { name: "Desenlace de las citas · hoy" })
+    const tarjetas = within(region).getAllByRole("button", { name: /^(Atendidas|No asistieron|Pendientes|Canceladas):/ })
+    expect(tarjetas).toHaveLength(4)
+    for (const t of tarjetas) {
+      expect(t).toHaveAttribute("aria-pressed", "false")
+      expect(t.parentElement.className).not.toMatch(/ring-1|border-blue-500/)
+    }
+    expect(screen.getByRole("region", { name: "Citas del día" })).not.toHaveTextContent(/Citas del día · /) // sin filtro, el título no nombra ninguno
+    fireEvent.click(within(region).getByRole("button", { name: /^No asistieron:/ }))
+    const despues = within(region).getAllByRole("button", { name: /^(Atendidas|No asistieron|Pendientes|Canceladas):/ })
+    expect(despues.filter((t) => t.getAttribute("aria-pressed") === "true")).toHaveLength(1)
+    expect(within(region).getByRole("button", { name: /^No asistieron:/ })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("region", { name: "Citas del día" })).toHaveTextContent("Citas del día · No asistieron")
+    fireEvent.click(within(region).getByRole("button", { name: /^No asistieron:/ })) // tocarla otra vez quita el filtro
+    for (const t of within(region).getAllByRole("button", { name: /^(Atendidas|No asistieron|Pendientes|Canceladas):/ })) expect(t).toHaveAttribute("aria-pressed", "false")
+  })
+
   it("cambia de período con el selector y lo dice en el título", () => {
     render(<Inicio {...base} />)
     fireEvent.click(screen.getByRole("button", { name: "Todas" }))
