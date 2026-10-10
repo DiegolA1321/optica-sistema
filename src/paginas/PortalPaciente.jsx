@@ -37,6 +37,7 @@ import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
+import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
@@ -103,13 +104,17 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   }
 
   const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
+  // Una cita se puede cambiar o cancelar si la óptica lo permite, sigue pendiente y faltan al menos N horas (hora de Ecuador).
   const puedeReagendar = (cita) => {
     if (!parametrizacion?.permitirReagendarPaciente) return false
     if (cita.estado !== "Pendiente") return false
-    const fechaHora = new Date(`${cita.fecha}T${(cita.hora || "00:00").padStart(5, "0")}:00`)
-    if (isNaN(fechaHora.getTime())) return false
-    const horasRestantes = (fechaHora.getTime() - ahoraEcuador().getTime()) / 3600000
-    return horasRestantes >= horasAntesPermitidas
+    return minutosHastaCita(cita) >= horasAntesPermitidas * 60
+  }
+  // Si la política lo permite pero ya no hay tiempo, se dice por qué en vez de esconder los botones sin explicación.
+  const textoNoReagendable = (cita) => {
+    if (!parametrizacion?.permitirReagendarPaciente || cita.estado !== "Pendiente") return null
+    if (minutosHastaCita(cita) >= horasAntesPermitidas * 60) return null
+    return `Faltan menos de ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"}: para cambiarla, comunícate con la óptica.`
   }
   const abrirReagendar = (cita) => {
     setReagendando(cita)
@@ -589,7 +594,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <p className="py-6 text-center text-sm text-slate-500">No tienes citas pendientes.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}
+                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} avisoNoReagendable={textoNoReagendable} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}
                     </div>
                   )}
                 </div>
@@ -628,7 +633,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <button onClick={() => setModalAgendar(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline cursor-pointer">Agendar ahora <ChevronRight size={15} /></button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}</div>
+                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} avisoNoReagendable={textoNoReagendable} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}</div>
                 )}
               </div>
 
@@ -1015,13 +1020,14 @@ function TarjetaResumen({ label, valor, sub, icon: Icon, tile, tileText }) {
   )
 }
 
-function FilaCita({ cita, puedeReagendar, onReagendar, onCancelar }) {
+function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar, onCancelar }) {
   const atendida = cita.estado === "Atendida"
   const noAsistio = cita.estado === "No Asistió"
   const cancelada = cita.estado === "Cancelada"
   const enAtencion = cita.estado === "En Atención"
   const resuelta = atendida || noAsistio || cancelada
   const reagendable = puedeReagendar?.(cita)
+  const avisoTiempo = !reagendable ? avisoNoReagendable?.(cita) : null
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 py-3.5">
       <div className="flex items-center gap-3.5">
@@ -1032,6 +1038,7 @@ function FilaCita({ cita, puedeReagendar, onReagendar, onCancelar }) {
             <span className="flex items-center gap-1"><Calendar size={13} className="text-slate-500" /> {etiquetaFecha(cita.fecha)}</span>
             <span className="flex items-center gap-1"><Clock size={13} className="text-slate-500" /> {cita.hora}</span>
           </div>
+          {avisoTiempo && <p className="text-[11px] font-normal text-slate-500">{avisoTiempo}</p>}
         </div>
       </div>
       <div className="flex items-center gap-2">

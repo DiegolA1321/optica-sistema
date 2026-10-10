@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { particionarAgenda, agruparPorDia, desplazarRango, yaPasoLaHora } from "./agendaCitas"
+import { particionarAgenda, agruparPorDia, desplazarRango, yaPasoLaHora, minutosHastaCita } from "./agendaCitas"
 
 const c = (id, fecha, hora) => ({ id, fecha, hora })
 
@@ -32,6 +32,22 @@ describe("desplazarRango", () => {
   })
   it("mueve un rango existente de a una semana", () => {
     expect(desplazarRango("2026-10-07", "2026-10-13", -1, "2026-09-30")).toEqual({ desde: "2026-09-30", hasta: "2026-10-06" })
+  })
+})
+
+describe("minutosHastaCita", () => {
+  const ahora = new Date(2026, 8, 30, 14, 0) // 30 sep 2026, 2:00 PM
+  it("entiende la hora en 12 h (AM y PM)", () => {
+    expect(minutosHastaCita(c(1, "2026-09-30", "05:00 PM"), ahora)).toBe(180)
+    expect(minutosHastaCita(c(1, "2026-10-01", "09:40 AM"), ahora)).toBe(24 * 60 - 14 * 60 + 9 * 60 + 40)
+    expect(minutosHastaCita(c(1, "2026-10-01", "12:00 AM"), ahora)).toBe(600)
+    expect(minutosHastaCita(c(1, "2026-09-30", "12:30 PM"), ahora)).toBe(-90)
+  })
+  it("es negativo si la cita ya pasó, también de otro día", () => {
+    expect(minutosHastaCita(c(1, "2026-09-29", "02:00 PM"), ahora)).toBe(-1440)
+  })
+  it("cruza de mes y de año", () => {
+    expect(minutosHastaCita(c(1, "2027-01-01", "02:00 PM"), new Date(2026, 11, 31, 14, 0))).toBe(1440)
   })
 })
 

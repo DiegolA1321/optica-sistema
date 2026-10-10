@@ -46,6 +46,13 @@ export function desplazarRango(desde, hasta, sentido, hoy) {
   return { desde: sumarDias(d, salto), hasta: sumarDias(h, salto) }
 }
 
+// Minutos que faltan para la hora agendada de la cita (negativo si ya pasó). La hora de la cita viene en 12 h ("09:40 AM") y "ahora"
+// es la hora de Ecuador: no se arma una fecha con texto, se comparan días y minutos con las mismas funciones del resto del sistema.
+export function minutosHastaCita(cita, ahora = ahoraEcuador()) {
+  const dias = Math.round((isoAFechaLocal(cita.fecha) - isoAFechaLocal(fechaAISO(ahora))) / 86400000)
+  return dias * 1440 + minutosDesdeMedianoche(cita.hora) - (ahora.getHours() * 60 + ahora.getMinutes())
+}
+
 // ¿Ya pasó la hora agendada de la cita? (para ofrecer "No asistió" manual
 // solo mientras la cita sigue pendiente tras su hora)
 export function yaPasoLaHora(cita, ahora = ahoraEcuador()) {
