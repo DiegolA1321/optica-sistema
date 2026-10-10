@@ -1857,7 +1857,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           )}
 
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="px-4 py-6 sm:px-8 sm:py-8">
+            <div className="px-4 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
               <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
