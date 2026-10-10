@@ -63,7 +63,11 @@ export function citasDelPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) 
 export function resumenPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) {
   const delPeriodo = citasDelPeriodo(citas, periodo, ahora)
   const cuenta = (estado) => delPeriodo.filter((c) => c.estado === estado).length
-  return { registradas: delPeriodo.filter(sinCancelar).length, atendidas: cuenta("Atendida"), noAtendidas: cuenta("No Asistió"), canceladas: cuenta("Cancelada"), enAtencion: cuenta("En Atención") }
+  const registradas = delPeriodo.filter(sinCancelar).length
+  const atendidas = cuenta("Atendida"), noAtendidas = cuenta("No Asistió")
+  // "pendientes" es lo que todavía no tiene desenlace (Pendiente, En espera y En atención): atendidas + no asistieron + pendientes = registradas.
+  // Las canceladas no suman: se muestran aparte, como las cuenta Citas.
+  return { registradas, atendidas, noAtendidas, pendientes: registradas - atendidas - noAtendidas, canceladas: cuenta("Cancelada"), enAtencion: cuenta("En Atención") }
 }
 
 // Las citas del período para la lista del Inicio, según la tarjeta del desenlace elegida (atendida | noAsistio | cancelada | null).
@@ -98,6 +102,25 @@ export function agendaHoyOProximas(citas, limite = 5, hoy = hoyISO()) {
     .sort((a, b) => (String(a.fecha) < String(b.fecha) ? -1 : String(a.fecha) > String(b.fecha) ? 1 : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)))
     .slice(0, limite)
   return { modo: "proximas", citas: proximas }
+}
+
+// Nombres para una línea de aviso: como máximo `max`, y el resto como "y N más" ("Ana, Juan y 1 más").
+export function nombresResumidos(nombres, max = 3) {
+  const lista = nombres.filter(Boolean)
+  if (lista.length <= max) return lista.length > 1 ? lista.slice(0, -1).join(", ") + " y " + lista[lista.length - 1] : lista.join("")
+  return lista.slice(0, max).join(", ") + " y " + (lista.length - max) + " más"
+}
+
+// La agenda del optómetra: la de hoy; si hoy no tiene citas por atender ni hechas, la primera jornada futura con citas (todas las de ese día).
+// → { modo: "hoy" | "proxima" | "vacia", fecha, citas }
+export function agendaOptometra(citas, hoy = hoyISO()) {
+  const vigentes = citas.filter((c) => sinCancelar(c) && c.fecha)
+  const deHoy = ordenar(vigentes.filter((c) => String(c.fecha) === hoy))
+  if (deHoy.length > 0) return { modo: "hoy", fecha: hoy, citas: deHoy }
+  const futuras = vigentes.filter((c) => String(c.fecha) > hoy && c.estado !== "Atendida" && c.estado !== "No Asistió")
+  if (futuras.length === 0) return { modo: "vacia", fecha: hoy, citas: [] }
+  const primera = futuras.map((c) => String(c.fecha)).sort()[0]
+  return { modo: "proxima", fecha: primera, citas: ordenar(futuras.filter((c) => String(c.fecha) === primera)) }
 }
 
 // Pacientes que todavía no tuvieron ninguna consulta.

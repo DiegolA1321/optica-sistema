@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, citasDelPeriodo, citasParaLista, creadosEsteMes, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
+import { nombresResumidos, agendaOptometra, plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, citasDelPeriodo, citasParaLista, creadosEsteMes, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
 import { hoyISO, fechaAISO, isoAFechaLocal } from "./disponibilidad"
 
 const hoy = hoyISO()
@@ -57,7 +57,7 @@ describe("resúmenes del día y del mes", () => {
       cita({ fecha: "2026-10-04", estado: "No Asistió" }), cita({ fecha: "2026-10-05", estado: "Cancelada" }),
       cita({ fecha: "2026-09-30", estado: "Atendida" }),
     ], ahora)
-    expect(r).toEqual({ registradas: 3, atendidas: 2, noAtendidas: 1, canceladas: 1, enAtencion: 0 })
+    expect(r).toEqual({ registradas: 3, atendidas: 2, noAtendidas: 1, pendientes: 0, canceladas: 1, enAtencion: 0 })
   })
   it("los pacientes sin atender son los que nunca tuvieron consulta", () => {
     expect(pacientesSinAtender([{ id: "a" }, { id: "b" }], [{ pacienteId: "a" }]).map((p) => p.id)).toEqual(["b"])
@@ -85,8 +85,8 @@ describe("desenlace por período", () => {
     cita({ estado: "Atendida", fecha: "2020-01-15" }), cita({ estado: "Cancelada", fecha: "2020-01-16" }),
   ]
   it("'mes' cuenta solo el mes en curso y 'siempre' todo lo registrado", () => {
-    expect(resumenPeriodo(citas, "mes")).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, canceladas: 1, enAtencion: 0 })
-    expect(resumenPeriodo(citas, "siempre")).toEqual({ registradas: 3, atendidas: 2, noAtendidas: 1, canceladas: 2, enAtencion: 0 })
+    expect(resumenPeriodo(citas, "mes")).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, pendientes: 0, canceladas: 1, enAtencion: 0 })
+    expect(resumenPeriodo(citas, "siempre")).toEqual({ registradas: 3, atendidas: 2, noAtendidas: 1, pendientes: 0, canceladas: 2, enAtencion: 0 })
     expect(resumenMes(citas).registradas).toBe(2)
   })
   it("el rango del mes va del primer al último día", () => {
@@ -141,7 +141,7 @@ describe("Períodos del desenlace y lista del Inicio", () => {
     expect(citasDelPeriodo(citas, "semana", ahora).map((c) => c.id)).toEqual(["a", "b", "c", "d"])
     expect(citasDelPeriodo(citas, "mes", ahora)).toHaveLength(5)
     expect(citasDelPeriodo(citas, "siempre", ahora)).toHaveLength(6)
-    expect(resumenPeriodo(citas, "hoy", ahora)).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, canceladas: 0, enAtencion: 0 })
+    expect(resumenPeriodo(citas, "hoy", ahora)).toEqual({ registradas: 2, atendidas: 1, noAtendidas: 1, pendientes: 0, canceladas: 0, enAtencion: 0 })
   })
   it("la lista sigue la tarjeta elegida y, sin tarjeta, deja fuera las canceladas", () => {
     expect(citasParaLista(citas, "semana", null, ahora).map((c) => c.id)).toEqual(["b", "a", "d"])
@@ -152,5 +152,44 @@ describe("Períodos del desenlace y lista del Inicio", () => {
   it("cuenta lo dado de alta este mes y no cuenta lo que no trae fecha", () => {
     const lista = [{ creadoEn: "2026-10-02T10:00:00Z" }, { creadoEn: "2026-09-02T10:00:00Z" }, {}]
     expect(creadosEsteMes(lista, "creadoEn", ahora)).toBe(1)
+  })
+})
+
+describe("desenlace: las partes suman el total", () => {
+  it("atendidas + no asistieron + pendientes = registradas, y las canceladas van aparte", () => {
+    const citas = [cita({ estado: "Atendida" }), cita({ estado: "Atendida" }), cita({ estado: "No Asistió" }), cita({ estado: "Pendiente" }), cita({ estado: "En Espera" }), cita({ estado: "En Atención" }), cita({ estado: "Cancelada" })]
+    const r = resumenPeriodo(citas, "hoy")
+    expect(r).toMatchObject({ registradas: 6, atendidas: 2, noAtendidas: 1, pendientes: 3, canceladas: 1, enAtencion: 1 })
+    expect(r.atendidas + r.noAtendidas + r.pendientes).toBe(r.registradas)
+  })
+})
+
+describe("nombresResumidos", () => {
+  it("nombra hasta tres y resume el resto", () => {
+    expect(nombresResumidos([])).toBe("")
+    expect(nombresResumidos(["Ana"])).toBe("Ana")
+    expect(nombresResumidos(["Ana", "Juan"])).toBe("Ana y Juan")
+    expect(nombresResumidos(["Ana", "Juan", "Eva"])).toBe("Ana, Juan y Eva")
+    expect(nombresResumidos(["Ana", "Juan", "Eva", "Luis"])).toBe("Ana, Juan, Eva y 1 más")
+    expect(nombresResumidos(["A", "B", "C", "D", "E", "F"])).toBe("A, B, C y 3 más")
+  })
+})
+
+describe("agendaOptometra", () => {
+  const dia = (n) => fechaAISO(new Date(isoAFechaLocal(hoy).getTime() + n * 86400000))
+  it("con citas hoy, es la de hoy ordenada por hora", () => {
+    const r = agendaOptometra([cita({ hora: "10:00 AM" }), cita({ hora: "09:00 AM" }), cita({ fecha: dia(1) })])
+    expect(r.modo).toBe("hoy")
+    expect(r.citas.map((c) => c.hora)).toEqual(["09:00 AM", "10:00 AM"])
+  })
+  it("sin citas hoy, muestra la primera jornada futura con citas y solo esa", () => {
+    const r = agendaOptometra([cita({ fecha: dia(3), hora: "11:00 AM" }), cita({ fecha: dia(2), hora: "10:00 AM" }), cita({ fecha: dia(2), hora: "09:00 AM" }), cita({ fecha: dia(2), estado: "Cancelada" })])
+    expect(r.modo).toBe("proxima")
+    expect(r.fecha).toBe(dia(2))
+    expect(r.citas.map((c) => c.hora)).toEqual(["09:00 AM", "10:00 AM"])
+  })
+  it("sin nada por venir, está vacía", () => {
+    expect(agendaOptometra([cita({ fecha: dia(-2), estado: "Atendida" })]).modo).toBe("vacia")
+    expect(agendaOptometra([]).citas).toEqual([])
   })
 })
