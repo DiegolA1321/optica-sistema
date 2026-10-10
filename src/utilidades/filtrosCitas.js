@@ -20,8 +20,8 @@ export const ESTADOS_FILTRO = [
 // siempre, en su lugar: un control no aparece y desaparece según el periodo elegido (regla 1). Con "Todas" no hay flechas: no hay periodo que mover.
 export const periodosFiltro = () => [
   { id: "hoy", etiqueta: "Hoy" },
-  { id: "semana", etiqueta: "Semana" },
-  { id: "mes", etiqueta: "Mes" },
+  { id: "semana", etiqueta: "Esta semana" },
+  { id: "mes", etiqueta: "Este mes" },
   { id: "todas", etiqueta: "Todas" },
 ]
 

@@ -97,10 +97,10 @@ test('Citas: "Todas" está siempre en el selector, en su sitio', async ({ page }
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   const grupo = page.getByRole('group', { name: 'Periodo de las citas' })
   await expect(grupo).toBeVisible({ timeout: 15_000 })
-  for (const periodo of ['Hoy', 'Semana', 'Mes', 'Todas']) {
+  for (const periodo of ['Hoy', 'Esta semana', 'Este mes', 'Todas']) {
     await grupo.getByRole('button', { name: periodo, exact: true }).click()
     await expect(grupo.getByRole('button', { name: periodo, exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(grupo.getByRole('button')).toHaveText(['Hoy', 'Semana', 'Mes', 'Todas']) // siempre las mismas cuatro, en el mismo orden
+    await expect(grupo.getByRole('button')).toHaveText(['Hoy', 'Esta semana', 'Este mes', 'Todas']) // siempre las mismas cuatro, en el mismo orden
   }
 })
 

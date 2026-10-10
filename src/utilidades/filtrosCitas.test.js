@@ -153,7 +153,7 @@ describe("filtros combinados y conteos", () => {
 
 describe("atajos del periodo y búsqueda en todas las fechas", () => {
   it("los periodos son Hoy, Semana, Mes y Todas, siempre los mismos y en el mismo orden", () => {
-    expect(periodosFiltro().map((p) => p.etiqueta)).toEqual(["Hoy", "Semana", "Mes", "Todas"])
+    expect(periodosFiltro().map((p) => p.etiqueta)).toEqual(["Hoy", "Esta semana", "Este mes", "Todas"])
     expect(periodosFiltro().map((p) => p.id)).toEqual(["hoy", "semana", "mes", "todas"]) // las mismas opciones en el mismo orden, sea cual sea el periodo elegido
   })
 

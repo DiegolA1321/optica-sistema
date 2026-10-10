@@ -25,9 +25,9 @@ test('las flechas y el selector no se mueven y los títulos usan el formato úni
 
   await periodo.getByRole('button', { name: 'Hoy' }).click()
   expect(await medir('Lista · Hoy')).toMatch(/^Hoy · \p{L}{3} \d{1,2} \p{L}{3,4} \d{4}$/u)
-  await periodo.getByRole('button', { name: 'Semana' }).click()
+  await periodo.getByRole('button', { name: 'Esta semana' }).click()
   expect(await medir('Lista · Semana')).toMatch(/^\d{1,2} (\d{1,2} )?[a-z]{3,4} (– \d{1,2} [a-z]{3,4} )?\d{4}$|^\d{1,2} – \d{1,2} [a-z]{3,4} \d{4}$|^\d{1,2} [a-z]{3,4} – \d{1,2} [a-z]{3,4} \d{4}$|^\d{1,2} [a-z]{3,4} \d{4} – \d{1,2} [a-z]{3,4} \d{4}$/) // la última cubre la semana que cruza de un año a otro
-  await periodo.getByRole('button', { name: 'Mes' }).click()
+  await periodo.getByRole('button', { name: 'Este mes' }).click()
   expect(await medir('Lista · Mes')).toMatch(/^\p{L}+ \d{4}$/u)
   await periodo.getByRole('button', { name: 'Hoy' }).click()
   await page.getByRole('button', { name: 'Periodo siguiente' }).click()
@@ -49,7 +49,7 @@ test('la cabecera y los encabezados de día no ponen "De" con mayúscula', async
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
-  await page.getByRole('group', { name: 'Periodo de las citas' }).getByRole('button', { name: 'Semana' }).click()
+  await page.getByRole('group', { name: 'Periodo de las citas' }).getByRole('button', { name: 'Esta semana' }).click()
   await page.waitForTimeout(800)
   const cabecera = await page.locator('header').first().innerText()
   expect(cabecera).toMatch(/[A-ZÁÉÍÓÚ][a-záéíóú]+, \d{1,2} de [a-záéíóú]+ de \d{4}/)
