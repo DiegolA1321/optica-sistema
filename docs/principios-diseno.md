@@ -205,7 +205,7 @@ El ingeniero criticó el bloque que mezclaba todo en una lista y pidió separarl
 
 
 ### 39. Las partes suman el total que se anuncia, y lo aparte se dice aparte
-Si una fila dice "12 citas", las tarjetas que la componen suman 12 y el título lo muestra ("12 citas = 5 + 1 + 6"). Lo que no cuenta en el total (las citas canceladas, regla 23) se muestra aparte, separado de la suma, para que el total coincida con lo que cuenta Citas.
+Si una fila dice "12 citas", las tarjetas que la componen suman 12; la suma no se escribe en el título (cada número se lee una sola vez, en su tarjeta). Lo que no cuenta en el total (las citas canceladas, regla 23) se muestra aparte, separado de la suma, para que el total coincida con lo que cuenta Citas.
 
 ### 40. El registro de actividad es para personas, y las pruebas y los scripts no escriben en él
 Cada línea es una frase que entiende quien administra la óptica ("Administrador Demo agendó el control de Ana Pérez"), sin notas técnicas, nombres de scripts ni ids. Los scripts de mantenimiento y las pruebas automáticas no escriben en `logs_optica` de una óptica real ni de la Demo; sus notas van a un archivo del repositorio.
