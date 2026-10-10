@@ -1501,7 +1501,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
           <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}>
+                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
                   <UserPlus size={20} />
                 </div>
                 <div>
@@ -1608,7 +1608,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   type="submit"
                   disabled={guardandoPaciente}
                   className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                  style={idEditando ? { backgroundColor: "#F59E0B" } : { background: GRAD }}
+                  style={{ background: GRAD }}
                 >
                   {guardandoPaciente ? "Guardando…" : idEditando ? "Guardar cambios" : "Registrar paciente"}
                 </button>
