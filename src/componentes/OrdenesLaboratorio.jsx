@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, Plus, ArrowRight, Undo2, AlertTriangle, CheckCircle2, Search } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
-import { INK } from "@/lib/tema"
+import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
@@ -48,7 +48,7 @@ const aplicarFiltro = (ordenes, filtro) => {
 
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio, cambio de
 // estado con responsable, copias impresas y aviso al paciente por WhatsApp (R36-R37).
-export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", facturas = [], abonos = [], onAbonar, onAviso, onVerPerfil, accion = null }) {
+export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, pacienteFijo = null, filtroInicial = "abiertas", facturas = [], abonos = [], onAbonar, onAviso, onVerPerfil, accion = null, accionVacio = null }) {
   const puedeEditar = puede(usuario, "ventas", "editar")
   const puedeCrear = puede(usuario, "ventas", "crear")
   const propias = useMemo(() => (pacienteFijo ? ordenes.filter((o) => o.pacienteId === pacienteFijo.id) : ordenes), [ordenes, pacienteFijo])
@@ -127,24 +127,24 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
 
   return (
     <section aria-label="Órdenes de laboratorio" className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {FILTROS.map((f) => {
+      {(propias.length > 0 || accion) && <div className="flex flex-wrap items-center gap-2">
+        {propias.length > 0 && FILTROS.map((f) => {
           const n = aplicarFiltro(propias, f.id).length
           const activo = filtro === f.id
           return (
-            <button key={f.id} type="button" onClick={() => setFiltro(f.id)} aria-pressed={activo} className={"rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")} style={activo ? { backgroundColor: INK } : undefined}>
+            <button key={f.id} type="button" onClick={() => setFiltro(f.id)} aria-pressed={activo} className={"rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")} style={activo ? { background: GRAD_MARCA } : undefined}>
               {f.label}{f.id !== "todas" && n > 0 ? ` (${n})` : ""}
             </button>
           )
         })}
-        {laboratorios.length > 0 && (
+        {propias.length > 0 && laboratorios.length > 0 && (
           <select aria-label="Filtrar por laboratorio" value={laboratorio} onChange={(e) => setLaboratorio(e.target.value)} className="ml-auto rounded-lg border border-slate-200/60 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 outline-none transition-colors focus-visible:border-blue-500">
             <option value="">Todos los laboratorios</option>
             {laboratorios.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         )}
-        {accion && <div className={laboratorios.length > 0 ? "" : "ml-auto"}>{accion}</div>}
-      </div>
+        {accion && <div className={propias.length > 0 && laboratorios.length === 0 ? "ml-auto" : ""}>{accion}</div>}
+      </div>}
 
       {!pacienteFijo && propias.length > 0 && (
         <div className="relative">
@@ -170,7 +170,8 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400"><FlaskConical size={24} aria-hidden="true" /></div>
           <p className="text-sm font-semibold text-slate-600">{propias.length === 0 ? "Aún no hay órdenes de laboratorio (los pedidos de lentes que se mandan al laboratorio)." : texto ? "Ninguna orden coincide con la búsqueda." : "No hay órdenes con este filtro."}</p>
-          {propias.length === 0 && <p className="max-w-sm text-xs text-slate-500">Se crean al registrar una venta que incluye lentes.</p>}
+          {propias.length === 0 && <p className="max-w-sm text-xs text-slate-500">Se crean desde una venta que incluye lentes.</p>}
+          {propias.length === 0 && accionVacio}
         </div>
       ) : (
         <ul className="space-y-3">

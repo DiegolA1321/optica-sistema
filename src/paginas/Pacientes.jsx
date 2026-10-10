@@ -2255,7 +2255,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       </div>
                     ) : tabHistorial === "ordenes" ? (
                       <OrdenesLaboratorio
-                        accion={puedeVender ? (
+                        accion={puedeVender && comprobantesPaciente.some((c) => c.factura && c.factura.estado !== "anulada") ? (
                           <button
                             type="button"
                             title="Un pedido al laboratorio sale de una venta del paciente (lleva su montura y su luna)"
@@ -2270,6 +2270,14 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                             <FlaskConical size={14} aria-hidden="true" /> Enviar a laboratorio
                           </button>
                         ) : null}
+                        accionVacio={puedeVender && (() => {
+                          const pase = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
+                          return pase ? (
+                            <button type="button" onClick={() => setVentaCola({ pase, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === pase.consultaId) || null })} className="mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                              <ShoppingBag size={14} aria-hidden="true" /> Vender la receta
+                            </button>
+                          ) : null
+                        })()}
                         ordenes={ordenesLab}
                         setOrdenes={setOrdenesLab}
                         pacientes={pacientes}
