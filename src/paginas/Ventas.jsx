@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { AlertCircle, CheckCircle, FlaskConical, Search, ShoppingBag, ShoppingCart, Wallet, Receipt, UserX } from "lucide-react"
 import { INK } from "@/lib/tema"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import ColaVentas from "../componentes/ColaVentas"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import FilaComprobante from "../componentes/FilaComprobante"
@@ -99,14 +100,13 @@ export default function Ventas({
             <p className="text-sm text-slate-500">Pacientes por vender, comprobantes, órdenes de laboratorio y saldos.</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          {avisosDelModulo}
+        <AccionesDeCabecera avisos={avisosDelModulo}>
         {puedeVender && (
-          <button type="button" onClick={() => setNuevaVenta(true)} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-            <ShoppingCart size={16} aria-hidden="true" /> Nueva venta
+          <button type="button" onClick={() => setNuevaVenta(true)} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+            <ShoppingCart size={18} aria-hidden="true" /> Nueva venta
           </button>
         )}
-        </div>
+        </AccionesDeCabecera>
       </div>
 
       {cargaInicial && facturasVenta.length === 0 && pases.length === 0 && ordenesLab.length === 0 ? (

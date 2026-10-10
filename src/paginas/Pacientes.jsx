@@ -1,5 +1,6 @@
 "use client"
 
+import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
@@ -56,6 +57,7 @@ import {
   MessageCircle,
   FlaskConical,
 } from "lucide-react"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import CamposCita from "../componentes/CamposCita"
 import { BarraBusquedaFiltros, SeccionRango } from "../componentes/FiltrosCitas"
 import { contarCitas, citasPorMes, diaMasFrecuente } from "../utilidades/resumenCitas"
@@ -1128,14 +1130,11 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
           </div>
           <div>
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Pacientes</h1>
-            <p className="text-sm text-slate-500">
-              {pacientes.length} {pacientes.length === 1 ? "paciente registrado" : "pacientes registrados"}
-            </p>
+            <p className="text-sm text-slate-500">Fichas, contacto y seguimiento de quienes se atienden en tu óptica.</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-        {avisosDelModulo}
+        <AccionesDeCabecera avisos={avisosDelModulo}>
         {puedeCrearPaciente && <button
           type="button"
           onClick={abrirCrear}
@@ -1145,7 +1144,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
           <UserPlus size={18} />
           Crear paciente
         </button>}
-        </div>
+        </AccionesDeCabecera>
       </div>
 
       {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}
@@ -2558,13 +2557,12 @@ const BADGE_ESTADO_CITA = {
   "No Asistió": "border-red-200/60 bg-red-50 text-red-700",
   Cancelada: "border-slate-200/60 bg-slate-100 text-slate-500",
 }
-const ETIQUETA_ESTADO_CITA = { "En Atención": "En atención", "No Asistió": "No asistió" }
 const ESTADOS_PENDIENTES = ["Pendiente", "En Espera", "En Atención"]
 
 function BadgeEstadoCita({ estado }) {
   return (
     <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[estado] || "border-amber-200/60 bg-amber-50 text-amber-700")}>
-      {ETIQUETA_ESTADO_CITA[estado] || estado || "Pendiente"}
+      {etiquetaEstadoCita(estado)}
     </span>
   )
 }

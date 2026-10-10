@@ -33,6 +33,7 @@ import {
   Receipt,
   List,
 } from "lucide-react"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import { diaHabilMasCercano } from "../utilidades/controles"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
@@ -65,7 +66,7 @@ import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { moverCitaAHoy as moverCitaAHoyCompartido } from "../utilidades/moverCitaAHoy"
-import { estadosCorregibles, estadoCorregibleEs } from "../utilidades/estadosCita"
+import { estadosCorregibles, estadoCorregibleEs, etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK } from "@/lib/tema"
 
@@ -1380,8 +1381,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             <p className="text-sm text-slate-500">Planificación y control de consultas de refracción.</p>
           </div>
         </div>
-        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
-          {avisosDelModulo}
+        <AccionesDeCabecera avisos={avisosDelModulo}>
           {/* "Agendar cita" existía como botón aparte, más limitado (fecha en
               blanco, y sin forma de crear un paciente nuevo si no había
               ninguno todavía) — "Gestionar" ya cubre ese caso y más, así que
@@ -1395,7 +1395,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             <UserPlus size={18} />
             Gestionar cita
           </button>}
-        </div>
+        </AccionesDeCabecera>
       </div>
 
       {/* ─── ÉXITO ─── */}
@@ -2061,7 +2061,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                     className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                   >
                     {estadosCorregibles(reagendando).map((e) => (
-                      <option key={e} value={e}>{e === "En Atención" ? "En atención" : e === "No Asistió" ? "No asistió" : e}</option>
+                      <option key={e} value={e}>{etiquetaEstadoCita(e)}</option>
                     ))}
                   </select>
                 </details>
