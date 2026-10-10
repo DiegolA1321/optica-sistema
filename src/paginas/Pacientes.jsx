@@ -2042,7 +2042,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
                           <Calendar size={13} className="text-slate-500" aria-hidden="true" />
                           Control recomendado: {fechaLegible(proximoControl)}
-                          <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`}</span>
+                          <span className="font-normal text-slate-500">· {diasControl === 0 ? "es hoy" : `${Math.abs(diasControl) === 1 ? "falta 1 día" : `faltan ${Math.abs(diasControl)} días`}`}</span>
                         </span>
                       )}
                       {diasCumple != null && diasCumple <= 30 && (
@@ -2811,7 +2811,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
             <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
-            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consulta${Math.max(0, 3 - fidelidad.consultas) === 1 ? "" : "s"} para ser cliente frecuente`}</p>
+            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `${Math.max(0, 3 - fidelidad.consultas) === 1 ? "Le falta 1 consulta" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consultas`} para ser cliente frecuente`}</p>
           </Cuadro>
           <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>

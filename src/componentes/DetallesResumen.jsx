@@ -78,7 +78,7 @@ export function PanelControl({ proximoControl, diasControl, inactivo, ultima, ci
     <div>
       <dl className="divide-y divide-slate-100 px-4 py-1">
         <Fila etiqueta="Control recomendado">
-          {proximoControl ? <>{fechaLegible(proximoControl)}<span className={"ml-2 text-xs font-medium " + (inactivo ? "text-red-600" : "text-slate-500")}>{inactivo ? `vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `faltan ${Math.abs(diasControl)} días`}</span></> : "Sin fecha recomendada"}
+          {proximoControl ? <>{fechaLegible(proximoControl)}<span className={"ml-2 text-xs font-medium " + (inactivo ? "text-red-600" : "text-slate-500")}>{inactivo ? `vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : (Math.abs(diasControl) === 1 ? "falta 1 día" : `faltan ${Math.abs(diasControl)} días`)}</span></> : "Sin fecha recomendada"}
           {ultima && proximoControl && <span className="block text-xs font-normal text-slate-500">Lo indicó el optómetra en la ficha del {fechaLegible(ultima.fecha)}{ultima.proximoControlDias ? ` (a los ${ultima.proximoControlDias} días)` : ""}.</span>}
         </Fila>
         <Fila etiqueta="Cita agendada">
@@ -141,7 +141,7 @@ export function PanelPuntaje({ consultas, referidos, frecuente }) {
         ))}
         <li className="flex items-center gap-3 py-2.5 text-sm font-bold" style={{ color: INK }}><span className="flex-1">Total</span><span className="tabular-nums">{total} pts</span></li>
       </ul>
-      <p className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"><CheckCircle2 size={13} className={frecuente ? "text-emerald-600" : "text-slate-400"} aria-hidden="true" />{frecuente ? "Es cliente frecuente: tiene 3 o más consultas." : `Será cliente frecuente con 3 consultas: le faltan ${Math.max(0, 3 - consultas.length)}.`}</p>
+      <p className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"><CheckCircle2 size={13} className={frecuente ? "text-emerald-600" : "text-slate-400"} aria-hidden="true" />{frecuente ? "Es cliente frecuente: tiene 3 o más consultas." : `Será cliente frecuente con 3 consultas: ${3 - consultas.length === 1 ? "le falta 1" : `le faltan ${Math.max(0, 3 - consultas.length)}`}.`}</p>
     </div>
   )
 }
