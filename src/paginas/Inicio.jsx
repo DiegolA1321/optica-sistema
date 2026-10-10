@@ -373,7 +373,7 @@ export default function Inicio({
     </div>
   )
   // Fichas que dejó abiertas hoy (las de días anteriores son un aviso de "Requiere tu atención"): una tarjeta solo si hay alguna.
-  const fichasAbiertas = esVistaOptometra ? sinTerminar.filter((c) => !atencionesVista.some(({ cita }) => cita.id === c.id)) : []
+  const fichasAbiertas = esVistaOptometra ? sinTerminar.filter((c) => esHoy(c.fecha)) : []
   const bFichas = fichasAbiertas.length > 0 && (
     <div aria-label="Fichas sin terminar" className="flex h-full flex-col justify-between gap-2 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
       <div>
