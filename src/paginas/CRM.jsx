@@ -5,7 +5,6 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { primerNombre } from "../utilidades/pacientes"
 import {
   HeartHandshake,
   MessageSquare,
@@ -290,7 +289,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
     if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) {
       numeroLimpio = "593" + numeroLimpio
     }
-    const texto = `Hola ${primerNombre(nombre)}, te saludamos de ${usuario?.opticaNombre || "tu óptica"}. Queremos recordarte: ${motivo} ¡Escríbenos para agendar tu cita!`
+    const texto = `Hola${nombre ? `, ${nombre}` : ""}, te saludamos de ${usuario?.opticaNombre || "tu óptica"}. Queremos recordarte: ${motivo} ¡Escríbenos para agendar tu cita!`
     const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
     window.open(url, "_blank")
     marcarContactadoHoy(id)

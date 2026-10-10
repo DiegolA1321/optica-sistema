@@ -62,7 +62,7 @@ describe("ordenesLaboratorio", () => {
 
   it("el mensaje de WhatsApp usa el nombre, la óptica y el número", () => {
     const m = mensajeLentesListos({ paciente: { nombre: "Ana Pérez" }, opticaNombre: "Visión", orden: orden() })
-    expect(m).toContain("Hola Ana")
+    expect(m).toContain("Hola, Ana Pérez")
     expect(m).toContain("Visión")
     expect(m).toContain("OL-0007")
   })

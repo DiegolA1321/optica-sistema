@@ -94,7 +94,7 @@ import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
-import { crearRegistroPaciente, primerNombre } from "../utilidades/pacientes"
+import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
@@ -477,9 +477,9 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     const control = fechaProximoControl(paciente, consultas)
     const cumple = diasParaCumpleanos(paciente.fecha_nacimiento || paciente.fechaNacimiento)
     return [
-      { id: "saludo", etiqueta: "Saludo", texto: `Hola ${primerNombre(paciente.nombre)}, te escribimos de ${nombreOptica}. ` },
-      ...(control ? [{ id: "control", etiqueta: "Recordar control", texto: `Hola ${primerNombre(paciente.nombre)}, te escribimos de ${nombreOptica}. Te recordamos que tu próximo control visual es el ${formatoFecha(control, "largoSinDia")}. ¡Escríbenos para agendar tu cita!` }] : []),
-      ...(cumple != null && cumple <= 30 ? [{ id: "cumple", etiqueta: "Cumpleaños", texto: `Hola ${primerNombre(paciente.nombre)}, ¡de parte de todo el equipo de ${nombreOptica} te deseamos un feliz cumpleaños! ` }] : []),
+      { id: "saludo", etiqueta: "Saludo", texto: `Hola, ${paciente.nombre}, te escribimos de ${nombreOptica}. ` },
+      ...(control ? [{ id: "control", etiqueta: "Recordar control", texto: `Hola, ${paciente.nombre}, te escribimos de ${nombreOptica}. Te recordamos que tu próximo control visual es el ${formatoFecha(control, "largoSinDia")}. ¡Escríbenos para agendar tu cita!` }] : []),
+      ...(cumple != null && cumple <= 30 ? [{ id: "cumple", etiqueta: "Cumpleaños", texto: `Hola, ${paciente.nombre}, ¡de parte de todo el equipo de ${nombreOptica} te deseamos un feliz cumpleaños! ` }] : []),
     ]
   }
   const abrirMensaje = (paciente) => {
