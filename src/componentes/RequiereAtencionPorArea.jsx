@@ -26,16 +26,16 @@ export default function RequiereAtencionPorArea({ bloques }) {
           const IconoBloque = b.icono
           return (
             <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className={i > 0 ? "border-t border-slate-100" : ""}>
-              <header className="flex items-center gap-2 px-4 pb-1 pt-2.5">
+              <header className="flex items-center gap-2 px-4 pb-0.5 pt-2">
                 <IconoBloque size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{b.titulo}</h3>
                 <button type="button" onClick={b.onVerTodo} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
                   Ver todo <ArrowRight size={12} aria-hidden="true" />
                 </button>
               </header>
-              <ul className="px-4 pb-2">
+              <ul className="px-4 pb-1.5">
                 {b.filas.map((f) => (
-                  <li key={f.id} className="flex items-center gap-2.5 py-1.5">
+                  <li key={f.id} className="flex items-center gap-2.5 py-1">
                     <span className={"h-2 w-2 shrink-0 rounded-full " + (PUNTO[f.tono || "normal"])} aria-hidden="true" />
                     <p className="min-w-0 flex-1 truncate text-[13px] text-slate-700">
                       <span className="font-bold" style={{ color: INK }}>{f.cantidad ?? 1}</span> {f.texto}

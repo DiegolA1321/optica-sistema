@@ -199,7 +199,7 @@ describe("Desenlace del administrador", () => {
     expect(within(region).getByRole("button", { name: /^Atendidas: 1/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^No asistieron: 0/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^Pendientes: 2/ })).toBeInTheDocument()
-    expect(within(region).getByRole("button", { name: /^Canceladas: 1\. Aparte: no suman/ })).toBeInTheDocument()
+    expect(within(region).getByRole("button", { name: /^Canceladas: 1\. Aparte/ })).toBeInTheDocument()
   })
 
   it("cambia de período con el selector y lo dice en el título", () => {
@@ -244,7 +244,8 @@ describe("Inicio del optómetra", () => {
     render(<Inicio {...base} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
     const agenda = screen.getByRole("region", { name: "Mi agenda de hoy" })
     expect(within(agenda).getByLabelText("Siguiente paciente")).toBeInTheDocument()
-    expect(within(agenda).getAllByText("Paciente Uno").length).toBeGreaterThan(0)
+    expect(within(within(agenda).getByLabelText("Siguiente paciente")).getByText(/Paciente Uno/)).toBeInTheDocument()
+    expect(within(agenda).getAllByRole("button", { name: /^Atender/ })).toHaveLength(1) // el siguiente paciente no se repite en la lista
     expect(within(agenda).queryByText("Paciente Dos")).not.toBeInTheDocument() // asignada a otra persona
     const avisos = screen.getByRole("region", { name: "Requiere tu atención" })
     const desenlace = screen.getByRole("region", { name: "Desenlace de mis citas · hoy" })

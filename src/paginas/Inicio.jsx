@@ -328,7 +328,7 @@ export default function Inicio({
         tarjetaDe("atendida", { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, icono: CheckCircle2, color: "green" }),
         tarjetaDe("noAsistio", { id: "noAsistieron", titulo: "No asistieron", valor: desenlace.noAtendidas, icono: UserX, color: "red" }),
         tarjetaDe("pendiente", { id: "pendientes", titulo: "Pendientes", valor: desenlace.pendientes, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : undefined, icono: Clock, color: "amber" }),
-        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte: no suman", icono: Ban, color: "slate", aparte: true }),
+        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte", icono: Ban, color: "slate", aparte: true }),
       ]}
     />
   )
@@ -370,22 +370,25 @@ export default function Inicio({
   )
   const agendaOpt = agendaOptometra(citasVista)
   const tituloAgendaOpt = agendaOpt.modo === "proxima" ? `Mi próxima jornada con citas · ${formatoFecha(agendaOpt.fecha, "calendario")}` : "Mi agenda de hoy"
+  const filasAgenda = agendaOpt.modo === "hoy" && siguiente ? agendaOpt.citas.filter((c) => c.id !== siguiente.id) : agendaOpt.citas
   const bAgendaOptometra = (
     <section aria-label={tituloAgendaOpt} className="space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{tituloAgendaOpt}{agendaOpt.modo === "hoy" ? ` · ${hoyVista.enEspera} en espera` : ""}</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{tituloAgendaOpt}{agendaOpt.modo === "hoy" && hoyVista.enEspera > 0 ? ` · ${hoyVista.enEspera} en espera` : ""}</h2>
         {agendaOpt.citas.length > 0 && <p className="text-xs text-slate-500">{agendaOpt.citas.length} {agendaOpt.citas.length === 1 ? "cita" : "citas"}</p>}
         {agendaOpt.citas.length > 0 && <button type="button" onClick={() => (onVerCitas ? onVerCitas("todas", agendaOpt.modo === "hoy" ? "hoy" : "siempre") : setVista?.("citas"))} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Ver todas en Citas <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         {agendaOpt.modo === "hoy" && bSiguiente}
-        <div className="divide-y divide-slate-100 px-5 py-4">
-          {agendaOpt.modo === "vacia" ? (
-            <EstadoVacio compacto icon={Calendar} texto="No tienes citas por venir." />
-          ) : (
-            agendaOpt.citas.map((cita, idx) => renderFilaCita(cita, idx, false, accionFila(cita)))
-          )}
-        </div>
+        {(agendaOpt.modo === "vacia" || filasAgenda.length > 0) && (
+          <div className="divide-y divide-slate-100 px-5 py-4">
+            {agendaOpt.modo === "vacia" ? (
+              <EstadoVacio compacto icon={Calendar} texto="No tienes citas por venir." />
+            ) : (
+              filasAgenda.map((cita, idx) => renderFilaCita(cita, idx, false, accionFila(cita)))
+            )}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -702,7 +705,7 @@ export default function Inicio({
   )
 
   return (
-    <div className="w-full space-y-5 text-left">
+    <div className="w-full space-y-4 text-left">
       <style>{`
         @keyframes inRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .in-rise { animation: inRise .5s ease-out both; }

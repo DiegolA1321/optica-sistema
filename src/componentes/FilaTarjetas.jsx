@@ -42,12 +42,28 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
                 aria-label={accionable ? `${t.titulo}: ${t.valor}. ${t.desc || ""}` : undefined}
                 aria-pressed={accionable && t.seleccionada !== undefined ? t.seleccionada : undefined}
               >
-                <span className="min-w-0 space-y-0.5">
-                  <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
-                  <span className={"block font-serif font-semibold leading-tight " + (compacta ? "text-2xl" : "text-3xl")} style={{ color: INK }}>{t.valor}</span>
-                  {t.desc && <span className="block text-xs text-slate-500">{t.desc}</span>}
-                </span>
-                {Icono && <span className={"grid shrink-0 place-items-center rounded-xl " + (compacta ? "h-9 w-9" : "h-11 w-11")} style={{ background: c.tile, color: c.texto }}><Icono size={compacta ? 18 : 21} aria-hidden="true" /></span>}
+                {compacta ? (
+                  // Compacta: el título ocupa todo el ancho (puede pasar a dos líneas) y debajo van el número y el ícono, para que ninguno tape al otro.
+                  <span className="flex w-full flex-col gap-1">
+                    <span className="block text-[11px] font-bold uppercase leading-tight tracking-wider text-slate-500">{t.titulo}</span>
+                    <span className="flex items-end justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="block font-serif text-2xl font-semibold leading-none" style={{ color: INK }}>{t.valor}</span>
+                        {t.desc && <span className="mt-1 block text-xs leading-tight text-slate-500">{t.desc}</span>}
+                      </span>
+                      {Icono && <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: c.tile, color: c.texto }}><Icono size={16} aria-hidden="true" /></span>}
+                    </span>
+                  </span>
+                ) : (
+                  <>
+                    <span className="min-w-0 space-y-0.5">
+                      <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
+                      <span className="block font-serif text-3xl font-semibold leading-tight" style={{ color: INK }}>{t.valor}</span>
+                      {t.desc && <span className="block text-xs text-slate-500">{t.desc}</span>}
+                    </span>
+                    {Icono && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: c.tile, color: c.texto }}><Icono size={21} aria-hidden="true" /></span>}
+                  </>
+                )}
               </Contenedor>
               {t.cta && t.onCta && (
                 <button type="button" onClick={t.onCta} className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-2.5 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
