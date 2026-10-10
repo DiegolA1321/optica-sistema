@@ -153,8 +153,8 @@ Una prueba que escribe corre en la óptica de pruebas y crea lo que necesita (pa
 ## G. Reglas que salieron de la revisión del perfil del paciente (10 oct. 2026)
 
 ### 29. Lo que el paciente necesita para actuar se le entrega completo; la privacidad es de lo comercial
-La receta es el documento con el que el paciente compra sus lentes: se imprime siempre con la graduación. La política de ocultar medidas aplica a la proforma, a los comprobantes y al portal, no a la receta.
-- **Perfil / Ficha:** se quitó la casilla "Incluir medidas" y el aviso "por política de la óptica" de la receta; la política queda solo para el portal.
+La receta es el documento con el que el paciente compra sus lentes: se imprime siempre con la graduación. La política de ocultar medidas aplica a la proforma y a los comprobantes, y en el portal solo a la distancia pupilar y la altura de montaje (regla 36), nunca a la receta.
+- **Perfil / Ficha:** se quitó la casilla "Incluir medidas" y el aviso "por política de la óptica" de la receta. **Portal:** el paciente ve siempre su receta (esfera, cilindro, eje, adición, agudeza visual).
 - **Cómo aplicarlo:** antes de ocultar un dato en un documento, pregunta si la persona que lo recibe lo necesita para hacer lo que el documento le pide.
 
 ### 30. Lo que nace de otra cosa se crea desde su origen, y la acción de una pantalla vacía lleva al origen
@@ -177,6 +177,12 @@ El saludo no adivina el nombre: mientras el nombre y el apellido estén en un so
 
 ### 35. Los botones de una cabecera van en una sola fila, y un acceso que ya existe en otro control no se repite
 - **Perfil:** la cabecera tiene identidad arriba y las acciones en una fila debajo. "Restablecer clave" se quitó porque la etiqueta "Cuenta Portal: Activa" ya abre esas opciones (regla 8).
+
+### 36. Lo que se oculta se oculta en el servidor, y el sistema no habla de costos
+Ocultar algo solo al dibujar la pantalla no lo oculta: el dato igual llega al navegador. Lo que una persona no debe ver no se envía. Las funciones que el portal usa entregan solo lo que el portal muestra (`mis_consultas_paciente`, `mis_citas_paciente`), y "Descargar mis datos" (`exportar_mis_datos_paciente`) entrega todos los datos personales y clínicos del paciente (antecedentes y alergias incluidos) pero nunca campos internos: ids del personal, intentos de inicio de sesión, montos, tokens ni campos de control.
+- **Portal:** la distancia pupilar y la altura solo viajan si la óptica lo permite (`opticas.settings.mostrarMedidasPaciente`; la clave se conserva). Migración 0107.
+- **Textos:** ninguna pantalla menciona costos o cobros adicionales por entregar datos de salud; si la óptica los cobra, lo hace fuera del sistema.
+- **Cómo aplicarlo:** al ocultar un dato por rol, política o paciente, comprueba qué responde la función o la consulta, no qué dibuja el componente. Se verifica con una llamada real con el token del paciente (`scripts/ensayo-0107.mjs`).
 
 ---
 
@@ -205,4 +211,5 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 19. ¿El cambio toca otro módulo cerrado? Si sí, se avisó y se aprobó. (27)
 20. ¿Un documento que el paciente necesita sale completo, y lo que depende de otra cosa (orden, cobro) solo se crea desde su origen? (29, 30)
 21. ¿Crear y editar se ven igual, y las fechas usan `CampoFecha`? (31, 32)
+23. ¿Lo que se oculta se oculta en el servidor (se comprobó la respuesta real) y ningún texto habla de costos? (36)
 22. ¿El bloque va de lo clínico a lo comercial, el saludo no adivina el nombre y el singular/plural concuerda? (33, 34)

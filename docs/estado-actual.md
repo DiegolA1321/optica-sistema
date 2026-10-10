@@ -163,6 +163,13 @@ Según la reunión del 7 de octubre (`feedback-ing/requisitos-reunion-07oct-paci
 
 ## Decisiones y propuestas del 10 oct. (revisión del perfil del paciente)
 
+### Portal del paciente: receta siempre visible y datos que no llegan al navegador (10 oct.)
+- **Defecto encontrado:** `mis_consultas_paciente` hacía `select c.*`: el navegador del paciente recibía la consulta completa (examen, antecedentes, alergias, imágenes, monto, ids del personal) y la política de medidas solo se aplicaba al dibujar. `exportar_mis_datos_paciente` devolvía filas completas. Un anónimo no puede leer las tablas directamente (sin privilegio de lectura; se comprobó en el ensayo).
+- **Regla nueva:** el paciente ve siempre su receta (esfera, cilindro, eje, adición, agudeza visual), diagnóstico, indicaciones, lente recomendado, profesional y citas. La distancia pupilar y la altura solo si la óptica lo permite (misma clave `mostrarMedidasPaciente`; las ópticas con la opción encendida no notan cambio, las de valor por defecto verán que sus pacientes ahora ven la receta: Configuración lo explica en una nota). "Solicitar mis medidas" pasó a "Solicitar distancia pupilar y medidas de montaje". Se quitó "costo adicional" de todos los textos.
+- **"Descargar mis datos"** (Mis datos): archivo JSON con datos personales, citas e historial clínico (antecedentes y alergias incluidos), sin campos internos; distancia pupilar según la política.
+- **Migración 0107** (`supabase/migrations/0107_portal_receta_solo_lo_permitido.sql`): mismas firmas y mismos tipos de retorno que las funciones actuales (`setof consultas`, `setof citas`, mismo jsonb), lo que ya no se entrega llega como null: la versión publicada del portal sigue funcionando hasta publicar el código nuevo. Ensayo: `scripts/ensayo-0107.mjs` (transacción con rollback). Backup previo: `C:Usersdiegoackups-opticapre-portal-receta-2026-10-10.dump`.
+- **Estado:** código y migración listos y ensayados; la migración **no está aplicada** hasta la aprobación del SQL; no se publicó nada.
+
 ### Nombres y apellidos en dos campos (propuesta, sin implementar)
 - **Problema:** el formulario pide "Apellidos y nombres" en un solo campo, así que la primera palabra normalmente es un apellido; en la Demo los nombres están guardados al revés (nombre primero). Hoy conviven dos formatos y no se puede saber cuál es cuál con seguridad. Por eso los mensajes **no adivinan el primer nombre**: dicen "Hola, Rosa Bravo Cedeño" tal como está guardado (o solo "Hola" si no hay nombre).
 - **Propuesta:** dos campos, "Nombres" y "Apellidos" (`pacientes.nombres`, `pacientes.apellidos`), con `pacientes.nombre` como columna calculada ("Apellidos Nombres") para no romper lo que hoy lee el nombre completo. El saludo usaría "Nombres" ("Hola, Rosa").
