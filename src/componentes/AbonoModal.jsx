@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { useState } from "react"
 import { createPortal } from "react-dom"
@@ -14,7 +15,6 @@ import { abonosDeFactura, abonoSugerido, mapAbono, saldoFactura, totalAbonado, E
 
 const GRAD = "linear-gradient(135deg,#059669,#10B981)"
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus-visible:border-emerald-500 focus-visible:bg-white"
-const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 
 // Registrar un abono de monto y fecha libres sobre una venta con saldo (R38).
 // Si la venta es un plan de cuotas y se abona justo el valor de la cuota, cuenta como cuota pagada.

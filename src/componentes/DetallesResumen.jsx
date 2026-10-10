@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { ChevronRight, Gift, Cake, Star, Receipt, Calendar, CalendarPlus, Users, Printer, Stethoscope, CheckCircle2, Eye } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { fechaLegible, fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
@@ -108,7 +109,7 @@ export function PanelCompras({ comprobantes, onVerProductos }) {
               <span className="w-28 shrink-0 font-semibold text-slate-700">{fechaLegible(String(c.fecha).slice(0, 10))}</span>
               <span className="min-w-0 flex-1 truncate text-slate-600">{descripcionComprobante(c)}</span>
               {anulada && <span className="rounded-full border border-slate-200/60 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Anulada</span>}
-              <span className={"font-bold tabular-nums " + (anulada ? "text-slate-400 line-through" : "")} style={anulada ? undefined : { color: INK }}>${monto.toFixed(2)}</span>
+              <span className={"font-bold tabular-nums " + (anulada ? "text-slate-400 line-through" : "")} style={anulada ? undefined : { color: INK }}>{dinero(monto)}</span>
             </li>
           )
         })}

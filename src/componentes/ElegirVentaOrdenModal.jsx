@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { createPortal } from "react-dom"
 import { FlaskConical, X, ChevronRight, ShoppingCart } from "lucide-react"
 import { INK } from "@/lib/tema"
@@ -44,7 +45,7 @@ export default function ElegirVentaOrdenModal({ paciente, comprobantes, ordenes,
                   <li key={f.id}>
                     <button type="button" onClick={() => onElegir(f)} className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer">
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-bold" style={{ color: INK }}>Venta del {fechaLegible(String(f.creadoEn).slice(0, 10))} · ${Number(f.montoTotal).toFixed(2)}</span>
+                        <span className="block text-sm font-bold" style={{ color: INK }}>Venta del {fechaLegible(String(f.creadoEn).slice(0, 10))} · {dinero(Number(f.montoTotal))}</span>
                         <span className="block truncate text-xs text-slate-500">{descripcion(f)}</span>
                         {nOrdenes > 0 && <span className="block text-xs text-slate-500">Ya tiene {nOrdenes} orden{nOrdenes === 1 ? "" : "es"} de laboratorio</span>}
                       </span>

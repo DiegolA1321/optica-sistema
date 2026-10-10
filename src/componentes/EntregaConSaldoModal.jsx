@@ -1,12 +1,11 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { createPortal } from "react-dom"
 import { Wallet } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
-
-const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 
 // Al marcar una orden como "entregada" con la venta sin pagar por completo: se muestra el saldo
 // para cobrarlo antes de entregar (o entregar igual, a conciencia).

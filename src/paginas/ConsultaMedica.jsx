@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useState, useEffect, useMemo, useRef } from "react"
@@ -314,7 +315,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     await marcarCitaAtendida()
     setCobroTotal(Number(factura.montoTotal) || 0)
     setCobroEstado("cobrado")
-    registrarLog(usuario, "ventas", "Cobró la atención desde la ficha clínica", `$${(Number(factura.montoTotal) || 0).toFixed(2)}`)
+    registrarLog(usuario, "ventas", "Cobró la atención desde la ficha clínica", `${dinero((Number(factura.montoTotal) || 0))}`)
   }
 
   // "Dejar de atender" (R32): no se pospone. Lo que no se guardó se pierde y la
@@ -2084,7 +2085,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       <div role="status" className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3">
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
                           <CheckCircle size={14} className="shrink-0" />
-                          Cobrado ${cobroTotal.toFixed(2)}{citaEnAtencionId ? " · cita atendida" : ""}. Ya puedes imprimir la receta.
+                          Cobrado {dinero(cobroTotal)}{citaEnAtencionId ? " · cita atendida" : ""}. Ya puedes imprimir la receta.
                         </p>
                         {(onVolver || onCerrar) && (
                           <button type="button" onClick={onVolver || onCerrar} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">

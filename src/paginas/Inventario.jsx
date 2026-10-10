@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
@@ -465,7 +466,7 @@ export default function Inventario({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ResumenCard icon={Package} valor={resumen.total} label="Productos" tile={GRAD} tileText="#fff" />
         <ResumenCard icon={Boxes} valor={resumen.unidades} label="Unidades en stock" tile="#f1f5f9" tileText="#475569" />
-        <ResumenCard icon={DollarSign} valor={`$${resumen.valor.toFixed(2)}`} label="Valor de bodega" tile="#ecfdf5" tileText="#059669" />
+        <ResumenCard icon={DollarSign} valor={`${dinero(resumen.valor)}`} label="Valor de bodega" tile="#ecfdf5" tileText="#059669" />
         <ResumenCard icon={AlertTriangle} valor={resumen.bajos.length} label="Stock bajo" tile="#fffbeb" tileText="#d97706" />
       </div>
 
@@ -633,7 +634,7 @@ export default function Inventario({
                           </div>
                         )}
                       </td>
-                      <td className={"px-4 font-mono font-bold text-slate-600 " + celdaY}>${Number(prod.precio).toFixed(2)}</td>
+                      <td className={"px-4 font-mono font-bold text-slate-600 " + celdaY}>{dinero(Number(prod.precio))}</td>
                       <td className={"px-4 " + celdaY}>
                         <div className="flex items-center justify-center gap-1">
                           {prod.activo === false ? (
@@ -920,7 +921,7 @@ export default function Inventario({
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">Unidades vendidas</p>
                 </div>
                 <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 p-3 text-center">
-                  <p className="text-xl font-serif font-semibold text-emerald-700">${reporteProducto.ingreso.toFixed(2)}</p>
+                  <p className="text-xl font-serif font-semibold text-emerald-700">{dinero(reporteProducto.ingreso)}</p>
                   <p className="mt-0.5 text-[11px] font-medium text-emerald-600">Ingreso generado</p>
                 </div>
                 <div className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-center">
@@ -952,7 +953,7 @@ export default function Inventario({
                         <p className="text-[11px] text-slate-500">{v.cantidad} u. · {fechaLegible(v.creadoEn)}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-slate-700">${Number(v.montoTotal).toFixed(2)}</span>
+                        <span className="font-mono text-sm font-bold text-slate-700">{dinero(Number(v.montoTotal))}</span>
                         <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + (v.estado === "completado" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
                           {v.estado === "completado" ? "Pagado" : "Pendiente"}
                         </span>

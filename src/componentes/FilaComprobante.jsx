@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { useState } from "react"
 import { CheckCircle, CreditCard, ChevronRight, FileText } from "lucide-react"
 import { fechaLegible } from "../utilidades/formatoFecha"
@@ -25,7 +26,7 @@ export default function FilaComprobante({
       <div className="min-w-0">
         <p className={"text-sm font-semibold " + (anulada ? "text-slate-400 line-through" : "text-slate-800")}>
           <span className="mr-1.5 font-mono text-xs font-bold text-slate-500">{numeroComprobante(f.numero)}</span>
-          ${f.montoTotal.toFixed(2)} · {METODOS_PAGO[f.metodoPago] || f.metodoPago}{f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales})` : ""} · {fechaLegible(f.creadoEn)}
+          {dinero(f.montoTotal)} · {METODOS_PAGO[f.metodoPago] || f.metodoPago}{f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales})` : ""} · {fechaLegible(f.creadoEn)}
         </p>
         {mostrarPaciente && (
           <p className="text-xs font-semibold text-slate-600">
@@ -36,7 +37,7 @@ export default function FilaComprobante({
         )}
         <p className="text-[11px] text-slate-500">
           {!lineasDesplegables && ((f.lineas || []).map((l) => l.descripcion).join(", ") || "Sin detalle")}
-          {f.estado === "pendiente_pago" && `${lineasDesplegables ? "" : " · "}abonado $${abonado.toFixed(2)}`}
+          {f.estado === "pendiente_pago" && `${lineasDesplegables ? "" : " · "}abonado ${dinero(abonado)}`}
           {ordenes.length > 0 && `${lineasDesplegables && f.estado !== "pendiente_pago" ? "" : " · "}${ordenes.length} orden${ordenes.length === 1 ? "" : "es"} de laboratorio`}
         </p>
         {lineasDesplegables && (
@@ -61,7 +62,7 @@ export default function FilaComprobante({
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><CheckCircle size={12} aria-hidden="true" /> Pagada</span>
         ) : (
           <>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} aria-hidden="true" /> Saldo ${saldo.toFixed(2)}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700"><CreditCard size={12} aria-hidden="true" /> Saldo {dinero(saldo)}</span>
             {puedeEditar && <button type="button" onClick={() => onAbonar?.(f)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Abonar</button>}
           </>
         )}
@@ -78,7 +79,7 @@ export default function FilaComprobante({
         {(f.lineas || []).map((l) => (
           <li key={l.id} className="flex items-baseline justify-between gap-3 px-3 py-1.5 text-xs">
             <span className="min-w-0 truncate text-slate-700">{l.descripcion}{l.cantidad > 1 ? ` (${l.cantidad})` : ""} <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{l.tipo === "servicio" ? "Servicio" : "Producto"}</span></span>
-            <span className="shrink-0 font-semibold text-slate-700">${(l.cantidad * Number(l.precioUnitario)).toFixed(2)}</span>
+            <span className="shrink-0 font-semibold text-slate-700">{dinero((l.cantidad * Number(l.precioUnitario)))}</span>
           </li>
         ))}
       </ul>

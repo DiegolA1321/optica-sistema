@@ -1,3 +1,4 @@
+import { dinero } from "./formatoMoneda"
 import { ahoraEcuador } from "./horaEcuador"
 // Proforma de venta (R35): un presupuesto para imprimir y entregar. No se guarda
 // como documento (el pase solo anota cuándo se entregó y por cuánto) y NO es una
@@ -34,7 +35,6 @@ export function datosOpticaProforma(parametrizacion) {
 }
 
 const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
-const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 const medida = (o) => (o && (o.esfera || o.cilindro || o.eje) ? `${o.esfera || "—"} | ${o.cilindro || "—"} | ${o.eje || "—"}°` : "No registrada")
 
 // datos: { opticaNombre, paciente: { nombre, cedula }, diagnostico: {...consulta}, lineas: [{ descripcion, cantidad, precioUnitario }], incluirMedidas, fecha }

@@ -1,3 +1,4 @@
+import { dinero } from "./formatoMoneda"
 import { useMemo, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "./permisos"
@@ -33,7 +34,7 @@ export function useVentas({
   const alAbonar = ({ monto, estado, cuotasPagadas }) => {
     const { factura, paciente } = abonoPara
     setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado, cuotasPagadas } : f)))
-    notificar?.(estado === "pagada" ? `Abono de $${monto.toFixed(2)} registrado: la venta de ${paciente?.nombre || "el paciente"} quedó pagada.` : `Abono de $${monto.toFixed(2)} registrado.`)
+    notificar?.(estado === "pagada" ? `Abono de ${dinero(monto)} registrado: la venta de ${paciente?.nombre || "el paciente"} quedó pagada.` : `Abono de ${dinero(monto)} registrado.`)
   }
 
   const alAnular = () => {

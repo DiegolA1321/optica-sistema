@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useState, useMemo, useEffect, useRef } from "react"
@@ -2172,7 +2173,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                       <div className="space-y-4">
                         {deudaTotal > 0 && (
                           <p role="status" className="flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
-                            <Wallet size={16} className="shrink-0 text-amber-600" aria-hidden="true" /> Saldo pendiente de ventas: ${deudaTotal.toFixed(2)}
+                            <Wallet size={16} className="shrink-0 text-amber-600" aria-hidden="true" /> Saldo pendiente de ventas: {dinero(deudaTotal)}
                           </p>
                         )}
                         {/* Para las ventas sin receta (un líquido, un estuche...). La venta de la receta sale solo de la alerta "Listo para venta". */}
@@ -2221,7 +2222,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                     <div>
                                       <p className="text-sm font-semibold text-slate-800">{v.productoNombre}</p>
                                       <p className="text-[11px] text-slate-500">
-                                        {v.cantidad} u. · ${Number(v.montoTotal).toFixed(2)} · {METODOS_PAGO[v.metodoPago] || v.metodoPago}
+                                        {v.cantidad} u. · {dinero(Number(v.montoTotal))} · {METODOS_PAGO[v.metodoPago] || v.metodoPago}
                                         {v.metodoPago === "cuotas" && v.cuotasTotales ? ` (${v.cuotasPagadas || 0}/${v.cuotasTotales})` : ""}
                                         {" · "}{fechaLegible(v.creadoEn)}
                                       </p>
@@ -2233,7 +2234,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                                     ) : (
                                       <div className="flex items-center gap-2">
                                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                                          <CreditCard size={12} /> Saldo ${saldo.toFixed(2)}
+                                          <CreditCard size={12} /> Saldo {dinero(saldo)}
                                         </span>
                                         {v.metodoPago === "cuotas" && v.cuotasTotales ? (
                                           <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200/60 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
@@ -2846,7 +2847,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <Cuadro abierto={abierto} alternar={alternar} clave="compras" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
             <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
-            <p className="text-[11px] text-slate-500">${compras.monto.toFixed(2)} en total</p>
+            <p className="text-[11px] text-slate-500">{dinero(compras.monto)} en total</p>
           </Cuadro>
         </div>
         {abierto === "ultima" && (

@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { MESES_CORTOS } from "../utilidades/formatoFecha"
@@ -357,7 +358,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const kpis = [
     { key: "consultas", label: "Consultas", sub: `fichas clínicas guardadas · ${rango.etiqueta}`, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
-    { key: "ingresos", label: "Ingresos", valor: `$${ingresosEsteMes.toFixed(2)}`, sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "ingresos", label: "Ingresos", valor: `${dinero(ingresosEsteMes)}`, sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo)`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin agudeza visual con lentes registrada`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
     { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
@@ -956,7 +957,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
                 <div key={l.id}>
                   <div className="mb-1 flex items-center justify-between gap-2 text-xs">
                     <span className="font-semibold text-slate-700">{l.etiqueta}</span>
-                    <span className="shrink-0 font-mono font-bold text-slate-500">{l.unidades} u. · ${l.monto.toFixed(2)}</span>
+                    <span className="shrink-0 font-mono font-bold text-slate-500">{l.unidades} u. · {dinero(l.monto)}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                     <div className="h-full rounded-full" style={{ width: `${Math.max(4, (l.unidades / maxLunas) * 100)}%`, background: GRAD }} />

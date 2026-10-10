@@ -48,6 +48,14 @@ describe("Inicio del administrador", () => {
     expect(within(totales).getByText("+$120.50 este mes · 2 ventas")).toBeInTheDocument()
   })
 
+  it("el dinero sale con separador de miles: $3,915.50", () => {
+    const ahora = new Date().toISOString()
+    render(<Inicio {...base} facturasVenta={[{ id: "f1", estado: "pagada", montoTotal: 3000, creadoEn: ahora }, { id: "f2", estado: "pagada", montoTotal: 915.5, creadoEn: "2020-01-01T10:00:00Z" }]} />)
+    const totales = screen.getByRole("region", { name: "Totales" })
+    expect(within(totales).getByText("$3,915.50")).toBeInTheDocument()
+    expect(within(totales).getByText("+$3,000.00 este mes · 1 venta")).toBeInTheDocument()
+  })
+
   it("el orden es Totales, Requiere tu atención, Desenlace y Citas del día", () => {
     render(<Inicio {...base} />)
     const orden = ["Totales", "Requiere tu atención", "Desenlace de las citas · hoy", "Citas del día"].map((n) => screen.getByRole("region", { name: n }))

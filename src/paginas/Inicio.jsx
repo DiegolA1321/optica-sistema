@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
@@ -276,7 +277,6 @@ export default function Inicio({
   const listos = useMemo(() => pasesListos(pases), [pases])
   const proformas = useMemo(() => proformasEnSeguimiento(pases), [pases])
   const atencionesVista = esVistaOptometra ? atencionesAntiguas.filter(({ cita }) => esCitaPropia(cita, usuario?.id)) : atencionesAntiguas
-  const dinero = (n) => "$" + (Number(n) || 0).toFixed(2)
   // Las tarjetas solo llevan a su lista (un clic en cualquier parte). Las acciones de crear van aparte, como atajos, para
   // que una misma tarjeta no haga dos cosas distintas según dónde se toque.
   const atajosAdmin = (

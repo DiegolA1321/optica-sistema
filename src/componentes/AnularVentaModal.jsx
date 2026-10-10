@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { useState } from "react"
 import { createPortal } from "react-dom"
 import { X, AlertTriangle } from "lucide-react"
@@ -9,8 +10,6 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { registrarLog } from "../utilidades/logs"
 import { totalAbonado } from "../utilidades/abonos"
-
-const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 
 // Anular una venta (única forma de corregir una factura). Antes de confirmar se advierte
 // cuánto dinero ya se recibió, que el stock se repone y que sus órdenes de laboratorio se cancelan.

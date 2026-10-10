@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown, Glasses } from "lucide-react"
@@ -357,7 +358,7 @@ export default function ComprobanteVentaModal({
           return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
         }))
       }
-      registrarLog(usuario, "ventas", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
+      registrarLog(usuario, "ventas", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · ${dinero(total)}`)
       let estadoFinal = data.estado
       let avisoAbono = ""
       if (abonoNum > 0) {
@@ -546,7 +547,7 @@ export default function ComprobanteVentaModal({
                             />
                           </span>
                         ) : (
-                          <span className="font-mono text-xs text-slate-500">{l.cantidad} × ${l.precioUnitario.toFixed(2)} = ${(l.cantidad * l.precioUnitario).toFixed(2)}</span>
+                          <span className="font-mono text-xs text-slate-500">{l.cantidad} × {dinero(l.precioUnitario)} = {dinero((l.cantidad * l.precioUnitario))}</span>
                         )}
                         <button type="button" onClick={() => quitarLinea(i)} aria-label="Quitar línea" className="text-sm font-bold text-slate-400 hover:text-red-600 cursor-pointer">×</button>
                       </span>
@@ -640,7 +641,7 @@ export default function ComprobanteVentaModal({
                           <span className="truncate text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-emerald-700">{productoSeleccionado.stock} u. · ${Number(productoSeleccionado.precio).toFixed(2)}</span>
+                          <span className="font-mono text-xs text-emerald-700">{productoSeleccionado.stock} u. · {dinero(Number(productoSeleccionado.precio))}</span>
                           <button type="button" onClick={limpiarCamposProducto} className="text-sm font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">×</button>
                         </div>
                       </div>
@@ -662,7 +663,7 @@ export default function ComprobanteVentaModal({
                                   <MiniaturaProducto url={p.imagen_url} alt={p.nombre} size={24} />
                                   <span className="truncate">{p.nombre}</span>
                                 </span>
-                                <span className="shrink-0 font-mono text-xs text-slate-400">{p.stock} u. · ${Number(p.precio).toFixed(2)}</span>
+                                <span className="shrink-0 font-mono text-xs text-slate-400">{p.stock} u. · {dinero(Number(p.precio))}</span>
                               </li>
                             ))}
                           </ul>
@@ -735,7 +736,7 @@ export default function ComprobanteVentaModal({
 
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                   <span className="text-sm font-semibold text-slate-600">Total</span>
-                  <span className="font-mono text-xl font-bold text-slate-800">${total.toFixed(2)}</span>
+                  <span className="font-mono text-xl font-bold text-slate-800">{dinero(total)}</span>
                 </div>
 
                 <div>

@@ -73,6 +73,7 @@ Las flechas del periodo sirven para moverse; los filtros y la búsqueda sirven p
 Nada arma fechas a mano.
 - **Citas:** `formatoFecha(valor, nombre)` y `hora()` de `src/utilidades/formatoFecha.js` ("sept" con cuatro letras, hora en 12 h, "8 oct 2026"). "Hoy" y "ahora" salen siempre de `ahoraEcuador()` (America/Guayaquil), no de la hora del equipo (`0044afc`). Tres guardas lo impiden: `fuenteUnicaFechas.test.js` y las pruebas de reloj, que pasan con `TZ=UTC`, Ecuador, Tokio y Los Ángeles.
 - **Cómo aplicarlo:** si necesitas un mes, un día o una hora, pídelo a esa función; no escribas arreglos de meses ni uses `toLocaleDateString` ni `new Date()` para "hoy".
+- **El dinero, igual:** `dinero(valor)` de `src/utilidades/formatoMoneda.js` ("$3,915.50": miles con coma, dos decimales con punto). Ninguna pantalla arma un monto con `toFixed(2)` ni define su propia función; `formatoMoneda.test.js` lo vigila.
 
 ### 13. Un estado que se puede comprobar se mueve solo; el que no, lo marca una persona
 - **Citas:** abrir la ficha pasa la cita a "En Atención"; guardarla la pasa a "Atendida"; pasados 10 minutos sin iniciar se marca "No asistió" (solo las "Pendiente": nunca toca "En espera"). "Llegó" lo marca recepción porque nadie más lo sabe. Ningún estado depende de que alguien se acuerde.

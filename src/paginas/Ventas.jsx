@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { useEffect, useMemo, useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { AlertCircle, CheckCircle, FlaskConical, Search, ShoppingBag, ShoppingCart, Wallet, Receipt, UserX } from "lucide-react"
@@ -20,7 +21,6 @@ import { coincideTexto } from "../utilidades/busqueda"
 
 const GRAD = "linear-gradient(135deg,#34d399,#059669)" // verde de venta/dinero, como el modal de venta
 const POR_PAGINA = 40
-const dinero = (n) => `$${(Number(n) || 0).toFixed(2)}`
 
 // Módulo de Ventas (Bloque E, 3.4 de vision-sistema.md): lo que antes estaba repartido entre Pacientes
 // y el Inventario. Por vender (cola "Listo para venta"), comprobantes de venta internos, órdenes de

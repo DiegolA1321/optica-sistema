@@ -1,3 +1,4 @@
+import { dinero } from "../utilidades/formatoMoneda"
 import { useEffect, useState } from "react"
 import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
 import { MessageSquare, Megaphone, Send, Clock, AlertCircle, CheckCircle2, Wallet, Receipt, Printer } from "lucide-react"
@@ -191,7 +192,7 @@ export default function Mensajes({ usuario }) {
               <div key={f.id} className="flex items-center justify-between gap-2 p-4">
                 <div className="min-w-0">
                   <p className="truncate font-mono text-xs font-semibold text-slate-700">{f.numero}</p>
-                  <p className="text-xs text-slate-500">{f.periodo} · ${Number(f.monto).toFixed(2)}</p>
+                  <p className="text-xs text-slate-500">{f.periodo} · {dinero(Number(f.monto))}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <span
@@ -358,7 +359,7 @@ export default function Mensajes({ usuario }) {
             </div>
             <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
               <p className="font-semibold">Suscripción mensual</p>
-              <p className="text-lg font-bold" style={{ color: INK }}>${Number(facturaImprimir.monto).toFixed(2)}</p>
+              <p className="text-lg font-bold" style={{ color: INK }}>{dinero(Number(facturaImprimir.monto))}</p>
             </div>
             <button type="button" onClick={() => setFacturaImprimir(null)} className="no-print mt-6 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cerrar</button>
           </div>

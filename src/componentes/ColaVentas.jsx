@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { ShoppingBag, FileText, UserX, Undo2, Stethoscope, Wallet } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
@@ -44,12 +45,12 @@ export default function ColaVentas({ modo = "listos", busqueda = "", items, sald
                   )}
                   {saldoDe && paciente && saldoDe(paciente.id) > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-700" title="El paciente tiene ventas anteriores sin pagar por completo">
-                      <Wallet size={11} aria-hidden="true" /> Saldo pendiente ${saldoDe(paciente.id).toFixed(2)}
+                      <Wallet size={11} aria-hidden="true" /> Saldo pendiente {dinero(saldoDe(paciente.id))}
                     </span>
                   )}
                   {pase.proformaEntregadaEn && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-blue-200/60 bg-blue-50 px-2.5 py-0.5 font-semibold text-blue-700">
-                      <FileText size={11} aria-hidden="true" /> Proforma {fechaLegible(pase.proformaEntregadaEn)} · ${Number(pase.proformaTotal || 0).toFixed(2)}
+                      <FileText size={11} aria-hidden="true" /> Proforma {fechaLegible(pase.proformaEntregadaEn)} · {dinero(Number(pase.proformaTotal || 0))}
                     </span>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { dinero } from "../utilidades/formatoMoneda"
 import { useEffect, useMemo, useState } from "react"
 import { FlaskConical, Printer, Pencil, MessageCircle, ChevronDown, Plus, ArrowRight, Undo2, AlertTriangle, CheckCircle2, Search } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
@@ -190,7 +191,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
                       <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + CLASE_ESTADO[visible]}>
                         {visible === "atrasada" ? `Atrasada ${diasDeAtraso(o)} d` : ETIQUETA_ESTADO[visible]}
                       </span>
-                      {saldoDe(o) > 0 && o.estado !== "cancelada" && <span className="rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Saldo ${saldoDe(o).toFixed(2)}</span>}
+                      {saldoDe(o) > 0 && o.estado !== "cancelada" && <span className="rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Saldo {dinero(saldoDe(o))}</span>}
                       {o.estado === "lista" && (o.pacienteAvisadoEn
                         ? <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/60 bg-white px-2.5 py-0.5 text-xs font-semibold text-emerald-700"><CheckCircle2 size={12} aria-hidden="true" /> Paciente avisado {fechaLegible(o.pacienteAvisadoEn)}</span>
                         : <span className="rounded-full border border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Falta avisar al paciente</span>)}
