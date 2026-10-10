@@ -3,7 +3,7 @@
 //  - Administrador y optómetra sobre la Demo: SOLO LECTURA, comparando en cada lado lo que hay (no dependen de datos fijos).
 //  - Próxima jornada del optómetra: en la óptica de pruebas, con una cita de Paula en un día futuro.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, crearCitaDeHoyParaPaula, cancelarCitasDePrueba } from './ayudas.js'
+import { iniciarSesion, crearCitaDeHoyParaPaula, cancelarCitasDePrueba, liberarHoyDePaula } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 900 } })
 const main = (page) => page.locator('main').first()
@@ -94,6 +94,7 @@ test('optómetra: "Ver en Citas" de su agenda abre exactamente esa jornada, con 
 })
 
 test('optómetra con la próxima jornada: el enlace nombra el día y Citas se abre en ese día (no en "Todas")', async ({ page }) => {
+  await liberarHoyDePaula()
   const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: 2 })
   try {
     await iniciarSesion(page, 'OPTOMETRA', 'E2E')

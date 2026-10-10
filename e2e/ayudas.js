@@ -247,3 +247,19 @@ export async function crearPacienteConHistorial(n = 6, entorno = 'E2E') {
   }
   return nombre
 }
+
+// Deja a Paula sin citas hoy en la óptica de pruebas (cancela las de hoy que otras pruebas dejaron), para probar su "próxima jornada".
+// Solo la óptica de pruebas: la Demo es de solo lectura.
+export async function liberarHoyDePaula(entorno = 'E2E') {
+  if (entorno !== 'E2E') throw new Error('Solo se libera el día en la óptica de pruebas.')
+  const { createClient } = await import('@supabase/supabase-js')
+  const { correo, clave } = credencial('RECEPCION', entorno)
+  const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { error: errorSesion } = await cliente.auth.signInWithPassword({ email: correo, password: clave })
+  if (errorSesion) throw new Error('No se pudo iniciar la sesión de Recepción para liberar el día de Paula.')
+  const { data: equipo } = await cliente.rpc('equipo_optica')
+  const paula = (equipo || []).find((m) => /Paula/.test(m.nombre))
+  if (!paula) throw new Error('No se encontró a Paula en el equipo de la óptica de pruebas.')
+  const { error } = await cliente.from('citas').update({ estado: 'Cancelada' }).eq('asignado_a', paula.id).eq('fecha', hoyLocalISO()).in('estado', ['Pendiente', 'En Espera', 'En Atención'])
+  if (error) throw new Error(`No se pudo liberar el día de Paula: ${error.message}`)
+}
