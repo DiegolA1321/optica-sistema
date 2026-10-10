@@ -1,20 +1,59 @@
-# Revisión del módulo de Ventas (9 oct 2026)
+# Revisión del módulo de Ventas (9 oct 2026, actualizada el 10 oct)
 
 Revisión hecha **leyendo el código** (`Ventas.jsx`, `ColaVentas`, `FilaComprobante`, `OrdenesLaboratorio`, `AbonoModal`, `useVentas`, y las partes de `Inicio.jsx` y `Dashboard.jsx` que tocan Ventas) contra las 28 reglas de `docs/principios-diseno.md`, con Citas como ejemplo de cómo debe quedar. Preparada para la reunión con el ingeniero.
 
-**Estado: pendiente de implementar. Nada se ha corregido.**
-**No verificado en pantalla:** falta verlo con cada rol (administrador, Ventas, Recepción), en la óptica vacía (`3pldf1`), con muchos datos y en otra zona horaria (regla 19).
+**Estado: casi todo sigue pendiente de implementar** (ver "Estado al 10 oct" más abajo: el punto 4 de los saldos se resolvió en lo principal y la cabecera ya lleva "Requieren atención").
+**Verificado en pantalla el 10 oct** con administrador, optómetra, Recepción y Ventas, y en la óptica vacía (`3pldf1`). **Sigue sin verificar:** con muchos datos y en otra zona horaria (regla 19).
 
 ## Cómo ven el módulo los roles
 
 Con los permisos predefinidos (`0090_roles_y_permisos.sql`), Recepción y Ventas ven lo mismo en este módulo (ver, crear y editar). Solo el administrador anula ventas ("eliminar"). El optómetra tiene solo "ver".
+
+## Estado al 10 oct 2026 (visto en pantalla con administrador, optómetra, Recepción y Ventas, y en la óptica vacía)
+
+Esta sección actualiza el documento sin repetir los puntos: cada uno sigue explicado más abajo, y aquí solo dice cómo está hoy. Lo que se corrigió el 10 oct está en `docs/estado-actual.md`.
+
+| Punto | Hoy |
+|---|---|
+| 1. Tarjeta "Ventas" contra su lista | **Pendiente.** La tarjeta (19) cuenta sin anuladas; la lista abre en "Todos los estados" e incluye las anuladas. Se agregó el estado "Vigentes (sin anuladas)" al selector y el período "Este mes", pero "Todos los estados" sigue siendo el valor por defecto. |
+| 2. Proformas | Pendiente (decisión 1). |
+| 3. Contador del menú | **Pendiente y ahora más visible**: ver el punto 19. |
+| 4. Saldos en unidades distintas | **Resuelto en lo principal.** El Inicio, su ventana de avisos, las tarjetas y la pestaña usan una sola cuenta (`saldosPorPaciente`, que incluye las ventas anteriores) y un solo texto: "N ventas con saldo · M pacientes · $X". Queda: el filtro "Con saldo" de Comprobantes (segundo camino a los saldos) y que los casos de la ventana de avisos no listan las ventas anteriores (hoy no hay ninguna). |
+| 5, 6, 7 | Pendientes. |
+| 8. Filas que hacen demasiado | **Confirmado en pantalla**: un comprobante lleva hasta cinco acciones (Abonar, Otra orden, Anular, Corregir o Registrar factura electrónica) y una orden hasta siete. |
+| 9, 10, 11 | Pendientes. Se confirma en pantalla que "Por vender", "Listos para venta (5)" y "Para vender" son lo mismo. |
+| 12. Color | **Confirmado**: Ventas es el único módulo en verde (ícono, "Nueva venta", "Guardar venta", la tarjeta seleccionada); los demás van en azul. |
+| 13, 14, 16, 17, 18 | Pendientes. El punto 17 se ve en pantalla: el optómetra ve los $720.30 de saldos y los comprobantes de todos (decisión 3). |
+| 15. Información repetida | **Confirmado**: el subtítulo repite las cuatro tarjetas y el chip "Listos para venta (5)" repite la tarjeta "Por vender 5". |
+
+**Ya resuelto y que cambia el documento:** la cabecera de Ventas lleva ahora "Requieren atención" (con los avisos del área, la misma ventana del Inicio) junto a "Nueva venta", en el mismo sitio que en Citas, Pacientes e Inventario, y la pestaña Saldos no repite sobre la lista lo que dice su tarjeta.
+
+### Hallazgos nuevos de esta vuelta
+
+**19. (Alta) Tres números distintos para "lo pendiente en Ventas"**
+- **Reglas:** 2, 5, 21.
+- **Qué se ve:** el menú muestra **11** (`Dashboard.jsx:129`: 5 listos para venta + 3 órdenes atrasadas + 3 listas sin avisar); el botón "Requieren atención" de la cabecera muestra **14** (3 sin avisar + 3 atrasadas + 8 ventas con saldo; lo mismo que "Requiere tu atención: Ventas" del Inicio); la tarjeta "Por vender" muestra 5, y las tarjetas de Órdenes y Saldos llevan un punto naranja sin número. Nada de lo que está en pantalla explica por qué 11 no es 14.
+- **Propuesta:** que el número del menú sea el del botón (14) o que el menú no lleve número. El botón y el Inicio ya cuentan lo mismo porque comparten función. Este punto reemplaza al 3.
+
+**20. (Media) La lista vacía de "Por vender" no ofrece "Nueva venta"**
+- **Regla:** 17, 30. En la óptica vacía dice "No hay pacientes esperando para venta" y explica cómo aparecen, pero la acción está solo en la cabecera. Un paciente que llega a comprar sin consulta previa es el caso para el que existe "Nueva venta".
+- **Propuesta:** el mensaje vacío lleva "Nueva venta" (un camino más a la misma acción: se cambia el texto de la explicación, no se agrega otro botón, regla 8).
+
+**21. (Media) "Ingresos" de Reportes y "Vendidas este mes" del Inicio son números distintos para las mismas ventas**
+- **Regla:** 2, 24. Reportes suma lo cobrado ($94.50) y el Inicio lo vendido ($223.00) para las mismas 2 ventas de octubre. Detalle y propuesta en `docs/revision-modulos.md`, punto 2.1.
+
+**22. (Baja) El estado vacío de Ventas mezcla "Todo en orden" con cuatro tarjetas en cero**
+- **Regla:** 25. En la óptica vacía el botón dice "Todo en orden" y las tarjetas muestran 0, $0.00 y "0 ventas con saldo · 0 pacientes". Las tarjetas de Órdenes y Saldos aparecen igual que con datos. **Propuesta:** con todo en cero, una sola explicación de qué va en cada pestaña y la acción "Nueva venta".
+
+**23. (Baja) El color de la ventana "Nueva venta" y de "Guardar venta"**
+- **Regla:** 14, 43. Es la única ventana de formulario verde del sistema; las de Usuarios, Inventario y Citas son azules. Se resuelve con el punto 12.
 
 ## Decisiones que se piden a Diego
 
 1. **Proformas (punto 2).** ¿Llevan su propia sección en Ventas, o se quedan como etiqueta en la cola y se elimina la tarjeta "Proformas en seguimiento" del Inicio?
 2. **Puntos 3 y 4 tocan el Inicio**, que es un módulo cerrado (regla 27). Corregirlos cambia la tarjeta de saldos y el contador del menú; hay que avisar y esperar aprobación antes de dejarlos.
 3. **Punto 17:** confirmar si el optómetra debe ver montos y saldos de todas las ventas (hoy es lo que dice su plantilla de rol).
-4. **Orden propuesto:** empezar por los puntos 1 a 4 (los que el ingeniero comprueba contando números). Diego puede descartar o reordenar cualquiera.
+4. **Orden propuesto:** empezar por los puntos 1, 19 (que reemplaza al 3) y 21, los que se comprueban contando números; el 4 ya está. Diego puede descartar o reordenar cualquiera.
 
 ---
 
@@ -36,12 +75,12 @@ Con los permisos predefinidos (`0090_roles_y_permisos.sql`), Recepción y Ventas
   - *Opción B:* la proforma queda como etiqueta en la cola, se elimina la tarjeta del Inicio y "Listos para venta" muestra "N · con proforma".
   - En ambas: un aviso cuando una proforma lleva varios días sin respuesta.
 
-### 3. El contador del menú suma dos cosas distintas
+### 3. El contador del menú suma dos cosas distintas (10 oct: ver el punto 19, que lo reemplaza)
 - **Reglas:** 2, 5. **Toca el Inicio/menú: requiere aprobación (27).**
 - **Qué pasa:** `Dashboard.jsx:129` suma pacientes listos para venta más órdenes que piden acción. Ese número no coincide con ninguna lista ni tarjeta.
 - **Propuesta:** que el contador cuente una sola cosa con una lista que lo respalde (por ejemplo, "lo que requiere atención en Ventas" con el mismo criterio que el bloque de Ventas en "Requiere tu atención"), o quitarlo.
 
-### 4. "Saldos por cobrar" cuenta en unidades distintas
+### 4. "Saldos por cobrar" cuenta en unidades distintas (10 oct: resuelto en lo principal, ver la tabla de arriba)
 - **Reglas:** 2, 5, 8. **Toca el Inicio: requiere aprobación (27).**
 - **Qué pasa:**
   - El Inicio dice "$X en N ventas" y lista por venta; Ventas dice "N pacientes" y lista por paciente.
