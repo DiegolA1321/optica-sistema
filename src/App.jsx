@@ -57,7 +57,7 @@ const INVENTARIO_SEED = [];
 // políticas aplica de cara al paciente. Antes esto estaba fijo en el código
 // (medidas siempre protegidas) — ahora lo decide el administrador.
 const PARAMETRIZACION_SEED = {
-  mostrarMedidasPaciente: false, // ¿el paciente ve esfera/cilindro/eje sin costo adicional?
+  mostrarMedidasPaciente: false, // ¿el paciente ve la distancia pupilar y la altura de montaje en el portal? (la receta se ve siempre)
   manejaProgresion: true, // ¿ofrece esta óptica adaptación de lentes progresivos?
 }
 

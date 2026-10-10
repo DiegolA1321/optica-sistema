@@ -441,7 +441,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     // Solicitud de medidas completas desde el portal (migración 0080): el paciente pide ver esfera/cilindro/eje.
     if (puede(usuario, "pacientes", "ver")) {
       const conMedidasPendientes = pacientes.filter((p) => p.medidasSolicitadasEn)
-      if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas completas`, sub: "Un paciente pidió ver su receta completa", destino: "pacientes" })
+      if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas de montaje`, sub: "Un paciente pidió su distancia pupilar y altura", destino: "pacientes" })
     }
     return arr
   }, [usuario, pacientes, mensajesResumen])

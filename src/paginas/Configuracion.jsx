@@ -478,18 +478,22 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         <div className="space-y-3">
           <FilaParametro
             icon={parametrizacion.mostrarMedidasPaciente ? Eye : EyeOff}
-            titulo="Medidas de la receta en el portal del paciente"
-            descripcion="Esfera, cilindro y eje son datos técnicos de la receta. Puedes dejarlos visibles gratis en el portal, o mantenerlos protegidos y ofrecerlos solo bajo solicitud (con costo adicional)."
+            titulo="Distancia pupilar y medidas de montaje en el portal del paciente"
+            descripcion="La receta (esfera, cilindro, eje, adición y agudeza visual) siempre se ve en el portal: es del paciente. Esta opción decide si también se muestran la distancia pupilar y la altura de montaje, o si el paciente debe solicitarlas."
             activo={parametrizacion.mostrarMedidasPaciente}
             onClick={() => alternar(
               "mostrarMedidasPaciente",
-              "Medidas de la receta en el portal del paciente",
-              "Vas a mostrar esfera, cilindro y eje sin costo adicional en el portal del paciente.",
+              "Distancia pupilar y medidas de montaje en el portal del paciente",
+              "Vas a mostrar la distancia pupilar y la altura de montaje en el portal del paciente.",
               "Vas a proteger esos datos — el paciente tendrá que solicitarlos.",
             )}
-            etiquetaOn="Visibles sin costo adicional"
+            etiquetaOn="Visibles en el portal"
             etiquetaOff="Protegidas · el paciente debe solicitarlas"
           />
+
+          <p role="note" className="rounded-xl border border-blue-200/60 bg-blue-50 px-4 py-3 text-xs leading-relaxed text-blue-800">
+            <span className="font-semibold">Cambio en el portal del paciente:</span> desde esta versión el paciente ve siempre su receta (esfera, cilindro, eje, adición y agudeza visual), igual que la receta impresa, y puede descargar sus datos. Esta política queda solo para la distancia pupilar y la altura de montaje. Lo que no se muestra tampoco llega al navegador del paciente.
+          </p>
 
           <div className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">

@@ -1837,7 +1837,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               <div className="flex items-start gap-2.5">
                 <Eye size={18} className="mt-0.5 shrink-0 text-blue-600" />
                 <div>
-                  <p className="text-sm font-semibold text-blue-800">Este paciente pidió ver sus medidas completas (esfera/cilindro/eje) desde el portal.</p>
+                  <p className="text-sm font-semibold text-blue-800">Este paciente pidió su distancia pupilar y sus medidas de montaje desde el portal.</p>
                   <p className="text-[11px] text-blue-600">Entrégaselas por el canal que prefieras y marca esta solicitud como atendida.</p>
                 </div>
               </div>
