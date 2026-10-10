@@ -90,7 +90,7 @@ test('optómetra: "Ver en Citas" de su agenda abre exactamente esa jornada, con 
   if (!n) { await expect(enlace).toHaveCount(0); return } // sin citas por venir no hay enlace que prometa nada
   await enlace.click()
   await expect(estado(page)).toHaveText(new RegExp(`^${n} citas? (hoy|ese día)$`, 'i'), { timeout: 15_000 })
-  await expect(page.getByRole('button', { name: 'Todas', exact: true })).toHaveCount(0) // el optómetra no recibe un período que su Citas no ofrece
+  await expect(page.getByRole('button', { name: 'Todas', exact: true })).toHaveAttribute('aria-pressed', 'false') // "Todas" está siempre en su lugar, pero la agenda abre en su jornada, no en todas
 })
 
 test('optómetra con la próxima jornada: el enlace nombra el día y Citas se abre en ese día (no en "Todas")', async ({ page }) => {
@@ -106,7 +106,7 @@ test('optómetra con la próxima jornada: el enlace nombra el día y Citas se ab
     await expect(estado(page)).toHaveText(/^1 cita ese día$/i, { timeout: 15_000 })
     await expect(main(page)).toContainText(dia.split(' ').slice(0, 3).join(' ')) // el selector de día muestra esa fecha
     await expect(main(page)).toContainText(nombre)
-    await expect(page.getByRole('button', { name: 'Todas', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Todas', exact: true })).toHaveAttribute('aria-pressed', 'false')
   } finally {
     await cancelarCitasDePrueba([nombre])
   }

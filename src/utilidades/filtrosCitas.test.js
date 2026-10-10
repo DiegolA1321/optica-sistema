@@ -152,9 +152,9 @@ describe("filtros combinados y conteos", () => {
 })
 
 describe("atajos del periodo y búsqueda en todas las fechas", () => {
-  it("los periodos son Hoy, Semana y Mes; 'Para reagendar' y 'Todas' aparecen solo mientras están activos", () => {
-    expect(periodosFiltro().map((p) => p.etiqueta)).toEqual(["Hoy", "Semana", "Mes"])
-    expect(periodosFiltro("todas").map((p) => p.id)).toEqual(["hoy", "semana", "mes", "todas"])
+  it("los periodos son Hoy, Semana, Mes y Todas, siempre los mismos y en el mismo orden", () => {
+    expect(periodosFiltro().map((p) => p.etiqueta)).toEqual(["Hoy", "Semana", "Mes", "Todas"])
+    expect(periodosFiltro().map((p) => p.id)).toEqual(["hoy", "semana", "mes", "todas"]) // las mismas opciones en el mismo orden, sea cual sea el periodo elegido
   })
 
   const cita = (id, o) => ({ id, paciente: `Paciente ${id}`, estado: "Pendiente", origen: "staff", fecha: "2026-10-08", pacienteId: id, asignadoA: null, atendidoPor: null, confirmadaAt: null, ...o })

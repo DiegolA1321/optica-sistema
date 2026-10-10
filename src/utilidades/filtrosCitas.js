@@ -15,13 +15,13 @@ export const ESTADOS_FILTRO = [
 ]
 
 // Periodos de la Lista, los mismos que las vistas Semana y Mes: un día, una semana (de lunes a domingo) o un mes, que se
-// mueven con las flechas de la barra. El rango libre de fechas es un filtro del panel "Filtrar". "Todas" no es un
-// botón fijo: aparece solo mientras está activo (se llega desde las tarjetas de Inicio; `activo` es el periodo elegido).
-export const periodosFiltro = (activo = "") => [
+// mueven con las flechas de la barra. El rango libre de fechas es un filtro del panel "Filtrar". "Todas" está
+// siempre, en su lugar: un control no aparece y desaparece según el periodo elegido (regla 1). Con "Todas" no hay flechas: no hay periodo que mover.
+export const periodosFiltro = () => [
   { id: "hoy", etiqueta: "Hoy" },
   { id: "semana", etiqueta: "Semana" },
   { id: "mes", etiqueta: "Mes" },
-  ...(activo === "todas" ? [{ id: "todas", etiqueta: "Todas" }] : []),
+  { id: "todas", etiqueta: "Todas" },
 ]
 
 // Grupo "Tarea" del panel Filtrar: los atajos por tarea de recepción. "Por confirmar" = las citas abiertas del próximo día de

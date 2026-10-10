@@ -1035,7 +1035,7 @@ export default function Citas({ usuario, onAviso, setDisponibilidad, estadoInici
   }, [refLista])
   const diaConfirmar = useMemo(() => proximoDiaDeAtencion(disponibilidad, hoyISO()), [disponibilidad])
   const idsReagendar = useMemo(() => new Set(citasParaReagendar(citas).map((c) => c.id)), [citas])
-  const periodos = useMemo(() => periodosFiltro(filtro), [filtro])
+  const periodos = useMemo(() => periodosFiltro(), [])
   const tareaActiva = filtro === "confirmar" || filtro === "reagendar" ? filtro : "ninguna"
   const ventana = useMemo(() => {
     if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
