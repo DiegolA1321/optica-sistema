@@ -32,11 +32,12 @@ export function SinInformacion({ Icono = Sparkles, titulo, texto, children }) {
 }
 
 // Ventana del sistema: cabecera blanca con el ícono de marca, igual que el detalle de la cita.
-export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50" }) {
+export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50", formulario = null }) {
+  const Raiz = formulario ? "form" : "div"
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
     <div className={"fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm " + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-label={titulo} className={"flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl " + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
+      <Raiz ref={refModal} role="dialog" aria-modal="true" aria-label={titulo} {...(formulario ? { onSubmit: formulario.onSubmit } : {})} className={"flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl " + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>
@@ -52,9 +53,24 @@ export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">{pie}</div>
-      </div>
+      </Raiz>
     </div>,
     document.body,
+  )
+}
+
+// Pie estándar de una ventana-formulario: nota opcional a la izquierda; a la derecha, Cancelar y la acción principal (la que hace submit).
+export function PieFormulario({ onCancelar, etiquetaGuardar = "Guardar", guardando = false, deshabilitado = false, nota = null }) {
+  return (
+    <>
+      {nota ? <span className="text-xs text-slate-500">{nota}</span> : <span />}
+      <div className="ml-auto flex items-center gap-2">
+        <button type="button" onClick={onCancelar} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+        <button type="submit" disabled={guardando || deshabilitado} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+          {guardando ? "Guardando…" : etiquetaGuardar}
+        </button>
+      </div>
+    </>
   )
 }
 
