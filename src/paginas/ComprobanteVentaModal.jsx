@@ -357,7 +357,7 @@ export default function ComprobanteVentaModal({
           return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
         }))
       }
-      registrarLog(usuario, "pacientes", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
+      registrarLog(usuario, "ventas", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · $${total.toFixed(2)}`)
       let estadoFinal = data.estado
       let avisoAbono = ""
       if (abonoNum > 0) {

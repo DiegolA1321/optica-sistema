@@ -40,7 +40,7 @@ import RequiereAtencionPorArea from "../componentes/RequiereAtencionPorArea"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
-import { NOMBRE_MODULO, detalleActividad } from "../utilidades/logs"
+import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
 import { ordenesAtrasadas, ordenesListasSinAvisar, atrasosPorLaboratorio } from "../utilidades/ordenesLaboratorio"
@@ -695,7 +695,7 @@ export default function Inicio({
             <p className="min-w-0 truncate text-xs text-slate-600">
               <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
               {detalleActividad(l.detalle) && <span className="text-slate-500"> — {detalleActividad(l.detalle)}</span>}
-              <span className="text-slate-400"> · {NOMBRE_MODULO[l.modulo] || l.modulo}</span>
+              <span className="text-slate-400"> · {NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo}</span>
             </p>
             <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
           </li>

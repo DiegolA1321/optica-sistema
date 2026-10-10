@@ -68,7 +68,7 @@ import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
-import { NOMBRE_MODULO } from "../utilidades/logs"
+import { NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { INK, ACCION_VER } from "@/lib/tema"
@@ -3590,7 +3590,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                                     <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
                                     {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
                                   </p>
-                                  <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
+                                  <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
                                 </div>
                               ))}
                             </div>

@@ -55,7 +55,7 @@ export function useVentas({
       if (error) return { error: esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message || "No se pudo guardar el número. Revisa tu conexión e intenta de nuevo." }
     }
     setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, facturaElectronica: numero } : f)))
-    registrarLog(usuario, "pacientes", numero ? "Registró la factura electrónica de una venta" : "Quitó la factura electrónica de una venta", numero || "")
+    registrarLog(usuario, "ventas", numero ? "Registró la factura electrónica de una venta" : "Quitó la factura electrónica de una venta", numero || "")
     notificar?.(numero ? "Número de factura electrónica guardado." : "Se quitó el número de factura electrónica.")
     return { error: null }
   }

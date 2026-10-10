@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { detalleActividad } from "./logs"
+import { detalleActividad, moduloDeRegistro, NOMBRE_MODULO } from "./logs"
 
 describe("detalleActividad", () => {
   it("deja pasar lo que entiende quien administra la óptica", () => {
@@ -16,5 +16,21 @@ describe("detalleActividad", () => {
     expect(detalleActividad("la inasistencia fue real; no es una cita activa")).toBe("")
     expect(detalleActividad("script de migración 0102")).toBe("")
     expect(detalleActividad("cita 45f4aa4c-23bd-43ca-a18a-27eba20c4945")).toBe("")
+  })
+})
+
+describe("moduloDeRegistro", () => {
+  it("las órdenes de laboratorio, las ventas y los abonos son de Ventas, aunque se hayan guardado como Pacientes", () => {
+    for (const accion of ["Cambió el estado de una orden de laboratorio", "Creó una orden de laboratorio", "Avisó al paciente que sus lentes están listos", "Registró un abono", "Anuló una venta", "Registró una venta", "Registró la factura electrónica de una venta"]) {
+      expect(moduloDeRegistro({ modulo: "pacientes", accion }), accion).toBe("ventas")
+    }
+    expect(moduloDeRegistro({ modulo: "consultas", accion: "Cobró la atención desde la ficha clínica" })).toBe("ventas")
+    expect(NOMBRE_MODULO.ventas).toBe("Ventas")
+  })
+  it("lo demás conserva su módulo", () => {
+    expect(moduloDeRegistro({ modulo: "pacientes", accion: "Registró un paciente nuevo" })).toBe("pacientes")
+    expect(moduloDeRegistro({ modulo: "consultas", accion: "Registró una ficha clínica" })).toBe("consultas")
+    expect(moduloDeRegistro({ modulo: "citas", accion: "Canceló una cita" })).toBe("citas")
+    expect(moduloDeRegistro({ modulo: "inventario", accion: "Agregó un producto al inventario" })).toBe("inventario")
   })
 })

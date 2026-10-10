@@ -314,7 +314,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     await marcarCitaAtendida()
     setCobroTotal(Number(factura.montoTotal) || 0)
     setCobroEstado("cobrado")
-    registrarLog(usuario, "consultas", "Cobró la atención desde la ficha clínica", `$${(Number(factura.montoTotal) || 0).toFixed(2)}`)
+    registrarLog(usuario, "ventas", "Cobró la atención desde la ficha clínica", `$${(Number(factura.montoTotal) || 0).toFixed(2)}`)
   }
 
   // "Dejar de atender" (R32): no se pospone. Lo que no se guardó se pierde y la

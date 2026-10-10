@@ -37,7 +37,7 @@ export default function AnularVentaModal({ factura, paciente, abonos, ordenesAbi
         return
       }
     }
-    registrarLog(usuario, "pacientes", "Anuló una venta", `${paciente?.nombre || ""} · ${dinero(factura.montoTotal)} · ${motivo.trim()}`)
+    registrarLog(usuario, "ventas", "Anuló una venta", `${paciente?.nombre || ""} · ${dinero(factura.montoTotal)} · ${motivo.trim()}`)
     setGuardando(false)
     onAnulada?.({ motivo: motivo.trim() })
     onCerrar()

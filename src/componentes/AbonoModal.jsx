@@ -56,7 +56,7 @@ export default function AbonoModal({ factura, paciente, abonos, usuario, onRegis
       const { data: filas } = await supabase.from("abonos_factura").select("*").eq("factura_id", factura.id)
       ;(filas || []).forEach((f) => window.dispatchEvent(new CustomEvent(EVENTO_ABONO, { detail: mapAbono(f) })))
     }
-    registrarLog(usuario, "pacientes", "Registró un abono", `${paciente?.nombre || ""} · ${dinero(valor)}`)
+    registrarLog(usuario, "ventas", "Registró un abono", `${paciente?.nombre || ""} · ${dinero(valor)}`)
     setGuardando(false)
     onRegistrado?.({ monto: valor, ...resultado })
     onCerrar()

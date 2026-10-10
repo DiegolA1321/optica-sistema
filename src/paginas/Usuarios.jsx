@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, validarClaveNueva, MENSAJE_CLAVE_SEGURA } from "../utilidades/validaciones"
-import { registrarLog, NOMBRE_MODULO } from "../utilidades/logs"
+import { registrarLog, NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
 import RolesPanel from "../componentes/RolesPanel"
@@ -269,7 +269,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                   <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                       <p className="text-sm text-slate-700"><span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}{l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[l.modulo] || l.modulo}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo}</p>
                     </div>
                     <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">{fechaHoraLegible(l.created_at)}</span>
                   </div>

@@ -116,7 +116,7 @@ export default function OrdenLaboratorioModal({
       }
       guardada = mapOrden(fila)
     }
-    registrarLog(usuario, "pacientes", orden ? "Corrigió una orden de laboratorio" : "Creó una orden de laboratorio", `${paciente?.nombre || ""} · ${guardada ? numeroOrden(guardada.numero) : ""}`)
+    registrarLog(usuario, "ventas", orden ? "Corrigió una orden de laboratorio" : "Creó una orden de laboratorio", `${paciente?.nombre || ""} · ${guardada ? numeroOrden(guardada.numero) : ""}`)
     setGuardando(false)
     if (guardada) {
       avisarOrdenGuardada(guardada)

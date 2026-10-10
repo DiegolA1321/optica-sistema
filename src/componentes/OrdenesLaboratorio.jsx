@@ -98,7 +98,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
     if (error) { falla(error, "No se pudo cambiar el estado. Revisa tu conexión e intenta de nuevo."); return }
     reemplazar(o.id, { estado, historial: [...(o.historial || []), { estado, cambiadoEn: new Date().toISOString() }], ...(estado === "enviada" || estado === "lista" ? { pacienteAvisadoEn: null, pacienteAvisadoPor: null } : {}) })
     setHistorial((h) => { const { [o.id]: _quitar, ...resto } = h; return resto })
-    registrarLog(usuario, "pacientes", "Cambió el estado de una orden de laboratorio", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
+    registrarLog(usuario, "ventas", "Cambió el estado de una orden de laboratorio", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
     onAviso?.(estado === "lista" ? `${numeroOrden(o.numero)} lista para entregar. Avísale al paciente.` : `${numeroOrden(o.numero)}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`)
   }
 
@@ -111,7 +111,7 @@ export default function OrdenesLaboratorio({ ordenes, setOrdenes, pacientes = []
     if (error) { falla(error, "No se pudo registrar el aviso. Revisa tu conexión e intenta de nuevo."); return }
     window.open(linkWhatsApp(p.telefono, mensajeLentesListos({ paciente: p, opticaNombre: usuario?.opticaNombre, orden: o })), "_blank", "noopener")
     reemplazar(o.id, { pacienteAvisadoEn: data, pacienteAvisadoPor: usuario?.id || null })
-    registrarLog(usuario, "pacientes", "Avisó al paciente que sus lentes están listos", `${p.nombre} · ${numeroOrden(o.numero)}`)
+    registrarLog(usuario, "ventas", "Avisó al paciente que sus lentes están listos", `${p.nombre} · ${numeroOrden(o.numero)}`)
     onAviso?.(`Aviso a ${p.nombre} abierto en WhatsApp.`)
   }
 
