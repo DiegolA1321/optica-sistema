@@ -570,7 +570,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {/* ─── TENDENCIA DE INASISTENCIAS (H2) ─── */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "190ms" }}>
           <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Tendencia de inasistencias</h3>
-          <p className="mb-5 text-xs text-slate-500">Citas marcadas "No Asistió" · últimos 6 meses</p>
+          <p className="mb-5 text-xs text-slate-500">Citas marcadas "No asistió" · últimos 6 meses</p>
           {citasNoAsistio === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">Ninguna cita marcada como no asistida todavía.</p>
           ) : (

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import { estadosCorregibles, estadoCorregibleEs } from "./estadosCita"
+import { estadosCorregibles, estadoCorregibleEs , etiquetaEstadoCita } from "./estadosCita"
 import { horaLibreAhora, necesitaMoverseAHoy } from "./moverCitaAHoy"
 
 const HOY = "2026-10-10"
@@ -43,5 +43,15 @@ describe("mover una cita a hoy antes de atenderla", () => {
     const ahora = new Date(2026, 9, 10, 23, 59)
     expect(horaLibreAhora([{ id: "a", fecha: HOY, hora: "11:59 PM", estado: "Pendiente" }], "x", ahora, HOY)).toBe("11:59 PM")
     vi.useRealTimers()
+  })
+})
+
+describe("cómo se escribe el estado de una cita", () => {
+  it("'No asistió', 'En atención' y 'En espera' se escriben igual en todo el sistema; el valor guardado no se muestra tal cual", () => {
+    expect(etiquetaEstadoCita("No Asistió")).toBe("No asistió")
+    expect(etiquetaEstadoCita("En Atención")).toBe("En atención")
+    expect(etiquetaEstadoCita("En Espera")).toBe("En espera")
+    expect(etiquetaEstadoCita("Atendida")).toBe("Atendida")
+    expect(etiquetaEstadoCita(undefined)).toBe("Pendiente")
   })
 })

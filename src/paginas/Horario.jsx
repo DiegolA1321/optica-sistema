@@ -1,5 +1,6 @@
 "use client"
 
+import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -1119,7 +1120,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
                       <p className="text-xs text-slate-500">{c.hora}</p>
                     </div>
                     <span className={"shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
-                      {c.estado || "Pendiente"}
+                      {etiquetaEstadoCita(c.estado)}
                     </span>
                   </div>
                 ))}

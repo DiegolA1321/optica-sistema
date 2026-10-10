@@ -1,5 +1,6 @@
 "use client"
 
+import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
@@ -256,7 +257,7 @@ export default function Inicio({
           : cita.estado === "No Asistió" ? "border border-red-200/60 bg-red-50 text-red-700"
           : cita.estado === "Cancelada" ? "border border-slate-200/60 bg-slate-50 text-slate-600"
           : "border border-amber-200/60 bg-amber-50 text-amber-700")}>
-        {cita.estado || "Pendiente"}
+        {etiquetaEstadoCita(cita.estado)}
       </span>
       </span>
     </button>

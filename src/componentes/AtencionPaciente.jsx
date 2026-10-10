@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { X, Stethoscope, Printer, ClipboardList, Eye, ShieldAlert, Sparkles, IdCard, Pencil } from "lucide-react"
 import { INK, GOLD } from "@/lib/tema"
+import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { edadEnAnios } from "../utilidades/edad"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
@@ -17,7 +18,6 @@ const BADGE_ESTADO_CITA = {
   "No Asistió": "border-red-200/60 bg-red-50 text-red-700",
   Cancelada: "border-slate-200/60 bg-slate-100 text-slate-500",
 }
-const ETIQUETA_ESTADO_CITA = { "En Atención": "En atención", "No Asistió": "No asistió" }
 
 // Mensaje cuando un cuadro o una lista no tiene información: ícono suave, título y una línea que explica qué hacer o qué esperar.
 export function SinInformacion({ Icono = Sparkles, titulo, texto, children }) {
@@ -280,7 +280,7 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onC
       <Cascaron
         titulo={"Atención del " + (fechaLegible(consulta.fecha) || "—")}
         subtitulo={[cita?.hora && cita.hora !== "Sin cita" ? cita.hora : "Sin cita", consulta.motivo, consulta.profesionalNombre].filter(Boolean).join(" · ")}
-        derecha={<span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[cita?.estado] || "border-emerald-200/60 bg-emerald-50 text-emerald-700")}>{ETIQUETA_ESTADO_CITA[cita?.estado] || cita?.estado || "Atendida"}</span>}
+        derecha={<span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[cita?.estado] || "border-emerald-200/60 bg-emerald-50 text-emerald-700")}>{etiquetaEstadoCita(cita?.estado || "Atendida")}</span>}
         onCerrar={onCerrar}
         pie={<>
           <div className="flex flex-wrap items-center gap-3">

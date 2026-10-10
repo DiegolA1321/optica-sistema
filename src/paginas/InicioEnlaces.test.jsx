@@ -220,3 +220,13 @@ describe("Botón 'Requieren atención' de cada módulo", () => {
     expect(screen.queryByRole("button", { name: /Requieren atención/ })).not.toBeInTheDocument()
   })
 })
+
+describe("Textos del estado de la cita", () => {
+  it("'No asistió' se escribe igual en la lista de citas del día (no 'No Asistió')", () => {
+    render(<Inicio {...base} citas={[cita("1", "No Asistió"), cita("2", "En Espera", { hora: "10:00 AM" })]} />)
+    const lista = screen.getByRole("region", { name: /^Citas del día/ })
+    expect(within(lista).getByText("No asistió")).toBeInTheDocument()
+    expect(within(lista).getByText("En espera")).toBeInTheDocument()
+    expect(lista.textContent).not.toMatch(/No Asistió|En Espera/)
+  })
+})

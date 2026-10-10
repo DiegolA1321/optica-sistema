@@ -1,5 +1,6 @@
 "use client"
 
+import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { useState } from "react"
 import { createPortal } from "react-dom"
@@ -24,7 +25,6 @@ const BADGE_ESTADO = {
   Cancelada: "border-slate-200/60 bg-slate-100 text-slate-600",
 }
 const BADGE_PENDIENTE = "border-amber-200/60 bg-amber-50 text-amber-700"
-const ETIQUETA_ESTADO = { "En Espera": "En espera", "En Atención": "En atención", "No Asistió": "No asistió" }
 
 // "4 oct 2026, 03:20 PM" a partir del created_at de la cita (timestamptz).
 function fechaHoraAgendada(iso) {
@@ -86,7 +86,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   const puedeNoAsistio = !!onNoAsistio && cita.estado === "Pendiente" && yaPasoLaHora(cita)
   const puedeConfirmar = !!onConfirmar && ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt
   const hayCambioDeEstado = puedeLlego || puedeNoLlego || puedeNoAsistio || puedeConfirmar
-  const etiquetaEstado = ETIQUETA_ESTADO[cita.estado] || cita.estado || "Pendiente"
+  const etiquetaEstado = etiquetaEstadoCita(cita.estado)
   // Datos del paciente (la cita guarda los del momento de agendar; el expediente trae la edad y, a veces, el correo).
   const edad = edadEnAnios(paciente?.fecha_nacimiento || paciente?.fechaNacimiento)
   const correoBruto = cita.correo || paciente?.correo || ""

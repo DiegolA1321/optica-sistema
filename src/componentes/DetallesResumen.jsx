@@ -1,5 +1,6 @@
 "use client"
 
+import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { dinero } from "../utilidades/formatoMoneda"
 import { ChevronRight, Gift, Cake, Star, Receipt, Calendar, CalendarPlus, Users, Printer, Stethoscope, CheckCircle2, Eye } from "lucide-react"
 import { INK } from "@/lib/tema"
@@ -83,7 +84,7 @@ export function PanelControl({ proximoControl, diasControl, inactivo, ultima, ci
           {ultima && proximoControl && <span className="block text-xs font-normal text-slate-500">Lo indicó el optómetra en la ficha del {fechaLegible(ultima.fecha)}{ultima.proximoControlDias ? ` (a los ${ultima.proximoControlDias} días)` : ""}.</span>}
         </Fila>
         <Fila etiqueta="Cita agendada">
-          {citaPendiente ? <>{fechaLegible(citaPendiente.fecha)} · {citaPendiente.hora}<span className="block text-xs font-normal text-slate-500">{citaPendiente.motivo || "Consulta general"} · {citaPendiente.estado}</span></> : <span className="font-normal text-slate-500">No tiene una cita agendada.</span>}
+          {citaPendiente ? <>{fechaLegible(citaPendiente.fecha)} · {citaPendiente.hora}<span className="block text-xs font-normal text-slate-500">{citaPendiente.motivo || "Consulta general"} · {etiquetaEstadoCita(citaPendiente.estado)}</span></> : <span className="font-normal text-slate-500">No tiene una cita agendada.</span>}
         </Fila>
       </dl>
       <p className="mx-4 mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">

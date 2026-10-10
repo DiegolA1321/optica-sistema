@@ -13,3 +13,8 @@ export function estadosCorregibles(cita, hoy = hoyISO()) {
 }
 
 export const estadoCorregibleEs = (cita, estado, hoy = hoyISO()) => estado === cita?.estado || estadosCorregibles(cita, hoy).includes(estado)
+
+// Cómo se escribe cada estado de cita en pantalla: una sola fuente, así "No asistió" es igual en todo el sistema. El valor guardado
+// ("No Asistió", "En Atención"...) es un dato interno y no se muestra tal cual.
+const ETIQUETA_ESTADO = { Pendiente: "Pendiente", "En Espera": "En espera", "En Atención": "En atención", Atendida: "Atendida", "No Asistió": "No asistió", Cancelada: "Cancelada" }
+export const etiquetaEstadoCita = (estado) => ETIQUETA_ESTADO[estado] || estado || "Pendiente"
