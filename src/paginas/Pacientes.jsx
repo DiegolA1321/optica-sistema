@@ -1050,12 +1050,11 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
   const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const seccionesFiltro = [
     { id: "estado", titulo: "Estado", valor: filtroEstado, onChange: setFiltroEstado, opciones: [{ id: "Todos", etiqueta: "Todos" }, { id: "Activo", etiqueta: "Activo" }, { id: "De alta", etiqueta: "De alta" }] },
-    { id: "correccion", titulo: "Corrección", valor: filtroCorreccion, onChange: setFiltroCorreccion, opciones: [{ id: "Todos", etiqueta: "Todas" }, { id: "Bien corregido", etiqueta: "Bien corregido" }, { id: "Requiere ajuste", etiqueta: "Requiere ajuste" }, { id: "Sin evaluar", etiqueta: "Sin agudeza visual con lentes registrada" }, { id: "Sin evaluación", etiqueta: "Sin consulta" }] },
     { id: "fecha", titulo: "Fecha de registro", tipo: "rango", rango: { desde: filtroDesde, hasta: filtroHasta, onDesde: setFiltroDesde, onHasta: setFiltroHasta } },
   ]
   const etiquetasFiltro = [
     ...(filtroEstado !== "Todos" ? [{ id: "estado", texto: filtroEstado, quitar: () => setFiltroEstado("Todos") }] : []),
-    ...(filtroCorreccion !== "Todos" ? [{ id: "correccion", texto: seccionesFiltro[1].opciones.find((o) => o.id === filtroCorreccion)?.etiqueta || filtroCorreccion, quitar: () => setFiltroCorreccion("Todos") }] : []),
+    ...(filtroCorreccion !== "Todos" ? [{ id: "correccion", texto: tarjetasCorreccion.find((t) => t.key === filtroCorreccion)?.label || filtroCorreccion, quitar: () => setFiltroCorreccion("Todos") }] : []),
     ...(filtroDesde || filtroHasta ? [{ id: "fecha", texto: filtroDesde && filtroHasta ? `${corta(filtroDesde)} – ${corta(filtroHasta)}` : `Desde el ${corta(filtroDesde || filtroHasta)}`, quitar: () => { setFiltroDesde(""); setFiltroHasta("") } }] : []),
   ]
 
@@ -1069,30 +1068,23 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
     setFiltroRapido("Todos")
   }
 
-  // Badges de filtro rápido sobre la tabla — "Recetas activas" reusa el
-  // mismo filtroCorreccion que ya usan las tarjetas de arriba (no se duplica
-  // el estado); "Visitas recientes" y "Pagos pendientes" son criterios que
-  // no vive en estadoCorreccion, así que usan filtroRapido aparte. Los tres
-  // se muestran como un solo grupo excluyente para que quede claro cuál
-  // está activo — activar uno limpia el otro tipo de filtro.
+  // Etiquetas de seguimiento sobre la tabla (el filtro de corrección son las tarjetas de arriba). Cada una muestra cuántos pacientes
+  // trae, contados con el mismo criterio con que filtran la lista; "Todos" no lleva número porque es el total de la página.
+  const cuentaRapida = {
+    Recientes: pacientes.filter((p) => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS }).length,
+    PagosPendientes: pacientes.filter((p) => idsConDeuda.has(p.id)).length,
+    NoCompraron: pacientes.filter((p) => noCompraron.has(p.id)).length,
+    ControlSinAgendar: pacientes.filter((p) => sinAgendarPorPaciente.has(p.id)).length,
+  }
   const badgesRapidos = [
     { key: "Todos", label: "Todos" },
-    { key: "Recientes", label: "Visitas recientes" },
-    { key: "RecetasActivas", label: "Recetas activas" },
-    { key: "PagosPendientes", label: "Pagos pendientes" },
-    { key: "NoCompraron", label: `Consultaron y no compraron (${noCompraron.size})` },
-    { key: "ControlSinAgendar", label: `Control sin agendar (${sinAgendarPorPaciente.size})` },
+    { key: "Recientes", label: `Visitas recientes (${cuentaRapida.Recientes})` },
+    { key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` },
+    { key: "NoCompraron", label: `Consultaron y no compraron (${cuentaRapida.NoCompraron})` },
+    { key: "ControlSinAgendar", label: `Control sin agendar (${cuentaRapida.ControlSinAgendar})` },
   ]
-  const badgeRapidoActivo = filtroCorreccion === "Bien corregido" ? "RecetasActivas" : filtroRapido === "Todos" ? "Todos" : filtroRapido
-  const activarBadgeRapido = (key) => {
-    if (key === "RecetasActivas") {
-      setFiltroRapido("Todos")
-      setFiltroCorreccion((prev) => (prev === "Bien corregido" ? "Todos" : "Bien corregido"))
-    } else {
-      setFiltroCorreccion("Todos")
-      setFiltroRapido((prev) => (prev === key ? "Todos" : key))
-    }
-  }
+  const badgeRapidoActivo = filtroRapido
+  const activarBadgeRapido = (key) => setFiltroRapido((prev) => (prev === key ? "Todos" : key))
 
   return (
     <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
