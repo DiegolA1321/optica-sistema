@@ -41,6 +41,12 @@ try {
   const borrar = async (t) => { const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) borrados[t] = r.rowCount }
   for (const t of ORDEN) if (tablas.includes(t)) await borrar(t)
   for (const t of tablas) if (!ORDEN.includes(t) && !CONSERVAR.has(t) && !t.startsWith("contador_")) await borrar(t)
+  // Los catálogos (motivos, diagnósticos, categorías) viven en la fila de la óptica: lo que una prueba agregó con el prefijo "E2E " y no alcanzó a quitar,
+  // se quita aquí. Solo en la óptica de pruebas (el id está fijo arriba).
+  for (const col of ["motivos_consulta", "diagnosticos_rapidos", "categorias_inventario"]) {
+    const r = await c.query(`update public.opticas set ${col} = array(select x from unnest(${col}) as x where x not like 'E2E %') where id = $1 and exists (select 1 from unnest(${col}) as y where y like 'E2E %')`, [OPTICA_ID])
+    if (r.rowCount) borrados[`catálogo ${col}`] = r.rowCount
+  }
   const contadores = []
   for (const t of tablas.filter((x) => x.startsWith("contador_"))) {
     const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) contadores.push(`${t} reiniciado`)

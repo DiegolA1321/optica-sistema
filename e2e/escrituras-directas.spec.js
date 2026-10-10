@@ -189,12 +189,19 @@ test('Configuración: catálogos y datos de la proforma (opticas: update)', asyn
     ['Ej. Lentes de contacto', `${PREFIJO}Categoría ${marca}`],
   ]) {
     const entrada = page.getByPlaceholder(placeholder)
-    await entrada.fill(nombre)
-    await conEscritura(page, 'opticas', `agregar «${nombre}»`, () => entrada.press('Enter'))
-    await expect(page.getByRole('button', { name: `Eliminar ${nombre}` })).toBeVisible({ timeout: 20_000 })
-    await page.getByRole('button', { name: `Eliminar ${nombre}` }).click()
-    await conEscritura(page, 'opticas', `eliminar «${nombre}»`, () => confirmarEliminar(page).click())
-    await expect(page.getByRole('button', { name: `Eliminar ${nombre}` })).toHaveCount(0, { timeout: 20_000 })
+    const quitar = page.getByRole('button', { name: `Eliminar ${nombre}` })
+    try {
+      await entrada.fill(nombre)
+      await conEscritura(page, 'opticas', `agregar «${nombre}»`, () => entrada.press('Enter'))
+      await expect(quitar).toBeVisible({ timeout: 20_000 })
+    } finally {
+      // Aunque algo falle entre agregar y quitar, lo agregado no se queda en el catálogo (un residuo así llegó a la Demo el 7 oct).
+      if (await quitar.count()) {
+        await quitar.click()
+        await conEscritura(page, 'opticas', `eliminar «${nombre}»`, () => confirmarEliminar(page).click())
+        await expect(quitar).toHaveCount(0, { timeout: 20_000 })
+      }
+    }
   }
 })
 
