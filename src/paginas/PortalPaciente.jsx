@@ -24,6 +24,7 @@ import {
   Glasses,
   KeyRound,
   Lock,
+  Download,
   Printer,
   Menu,
   Cake,
@@ -35,7 +36,7 @@ import {
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { minutosDesdeMedianoche, etiquetaFecha } from "../utilidades/disponibilidad"
+import { minutosDesdeMedianoche, etiquetaFecha, hoyISO } from "../utilidades/disponibilidad"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -161,6 +162,29 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [enviandoEliminar, setEnviandoEliminar] = useState(false)
   const [solicitudEliminarEnviada, setSolicitudEliminarEnviada] = useState(false)
   const [errorPrivacidad, setErrorPrivacidad] = useState("")
+  const [descargando, setDescargando] = useState(false)
+
+  // Derecho de acceso: el servidor arma el archivo con los datos personales y clínicos del paciente, sin campos internos.
+  const descargarMisDatos = async () => {
+    if (descargando) return
+    setErrorPrivacidad("")
+    setDescargando(true)
+    let datos = null
+    if (supabase) {
+      const { data, error } = await supabase.rpc("exportar_mis_datos_paciente", { p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null, p_token: usuario?.token })
+      if (error || !data) { setDescargando(false); setErrorPrivacidad("No pudimos preparar tus datos. Intenta de nuevo en un momento."); return }
+      datos = data
+    } else {
+      datos = { perfil: { nombre: usuario?.nombre, cedula: usuario?.cedula }, citas, consultas, exportado_en: new Date().toISOString() }
+    }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" }))
+    const enlace = document.createElement("a")
+    enlace.href = url
+    enlace.download = "mis-datos-" + hoyISO() + ".json"
+    enlace.click()
+    URL.revokeObjectURL(url)
+    setDescargando(false)
+  }
 
   const confirmarSolicitudEliminar = async () => {
     if (!supabase || enviandoEliminar) return
@@ -614,8 +638,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <p className="py-6 text-center text-sm text-slate-500">Aún no tienes una receta registrada.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
-                      <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} mostrarMedidas={mostrarMedidas} />
-                      <OjoReceta sigla="OI" titulo="Ojo izquierdo" ojo={ultimaReceta.oi} color={OI_COLOR} mostrarMedidas={mostrarMedidas} />
+                      <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} />
+                      <OjoReceta sigla="OI" titulo="Ojo izquierdo" ojo={ultimaReceta.oi} color={OI_COLOR} />
                     </div>
                   )}
                 </div>
@@ -683,14 +707,22 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
-                      <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} mostrarMedidas={mostrarMedidas} />
-                      <OjoReceta sigla="OI" titulo="Ojo izquierdo" ojo={ultimaReceta.oi} color={OI_COLOR} mostrarMedidas={mostrarMedidas} />
+                      <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} />
+                      <OjoReceta sigla="OI" titulo="Ojo izquierdo" ojo={ultimaReceta.oi} color={OI_COLOR} />
                     </div>
-                    {!mostrarMedidas && (
+                    {ultimaReceta.medidas?.adicion && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-center">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Adición</p>
+                        <p className="mt-0.5 font-mono text-sm font-bold" style={{ color: INK }}>{ultimaReceta.medidas.adicion}</p>
+                      </div>
+                    )}
+                    {mostrarMedidas ? (
+                      <MedidasMontaje medidas={ultimaReceta.medidas} />
+                    ) : (
                       <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-3.5 sm:flex-row sm:items-center">
                         <div className="flex-1">
                           <p className="text-xs leading-relaxed text-slate-500">
-                            Por política de tu óptica, las medidas exactas de tu receta no se muestran en el portal. Si las necesitas para otro proveedor, puedes solicitarlas — tienen un costo adicional por la toma y entrega del examen.
+                            La distancia pupilar y las medidas de montaje las toma la óptica al armar tus lentes. Puedes solicitarlas aquí.
                           </p>
                           {errorMedidas && <p className="mt-1.5 text-xs font-semibold text-red-600">{errorMedidas}</p>}
                         </div>
@@ -698,7 +730,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                           <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"><CheckCircle2 size={14} /> Solicitud enviada</span>
                         ) : (
                           <button type="button" onClick={solicitarMedidasCompletas} disabled={enviandoMedidas} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                            <Lock size={14} /> {enviandoMedidas ? "Enviando..." : "Solicitar mis medidas completas"}
+                            {enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}
                           </button>
                         )}
                       </div>
@@ -733,12 +765,10 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     {misConsultas.slice(1).map((c) => (
                       <div key={c.id} className="flex items-center justify-between gap-3 py-3 text-sm">
                         <div className="min-w-0">
-                          <span className="font-mono text-xs text-slate-500">{c.fecha}</span>
+                          <span className="text-xs text-slate-500">{formatoFecha(c.fecha, "medio")}</span>
                           <p className="truncate font-medium text-slate-700">{c.diagnostico || "Consulta registrada"}</p>
                         </div>
-                        {!mostrarMedidas && (
-                          <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500"><Lock size={12} /> Medidas protegidas</span>
-                        )}
+                        <span className="shrink-0 text-right font-mono text-xs text-slate-600">OD {textoGraduacion(c.od)}<br />OI {textoGraduacion(c.oi)}</span>
                       </div>
                     ))}
                   </div>
@@ -778,13 +808,23 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               {/* ─── PRIVACIDAD Y DATOS ─── */}
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-bold" style={{ color: INK }}>Privacidad y tus datos</h2>
-                <p className="mt-1 text-sm text-slate-500">Tus datos son tuyos — puedes pedirnos que los eliminemos cuando quieras.</p>
+                <p className="mt-1 text-sm text-slate-500">Tus datos son tuyos — puedes descargarlos o pedirnos que los eliminemos cuando quieras.</p>
 
                 {errorPrivacidad && (
                   <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
                   </div>
                 )}
+
+                <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: INK }}>Descargar mis datos</p>
+                    <p className="text-xs text-slate-500">Un archivo con tus datos personales, tus citas y tu historial clínico, incluidos tus antecedentes y alergias.</p>
+                  </div>
+                  <button type="button" onClick={descargarMisDatos} disabled={descargando} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                    <Download size={16} aria-hidden="true" /> {descargando ? "Preparando…" : "Descargar mis datos"}
+                  </button>
+                </div>
 
                 <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
                   <div>
@@ -1082,27 +1122,37 @@ function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar, onCan
   )
 }
 
-function OjoReceta({ sigla, titulo, ojo = {}, color, mostrarMedidas }) {
+function OjoReceta({ sigla, titulo, ojo = {}, color }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
       <div className="mb-2 flex items-center gap-2">
         <span className="grid h-6 w-6 place-items-center rounded-md font-mono text-xs font-bold text-white" style={{ backgroundColor: color }}>{sigla}</span>
         <span className="text-xs font-semibold text-slate-600">{titulo}</span>
       </div>
-      {mostrarMedidas ? (
-        <div className="rounded-lg border border-slate-200 bg-white py-3.5 text-center">
-          <p className="font-mono text-sm font-bold" style={{ color: INK }}>
-            {ojo.esfera || ojo.cilindro || ojo.eje ? [ojo.esfera || "—", ojo.cilindro, ojo.eje ? `x${ojo.eje}` : ""].filter(Boolean).join(" ") : "No registrada"}
-          </p>
-          <p className="mt-0.5 text-xs text-slate-500">Esfera · Cilindro · Eje</p>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 bg-white py-3.5 text-slate-500">
-          <Lock size={13} />
-          <span className="text-xs font-semibold">Medidas protegidas</span>
-        </div>
-      )}
+      <div className="rounded-lg border border-slate-200 bg-white py-3.5 text-center">
+        <p className="font-mono text-sm font-bold" style={{ color: INK }}>{textoGraduacion(ojo)}</p>
+        <p className="mt-0.5 text-xs text-slate-500">Esfera · Cilindro · Eje</p>
+      </div>
       <p className="mt-2 border-t border-slate-200 pt-2 text-center text-[11px] text-slate-500">Agudeza: <span className="font-semibold text-slate-600">{ojo.avCc || ojo.avSc || "—"}</span></p>
+    </div>
+  )
+}
+
+// "-1.50 -0.50 x90" o "No registrada" (esfera, cilindro y eje del ojo).
+const textoGraduacion = (ojo = {}) => (ojo.esfera || ojo.cilindro || ojo.eje ? [ojo.esfera || "—", ojo.cilindro, ojo.eje ? `x${ojo.eje}` : ""].filter(Boolean).join(" ") : "No registrada")
+
+// Lo que la óptica toma para armar los lentes (distancia pupilar y altura): solo si la política de la óptica lo permite.
+function MedidasMontaje({ medidas = {} }) {
+  const filas = [["Distancia pupilar", medidas.dp], ["Altura", medidas.alt]].filter(([, v]) => v)
+  if (filas.length === 0) return null
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {filas.map(([etiqueta, valor]) => (
+        <div key={etiqueta} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-center">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{etiqueta}</p>
+          <p className="mt-0.5 font-mono text-sm font-bold" style={{ color: INK }}>{valor}</p>
+        </div>
+      ))}
     </div>
   )
 }
