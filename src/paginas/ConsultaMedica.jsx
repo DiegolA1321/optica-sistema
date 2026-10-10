@@ -117,10 +117,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [errorDejarDeAtender, setErrorDejarDeAtender] = useState("")
   // Si la óptica no ofrece progresión, no tiene sentido pedir ese dato (configurable en Configuración)
   const manejaProgresion = parametrizacion?.manejaProgresion !== false
-  // Política de la óptica (Configuración > Políticas hacia el paciente) — debe
-  // regir también la receta impresa, no solo la vista web del portal
-  // (PortalPaciente.jsx ya la respeta desde antes).
-  const mostrarMedidasPaciente = parametrizacion?.mostrarMedidasPaciente === true
 
   // --- Buscador y Selección Filtrada de Pacientes ---
   // pacienteId es la fuente de verdad de la selección (igual que en Citas.jsx) —
@@ -259,13 +255,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   // sin marcarla, su estado_clinico vuelve a "Activo" (pedido explícito de
   // Diego), en vez de quedar "de alta" para siempre por inercia.
   const [tratamientoFinalizado, setTratamientoFinalizado] = useState(false)
-  // Checkbox de la receta (Paso 3) — decide caso por caso si esta receta en
-  // particular incluye las medidas exactas, solo disponible cuando la
-  // política general de la óptica (Configuración > Políticas hacia el
-  // paciente) ya permite mostrarlas; si la óptica las protege por defecto,
-  // el optómetra no puede saltarse esa protección desde acá. Vive solo en
-  // esta pantalla — no se guarda en la consulta, solo afecta qué se imprime.
-  const [incluirMedidasReceta, setIncluirMedidasReceta] = useState(true)
 
   // --- Cobro (Ronda 4 del flujo de atención) ---
   // Antes la ficha mezclaba tres lugares para el dinero (campo "Costo de la
@@ -2140,51 +2129,19 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       </div>
                     )}
 
-                    {mostrarMedidasPaciente ? (
-                      <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
-                          {/* Impresión cautiva: la política general de
-                              Configuración ya permite mostrar medidas, pero el
-                              optómetra decide caso por caso si ESTA receta en
-                              particular las incluye — ej. un tercero que solo
-                              debe ver diagnóstico e indicaciones, sin las
-                              medidas exactas. No se guarda en la consulta, solo
-                              afecta este documento. */}
-                          <label className="no-print flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-slate-600">
-                            <input
-                              type="checkbox"
-                              checked={incluirMedidasReceta}
-                              onChange={(e) => setIncluirMedidasReceta(e.target.checked)}
-                              className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
-                            />
-                            Incluir medidas de refracción en la receta impresa
-                          </label>
+                    <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
+                          <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
                         </div>
-                        {incluirMedidasReceta ? (
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
-                              <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
-                              <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[11px] leading-relaxed text-slate-500">
-                            <span className="font-semibold text-slate-600">Medidas excluidas de esta receta: </span>
-                            a criterio del optómetra, este documento solo muestra diagnóstico e indicaciones. El paciente puede solicitarlas aparte si las necesita.
-                          </p>
-                        )}
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
+                          <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
+                        </div>
                       </div>
-                    ) : (
-                      <p className="print-force-color rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3.5 text-[11px] leading-relaxed text-slate-500">
-                        <span className="font-semibold text-slate-600">Medidas protegidas: </span>
-                        por política de la óptica, las medidas exactas de su graduación (esfera, cilindro, eje) no se incluyen en este documento. Si las necesita para otro proveedor, puede solicitarlas — tienen un costo adicional por la toma y entrega del examen.
-                      </p>
-                    )}
+                    </div>
 
                     {/* Punto 2.1 (plan 29 sept.): si el optómetra da de alta
                         al paciente, ya no tiene sentido pedirle un próximo

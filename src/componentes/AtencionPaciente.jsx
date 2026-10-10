@@ -222,7 +222,7 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   )
 }
 
-function Receta({ consulta, paciente, usuario, incluirMedidas }) {
+function Receta({ consulta, paciente, usuario }) {
   const marca = usuario?.opticaMarca
   const numero = "RX-" + String(consulta.fecha || "").replace(/-/g, "") + "-" + String(consulta.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase()
   const fila = (etiqueta, valor) => valor ? <p style={{ margin: "0 0 4px" }}><b>{etiqueta}:</b> {valor}</p> : null
@@ -248,22 +248,16 @@ function Receta({ consulta, paciente, usuario, incluirMedidas }) {
         {fila("Lente recomendado", consulta.lenteRecomendado)}
         {fila("Indicaciones y cuidados", consulta.indicaciones)}
       </div>
-      {incluirMedidas ? (
-        <div style={{ margin: "18px 0", padding: "12px 16px", border: "1px solid #e2e8f0", borderRadius: 10, display: "flex", gap: 40, fontSize: 14 }}>
-          <span><b>OD (derecho):</b> {textoMedida(consulta.od)}</span>
-          <span><b>OI (izquierdo):</b> {textoMedida(consulta.oi)}</span>
-        </div>
-      ) : (
-        <p style={{ margin: "18px 0", fontSize: 11, color: "#64748b" }}>Medidas excluidas de esta receta: el documento solo muestra diagnóstico e indicaciones. El paciente puede solicitarlas aparte si las necesita.</p>
-      )}
+      <div style={{ margin: "18px 0", padding: "12px 16px", border: "1px solid #e2e8f0", borderRadius: 10, display: "flex", gap: 40, fontSize: 14 }}>
+        <span><b>OD (derecho):</b> {textoMedida(consulta.od)}</span>
+        <span><b>OI (izquierdo):</b> {textoMedida(consulta.oi)}</span>
+      </div>
       {consulta.profesionalNombre && <p style={{ marginTop: 40, fontSize: 12, color: "#475569" }}>{consulta.profesionalNombre}{consulta.profesionalRegistro ? ` · Reg. ${consulta.profesionalRegistro}` : ""}</p>}
     </div>
   )
 }
 
-export function ModalAtencion({ cita, consulta, paciente, usuario, parametrizacion, adjuntos, onCerrar }) {
-  const medidasPermitidas = parametrizacion?.mostrarMedidasPaciente === true
-  const [incluirMedidas, setIncluirMedidas] = useState(medidasPermitidas)
+export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar }) {
   const [imprimiendo, setImprimiendo] = useState(false)
 
   // Imprime una capa pegada al <body> y oculta todo lo demás solo mientras dura la impresión.
@@ -286,14 +280,6 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, parametrizaci
         pie={<>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={() => setImprimiendo(true)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir receta</button>
-            {medidasPermitidas ? (
-              <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-slate-600">
-                <input type="checkbox" checked={incluirMedidas} onChange={(e) => setIncluirMedidas(e.target.checked)} className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600" />
-                Incluir medidas de graduación
-              </label>
-            ) : (
-              <span className="text-xs text-slate-500">Por política de la óptica, la receta se imprime sin medidas.</span>
-            )}
           </div>
           <BotonCerrar onCerrar={onCerrar} />
         </>}
@@ -303,7 +289,7 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, parametrizaci
       {imprimiendo && createPortal(
         <div id="print-atencion">
           <style>{`#print-atencion{display:none}@media print{body.printing-atencion>*:not(#print-atencion){display:none!important}body.printing-atencion #print-atencion{display:block!important}}`}</style>
-          <Receta consulta={consulta} paciente={paciente} usuario={usuario} incluirMedidas={medidasPermitidas && incluirMedidas} />
+          <Receta consulta={consulta} paciente={paciente} usuario={usuario} />
         </div>,
         document.body,
       )}

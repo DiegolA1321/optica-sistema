@@ -2721,7 +2721,6 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
           consulta={consultaDe(citaAbierta)}
           paciente={paciente}
           usuario={usuario}
-          parametrizacion={parametrizacion}
           adjuntos={consultaDe(citaAbierta).imagenes?.length > 0 && (
             <div className="mt-3">
               <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
@@ -2912,7 +2911,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
       </section>
 
       {citaVentana && consultaVentana && (
-        <ModalAtencion cita={citaVentana} consulta={consultaVentana} paciente={paciente} usuario={usuario} parametrizacion={parametrizacion} adjuntos={adjuntosDe(consultaVentana)} onCerrar={() => setCitaVentana(null)} />
+        <ModalAtencion cita={citaVentana} consulta={consultaVentana} paciente={paciente} usuario={usuario} adjuntos={adjuntosDe(consultaVentana)} onCerrar={() => setCitaVentana(null)} />
       )}
 
       <section aria-label="Citas por mes" className="rounded-2xl border border-slate-200/60 bg-white p-4">
