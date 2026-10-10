@@ -165,7 +165,7 @@ test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, des
   await expect(cuerpo.getByRole('heading', { name: /Desenlace de mis citas · hoy/i })).toBeVisible()
   const agenda = cuerpo.getByRole('region', { name: 'Mi agenda de hoy' })
   await expect(agenda).toBeVisible()
-  await expect(agenda.getByLabel('Siguiente paciente')).toBeVisible() // destacado arriba de la agenda
+  await expect(cuerpo.getByRole('region', { name: 'Tu día' }).getByLabel('Siguiente paciente')).toBeVisible() // destacado a lo ancho, arriba de la agenda
   // "Atender" es de quien atiende; Ventas no es un bloque suyo.
   await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención: Ventas' })).toHaveCount(0)
   // Con inventario: ver, el aviso de stock bajo está en su bloque, con un botón para ver el inventario (solo lectura).
@@ -189,11 +189,13 @@ test('Inicio de Paula con un paciente en espera: el siguiente paciente es quien 
     const agenda = main(page).getByRole('region', { name: 'Mi agenda de hoy' })
     await expect(agenda).toBeVisible({ timeout: 20_000 })
     // Quien ya llegó va primero, aunque otro paciente tenga una hora anterior.
-    await expect(agenda.getByLabel('Siguiente paciente')).toContainText(enEspera)
-    await expect(agenda.getByLabel('Siguiente paciente')).toContainText('ya llegó')
-    await expect(agenda.getByLabel('Siguiente paciente')).not.toContainText(pendiente)
-    await expect(main(page).getByRole('heading', { name: /^Mi agenda de hoy · [0-9]+ en espera$/i })).toBeVisible()
-    await expect(agenda.getByLabel('Siguiente paciente').getByRole('button', { name: /^Atender/ })).toBeVisible() // el destacado trae su botón; no se repite en la lista de abajo
+    const destacado = main(page).getByRole('region', { name: 'Tu día' }).getByLabel('Siguiente paciente')
+    await expect(destacado).toContainText(enEspera)
+    await expect(destacado).toContainText('ya llegó')
+    await expect(destacado).not.toContainText(pendiente)
+    await expect(main(page).getByRole('heading', { name: /^Mi agenda de hoy · [0-9]+ citas? · [0-9]+ en espera$/i })).toBeVisible()
+    await expect(destacado.getByRole('button', { name: /^Atender/ })).toBeVisible() // el destacado trae su botón grande; en la agenda solo lleva la marca "Siguiente"
+    await expect(agenda).toContainText('Siguiente')
     await capturar(page, 'paula-en-espera')
     } finally {
       await cancelarCitasDePrueba([pendiente, enEspera]) // que no queden en espera para las pruebas que siguen
