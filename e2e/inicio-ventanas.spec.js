@@ -114,3 +114,46 @@ test('las ventanas del Inicio desvanecen también la barra lateral', async ({ pa
   expect(capa).toContain('backdrop-blur')
   await page.keyboard.press('Escape')
 })
+
+test('la cabecera de Citas, Pacientes, Ventas e Inventario pone "Requieren atención" y la acción principal en la misma posición', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN')
+  const principal = { 'Citas médicas': 'Gestionar cita', Pacientes: 'Crear paciente', Ventas: 'Nueva venta', Inventario: 'Agregar producto' }
+  const cajas = []
+  for (const [menu, accion] of Object.entries(principal)) {
+    await page.getByRole('button', { name: menu, exact: true }).first().click()
+    const avisos = page.getByRole('button', { name: /^Requieren atención/ })
+    const primaria = page.getByRole('button', { name: accion })
+    await expect(avisos).toBeVisible({ timeout: 15_000 })
+    await page.waitForTimeout(700) // cada módulo entra con una animación corta: se mide ya asentado
+    const a = await avisos.boundingBox()
+    const p = await primaria.boundingBox()
+    expect(Math.abs(a.y - p.y), `${menu}: en la misma fila`).toBeLessThan(3)
+    expect(Math.abs(a.height - p.height), `${menu}: misma altura`).toBeLessThan(3)
+    expect(a.x + a.width, `${menu}: el aviso va a la izquierda de la acción`).toBeLessThan(p.x)
+    cajas.push({ menu, derecha: p.x + p.width, arriba: p.y })
+  }
+  for (const c of cajas) {
+    expect(Math.abs(c.derecha - cajas[0].derecha), `${c.menu}: mismo borde derecho`).toBeLessThan(3)
+    expect(Math.abs(c.arriba - cajas[0].arriba), `${c.menu}: misma altura en la página`).toBeLessThan(3)
+  }
+})
+
+test('Inventario dice el stock bajo una sola vez: la tarjeta es el filtro (sin aviso amarillo ni píldora aparte)', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN')
+  await page.getByRole('button', { name: 'Inventario', exact: true }).first().click()
+  const tarjeta = page.getByRole('button', { name: /^Stock bajo:/ })
+  await expect(tarjeta).toBeVisible({ timeout: 15_000 })
+  await expect(main(page).getByText(/por agotarse/)).toHaveCount(0)
+  await expect(main(page).getByText(/^Stock bajo/)).toHaveCount(1)
+  await tarjeta.click()
+  await expect(tarjeta).toHaveAttribute('aria-pressed', 'true')
+  await tarjeta.click()
+  await expect(tarjeta).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('el estado se escribe "No asistió" también en el Inicio del optómetra y las tarjetas sin casos dicen "Ver todo"', async ({ page }) => {
+  await iniciarSesion(page, 'OPTOMETRA')
+  await alInicio(page)
+  await expect(main(page).getByText(/No Asistió|En Espera|En Atención/)).toHaveCount(0)
+  await expect(main(page).getByRole('button', { name: /^Abrir (Citas|Pacientes|Ventas|Inventario)$/ })).toHaveCount(0)
+})
