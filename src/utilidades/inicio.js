@@ -3,6 +3,7 @@ import { ahoraEcuador } from "./horaEcuador"
 // "Totales", "Hoy", "Este mes" o "Para vender". Funciones puras, con los datos que ya carga la aplicación.
 import { esHoy, hoyISO, fechaAISO, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
 import { saldoFactura } from "./abonos"
+import { vendidoYCobrado } from "./vendidoCobrado"
 import { lunesDeSemana, sumarDiasISO } from "./calendarioSemana"
 
 export const PLANTILLAS_INICIO = ["administrador", "optometra", "recepcion", "ventas", "general"]
@@ -83,12 +84,11 @@ export function citasParaLista(citas, periodo, tarjeta = null, ahora = ahoraEcua
   return filtradas.slice().sort((a, b) => (asc ? (clave(a) < clave(b) ? -1 : 1) : (clave(a) < clave(b) ? 1 : -1)))
 }
 
-// Ventas (comprobantes internos sin anular): el total vendido y su número, y lo de este mes (cantidad y dólares), con la misma lógica que las demás tarjetas de Totales (el total y el '+N este mes').
-export function ventasDelMes(facturas, ahora = ahoraEcuador()) {
-  const vigentes = facturas.filter((f) => f.estado !== "anulada")
-  const delMes = vigentes.filter((f) => esDeEsteMes(f.creadoEn, ahora))
-  const suma = (lista) => Math.round(lista.reduce((n, f) => n + (Number(f.montoTotal) || 0), 0) * 100) / 100
-  return { cantidad: delMes.length, total: suma(delMes), cantidadTotal: vigentes.length, totalVendido: suma(vigentes) }
+// Ventas (comprobantes internos sin anular): lo VENDIDO y lo COBRADO, el total y el de este mes, con la misma función que Reportes (vendidoCobrado.js) y la misma lógica que las demás tarjetas de Totales (el total y el '+N este mes').
+export function ventasDelMes(facturas, ahora = ahoraEcuador(), abonos = []) {
+  const mes = vendidoYCobrado({ facturas, abonos, enPeriodo: (f) => esDeEsteMes(f, ahora) })
+  const todo = vendidoYCobrado({ facturas, abonos })
+  return { cantidad: mes.cantidad, total: mes.vendido, cobrado: mes.cobrado, cantidadTotal: todo.cantidad, totalVendido: todo.vendido, totalCobrado: todo.cobrado }
 }
 
 // ¿Esta fecha de alta cae en el mes en curso? Es la única definición de "este mes" de los Totales: el Inicio cuenta con ella y cada módulo

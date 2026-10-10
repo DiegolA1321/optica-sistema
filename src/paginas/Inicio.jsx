@@ -301,7 +301,7 @@ export default function Inicio({
   const citasVigentes = useMemo(() => citas.filter((c) => c.estado !== "Cancelada"), [citas])
   const citasEsteMes = useMemo(() => creadosEsteMes(citasVigentes, "creadoEn"), [citasVigentes])
   const productosEsteMes = useMemo(() => creadosEsteMes(inventario, "creadoEn"), [inventario])
-  const ventasMes = useMemo(() => ventasDelMes(facturasVenta), [facturasVenta])
+  const ventasMes = useMemo(() => ventasDelMes(facturasVenta, undefined, abonos), [facturasVenta, abonos])
   // La ventana de cada total: todo lo registrado o lo nuevo de este mes. Cada opción abre el módulo con ese mismo número (regla 42).
   const nombreMes = nombreMesDe(ahoraEcuador().getMonth()).toLowerCase()
   const verTotal = (modulo, opcion) => () => (onVerTotal ? onVerTotal(modulo, opcion) : setVista?.(modulo))
@@ -315,8 +315,8 @@ export default function Inicio({
       { id: "mes", etiqueta: "Agendadas este mes", detalle: `Agendadas en ${nombreMes}, sin las canceladas`, valor: citasEsteMes, onClick: verTotal("citas", "mes") },
     ] },
     ventas: { id: "ventas", titulo: "Ventas", modulo: "Ventas", icono: ShoppingBag, opciones: [
-      { id: "todas", etiqueta: "Todas las ventas", detalle: `${dinero(ventasMes.totalVendido)} vendidos, sin las anuladas`, valor: ventasMes.cantidadTotal, onClick: verTotal("ventas", "todas") },
-      { id: "mes", etiqueta: "Vendidas este mes", detalle: `${dinero(ventasMes.total)} en ${nombreMes}`, valor: ventasMes.cantidad, onClick: verTotal("ventas", "mes") },
+      { id: "todas", etiqueta: "Todas las ventas", detalle: `${dinero(ventasMes.totalVendido)} vendido · ${dinero(ventasMes.totalCobrado)} cobrado, sin las anuladas`, valor: ventasMes.cantidadTotal, onClick: verTotal("ventas", "todas") },
+      { id: "mes", etiqueta: "Vendidas este mes", detalle: `${dinero(ventasMes.total)} vendido · ${dinero(ventasMes.cobrado)} cobrado en ${nombreMes}`, valor: ventasMes.cantidad, onClick: verTotal("ventas", "mes") },
     ] },
     productos: { id: "productos", titulo: "Productos", modulo: "Inventario", icono: Package, opciones: [
       { id: "todos", etiqueta: "Todos los productos", detalle: "Todo el inventario", valor: inventario.length, onClick: verTotal("inventario", "todos") },
@@ -333,7 +333,7 @@ export default function Inicio({
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setTotalAbierto("pacientes") },
         { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setTotalAbierto("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setTotalAbierto("ventas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setTotalAbierto("ventas") },
         { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />

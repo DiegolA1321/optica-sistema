@@ -204,7 +204,14 @@ describe("pendientes y ventas del mes", () => {
     const ahora = new Date(2026, 9, 10, 12)
     const f = (creadoEn, montoTotal, estado = "pagada") => ({ creadoEn, montoTotal, estado })
     const r = ventasDelMes([f("2026-10-02T15:00:00Z", 100.5), f("2026-10-09T15:00:00Z", 22.25), f("2026-10-09T15:00:00Z", 999, "anulada"), f("2026-09-30T15:00:00Z", 50)], ahora)
-    expect(r).toEqual({ cantidad: 2, total: 122.75, cantidadTotal: 3, totalVendido: 172.75 })
-    expect(ventasDelMes([], ahora)).toEqual({ cantidad: 0, total: 0, cantidadTotal: 0, totalVendido: 0 })
+    expect(r).toEqual({ cantidad: 2, total: 122.75, cobrado: 122.75, cantidadTotal: 3, totalVendido: 172.75, totalCobrado: 172.75 }) // todas pagadas: cobrado = vendido
+    expect(ventasDelMes([], ahora)).toEqual({ cantidad: 0, total: 0, cobrado: 0, cantidadTotal: 0, totalVendido: 0, totalCobrado: 0 })
+  })
+
+  it("ventasDelMes separa lo vendido de lo cobrado: una venta con saldo cobra solo sus abonos (mismo criterio que Reportes)", () => {
+    const ahora = new Date(2026, 9, 10, 12)
+    const facturas = [{ id: "a", creadoEn: "2026-10-02T15:00:00Z", montoTotal: 223, estado: "pendiente_pago" }]
+    const r = ventasDelMes(facturas, ahora, [{ facturaId: "a", monto: 94.5 }])
+    expect(r).toMatchObject({ cantidad: 1, total: 223, cobrado: 94.5 })
   })
 })
