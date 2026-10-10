@@ -173,7 +173,7 @@ Mismos colores, mismo botón principal, mismos campos. Editar no cambia de color
 En el Resumen del paciente el orden es: estado de corrección, control recomendado, última consulta y compras; después las citas; al final la fidelización. Quien atiende lee de arriba abajo y lo primero es lo que necesita para atender.
 
 ### 34. Un mensaje a una persona la trata como persona
-El saludo usa el primer nombre ("Hola Rosa"), siempre desde `primerNombre()` (`utilidades/pacientes.js`), nunca el nombre completo. Los conteos concuerdan en singular y plural ("Le falta 1 consulta", "Le faltan 2 consultas", "falta 1 día"). Los filtros de una lista no se muestran si la lista está vacía.
+El saludo no adivina el nombre: mientras el nombre y el apellido estén en un solo campo, se escribe "Hola, Rosa Bravo Cedeño" tal como está guardado (ver "Nombres y apellidos en dos campos" en `docs/estado-actual.md`). Los conteos concuerdan en singular y plural ("Le falta 1 consulta", "Le faltan 2 consultas", "falta 1 día"). Los filtros de una lista no se muestran si la lista está vacía.
 
 ### 35. Los botones de una cabecera van en una sola fila, y un acceso que ya existe en otro control no se repite
 - **Perfil:** la cabecera tiene identidad arriba y las acciones en una fila debajo. "Restablecer clave" se quitó porque la etiqueta "Cuenta Portal: Activa" ya abre esas opciones (regla 8).
@@ -205,4 +205,4 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 19. ¿El cambio toca otro módulo cerrado? Si sí, se avisó y se aprobó. (27)
 20. ¿Un documento que el paciente necesita sale completo, y lo que depende de otra cosa (orden, cobro) solo se crea desde su origen? (29, 30)
 21. ¿Crear y editar se ven igual, y las fechas usan `CampoFecha`? (31, 32)
-22. ¿El bloque va de lo clínico a lo comercial, el saludo usa el primer nombre y el singular/plural concuerda? (33, 34)
+22. ¿El bloque va de lo clínico a lo comercial, el saludo no adivina el nombre y el singular/plural concuerda? (33, 34)

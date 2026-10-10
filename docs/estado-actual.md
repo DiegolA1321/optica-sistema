@@ -161,6 +161,28 @@ Según la reunión del 7 de octubre (`feedback-ing/requisitos-reunion-07oct-paci
 - Los 20 productos de la Demo tenían la misma fecha de alta (2026-10-07 01:56:39 UTC); se repartieron con el script con ensayo `scripts/corregir-fecha-alta-productos-demo.mjs` (ejecutado). El "+N este mes" de Productos ahora es +3.
 - `docs/principios-diseno.md`: 28 reglas con ejemplos de Citas y una lista de revisión; CLAUDE.md obliga a leerlo antes de diseñar o cambiar una pantalla.
 
+## Decisiones y propuestas del 10 oct. (revisión del perfil del paciente)
+
+### Nombres y apellidos en dos campos (propuesta, sin implementar)
+- **Problema:** el formulario pide "Apellidos y nombres" en un solo campo, así que la primera palabra normalmente es un apellido; en la Demo los nombres están guardados al revés (nombre primero). Hoy conviven dos formatos y no se puede saber cuál es cuál con seguridad. Por eso los mensajes **no adivinan el primer nombre**: dicen "Hola, Rosa Bravo Cedeño" tal como está guardado (o solo "Hola" si no hay nombre).
+- **Propuesta:** dos campos, "Nombres" y "Apellidos" (`pacientes.nombres`, `pacientes.apellidos`), con `pacientes.nombre` como columna calculada ("Apellidos Nombres") para no romper lo que hoy lee el nombre completo. El saludo usaría "Nombres" ("Hola, Rosa").
+- **Migración de los nombres existentes (en tres pasos):**
+  1. Columnas nuevas y `nombre_revisado boolean default false`. Nada se borra.
+  2. Una pasada con ensayo (como `scripts/corregir-fecha-alta-productos-demo.mjs`) que separa cada nombre con reglas: 4 palabras = 2 apellidos + 2 nombres; 3 = 2 apellidos + 1 nombre; 2 = 1 + 1; apellidos compuestos ("De la Cruz", "Del Pozo", "Vda. de") se agrupan con una lista de partículas. Para decidir el orden (apellidos primero o nombres primero) se compara la primera palabra con una lista de nombres de pila frecuentes del Ecuador y se usa lo que dicen la mayoría de las ópticas como pista, nunca como certeza.
+  3. Todo lo que no sea inequívoco queda con `nombre_revisado = false`.
+- **Casos dudosos:** una pantalla "Revisar nombres" (para el administrador) lista los marcados con la separación propuesta y dos botones, "Está bien" y "Intercambiar" (apellidos ↔ nombres), más edición a mano. Se marcan como dudosos: más de 4 palabras, una sola palabra, partículas, un nombre de pila en la posición de apellido y al revés, y cualquier nombre de la Demo hasta revisarlo. Hasta que se revisan, el saludo sigue usando el nombre completo.
+- **Cuidado al migrar:** `citas.paciente` y `consultas.paciente` guardan el nombre copiado como texto y hay lugares que comparan por ese texto (`c.paciente === paciente.nombre`); hay que moverlos al `paciente_id` o actualizar las copias en la misma migración. `pacientes` es hoy una vista (migración 0055), así que los triggers INSTEAD OF también deben conocer los campos nuevos. Las RPC públicas (`crear_cita_publica`, portal) y `mapPaciente` en `App.jsx` también.
+
+### Antecedentes importantes: aprobado, en construcción
+Detección por texto (diabetes, hipertensión o "presión alta", glaucoma, desprendimiento de retina, queratocono, uveítis, cataratas, cirugía ocular, ambliopía), ignorando lo negado; barra **ámbar** bajo la de alergias en la ficha (el rojo queda solo para alergias) y en las alertas del perfil del paciente.
+- **Mejora futura:** casillas estructuradas de antecedentes (diabetes, hipertensión, glaucoma... personal / familiar) en la anamnesis. Es más fiable que el texto libre, pero exige migrar los datos y cambiar la ficha; se evalúa cuando se vea cuánto falla la detección por texto.
+
+### Filtros de la lista de Pacientes: aprobado
+Las tarjetas son el filtro de corrección; las etiquetas rápidas son el filtro de seguimiento (todas con su número); "Filtrar" queda con estado y fecha de registro. Se quitan "Recetas activas" y "Corrección" de "Filtrar" (duplicaban la tarjeta "Bien corregidos").
+
+### Pendiente del pulido final
+- **Selectores de fecha nativos que faltan por pasar a `CampoFecha`:** nacimiento en "Confirmar datos" (`ConfirmarDatosPacienteModal`) y en las altas rápidas de Citas (nuevo paciente y cita pública), fecha de abono (`AbonoModal`), fecha prometida de la orden de laboratorio (`OrdenLaboratorioModal`), fecha de la consulta (`ConsultaMedica`), ausencias en `Horario`, rango personalizado de `Reportes` y fechas del `SuperadminPanel`. Alta pública: `AgendarCitaPublica` (nacimiento).
+
 ## Pendiente
 
 - **Segunda etapa de "requiere tu atención" en cada módulo:** una sección propia dentro de Citas, Pacientes, Ventas e Inventario, de la que el Inicio toma los tres avisos más relevantes y a la que lleva cada "Ver todo". Hoy el "Ver todo" del bloque Citas abre "Para reagendar" (o, sin nada por reagendar, las atenciones abiertas), y el de Ventas, el primer aviso del bloque.
