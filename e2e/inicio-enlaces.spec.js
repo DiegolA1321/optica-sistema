@@ -1,5 +1,6 @@
 // Regla 42: todo lo que se puede presionar en el Inicio lleva exactamente a lo que promete. Cada prueba es una pareja "lo que dice / lo que abre":
 // el número que se lee en la tarjeta o en el enlace es el que se ve al llegar al módulo (mismo período, mismo filtro, misma lista).
+//  - Las tarjetas de Totales (cada una abre su ventana) se prueban en inicio-ventanas.spec.js.
 //  - Administrador y optómetra sobre la Demo: SOLO LECTURA, comparando en cada lado lo que hay (no dependen de datos fijos).
 //  - Próxima jornada del optómetra: en la óptica de pruebas, con una cita de Paula en un día futuro.
 import { test, expect } from '@playwright/test'
@@ -11,34 +12,7 @@ const alInicio = async (page) => {
   await page.getByRole('button', { name: 'Inicio', exact: true }).first().click()
   await expect(page.getByRole('heading', { name: /Requiere tu atención/i }).first()).toBeVisible({ timeout: 20_000 })
 }
-const numeroDeTarjeta = async (page, nombre) => Number(((await page.getByRole('button', { name: new RegExp(`^${nombre}:`) }).first().getAttribute('aria-label')).match(/: (\d+)\./) || [])[1])
 const estado = (page) => page.getByRole('status').first()
-
-test('administrador: las tarjetas de Totales abren la lista que tiene su número', async ({ page }) => {
-  await iniciarSesion(page, 'ADMIN')
-  await alInicio(page)
-  const pacientes = await numeroDeTarjeta(page, 'Pacientes')
-  const citas = await numeroDeTarjeta(page, 'Citas')
-  const productos = await numeroDeTarjeta(page, 'Productos')
-  expect(citas).toBeGreaterThan(0)
-
-  await page.getByRole('button', { name: /^Pacientes:/ }).click()
-  await expect(main(page).getByText(`${pacientes} pacientes`).first()).toBeVisible({ timeout: 15_000 })
-
-  await alInicio(page)
-  await page.getByRole('button', { name: /^Citas:/ }).click()
-  // Citas "Todas" cuenta sin las canceladas, igual que la tarjeta
-  await expect(estado(page)).toHaveText(new RegExp(`^${citas} citas?$`), { timeout: 15_000 })
-  await expect(page.getByRole('button', { name: 'Todas', exact: true }).first()).toHaveAttribute('aria-pressed', 'true')
-
-  await alInicio(page)
-  await page.getByRole('button', { name: /^Ventas:/ }).click()
-  await expect(page.getByRole('tab', { name: /Comprobantes de venta/ })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 }) // los comprobantes, no la cola por vender
-
-  await alInicio(page)
-  await page.getByRole('button', { name: /^Productos:/ }).click()
-  await expect(main(page)).toContainText(new RegExp(`${productos}\\s*Productos`), { timeout: 15_000 })
-})
 
 test('administrador: cada "Abrir en …" de la ventana de avisos muestra al llegar el número que prometía', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')

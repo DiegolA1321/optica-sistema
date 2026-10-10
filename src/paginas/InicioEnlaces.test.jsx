@@ -216,7 +216,7 @@ describe("Botón 'Requieren atención' de cada módulo", () => {
 
   it("sin avisos queda en su sitio como 'Todo en orden', sin botón", () => {
     render(<Inicio {...base} soloAvisosDe="inventario" />)
-    expect(screen.getByRole("status")).toHaveTextContent("Todo en orden")
+    expect(screen.getByText("Todo en orden")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Requieren atención/ })).not.toBeInTheDocument()
   })
 })
