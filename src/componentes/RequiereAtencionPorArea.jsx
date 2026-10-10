@@ -34,7 +34,6 @@ function VentanaAvisos({ bloque, filaId, onCerrar }) {
       subtitulo="Lo que requiere tu atención en esta área"
       Icono={bloque.icono}
       onCerrar={onCerrar}
-      capa="z-40"
       pie={<>
         <span className="text-xs text-slate-500">Al resolver un caso, esta lista y los números del Inicio se actualizan.</span>
         <button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
