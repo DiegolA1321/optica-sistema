@@ -318,7 +318,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200/60 bg-white/95 px-1 py-3 backdrop-blur-sm">
+      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white px-1 py-3 shadow-[0_-10px_14px_-12px_rgba(14,43,51,0.35)]">
         <div className="flex items-center gap-3">
           <button
             type="button"

@@ -366,7 +366,7 @@ function CostosPorMotivo({ motivos, parametrizacion, setParametrizacion, onExito
 const PESTANAS = [
   { id: "politicas", label: "Políticas y servicios", icon: SlidersHorizontal },
   { id: "catalogos", label: "Catálogos", icon: ListChecks },
-  { id: "login", label: "Página de login", icon: MonitorSmartphone },
+  { id: "login", label: "Página pública", icon: MonitorSmartphone },
 ]
 
 export default function Configuracion({ usuario, alActualizarUsuario, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
@@ -439,7 +439,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
         <ShieldCheck size={17} className="mt-0.5 shrink-0" />
         <p className="text-xs leading-relaxed">
-          El sistema soporta todas estas opciones; aquí decides cuáles aplican a tu óptica. Estos parámetros solo los ve y edita el administrador.
+          El sistema soporta todas estas opciones; aquí decides cuáles aplican a tu óptica.
         </p>
       </div>
 
@@ -490,10 +490,6 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
             etiquetaOn="Visibles en el portal"
             etiquetaOff="Protegidas · el paciente debe solicitarlas"
           />
-
-          <p role="note" className="rounded-xl border border-blue-200/60 bg-blue-50 px-4 py-3 text-xs leading-relaxed text-blue-800">
-            <span className="font-semibold">Cambio en el portal del paciente:</span> desde esta versión el paciente ve siempre su receta (esfera, cilindro, eje, adición y agudeza visual), igual que la receta impresa, y puede descargar sus datos. Esta política queda solo para la distancia pupilar y la altura de montaje. Lo que no se muestra tampoco llega al navegador del paciente.
-          </p>
 
           <div className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
@@ -637,9 +633,9 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
 
       {tab === "login" && (
         <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-login">
-          <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Página de login</p>
+          <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Página pública</p>
           <p className="mb-3 text-xs leading-relaxed text-slate-500">
-            Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Usa "Guardar cambios" al final para aplicarlos.
+            Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Los cambios de esta pestaña se aplican con «Guardar cambios», al final; las otras pestañas se guardan al instante.
           </p>
           <PersonalizacionLogin
             opticaId={usuario?.opticaId}
