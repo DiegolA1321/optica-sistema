@@ -9,6 +9,11 @@ describe("detalleActividad", () => {
     expect(detalleActividad("")).toBe("")
     expect(detalleActividad(null)).toBe("")
   })
+  it("las fechas salen con el formato del sistema, no como 2028-02-19", () => {
+    expect(detalleActividad("2028-02-19")).toBe("19 feb 2028")
+    expect(detalleActividad("Ana Pérez · 2026-09-05 · 09:00")).toBe("Ana Pérez · 5 sept 2026 · 09:00")
+    expect(detalleActividad("OL-0040 → Entregada")).toBe("OL-0040 → Entregada")
+  })
   it("oculta las notas técnicas, de pruebas y de scripts", () => {
     expect(detalleActividad("Rafael Cedeño · cita antigua sin paciente identificable (limpieza de la Demo)")).toBe("")
     expect(detalleActividad("E2E Montura l8cci")).toBe("")

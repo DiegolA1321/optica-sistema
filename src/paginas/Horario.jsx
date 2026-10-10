@@ -428,7 +428,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ho
       return
     }
     mostrarGuardado()
-    registrarLog(usuario, "horario", "Canceló una ausencia registrada", fecha)
+    registrarLog(usuario, "horario", "Canceló una ausencia registrada", fechaFormato(fecha))
   }
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))

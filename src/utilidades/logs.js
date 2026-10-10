@@ -9,6 +9,7 @@
 // debe romper ni revertir la acción real del usuario, solo se pierde el
 // registro de auditoría de esa vez.
 import { supabase } from "../lib/supabaseClient"
+import { formatoFecha } from "./formatoFecha"
 
 export const NOMBRE_MODULO = { pacientes: "Pacientes", consultas: "Ficha clínica", citas: "Citas médicas", crm: "CRM", inventario: "Inventario", ventas: "Ventas", reportes: "Reportes", horario: "Mi horario", mensajes: "Mensajes", configuracion: "Configuración", usuarios: "Usuarios y permisos" }
 
@@ -18,7 +19,8 @@ export function detalleActividad(detalle) {
   const t = String(detalle || "").trim()
   if (!t) return ""
   if (/\be2e\b|limpieza|script|migraci[oó]n|\buuid\b|[0-9a-f]{8}-[0-9a-f]{4}-|no es una cita activa|identificable/i.test(t)) return ""
-  return t
+  // Las fechas con el formato del sistema ("19 feb 2028"), también en los registros viejos que se guardaron como "2028-02-19".
+  return t.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (iso) => formatoFecha(iso, "medio") || iso)
 }
 
 // Acciones de ventas que las versiones anteriores guardaron bajo "pacientes" o "consultas": se muestran en "Ventas", que es su módulo.
