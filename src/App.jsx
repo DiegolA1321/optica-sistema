@@ -10,6 +10,7 @@ import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from './utilidades/sesi
 import { mapAbono, EVENTO_ABONO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import { registrarLog } from './utilidades/logs';
+import { registrarAuditoria } from './utilidades/auditoria';
 
 // Login se queda como import normal: es la pantalla de entrada más común
 // (cualquier visitante público, paciente o staff pasa por acá primero) — el
@@ -146,7 +147,7 @@ function mapPaciente(p) {
   return {
     id: p.id, nombre: p.nombre, cedula: p.cedula, telefono: p.telefono, correo: p.correo,
     fecha_nacimiento: p.fecha_nacimiento, ultimaConsulta: p.ultima_consulta, estadoClinico: p.estado_clinico,
-    referidoPor: p.referido_por, referidoPorId: p.referido_por_id, ultimoSaludoCumpleAnio: p.ultimo_saludo_cumple_anio ?? null, evolucion: p.evolucion, estadoCorreccion: p.estado_correccion,
+    referidoPor: p.referido_por, referidoPorId: p.referido_por_id, evolucion: p.evolucion, estadoCorreccion: p.estado_correccion,
     fechaRegistro: p.fecha_registro, tieneCuenta: p.tiene_cuenta, usuario: p.usuario, claveTemporal: p.clave_temporal,
     ultimoSaludoCumpleAnio: p.ultimo_saludo_cumple_anio,
     // origen (migración 0067, "creado por staff" vs. "por el paciente/sistema")
@@ -958,11 +959,24 @@ function App() {
     if (usuario?.rol === 'paciente' && usuario?.id && usuario?.token && supabase) {
       supabase.rpc('invalidar_sesion_paciente', { p_paciente_id: usuario.id, p_token: usuario.token });
     }
+    // Cerrar la sesión estando dentro de una óptica también es una salida: se registra antes de cerrar la sesión real.
+    const salida = usuario?.impersonadoPor ? registrarSalidaImpersonacion(usuario, 'al cerrar la sesión') : null;
     setUsuario(null);
     setPantallaActual('login');
     guardarSesion(null);
-    supabase?.auth.signOut();
+    Promise.resolve(salida).finally(() => supabase?.auth.signOut());
     if (mensaje) setAvisoSesion({ texto: mensaje, id: Date.now() });
+  };
+
+  // Entrar y salir de una óptica como administrador queda en dos lugares: la actividad del superadmin (panel "Actividad": quién,
+  // qué óptica y cuándo) y la actividad de esa óptica (Usuarios y permisos), que es la que ve su administrador.
+  const MARCA_IMPERSONACION = 'optica_impersonacion';
+  const registrarSalidaImpersonacion = (u, motivo) => {
+    try { sessionStorage.removeItem(MARCA_IMPERSONACION); } catch { /* sin almacenamiento: no pasa nada */ }
+    const actor = u.impersonadoPor;
+    if (!actor?.id || !u.opticaId) return Promise.resolve();
+    registrarLog({ id: actor.id, nombre: `${actor.nombre} (superadmin)`, opticaId: u.opticaId }, 'usuarios', 'Salió del panel de la óptica como administrador');
+    return registrarAuditoria(actor, 'salir_de_optica', { opticaId: u.opticaId, opticaNombre: u.opticaNombre, detalle: motivo || null });
   };
 
   // Impersonación de superadmin ("entrar como" el administrador de una
@@ -983,6 +997,9 @@ function App() {
     if (usuario?.rol !== 'superadmin' || !optica?.id) return;
     const superadminReal = { id: usuario.id, nombre: usuario.nombre };
     registrarLog({ id: superadminReal.id, nombre: `${superadminReal.nombre} (superadmin)`, opticaId: optica.id }, 'usuarios', 'Entró como administrador de la óptica');
+    registrarAuditoria(superadminReal, 'entrar_como_optica', { opticaId: optica.id, opticaNombre: optica.nombre });
+    // Si la página se recarga estando dentro, la sesión vuelve sola al panel del superadmin: esta marca permite registrar esa salida.
+    try { sessionStorage.setItem('optica_impersonacion', JSON.stringify({ actor: superadminReal, opticaId: optica.id, opticaNombre: optica.nombre })); } catch { /* sin almacenamiento */ }
     setUsuario({
       rol: 'admin',
       nombre: `${superadminReal.nombre} (superadmin)`,
@@ -1008,9 +1025,20 @@ function App() {
   // entre recargas — más simple y sin ambigüedad sobre qué "sesión" hay.
   const salirDeImpersonacion = () => {
     if (!usuario?.impersonadoPor) return;
+    registrarSalidaImpersonacion(usuario);
     setUsuario({ rol: 'superadmin', nombre: usuario.impersonadoPor.nombre, id: usuario.impersonadoPor.id });
     setPantallaActual('panel_superadmin');
   };
+
+  useEffect(() => {
+    if (usuario?.rol !== 'superadmin' || usuario?.impersonadoPor) return;
+    let marca = null;
+    try { marca = JSON.parse(sessionStorage.getItem('optica_impersonacion') || 'null'); sessionStorage.removeItem('optica_impersonacion'); } catch { /* sin almacenamiento */ }
+    if (marca?.actor?.id && marca.opticaId) {
+      registrarLog({ id: marca.actor.id, nombre: `${marca.actor.nombre} (superadmin)`, opticaId: marca.opticaId }, 'usuarios', 'Salió del panel de la óptica como administrador');
+      registrarAuditoria(marca.actor, 'salir_de_optica', { opticaId: marca.opticaId, opticaNombre: marca.opticaNombre, detalle: 'al recargar la página' });
+    }
+  }, [usuario?.rol, usuario?.impersonadoPor]);
 
   // Ciberseguridad: cierra sola la sesión (admin/asistente/superadmin vía
   // Supabase Auth, o paciente vía la sesión local) tras un rato sin

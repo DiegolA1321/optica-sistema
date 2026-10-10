@@ -232,6 +232,9 @@ const AUDITORIA_INFO = {
   publicar_anuncio: { grupo: "mensajes", icon: Megaphone, bg: "#FFF7E6", fg: "#B45309" },
   actualizar_pago: { grupo: "opticas", icon: Wallet, bg: "#FFF7E6", fg: "#B45309" },
   generar_factura: { grupo: "opticas", icon: Receipt, bg: "#E7F7EF", fg: "#059669" },
+  // Entrar y salir de una óptica: tono neutro (el violeta es el color de "En espera" en Citas).
+  entrar_como_optica: { grupo: "opticas", icon: LogIn, bg: "#EEF2F7", fg: "#475569" },
+  salir_de_optica: { grupo: "opticas", icon: LogOut, bg: "#EEF2F7", fg: "#475569" },
 }
 
 const FILTROS_ACTIVIDAD = [
@@ -255,6 +258,8 @@ function textoAuditoria(a) {
     case "publicar_anuncio": return <>publicó un aviso general: <b>{a.detalle}</b></>
     case "actualizar_pago": return <>marcó el pago de <b>{a.optica_nombre}</b> como <b>{a.detalle === "al_dia" ? "al día" : a.detalle}</b></>
     case "generar_factura": return <>generó la factura <b>{a.detalle}</b> para <b>{a.optica_nombre}</b></>
+    case "entrar_como_optica": return <>entró como administrador a la óptica <b>{a.optica_nombre}</b></>
+    case "salir_de_optica": return <>salió de la óptica <b>{a.optica_nombre}</b>{a.detalle ? <span className="text-slate-400"> ({a.detalle})</span> : null}</>
     default: return a.accion
   }
 }
