@@ -6,29 +6,35 @@ import { iniciarSesion, SLUG_DEMO } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
-test('el aviso de citas canceladas por pacientes ofrece Reagendar y abre el formulario precargado', async ({ page }) => {
+test('el aviso de citas por reagendar es una línea con una sola acción: Reagendar con un caso, Ver con varios', async ({ page }) => {
   await iniciarSesion(page, 'RECEPCION')
-  // Recepción ve el mismo bloque Citas que el administrador: sus tres avisos más importantes, y el resto tras "Ver todo".
+  // Recepción ve el mismo bloque Citas que el administrador: una línea por tipo de aviso.
   const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  const fila = bloque.getByRole('listitem').filter({ hasText: 'todavía sin reagendar' }).first()
-  await expect(fila).toBeVisible()
-  await expect(fila).toContainText('todavía sin reagendar')
-  await expect(fila.getByRole('button', { name: 'Ver en Citas' })).toBeVisible()
-  await fila.getByRole('button', { name: 'Reagendar' }).click()
-  const dialogo = page.getByRole('dialog')
-  await expect(dialogo).toBeVisible({ timeout: 20_000 })
-  // Paciente y motivo vienen puestos; no se guarda nada.
-  await expect(dialogo).not.toContainText('Selecciona un paciente')
-  await page.keyboard.press('Escape')
+  const fila = bloque.getByRole('listitem').filter({ hasText: 'por reagendar' })
+  await expect(fila).toHaveCount(1)
+  await expect(fila).toContainText(/^\d+ citas? por reagendar/)
+  await expect(fila.getByRole('button')).toHaveCount(1)
+  if (await fila.getByRole('button', { name: 'Reagendar' }).count()) {
+    await fila.getByRole('button', { name: 'Reagendar' }).click()
+    const dialogo = page.getByRole('dialog')
+    await expect(dialogo).toBeVisible({ timeout: 20_000 })
+    // Paciente y motivo vienen puestos; no se guarda nada.
+    await expect(dialogo).not.toContainText('Selecciona un paciente')
+    await page.keyboard.press('Escape')
+  } else {
+    await fila.getByRole('button', { name: 'Ver' }).click()
+    await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
+  }
 })
 
 test('el administrador ve las citas por reagendar desde el "Ver todo" del bloque Citas', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  // El bloque muestra solo los tres avisos más importantes; el resto está tras "Ver todo", que abre Citas en "Para reagendar".
-  await bloque.getByRole('button', { name: /^Ver todo/ }).click()
+  // El "Ver todo →" del área abre Citas en "Para reagendar" (sin número: el total está una sola vez, en el título).
+  await bloque.getByRole('button', { name: 'Ver todo en Citas' }).click()
   await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
 })

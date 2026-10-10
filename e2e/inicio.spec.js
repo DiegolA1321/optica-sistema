@@ -95,18 +95,25 @@ test.describe('Inicio del administrador', () => {
     await expect(cuerpo.getByText('No atendidas')).toHaveCount(0)
   })
 
-  test('"Requiere tu atención" se separa por área, con tres avisos como máximo y "Ver todo (N)"; el stock bajo sale una sola vez', async ({ page }) => {
+  test('"Requiere tu atención" es una línea por tipo de aviso, con su acción y su "Ver todo →" por área sin repetir el número; el stock bajo sale una sola vez', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const bloque = atencion(page)
     await expect(bloque).toBeVisible({ timeout: 20_000 })
     await expect(main(page).getByText(/productos? con stock bajo/)).toHaveCount(1)
+    await expect(bloque).not.toContainText(/Ver todo \(/)
+    let lineas = 0
     for (const area of ['Citas', 'Pacientes', 'Ventas', 'Inventario']) {
       const sub = bloque.getByRole('region', { name: `Requiere tu atención: ${area}` })
-      await expect(sub).toBeVisible()
-      expect.soft(await sub.getByRole('listitem').count(), `${area}: como máximo tres avisos`).toBeLessThanOrEqual(3)
-      for (const fila of await sub.getByRole('listitem').all()) expect.soft(await fila.getByRole('button').count(), 'cada fila lleva su botón de acción').toBeGreaterThan(0)
-      if (await sub.getByRole('listitem').count()) await expect(sub.getByRole('button', { name: /^Ver todo \(\d+\)/ })).toBeVisible()
+      if (!(await sub.count())) continue // un área sin avisos se resume en la línea de "todo en orden"
+      const filas = sub.getByRole('listitem')
+      lineas += await filas.count()
+      for (const fila of await filas.all()) {
+        await expect.soft(fila, 'cada línea empieza con su número').toContainText(/^\d+ /)
+        expect.soft(await fila.getByRole('button').count(), 'cada línea lleva una sola acción').toBeLessThanOrEqual(1)
+      }
+      await expect(sub.getByRole('button', { name: `Ver todo en ${area}` })).toBeVisible()
     }
+    expect(lineas).toBeGreaterThan(0)
   })
 
   test('"Ver todo" de Inventario abre la lista ya acotada al stock bajo', async ({ page }) => {
@@ -144,6 +151,9 @@ test.describe('Inicio del administrador', () => {
 })
 
 test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, desenlace de sus citas y su agenda con el siguiente paciente', async ({ page }) => {
+  test.skip(ENTORNO !== 'E2E', 'Crea una cita: solo en la óptica de pruebas')
+  const nombre = await crearCitaDeHoyParaPaula('E2E') // para que su agenda de hoy tenga a alguien (no depende de lo que dejen otras pruebas)
+  try {
   await entrar(page, 'OPTOMETRA')
   const cuerpo = main(page)
   await expect(atencion(page)).toBeVisible({ timeout: 20_000 })
@@ -165,6 +175,9 @@ test('Inicio de Paula (optómetra): atajos, Requiere tu atención por área, des
     await expect(inventario.getByRole('button', { name: 'Reabastecer' })).toHaveCount(0)
   }
   await capturar(page, 'paula-optometra')
+  } finally {
+    await cancelarCitasDePrueba([nombre])
+  }
 })
 
 test('Inicio de Paula con un paciente en espera: el siguiente paciente es quien ya llegó y el título de la agenda lo cuenta', async ({ page }) => {
@@ -180,8 +193,7 @@ test('Inicio de Paula con un paciente en espera: el siguiente paciente es quien 
     await expect(agenda.getByLabel('Siguiente paciente')).toContainText('ya llegó')
     await expect(agenda.getByLabel('Siguiente paciente')).not.toContainText(pendiente)
     await expect(main(page).getByRole('heading', { name: /^Mi agenda de hoy · [0-9]+ en espera$/i })).toBeVisible()
-    await expect(agenda.getByRole('button', { name: new RegExp(enEspera) }).first()).toBeVisible() // y su fila está en la agenda
-    await expect(agenda.getByRole('button', { name: 'Atender', exact: true }).first()).toBeVisible()
+    await expect(agenda.getByLabel('Siguiente paciente').getByRole('button', { name: /^Atender/ })).toBeVisible() // el destacado trae su botón; no se repite en la lista de abajo
     await capturar(page, 'paula-en-espera')
     } finally {
       await cancelarCitasDePrueba([pendiente, enEspera]) // que no queden en espera para las pruebas que siguen

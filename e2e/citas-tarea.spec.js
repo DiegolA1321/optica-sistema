@@ -19,8 +19,10 @@ test('el panel Filtrar ya no tiene el grupo Tarea', async ({ page }) => {
 test('"Para reagendar" desde Inicio filtra la Lista, cuenta bien y se quita con la x de su etiqueta', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await expect(page.getByText('Requiere tu atención').first()).toBeVisible({ timeout: 20_000 })
-  const fila = page.locator('li, div').filter({ hasText: /No asistió a su cita|Cita cancelada por el paciente/ }).filter({ has: page.getByRole('button', { name: 'Ver en Citas' }) }).last()
-  await fila.getByRole('button', { name: 'Ver en Citas' }).click()
+  // El aviso "N citas por reagendar" y el "Ver todo →" del área Citas abren la lista ya filtrada con "Para reagendar".
+  const citas = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
+  await expect(citas).toContainText(/por reagendar/)
+  await citas.getByRole('button', { name: 'Ver todo en Citas' }).click()
   await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
   await page.waitForTimeout(1200)
   const periodoActivo = page.getByRole('group', { name: 'Periodo de las citas' }).locator('[aria-pressed=true]')

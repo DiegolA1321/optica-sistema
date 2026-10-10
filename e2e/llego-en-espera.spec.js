@@ -52,8 +52,7 @@ test('Llegó pasa la cita a "En espera", se ve en Inicio y Atender entra directo
   const optometra = await browser.newPage({ viewport: { width: 1366, height: 768 } })
   await iniciarSesion(optometra, 'OPTOMETRA', 'E2E')
   await expect(optometra.getByRole('region', { name: 'Mi agenda de hoy' })).toBeVisible({ timeout: 20_000 })
-  // Su cita aparece en la agenda de hoy (y, al ser quien ya llegó, es también el "Siguiente paciente" destacado), y el título la cuenta.
-  await expect(optometra.getByRole('region', { name: 'Mi agenda de hoy' }).getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible()
+  // Al ser quien ya llegó, es el "Siguiente paciente" destacado de la agenda de hoy (no se repite en la lista), y el título la cuenta.
   await expect(optometra.getByLabel('Siguiente paciente')).toContainText(nombre)
   await expect(optometra.getByRole('heading', { name: /^Mi agenda de hoy · [0-9]+ en espera$/i })).toBeVisible()
 
