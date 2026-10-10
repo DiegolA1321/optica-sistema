@@ -76,12 +76,22 @@ describe("Inicio del administrador", () => {
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
   })
 
-  it("el total de avisos se escribe una vez, en el título, y es la suma de los números de las líneas", () => {
-    render(<Inicio {...base} />)
-    const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
-    const numeros = within(atencion).getAllByRole("listitem").map((li) => Number(li.querySelector("span.font-bold").textContent))
-    const titulo = within(atencion).getByRole("heading", { level: 2, name: "Requiere tu atención" }).parentElement
-    expect(titulo).toHaveTextContent(String(numeros.reduce((a, b) => a + b, 0)))
+  it("cada tarjeta muestra como máximo tres avisos y dice cuántos elementos más hay; su número es la suma de todos sus avisos", () => {
+    const mmdd = hoy.slice(5)
+    const pacientes = [
+      { id: "p1", nombre: "Control Vencido", fechaRegistro: hoy },
+      { id: "p2", nombre: "Sin Consulta Dos", fechaRegistro: hoy },
+      { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
+      { id: "p4", nombre: "Cumple Hoy", fechaRegistro: hoy, fechaNacimiento: "1990-" + mmdd },
+    ]
+    const consultas = [{ id: "k1", pacienteId: "p1", paciente: "Control Vencido", fecha: "2020-01-01", motivo: "Control", proximoControlDias: 30 }]
+    render(<Inicio {...base} pacientes={pacientes} consultas={consultas} citas={[]} pases={[]} />)
+    const tarjeta = area("Pacientes")
+    expect(within(tarjeta).getAllByRole("listitem")).toHaveLength(3) // máximo tres avisos
+    expect(tarjeta).toHaveTextContent("1 elemento más") // el cuarto (el cumpleaños) queda tras "Ver todo →"
+    const suma = within(tarjeta).getAllByRole("listitem").reduce((n, li) => n + Number(li.querySelector("p span.font-bold").textContent), 0) + 1
+    expect(within(tarjeta).getByRole("banner")).toHaveTextContent(String(suma)) // el número de la tarjeta cuenta todos sus avisos
+    expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
   })
 
   it("un aviso con un solo caso trae la acción que lo resuelve; con varios, abre la lista", () => {
@@ -182,11 +192,12 @@ describe("Inicio del administrador", () => {
     expect(pedidos).toEqual(["pacientes", "crear"])
   })
 
-  it("sin nada pendiente: una sola línea 'todo en orden' con las cuatro áreas", () => {
+  it("sin nada pendiente: las cuatro tarjetas siguen ahí, del mismo tamaño, y dicen 'Todo en orden'", () => {
     render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} facturasVenta={[]} abonos={[]} />)
-    const franja = screen.getByLabelText("Áreas sin avisos")
-    expect(franja).toHaveTextContent("Citas, Pacientes, Ventas, Inventario · todo en orden")
-    expect(screen.queryByText("Ver todo", { exact: false })).not.toBeInTheDocument()
+    for (const nombre of ["Citas", "Pacientes", "Ventas", "Inventario"]) {
+      expect(area(nombre)).toHaveTextContent("Todo en orden")
+      expect(within(area(nombre)).getByRole("button", { name: `Ver todo en ${nombre}` })).toBeInTheDocument()
+    }
   })
 })
 
@@ -240,27 +251,41 @@ describe("Desenlace del administrador", () => {
 })
 
 describe("Inicio del optómetra", () => {
-  it("primero su agenda (el siguiente paciente destacado y sus citas), después sus avisos y al final el desenlace; sin totales", () => {
+  it("primero el siguiente paciente destacado a lo ancho y su agenda, después sus avisos y al final el desenlace; sin totales ni tarjeta de citas de hoy", () => {
     render(<Inicio {...base} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
+    const dia = screen.getByRole("region", { name: "Tu día" })
+    const hero = within(dia).getByLabelText("Siguiente paciente")
+    expect(hero).toHaveTextContent("Paciente Uno")
+    expect(within(hero).getByRole("button", { name: /^Atender/ })).toBeInTheDocument()
+    expect(within(dia).queryByLabelText("Fichas sin terminar")).not.toBeInTheDocument() // solo cuando hay alguna
+    expect(screen.queryByText("Mis citas de hoy")).not.toBeInTheDocument()
+    expect(screen.queryByText("Atendidos hoy")).not.toBeInTheDocument()
     const agenda = screen.getByRole("region", { name: "Mi agenda de hoy" })
-    expect(within(agenda).getByLabelText("Siguiente paciente")).toBeInTheDocument()
-    expect(within(within(agenda).getByLabelText("Siguiente paciente")).getByText(/Paciente Uno/)).toBeInTheDocument()
-    expect(within(agenda).getAllByRole("button", { name: /^Atender/ })).toHaveLength(1) // el siguiente paciente no se repite en la lista
-    expect(within(agenda).queryByText("Paciente Dos")).not.toBeInTheDocument() // asignada a otra persona
+    expect(agenda).toHaveTextContent("Paciente Uno")
+    expect(agenda).not.toHaveTextContent("Paciente Dos") // asignada a otra persona
     const avisos = screen.getByRole("region", { name: "Requiere tu atención" })
     const desenlace = screen.getByRole("region", { name: "Desenlace de mis citas · hoy" })
+    antes(dia, agenda)
     antes(agenda, avisos)
     antes(avisos, desenlace)
     expect(screen.getByRole("group", { name: "Atajos" })).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Requiere tu atención: Ventas" })).not.toBeInTheDocument()
-    // su desenlace es informativo: su agenda ya está arriba
-    expect(within(desenlace).queryByRole("button", { name: /^Atendidas/ })).toBeNull()
-    expect(desenlace).toHaveTextContent(/citas? = /)
+    expect(within(desenlace).queryByRole("button", { name: /^Atendidas/ })).toBeNull() // su desenlace es informativo
   })
 
-  it("sin citas hoy muestra su próxima jornada con citas (y solo esa)", () => {
+  it("el número de citas va en el título de la agenda y las filas llevan primero el estado y al final la acción", () => {
+    render(<Inicio {...base} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
+    expect(screen.getByRole("heading", { name: "Mi agenda de hoy · 2 citas" })).toBeInTheDocument()
+    const fila = within(screen.getByRole("region", { name: "Mi agenda de hoy" })).getByText("Pendiente").closest("[data-cita-id]")
+    expect(fila).toHaveTextContent("Siguiente") // el siguiente lleva su marca; el botón grande está arriba
+    const botones = within(fila).getAllByRole("button")
+    expect(botones[botones.length - 1]).toHaveTextContent("Atender") // la acción, al final
+    expect(fila.textContent.indexOf("Pendiente")).toBeLessThan(fila.textContent.indexOf("Atender"))
+  })
+
+  it("sin citas hoy muestra su próxima jornada con citas (y solo esa), sin siguiente paciente", () => {
     const manana = new Date(); manana.setDate(manana.getDate() + 1)
     const pasado = new Date(); pasado.setDate(pasado.getDate() + 3)
     const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
@@ -271,13 +296,13 @@ describe("Inicio del optómetra", () => {
     ]
     render(<Inicio {...base} citas={citas} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
     const agenda = screen.getByRole("region", { name: /^Mi próxima jornada con citas · / })
-    expect(within(agenda).getByText("Mañana Uno")).toBeInTheDocument()
-    expect(within(agenda).getByText("Mañana Dos")).toBeInTheDocument()
-    expect(within(agenda).queryByText("Pasado Uno")).not.toBeInTheDocument()
-    expect(within(agenda).queryByLabelText("Siguiente paciente")).not.toBeInTheDocument()
+    expect(agenda).toHaveTextContent("Mañana Uno")
+    expect(agenda).toHaveTextContent("Mañana Dos")
+    expect(agenda).not.toHaveTextContent("Pasado Uno")
+    expect(screen.queryByLabelText("Siguiente paciente")).not.toBeInTheDocument()
   })
 
-  it("el siguiente paciente es quien ya llegó (En espera) aunque otro tenga hora antes, y el título cuenta cuántos esperan", () => {
+  it("el siguiente paciente es quien ya llegó (En espera) aunque otro tenga hora antes, y el título de la agenda cuenta las citas y cuántos esperan", () => {
     const citas = [
       { id: "c1", fecha: hoy, hora: "08:00 AM", estado: "Pendiente", paciente: "Aún No Llega", pacienteId: "p1" },
       { id: "c2", fecha: hoy, hora: "11:00 AM", estado: "En Espera", paciente: "Ya Llegó Uno", pacienteId: "p2" },
@@ -287,10 +312,11 @@ describe("Inicio del optómetra", () => {
     const destacado = screen.getByLabelText("Siguiente paciente")
     expect(destacado).toHaveTextContent("Ya Llegó Uno")
     expect(destacado).toHaveTextContent("ya llegó")
-    expect(screen.getByRole("heading", { name: "Mi agenda de hoy · 2 en espera" })).toBeInTheDocument()
+    expect(destacado).not.toHaveTextContent("Aún No Llega")
+    expect(screen.getByRole("heading", { name: "Mi agenda de hoy · 3 citas · 2 en espera" })).toBeInTheDocument()
   })
 
-  it("el siguiente paciente trae Atender y las fichas abiertas traen Retomar o Ingresar (una línea de aviso y la fila de la agenda)", () => {
+  it("el siguiente paciente trae Atender y las fichas abiertas traen Retomar (su tarjeta y la fila de la agenda) o Ingresar (un día anterior)", () => {
     const atender = []
     const retomar = []
     const citas = [
@@ -302,35 +328,40 @@ describe("Inicio del optómetra", () => {
     fireEvent.click(within(screen.getByLabelText("Siguiente paciente")).getByRole("button", { name: /^Atender/ }))
     expect(atender).toEqual(["c1"])
     const retomarBtns = screen.getAllByRole("button", { name: "Retomar" })
-    expect(retomarBtns).toHaveLength(2) // la fila de la agenda y la línea "ficha sin terminar"
+    expect(retomarBtns).toHaveLength(2) // la tarjeta "Fichas sin terminar" y la fila de la agenda
     retomarBtns.forEach((b) => fireEvent.click(b))
     fireEvent.click(screen.getByRole("button", { name: "Ingresar" })) // la de un día anterior
     expect(retomar).toEqual(["c8", "c8", "c9"])
   })
 
-  it("la ficha sin terminar de hoy es un aviso solo cuando hay una atención abierta suya", () => {
+  it("la ficha sin terminar de hoy es una tarjeta solo cuando hay una, y no se repite en 'Requiere tu atención'", () => {
     const citas = [...base.citas, { id: "c9", fecha: hoy, hora: "08:00 AM", estado: "En Atención", paciente: "Paciente Dos", pacienteId: "p2", atendidoPor: "u1" }]
     const { unmount } = render(<Inicio {...base} citas={citas} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
-    expect(area("Citas")).toHaveTextContent("1 ficha sin terminar · Paciente Dos")
+    const tarjeta = screen.getByLabelText("Fichas sin terminar")
+    expect(tarjeta).toHaveTextContent("1")
+    expect(tarjeta).toHaveTextContent("Paciente Dos")
+    expect(screen.getByLabelText("Siguiente paciente")).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/ficha/i) // ni en la tarjeta de Citas
     unmount()
     render(<Inicio {...base} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
-    expect(screen.queryByText(/ficha sin terminar/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Fichas sin terminar")).not.toBeInTheDocument()
   })
 
-  it("sin acciones que su rol no puede usar: sin Reabastecer, sin Añadir producto y sin Ver en CRM", () => {
+  it("sus avisos son solo los suyos: controles vencidos 'de tus pacientes', sin inventario ni pacientes sin consulta, y sin acciones que su rol no puede usar", () => {
     const vencido = { id: "k9", pacienteId: "p1", paciente: "Paciente Uno", fecha: "2020-01-01", motivo: "Control", proximoControlDias: 30 }
     const props = { ...base, consultas: [vencido] }
     const { unmount } = render(<Inicio {...props} {...rol("optometra", { citas: ["ver"], inventario: ["ver"], crm: ["ver"], pacientes: ["ver"] })} />)
-    expect(screen.getByText(/paciente con el control vencido/)).toBeInTheDocument()
-    expect(screen.getByText(/producto con stock bajo/)).toBeInTheDocument() // lo ve (puede ver el módulo)...
-    expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument() // ...pero no puede reabastecer
-    expect(screen.queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument()
+    expect(area("Pacientes")).toHaveTextContent("1 de tus pacientes con el control vencido")
+    expect(screen.queryByText(/stock bajo/)).not.toBeInTheDocument() // el inventario no es suyo, aunque pueda verlo
+    expect(screen.queryByRole("region", { name: "Requiere tu atención: Inventario" })).not.toBeInTheDocument()
+    expect(screen.queryByText(/sin ninguna consulta/)).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument() // sin permiso de CRM para escribir
     expect(screen.queryByRole("button", { name: /Añadir producto/ })).not.toBeInTheDocument()
     unmount()
     render(<Inicio {...props} {...rol("optometra", { citas: ["ver"], inventario: ["ver", "crear", "editar"], crm: ["ver", "crear"], pacientes: ["ver"] })} />)
-    expect(screen.getByRole("button", { name: "Reabastecer" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Ver en CRM" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Añadir producto/ })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })
 })
 
@@ -348,9 +379,9 @@ describe("Inicio de recepción y ventas", () => {
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
   })
 
-  it("recepción sin nada pendiente: franja de 'todo en orden'", () => {
+  it("recepción sin nada pendiente: sus tarjetas dicen 'Todo en orden'", () => {
     render(<Inicio {...base} pacientes={[]} citas={[]} consultas={[]} inventario={[]} ordenesLab={[]} pases={[]} {...rol("recepcion", PERMISOS_RECEPCION)} />)
-    expect(screen.getByLabelText("Áreas sin avisos")).toHaveTextContent(/todo en orden/i)
+    expect(screen.getAllByText("Todo en orden").length).toBeGreaterThan(0)
   })
 
   it("ventas: lo que espera a quien vende, con la cola y las órdenes y el stock en un solo bloque de atención", () => {
