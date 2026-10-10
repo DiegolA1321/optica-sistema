@@ -97,10 +97,17 @@ test('Citas: "Todas" está siempre en el selector, en su sitio', async ({ page }
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   const grupo = page.getByRole('group', { name: 'Periodo de las citas' })
   await expect(grupo).toBeVisible({ timeout: 15_000 })
+  let primera = null
   for (const periodo of ['Hoy', 'Esta semana', 'Este mes', 'Todas']) {
     await grupo.getByRole('button', { name: periodo, exact: true }).click()
     await expect(grupo.getByRole('button', { name: periodo, exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(grupo.getByRole('button')).toHaveText(['Hoy', 'Esta semana', 'Este mes', 'Todas']) // siempre las mismas cuatro, en el mismo orden
+    await page.waitForTimeout(400)
+    const caja = await grupo.boundingBox()
+    primera = primera || caja
+    expect(Math.abs(caja.x - primera.x), `${periodo}: el selector no se mueve`).toBeLessThan(1)
+    expect(Math.abs(caja.y - primera.y), `${periodo}: el selector no salta`).toBeLessThan(1)
+    await expect(page.getByRole('button', { name: 'Periodo siguiente' })).toBeVisible() // las flechas y la fecha siguen en su sitio (apagadas con "Todas")
   }
 })
 

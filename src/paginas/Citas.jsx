@@ -1458,8 +1458,10 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             !buscando && (
               <div className="flex min-w-0 items-center gap-3">
                 <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} />
-                {(hayRango || ["hoy", "semana", "mes"].includes(filtro)) && (
+                {hayRango || ["hoy", "semana", "mes"].includes(filtro) ? (
                   <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" selector={selectorPeriodo} />
+                ) : (
+                  <NavegadorPeriodo inactivo titulo="Todas las fechas" etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" />
                 )}
               </div>
             )

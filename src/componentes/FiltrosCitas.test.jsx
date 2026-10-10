@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { BarraBusquedaFiltros, PeriodoLista } from "./FiltrosCitas"
+import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo } from "./FiltrosCitas"
 
 const etiquetas = (n, quitar = () => {}) => Array.from({ length: n }, (_, i) => ({ id: `f${i}`, texto: `Filtro ${i + 1}`, quitar: () => quitar(i) }))
 const pintar = (n, quitar) => render(<BarraBusquedaFiltros texto="" onTexto={() => {}} secciones={[]} etiquetas={etiquetas(n, quitar)} onLimpiar={() => {}} />)
@@ -53,5 +53,18 @@ describe("PeriodoLista", () => {
     expect(screen.getByRole("button", { name: "Semana" })).toHaveAttribute("aria-pressed", "true")
     rerender(<PeriodoLista valor="semana" onChange={() => {}} opciones={opciones} sinActivo />)
     expect(screen.getByRole("button", { name: "Semana" })).toHaveAttribute("aria-pressed", "false")
+  })
+})
+
+describe("NavegadorPeriodo inactivo (con 'Todas')", () => {
+  it("deja la fecha y las flechas en su sitio, apagadas: no hay periodo que mover y nada salta", () => {
+    const onAnterior = vi.fn()
+    render(<NavegadorPeriodo inactivo titulo="Todas las fechas" onAnterior={onAnterior} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" />)
+    expect(screen.getByText("Todas las fechas")).toBeInTheDocument()
+    const anterior = screen.getByRole("button", { name: "Periodo anterior" })
+    expect(anterior).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Periodo siguiente" })).toBeDisabled()
+    fireEvent.click(anterior)
+    expect(onAnterior).not.toHaveBeenCalled()
   })
 })
