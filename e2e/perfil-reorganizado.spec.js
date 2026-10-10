@@ -82,10 +82,13 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(conteos.locator('dd').nth(1)).toHaveText('0') // atendidas
   await expect(page.getByRole('img', { name: /^Citas por mes:/ })).toBeVisible()
   await expect(page.getByText('Última consulta')).toBeVisible()
-  await expect(page.getByText('Puntaje de fidelidad'), 'la fidelidad vive solo en su pestaña').toHaveCount(0)
+  // La fidelización vive en Resumen, una sola vez, y no se repite en la pestaña Citas
+  await expect(page.getByText('Puntaje de fidelidad'), 'la fidelidad aparece una sola vez, en Resumen').toHaveCount(1)
   await foto(page, 'reorganizado-4-resumen')
   await page.getByRole('img', { name: /^Citas por mes:/ }).scrollIntoViewIfNeeded()
   await foto(page, 'reorganizado-4b-resumen-grafico')
+  await page.getByRole('tab', { name: /Citas/ }).click()
+  await expect(page.getByText('Puntaje de fidelidad'), 'la fidelidad no se repite en la pestaña Citas').toHaveCount(0)
 
   // Alertas: debajo de la cabecera y antes de las pestañas
   await page.goto('/?optica=v8twzq')
@@ -109,7 +112,8 @@ test('atender a un paciente sin cita desde su perfil con "Llegó en un horario d
 
   await abrirPerfil(page, nombre)
   await expect(page.getByRole('button', { name: 'Ficha clínica' })).toHaveCount(0)
-  await expect(page.getByText('Este paciente no tiene citas pendientes', { exact: true })).toBeVisible()
+  // Tiene historial (la cita cancelada) y ninguna pendiente: no hay bloque de próxima cita, y agendar está a un clic
+  await expect(page.getByRole('region', { name: 'Próxima cita' })).toHaveCount(0)
   await botonAgendar(page).click()
   const form = page.locator('form').filter({ has: page.getByLabel('Motivo del examen') })
   await form.locator('select').first().selectOption({ index: 1 })
