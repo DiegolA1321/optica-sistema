@@ -83,11 +83,12 @@ export function citasParaLista(citas, periodo, tarjeta = null, ahora = ahoraEcua
   return filtradas.slice().sort((a, b) => (asc ? (clave(a) < clave(b) ? -1 : 1) : (clave(a) < clave(b) ? 1 : -1)))
 }
 
-// Ventas (comprobantes internos sin anular): las de este mes (cantidad y dólares) y todas las registradas.
+// Ventas (comprobantes internos sin anular): el total vendido y su número, y lo de este mes (cantidad y dólares), con la misma lógica que las demás tarjetas de Totales (el total y el '+N este mes').
 export function ventasDelMes(facturas, ahora = ahoraEcuador()) {
   const vigentes = facturas.filter((f) => f.estado !== "anulada")
   const delMes = vigentes.filter((f) => { const d = f.creadoEn ? new Date(f.creadoEn) : null; return d && !isNaN(d) && d.getFullYear() === ahora.getFullYear() && d.getMonth() === ahora.getMonth() })
-  return { cantidad: delMes.length, total: Math.round(delMes.reduce((n, f) => n + (Number(f.montoTotal) || 0), 0) * 100) / 100, cantidadTotal: vigentes.length }
+  const suma = (lista) => Math.round(lista.reduce((n, f) => n + (Number(f.montoTotal) || 0), 0) * 100) / 100
+  return { cantidad: delMes.length, total: suma(delMes), cantidadTotal: vigentes.length, totalVendido: suma(vigentes) }
 }
 
 // Cuántos registros se dieron de alta este mes (para el "+N este mes" de los Totales). Sin fecha de alta no cuenta.

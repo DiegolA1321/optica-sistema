@@ -32,20 +32,20 @@ describe("Inicio del administrador", () => {
   it("Totales: cuatro tarjetas iguales (pacientes, citas, ventas del mes en dólares y productos), cada una con su '+N este mes'", () => {
     render(<Inicio {...base} />)
     const totales = screen.getByRole("region", { name: "Totales" })
-    for (const t of ["Pacientes", "Citas", "Ventas del mes", "Productos"]) expect(within(totales).getByText(t)).toBeInTheDocument()
+    for (const t of ["Pacientes", "Citas", "Ventas", "Productos"]) expect(within(totales).getByText(t)).toBeInTheDocument()
     expect(within(totales).getAllByRole("button", { name: /: / })).toHaveLength(4)
     expect(within(totales).getByText("+2 este mes")).toBeInTheDocument() // los dos pacientes se registraron hoy
-    expect(within(totales).getByText("$0.00")).toBeInTheDocument() // la venta de la prueba no tiene fecha de este mes
-    expect(within(totales).getByText("+0 este mes · 1 en total")).toBeInTheDocument()
+    expect(within(totales).getByText("$100.00")).toBeInTheDocument() // el total vendido (la venta de la prueba no tiene fecha de este mes)
+    expect(within(totales).getByText("+$0.00 este mes · 0 ventas")).toBeInTheDocument()
     expect(within(totales).queryByText("Pacientes sin atender")).not.toBeInTheDocument()
   })
 
-  it("Totales cuenta las ventas del mes en dólares y su número", () => {
+  it("Totales: Ventas muestra el total vendido y debajo '+$ este mes · N ventas', con la misma lógica que las demás", () => {
     const ahora = new Date().toISOString()
     render(<Inicio {...base} facturasVenta={[{ id: "f1", estado: "pagada", montoTotal: 100.5, creadoEn: ahora }, { id: "f2", estado: "pagada", montoTotal: 20, creadoEn: ahora }, { id: "f3", estado: "anulada", montoTotal: 999, creadoEn: ahora }]} />)
     const totales = screen.getByRole("region", { name: "Totales" })
     expect(within(totales).getByText("$120.50")).toBeInTheDocument()
-    expect(within(totales).getByText("+2 este mes · 2 en total")).toBeInTheDocument()
+    expect(within(totales).getByText("+$120.50 este mes · 2 ventas")).toBeInTheDocument()
   })
 
   it("el orden es Totales, Requiere tu atención, Desenlace y Citas del día", () => {

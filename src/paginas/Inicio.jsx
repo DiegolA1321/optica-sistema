@@ -297,7 +297,7 @@ export default function Inicio({
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setVista?.("pacientes") },
         { id: "citas", titulo: "Citas", valor: citas.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setVista?.("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas del mes", valor: dinero(ventasMes.total), desc: `+${ventasMes.cantidad} este mes · ${ventasMes.cantidadTotal} en total`, icono: ShoppingBag, onClick: () => setVista?.("ventas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setVista?.("ventas") },
         { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setVista?.("inventario") },
       ].filter(Boolean)}
     />
