@@ -32,6 +32,7 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
@@ -450,18 +451,17 @@ export default function Inventario({
     <div className={"w-full space-y-6 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3.5">
+        <div className="flex min-w-0 items-center gap-3.5">
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
             <Package size={24} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Monturas y accesorios</h1>
             <p className="text-sm text-slate-500">Existencias de armazones y accesorios. Las lunas no se registran aquí: se escriben en la venta.</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-        {avisosDelModulo}
+        <AccionesDeCabecera avisos={avisosDelModulo}>
         {puede(usuario, "inventario", "crear") && <button
           type="button"
           onClick={abrirModal}
@@ -471,7 +471,7 @@ export default function Inventario({
           <Plus size={18} />
           Agregar producto
         </button>}
-        </div>
+        </AccionesDeCabecera>
       </div>
 
       {/* ─── ÉXITO ─── */}
@@ -487,28 +487,9 @@ export default function Inventario({
         <ResumenCard icon={Package} valor={resumen.total} label="Productos" tile={GRAD} tileText="#fff" />
         <ResumenCard icon={Boxes} valor={resumen.unidades} label="Unidades en stock" tile="#f1f5f9" tileText="#475569" />
         <ResumenCard icon={DollarSign} valor={`${dinero(resumen.valor)}`} label="Valor de bodega" tile="#ecfdf5" tileText="#059669" />
-        <ResumenCard icon={AlertTriangle} valor={resumen.bajos.length} label="Stock bajo" tile="#fffbeb" tileText="#d97706" />
+        {/* La tarjeta ES el filtro del stock bajo (R54: el stock bajo se dice una sola vez; el aviso amarillo y la píldora aparte se quitaron). */}
+        <ResumenCard icon={AlertTriangle} valor={resumen.bajos.length} label="Stock bajo" tile="#fffbeb" tileText="#d97706" activo={soloBajo} ayuda="Filtra la lista a los productos por agotarse" onClick={() => { const nuevo = !soloBajo; setSoloBajo(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloNuevos(false) } }} />
       </div>
-
-      {/* ─── ALERTA STOCK BAJO ─── */}
-      {resumen.bajos.length > 0 && !soloBajo && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-200/60 bg-amber-50 p-4">
-          <AlertTriangle size={18} className="text-amber-600" />
-          <p className="text-sm font-semibold text-amber-900">
-            {resumen.bajos.length} {resumen.bajos.length === 1 ? "producto está" : "productos están"} por agotarse:
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {resumen.bajos.slice(0, 4).map((p) => (
-              <span key={p.id} className="rounded-full border border-amber-200/60 bg-white px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                {p.nombre} · {p.stock}u
-              </span>
-            ))}
-          </div>
-          <button type="button" onClick={() => { setSoloBajo(true); setFiltroCategoria("Todas") }} className="ml-auto text-xs font-bold text-amber-700 underline-offset-2 hover:underline cursor-pointer">
-            Ver solo stock bajo
-          </button>
-        </div>
-      )}
 
       {/* ─── TABLA ─── */}
       <div className="space-y-4 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
@@ -551,14 +532,6 @@ export default function Inventario({
           })}
 
           <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
-
-          <button type="button" onClick={() => { const nuevo = !soloBajo; setSoloBajo(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloNuevos(false) } }}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
-            style={soloBajo ? { backgroundColor: "#d97706", borderColor: "#d97706", color: "#fff" } : { borderColor: "#fde68a", color: "#b45309", backgroundColor: "#fffbeb" }}
-            title="Filtrar productos por agotarse">
-            <AlertTriangle size={12} />
-            Stock bajo{resumen.bajos.length ? ` (${resumen.bajos.length})` : ""}
-          </button>
 
           <button type="button" onClick={() => { const nuevo = !soloNuevos; setSoloNuevos(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false) } }} aria-pressed={soloNuevos}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer"
@@ -1003,16 +976,24 @@ export default function Inventario({
   )
 }
 
-function ResumenCard({ icon: Icon, valor, label, tile, tileText }) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200/60 bg-white p-4" style={{ boxShadow: "0 1px 2px rgba(14,43,51,0.04)" }}>
+function ResumenCard({ icon: Icon, valor, label, tile, tileText, onClick, activo = false, ayuda }) {
+  const contenido = (
+    <>
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: tile, color: tileText }}>
         <Icon size={20} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 text-left">
         <p className="truncate text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{valor}</p>
         <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
       </div>
-    </div>
+    </>
+  )
+  const base = "flex items-center gap-3 rounded-2xl border bg-white p-4 "
+  if (!onClick) return <div className={base + "border-slate-200/60"} style={{ boxShadow: "0 1px 2px rgba(14,43,51,0.04)" }}>{contenido}</div>
+  return (
+    <button type="button" onClick={onClick} aria-pressed={activo} aria-label={`${label}: ${valor}. ${ayuda || ""}`.trim()} title={ayuda}
+      className={base + "w-full transition-colors cursor-pointer hover:bg-slate-50 " + (activo ? "border-amber-400 ring-2 ring-amber-200" : "border-slate-200/60")} style={{ boxShadow: "0 1px 2px rgba(14,43,51,0.04)" }}>
+      {contenido}
+    </button>
   )
 }
