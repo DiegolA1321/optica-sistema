@@ -45,6 +45,7 @@ import { hoyISO, diaTieneCupo } from "../utilidades/disponibilidad"
 import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
 import { MENSAJE_HORA_INVALIDA, esErrorHoraInvalida } from "../utilidades/erroresCitas"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
+import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
@@ -1105,6 +1106,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
   // Barra de la visita: cita de origen, alergias (rojo si hay) y última graduación.
   const citaDeLaVisita = useMemo(() => citas.find((c) => c.id === citaEnAtencionId) || null, [citas, citaEnAtencionId])
+  const antecedentesAlerta = useMemo(() => antecedentesRelevantes({ antecedentes, antecedentesFamiliares }), [antecedentes, antecedentesFamiliares])
   const alergiaSignificativa = Boolean(alergias.trim()) && !/^(ning|no\b|sin\b|n\/a|na$|-+$|—)/i.test(alergias.trim())
   const ultimaGraduacion = useMemo(() => {
     if (!ultimaConsultaPaciente) return null
@@ -1238,12 +1240,18 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 />
               </label>
             </div>
-            {(alergiaSignificativa || ultimaGraduacion) && (
+            {(alergiaSignificativa || ultimaGraduacion || antecedentesAlerta.length > 0) && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                 {alergiaSignificativa && (
                   <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-bold text-red-700">
                     <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
                     <span className="truncate">Alergias: {alergias.trim()}</span>
+                  </span>
+                )}
+                {antecedentesAlerta.length > 0 && (
+                  <span role="status" className="flex w-full items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2.5 py-1 font-bold text-amber-800">
+                    <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
+                    <span className="truncate">Antecedentes importantes: {textoAntecedentes(antecedentesAlerta)}</span>
                   </span>
                 )}
                 {ultimaGraduacion && (
