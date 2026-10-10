@@ -5,6 +5,7 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
+import { sumarDiasISO } from "../utilidades/controles"
 import { createPortal } from "react-dom"
 import {
   Clock,
@@ -35,6 +36,7 @@ import {
 import { registrarLog } from "../utilidades/logs"
 import { supabase } from "../lib/supabaseClient"
 import { puede } from "../utilidades/permisosUi"
+import CampoFecha from "../componentes/CampoFecha"
 import HorarioEquipo from "../componentes/HorarioEquipo"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { INK, ACCION_ELIMINAR } from "@/lib/tema"
@@ -831,7 +833,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
               )}
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-                <input type="date" required min={hoy} value={fechaAusencia} onChange={(e) => setFechaAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
+                <CampoFecha id="ausencia-fecha" valor={fechaAusencia} onCambiar={setFechaAusencia} min={hoy} max={sumarDiasISO(hoy, 730)} requerido />
               </div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
                 <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus-visible:ring-red-500" />

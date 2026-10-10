@@ -15,6 +15,14 @@ const disponibilidad = (excepciones = {}) => ({
 const paula = { id: "u-paula", rol: "asistente", nombre: "Paula", opticaId: "o1", permisosNivel: { horario: ["ver"], horario_optica: ["ver"] } }
 const admin = { id: "u-admin", rol: "admin", nombre: "Ana", opticaId: "o1" }
 const FUTURO = "2099-01-05" // un lunes lejano
+// Un día a 45 días de hoy: la ausencia se elige con el calendario del sistema (no hay un campo de fecha del navegador).
+const en45 = (() => { const d = new Date(); d.setDate(d.getDate() + 45); return { iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, anio: d.getFullYear(), mes: d.getMonth(), dia: d.getDate() } })()
+const elegirFecha = (dialogo, { anio, mes, dia }) => {
+  fireEvent.click(dialogo.querySelector("#ausencia-fecha"))
+  fireEvent.change(within(dialogo).getByLabelText("Año"), { target: { value: String(anio) } })
+  fireEvent.change(within(dialogo).getByLabelText("Mes"), { target: { value: String(mes) } })
+  fireEvent.click(within(dialogo).getAllByRole("button", { name: String(dia), pressed: false }).find((b) => b.textContent === String(dia)))
+}
 const props = (usuario, extra = {}) => ({ usuario, disponibilidad: disponibilidad(), setDisponibilidad: vi.fn(() => Promise.resolve({ error: null })), reemplazarExcepcionLocal: vi.fn(), horarioPersonal: { horarioSemanal: {}, ausencias: {} }, setHorarioPersonal: vi.fn(() => Promise.resolve({ error: null })), citas: [], equipo: [], ...extra })
 
 beforeEach(() => { rpc.mockReset(); window.history.replaceState({}, "", "/") })
@@ -52,14 +60,14 @@ describe("Horario: las ausencias de cada persona", () => {
     const p = props(paula)
     render(<Horario {...p} />)
     const dialogo = abrirFormulario()
-    fireEvent.change(dialogo.querySelector("input[type=date]"), { target: { value: FUTURO } })
+    elegirFecha(dialogo, en45)
     const horas = dialogo.querySelectorAll("input[type=time]")
     fireEvent.change(horas[0], { target: { value: "10:00" } })
     fireEvent.change(horas[1], { target: { value: "11:00" } })
     fireEvent.change(dialogo.querySelector("textarea"), { target: { value: "Cita médica" } })
     fireEvent.submit(dialogo.querySelector("form"))
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("registrar_ausencia", { p_fecha: FUTURO, p_inicio: "10:00", p_fin: "11:00", p_motivo: "Cita médica" }))
-    await waitFor(() => expect(p.reemplazarExcepcionLocal).toHaveBeenCalledWith(FUTURO, devuelta))
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("registrar_ausencia", { p_fecha: en45.iso, p_inicio: "10:00", p_fin: "11:00", p_motivo: "Cita médica" }))
+    await waitFor(() => expect(p.reemplazarExcepcionLocal).toHaveBeenCalledWith(en45.iso, devuelta))
     expect(p.setDisponibilidad).not.toHaveBeenCalled() // el horario general no se toca
   })
 

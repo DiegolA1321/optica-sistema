@@ -1,8 +1,10 @@
+import CampoFecha from "./CampoFecha"
 "use client"
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaAISO } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { sumarDiasISO } from "../utilidades/controles"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { X, FlaskConical, Printer } from "lucide-react"
@@ -160,9 +162,9 @@ export default function OrdenLaboratorioModal({
                   <input list="laboratorios-usados" value={d.laboratorio} onChange={(e) => set("laboratorio", e.target.value)} maxLength={80} placeholder="¿A quién se envía?" className={CAMPO} />
                   <datalist id="laboratorios-usados">{laboratoriosSugeridos.map((l) => <option key={l} value={l} />)}</datalist>
                 </label>
-                <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega prometida *</span>
-                  <input type="date" value={d.fechaPrometida} onChange={(e) => set("fechaPrometida", e.target.value)} className={CAMPO} />
-                </label>
+                <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega prometida *</span>
+                  <CampoFecha id="orden-fecha-prometida" valor={d.fechaPrometida} onCambiar={(v) => set("fechaPrometida", v)} min={sumarDiasISO(hoyISO(), -365)} max={sumarDiasISO(hoyISO(), 365)} />
+                </div>
                 <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Tipo de lente *</span>
                   <select value={d.tipoLente} onChange={(e) => set("tipoLente", e.target.value)} className={CAMPO}>
                     {TIPOS_LENTE.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}

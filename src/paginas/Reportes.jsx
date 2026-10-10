@@ -1,3 +1,4 @@
+import CampoFecha from "../componentes/CampoFecha"
 import SinDatosAun from "../componentes/SinDatosAun"
 "use client"
 
@@ -426,16 +427,10 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
           </button>
         ))}
         {periodo === "personalizado" && (
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="date" value={inicioPersonalizado} onChange={(e) => setInicioPersonalizado(e.target.value)}
-              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
-            />
-            <span className="text-xs text-slate-400">a</span>
-            <input
-              type="date" value={finPersonalizado} onChange={(e) => setFinPersonalizado(e.target.value)}
-              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus-visible:border-blue-500"
-            />
+          <div className="flex flex-wrap items-start gap-2">
+            <div className="w-48"><CampoFecha id="reportes-desde" valor={inicioPersonalizado} onCambiar={setInicioPersonalizado} placeholder="Desde" /></div>
+            <span className="pt-2.5 text-xs text-slate-400">a</span>
+            <div className="w-48"><CampoFecha id="reportes-hasta" valor={finPersonalizado} onCambiar={setFinPersonalizado} placeholder="Hasta" /></div>
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import CampoFecha from "./CampoFecha"
 "use client"
 
 import { useState } from "react"
@@ -123,13 +124,7 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
-                <div className="relative">
-                  <Cake size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="date" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  />
-                </div>
+                <CampoFecha id="confirmar-nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} placeholder="Elige la fecha" />
               </div>
             </div>
 

@@ -1,6 +1,6 @@
 import React from "react"
 import { describe, it, expect } from "vitest"
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, within, fireEvent } from "@testing-library/react"
 import Reportes from "./Reportes"
 
 const ahora = new Date().toISOString()
@@ -53,5 +53,15 @@ describe("Reportes: óptica nueva y números que se explican", () => {
     const citas = [{ id: "1", estado: "Atendida", fecha: "2026-10-01" }, { id: "2", estado: "Cancelada", fecha: "2026-10-02" }, { id: "3", estado: "Pendiente", fecha: "2026-10-03" }]
     render(<Reportes usuario={admin} citas={citas} />)
     expect(screen.getByText("1 de 3 citas solicitadas (2 sin las canceladas)")).toBeInTheDocument()
+  })
+})
+
+describe("Reportes: período personalizado con el calendario del sistema", () => {
+  it("'Personalizado' ofrece dos fechas con el calendario del sistema, no los campos del navegador", () => {
+    render(<Reportes usuario={admin} />)
+    fireEvent.click(screen.getByRole("button", { name: "Personalizado" }))
+    expect(document.querySelector("input[type=date]")).toBeNull()
+    expect(screen.getByRole("button", { name: /Desde/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Hasta/ })).toBeInTheDocument()
   })
 })

@@ -33,6 +33,7 @@ import {
   Receipt,
   List,
 } from "lucide-react"
+import CampoFecha from "../componentes/CampoFecha"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import { diaHabilMasCercano } from "../utilidades/controles"
@@ -1689,14 +1690,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                             </div>
                             {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
                           </div>
-                          <div className="relative">
-                            <Cake size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                            <input
-                              type="date" value={npFechaNacimiento}
-                              onChange={(e) => setNpFechaNacimiento(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200/60 bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                            />
-                          </div>
+                      <CampoFecha id="np-nacimiento" valor={npFechaNacimiento} onCambiar={setNpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
                         </div>
                         <button
                           type="button"
@@ -1890,13 +1884,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
-                    <div className="relative">
-                      <Cake size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="date" value={cpFechaNacimiento} onChange={(e) => setCpFechaNacimiento(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                      />
-                    </div>
+                      <CampoFecha id="cp-nacimiento" valor={cpFechaNacimiento} onCambiar={setCpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
                   </div>
                 </div>
               </div>

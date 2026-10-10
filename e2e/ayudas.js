@@ -263,3 +263,13 @@ export async function liberarHoyDePaula(entorno = 'E2E') {
   const { error } = await cliente.from('citas').update({ estado: 'Cancelada' }).eq('asignado_a', paula.id).eq('fecha', hoyLocalISO()).neq('estado', 'Cancelada')
   if (error) throw new Error(`No se pudo liberar el día de Paula: ${error.message}`)
 }
+
+// Elige una fecha en un CampoFecha (el calendario del sistema): abre el campo, fija año y mes y pulsa el día. `raiz` es la página o la ventana donde está el campo.
+export async function elegirFecha(raiz, idCampo, iso) {
+  const [anio, mes, dia] = iso.split('-').map(Number)
+  await raiz.locator('#' + idCampo).click()
+  const calendario = raiz.getByRole('dialog', { name: 'Elegir fecha' })
+  await calendario.getByLabel('Año').selectOption(String(anio))
+  await calendario.getByLabel('Mes').selectOption(String(mes - 1))
+  await calendario.getByRole('button', { name: String(dia), exact: true }).click()
+}

@@ -19,6 +19,7 @@ import {
   CreditCard,
   Cake,
 } from "lucide-react"
+import CampoFecha from "../componentes/CampoFecha"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
@@ -365,8 +366,10 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                         <p className="mt-1 text-[11px] font-medium text-red-600">Esa cédula no parece válida — revisa los dígitos.</p>
                       )}
                     </div>
-                    <Campo label="Fecha de nacimiento" icon={Cake} type="date"
-                      value={formData.fechaNacimiento} onChange={(v) => setFormData({ ...formData, fechaNacimiento: v })} />
+                    <div>
+                      <label htmlFor="publica-nacimiento" className="mb-1.5 block text-xs font-semibold text-slate-700">Fecha de nacimiento</label>
+                      <CampoFecha id="publica-nacimiento" valor={formData.fechaNacimiento} onCambiar={(v) => setFormData({ ...formData, fechaNacimiento: v })} icono={Cake} placeholder="Elige tu fecha" />
+                    </div>
                   </div>
                   <p className="mt-1.5 text-[11px] text-slate-400">
                     Pedimos tu cédula y nacimiento para no duplicar tu historial si ya nos visitaste antes — nunca para crearte una cuenta.

@@ -1,3 +1,4 @@
+import CampoFecha from "./CampoFecha"
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
@@ -90,9 +91,9 @@ export default function AbonoModal({ factura, paciente, abonos, usuario, onRegis
             <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Monto *</span>
               <input type="number" min="0.01" step="0.01" max={saldo} value={monto} onChange={(e) => setMonto(e.target.value)} autoFocus className={CAMPO + " font-mono"} />
             </label>
-            <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Fecha *</span>
-              <input type="date" value={fecha} min={fechaVenta || undefined} max={hoyISO()} onChange={(e) => setFecha(e.target.value)} className={CAMPO} />
-            </label>
+            <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Fecha *</span>
+              <CampoFecha id="abono-fecha" valor={fecha} onCambiar={setFecha} min={fechaVenta || ""} max={hoyISO()} />
+            </div>
           </div>
           <button type="button" onClick={() => setMonto(saldo.toFixed(2))} className="text-xs font-semibold text-emerald-700 transition-colors hover:text-emerald-800 cursor-pointer">Pagar el saldo completo ({dinero(saldo)})</button>
           <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Nota (opcional)</span>

@@ -64,7 +64,9 @@ import {
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
-import { esHoy, etiquetaFecha, fechaAISO } from "../utilidades/disponibilidad"
+import { esHoy, etiquetaFecha, fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { sumarDiasISO } from "../utilidades/controles"
+import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -1505,10 +1507,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setActualizandoPago(false)
   }
 
-  const guardarSuscripcion = async () => {
+  const guardarSuscripcion = async (vencimiento = campoVencimiento) => { // al elegir la fecha llega ya la nueva; al salir del monto, la guardada
     if (!detalle) return
     setGuardandoSuscripcion(true)
-    const cambios = { monto_mensual: campoMonto ? Number(campoMonto) : null, proximo_vencimiento: campoVencimiento || null }
+    const cambios = { monto_mensual: campoMonto ? Number(campoMonto) : null, proximo_vencimiento: (typeof vencimiento === "string" ? vencimiento : campoVencimiento) || null }
     const { error } = await supabase.from("opticas").update(cambios).eq("id", detalle.id)
     if (!error) {
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
@@ -3352,13 +3354,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           <div className="mt-2.5 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
                             <Cake size={13} className="shrink-0 text-slate-400" />
                             <label className="text-xs text-slate-500">Cumpleaños</label>
-                            <input
-                              type="date"
-                              defaultValue={a.fecha_nacimiento || ""}
-                              onBlur={(e) => { if (e.target.value !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, e.target.value) }}
-                              disabled={guardandoCumple === a.id}
-                              className="rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white disabled:opacity-60"
-                            />
+                            <span className="w-44"><CampoFecha id={`cumple-${a.id}`} valor={a.fecha_nacimiento || ""} onCambiar={(v) => { if (v !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, v) }} placeholder="Elige la fecha" /></span>
                             {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
                           </div>
                           <div className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2">
@@ -3478,17 +3474,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <div>
                       <label className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
                       <input
-                        type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={guardarSuscripcion}
+                        type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={() => guardarSuscripcion()}
                         placeholder="0.00"
                         className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white"
                       />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
-                      <input
-                        type="date" value={campoVencimiento} onChange={(e) => setCampoVencimiento(e.target.value)} onBlur={guardarSuscripcion}
-                        className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white"
-                      />
+                      <CampoFecha id="suscripcion-vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
                     </div>
                   </div>
                   {guardandoSuscripcion && <p className="text-xs text-slate-400">Guardando…</p>}
@@ -4063,13 +4056,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento <span className="font-normal text-slate-400">(opcional)</span></label>
-                        <div className="relative">
-                          <Cake className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            type="date" value={campos.fechaNacimientoAdmin} onChange={(e) => actualizarCampo("fechaNacimientoAdmin", e.target.value)}
-                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
+                        <CampoFecha id="admin-nacimiento" valor={campos.fechaNacimientoAdmin} onCambiar={(v) => actualizarCampo("fechaNacimientoAdmin", v)} icono={Cake} placeholder="Elige la fecha" />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

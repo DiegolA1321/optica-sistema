@@ -4,7 +4,7 @@
 // que la base la acepte (2xx), así que si faltara un permiso fallaría con 401/403.
 // Todo lo que crean lleva el prefijo "E2E " y se borra o se restaura al terminar la prueba (también si la prueba falla).
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, PREFIJO, crearCitaDeHoyParaPaula, cedulaValida, escribirSecreto } from './ayudas.js'
+import { iniciarSesion, PREFIJO, crearCitaDeHoyParaPaula, cedulaValida, escribirSecreto, elegirFecha } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -116,20 +116,20 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
   await expect(campo()).toHaveValue(String(original), { timeout: 25_000 })
 })
 
-test('Mi horario: registrar y quitar una ausencia lejana (disponibilidad: upsert)', async ({ page }) => {
+test('Mi horario: registrar y quitar una ausencia lejana (funciones registrar_ausencia y quitar_ausencia)', async ({ page }) => {
   const fecha = diaHabilEn(500)
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await irA(page, 'Mi horario')
   await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
   await page.getByRole('button', { name: 'Registrar' }).click()
   const modal = page.getByRole('dialog').last()
-  await modal.locator('input[type=date]').fill(fecha)
+  await elegirFecha(modal, 'ausencia-fecha', fecha)
   await modal.getByRole('checkbox').check()
   await modal.getByPlaceholder('Ej. Cita médica').fill(`${PREFIJO}ausencia de prueba`)
-  await conEscritura(page, 'disponibilidad', 'registrar ausencia', () => modal.getByRole('button', { name: 'Registrar', exact: true }).click())
+  await conEscritura(page, 'rpc/registrar_ausencia', 'registrar ausencia', () => modal.getByRole('button', { name: 'Registrar', exact: true }).click())
   const quitar = page.getByRole('button', { name: `Quitar ausencia del ${fecha}` })
   await expect(quitar).toBeVisible({ timeout: 20_000 })
-  await conEscritura(page, 'disponibilidad', 'quitar ausencia', () => quitar.click())
+  await conEscritura(page, 'rpc/quitar_ausencia', 'quitar ausencia', () => quitar.click())
   await expect(quitar).toHaveCount(0, { timeout: 20_000 })
 })
 
