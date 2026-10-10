@@ -2185,15 +2185,17 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                           </p>
                         )}
                         {/* Para las ventas sin receta (un líquido, un estuche...). La venta de la receta sale solo de la alerta "Listo para venta". */}
-                        {puedeVender && <button
-                          type="button"
-                          onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
-                          className="flex w-full flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer"
-                          style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
-                        >
-                          <span className="flex items-center gap-2"><Receipt size={16} /> Nueva venta</span>
-                          <span className="text-[11px] font-medium opacity-90">Venta sin receta: productos y servicios, con pago directo, tarjeta o cuotas</span>
-                        </button>}
+                        {puedeVender && <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-slate-500">Venta sin receta: productos y servicios, con pago directo, tarjeta o cuotas.</p>
+                          <button
+                            type="button"
+                            onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+                            style={{ background: GRAD }}
+                          >
+                            <Receipt size={14} aria-hidden="true" /> Nueva venta
+                          </button>
+                        </div>}
                         {comprobantesPaciente.length === 0 ? (
                           <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
