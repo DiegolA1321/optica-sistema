@@ -82,7 +82,7 @@ test.describe('Inicio del administrador', () => {
     // Solo citas atendidas en la lista
     const lista = cuerpo.getByRole('region', { name: 'Todas las citas' })
     for (const estado of ['Pendiente', 'En Espera', 'No Asistió', 'Cancelada']) await expect(lista.getByText(estado, { exact: true })).toHaveCount(0)
-    await lista.getByRole('button', { name: 'Ver todas en Citas' }).click()
+    await lista.getByRole('button', { name: 'Ver atendidas en Citas' }).click()
     await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('Estado: Atendidas')).toBeVisible()
   })
@@ -125,6 +125,7 @@ test.describe('Inicio del administrador', () => {
     const verTodo = sub.getByRole('button', { name: /^Ver todo/ })
     test.skip(await verTodo.count() === 0, 'Esta óptica no tiene productos con stock bajo')
     await verTodo.click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Inventario · Stock bajo/ }).click()
     // Inventario abre con el filtro "Stock bajo" ya activo (la píldora queda en naranja)
     await expect(page.getByRole('button', { name: /^Stock bajo/ })).toHaveCSS('background-color', 'rgb(217, 119, 6)', { timeout: 15_000 })
   })

@@ -23,6 +23,7 @@ test('"Para reagendar" desde Inicio filtra la Lista, cuenta bien y se quita con 
   const citas = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(citas).toContainText(/por reagendar/)
   await citas.getByRole('button', { name: 'Ver todo en Citas' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Para reagendar/ }).click()
   await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
   await page.waitForTimeout(1200)
   const periodoActivo = page.getByRole('group', { name: 'Periodo de las citas' }).locator('[aria-pressed=true]')

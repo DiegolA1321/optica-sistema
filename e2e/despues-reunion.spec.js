@@ -35,6 +35,7 @@ test('el administrador ve las citas por reagendar desde el "Ver todo" del bloque
   await expect(bloque).toBeVisible({ timeout: 20_000 })
   // El "Ver todo →" del área abre Citas en "Para reagendar" (sin número: el total está una sola vez, en el título).
   await bloque.getByRole('button', { name: 'Ver todo en Citas' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Para reagendar/ }).click()
   await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
 })
