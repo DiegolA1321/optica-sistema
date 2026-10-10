@@ -18,22 +18,61 @@ const area = (nombre) => screen.getByRole("region", { name: `Requiere tu atenci�
 const cita = (id, estado, extra = {}) => ({ id, fecha: hoy, hora: "09:00 AM", estado, paciente: "Paciente " + id, pacienteId: "p" + id, ...extra })
 
 describe("Totales: lo que dice la tarjeta y lo que abre", () => {
-  it("cada tarjeta abre su módulo con la lista que tiene ese número", () => {
-    const vistas = []
-    const citasPedidas = []
-    let comprobantes = 0
-    const citas = [cita("1", "Atendida"), cita("2", "Pendiente"), cita("3", "Cancelada"), cita("4", "Cancelada", { fecha: dia(1) })]
-    render(<Inicio {...base} citas={citas} pacientes={[{ id: "a" }, { id: "b" }]} inventario={[{ id: "i1", nombre: "M", stock: 9, stockMinimo: 1 }]} setVista={(v) => vistas.push(v)} onVerCitas={(...a) => citasPedidas.push(a)} onVerComprobantes={() => { comprobantes++ }} />)
-    const totales = screen.getByRole("region", { name: "Totales" })
-    // Citas cuenta lo mismo que Citas "Todas": sin las canceladas (4 citas registradas, 2 canceladas → 2)
-    expect(within(totales).getByRole("button", { name: /^Citas: 2\./ })).toBeInTheDocument()
-    fireEvent.click(within(totales).getByRole("button", { name: /^Citas:/ }))
-    expect(citasPedidas).toEqual([["todas", "siempre"]])
-    fireEvent.click(within(totales).getByRole("button", { name: /^Pacientes: 2\./ }))
-    fireEvent.click(within(totales).getByRole("button", { name: /^Productos: 1\./ }))
-    expect(vistas).toEqual(["pacientes", "inventario"])
-    fireEvent.click(within(totales).getByRole("button", { name: /^Ventas:/ }))
-    expect(comprobantes).toBe(1) // la tarjeta de Ventas abre los comprobantes, no la cola de pacientes por vender
+  const mesActual = new Date().toISOString()
+  const mesPasado = new Date(new Date().getFullYear(), new Date().getMonth() - 2, 15).toISOString()
+  const totalesDe = (props) => {
+    const pedidos = []
+    render(<Inicio {...base} {...props} onVerTotal={(...a) => pedidos.push(a)} />)
+    return pedidos
+  }
+  // cada tarjeta abre una ventana con las dos opciones y cada opción lleva al módulo con el mismo número que se lee en ella
+  const abrir = (tarjeta, opcion) => {
+    fireEvent.click(within(screen.getByRole("region", { name: "Totales" })).getByRole("button", { name: new RegExp("^" + tarjeta + ":") }))
+    const ventana = screen.getByRole("dialog", { name: tarjeta })
+    fireEvent.click(within(ventana).getByRole("button", { name: opcion }))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument() // la ventana se cierra al elegir
+  }
+
+  it("Pacientes: 'Todos (2)' y 'Nuevos este mes (1)', cada uno al módulo con ese número", () => {
+    const pedidos = totalesDe({ pacientes: [{ id: "a", fechaRegistro: hoy }, { id: "b", fechaRegistro: "2026-01-02" }] })
+    abrir("Pacientes", "Abrir en Pacientes · Todos los pacientes (2)")
+    abrir("Pacientes", "Abrir en Pacientes · Nuevos este mes (1)")
+    expect(pedidos).toEqual([["pacientes", "todos"], ["pacientes", "mes"]])
+  })
+  it("Citas: cuenta sin canceladas (igual que Citas 'Todas') y 'Agendadas este mes' cuenta las creadas este mes", () => {
+    const citas = [{ ...cita("1", "Atendida"), creadoEn: mesActual }, { ...cita("2", "Pendiente"), creadoEn: mesPasado }, { ...cita("3", "Cancelada"), creadoEn: mesActual }]
+    const pedidos = totalesDe({ citas })
+    expect(within(screen.getByRole("region", { name: "Totales" })).getByRole("button", { name: /^Citas: 2./ })).toBeInTheDocument()
+    abrir("Citas", "Abrir en Citas · Todas las citas (2)")
+    abrir("Citas", "Abrir en Citas · Agendadas este mes (1)")
+    expect(pedidos).toEqual([["citas", "todas"], ["citas", "mes"]])
+  })
+  it("Ventas: 'Todas las ventas' no cuenta anuladas y 'Vendidas este mes' cuenta las de este mes", () => {
+    const facturasVenta = [
+      { id: "f1", estado: "pagada", montoTotal: 100, pacienteId: "p1", creadoEn: mesActual },
+      { id: "f2", estado: "pagada", montoTotal: 50, pacienteId: "p1", creadoEn: mesPasado },
+      { id: "f3", estado: "anulada", montoTotal: 70, pacienteId: "p1", creadoEn: mesActual },
+    ]
+    const pedidos = totalesDe({ facturasVenta })
+    abrir("Ventas", "Abrir en Ventas · Todas las ventas (2)")
+    abrir("Ventas", "Abrir en Ventas · Vendidas este mes (1)")
+    expect(pedidos).toEqual([["ventas", "todas"], ["ventas", "mes"]])
+  })
+  it("Productos: 'Todos (2)' y 'Nuevos este mes (1)'", () => {
+    const pedidos = totalesDe({ inventario: [{ id: "i1", nombre: "M", stock: 9, stockMinimo: 1, creadoEn: mesActual }, { id: "i2", nombre: "N", stock: 9, stockMinimo: 1, creadoEn: mesPasado }] })
+    abrir("Productos", "Abrir en Inventario · Todos los productos (2)")
+    abrir("Productos", "Abrir en Inventario · Nuevos este mes (1)")
+    expect(pedidos).toEqual([["inventario", "todos"], ["inventario", "mes"]])
+  })
+  it("se cierra con Escape y con Cerrar sin abrir nada", () => {
+    const pedidos = totalesDe({ pacientes: [{ id: "a" }] })
+    fireEvent.click(within(screen.getByRole("region", { name: "Totales" })).getByRole("button", { name: /^Pacientes:/ }))
+    fireEvent.keyDown(document, { key: "Escape" })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole("region", { name: "Totales" })).getByRole("button", { name: /^Pacientes:/ }))
+    fireEvent.click(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Cerrar" })[1])
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(pedidos).toEqual([])
   })
 })
 

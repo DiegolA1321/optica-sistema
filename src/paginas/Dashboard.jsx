@@ -61,7 +61,7 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
 import { puedeReasignar } from "../utilidades/reasignacion"
-import { citasPropias } from "../utilidades/inicio"
+import { citasPropias, rangoDelMes } from "../utilidades/inicio"
 import { PARAMS_DE_SECCION, escribirParam, leerParam } from "../utilidades/urlEstado"
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
@@ -248,6 +248,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [verStockBajoAlEntrar, setVerStockBajoAlEntrar] = useState(false)
+  const [verNuevosAlEntrar, setVerNuevosAlEntrar] = useState(false)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
   const [fichaClinicaMotivoInicial, setFichaClinicaMotivoInicial] = useState(null)
   // Viaja junto a fichaClinicaPacienteInicial cuando la ficha se abre desde
@@ -586,6 +587,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onProductoParaReabastecerConsumido={() => setProductoIdParaReabastecer(null)}
             verStockBajoAlEntrar={verStockBajoAlEntrar}
             onVerStockBajoConsumido={() => setVerStockBajoAlEntrar(false)}
+            verNuevosAlEntrar={verNuevosAlEntrar}
+            onVerNuevosConsumido={() => setVerNuevosAlEntrar(false)}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAviso={mostrarAviso}
             {...extra}
@@ -682,7 +685,15 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo, fecha) => { setEstadoCitasInicial(periodo ? { estado, periodo, fecha } : estado); navegar("citas") }}
-            onVerComprobantes={() => { setAccionVentasInicio({ tab: "ventas" }); navegar("ventas") }}
+            onVerTotal={(modulo, opcion) => {
+              // Las ventanas de Totales: "todos" (lo registrado) o "mes" (lo nuevo de este mes), con el mismo criterio que cuenta el Inicio.
+              const mes = opcion === "mes"
+              if (modulo === "pacientes") setAccionPacienteInicio({ accion: "filtrar", ...(mes ? rangoDelMes() : {}) })
+              else if (modulo === "citas") setEstadoCitasInicial({ estado: "todas", periodo: mes ? "nuevasMes" : "siempre" })
+              else if (modulo === "ventas") setAccionVentasInicio({ tab: "ventas", estado: "vigentes", periodo: mes ? "mes" : "todo" })
+              else if (modulo === "inventario") setVerNuevosAlEntrar(mes)
+              navegar(modulo)
+            }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerSaldos={() => { setAccionVentasInicio({ tab: "saldos" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}

@@ -3,7 +3,7 @@
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
+import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha, nombreMes as nombreMesDe } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
   Users,
@@ -38,6 +38,7 @@ import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta }
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea from "../componentes/RequiereAtencionPorArea"
+import VentanaTotal from "../componentes/VentanaTotal"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
@@ -83,7 +84,7 @@ export default function Inicio({
   facturasVenta = [],
   abonos = [],
   onVerCola,
-  onVerComprobantes,
+  onVerTotal,
   onVerCitas,
   nombreUsuario = "Diego",
   opticaNombre,
@@ -194,6 +195,7 @@ export default function Inicio({
   const pacientesEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención" && diasAtencionAbierta(c) === null), [citas])
   // Atenciones que se abrieron un día anterior y nadie cerró.
   const atencionesAntiguas = useMemo(() => atencionesAbiertasAntiguas(citas), [citas])
+  const [totalAbierto, setTotalAbierto] = useState(null) // id de la tarjeta de Totales cuya ventana está abierta
   const [dejarCita, setDejarCita] = useState(null)
   const [reasignarGrupo, setReasignarGrupo] = useState(null) // { fecha, personaId, personaNombre, citas } de una ausencia con citas por pasar
   const [confirmarPaciente, setConfirmarPaciente] = useState(null) // paciente de la web cuyos datos recepción aún no confirma
@@ -293,6 +295,27 @@ export default function Inicio({
   const citasEsteMes = useMemo(() => creadosEsteMes(citasVigentes, "creadoEn"), [citasVigentes])
   const productosEsteMes = useMemo(() => creadosEsteMes(inventario, "creadoEn"), [inventario])
   const ventasMes = useMemo(() => ventasDelMes(facturasVenta), [facturasVenta])
+  // La ventana de cada total: todo lo registrado o lo nuevo de este mes. Cada opción abre el módulo con ese mismo número (regla 42).
+  const nombreMes = nombreMesDe(ahoraEcuador().getMonth()).toLowerCase()
+  const verTotal = (modulo, opcion) => () => (onVerTotal ? onVerTotal(modulo, opcion) : setVista?.(modulo))
+  const totalesVentana = {
+    pacientes: { id: "pacientes", titulo: "Pacientes", modulo: "Pacientes", icono: Users, opciones: [
+      { id: "todos", etiqueta: "Todos los pacientes", detalle: "Todo lo registrado", valor: pacientes.length, onClick: verTotal("pacientes", "todos") },
+      { id: "mes", etiqueta: "Nuevos este mes", detalle: `Registrados en ${nombreMes}`, valor: pacientesEsteMes, onClick: verTotal("pacientes", "mes") },
+    ] },
+    citas: { id: "citas", titulo: "Citas", modulo: "Citas", icono: Calendar, opciones: [
+      { id: "todas", etiqueta: "Todas las citas", detalle: "Todas las fechas, sin las canceladas", valor: citasVigentes.length, onClick: verTotal("citas", "todas") },
+      { id: "mes", etiqueta: "Agendadas este mes", detalle: `Agendadas en ${nombreMes}, sin las canceladas`, valor: citasEsteMes, onClick: verTotal("citas", "mes") },
+    ] },
+    ventas: { id: "ventas", titulo: "Ventas", modulo: "Ventas", icono: ShoppingBag, opciones: [
+      { id: "todas", etiqueta: "Todas las ventas", detalle: `${dinero(ventasMes.totalVendido)} vendidos, sin las anuladas`, valor: ventasMes.cantidadTotal, onClick: verTotal("ventas", "todas") },
+      { id: "mes", etiqueta: "Vendidas este mes", detalle: `${dinero(ventasMes.total)} en ${nombreMes}`, valor: ventasMes.cantidad, onClick: verTotal("ventas", "mes") },
+    ] },
+    productos: { id: "productos", titulo: "Productos", modulo: "Inventario", icono: Package, opciones: [
+      { id: "todos", etiqueta: "Todos los productos", detalle: "Todo el inventario", valor: inventario.length, onClick: verTotal("inventario", "todos") },
+      { id: "mes", etiqueta: "Nuevos este mes", detalle: `Dados de alta en ${nombreMes}`, valor: productosEsteMes, onClick: verTotal("inventario", "mes") },
+    ] },
+  }
   const filaTotales = (
     <FilaTarjetas
       titulo="Totales"
@@ -301,10 +324,10 @@ export default function Inicio({
       neutro
       compacta
       tarjetas={[
-        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setVista?.("pacientes") },
-        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => (onVerCitas ? onVerCitas("todas", "siempre") : setVista?.("citas")) },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => (onVerComprobantes ? onVerComprobantes() : setVista?.("ventas")) },
-        { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setVista?.("inventario") },
+        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setTotalAbierto("pacientes") },
+        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setTotalAbierto("citas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setTotalAbierto("ventas") },
+        { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
   )
@@ -800,6 +823,7 @@ export default function Inicio({
       {bDejarCita}
       {bConfirmarPaciente}
       {bReasignar}
+      {totalAbierto && totalesVentana[totalAbierto] && <VentanaTotal total={totalesVentana[totalAbierto]} onCerrar={() => setTotalAbierto(null)} />}
 
       {plantilla === "administrador" && (
         <>

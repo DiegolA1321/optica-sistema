@@ -220,6 +220,7 @@ describe("Inicio del administrador", () => {
     const totales = screen.getByRole("region", { name: "Totales" })
     expect(within(totales).getByRole("group", { name: "Atajos" })).toBeInTheDocument()
     fireEvent.click(within(totales).getByRole("button", { name: /^Pacientes:/ }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Pacientes" })).getByRole("button", { name: /^Abrir en Pacientes · Todos los pacientes/ })) // la tarjeta abre su ventana y la opción lleva al módulo
     fireEvent.click(within(totales).getByRole("button", { name: /Registrar paciente/ }))
     expect(pedidos).toEqual(["pacientes", "crear"])
   })
