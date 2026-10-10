@@ -4,7 +4,6 @@ import { dinero } from "../utilidades/formatoMoneda"
 import { esDeEsteMes } from "../utilidades/inicio"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { createPortal } from "react-dom"
 import {
   Package,
   Search,
@@ -13,7 +12,6 @@ import {
   Trash2,
   Boxes,
   DollarSign,
-  X,
   Plus,
   Pencil,
   ShoppingCart,
@@ -29,11 +27,11 @@ import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { resumenVentasProducto, ventasDeFacturas } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { supabase } from "../lib/supabaseClient"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import CampoCategoria from "../componentes/CampoCategoria"
+import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { puede } from "../utilidades/permisosUi"
@@ -442,10 +440,6 @@ export default function Inventario({
   }
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-  const refModalAgregar = useModalAccesible(modalAbierto, cerrarModal)
-  const refModalEditar = useModalAccesible(!!editando, cerrarEditar)
-  const refModalEliminar = useModalAccesible(porEliminar != null, () => !eliminando && setPorEliminar(null))
-  const refModalReporte = useModalAccesible(!!(verReporte && reporteProducto), () => setVerReporte(null))
 
   return (
     <div className={"w-full space-y-6 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -692,196 +686,144 @@ export default function Inventario({
       </div>
 
       {/* ─── MODAL AGREGAR PRODUCTO ─── */}
-      {modalAbierto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div ref={refModalAgregar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-agregar-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Plus size={20} />
-                </div>
-                <div>
-                  <h2 id="inventario-modal-agregar-titulo" className="text-lg font-bold" style={{ color: INK }}>Agregar producto</h2>
-                  <p className="text-xs text-slate-500">Descríbela de forma genérica. Las lunas no van en el inventario: se escriben al vender.</p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+      {modalAbierto && (
+        <Cascaron titulo="Agregar producto" subtitulo="Descríbela de forma genérica. Las lunas no van en el inventario: se escriben al vender." Icono={Plus} ancho="max-w-md" onCerrar={cerrarModal} formulario={{ onSubmit: registrarProducto }}
+          pie={<PieFormulario onCancelar={cerrarModal} etiquetaGuardar="Guardar producto" />}>
+          <div className="space-y-4 p-6">
+            <CampoImagenProducto opticaId={opticaId} valor={imagenUrl} onCambio={setImagenUrl} />
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
+              <CampoCategoria valor={categoria} onChange={setCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
             </div>
-            <form onSubmit={registrarProducto} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
-                <CampoImagenProducto opticaId={opticaId} valor={imagenUrl} onCambio={setImagenUrl} />
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
-                  <CampoCategoria valor={categoria} onChange={setCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción de la montura o accesorio</label>
-                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X"
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                  {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
-                    <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
-                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                    {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
-                    <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
-                      className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                    {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
-                  <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(umbralStock)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                  <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                    className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-                </div>
-                {erroresForm.general && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                    <AlertTriangle size={14} /> {erroresForm.general}
-                  </div>
-                )}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción de la montura o accesorio</label>
+              <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X"
+                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
+              {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
+                <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
+                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
+                {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
               </div>
-              <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
-                <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                  style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  Guardar producto
-                </button>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
+                <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
+                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
+                {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
               </div>
-            </form>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
+              <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(umbralStock)}
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+              <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
+                className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+            </div>
+            {erroresForm.general && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {erroresForm.general}
+              </div>
+            )}
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MODAL EDITAR PRODUCTO / AÑADIR STOCK (unificado) ─── */}
-      {editando && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarEditar}>
-          <div ref={refModalEditar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-editar-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Pencil size={20} />
-                </div>
-                <div>
-                  <h2 id="inventario-modal-editar-titulo" className="text-lg font-bold" style={{ color: INK }}>Editar producto</h2>
-                  <p className="text-xs text-slate-500">{edNombre || "Actualiza sus datos o suma stock."}</p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarEditar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+      {editando && (
+        <Cascaron titulo="Editar producto" subtitulo={edNombre || "Actualiza sus datos o suma stock."} Icono={Pencil} ancho="max-w-md" onCerrar={cerrarEditar} formulario={{ onSubmit: guardarEdicion }}
+          pie={<PieFormulario onCancelar={cerrarEditar} etiquetaGuardar="Guardar cambios" />}>
+          <div className="space-y-4 p-6">
+            <CampoImagenProducto opticaId={opticaId} valor={edImagenUrl} onCambio={setEdImagenUrl} />
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
+              <CampoCategoria valor={edCategoria} onChange={setEdCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
             </div>
-            <form onSubmit={guardarEdicion} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
-                <CampoImagenProducto opticaId={opticaId} valor={edImagenUrl} onCambio={setEdImagenUrl} />
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
-                  <CampoCategoria valor={edCategoria} onChange={setEdCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
-                  <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                  {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
-                </div>
-
-                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3">
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Existencia</label>
-                  <div className="flex gap-2">
-                    <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)}
-                      className={"w-24 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                    <span className="self-center text-xs text-slate-500">unidades ·</span>
-                    <input type="number" min="1" step="1" value={sumarStock} onChange={(e) => setSumarStock(e.target.value)} placeholder="+ agregar"
-                      className="w-24 rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-50" />
-                    <button type="button" onClick={aplicarSumaStock} disabled={!sumarStock}
-                      className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                      style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-                      Sumar
-                    </button>
-                  </div>
-                  {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
-                  <p className="mt-1.5 text-[11px] text-slate-500">Escribe la existencia final directamente, o usa "+ agregar" para sumar unidades recibidas.</p>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
-                  <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                  {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
-                  <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(umbralStock)}
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-                  <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                    className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-                </div>
-                {erroresEdicion.general && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                    <AlertTriangle size={14} /> {erroresEdicion.general}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3 border-t border-slate-100 p-6 pt-4">
-                <button type="button" onClick={cerrarEditar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                  style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  Guardar cambios
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
+              <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
+                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
+              {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
+            </div>
+    
+            <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3">
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Existencia</label>
+              <div className="flex gap-2">
+                <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)}
+                  className={"w-24 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
+                <span className="self-center text-xs text-slate-500">unidades ·</span>
+                <input type="number" min="1" step="1" value={sumarStock} onChange={(e) => setSumarStock(e.target.value)} placeholder="+ agregar"
+                  className="w-24 rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-50" />
+                <button type="button" onClick={aplicarSumaStock} disabled={!sumarStock}
+                  className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
+                  Sumar
                 </button>
               </div>
-            </form>
+              {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
+              <p className="mt-1.5 text-[11px] text-slate-500">Escribe la existencia final directamente, o usa "+ agregar" para sumar unidades recibidas.</p>
+            </div>
+    
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
+              <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
+                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
+              {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
+              <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(umbralStock)}
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
+              <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
+                className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+            </div>
+            {erroresEdicion.general && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {erroresEdicion.general}
+              </div>
+            )}
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MODAL ELIMINAR ─── */}
-      {porEliminar != null && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !eliminando && setPorEliminar(null)}>
-          <div ref={refModalEliminar} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-eliminar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className={"mb-4 grid h-12 w-12 place-items-center rounded-full " + (porEliminarTieneVentas ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600")}>
-              {porEliminarTieneVentas ? <Archive size={22} /> : <Trash2 size={22} />}
-            </div>
-            <h2 id="inventario-modal-eliminar-titulo" className="text-lg font-bold" style={{ color: INK }}>{porEliminarTieneVentas ? "Desactivar producto" : "Eliminar producto"}</h2>
-            <p className="mt-1.5 text-sm text-slate-500">
-              {porEliminarTieneVentas
-                ? "Este producto tiene ventas registradas — no se puede eliminar sin perder ese historial. Se va a desactivar: deja de poder elegirse en una venta nueva, pero conserva su historial y puedes reactivarlo cuando quieras."
-                : "¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer."}
-            </p>
-            {errorEliminar && (
-              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                <AlertTriangle size={14} /> {errorEliminar}
-              </div>
-            )}
-            <div className="mt-5 flex gap-3">
-              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+      {porEliminar != null && (
+        <Cascaron
+          titulo={porEliminarTieneVentas ? "Desactivar producto" : "Eliminar producto"}
+          subtitulo={porEliminar.nombre || ""}
+          Icono={porEliminarTieneVentas ? Archive : Trash2}
+          ancho="max-w-md"
+          onCerrar={() => !eliminando && setPorEliminar(null)}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
               <button type="button" disabled={eliminando} onClick={confirmarEliminar}
-                className={"flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-50 " + (porEliminarTieneVentas ? "bg-amber-600 hover:bg-amber-700" : "bg-red-600 hover:bg-red-700")}>
+                className={"rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-50 " + (porEliminarTieneVentas ? "bg-amber-600 hover:bg-amber-700" : "bg-red-600 hover:bg-red-700")}>
                 {eliminando ? (porEliminarTieneVentas ? "Desactivando..." : "Eliminando...") : (porEliminarTieneVentas ? "Desactivar" : "Eliminar")}
               </button>
             </div>
+          </>}
+        >
+          <div className="space-y-3 p-6">
+            <p className="text-sm text-slate-600">{porEliminarTieneVentas
+              ? "Este producto tiene ventas registradas — no se puede eliminar sin perder ese historial. Se va a desactivar: deja de poder elegirse en una venta nueva, pero conserva su historial y puedes reactivarlo cuando quieras."
+              : "¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer."}</p>
+            {errorEliminar && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertTriangle size={14} /> {errorEliminar}
+              </div>
+            )}
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MODAL VENDER PRODUCTO ─── */}
@@ -900,80 +842,59 @@ export default function Inventario({
       )}
 
       {/* ─── MODAL REPORTE POR PRODUCTO ─── */}
-      {verReporte && reporteProducto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setVerReporte(null)}>
-          <div ref={refModalReporte} role="dialog" aria-modal="true" aria-labelledby="inventario-modal-reporte-titulo" className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
-                  <BarChart3 size={20} />
-                </div>
-                <div>
-                  <h2 id="inventario-modal-reporte-titulo" className="text-lg font-bold" style={{ color: INK }}>Reporte de ventas</h2>
-                  <p className="text-xs text-slate-500">{verReporte.nombre}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setVerReporte(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center">
-                  <p className="text-xl font-serif font-semibold" style={{ color: INK }}>{reporteProducto.unidades}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">Unidades vendidas</p>
-                </div>
-                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 p-3 text-center">
-                  <p className="text-xl font-serif font-semibold text-emerald-700">{dinero(reporteProducto.ingreso)}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-emerald-600">Ingreso generado</p>
-                </div>
-                <div className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-center">
-                  <p className="text-xl font-serif font-semibold text-amber-700">{reporteProducto.pendientes}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-amber-600">Con pago pendiente</p>
-                </div>
-              </div>
-              <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-                <Users size={13} /> {reporteProducto.pacientes} paciente{reporteProducto.pacientes === 1 ? "" : "s"} distinto{reporteProducto.pacientes === 1 ? "" : "s"} lo ha{reporteProducto.pacientes === 1 ? "" : "n"} comprado.
-              </p>
+      {verReporte && reporteProducto && (
+        <Cascaron titulo="Reporte de ventas" subtitulo={verReporte.nombre} Icono={BarChart3} ancho="max-w-lg" onCerrar={() => setVerReporte(null)}
+          pie={<><span className="text-xs text-slate-500">Ventas de este producto, de la más reciente a la más antigua.</span><button type="button" onClick={() => setVerReporte(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>
+          <div className="p-6">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center">
+          <p className="text-xl font-serif font-semibold" style={{ color: INK }}>{reporteProducto.unidades}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-slate-500">Unidades vendidas</p>
+        </div>
+        <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 p-3 text-center">
+          <p className="text-xl font-serif font-semibold text-emerald-700">{dinero(reporteProducto.ingreso)}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-emerald-600">Ingreso generado</p>
+        </div>
+        <div className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-center">
+          <p className="text-xl font-serif font-semibold text-amber-700">{reporteProducto.pendientes}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-amber-600">Con pago pendiente</p>
+        </div>
+      </div>
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+        <Users size={13} /> {reporteProducto.pacientes} paciente{reporteProducto.pacientes === 1 ? "" : "s"} distinto{reporteProducto.pacientes === 1 ? "" : "s"} lo ha{reporteProducto.pacientes === 1 ? "" : "n"} comprado.
+      </p>
 
-              {reporteProducto.ventas.length === 0 ? (
-                <div className="mt-4 flex flex-col items-center gap-2 py-8 text-center">
-                  <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><ShoppingCart size={20} /></div>
-                  <p className="text-sm font-medium text-slate-500">Todavía no se ha vendido este producto.</p>
-                </div>
-              ) : (
-                <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200/60">
-                  {reporteProducto.ventas.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between px-3 py-2.5">
-                      <div>
-                        {onVerPerfil && v.pacienteId != null ? (
-                          <button type="button" onClick={() => onVerPerfil(v.pacienteId)} className="text-sm font-semibold text-slate-700 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
-                            {nombrePaciente(v.pacienteId)}
-                          </button>
-                        ) : (
-                          <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
-                        )}
-                        <p className="text-[11px] text-slate-500">{v.cantidad} u. · {fechaLegible(v.creadoEn)}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-slate-700">{dinero(Number(v.montoTotal))}</span>
-                        <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + (v.estado === "completado" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
-                          {v.estado === "completado" ? "Pagado" : "Pendiente"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+      {reporteProducto.ventas.length === 0 ? (
+        <div className="mt-4 flex flex-col items-center gap-2 py-8 text-center">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><ShoppingCart size={20} /></div>
+          <p className="text-sm font-medium text-slate-500">Todavía no se ha vendido este producto.</p>
+        </div>
+      ) : (
+        <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200/60">
+          {reporteProducto.ventas.map((v) => (
+            <div key={v.id} className="flex items-center justify-between px-3 py-2.5">
+              <div>
+                {onVerPerfil && v.pacienteId != null ? (
+                  <button type="button" onClick={() => onVerPerfil(v.pacienteId)} className="text-sm font-semibold text-slate-700 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
+                    {nombrePaciente(v.pacienteId)}
+                  </button>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
+                )}
+                <p className="text-[11px] text-slate-500">{v.cantidad} u. · {fechaLegible(v.creadoEn)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-bold text-slate-700">{dinero(Number(v.montoTotal))}</span>
+                <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + (v.estado === "completado" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                  {v.estado === "completado" ? "Pagado" : "Pendiente"}
+                </span>
+              </div>
             </div>
-            <div className="border-t border-slate-100 p-6 pt-4">
-              <button type="button" onClick={() => setVerReporte(null)} className="w-full rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                Cerrar
-              </button>
-            </div>
+          ))}
+        </div>
+      )}
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
     </div>
   )
