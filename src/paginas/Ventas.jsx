@@ -243,8 +243,6 @@ export default function Ventas({
                   <p className="max-w-sm text-xs text-slate-500">Cuando una venta quede con abonos pendientes, el paciente aparece aquí con lo que debe.</p>
                 </div>
               ) : (
-                <>
-                <p role="status" className="text-xs text-slate-500">{textoSaldos(resumen)}</p>
                 <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" aria-label="Saldos por cobrar">
                   {saldos.map((s) => (
                     <li key={s.pacienteId} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -266,7 +264,6 @@ export default function Ventas({
                     </li>
                   ))}
                 </ul>
-                </>
               )
             )}
           </div>
