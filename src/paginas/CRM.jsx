@@ -9,7 +9,6 @@ import {
   HeartHandshake,
   MessageSquare,
   Cake,
-  Users,
   UserPlus,
   Clock,
   Star,
@@ -102,7 +101,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
 
       if (!esCumple && esInactivo(p, consultas)) {
         tipo = "Inactivo"
-        estado = `Sin visitar hace ${diasInactivo} días`
+        estado = `Última visita hace ${diasInactivo} días`
         dias = `Hace ${diasInactivo} días`
         motivo = "Ya se venció su control visual recomendado. Ofrécele agendar una revisión."
         ordenValor = diasInactivo ?? 0
@@ -136,7 +135,14 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
   // sobre la lista completa, no solo el top 5.
   const listaFieles = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Fiel").sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos])
   const listaCumpleanos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Felicitar").sort((a, b) => Math.abs(a.ordenValor) - Math.abs(b.ordenValor)), [prospectosDinamicos])
-  const listaInactivos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Inactivo").sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos])
+  // Control vencido: TODOS los que cuentan el Inicio y Reportes (misma función, esInactivo), aunque también cumplan años (la lista de cumpleaños los trae igual).
+  const listaInactivos = useMemo(() => prospectosDinamicos
+    .filter((p) => esInactivo(pacientes.find((x) => x.id === p.id) || {}, consultas))
+    .map((p) => {
+      const dias = diasDesdeUltimaVisita(pacientes.find((x) => x.id === p.id), consultas)
+      return { ...p, tipo: "Inactivo", estado: `Última visita hace ${dias} días`, dias: `Hace ${dias} días`, motivo: "Ya se venció su control visual recomendado. Ofrécele agendar una revisión.", ordenValor: dias ?? 0 }
+    })
+    .sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos, pacientes, consultas])
 
   // Referidos: a diferencia de los otros tres bloques, no viene de
   // prospectosDinamicos (esa lista le asigna a cada paciente un solo "tipo"
@@ -295,13 +301,6 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
     marcarContactadoHoy(id)
   }
 
-  const METRICAS = [
-    { icon: Users, valor: pacientes.length, label: "Total de pacientes", tile: GRAD, tileText: "#fff" },
-    { icon: Cake, valor: listaCumpleanos.length, label: "Cumpleaños cercanos", tile: "#fef3c7", tileText: "#b45309" },
-    { icon: Clock, valor: listaInactivos.length, label: "Sin visitar hace tiempo", tile: "#fee2e2", tileText: "#dc2626" },
-    { icon: Star, valor: listaFieles.length, label: "Pacientes frecuentes", tile: "#ecfdf5", tileText: "#059669" },
-  ]
-
   return (
     <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
       {/* ─── HEADER ─── */}
@@ -311,28 +310,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
         </div>
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>CRM y fidelización</h1>
-          <p className="text-sm text-slate-500">Cumpleaños, inactividad, pacientes fieles y comunicación con tus pacientes.</p>
-        </div>
-      </div>
-
-      {/* ─── MÉTRICAS (también filtran) ─── */}
-      <div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {METRICAS.map((m, i) => (
-            <div
-              key={m.label}
-              className="flex items-center justify-between rounded-2xl border bg-white p-5"
-              style={{ borderColor: "rgba(14,43,51,0.08)", boxShadow: "0 1px 2px rgba(14,43,51,0.04)", animation: "rise-in 320ms ease-out both", animationDelay: `${i * 50}ms` }}
-            >
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{m.label}</p>
-                <p className="mt-1 text-3xl font-serif font-semibold" style={{ color: INK }}>{m.valor}</p>
-              </div>
-              <div className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: m.tile, color: m.tileText }}>
-                <m.icon size={22} />
-              </div>
-            </div>
-          ))}
+          <p className="text-sm text-slate-500">Cumpleaños, control vencido, pacientes más atendidos y comunicación con tus pacientes.</p>
         </div>
       </div>
 
@@ -403,7 +381,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           vacioTexto="Ningún paciente cumple años en los próximos días."
         />
         <BloqueContacto
-          titulo="Sin visitar hace tiempo"
+          titulo="Control vencido"
           icono={Clock}
           bgIcono="linear-gradient(135deg,#f87171,#dc2626)"
           lista={listaInactivos}
@@ -425,7 +403,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               ? { titulo: "Pacientes más atendidos", icono: Star, bgIcono: "linear-gradient(135deg,#34d399,#059669)", lista: listaFieles, columnaLabel: "Consultas", columnaValor: (p) => p.numConsultas, dirDefecto: "desc" }
               : detalleAbierto === "cumpleanos"
               ? { titulo: "Cumpleaños próximos", icono: Cake, bgIcono: "linear-gradient(135deg,#e0b64e,#b45309)", lista: listaCumpleanos, columnaLabel: "Cuándo", columnaValor: (p) => p.dias, dirDefecto: "asc", ordenAbsoluto: true }
-              : { titulo: "Sin visitar hace tiempo", icono: Clock, bgIcono: "linear-gradient(135deg,#f87171,#dc2626)", lista: listaInactivos, columnaLabel: "Días sin visitar", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
+              : { titulo: "Control vencido", icono: Clock, bgIcono: "linear-gradient(135deg,#f87171,#dc2626)", lista: listaInactivos, columnaLabel: "Días sin visitar", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
           }
           cumpleAuto={cumpleAuto}
           contactadosHoy={contactadosHoy}
