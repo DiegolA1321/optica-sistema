@@ -129,6 +129,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [cancelando, setCancelando] = useState(null)
   const [guardandoCancelar, setGuardandoCancelar] = useState(false)
   const [errorCancelar, setErrorCancelar] = useState("")
+  // Cuando el servidor rechaza una regla (anticipación, política de la óptica, horario), su mensaje ya está escrito para el paciente.
+  const mensajeDelServidor = (err) => (err?.code === "P0001" ? err.message : null)
   const confirmarCancelar = async () => {
     if (!cancelando) return
     setGuardandoCancelar(true)
@@ -141,7 +143,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       })
       if (errorRpc || data !== true) {
         setGuardandoCancelar(false)
-        setErrorCancelar("No pudimos cancelar tu cita. Intenta de nuevo en un momento.")
+        setErrorCancelar(mensajeDelServidor(errorRpc) || "No pudimos cancelar tu cita. Intenta de nuevo en un momento.")
         return
       }
     }
@@ -188,7 +190,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       })
       if (errorRpc || data !== true) {
         setGuardandoReagenda(false)
-        if (errorRpc?.message?.includes("horario")) {
+        const delServidor = mensajeDelServidor(errorRpc)
+        if (delServidor && !delServidor.includes("ya no está disponible")) {
+          setErrorReagenda(delServidor)
+          setHoraReagenda("")
+        } else if (errorRpc?.message?.includes("horario")) {
           setErrorReagenda("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
           refrescarHorasOcupadas()
           setHoraReagenda("")
