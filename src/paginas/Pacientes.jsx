@@ -1855,7 +1855,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
             <div className="px-4 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
               <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+              <div className="flex flex-col gap-5">
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
@@ -1894,7 +1894,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 lg:max-w-[30rem] lg:shrink-0 lg:justify-end lg:border-t-0 lg:pt-0">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                   <button
                     type="button"
                     onClick={() => setVerHistoriaClinica(true)}
@@ -1936,16 +1936,6 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   >
                     <IdCard size={15} className="shrink-0" /> Datos
                   </button>
-                  {pacienteHistorial.tieneCuenta && puedeEditarPaciente && (
-                  <button
-                    type="button"
-                    onClick={() => abrirCuenta(pacienteHistorial)}
-                    title="Genera una clave temporal nueva para el portal del paciente"
-                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-                  >
-                    <KeyRound size={15} className="shrink-0" /> Restablecer clave
-                  </button>
-                  )}
                 </div>
               </div>
               </div>
