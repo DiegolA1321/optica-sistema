@@ -2800,42 +2800,8 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
   const consultaVentana = citaVentana ? consultaDe(citaVentana) || citaVentana._consulta : null
   return (
     <div className="space-y-4">
-      <section aria-label="Fidelización" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
-          <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-            Gestionar recordatorios en CRM <ChevronRight size={13} />
-          </button>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
-            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `${Math.max(0, 3 - fidelidad.consultas) === 1 ? "Le falta 1 consulta" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consultas`} para ser cliente frecuente`}</p>
-          </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</p>
-            <p className="text-xs text-slate-500">{fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}{fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}</p>
-          </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</p>
-            <p className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
-          </Cuadro>
-        </div>
-        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} frecuente={fidelidad.frecuente} /></Despliegue>}
-        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={fidelidad.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
-        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={fidelidad.diasCumple} edad={fidelidad.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={parametrizacion?.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={fidelidad.onCrm} /></Despliegue>}
-      </section>
-
       <section aria-label="Información general" className="space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Cuadro abierto={abierto} alternar={alternar} clave="ultima" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
-            <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
-            {ultima && diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
-          </Cuadro>
           {ultima ? (
             <Cuadro abierto={abierto} alternar={alternar} clave="correccion" className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={18} /></div>
@@ -2869,6 +2835,11 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
               <p className="mt-1 text-sm text-slate-500">Sin datos suficientes para calcularlo.</p>
             )}
           </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="ultima" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
+            <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
+            {ultima && diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
+          </Cuadro>
           <Cuadro abierto={abierto} alternar={alternar} clave="compras" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
             <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
@@ -2896,6 +2867,21 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           </Despliegue>
         )}
       </section>
+
+      {consultas.length > 0 && (
+        <section aria-label="Tendencia de graduación" className="rounded-2xl border border-slate-200/60 bg-white p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
+            {tendencia && (
+              <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
+                <tendencia.icon size={12} /> {tendencia.label}
+              </span>
+            )}
+          </div>
+          <TendenciaGraduacion consultas={[...consultas].reverse()} />
+          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
+        </section>
+      )}
 
       <section aria-label="Citas del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
         <h3 className="text-sm font-bold" style={{ color: INK }}>Citas del paciente</h3>
@@ -2938,20 +2924,34 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
         )}
       </section>
 
-      {consultas.length > 0 && (
-        <section aria-label="Tendencia de graduación" className="rounded-2xl border border-slate-200/60 bg-white p-4">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-            {tendencia && (
-              <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
-                <tendencia.icon size={12} /> {tendencia.label}
-              </span>
-            )}
-          </div>
-          <TendenciaGraduacion consultas={[...consultas].reverse()} />
-          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
-        </section>
-      )}
+      <section aria-label="Fidelización" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
+          <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+            Gestionar recordatorios en CRM <ChevronRight size={13} />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
+            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `${Math.max(0, 3 - fidelidad.consultas) === 1 ? "Le falta 1 consulta" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consultas`} para ser cliente frecuente`}</p>
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</p>
+            <p className="text-xs text-slate-500">{fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}{fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}</p>
+          </Cuadro>
+          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</p>
+            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</p>
+            <p className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
+          </Cuadro>
+        </div>
+        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} frecuente={fidelidad.frecuente} /></Despliegue>}
+        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={fidelidad.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
+        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={fidelidad.diasCumple} edad={fidelidad.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={parametrizacion?.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={fidelidad.onCrm} /></Despliegue>}
+      </section>
     </div>
   )
 }
