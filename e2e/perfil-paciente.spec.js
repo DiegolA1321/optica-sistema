@@ -26,8 +26,8 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
   test('el diagnóstico se abre en una ventana y el historial se filtra por fechas', async ({ page }) => {
     await abrirPerfil(page, 'Karla Párraga Vera')
     await foto(page, 'perfil-1')
-    // Con pocas citas (5 o menos) el historial no lleva buscador
-    await expect(page.getByRole('search', { name: 'Buscar en el historial de citas' })).toHaveCount(0)
+    // Aunque tenga pocas citas, el historial lleva siempre su buscador y sus filtros
+    await expect(page.getByRole('search', { name: 'Buscar en el historial de citas' })).toBeVisible()
 
     // Ver diagnóstico: ventana encima, la lista no cambia de alto
     await page.getByRole('button', { name: /Ver el diagnóstico de la cita/ }).first().click()
@@ -62,10 +62,25 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     await expect(buscador.getByRole('button', { name: 'Mes siguiente' })).toBeVisible()
   })
 
-  test('sin cita pendiente hay un mensaje con la acción de agendar', async ({ page }) => {
+  // Con historial y sin cita pendiente no sobra ningún bloque vacío; agendar sigue a un clic, en la cabecera del perfil.
+  test('con historial y sin cita pendiente no hay bloques vacíos y "Agendar cita" sigue a un clic', async ({ page }) => {
     await abrirPerfil(page, 'Karla Párraga Vera')
-    const aviso = page.getByRole('region', { name: 'Sin citas pendientes' })
-    await expect(aviso.getByText('Este paciente no tiene citas pendientes')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Próxima cita' })).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'Sin citas pendientes' })).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'Sin citas' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Agendar cita' }).first()).toBeVisible()
+  })
+
+  // Un paciente que no tiene ninguna cita (ni pasada ni pendiente): un mensaje con la acción de agendar. Escribe datos: corre en la óptica de pruebas.
+  test('un paciente sin ninguna cita tiene un mensaje con la acción de agendar', async ({ page }) => {
+    const nombre = await crearPacienteConHistorial(0)
+    await iniciarSesion(page, 'ADMIN', 'E2E')
+    await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
+    await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
+    await page.getByText(nombre).first().click()
+    await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 30_000 })
+    const aviso = page.getByRole('region', { name: 'Sin citas' })
+    await expect(aviso.getByText('Este paciente no tiene citas')).toBeVisible()
     await expect(aviso.getByRole('button', { name: 'Agendar cita' })).toBeVisible()
   })
 })
