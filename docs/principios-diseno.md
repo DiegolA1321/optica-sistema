@@ -150,6 +150,36 @@ Una prueba que escribe corre en la óptica de pruebas y crea lo que necesita (pa
 
 ---
 
+## G. Reglas que salieron de la revisión del perfil del paciente (10 oct. 2026)
+
+### 29. Lo que el paciente necesita para actuar se le entrega completo; la privacidad es de lo comercial
+La receta es el documento con el que el paciente compra sus lentes: se imprime siempre con la graduación. La política de ocultar medidas aplica a la proforma, a los comprobantes y al portal, no a la receta.
+- **Perfil / Ficha:** se quitó la casilla "Incluir medidas" y el aviso "por política de la óptica" de la receta; la política queda solo para el portal.
+- **Cómo aplicarlo:** antes de ocultar un dato en un documento, pregunta si la persona que lo recibe lo necesita para hacer lo que el documento le pide.
+
+### 30. Lo que nace de otra cosa se crea desde su origen, y la acción de una pantalla vacía lleva al origen
+Una orden de laboratorio sale de una venta (lleva su montura y su luna). No se ofrece crearla sin venta, y su pantalla vacía no trae un atajo que se salte la venta.
+- **Perfil:** "Enviar a laboratorio" solo aparece si el paciente tiene una venta; sin órdenes y con el paciente "Listo para venta", la pantalla vacía ofrece "Vender la receta", que es el camino hacia la orden. Lo mismo en "Productos y servicios" vacío.
+
+### 31. Crear y editar son el mismo formulario
+Mismos colores, mismo botón principal, mismos campos. Editar no cambia de color para "avisar" que es otro modo: el título ya lo dice.
+- **Perfil:** "Editar paciente" dejó el naranja y usa el azul de la marca igual que "Crear paciente". Las acciones principales de una pestaña son un botón compacto del color principal, no una barra de lado a lado.
+
+### 32. Las fechas se eligen con el calendario del sistema, no con el nativo del navegador
+`CampoFecha` (`src/componentes/CampoFecha.jsx`) tiene el mismo calendario que el selector de citas y mes/año en listas para llegar a una fecha de nacimiento sin pulsar "anterior" cien veces. Los campos de fecha nuevos lo usan.
+- **Pendiente de migrar (mismo defecto):** nacimiento en "Confirmar datos" y en las altas rápidas de Citas, abonos, orden de laboratorio, ausencias en Horario, Reportes y vencimiento en Superadmin.
+
+### 33. Un bloque de resumen va de lo clínico a lo comercial: primero lo que decide la atención
+En el Resumen del paciente el orden es: estado de corrección, control recomendado, última consulta y compras; después las citas; al final la fidelización. Quien atiende lee de arriba abajo y lo primero es lo que necesita para atender.
+
+### 34. Un mensaje a una persona la trata como persona
+El saludo usa el primer nombre ("Hola Rosa"), siempre desde `primerNombre()` (`utilidades/pacientes.js`), nunca el nombre completo. Los conteos concuerdan en singular y plural ("Le falta 1 consulta", "Le faltan 2 consultas", "falta 1 día"). Los filtros de una lista no se muestran si la lista está vacía.
+
+### 35. Los botones de una cabecera van en una sola fila, y un acceso que ya existe en otro control no se repite
+- **Perfil:** la cabecera tiene identidad arriba y las acciones en una fila debajo. "Restablecer clave" se quitó porque la etiqueta "Cuenta Portal: Activa" ya abre esas opciones (regla 8).
+
+---
+
 ## Lista de revisión antes de dar una pantalla por terminada
 
 Cada pregunta remite a una regla; la respuesta debe ser "sí".
@@ -173,3 +203,6 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 17. ¿Cada conteo coincide con su lista, canceladas incluidas, y cada indicador vive en un solo lugar? (23, 24)
 18. ¿Los controles de más (buscadores, enlaces "Ver todas") aparecen solo cuando hay algo que filtrar o ver? (25, 26)
 19. ¿El cambio toca otro módulo cerrado? Si sí, se avisó y se aprobó. (27)
+20. ¿Un documento que el paciente necesita sale completo, y lo que depende de otra cosa (orden, cobro) solo se crea desde su origen? (29, 30)
+21. ¿Crear y editar se ven igual, y las fechas usan `CampoFecha`? (31, 32)
+22. ¿El bloque va de lo clínico a lo comercial, el saludo usa el primer nombre y el singular/plural concuerda? (33, 34)
