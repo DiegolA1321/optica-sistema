@@ -915,7 +915,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
   const UMBRAL_VISITA_RECIENTE_DIAS = 30
 
-  const pacientesFiltrados = useMemo(() => {
+  // Pacientes que cumplen búsqueda, estado, corrección y fecha, sin la etiqueta rápida: sobre esta lista se cuenta cada etiqueta.
+  const pacientesSinRapido = useMemo(() => {
     const busquedaNorm = normalizarTexto(busqueda.trim())
     const busquedaDigitos = busqueda.replace(/\D/g, "")
     return pacientes.filter((p) => {
@@ -933,15 +934,22 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       const coincideEstado = filtroEstado === "Todos" || p.estadoClinico === filtroEstado
       const coincideCorreccion = filtroCorreccion === "Todos" || (p.estadoCorreccion || "Sin evaluación") === filtroCorreccion
       const coincideFecha = (!filtroDesde && !filtroHasta) || (!!p.fechaRegistro && (!filtroDesde || p.fechaRegistro >= filtroDesde) && (!filtroHasta || p.fechaRegistro <= filtroHasta))
-      const coincideRapido =
-        filtroRapido === "Todos" ||
-        (filtroRapido === "Recientes" && (() => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS })()) ||
-        (filtroRapido === "PagosPendientes" && idsConDeuda.has(p.id)) ||
-        (filtroRapido === "NoCompraron" && noCompraron.has(p.id)) ||
-        (filtroRapido === "ControlSinAgendar" && sinAgendarPorPaciente.has(p.id))
-      return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha && coincideRapido
+      return coincideTexto && coincideEstado && coincideCorreccion && coincideFecha
     })
-  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroDesde, filtroHasta, filtroRapido, consultas, idsConDeuda, noCompraron, sinAgendarPorPaciente])
+  }, [pacientes, busqueda, filtroEstado, filtroCorreccion, filtroDesde, filtroHasta])
+
+  const cumpleRapido = (p, clave) => {
+    if (clave === "Recientes") { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS }
+    if (clave === "PagosPendientes") return idsConDeuda.has(p.id)
+    if (clave === "NoCompraron") return noCompraron.has(p.id)
+    if (clave === "ControlSinAgendar") return sinAgendarPorPaciente.has(p.id)
+    return true
+  }
+  const pacientesFiltrados = useMemo(
+    () => (filtroRapido === "Todos" ? pacientesSinRapido : pacientesSinRapido.filter((p) => cumpleRapido(p, filtroRapido))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pacientesSinRapido, filtroRapido, consultas, idsConDeuda, noCompraron, sinAgendarPorPaciente],
+  )
 
   // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
   // usa CRM.jsx en su modal de detalle, para no inventar uno nuevo. Solo la
@@ -1070,14 +1078,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
 
   // Etiquetas de seguimiento sobre la tabla (el filtro de corrección son las tarjetas de arriba). Cada una muestra cuántos pacientes
   // trae, contados con el mismo criterio con que filtran la lista; "Todos" no lleva número porque es el total de la página.
-  // Los números siguen a la tarjeta elegida: con "Bien corregidos" activa, cada etiqueta cuenta solo a los bien corregidos, que es lo que aparece al tocarla.
-  const deLaTarjeta = pacientes.filter((p) => filtroCorreccion === "Todos" || (p.estadoCorreccion || "Sin evaluación") === filtroCorreccion)
-  const cuentaRapida = {
-    Recientes: deLaTarjeta.filter((p) => { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS }).length,
-    PagosPendientes: deLaTarjeta.filter((p) => idsConDeuda.has(p.id)).length,
-    NoCompraron: deLaTarjeta.filter((p) => noCompraron.has(p.id)).length,
-    ControlSinAgendar: deLaTarjeta.filter((p) => sinAgendarPorPaciente.has(p.id)).length,
-  }
+  // Cada número sigue a todos los filtros activos (tarjeta, búsqueda y "Filtrar"): es lo que aparece al tocar la etiqueta.
+  const cuentaRapida = Object.fromEntries(["Recientes", "PagosPendientes", "NoCompraron", "ControlSinAgendar"].map((k) => [k, pacientesSinRapido.filter((p) => cumpleRapido(p, k)).length]))
   const badgesRapidos = [
     { key: "Todos", label: "Todos" },
     { key: "Recientes", label: `Visitas recientes (${cuentaRapida.Recientes})` },
