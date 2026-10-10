@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { createPortal } from "react-dom"
 import {
-  Users, UserPlus, Plus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Eye, EyeOff, Mail, Info, IdCard,
+  Users, UserPlus, KeyRound, Plus, Pencil, X, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Copy, Mail, Info, IdCard,
   History, Glasses, UserX, UserCheck, Lock,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
-import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, validarClaveNueva, MENSAJE_CLAVE_SEGURA } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, generarClaveTemporal } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
 import VentanaActividad from "../componentes/VentanaActividad"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
 import RolesPanel from "../componentes/RolesPanel"
@@ -67,8 +68,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
   const [correo, setCorreo] = useState("")
-  const [clave, setClave] = useState("")
-  const [verClave, setVerClave] = useState(false)
+  const [claveCreada, setClaveCreada] = useState(null) // { nombre, correo, clave }: la contraseña temporal, que se ve una sola vez
+  const [copiada, setCopiada] = useState(false)
   const [rolesElegidos, setRolesElegidos] = useState([])
   const [error, setError] = useState("")
   const [guardando, setGuardando] = useState(false)
@@ -81,8 +82,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const rolesDe = (perfilId) => roles.filter((r) => asignaciones.some((a) => a.perfil_id === perfilId && a.rol_id === r.id))
   const permisosDeRoles = (lista) => unirPermisos(lista.map((r) => r.permisos))
 
-  const abrirCrear = () => { setModal({ id: null }); setNombre(""); setCedula(""); setCorreo(""); setClave(""); setVerClave(false); setRolesElegidos([]); setError("") }
-  const abrirEditar = (a) => { setModal({ id: a.id }); setNombre(a.nombre); setCedula(a.cedula || ""); setCorreo(a.correo); setClave(""); setVerClave(false); setRolesElegidos(rolesDe(a.id).map((r) => r.id)); setError("") }
+  const abrirCrear = () => { setModal({ id: null }); setNombre(""); setCedula(""); setCorreo(""); setRolesElegidos([]); setError("") }
+  const abrirEditar = (a) => { setModal({ id: a.id }); setNombre(a.nombre); setCedula(a.cedula || ""); setCorreo(a.correo); setRolesElegidos(rolesDe(a.id).map((r) => r.id)); setError("") }
   const cerrarModal = () => { if (!guardando) setModal(null) }
   const alternarRol = (id) => setRolesElegidos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   const rolesSeleccionados = roles.filter((r) => rolesElegidos.includes(r.id))
@@ -145,14 +146,13 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     }
 
     if (!esEmailValido(correo, false)) { setError("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
-    const errorClave = validarClaveNueva(clave)
-    if (errorClave) { setError(errorClave); return }
     const cedulaCrear = cedula.trim()
     if (!cedulaCrear) { setError("Completa la cédula."); return }
     if (!esCedulaValida(cedulaCrear)) { setError("La cédula ingresada no es válida."); return }
     setGuardando(true)
     const temp = crearClienteTemporal()
-    const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: correo.trim(), password: clave })
+    const claveTemporal = generarClaveTemporal() // la genera el sistema; la persona la cambia al entrar
+    const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: correo.trim(), password: claveTemporal, options: { data: { clave_temporal: true } } })
     if (errorAlta || !alta?.user) {
       setGuardando(false)
       const yaRegistrado = /already registered|already exists|already in use/i.test(errorAlta?.message || "")
@@ -174,6 +174,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     registrarLog(usuario, "usuarios", "Creó un usuario nuevo", nombre.trim())
     setModal(null)
     mostrarExito(`Usuario ${nombre.trim()} creado correctamente.`)
+    setCopiada(false)
+    setClaveCreada({ nombre: nombre.trim(), correo: correo.trim(), clave: claveTemporal })
     cargar()
   }
 
@@ -239,6 +241,33 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
         <p role="status" className="flex items-start gap-2 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5 text-xs leading-relaxed text-amber-800"><ShieldAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" /> Los permisos por nivel todavía no están activos en la base de datos: por seguridad, por ahora no se pueden asignar roles predefinidos ni desactivar usuarios.</p>
       )}
 
+      {claveCreada && (
+        <Cascaron
+          titulo="Contraseña temporal"
+          subtitulo={`Para ${claveCreada.nombre}`}
+          Icono={KeyRound}
+          ancho="max-w-md"
+          onCerrar={() => setClaveCreada(null)}
+          pie={<>
+            <span className="text-xs text-slate-500">No se vuelve a mostrar.</span>
+            <button type="button" onClick={() => setClaveCreada(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
+        >
+          <div className="space-y-4 px-5 py-5">
+            <p className="text-sm text-slate-600">Entrega esta contraseña a <span className="font-semibold text-slate-800">{claveCreada.nombre}</span> ({claveCreada.correo}). Al entrar, el sistema le pedirá que elija la suya.</p>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
+              <code className="select-all font-mono text-lg font-bold tracking-wide" style={{ color: INK }}>{claveCreada.clave}</code>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(claveCreada.clave).then(() => setCopiada(true)).catch(() => {}) }}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+              >
+                {copiada ? <><CheckCircle2 size={13} aria-hidden="true" /> Copiada</> : <><Copy size={13} aria-hidden="true" /> Copiar</>}
+              </button>
+            </div>
+          </div>
+        </Cascaron>
+      )}
       {mostrarActividad && <VentanaActividad opticaId={usuario?.opticaId} onCerrar={() => setMostrarActividad(false)} />}
 
       {mensajeExito && (
@@ -369,13 +398,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                       <div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                         <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="email" className={CAMPO + " pl-9"} /></div>
                     </label>
-                    <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Contraseña</span>
-                      <div className="relative">
-                        <input type={verClave ? "text" : "password"} value={clave} onChange={(e) => setClave(e.target.value)} placeholder="8 o más, con letra y número" autoComplete="new-password" className={CAMPO + " pr-9"} />
-                        <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">{verClave ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-500">{MENSAJE_CLAVE_SEGURA}</p>
-                    </label>
+                    <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><p className="text-xs leading-relaxed">La contraseña la genera el sistema: la verás una sola vez al crear al usuario, y la persona elige la suya al entrar.</p></div>
                   </div>
                 )}
 

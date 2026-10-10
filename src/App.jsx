@@ -11,6 +11,7 @@ import { mapAbono, EVENTO_ABONO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import { registrarLog } from './utilidades/logs';
 import { registrarAuditoria } from './utilidades/auditoria';
+import GuardiaClaveTemporal from './componentes/GuardiaClaveTemporal';
 
 // Login se queda como import normal: es la pantalla de entrada más común
 // (cualquier visitante público, paciente o staff pasa por acá primero) — el
@@ -1128,6 +1129,7 @@ function App() {
     <Suspense fallback={<PantallaCargando />}>
       {/* 1. DASHBOARD ADMINISTRATIVO */}
       {pantallaActual === 'dashboard' && (
+        <GuardiaClaveTemporal alSalir={cerrarSesion}>
         <Dashboard
           usuario={usuario}
           opticaActiva={opticaActiva}
@@ -1175,6 +1177,7 @@ function App() {
           onSalirImpersonacion={usuario?.impersonadoPor ? salirDeImpersonacion : null}
           alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
         />
+        </GuardiaClaveTemporal>
       )}
 
       {/* 2. LANDING PAGE / LOGIN — qué se muestra depende de resolverSitio():

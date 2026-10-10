@@ -306,10 +306,13 @@ test('Usuarios: crear una cuenta nueva y desactivarla (perfiles: insert; cuenta 
   await modal.getByPlaceholder('Ej. Ana Torres').fill(nombre)
   await modal.getByPlaceholder('10 dígitos').fill(cedulaValida())
   await modal.getByPlaceholder('ana.torres@correo.com').fill(correo)
-  await escribirSecreto(page, modal.getByPlaceholder('8 o más, con letra y número'), `Prueba-${azar}-77Zq`)
   await modal.getByRole('checkbox', { name: /^Ventas/ }).check()
   await conEscritura(page, 'perfiles', 'crear usuario', () => modal.getByRole('button', { name: 'Crear usuario' }).click(), ['POST'])
   await expect(page.getByText(/creado correctamente/)).toBeVisible({ timeout: 20_000 })
+  // La contraseña la genera el sistema y se ve una sola vez, en su ventana.
+  const ventanaClave = page.getByRole('dialog', { name: 'Contraseña temporal' })
+  await expect(ventanaClave.locator('code')).toHaveText(/^Opt-[A-Z]{4}\d{2}$/)
+  await ventanaClave.getByRole('button', { name: 'Cerrar' }).last().click()
   await expect(page.getByRole('list', { name: 'Usuarios' }).getByText(nombre)).toBeVisible({ timeout: 20_000 })
 
   // Una cuenta de prueba no debe quedar activa: se desactiva (rpc desactivar_usuario).

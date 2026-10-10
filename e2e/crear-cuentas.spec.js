@@ -3,7 +3,7 @@
 // Necesita las credenciales del administrador de esa óptica (E2E_ADMIN_* o DEMO_ADMIN_*) y no repite las cuentas que ya existen.
 import { test, expect } from '@playwright/test'
 import crypto from 'node:crypto'
-import { iniciarSesion, escribirSecreto, guardarEnEnv, cedulaValida } from './ayudas.js'
+import { iniciarSesion, escribirSecreto, guardarEnEnv, cedulaValida, slugDe } from './ayudas.js'
 
 const ENTORNO = process.env.E2E_CREAR_CUENTAS === 'DEMO' ? 'DEMO' : 'E2E'
 test.skip(!process.env.E2E_CREAR_CUENTAS, 'Solo con E2E_CREAR_CUENTAS=E2E (o DEMO)')
@@ -18,7 +18,24 @@ const CUENTAS = [
 
 const claveNueva = () => `Demo-${crypto.randomBytes(5).toString('hex')}-${crypto.randomInt(10, 99)}Zq`
 
-test(`crear Optómetra, Recepción y Ventas desde Usuarios (${ENTORNO})`, async ({ page }) => {
+// Primer ingreso de la cuenta nueva: entra con la contraseña temporal y elige la definitiva (el sistema lo exige).
+async function elegirSuClave(browser, correo, temporal, definitiva) {
+  const contexto = await browser.newContext()
+  const p2 = await contexto.newPage()
+  await p2.goto(`/?optica=${slugDe(ENTORNO)}`)
+  await p2.getByRole('button', { name: 'Iniciar sesión' }).first().click()
+  await escribirSecreto(p2, p2.getByPlaceholder('Cédula o nombre de usuario'), correo)
+  await escribirSecreto(p2, p2.getByPlaceholder('Tu contraseña'), temporal)
+  await p2.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await expect(p2.getByRole('heading', { name: 'Crea tu contraseña' })).toBeVisible({ timeout: 25_000 })
+  await escribirSecreto(p2, p2.getByLabel(/^Contraseña nueva/), definitiva)
+  await escribirSecreto(p2, p2.getByLabel('Repite la contraseña'), definitiva)
+  await p2.getByRole('button', { name: 'Guardar y entrar' }).click()
+  await expect(p2.getByRole('heading', { name: 'Crea tu contraseña' })).toHaveCount(0, { timeout: 25_000 })
+  await contexto.close()
+}
+
+test(`crear Optómetra, Recepción y Ventas desde Usuarios (${ENTORNO})`, async ({ page, browser }) => {
   await iniciarSesion(page, 'ADMIN', ENTORNO)
   await page.getByRole('button', { name: /Usuarios y permisos/ }).first().click()
   await expect(page.getByRole('heading', { name: 'Usuarios y permisos' })).toBeVisible()
@@ -32,10 +49,13 @@ test(`crear Optómetra, Recepción y Ventas desde Usuarios (${ENTORNO})`, async 
     await modal.getByPlaceholder('Ej. Ana Torres').fill(c.nombre)
     await modal.getByPlaceholder('10 dígitos').fill(cedulaValida())
     await modal.getByPlaceholder('ana.torres@correo.com').fill(c.correo)
-    await escribirSecreto(page, modal.getByPlaceholder('8 o más, con letra y número'), clave)
     await modal.getByRole('checkbox', { name: c.rol }).check()
     await modal.getByRole('button', { name: 'Crear usuario' }).click()
     await expect(page.getByText(/creado correctamente/)).toBeVisible({ timeout: 20_000 })
     await expect(modal).toBeHidden()
+    const ventanaClave = page.getByRole('dialog', { name: 'Contraseña temporal' })
+    const temporal = await ventanaClave.locator('code').innerText()
+    await ventanaClave.getByRole('button', { name: 'Cerrar' }).last().click()
+    await elegirSuClave(browser, c.correo, temporal, clave)
   }
 })
