@@ -1195,6 +1195,7 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
         inputId="buscar-paciente"
         inputRef={inputBusquedaRef}
         etiquetaPanel="Filtrar pacientes"
+        panelId="pacientes-filtrar-panel"
       />
 
       {/* ─── FILTROS RÁPIDOS (badges) ─── */}

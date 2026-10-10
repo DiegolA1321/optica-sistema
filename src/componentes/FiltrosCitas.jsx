@@ -29,7 +29,7 @@ function useCierre(abierto, cerrar) {
 // Barra única de búsqueda y filtros: "Filtrar" abre un panel con todas las categorías a la vista (los filtros elegidos quedan como etiquetas con su "x" dentro de la
 // barra, y el campo de búsqueda ocupa el resto. "Limpiar" quita etiquetas y búsqueda.
 // secciones: [{ id, titulo, valor, onChange, opciones: [{ id, etiqueta }], tipo?: "chips" | "lista" | "rango" }] (el tipo "rango" lleva `rango`: { desde, hasta, onDesde, onHasta })
-export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar, placeholder = "Buscar cita: paciente o código", inputId = "citas-busqueda", inputRef, etiquetaPanel = "Filtrar citas" }) {
+export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onLimpiar, placeholder = "Buscar cita: paciente o código", inputId = "citas-busqueda", inputRef, etiquetaPanel = "Filtrar citas", panelId = "citas-filtrar-panel" }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useCierre(abierto, () => setAbierto(false))
   const hayAlgo = etiquetas.length > 0 || texto.trim() !== ""
@@ -41,7 +41,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           onClick={() => setAbierto((v) => !v)}
           aria-haspopup="dialog"
           aria-expanded={abierto}
-          aria-controls={inputId + "-panel"}
+          aria-controls={panelId}
           className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
         >
           <SlidersHorizontal size={14} aria-hidden="true" /> Filtrar
@@ -76,7 +76,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
         )}
       </div>
       {abierto && (
-        <div id={inputId + "-panel"} role="dialog" aria-label={etiquetaPanel} className="absolute left-0 top-full z-30 mt-1.5 w-[24rem] max-w-[calc(100vw-2rem)] space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+        <div id={panelId} role="dialog" aria-label={etiquetaPanel} className="absolute left-0 top-full z-30 mt-1.5 w-[24rem] max-w-[calc(100vw-2rem)] space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
           {secciones.map((s) => (
             <div key={s.id} role="group" aria-label={s.titulo} className="space-y-1.5">
               <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">{s.titulo}</span>
