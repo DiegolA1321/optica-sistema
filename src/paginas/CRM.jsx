@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
+import SinDatosAun from "../componentes/SinDatosAun"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { leerContactadosHoy, marcarContactadoHoy as marcarContactadoHoyGuardado } from "../utilidades/contactosCrm"
@@ -54,7 +55,7 @@ const diffCumpleEnVentana = (mes, dia) => {
   return mejor
 }
 
-export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion, onVerPerfil }) {
+export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion, onVerPerfil, onRegistrarPaciente }) {
   // Procesamiento conectado y en tiempo real
   const prospectosDinamicos = useMemo(() => {
     return pacientes.map((p) => {
@@ -313,6 +314,10 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
           <p className="text-sm text-slate-500">Cumpleaños, control vencido, pacientes más atendidos y comunicación con tus pacientes.</p>
         </div>
       </div>
+
+      {pacientes.length === 0 && (
+        <SinDatosAun titulo="Todavía no hay pacientes a quienes escribir" texto="Aquí aparecen los cumpleaños, el control vencido y quienes más te visitan o te refieren, en cuanto registres pacientes." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />
+      )}
 
       {/* ─── SALUDO AUTOMÁTICO DE CUMPLEAÑOS (configurable por el administrador) ─── */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">

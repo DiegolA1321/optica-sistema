@@ -35,3 +35,17 @@ describe("CRM", () => {
     expect(screen.queryByText("Pacientes frecuentes")).not.toBeInTheDocument()
   })
 })
+
+describe("CRM sin pacientes", () => {
+  it("lo dice y lleva a registrar el primero", () => {
+    const pedidos = []
+    render(<CRM usuario={usuario} pacientes={[]} consultas={[]} onRegistrarPaciente={() => pedidos.push("crear")} />)
+    expect(screen.getByText("Todavía no hay pacientes a quienes escribir")).toBeInTheDocument()
+    screen.getByRole("button", { name: /Registrar el primer paciente/ }).click()
+    expect(pedidos).toEqual(["crear"])
+  })
+  it("sin permiso para crear pacientes no ofrece la acción", () => {
+    render(<CRM usuario={usuario} pacientes={[]} consultas={[]} />)
+    expect(screen.queryByRole("button", { name: /Registrar el primer paciente/ })).not.toBeInTheDocument()
+  })
+})
