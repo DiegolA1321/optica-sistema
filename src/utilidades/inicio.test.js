@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, citasDelPeriodo, citasParaLista, creadosEsteMes, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
-import { hoyISO, fechaAISO } from "./disponibilidad"
+import { hoyISO, fechaAISO, isoAFechaLocal } from "./disponibilidad"
 
 const hoy = hoyISO()
 const cita = (extra) => ({ id: Math.random(), fecha: hoy, hora: "09:00 AM", estado: "Pendiente", ...extra })
@@ -96,8 +96,10 @@ describe("desenlace por período", () => {
 })
 
 describe("agenda de hoy o próximas", () => {
-  const manana = fechaAISO(new Date(Date.now() + 86400000))
-  const ayer = fechaAISO(new Date(Date.now() - 86400000))
+  // "Hoy" es el de Ecuador (hoyISO): ayer y mañana se cuentan desde ese día, no desde el reloj o la zona horaria del equipo.
+  const base = isoAFechaLocal(hoy)
+  const manana = fechaAISO(new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1))
+  const ayer = fechaAISO(new Date(base.getFullYear(), base.getMonth(), base.getDate() - 1))
   it("con citas hoy muestra solo las de hoy, sin canceladas", () => {
     const r = agendaHoyOProximas([cita({ hora: "10:00 AM" }), cita({ estado: "Cancelada" }), cita({ fecha: manana })])
     expect(r.modo).toBe("hoy")
