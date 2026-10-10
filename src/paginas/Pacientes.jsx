@@ -95,6 +95,7 @@ import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
+import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
@@ -1991,6 +1992,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
               const abiertasPaciente = atencionesAbiertasAntiguas(citasPaciente)
               const paseListo = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
+              // Mismos datos de la historia clínica: los de la ficha más reciente que los tenga.
+              const antecedentesAlerta = antecedentesRelevantes(consultasPaciente.find((c) => c.antecedentes || c.antecedentesFamiliares))
               const controlPorAgendar = sinAgendarPorPaciente.get(pacienteHistorial.id)
               // Control del paciente: vencido, o recomendado y todavía sin cita. Es una alerta de arriba, con su botón para agendar,
               // para cualquier paciente (con o sin consultas) mientras no tenga una cita pendiente.
@@ -2003,13 +2006,18 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
                       no en Fidelización. ─── */}
-                  {(paseListo || abiertasPaciente.length > 0 || (alertaControl || (proximoControl && !inactivo && consultasPaciente.length === 0)) || (diasCumple != null && diasCumple <= 30)) && (
+                  {(paseListo || antecedentesAlerta.length > 0 || abiertasPaciente.length > 0 || (alertaControl || (proximoControl && !inactivo && consultasPaciente.length === 0)) || (diasCumple != null && diasCumple <= 30)) && (
                     <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Alertas del paciente">
                       {paseListo && (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700" title="Esperando a quien vende">
                           <ShoppingBag size={13} aria-hidden="true" /> Listo para venta · desde {fechaLegible(paseListo.pasadaEn)}
                           {puedeVender && <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="ml-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-white transition-colors hover:bg-emerald-700 cursor-pointer">Tomar datos</button>}
                         </span>
+                      )}
+                      {antecedentesAlerta.length > 0 && (
+                        <button type="button" onClick={() => setVerHistoriaClinica(true)} title="Abrir la historia clínica" className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
+                          <AlertTriangle size={13} aria-hidden="true" /> Antecedentes importantes: {textoAntecedentes(antecedentesAlerta)}
+                        </button>
                       )}
                       {abiertasPaciente.map(({ cita, dias }) => (
                         <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
