@@ -8,6 +8,8 @@ Para retomar en una sesión nueva sin leer la conversación anterior.
 
 **Ventas (9 oct 2026):** la revisión del módulo contra `docs/principios-diseno.md` está en `docs/revision-ventas.md`, pendiente de implementar; falta verla en pantalla con cada rol.
 
+**Portal del paciente, páginas públicas y panel del superadmin (9 oct 2026):** la revisión contra `docs/principios-diseno.md` y contra lo que ya tiene el sistema del personal (apariencia, reglas y funciones) está en `docs/revision-portal-y-superadmin.md`, **pendiente de implementar después de Ventas**. Nada se ha corregido. Falta verla con un paciente real, con la óptica vacía y en celular. Decisiones que se piden a Diego, al principio de ese archivo.
+
 ### Citas (publicado el 8 oct 2026)
 
 El módulo de **Citas médicas** quedó terminado, revisado por Diego en localhost y **publicado el 8 oct 2026** (último commit `86f31b0` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito: https://optica-sistema-zeta.vercel.app). Las migraciones **0100 a 0103** están aplicadas en la base. Lo siguiente son **los otros módulos de la reunión del 7 de octubre** (`feedback-ing/requisitos-reunion-07oct-citas.md` y las transcripciones ING1 e ING2): se retoman empezando por leer este documento.
