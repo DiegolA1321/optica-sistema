@@ -79,6 +79,7 @@ Nada arma fechas a mano.
 ### 14. El color significa lo mismo en todo el sistema
 - **Citas:** Pendiente = naranja, En atención = azul, Atendida = verde, No asistió = rojo, En espera = violeta, Cancelada = gris, en el calendario, en la leyenda, en la tarjeta y en el detalle. Lo seleccionado se ve en el azul de la marca, no en negro (`f45f548`).
 - **Cómo aplicarlo:** un color nuevo se define en un solo lugar y se usa para una sola cosa.
+- **Tarjetas del mismo grupo:** la baldosa del ícono es igual en todas (gris neutro); el color queda reservado para un estado (Atendida verde, No asistió rojo, Pendiente naranja...). Tres tarjetas de un grupo con tres estilos de ícono parecen tres cosas distintas.
 
 ### 15. Evitar el error antes que avisarlo
 No se ofrece lo que no se puede hacer.
@@ -186,6 +187,27 @@ Ocultar algo solo al dibujar la pantalla no lo oculta: el dato igual llega al na
 
 ---
 
+## H. Reglas que salieron de la revisión del Inicio (10 oct. 2026)
+
+### 37. Jerarquía: lo más importante para cada rol va primero, en el orden que pidió el ingeniero
+Una pantalla de resumen responde en 5 segundos "¿cómo va hoy?": quien la abre lee de arriba abajo y a la izquierda primero, así que lo que decide su día va ahí. Si el ingeniero fijó un orden, ese orden manda y no se reordena por gusto.
+- **Administrador:** Totales (una fila compacta de cuatro tarjetas) arriba; debajo, a dos columnas, "Requiere tu atención" a la izquierda y el desenlace con las citas del día a la derecha. Todo cabe en la primera pantalla a 1366×768.
+- **Optómetra:** primero su agenda (el siguiente paciente destacado y la agenda de hoy; sin citas hoy, su próxima jornada con citas), después sus avisos y al final el desenlace de sus citas.
+- **Cómo aplicarlo:** antes de diseñar un resumen, escribe para cada rol su pregunta principal y comprueba a 1366×768 que la respuesta se ve sin desplazarse.
+
+### 38. Un aviso es una línea: número, nombres resumidos y una sola acción
+"2 pacientes con datos sin confirmar · Paola, Andrés · Revisar". Un tipo de aviso con varios casos es una línea, no una fila por persona; se nombran como máximo tres ("Ana, Juan y 1 más"). Con un solo caso la acción hace lo que dice ("Confirmar datos"); con varios abre la lista ya filtrada. El número total se escribe una vez (en el título del bloque), no en la insignia y otra vez en "Ver todo"; cada área conserva su enlace "Ver todo →" sin número. Sin explicaciones repetidas en cada línea.
+- **Inicio:** todos los avisos de todas las áreas se arman con el mismo criterio, y una acción que el rol no puede usar no se muestra (regla 7).
+
+### 39. Las partes suman el total que se anuncia, y lo aparte se dice aparte
+Si una fila dice "12 citas", las tarjetas que la componen suman 12 y el título lo muestra ("12 citas = 5 + 1 + 6"). Lo que no cuenta en el total (las citas canceladas, regla 23) se muestra aparte, separado de la suma, para que el total coincida con lo que cuenta Citas.
+
+### 40. El registro de actividad es para personas, y las pruebas y los scripts no escriben en él
+Cada línea es una frase que entiende quien administra la óptica ("Administrador Demo agendó el control de Ana Pérez"), sin notas técnicas, nombres de scripts ni ids. Los scripts de mantenimiento y las pruebas automáticas no escriben en `logs_optica` de una óptica real ni de la Demo; sus notas van a un archivo del repositorio.
+- **Pruebas:** toda prueba que escribe usa la óptica de pruebas (regla 28); la Demo es de solo lectura.
+
+---
+
 ## Lista de revisión antes de dar una pantalla por terminada
 
 Cada pregunta remite a una regla; la respuesta debe ser "sí".
@@ -211,5 +233,9 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 19. ¿El cambio toca otro módulo cerrado? Si sí, se avisó y se aprobó. (27)
 20. ¿Un documento que el paciente necesita sale completo, y lo que depende de otra cosa (orden, cobro) solo se crea desde su origen? (29, 30)
 21. ¿Crear y editar se ven igual, y las fechas usan `CampoFecha`? (31, 32)
-23. ¿Lo que se oculta se oculta en el servidor (se comprobó la respuesta real) y ningún texto habla de costos? (36)
 22. ¿El bloque va de lo clínico a lo comercial, el saludo no adivina el nombre y el singular/plural concuerda? (33, 34)
+23. ¿Lo que se oculta se oculta en el servidor (se comprobó la respuesta real) y ningún texto habla de costos? (36)
+24. ¿La pantalla pone primero lo que decide el día de cada rol, en el orden que pidió el ingeniero, y se ve sin desplazarse a 1366×768? (37)
+25. ¿Cada aviso es una línea con su número, nombres resumidos y una sola acción, sin repetir el número? (38)
+26. ¿Las tarjetas suman el total del título y lo que no cuenta se muestra aparte? (39)
+27. ¿El registro de actividad se lee como frases para personas, sin notas técnicas, y ninguna prueba ni script escribe en la Demo? (40)
