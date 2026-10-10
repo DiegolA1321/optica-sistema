@@ -73,12 +73,21 @@ export function resumenPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) {
 // Las citas del período para la lista del Inicio, según la tarjeta del desenlace elegida (atendida | noAsistio | cancelada | null).
 // Sin tarjeta elegida no entran las canceladas (igual que "Todas" en Citas). Hoy y la semana van en orden de agenda; el mes y "Todas", las más recientes primero.
 const ESTADO_POR_TARJETA = { atendida: "Atendida", noAsistio: "No Asistió", cancelada: "Cancelada" }
+// "Pendientes" son las que todavía no tienen desenlace: Pendiente, En espera y En atención.
+const ESTADOS_PENDIENTES_TARJETA = ["Pendiente", "En Espera", "En Atención"]
 export function citasParaLista(citas, periodo, tarjeta = null, ahora = ahoraEcuador()) {
   const delPeriodo = citasDelPeriodo(citas, periodo, ahora)
-  const filtradas = tarjeta ? delPeriodo.filter((c) => c.estado === ESTADO_POR_TARJETA[tarjeta]) : delPeriodo.filter(sinCancelar)
+  const filtradas = tarjeta === "pendiente" ? delPeriodo.filter((c) => ESTADOS_PENDIENTES_TARJETA.includes(c.estado)) : tarjeta ? delPeriodo.filter((c) => c.estado === ESTADO_POR_TARJETA[tarjeta]) : delPeriodo.filter(sinCancelar)
   const clave = (c) => { const f = parseFechaFlexible(c.fecha); return (f ? fechaAISO(f) : "") + String(minutosDesdeMedianoche(c.hora)).padStart(5, "0") }
   const asc = periodo === "hoy" || periodo === "semana"
   return filtradas.slice().sort((a, b) => (asc ? (clave(a) < clave(b) ? -1 : 1) : (clave(a) < clave(b) ? 1 : -1)))
+}
+
+// Ventas (comprobantes internos sin anular): las de este mes (cantidad y dólares) y todas las registradas.
+export function ventasDelMes(facturas, ahora = ahoraEcuador()) {
+  const vigentes = facturas.filter((f) => f.estado !== "anulada")
+  const delMes = vigentes.filter((f) => { const d = f.creadoEn ? new Date(f.creadoEn) : null; return d && !isNaN(d) && d.getFullYear() === ahora.getFullYear() && d.getMonth() === ahora.getMonth() })
+  return { cantidad: delMes.length, total: Math.round(delMes.reduce((n, f) => n + (Number(f.montoTotal) || 0), 0) * 100) / 100, cantidadTotal: vigentes.length }
 }
 
 // Cuántos registros se dieron de alta este mes (para el "+N este mes" de los Totales). Sin fecha de alta no cuenta.

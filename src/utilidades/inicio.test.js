@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { nombresResumidos, agendaOptometra, plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, citasDelPeriodo, citasParaLista, creadosEsteMes, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
+import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, esCitaPropia, citasPropias, resumenHoy, resumenMes, resumenPeriodo, citasDelPeriodo, citasParaLista, creadosEsteMes, rangoDelMes, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, saldosPorCobrar, proformasEnSeguimiento, pasesListos } from "./inicio"
 import { hoyISO, fechaAISO, isoAFechaLocal } from "./disponibilidad"
 
 const hoy = hoyISO()
@@ -191,5 +191,20 @@ describe("agendaOptometra", () => {
   it("sin nada por venir, está vacía", () => {
     expect(agendaOptometra([cita({ fecha: dia(-2), estado: "Atendida" })]).modo).toBe("vacia")
     expect(agendaOptometra([]).citas).toEqual([])
+  })
+})
+
+describe("pendientes y ventas del mes", () => {
+  it("la tarjeta Pendientes lista Pendiente, En espera y En atención, y no las canceladas", () => {
+    const citas = [cita({ id: "a", estado: "Pendiente" }), cita({ id: "b", estado: "En Espera" }), cita({ id: "c", estado: "En Atención" }), cita({ id: "d", estado: "Atendida" }), cita({ id: "e", estado: "Cancelada" })]
+    expect(citasParaLista(citas, "hoy", "pendiente").map((c) => c.id).sort()).toEqual(["a", "b", "c"])
+    expect(citasParaLista(citas, "hoy", "pendiente")).toHaveLength(resumenPeriodo(citas, "hoy").pendientes)
+  })
+  it("ventasDelMes suma los dólares y cuenta las ventas del mes sin las anuladas", () => {
+    const ahora = new Date(2026, 9, 10, 12)
+    const f = (creadoEn, montoTotal, estado = "pagada") => ({ creadoEn, montoTotal, estado })
+    const r = ventasDelMes([f("2026-10-02T15:00:00Z", 100.5), f("2026-10-09T15:00:00Z", 22.25), f("2026-10-09T15:00:00Z", 999, "anulada"), f("2026-09-30T15:00:00Z", 50)], ahora)
+    expect(r).toEqual({ cantidad: 2, total: 122.75, cantidadTotal: 3 })
+    expect(ventasDelMes([], ahora)).toEqual({ cantidad: 0, total: 0, cantidadTotal: 0 })
   })
 })
