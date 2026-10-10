@@ -12,6 +12,15 @@ import { supabase } from "../lib/supabaseClient"
 
 export const NOMBRE_MODULO = { pacientes: "Pacientes", consultas: "Ficha clínica", citas: "Citas médicas", crm: "CRM", inventario: "Inventario", reportes: "Reportes", horario: "Mi horario", mensajes: "Mensajes", configuracion: "Configuración", usuarios: "Usuarios y permisos" }
 
+// El detalle de una línea de actividad, solo si lo entiende quien administra la óptica: un nombre, una fecha, un valor. Las notas técnicas
+// (pruebas, scripts, migraciones, ids) no se muestran (regla 40).
+export function detalleActividad(detalle) {
+  const t = String(detalle || "").trim()
+  if (!t) return ""
+  if (/\be2e\b|limpieza|script|migraci[oó]n|\buuid\b|[0-9a-f]{8}-[0-9a-f]{4}-|no es una cita activa|identificable/i.test(t)) return ""
+  return t
+}
+
 export async function registrarLog(usuario, modulo, accion, detalle = "") {
   if (!supabase || !usuario?.opticaId || !usuario?.id) return
   try {
