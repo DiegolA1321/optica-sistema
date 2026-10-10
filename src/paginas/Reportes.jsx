@@ -15,6 +15,8 @@ import {
   CalendarClock,
   CalendarCheck,
   DollarSign,
+  Lock,
+  Wallet,
   TrendingUp,
   Star,
   CalendarRange,
@@ -28,7 +30,7 @@ import { esInactivo } from "../utilidades/fidelizacion"
 import { fechaAISO } from "../utilidades/disponibilidad"
 import { useAnchoElemento } from "../utilidades/graficos"
 import { calcularEmbudo } from "../utilidades/embudo"
-import { totalAbonado } from "../utilidades/abonos"
+import { vendidoYCobrado } from "../utilidades/vendidoCobrado"
 import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas, claveDiagnostico, etiquetaDeVariantes, categoriasDeConsulta } from "../utilidades/reportesDiagnosticos"
 import { resumenPorLaboratorio, ventasPorTipoLuna, productosMasVendidos as rankingProductos } from "../utilidades/reportesLaboratorio"
 import { INK } from "@/lib/tema"
@@ -192,18 +194,11 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const embudo = useMemo(() => calcularEmbudo({ consultas, pases, facturas: facturasVenta, enRango, historial: historialCompleto }), [consultas, historialCompleto, pases, facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
   const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
   const facturasVentaEsteMes = useMemo(() => facturasVenta.filter((f) => enRango(f.creadoEn)), [facturasVenta, rango])
-  const ingresoFacturaVenta = (f) => {
-    if (f.estado === "pagada") return f.montoTotal
-    // Lo efectivamente cobrado hasta ahora: la suma de sus abonos (las cuotas pagadas también son abonos).
-    if (f.estado === "pendiente_pago") return totalAbonado(f.id, abonos)
-    return 0
-  }
-  const ingresosEsteMes = useMemo(
-    () => ventasRealesEsteMes.reduce((sum, v) => sum + (Number(v.montoTotal) || 0), 0)
-      + facturasVentaEsteMes.reduce((sum, f) => sum + ingresoFacturaVenta(f), 0),
+  // "Vendido" y "Cobrado" salen de la misma función que usa el Inicio (utilidades/vendidoCobrado.js): dos números, dos nombres.
+  const { vendido: vendidoEsteMes, cobrado: cobradoEsteMes, cantidad: cantidadVentas } = useMemo(
+    () => vendidoYCobrado({ facturas: facturasVentaEsteMes, ventasViejas: ventasRealesEsteMes, abonos }),
     [ventasRealesEsteMes, facturasVentaEsteMes, abonos],
   )
-  const cantidadVentas = ventasRealesEsteMes.length + facturasVentaEsteMes.filter((f) => f.estado !== "anulada").length
   // Conversión = el mismo "compraron / consultaron" del embudo (ventas reales: comprobantes no anulados).
   const conversionVenta = embudo.compraronSobreConsultaron
 
@@ -358,7 +353,8 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const kpis = [
     { key: "consultas", label: "Consultas", sub: `fichas clínicas guardadas · ${rango.etiqueta}`, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
     { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
-    { key: "ingresos", label: "Ingresos", valor: `${dinero(ingresosEsteMes)}`, sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600" },
+    { key: "vendido", label: "Vendido", valor: dinero(vendidoEsteMes), sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600", tooltip: "El monto total de las ventas del período, aunque todavía tengan saldo." },
+    { key: "cobrado", label: "Cobrado", valor: dinero(cobradoEsteMes), sub: `de esos ${dinero(vendidoEsteMes)} vendidos · ${rango.etiqueta}`, icon: Wallet, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "Lo que de esas ventas ya se pagó: las pagadas completas y, en las que tienen saldo, sus abonos." },
     { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo)`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
     { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin agudeza visual con lentes registrada`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
     { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
@@ -370,7 +366,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // Un optómetra que no es admin no ve las métricas financieras (Diego,
   // 2026-09-30): Ingresos y Conversión a venta salen de la grilla de KPIs;
   // "Productos más vendidos" (más abajo) se oculta con el mismo criterio.
-  const kpisVisibles = ocultarMontos ? kpis.filter((k) => k.key !== "ingresos" && k.key !== "conversion") : kpis
+  const kpisVisibles = ocultarMontos ? kpis.filter((k) => k.key !== "vendido" && k.key !== "cobrado" && k.key !== "conversion") : kpis
 
   // R60: pacientes por diagnóstico, mes a mes, en el año elegido.
   const aniosDx = useMemo(() => aniosConConsultas(consultas), [consultas])
@@ -402,6 +398,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Reportes y estadísticas</h1>
           <p className="text-sm text-slate-500">Panorama clínico y operativo a partir de los datos ya registrados en el sistema.</p>
+          {esOptometraNoAdmin && <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700"><Lock size={12} aria-hidden="true" /> Solo tus consultas y tus citas</p>}
         </div>
       </div>
 
