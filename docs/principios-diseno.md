@@ -216,6 +216,11 @@ Cada línea es una frase que entiende quien administra la óptica ("Administrado
 Ningún texto es más pequeño que el del resto del sistema: las líneas y los datos van en el tamaño normal (14 px) y las etiquetas y notas secundarias no bajan de 12 px; nada de 11 o 13 px sueltos para "ganar espacio". Un adorno que no comunica nada (por ejemplo un punto de color delante de cada aviso) no se pone: el color se reserva para un significado (regla 14), como el rojo de una alerta real.
 - **Inicio:** si algo no cabe en una línea, se acorta el texto o se recorta con puntos suspensivos; no se achica la letra.
 
+### 42. Todo lo que se puede presionar lleva exactamente a lo que promete
+Una tarjeta, un número, un enlace o un botón abre el destino que su texto y su número anuncian: el mismo período, los mismos filtros, el mismo número y la vista que corresponde al rol de quien presiona. Si un enlace no puede llevar a lo mismo, su texto dice adónde lleva.
+- **Qué falló (revisión del 10 oct. 2026, enlaces del Inicio de cada rol recorridos uno por uno):** la tarjeta "Citas 98" abría las citas de hoy (1) y Citas "Todas" mostraba 88 porque el 98 incluía 10 canceladas; la tarjeta "Ventas" abría la cola de pacientes por vender y no los comprobantes; "Ver todo" de Citas (16 avisos) abría solo "Para reagendar" (14), el de Pacientes (15) la lista completa de 41 y el de Ventas la cola de 5; "Revisar" (2 pacientes de la web sin confirmar) abría los 41 pacientes; al optómetra con la próxima jornada del lunes (1 cita) "Ver todas en Citas" lo llevaba a "Todas" (88 citas), un período que su Citas no ofrece; y su "Ver todo" de Citas lo llevaba al "Para reagendar" de toda la óptica (8) por un aviso que era suyo (1).
+- **Cómo aplicarlo:** cada enlace se prueba como una pareja (lo que dice, lo que abre): el número que se ve antes es el que se ve después, y el período y los filtros que se ven antes quedan puestos. Un total del Inicio cuenta lo mismo que la lista a la que lleva (las canceladas no suman en los dos lados, regla 23). Un aviso que necesita decisión se abre en una ventana o panel encima de la pantalla, con sus casos y la acción de cada uno, sin mover nada (I5 del ingeniero).
+
 ---
 
 ## Lista de revisión antes de dar una pantalla por terminada
@@ -250,3 +255,4 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 26. ¿Las tarjetas suman el total del título y lo que no cuenta se muestra aparte? (39)
 27. ¿El registro de actividad se lee como frases para personas, sin notas técnicas, y ninguna prueba ni script escribe en la Demo? (40)
 28. ¿Ningún texto es más pequeño que el del resto del sistema y ningún adorno de color queda sin significado? (41)
+29. ¿Cada tarjeta, número y enlace abre exactamente lo que promete (mismo período, mismos filtros, mismo número, vista del rol) y el texto dice adónde lleva? (42)
