@@ -642,6 +642,8 @@ export default function Pacientes({ usuario, onAviso, pases = [], setPases, orde
       // Atajo desde Inicio (ej. "Pacientes sin atender"): abre esta lista ya filtrada.
       setFiltroCorreccion(accionInicial.correccion ?? "Todos")
       setFiltroRapido(accionInicial.rapido ?? "Todos")
+      setFiltroDesde(accionInicial.desde ?? "") // "Nuevos este mes" del Inicio: la fecha de registro de este mes
+      setFiltroHasta(accionInicial.hasta ?? "")
     } else if (accionInicial.accion === "crear") {
       // Atajo "Gestionar pacientes" del Dashboard — no referencia a ningún
       // paciente existente, así que no pasa por la búsqueda por id de abajo.
