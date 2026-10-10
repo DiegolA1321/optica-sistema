@@ -657,7 +657,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setControlFecha("")
     setControlHora("")
     setTratamientoFinalizado(false)
-    setIncluirMedidasReceta(true)
     setMostrarPanelCobro(false)
     setCobroEstado(null)
     setCobroTotal(0)
