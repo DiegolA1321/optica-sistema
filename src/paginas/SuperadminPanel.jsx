@@ -69,7 +69,7 @@ import { sumarDiasISO } from "../utilidades/controles"
 import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { useAnchoElemento } from "../utilidades/graficos"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
 import { NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
@@ -1202,19 +1202,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setAgregarAdminAbierto(false)
     setAdminAEliminar(null)
   }
-
-  // Migración a useModalAccesible (mismo patrón del Lote 1): Escape, foco
-  // atrapado y devolución de foco al disparador para los 7 modales propios
-  // de este panel que quedaron fuera de esa ronda. Cada onCerrar replica
-  // exactamente la condición de cierre que ya tenía su propio backdrop
-  // onClick / el handler global de Escape — ver docs/nielsen-medicion-final.md.
-  const refModalDetalleOptica = useModalAccesible(!!detalle, cerrarDetalle)
-  const refModalCrearOptica = useModalAccesible(modalAbierto, cerrarModal)
-  const refModalEliminarSuperadmin = useModalAccesible(!!superadminAEliminar, () => setSuperadminAEliminar(null))
-  const refModalMiCuenta = useModalAccesible(modalMiCuentaAbierto, () => { if (!guardandoMiCuenta && !guardandoClaveNueva) setModalMiCuentaAbierto(false) })
-  const refModalMensaje = useModalAccesible(!!mensajeAbierto, () => { if (!enviandoRespuesta) setMensajeAbierto(null) })
-  const refModalAviso = useModalAccesible(modalAvisoAbierto, () => { if (!publicandoAviso) setModalAvisoAbierto(false) })
-  const refModalAgregarSuperadmin = useModalAccesible(modalSuperadminAbierto, () => { if (!guardandoSuperadmin) setModalSuperadminAbierto(false) })
 
   const actualizarCampo = (clave, valor) => {
     setCampos((prev) => ({ ...prev, [clave]: valor }))
@@ -3218,416 +3205,394 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
       {/* ─── MODAL DETALLE ÓPTICA ─── */}
       {detalle && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => { setDetalle(null); setRenombrando(false); setAgregarAdminAbierto(false); setAdminAEliminar(null) }}
+        <Cascaron
+          etiqueta={"Detalle de " + detalle.nombre}
+          titulo={renombrando ? (
+            <span className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                type="text"
+                value={nombreEditado}
+                onChange={(e) => setNombreEditado(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") guardarNombre(); if (e.key === "Escape") setRenombrando(false) }}
+                className="w-44 rounded-lg border border-blue-300 px-2 py-1 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+              />
+              <button type="button" onClick={guardarNombre} disabled={guardandoNombre} title="Guardar nombre" aria-label="Guardar nombre" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 cursor-pointer"><Check size={16} /></button>
+              <button type="button" onClick={() => setRenombrando(false)} title="Cancelar edición" aria-label="Cancelar edición" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer"><X size={16} /></button>
+            </span>
+          ) : (
+            <span className="flex min-w-0 items-center gap-1.5" title={detalle.nombre}>
+              <span className="truncate">{detalle.nombre}</span>
+              <button type="button" onClick={iniciarRenombrar} title="Renombrar" aria-label="Renombrar" className="shrink-0 rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
+            </span>
+          )}
+          subtitulo={<span className="font-mono">{detalle.slug}</span>}
+          marca={<div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{detalle.nombre.charAt(0).toUpperCase()}</div>}
+          ancho="max-w-lg"
+          onCerrar={cerrarDetalle}
         >
-          <div
-            ref={refModalDetalleOptica}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-detalle-titulo"
-            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>
-                  {detalle.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div id="superadmin-modal-detalle-titulo" className="min-w-0">
-                  {renombrando ? (
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        autoFocus
-                        type="text"
-                        value={nombreEditado}
-                        onChange={(e) => setNombreEditado(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") guardarNombre(); if (e.key === "Escape") setRenombrando(false) }}
-                        className="w-44 rounded-lg border border-blue-300 px-2 py-1 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
-                      />
-                      <button type="button" onClick={guardarNombre} disabled={guardandoNombre} title="Guardar nombre" aria-label="Guardar nombre" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 cursor-pointer"><Check size={16} /></button>
-                      <button type="button" onClick={() => setRenombrando(false)} title="Cancelar edición" aria-label="Cancelar edición" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 cursor-pointer"><X size={16} /></button>
-                    </div>
-                  ) : (
-                    <h4 className="flex min-w-0 items-center gap-1.5 text-lg font-bold" style={{ color: INK }} title={detalle.nombre}>
-                      <span className="truncate">{detalle.nombre}</span>
-                      <button type="button" onClick={iniciarRenombrar} title="Renombrar" className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
-                    </h4>
-                  )}
-                  <p className="font-mono text-xs text-slate-500">{detalle.slug}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setDetalle(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+          <div className="space-y-4 p-5">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</p>
+              <span className={"mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold " + (detalle.activa ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
+                {detalle.activa ? <CheckCircle2 size={13} /> : <Ban size={13} />}
+                {detalle.activa ? "Activa" : "Suspendida"}
+              </span>
             </div>
+            <button
+              type="button"
+              disabled={procesandoId === detalle.id}
+              onClick={() => setOpticaAConfirmar(detalle)}
+              className={"rounded-xl px-4 py-2.5 text-sm font-semibold transition cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 " + (detalle.activa ? "border border-rose-200/60 text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-400/60" : "border border-emerald-200/60 text-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-400/60")}
+            >
+              {procesandoId === detalle.id ? "Actualizando…" : detalle.activa ? "Suspender" : "Reactivar"}
+            </button>
+          </div>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</p>
-                  <span className={"mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold " + (detalle.activa ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
-                    {detalle.activa ? <CheckCircle2 size={13} /> : <Ban size={13} />}
-                    {detalle.activa ? "Activa" : "Suspendida"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={procesandoId === detalle.id}
-                  onClick={() => setOpticaAConfirmar(detalle)}
-                  className={"rounded-xl px-4 py-2.5 text-sm font-semibold transition cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 " + (detalle.activa ? "border border-rose-200/60 text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-400/60" : "border border-emerald-200/60 text-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-400/60")}
-                >
-                  {procesandoId === detalle.id ? "Actualizando…" : detalle.activa ? "Suspender" : "Reactivar"}
-                </button>
-              </div>
+          {/* ─── Entrar como administrador ("impersonación") — caso #8 de
+              la reunión con el ing. Queda registrado en la actividad de
+              la propia óptica: cualquier acción que se haga adentro se
+              ve atribuida a "{nombre} (superadmin)", nunca disfrazada
+              como el admin real. ─── */}
+          <button
+            type="button"
+            disabled={!detalle.activa}
+            title={detalle.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
+            onClick={() => alEntrarComo?.(detalle)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer"
+            style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)", boxShadow: "0 12px 24px -14px rgba(109,40,217,0.6)" }}
+          >
+            <LogIn size={16} /> Entrar como administrador
+          </button>
 
-              {/* ─── Entrar como administrador ("impersonación") — caso #8 de
-                  la reunión con el ing. Queda registrado en la actividad de
-                  la propia óptica: cualquier acción que se haga adentro se
-                  ve atribuida a "{nombre} (superadmin)", nunca disfrazada
-                  como el admin real. ─── */}
-              <button
-                type="button"
-                disabled={!detalle.activa}
-                title={detalle.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
-                onClick={() => alEntrarComo?.(detalle)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer"
-                style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)", boxShadow: "0 12px 24px -14px rgba(109,40,217,0.6)" }}
-              >
-                <LogIn size={16} /> Entrar como administrador
-              </button>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Users size={13} /> Asistentes</p>
-                  <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{asistentesPorOptica.get(detalle.id) || 0}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Stethoscope size={13} /> Pacientes</p>
-                  <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{pacientesPorOptica.get(detalle.id) || 0}</p>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Administradores</p>
-                  <button type="button" onClick={() => (agregarAdminAbierto ? setAgregarAdminAbierto(false) : abrirAgregarAdmin())} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                    <UserPlus size={13} /> Agregar
-                  </button>
-                </div>
-
-                {(adminsPorOptica.get(detalle.id) || []).length === 0 ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
-                    <AlertTriangle size={16} /> Sin administrador vinculado.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {(adminsPorOptica.get(detalle.id) || []).map((a) => (
-                      adminAEliminar?.id === a.id ? (
-                        <div key={a.id} className="rounded-xl border border-rose-200/60 bg-rose-50 p-3 text-sm">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-rose-700">¿Quitar a {a.nombre}?</span>
-                            <div className="flex gap-2">
-                              <button type="button" onClick={() => { setAdminAEliminar(null); setErrorEliminarAdmin("") }} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">Cancelar</button>
-                              <button type="button" onClick={confirmarEliminarAdmin} disabled={eliminandoAdmin} className="rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
-                                {eliminandoAdmin ? "Quitando…" : "Confirmar"}
-                              </button>
-                            </div>
-                          </div>
-                          <p className="mt-1.5 text-xs text-rose-600">Esto elimina también su cuenta de acceso — su correo ({a.email || "sin correo"}) queda libre para usarse de nuevo.</p>
-                          {errorEliminarAdmin && (
-                            <p role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarAdmin}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div key={a.id} className="rounded-xl border border-slate-200/60 p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-slate-800">{a.nombre}</p>
-                              <div className="flex items-center gap-1.5 text-xs text-slate-500"><Mail size={12} /><span className="truncate">{a.email || "—"}</span></div>
-                            </div>
-                            <button type="button" onClick={() => { setAdminAEliminar(a); setErrorEliminarAdmin("") }} title="Quitar administrador" className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"><Trash2 size={15} /></button>
-                          </div>
-                          <div className="mt-2.5 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
-                            <Cake size={13} className="shrink-0 text-slate-400" />
-                            <label className="text-xs text-slate-500">Cumpleaños</label>
-                            <span className="w-44"><CampoFecha id={`cumple-${a.id}`} valor={a.fecha_nacimiento || ""} onCambiar={(v) => { if (v !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, v) }} placeholder="Elige la fecha" /></span>
-                            {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
-                          </div>
-                          <div className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2">
-                            <IdCard size={13} className="shrink-0 text-slate-400" />
-                            <label className="text-xs text-slate-500">Cédula</label>
-                            <input
-                              type="text" inputMode="numeric"
-                              defaultValue={a.cedula || ""}
-                              onBlur={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 10); if (v !== (a.cedula || "")) guardarCedula(a.id, v) }}
-                              disabled={guardandoCedula === a.id}
-                              placeholder="10 dígitos"
-                              maxLength={10}
-                              className="w-24 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white disabled:opacity-60"
-                            />
-                            {guardandoCedula === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
-                          </div>
-                          {errorCedulaAdmin?.id === a.id && (
-                            <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-600">{errorCedulaAdmin.mensaje}</p>
-                          )}
-                          <label className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
-                            <input
-                              type="checkbox"
-                              checked={!!a.es_optometra}
-                              onChange={(e) => guardarEsOptometra(a.id, e.target.checked)}
-                              className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
-                            />
-                            Es también el optómetra/licenciado
-                          </label>
-                        </div>
-                      )
-                    ))}
-                  </div>
-                )}
-
-                {agregarAdminAbierto && (
-                  <form onSubmit={guardarAdminExtra} className="mt-3 space-y-3 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
-                    {errorAdminExtra && (
-                      <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                        <AlertCircle size={14} /> {errorAdminExtra}
-                      </div>
-                    )}
-                    <input
-                      type="text" placeholder="Nombre completo" value={camposAdminExtra.nombre} onChange={(e) => actualizarCampoAdminExtra("nombre", filtrarSoloLetras(e.target.value))}
-                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                    <input
-                      type="text" inputMode="numeric" placeholder="Cédula (10 dígitos)" maxLength={10}
-                      value={camposAdminExtra.cedula} onChange={(e) => actualizarCampoAdminExtra("cedula", e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                    <input
-                      type="email" placeholder="Correo electrónico" value={camposAdminExtra.email} onChange={(e) => actualizarCampoAdminExtra("email", e.target.value)}
-                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="relative">
-                        <input
-                          type={verClaveExtra ? "text" : "password"} placeholder="Contraseña" value={camposAdminExtra.clave} onChange={(e) => actualizarCampoAdminExtra("clave", e.target.value)}
-                          className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 pr-8 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                        />
-                        <button type="button" onClick={() => setVerClaveExtra((v) => !v)} aria-label={verClaveExtra ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{verClaveExtra ? <EyeOff size={14} /> : <Eye size={14} />}</button>
-                      </div>
-                      <input
-                        type={verClaveExtra ? "text" : "password"} placeholder="Confirmar" value={camposAdminExtra.confirmarClave} onChange={(e) => actualizarCampoAdminExtra("confirmarClave", e.target.value)}
-                        className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                      />
-                    </div>
-                    <label className="flex items-start gap-2 text-xs text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={camposAdminExtra.esOptometra}
-                        onChange={(e) => actualizarCampoAdminExtra("esOptometra", e.target.checked)}
-                        className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
-                      />
-                      <span>Es también el optómetra/licenciado</span>
-                    </label>
-                    <div className="flex justify-end gap-2">
-                      <button type="button" onClick={() => setAgregarAdminAbierto(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
-                      <button type="submit" disabled={guardandoAdminExtra} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
-                        {guardandoAdminExtra ? "Creando…" : "Crear cuenta"}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-
-              {/* ─── Suscripción ─── */}
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Suscripción</p>
-                <div className="space-y-3 rounded-xl border border-slate-200/60 p-3.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-                      {[
-                        { key: "al_dia", label: "Al día", fg: "#059669" },
-                        { key: "pendiente", label: "Pendiente", fg: "#B45309" },
-                        { key: "vencido", label: "Vencido", fg: "#E11D48" },
-                      ].map((op) => (
-                        <button
-                          key={op.key}
-                          type="button"
-                          disabled={actualizandoPago}
-                          onClick={() => actualizarEstadoPago(op.key)}
-                          className={"rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-60 " + ((detalle.estado_pago || "al_dia") === op.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                          style={(detalle.estado_pago || "al_dia") === op.key ? { color: op.fg } : undefined}
-                        >
-                          {op.label}
-                        </button>
-                      ))}
-                    </div>
-                    {(detalle.estado_pago || "al_dia") !== "al_dia" && (
-                      <button type="button" onClick={registrarPago} disabled={actualizandoPago} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
-                        <Wallet size={13} /> Registrar pago
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
-                      <input
-                        type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={() => guardarSuscripcion()}
-                        placeholder="0.00"
-                        className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
-                      <CampoFecha id="suscripcion-vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
-                    </div>
-                  </div>
-                  {guardandoSuscripcion && <p className="text-xs text-slate-400">Guardando…</p>}
-                </div>
-              </div>
-
-              {/* ─── Facturación ─── */}
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Facturación</p>
-                  <button type="button" onClick={generarFactura} disabled={generandoFactura} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer disabled:opacity-60">
-                    <Receipt size={13} /> {generandoFactura ? "Generando…" : "Generar factura"}
-                  </button>
-                </div>
-                {cargandoFacturas ? (
-                  <p className="py-3 text-center text-xs text-slate-400">Cargando…</p>
-                ) : facturasOptica.length === 0 ? (
-                  <p className="py-3 text-center text-xs text-slate-400">Todavía no se generó ninguna factura.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {facturasOptica.map((f) => (
-                      <div key={f.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/60 p-3">
-                        <div className="min-w-0">
-                          <p className="truncate font-mono text-xs font-semibold text-slate-700">{f.numero}</p>
-                          <p className="text-xs text-slate-500">{f.periodo} · {dinero(Number(f.monto))}</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => alternarEstadoFactura(f)}
-                            className={"rounded-full px-2.5 py-1 text-[11px] font-semibold cursor-pointer " + (f.estado === "pagada" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-amber-50 text-amber-700 hover:bg-amber-100")}
-                          >
-                            {f.estado === "pagada" ? "Pagada" : "Pendiente"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setFacturaImprimir(f); setTimeout(() => imprimirDocumento("factura-imprimible", "printing-factura"), 50) }}
-                            title="Imprimir factura"
-                            aria-label="Imprimir factura"
-                            className={"rounded-lg p-1.5 cursor-pointer " + ACCION_VER}
-                          >
-                            <Printer size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Slug</p>
-                <div className="flex items-center justify-between rounded-xl border border-slate-200/60 p-3.5">
-                  <span className="font-mono text-sm text-slate-700">{detalle.slug}</span>
-                  <button type="button" onClick={() => copiarSlug(detalle.slug)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                    {slugCopiado ? <Check size={14} /> : <Copy size={14} />}
-                    {slugCopiado ? "Copiado" : "Copiar"}
-                  </button>
-                </div>
-              </div>
-
-              {/* ─── Ver actividades de esta óptica (logs_optica) — separado de
-                  "Actividad" del panel general, que es solo del superadmin. ─── */}
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actividad de esta óptica</p>
-                  <button type="button" onClick={alternarActividadOptica} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                    <History size={13} /> {mostrarActividadOptica ? "Ocultar" : "Ver actividades"}
-                  </button>
-                </div>
-
-                {mostrarActividadOptica && (
-                  <div className="rounded-xl border border-slate-200/60 p-3.5">
-                    {(() => {
-                      const usuariosEnLogsOptica = [...new Set(logsOptica.map((l) => l.usuario_nombre))]
-                      const logsFiltradosOptica = filtroUsuarioLogOptica === "todos" ? logsOptica : logsOptica.filter((l) => l.usuario_nombre === filtroUsuarioLogOptica)
-                      return (
-                        <>
-                          {usuariosEnLogsOptica.length > 0 && (
-                            <select
-                              value={filtroUsuarioLogOptica}
-                              onChange={(e) => setFiltroUsuarioLogOptica(e.target.value)}
-                              className="mb-2.5 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white"
-                            >
-                              <option value="todos">Todos los usuarios</option>
-                              {usuariosEnLogsOptica.map((n) => (<option key={n} value={n}>{n}</option>))}
-                            </select>
-                          )}
-                          {cargandoLogsOptica ? (
-                            <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
-                              <Loader2 size={14} className="animate-spin" /> Cargando actividad…
-                            </div>
-                          ) : logsFiltradosOptica.length === 0 ? (
-                            <p className="py-4 text-center text-xs text-slate-400">Sin actividad registrada para esta óptica.</p>
-                          ) : (
-                            <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto">
-                              {logsFiltradosOptica.map((l) => (
-                                <div key={l.id} className="py-2">
-                                  <p className="text-xs text-slate-700">
-                                    <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
-                                    {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
-                                  </p>
-                                  <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )
-                    })()}
-                  </div>
-                )}
-              </div>
-
-              {/* ─── Personalización del login (lo único que ve el cliente) — desde
-                  la migración 0052 el propio admin de esta óptica también puede
-                  editar esto desde su Configuración; PersonalizacionLogin.jsx es
-                  el mismo componente que usa ese lado. ─── */}
-              <div id="personalizacion-login">
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Personalización del login</p>
-                <PersonalizacionLogin
-                  opticaId={detalle.id}
-                  marca={detalle.marca}
-                  logoUrl={detalle.logo_url}
-                  onGuardado={({ marca, logoUrl }) => {
-                    setDetalle((prev) => (prev ? { ...prev, marca, logo_url: logoUrl } : prev))
-                    setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca, logo_url: logoUrl } : o)))
-                  }}
-                />
-              </div>
-
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Creada</p>
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 p-3.5 text-sm text-slate-700">
-                  <Calendar size={14} className="text-slate-500" />
-                  {formatearFecha(detalle.created_at)}
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500">
-                <Info size={14} className="mt-0.5 shrink-0" />
-                Los datos operativos de esta óptica (pacientes, citas, inventario) ya viven centralizados en Supabase, con acceso multi-tenant por RLS — no dependen del navegador de su administrador.
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Users size={13} /> Asistentes</p>
+              <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{asistentesPorOptica.get(detalle.id) || 0}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Stethoscope size={13} /> Pacientes</p>
+              <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{pacientesPorOptica.get(detalle.id) || 0}</p>
             </div>
           </div>
-        </div>
+
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Administradores</p>
+              <button type="button" onClick={() => (agregarAdminAbierto ? setAgregarAdminAbierto(false) : abrirAgregarAdmin())} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                <UserPlus size={13} /> Agregar
+              </button>
+            </div>
+
+            {(adminsPorOptica.get(detalle.id) || []).length === 0 ? (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 p-3.5 text-sm font-medium text-amber-700">
+                <AlertTriangle size={16} /> Sin administrador vinculado.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(adminsPorOptica.get(detalle.id) || []).map((a) => (
+                  adminAEliminar?.id === a.id ? (
+                    <div key={a.id} className="rounded-xl border border-rose-200/60 bg-rose-50 p-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-rose-700">¿Quitar a {a.nombre}?</span>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => { setAdminAEliminar(null); setErrorEliminarAdmin("") }} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">Cancelar</button>
+                          <button type="button" onClick={confirmarEliminarAdmin} disabled={eliminandoAdmin} className="rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
+                            {eliminandoAdmin ? "Quitando…" : "Confirmar"}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-1.5 text-xs text-rose-600">Esto elimina también su cuenta de acceso — su correo ({a.email || "sin correo"}) queda libre para usarse de nuevo.</p>
+                      {errorEliminarAdmin && (
+                        <p role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarAdmin}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div key={a.id} className="rounded-xl border border-slate-200/60 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-slate-800">{a.nombre}</p>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500"><Mail size={12} /><span className="truncate">{a.email || "—"}</span></div>
+                        </div>
+                        <button type="button" onClick={() => { setAdminAEliminar(a); setErrorEliminarAdmin("") }} title="Quitar administrador" className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"><Trash2 size={15} /></button>
+                      </div>
+                      <div className="mt-2.5 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
+                        <Cake size={13} className="shrink-0 text-slate-400" />
+                        <label className="text-xs text-slate-500">Cumpleaños</label>
+                        <span className="w-44"><CampoFecha id={`cumple-${a.id}`} valor={a.fecha_nacimiento || ""} onCambiar={(v) => { if (v !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, v) }} placeholder="Elige la fecha" /></span>
+                        {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2">
+                        <IdCard size={13} className="shrink-0 text-slate-400" />
+                        <label className="text-xs text-slate-500">Cédula</label>
+                        <input
+                          type="text" inputMode="numeric"
+                          defaultValue={a.cedula || ""}
+                          onBlur={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 10); if (v !== (a.cedula || "")) guardarCedula(a.id, v) }}
+                          disabled={guardandoCedula === a.id}
+                          placeholder="10 dígitos"
+                          maxLength={10}
+                          className="w-24 rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-1 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white disabled:opacity-60"
+                        />
+                        {guardandoCedula === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                      </div>
+                      {errorCedulaAdmin?.id === a.id && (
+                        <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-600">{errorCedulaAdmin.mensaje}</p>
+                      )}
+                      <label className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={!!a.es_optometra}
+                          onChange={(e) => guardarEsOptometra(a.id, e.target.checked)}
+                          className="h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
+                        />
+                        Es también el optómetra/licenciado
+                      </label>
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+
+            {agregarAdminAbierto && (
+              <form onSubmit={guardarAdminExtra} className="mt-3 space-y-3 rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
+                {errorAdminExtra && (
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                    <AlertCircle size={14} /> {errorAdminExtra}
+                  </div>
+                )}
+                <input
+                  type="text" placeholder="Nombre completo" value={camposAdminExtra.nombre} onChange={(e) => actualizarCampoAdminExtra("nombre", filtrarSoloLetras(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+                <input
+                  type="text" inputMode="numeric" placeholder="Cédula (10 dígitos)" maxLength={10}
+                  value={camposAdminExtra.cedula} onChange={(e) => actualizarCampoAdminExtra("cedula", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+                <input
+                  type="email" placeholder="Correo electrónico" value={camposAdminExtra.email} onChange={(e) => actualizarCampoAdminExtra("email", e.target.value)}
+                  className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <input
+                      type={verClaveExtra ? "text" : "password"} placeholder="Contraseña" value={camposAdminExtra.clave} onChange={(e) => actualizarCampoAdminExtra("clave", e.target.value)}
+                      className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 pr-8 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                    <button type="button" onClick={() => setVerClaveExtra((v) => !v)} aria-label={verClaveExtra ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{verClaveExtra ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                  </div>
+                  <input
+                    type={verClaveExtra ? "text" : "password"} placeholder="Confirmar" value={camposAdminExtra.confirmarClave} onChange={(e) => actualizarCampoAdminExtra("confirmarClave", e.target.value)}
+                    className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                  />
+                </div>
+                <label className="flex items-start gap-2 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={camposAdminExtra.esOptometra}
+                    onChange={(e) => actualizarCampoAdminExtra("esOptometra", e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
+                  />
+                  <span>Es también el optómetra/licenciado</span>
+                </label>
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setAgregarAdminAbierto(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                  <button type="submit" disabled={guardandoAdminExtra} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+                    {guardandoAdminExtra ? "Creando…" : "Crear cuenta"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* ─── Suscripción ─── */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Suscripción</p>
+            <div className="space-y-3 rounded-xl border border-slate-200/60 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
+                  {[
+                    { key: "al_dia", label: "Al día", fg: "#059669" },
+                    { key: "pendiente", label: "Pendiente", fg: "#B45309" },
+                    { key: "vencido", label: "Vencido", fg: "#E11D48" },
+                  ].map((op) => (
+                    <button
+                      key={op.key}
+                      type="button"
+                      disabled={actualizandoPago}
+                      onClick={() => actualizarEstadoPago(op.key)}
+                      className={"rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-60 " + ((detalle.estado_pago || "al_dia") === op.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                      style={(detalle.estado_pago || "al_dia") === op.key ? { color: op.fg } : undefined}
+                    >
+                      {op.label}
+                    </button>
+                  ))}
+                </div>
+                {(detalle.estado_pago || "al_dia") !== "al_dia" && (
+                  <button type="button" onClick={registrarPago} disabled={actualizandoPago} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+                    <Wallet size={13} /> Registrar pago
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
+                  <input
+                    type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={() => guardarSuscripcion()}
+                    placeholder="0.00"
+                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
+                  <CampoFecha id="suscripcion-vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
+                </div>
+              </div>
+              {guardandoSuscripcion && <p className="text-xs text-slate-400">Guardando…</p>}
+            </div>
+          </div>
+
+          {/* ─── Facturación ─── */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Facturación</p>
+              <button type="button" onClick={generarFactura} disabled={generandoFactura} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer disabled:opacity-60">
+                <Receipt size={13} /> {generandoFactura ? "Generando…" : "Generar factura"}
+              </button>
+            </div>
+            {cargandoFacturas ? (
+              <p className="py-3 text-center text-xs text-slate-400">Cargando…</p>
+            ) : facturasOptica.length === 0 ? (
+              <p className="py-3 text-center text-xs text-slate-400">Todavía no se generó ninguna factura.</p>
+            ) : (
+              <div className="space-y-2">
+                {facturasOptica.map((f) => (
+                  <div key={f.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/60 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-xs font-semibold text-slate-700">{f.numero}</p>
+                      <p className="text-xs text-slate-500">{f.periodo} · {dinero(Number(f.monto))}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => alternarEstadoFactura(f)}
+                        className={"rounded-full px-2.5 py-1 text-[11px] font-semibold cursor-pointer " + (f.estado === "pagada" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-amber-50 text-amber-700 hover:bg-amber-100")}
+                      >
+                        {f.estado === "pagada" ? "Pagada" : "Pendiente"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setFacturaImprimir(f); setTimeout(() => imprimirDocumento("factura-imprimible", "printing-factura"), 50) }}
+                        title="Imprimir factura"
+                        aria-label="Imprimir factura"
+                        className={"rounded-lg p-1.5 cursor-pointer " + ACCION_VER}
+                      >
+                        <Printer size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Slug</p>
+            <div className="flex items-center justify-between rounded-xl border border-slate-200/60 p-3.5">
+              <span className="font-mono text-sm text-slate-700">{detalle.slug}</span>
+              <button type="button" onClick={() => copiarSlug(detalle.slug)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                {slugCopiado ? <Check size={14} /> : <Copy size={14} />}
+                {slugCopiado ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+
+          {/* ─── Ver actividades de esta óptica (logs_optica) — separado de
+              "Actividad" del panel general, que es solo del superadmin. ─── */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actividad de esta óptica</p>
+              <button type="button" onClick={alternarActividadOptica} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                <History size={13} /> {mostrarActividadOptica ? "Ocultar" : "Ver actividades"}
+              </button>
+            </div>
+
+            {mostrarActividadOptica && (
+              <div className="rounded-xl border border-slate-200/60 p-3.5">
+                {(() => {
+                  const usuariosEnLogsOptica = [...new Set(logsOptica.map((l) => l.usuario_nombre))]
+                  const logsFiltradosOptica = filtroUsuarioLogOptica === "todos" ? logsOptica : logsOptica.filter((l) => l.usuario_nombre === filtroUsuarioLogOptica)
+                  return (
+                    <>
+                      {usuariosEnLogsOptica.length > 0 && (
+                        <select
+                          value={filtroUsuarioLogOptica}
+                          onChange={(e) => setFiltroUsuarioLogOptica(e.target.value)}
+                          className="mb-2.5 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white"
+                        >
+                          <option value="todos">Todos los usuarios</option>
+                          {usuariosEnLogsOptica.map((n) => (<option key={n} value={n}>{n}</option>))}
+                        </select>
+                      )}
+                      {cargandoLogsOptica ? (
+                        <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
+                          <Loader2 size={14} className="animate-spin" /> Cargando actividad…
+                        </div>
+                      ) : logsFiltradosOptica.length === 0 ? (
+                        <p className="py-4 text-center text-xs text-slate-400">Sin actividad registrada para esta óptica.</p>
+                      ) : (
+                        <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto">
+                          {logsFiltradosOptica.map((l) => (
+                            <div key={l.id} className="py-2">
+                              <p className="text-xs text-slate-700">
+                                <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
+                                {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
+                              </p>
+                              <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* ─── Personalización del login (lo único que ve el cliente) — desde
+              la migración 0052 el propio admin de esta óptica también puede
+              editar esto desde su Configuración; PersonalizacionLogin.jsx es
+              el mismo componente que usa ese lado. ─── */}
+          <div id="personalizacion-login">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Personalización del login</p>
+            <PersonalizacionLogin
+              opticaId={detalle.id}
+              marca={detalle.marca}
+              logoUrl={detalle.logo_url}
+              onGuardado={({ marca, logoUrl }) => {
+                setDetalle((prev) => (prev ? { ...prev, marca, logo_url: logoUrl } : prev))
+                setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, marca, logo_url: logoUrl } : o)))
+              }}
+            />
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Creada</p>
+            <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 p-3.5 text-sm text-slate-700">
+              <Calendar size={14} className="text-slate-500" />
+              {formatearFecha(detalle.created_at)}
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500">
+            <Info size={14} className="mt-0.5 shrink-0" />
+            Los datos operativos de esta óptica (pacientes, citas, inventario) ya viven centralizados en Supabase, con acceso multi-tenant por RLS — no dependen del navegador de su administrador.
+          </div>
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── Factura imprimible (oculta salvo al imprimir — imprimirDocumento
@@ -3675,513 +3640,334 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
       {/* ─── MODAL DETALLE MENSAJE ─── */}
       {mensajeAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => !enviandoRespuesta && setMensajeAbierto(null)}
-        >
-          <div
-            ref={refModalMensaje}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-mensaje-titulo"
-            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: mensajeAbierto.tipo === "anuncio" ? "#FFF7E6" : "#E8F0FF", color: mensajeAbierto.tipo === "anuncio" ? "#B45309" : "#2563EB" }}>
-                  {mensajeAbierto.tipo === "anuncio" ? <Megaphone size={20} /> : <MessageSquare size={20} />}
-                </div>
-                <div className="min-w-0">
-                  <h4 id="superadmin-modal-mensaje-titulo" className="truncate text-lg font-bold" style={{ color: INK }}>{mensajeAbierto.asunto}</h4>
-                  <p className="truncate text-xs text-slate-500">
-                    {mensajeAbierto.tipo === "anuncio" ? "Aviso general" : <>{mensajeAbierto.remitente_nombre} · {opticas.find((o) => o.id === mensajeAbierto.optica_id)?.nombre || "Óptica"}</>}
-                  </p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setMensajeAbierto(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+        <Cascaron
+          titulo={mensajeAbierto.asunto}
+          subtitulo={mensajeAbierto.tipo === "anuncio" ? "Aviso general" : <>{mensajeAbierto.remitente_nombre} · {opticas.find((o) => o.id === mensajeAbierto.optica_id)?.nombre || "Óptica"}</>}
+          marca={
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: mensajeAbierto.tipo === "anuncio" ? "#FFF7E6" : "#E8F0FF", color: mensajeAbierto.tipo === "anuncio" ? "#B45309" : "#2563EB" }}>
+              {mensajeAbierto.tipo === "anuncio" ? <Megaphone size={20} /> : <MessageSquare size={20} />}
             </div>
-
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-sm text-slate-700 whitespace-pre-wrap">{mensajeAbierto.cuerpo}</div>
-              <p className="flex items-center gap-1.5 text-xs text-slate-400"><Clock size={11} /> {formatearFechaHora(mensajeAbierto.created_at)}</p>
-
-              {mensajeAbierto.tipo === "consulta" && (
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tu respuesta</label>
-                  <textarea
-                    rows={4} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value)}
-                    placeholder="Escribe tu respuesta para el administrador…"
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  />
-                  {mensajeAbierto.respondido_at && (
-                    <p className="mt-1.5 text-xs text-slate-400">Última respuesta: {formatearFechaHora(mensajeAbierto.respondido_at)}</p>
+          }
+          ancho="max-w-lg"
+          onCerrar={() => !enviandoRespuesta && setMensajeAbierto(null)}
+          pie={mensajeAbierto.tipo === "consulta" ? (<>
+            <span />
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                  <button type="button" onClick={() => responderMensaje(false)} disabled={enviandoRespuesta} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">
+                    {enviandoRespuesta ? "Guardando…" : "Guardar respuesta"}
+                  </button>
+                  {mensajeAbierto.estado === "abierto" && (
+                    <button type="button" onClick={() => responderMensaje(true)} disabled={enviandoRespuesta} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+                      <CheckCircle2 size={16} /> Responder y marcar resuelto
+                    </button>
                   )}
-                </div>
+            </div>
+          </>) : null}
+        >
+          <div className="space-y-4 p-5">
+          <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-sm text-slate-700 whitespace-pre-wrap">{mensajeAbierto.cuerpo}</div>
+          <p className="flex items-center gap-1.5 text-xs text-slate-400"><Clock size={11} /> {formatearFechaHora(mensajeAbierto.created_at)}</p>
+
+          {mensajeAbierto.tipo === "consulta" && (
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tu respuesta</label>
+              <textarea
+                rows={4} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value)}
+                placeholder="Escribe tu respuesta para el administrador…"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+              />
+              {mensajeAbierto.respondido_at && (
+                <p className="mt-1.5 text-xs text-slate-400">Última respuesta: {formatearFechaHora(mensajeAbierto.respondido_at)}</p>
               )}
             </div>
-
-            {mensajeAbierto.tipo === "consulta" && (
-              <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => responderMensaje(false)} disabled={enviandoRespuesta} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer disabled:opacity-60">
-                  {enviandoRespuesta ? "Guardando…" : "Guardar respuesta"}
-                </button>
-                {mensajeAbierto.estado === "abierto" && (
-                  <button type="button" onClick={() => responderMensaje(true)} disabled={enviandoRespuesta} className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
-                    <CheckCircle2 size={16} /> Responder y marcar resuelto
-                  </button>
-                )}
-              </div>
-            )}
+          )}
           </div>
-        </div>
+        </Cascaron>
       )}
 
       {/* ─── MODAL NUEVO AVISO GENERAL ─── */}
       {modalAvisoAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => !publicandoAviso && setModalAvisoAbierto(false)}
-        >
-          <div
-            ref={refModalAviso}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-aviso-titulo"
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Megaphone size={20} />
-                </div>
-                <div>
-                  <h4 id="superadmin-modal-aviso-titulo" className="text-lg font-bold" style={{ color: INK }}>Nuevo aviso</h4>
-                  <p className="text-xs text-slate-500">
-                    {avisoDestino === "todos" ? "Lo van a ver todos los administradores de óptica." : "Solo lo va a ver el administrador de esa óptica."}
-                  </p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setModalAvisoAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
-                <X size={20} />
-              </button>
+        <Cascaron
+          titulo="Nuevo aviso"
+          subtitulo={avisoDestino === "todos" ? "Lo van a ver todos los administradores de óptica." : "Solo lo va a ver el administrador de esa óptica."}
+          Icono={Megaphone}
+          ancho="max-w-md"
+          onCerrar={() => !publicandoAviso && setModalAvisoAbierto(false)}
+          formulario={{ onSubmit: publicarAviso }}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={() => setModalAvisoAbierto(false)} disabled={publicandoAviso} className="rounded-lg border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={publicandoAviso} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+                    <Send size={15} /> {publicandoAviso ? "Publicando…" : "Publicar aviso"}
+                  </button>
             </div>
-            <form onSubmit={publicarAviso} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {errorAviso && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
-                    <AlertCircle size={16} /> {errorAviso}
-                  </div>
-                )}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Destinatario</label>
-                  <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-                    <button
-                      type="button"
-                      onClick={() => setAvisoDestino("todos")}
-                      className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestino === "todos" ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                      style={avisoDestino === "todos" ? { color: INK } : undefined}
-                    >
-                      Todos los administradores
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAvisoDestino(opticas[0]?.id || "")}
-                      className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestino !== "todos" ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                      style={avisoDestino !== "todos" ? { color: INK } : undefined}
-                    >
-                      Una óptica puntual
-                    </button>
-                  </div>
-                  {avisoDestino !== "todos" && (
-                    <select
-                      value={avisoDestino}
-                      onChange={(e) => setAvisoDestino(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                    >
-                      {opticas.map((o) => (
-                        <option key={o.id} value={o.id}>{o.nombre}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Asunto</label>
-                  <input
-                    type="text" value={avisoAsunto} onChange={(e) => setAvisoAsunto(e.target.value)}
-                    placeholder="Ej. Mantenimiento programado"
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
-                  <textarea
-                    rows={5} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
-                    placeholder="Escribe el aviso…"
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  />
-                </div>
+          </>}
+        >
+          <div className="space-y-4 p-5">
+            {errorAviso && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
+                <AlertCircle size={16} /> {errorAviso}
               </div>
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setModalAvisoAbierto(false)} disabled={publicandoAviso} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                  Cancelar
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Destinatario</label>
+              <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setAvisoDestino("todos")}
+                  className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestino === "todos" ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                  style={avisoDestino === "todos" ? { color: INK } : undefined}
+                >
+                  Todos los administradores
                 </button>
-                <button type="submit" disabled={publicandoAviso} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
-                  <Send size={15} /> {publicandoAviso ? "Publicando…" : "Publicar aviso"}
+                <button
+                  type="button"
+                  onClick={() => setAvisoDestino(opticas[0]?.id || "")}
+                  className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestino !== "todos" ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                  style={avisoDestino !== "todos" ? { color: INK } : undefined}
+                >
+                  Una óptica puntual
                 </button>
               </div>
-            </form>
+              {avisoDestino !== "todos" && (
+                <select
+                  value={avisoDestino}
+                  onChange={(e) => setAvisoDestino(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                >
+                  {opticas.map((o) => (
+                    <option key={o.id} value={o.id}>{o.nombre}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Asunto</label>
+              <input
+                type="text" value={avisoAsunto} onChange={(e) => setAvisoAsunto(e.target.value)}
+                placeholder="Ej. Mantenimiento programado"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
+              <textarea
+                rows={5} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
+                placeholder="Escribe el aviso…"
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+              />
+            </div>
           </div>
-        </div>
+        </Cascaron>
       )}
 
       {/* ─── MODAL CREAR ÓPTICA ─── */}
       {modalAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={cerrarModal}
+        <Cascaron
+          titulo="Crear óptica"
+          subtitulo="Se crea la óptica y la cuenta de su administrador en un solo paso."
+          Icono={Building2}
+          ancho="max-w-xl"
+          onCerrar={cerrarModal}
+          formulario={{ onSubmit: guardar }}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={cerrarModal} disabled={guardando} className="rounded-lg border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={guardando || slugEstado === "ocupado"} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                    {guardando ? "Creando…" : "Crear óptica"}
+                  </button>
+            </div>
+          </>}
         >
-          <div
-            ref={refModalCrearOptica}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-crear-optica-titulo"
-            className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Building2 size={20} />
+          <div className="space-y-5 p-5">
+            {error && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            )}
+
+            {/* ─── Sección: datos de la óptica ─── */}
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(37,99,235,0.1)", color: "#2563EB" }}>
+                  <Building2 size={14} />
                 </div>
+                <p className="text-sm font-bold text-slate-700">Datos de la óptica</p>
+              </div>
+              <div className="space-y-4 rounded-xl border border-slate-200/60 p-4">
                 <div>
-                  <h4 id="superadmin-modal-crear-optica-titulo" className="text-lg font-bold" style={{ color: INK }}>Crear óptica</h4>
-                  <p className="text-xs text-slate-500">Se crea la óptica y la cuenta de su administrador en un solo paso.</p>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre de la óptica</label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text" value={campos.nombreOptica} onChange={(e) => actualizarCampo("nombreOptica", e.target.value)}
+                      placeholder="Ej. Óptica Visión Clara"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                  </div>
+                  {sugerenciaNombreOptica && (
+                    <p className="mt-1.5 text-xs font-medium text-amber-700">
+                      Ya existe una óptica con ese nombre. Prueba con{" "}
+                      <button type="button" onClick={() => actualizarCampo("nombreOptica", sugerenciaNombreOptica)} className="underline decoration-dotted underline-offset-2 hover:text-amber-800 cursor-pointer">
+                        "{sugerenciaNombreOptica}"
+                      </button>.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Slug (código interno)</label>
+                  <div className="relative">
+                    <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text" value={campos.slug}
+                      onChange={(e) => actualizarCampo("slug", generarSlug(e.target.value))}
+                      placeholder="Ej. 4f9a2c"
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 font-mono text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                    <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+                      {slugEstado === "verificando" && <Loader2 size={15} className="animate-spin text-slate-400" />}
+                      {slugEstado === "disponible" && <CheckCircle2 size={15} className="text-emerald-600" />}
+                      {slugEstado === "ocupado" && <XCircle size={15} className="text-rose-600" />}
+                      <button type="button" onClick={() => actualizarCampo("slug", generarCodigoOptica())} title="Generar otro código" aria-label="Generar otro código" className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 cursor-pointer">
+                        <RefreshCw size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className={"mt-1.5 text-xs " + (slugEstado === "ocupado" ? "font-medium text-rose-600" : "text-slate-500")}>
+                    {slugEstado === "ocupado"
+                      ? "Ese código ya está en uso — genera otro."
+                      : "Código genérico, independiente del nombre — así no queda atado si la óptica se renombra después."}
+                  </p>
                 </div>
               </div>
-              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
-                <X size={20} />
-              </button>
             </div>
 
-            <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-                {error && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
-                    <AlertCircle size={16} />
-                    {error}
-                  </div>
-                )}
-
-                {/* ─── Sección: datos de la óptica ─── */}
+            {/* ─── Sección: personalización del login (opcional) — se
+                puede dejar en blanco y completar después desde el
+                detalle de la óptica ya creada; acá mismo ahorra ese
+                paso extra cuando ya se tienen los datos a mano. ─── */}
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(37,99,235,0.1)", color: "#2563EB" }}>
+                  <ImageIcon size={14} />
+                </div>
                 <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(37,99,235,0.1)", color: "#2563EB" }}>
-                      <Building2 size={14} />
+                  <p className="text-sm font-bold text-slate-700">Personalización del login <span className="font-normal text-slate-400">(opcional)</span></p>
+                  <p className="text-xs text-slate-500">Se puede completar ahora o después, desde el detalle de la óptica.</p>
+                </div>
+              </div>
+              <div className="space-y-4 rounded-xl border border-slate-200/60 p-4">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Eslogan</label>
+                  <input
+                    type="text" value={campos.eslogan} onChange={(e) => actualizarCampo("eslogan", e.target.value)}
+                    placeholder="Ej. Ve el mundo con claridad."
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Color de acento</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
+                        className="h-[42px] w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200/60 bg-slate-50 p-0.5"
+                      />
+                      <input
+                        type="text" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                      />
                     </div>
-                    <p className="text-sm font-bold text-slate-700">Datos de la óptica</p>
                   </div>
-                  <div className="space-y-4 rounded-xl border border-slate-200/60 p-4">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre de la óptica</label>
-                      <div className="relative">
-                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text" value={campos.nombreOptica} onChange={(e) => actualizarCampo("nombreOptica", e.target.value)}
-                          placeholder="Ej. Óptica Visión Clara"
-                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                        />
-                      </div>
-                      {sugerenciaNombreOptica && (
-                        <p className="mt-1.5 text-xs font-medium text-amber-700">
-                          Ya existe una óptica con ese nombre. Prueba con{" "}
-                          <button type="button" onClick={() => actualizarCampo("nombreOptica", sugerenciaNombreOptica)} className="underline decoration-dotted underline-offset-2 hover:text-amber-800 cursor-pointer">
-                            "{sugerenciaNombreOptica}"
-                          </button>.
-                        </p>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Logo</label>
+                    <div className="flex items-center gap-2">
+                      {campos.logoUrl && (
+                        <img src={campos.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-slate-200/60 object-contain bg-white" />
                       )}
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Slug (código interno)</label>
-                      <div className="relative">
-                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogoCreacion ? "pointer-events-none opacity-60" : "")}>
+                        <ImageIcon size={13} />
+                        {subiendoLogoCreacion ? "Subiendo…" : "Subir imagen"}
                         <input
-                          type="text" value={campos.slug}
-                          onChange={(e) => actualizarCampo("slug", generarSlug(e.target.value))}
-                          placeholder="Ej. 4f9a2c"
-                          className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-16 font-mono text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                          type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogoCreacion(f); e.target.value = "" }}
                         />
-                        <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
-                          {slugEstado === "verificando" && <Loader2 size={15} className="animate-spin text-slate-400" />}
-                          {slugEstado === "disponible" && <CheckCircle2 size={15} className="text-emerald-600" />}
-                          {slugEstado === "ocupado" && <XCircle size={15} className="text-rose-600" />}
-                          <button type="button" onClick={() => actualizarCampo("slug", generarCodigoOptica())} title="Generar otro código" aria-label="Generar otro código" className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 cursor-pointer">
-                            <RefreshCw size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      <p className={"mt-1.5 text-xs " + (slugEstado === "ocupado" ? "font-medium text-rose-600" : "text-slate-500")}>
-                        {slugEstado === "ocupado"
-                          ? "Ese código ya está en uso — genera otro."
-                          : "Código genérico, independiente del nombre — así no queda atado si la óptica se renombra después."}
-                      </p>
+                      </label>
                     </div>
+                    {errorLogoCreacion && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogoCreacion}</p>}
+                    <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
+                    <input
+                      type="text" value={campos.logoUrl} onChange={(e) => actualizarCampo("logoUrl", e.target.value)}
+                      placeholder="https://…"
+                      className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
                   </div>
                 </div>
-
-                {/* ─── Sección: personalización del login (opcional) — se
-                    puede dejar en blanco y completar después desde el
-                    detalle de la óptica ya creada; acá mismo ahorra ese
-                    paso extra cuando ya se tienen los datos a mano. ─── */}
-                <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(37,99,235,0.1)", color: "#2563EB" }}>
-                      <ImageIcon size={14} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-700">Personalización del login <span className="font-normal text-slate-400">(opcional)</span></p>
-                      <p className="text-xs text-slate-500">Se puede completar ahora o después, desde el detalle de la óptica.</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4 rounded-xl border border-slate-200/60 p-4">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Eslogan</label>
-                      <input
-                        type="text" value={campos.eslogan} onChange={(e) => actualizarCampo("eslogan", e.target.value)}
-                        placeholder="Ej. Ve el mundo con claridad."
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Color de acento</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
-                            className="h-[42px] w-12 shrink-0 cursor-pointer rounded-lg border border-slate-200/60 bg-slate-50 p-0.5"
-                          />
-                          <input
-                            type="text" value={campos.colorAcento} onChange={(e) => actualizarCampo("colorAcento", e.target.value)}
-                            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Logo</label>
-                        <div className="flex items-center gap-2">
-                          {campos.logoUrl && (
-                            <img src={campos.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-slate-200/60 object-contain bg-white" />
-                          )}
-                          <label className={"flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 " + (subiendoLogoCreacion ? "pointer-events-none opacity-60" : "")}>
-                            <ImageIcon size={13} />
-                            {subiendoLogoCreacion ? "Subiendo…" : "Subir imagen"}
-                            <input
-                              type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
-                              onChange={(e) => { const f = e.target.files?.[0]; if (f) subirLogoCreacion(f); e.target.value = "" }}
-                            />
-                          </label>
-                        </div>
-                        {errorLogoCreacion && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogoCreacion}</p>}
-                        <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
-                        <input
-                          type="text" value={campos.logoUrl} onChange={(e) => actualizarCampo("logoUrl", e.target.value)}
-                          placeholder="https://…"
-                          className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400">Las tarjetas de servicios quedan disponibles después, ya con la óptica creada.</p>
-                  </div>
-                </div>
-
-                {/* ─── Sección: cuenta del administrador ─── */}
-                <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(124,58,237,0.1)", color: "#7C3AED" }}>
-                      <User size={14} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-700">Cuenta del administrador</p>
-                      <p className="text-xs text-slate-500">Esta persona podrá iniciar sesión y gestionar la óptica.</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4 rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
-                        <div className="relative">
-                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            type="text" value={campos.nombreAdmin} onChange={(e) => actualizarCampo("nombreAdmin", filtrarSoloLetras(e.target.value))}
-                            placeholder="Ej. Ana Torres" autoComplete="name"
-                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
-                        <div className="relative">
-                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            type="email" value={campos.emailAdmin} onChange={(e) => actualizarCampo("emailAdmin", e.target.value)}
-                            placeholder="admin@vision-clara.com" autoComplete="email"
-                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
-                        <div className="relative">
-                          <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            type="text" inputMode="numeric" value={campos.cedulaAdmin}
-                            onChange={(e) => actualizarCampo("cedulaAdmin", e.target.value.replace(/\D/g, "").slice(0, 10))}
-                            placeholder="10 dígitos" maxLength={10}
-                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
-                        <p className="mt-1 text-[11px] text-slate-500">Única por óptica — evita que la misma persona tenga dos cuentas.</p>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento <span className="font-normal text-slate-400">(opcional)</span></label>
-                        <CampoFecha id="admin-nacimiento" valor={campos.fechaNacimientoAdmin} onCambiar={(v) => actualizarCampo("fechaNacimientoAdmin", v)} icono={Cake} placeholder="Elige la fecha" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Contraseña</label>
-                        <div className="relative">
-                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            type={verClave ? "text" : "password"} value={campos.clave} onChange={(e) => actualizarCampo("clave", e.target.value)}
-                            placeholder="8 o más, con letra y número"
-                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                          <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
-                            {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirmar contraseña</label>
-                        <div className="relative">
-                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            type={verClave ? "text" : "password"} value={campos.confirmarClave} onChange={(e) => actualizarCampo("confirmarClave", e.target.value)}
-                            placeholder="Repetir contraseña"
-                            className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    {(campos.clave || campos.confirmarClave) && (
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
-                        <span className={"flex items-center gap-1.5 text-xs font-medium " + (esClaveSegura(campos.clave) ? "text-emerald-600" : "text-slate-400")}>
-                          {esClaveSegura(campos.clave) ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                          8 o más caracteres, con letra y número
-                        </span>
-                        <span className={"flex items-center gap-1.5 text-xs font-medium " + (campos.confirmarClave && campos.clave === campos.confirmarClave ? "text-emerald-600" : "text-slate-400")}>
-                          {campos.confirmarClave && campos.clave === campos.confirmarClave ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                          Las contraseñas coinciden
-                        </span>
-                      </div>
-                    )}
-                    <label className="flex items-start gap-2 rounded-lg border border-slate-200/60 bg-white p-2.5 text-xs text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={campos.esOptometra}
-                        onChange={(e) => actualizarCampo("esOptometra", e.target.checked)}
-                        className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
-                      />
-                      <span>¿Este administrador es también el optómetra/licenciado? Es solo informativo, para saber si va a administrar el sistema él mismo o a delegarlo.</span>
-                    </label>
-                  </div>
-                </div>
+                <p className="text-xs text-slate-400">Las tarjetas de servicios quedan disponibles después, ya con la óptica creada.</p>
               </div>
-
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarModal} disabled={guardando} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={guardando || slugEstado === "ocupado"} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {guardando ? "Creando…" : "Crear óptica"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL AGREGAR SUPERADMIN ─── */}
-      {modalSuperadminAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
-        >
-          <div
-            ref={refModalAgregarSuperadmin}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-agregar-superadmin-titulo"
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h4 id="superadmin-modal-agregar-superadmin-titulo" className="text-lg font-bold" style={{ color: INK }}>Agregar superadmin</h4>
-                  <p className="text-xs text-slate-500">Tendrá el mismo acceso total que tú.</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setModalSuperadminAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
-                <X size={20} />
-              </button>
             </div>
-            <form onSubmit={guardarSuperadmin} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {errorSuperadmin && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
-                    <AlertCircle size={16} />
-                    {errorSuperadmin}
-                  </div>
-                )}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text" value={camposSuperadmin.nombre} onChange={(e) => actualizarCampoSuperadmin("nombre", filtrarSoloLetras(e.target.value))}
-                      placeholder="Ej. María Fernanda Loor"
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                  </div>
+
+            {/* ─── Sección: cuenta del administrador ─── */}
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: "rgba(124,58,237,0.1)", color: "#7C3AED" }}>
+                  <User size={14} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="email" value={camposSuperadmin.email} onChange={(e) => actualizarCampoSuperadmin("email", e.target.value)}
-                      placeholder="correo@ejemplo.com"
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
+                  <p className="text-sm font-bold text-slate-700">Cuenta del administrador</p>
+                  <p className="text-xs text-slate-500">Esta persona podrá iniciar sesión y gestionar la óptica.</p>
+                </div>
+              </div>
+              <div className="space-y-4 rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        type="text" value={campos.nombreAdmin} onChange={(e) => actualizarCampo("nombreAdmin", filtrarSoloLetras(e.target.value))}
+                        placeholder="Ej. Ana Torres" autoComplete="name"
+                        className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        type="email" value={campos.emailAdmin} onChange={(e) => actualizarCampo("emailAdmin", e.target.value)}
+                        placeholder="admin@vision-clara.com" autoComplete="email"
+                        className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
+                    <div className="relative">
+                      <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        type="text" inputMode="numeric" value={campos.cedulaAdmin}
+                        onChange={(e) => actualizarCampo("cedulaAdmin", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        placeholder="10 dígitos" maxLength={10}
+                        className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">Única por óptica — evita que la misma persona tenga dos cuentas.</p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento <span className="font-normal text-slate-400">(opcional)</span></label>
+                    <CampoFecha id="admin-nacimiento" valor={campos.fechaNacimientoAdmin} onCambiar={(v) => actualizarCampo("fechaNacimientoAdmin", v)} icono={Cake} placeholder="Elige la fecha" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -4190,226 +3976,285 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
-                        type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.clave} onChange={(e) => actualizarCampoSuperadmin("clave", e.target.value)}
+                        type={verClave ? "text" : "password"} value={campos.clave} onChange={(e) => actualizarCampo("clave", e.target.value)}
                         placeholder="8 o más, con letra y número"
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
-                      <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} aria-label={verClaveSuperadmin ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                      <button type="button" onClick={() => setVerClave((v) => !v)} aria-label={verClave ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
+                        {verClave ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirmar</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirmar contraseña</label>
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
-                        type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.confirmarClave} onChange={(e) => actualizarCampoSuperadmin("confirmarClave", e.target.value)}
+                        type={verClave ? "text" : "password"} value={campos.confirmarClave} onChange={(e) => actualizarCampo("confirmarClave", e.target.value)}
                         placeholder="Repetir contraseña"
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                        className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                     </div>
                   </div>
                 </div>
+                {(campos.clave || campos.confirmarClave) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
+                    <span className={"flex items-center gap-1.5 text-xs font-medium " + (esClaveSegura(campos.clave) ? "text-emerald-600" : "text-slate-400")}>
+                      {esClaveSegura(campos.clave) ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                      8 o más caracteres, con letra y número
+                    </span>
+                    <span className={"flex items-center gap-1.5 text-xs font-medium " + (campos.confirmarClave && campos.clave === campos.confirmarClave ? "text-emerald-600" : "text-slate-400")}>
+                      {campos.confirmarClave && campos.clave === campos.confirmarClave ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                      Las contraseñas coinciden
+                    </span>
+                  </div>
+                )}
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200/60 bg-white p-2.5 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={campos.esOptometra}
+                    onChange={(e) => actualizarCampo("esOptometra", e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
+                  />
+                  <span>¿Este administrador es también el optómetra/licenciado? Es solo informativo, para saber si va a administrar el sistema él mismo o a delegarlo.</span>
+                </label>
               </div>
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setModalSuperadminAbierto(false)} disabled={guardandoSuperadmin} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={guardandoSuperadmin} className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {guardandoSuperadmin ? "Creando…" : "Agregar superadmin"}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
+        </Cascaron>
+      )}
+
+      {/* ─── MODAL AGREGAR SUPERADMIN ─── */}
+      {modalSuperadminAbierto && (
+        <Cascaron
+          titulo="Agregar superadmin"
+          subtitulo="Tendrá el mismo acceso total que tú."
+          Icono={ShieldCheck}
+          ancho="max-w-md"
+          onCerrar={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
+          formulario={{ onSubmit: guardarSuperadmin }}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={() => setModalSuperadminAbierto(false)} disabled={guardandoSuperadmin} className="rounded-lg border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={guardandoSuperadmin} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                    {guardandoSuperadmin ? "Creando…" : "Agregar superadmin"}
+                  </button>
+            </div>
+          </>}
+        >
+          <div className="space-y-4 p-5">
+            {errorSuperadmin && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
+                <AlertCircle size={16} />
+                {errorSuperadmin}
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text" value={camposSuperadmin.nombre} onChange={(e) => actualizarCampoSuperadmin("nombre", filtrarSoloLetras(e.target.value))}
+                  placeholder="Ej. María Fernanda Loor"
+                  className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="email" value={camposSuperadmin.email} onChange={(e) => actualizarCampoSuperadmin("email", e.target.value)}
+                  placeholder="correo@ejemplo.com"
+                  className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Contraseña</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.clave} onChange={(e) => actualizarCampoSuperadmin("clave", e.target.value)}
+                    placeholder="8 o más, con letra y número"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                  />
+                  <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} aria-label={verClaveSuperadmin ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirmar</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.confirmarClave} onChange={(e) => actualizarCampoSuperadmin("confirmarClave", e.target.value)}
+                    placeholder="Repetir contraseña"
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMAR QUITAR SUPERADMIN ─── */}
       {superadminAEliminar && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => !eliminandoSuperadmin && setSuperadminAEliminar(null)}
-        >
-          <div
-            ref={refModalEliminarSuperadmin}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-eliminar-titulo"
-            className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5">
-              <div className="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-rose-50 text-rose-600"><AlertTriangle size={20} /></div>
-              <h4 id="superadmin-modal-eliminar-titulo" className="text-base font-bold" style={{ color: INK }}>¿Quitar a {superadminAEliminar.nombre} como superadmin?</h4>
-              <p className="mt-1.5 text-sm text-slate-500">Perderá acceso al panel y su cuenta de acceso se elimina — su correo queda libre para usarse de nuevo.</p>
-              {errorEliminarSuperadmin && (
-                <p role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarSuperadmin}</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
-              <button type="button" onClick={() => { setSuperadminAEliminar(null); setErrorEliminarSuperadmin("") }} disabled={eliminandoSuperadmin} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                Cancelar
-              </button>
-              <button type="button" onClick={confirmarEliminarSuperadmin} disabled={eliminandoSuperadmin} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
+        <Cascaron titulo={"¿Quitar a " + superadminAEliminar.nombre + " como superadmin?"} subtitulo="Confirma antes de continuar" Icono={AlertTriangle} ancho="max-w-md" onCerrar={() => !eliminandoSuperadmin && setSuperadminAEliminar(null)}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => { setSuperadminAEliminar(null); setErrorEliminarSuperadmin("") }} disabled={eliminandoSuperadmin} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
+              <button type="button" onClick={confirmarEliminarSuperadmin} disabled={eliminandoSuperadmin} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60">
                 {eliminandoSuperadmin ? "Quitando…" : "Quitar"}
               </button>
             </div>
+          </>}
+        >
+          <div className="p-6">
+            <p className="text-sm text-slate-600">Perderá acceso al panel y su cuenta de acceso se elimina — su correo queda libre para usarse de nuevo.</p>
+            {errorEliminarSuperadmin && (
+              <p role="alert" className="mt-2 flex items-center gap-1 text-xs font-semibold text-rose-700"><AlertCircle size={12} /> {errorEliminarSuperadmin}</p>
+            )}
           </div>
-        </div>
+        </Cascaron>
       )}
 
       {/* ─── MODAL MI CUENTA ─── */}
       {modalMiCuentaAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => !guardandoMiCuenta && !guardandoClaveNueva && setModalMiCuentaAbierto(false)}
+        <Cascaron
+          titulo="Mi cuenta"
+          subtitulo="Tus datos y tu acceso a este panel."
+          Icono={Settings}
+          ancho="max-w-md"
+          onCerrar={() => !guardandoMiCuenta && !guardandoClaveNueva && setModalMiCuentaAbierto(false)}
+          pie={<>
+            <span />
+            <button type="button" onClick={() => setModalMiCuentaAbierto(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
         >
-          <div
-            ref={refModalMiCuenta}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="superadmin-modal-mi-cuenta-titulo"
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Settings size={20} />
-                </div>
-                <div>
-                  <h4 id="superadmin-modal-mi-cuenta-titulo" className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
-                  <p className="text-xs text-slate-500">Tus datos y tu acceso a este panel.</p>
-                </div>
+          <div className="space-y-5 p-5">
+          {/* ─── Información personal ─── */}
+          <form onSubmit={guardarMiCuenta} className="space-y-3">
+            {errorMiCuenta && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                <AlertCircle size={14} /> {errorMiCuenta}
               </div>
-              <button type="button" onClick={() => setModalMiCuentaAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
-                <X size={20} />
+            )}
+            {avisoEmailPendiente && (
+              <div className="flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50 p-2.5 text-xs font-medium text-blue-700">
+                <Info size={14} className="shrink-0" /> Te enviamos un enlace a {camposMiCuenta.email} para confirmar el cambio de correo — hasta que lo confirmes, sigues entrando con el anterior.
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text" value={camposMiCuenta.nombre} onChange={(e) => setCamposMiCuenta((p) => ({ ...p, nombre: filtrarSoloLetras(e.target.value) }))}
+                  className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="email" value={camposMiCuenta.email} onChange={(e) => setCamposMiCuenta((p) => ({ ...p, email: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500">Es también tu usuario para iniciar sesión.</p>
+            </div>
+            <div className="flex justify-end">
+              <button type="submit" disabled={guardandoMiCuenta} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+                {guardandoMiCuenta ? "Guardando…" : "Guardar cambios"}
               </button>
             </div>
+          </form>
 
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-              {/* ─── Información personal ─── */}
-              <form onSubmit={guardarMiCuenta} className="space-y-3">
-                {errorMiCuenta && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                    <AlertCircle size={14} /> {errorMiCuenta}
-                  </div>
-                )}
-                {avisoEmailPendiente && (
-                  <div className="flex items-center gap-2 rounded-lg border border-blue-200/60 bg-blue-50 p-2.5 text-xs font-medium text-blue-700">
-                    <Info size={14} className="shrink-0" /> Te enviamos un enlace a {camposMiCuenta.email} para confirmar el cambio de correo — hasta que lo confirmes, sigues entrando con el anterior.
-                  </div>
-                )}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text" value={camposMiCuenta.nombre} onChange={(e) => setCamposMiCuenta((p) => ({ ...p, nombre: filtrarSoloLetras(e.target.value) }))}
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                  </div>
+          <div className="border-t border-slate-100 pt-5">
+            <p className="mb-3 text-sm font-bold text-slate-700">Cambiar contraseña</p>
+            <form onSubmit={actualizarMiClave} className="space-y-3">
+              {errorClaveNueva && (
+                <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
+                  <AlertCircle size={14} /> {errorClaveNueva}
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="email" value={camposMiCuenta.email} onChange={(e) => setCamposMiCuenta((p) => ({ ...p, email: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-500">Es también tu usuario para iniciar sesión.</p>
+              )}
+              {claveActualizada && (
+                <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
+                  <CheckCircle2 size={14} /> Contraseña actualizada.
                 </div>
-                <div className="flex justify-end">
-                  <button type="submit" disabled={guardandoMiCuenta} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
-                    {guardandoMiCuenta ? "Guardando…" : "Guardar cambios"}
+              )}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type={verClaveNueva ? "text" : "password"} placeholder="Nueva contraseña" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                  />
+                  <button type="button" onClick={() => setVerClaveNueva((v) => !v)} aria-label={verClaveNueva ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
+                    {verClaveNueva ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-              </form>
-
-              <div className="border-t border-slate-100 pt-5">
-                <p className="mb-3 text-sm font-bold text-slate-700">Cambiar contraseña</p>
-                <form onSubmit={actualizarMiClave} className="space-y-3">
-                  {errorClaveNueva && (
-                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                      <AlertCircle size={14} /> {errorClaveNueva}
-                    </div>
-                  )}
-                  {claveActualizada && (
-                    <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
-                      <CheckCircle2 size={14} /> Contraseña actualizada.
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input
-                        type={verClaveNueva ? "text" : "password"} placeholder="Nueva contraseña" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                      />
-                      <button type="button" onClick={() => setVerClaveNueva((v) => !v)} aria-label={verClaveNueva ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer">
-                        {verClaveNueva ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    <input
-                      type={verClaveNueva ? "text" : "password"} placeholder="Confirmar" value={confirmarClaveNueva} onChange={(e) => setConfirmarClaveNueva(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button type="submit" disabled={guardandoClaveNueva || !claveNueva} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0">
-                      {guardandoClaveNueva ? "Actualizando…" : "Actualizar contraseña"}
-                    </button>
-                  </div>
-                </form>
+                <input
+                  type={verClaveNueva ? "text" : "password"} placeholder="Confirmar" value={confirmarClaveNueva} onChange={(e) => setConfirmarClaveNueva(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 px-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                />
               </div>
-
-              <div className="border-t border-slate-100 pt-5">
-                <SeccionMfa />
+              <div className="flex justify-end">
+                <button type="submit" disabled={guardandoClaveNueva || !claveNueva} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0">
+                  {guardandoClaveNueva ? "Actualizando…" : "Actualizar contraseña"}
+                </button>
               </div>
-            </div>
+            </form>
           </div>
-        </div>
+
+          <div className="border-t border-slate-100 pt-5">
+            <SeccionMfa />
+          </div>
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMAR SUSPENDER/REACTIVAR ÓPTICA ───
           Antes esto pasaba con un solo clic, sin ningún paso de confirmación
           — el mismo menú de "⋮" que tiene "Copiar slug" al lado. */}
-      {opticaAConfirmar && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setOpticaAConfirmar(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className={"mb-4 grid h-12 w-12 place-items-center rounded-full " + (opticaAConfirmar.activa ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600")}>
-              {opticaAConfirmar.activa ? <Ban size={22} /> : <CheckCircle2 size={22} />}
-            </div>
-            <h2 className="text-lg font-bold" style={{ color: INK }}>
-              {opticaAConfirmar.activa ? "Suspender óptica" : "Reactivar óptica"}
-            </h2>
-            <p className="mt-1.5 text-sm text-slate-500">
-              {opticaAConfirmar.activa ? (
-                <>¿Seguro que deseas suspender <span className="font-semibold text-slate-700">{opticaAConfirmar.nombre}</span>? Su administrador y todo su equipo pierden acceso al sistema de inmediato.</>
-              ) : (
-                <>¿Reactivar <span className="font-semibold text-slate-700">{opticaAConfirmar.nombre}</span>? Recupera el acceso al sistema de inmediato.</>
-              )}
-            </p>
-            <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                Cancelar
-              </button>
+      {opticaAConfirmar && (
+        <Cascaron
+          titulo={opticaAConfirmar.activa ? "Suspender óptica" : "Reactivar óptica"}
+          subtitulo={opticaAConfirmar.nombre}
+          Icono={opticaAConfirmar.activa ? Ban : CheckCircle2}
+          ancho="max-w-md"
+          onCerrar={() => setOpticaAConfirmar(null)}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
               <button
                 type="button"
                 onClick={async () => { const o = opticaAConfirmar; setOpticaAConfirmar(null); await alternarActiva(o) }}
-                className={"flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer " + (opticaAConfirmar.activa ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700")}
+                className={"rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors cursor-pointer " + (opticaAConfirmar.activa ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700")}
               >
                 {opticaAConfirmar.activa ? "Suspender" : "Reactivar"}
               </button>
             </div>
-          </div>
-        </div>,
-        document.body
+          </>}
+        >
+          <p className="p-6 text-sm text-slate-600">
+            {opticaAConfirmar.activa ? (
+              <>¿Seguro que deseas suspender <span className="font-semibold text-slate-800">{opticaAConfirmar.nombre}</span>? Su administrador y todo su equipo pierden acceso al sistema de inmediato.</>
+            ) : (
+              <>¿Reactivar <span className="font-semibold text-slate-800">{opticaAConfirmar.nombre}</span>? Recupera el acceso al sistema de inmediato.</>
+            )}
+          </p>
+        </Cascaron>
       )}
     </div>
   )
