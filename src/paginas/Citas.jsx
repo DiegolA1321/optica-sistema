@@ -4,7 +4,6 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaLegible, fechaCorta, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
 import {
   Calendar,
@@ -68,7 +67,7 @@ import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacie
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { moverCitaAHoy as moverCitaAHoyCompartido } from "../utilidades/moverCitaAHoy"
 import { estadosCorregibles, estadoCorregibleEs, etiquetaEstadoCita } from "../utilidades/estadosCita"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -1228,12 +1227,6 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — un hook por
   // modal, cada uno gateado por el mismo booleano/valor que ya controla su
   // renderizado condicional más abajo.
-  const refModalAgendar = useModalAccesible(modalAbierto, cerrarModal)
-  const refModalCompletarRegistro = useModalAccesible(!!completarPara, cerrarCompletarRegistro)
-  const refModalCancelar = useModalAccesible(porCancelar != null, () => setPorCancelar(null))
-  const refModalReagendar = useModalAccesible(reagendando, cerrarReagendar)
-  const refModalMover = useModalAccesible(!!moviendo, () => setMoviendo(null))
-  const refModalReagendada = useModalAccesible(!!reagendada, () => setReagendada(null))
 
   // Filtros elegidos en el panel "Filtrar", como etiquetas con su "x" dentro de la barra. El periodo (Hoy, Esta semana, Este mes…)
   // se ve en sus propios atajos y la búsqueda en su campo, así que no llevan etiqueta.
@@ -1599,182 +1592,164 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
       )}
 
       {/* ─── MODAL AGENDAR ─── */}
-      {modalAbierto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div ref={refModalAgendar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-agendar-titulo" className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <UserPlus size={20} />
-                </div>
-                <div>
-                  <h4 id="citas-modal-agendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Gestionar cita</h4>
-                  <p className="text-xs text-slate-500">Busca al paciente o regístralo si acaba de llegar.</p>
-                </div>
+      {modalAbierto && (
+        <Cascaron titulo="Gestionar cita" subtitulo="Busca al paciente o regístralo si acaba de llegar." Icono={UserPlus} ancho="max-w-2xl" sinAnimarFondo={sinAnimarFondo} onCerrar={cerrarModal} formulario={{ onSubmit: validarYPedirConfirmacion }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={cerrarModal} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+              {atenderInmediato ? "Atender ahora" : "Confirmar cita"}
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </>}
+        >
+          <div className="space-y-4 p-5">
+          {error && (
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
+              <AlertTriangle size={16} />
+              {error}
+            </div>
+          )}
+
+          <div className="relative" ref={dropdownRef}>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="block text-sm font-semibold text-slate-700">Paciente</label>
+                {!mostrarNuevoPaciente && (
+                  <button
+                    type="button"
+                    onClick={() => { setMostrarNuevoPaciente(true); setPacienteId(null); setBusquedaPaciente("") }}
+                    className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    <UserPlus size={13} /> Añadir nuevo paciente
+                  </button>
+                )}
               </div>
-              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+
+              {mostrarNuevoPaciente ? (
+                <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-blue-700">Datos del paciente nuevo</p>
+                    <button type="button" onClick={() => setMostrarNuevoPaciente(false)} className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer">Cancelar</button>
+                  </div>
+                  <div>
+                    <input
+                      type="text" placeholder="Nombre completo" value={npNombre}
+                      onChange={(e) => setNpNombre(filtrarSoloLetras(e.target.value))}
+                      className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.nombre ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                    />
+                    {npErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.nombre}</p>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <div className="relative">
+                        <IdCard size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text" inputMode="numeric" maxLength={10} placeholder="Cédula" value={npCedula}
+                          onChange={(e) => setNpCedula(filtrarSoloNumeros(e.target.value, 10))}
+                          className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus-visible:ring-2 " + (npErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                        />
+                      </div>
+                      {npErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.cedula}</p>}
+                    </div>
+                    <div>
+                      <div className="relative">
+                        <Phone size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text" inputMode="numeric" maxLength={10} placeholder="Teléfono" value={npTelefono}
+                          onChange={(e) => setNpTelefono(filtrarSoloNumeros(e.target.value, 10))}
+                          className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.telefono ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                        />
+                      </div>
+                      {npErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.telefono}</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <div className="relative">
+                        <Mail size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="email" placeholder="Correo (opcional)" value={npCorreo}
+                          onChange={(e) => setNpCorreo(e.target.value)}
+                          className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.correo ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                        />
+                      </div>
+                      {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
+                    </div>
+                <CampoFecha id="np-nacimiento" valor={npFechaNacimiento} onCambiar={setNpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={npGuardando}
+                    onClick={guardarNuevoPacienteInline}
+                    className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    {npGuardando ? "Registrando…" : "Registrar y seleccionar"}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      value={busquedaPaciente}
+                      onFocus={() => setMostrarDropdown(true)}
+                      onChange={(e) => { setBusquedaPaciente(e.target.value); setPacienteId(null); setMostrarDropdown(true) }}
+                      placeholder="Escriba para buscar por nombre o cédula..."
+                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+                    />
+                  </div>
+                  {mostrarDropdown && pacientesFiltrados.length > 0 && (
+                    <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
+                      {pacientesFiltrados.map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => seleccionarPaciente(p)}
+                            className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left"
+                          >
+                            <span className="truncate font-semibold">{p.nombre}</span>
+                            {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-500">{p.cedula}</span>}
+                          </button>
+                          {/* Ya está registrado — atajo directo a su perfil completo
+                              (ficha clínica, historial, etc.) sin tener que salir de
+                              acá, buscarlo de nuevo en Pacientes. */}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); cerrarModal(); onVerPerfil?.(p.id) }}
+                            title="Ver perfil del paciente"
+                            aria-label="Ver perfil del paciente"
+                            className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-100 hover:text-blue-700 cursor-pointer"
+                          >
+                            <Eye size={15} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
             </div>
 
-            <form onSubmit={validarYPedirConfirmacion} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {error && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
-                    <AlertTriangle size={16} />
-                    {error}
-                  </div>
-                )}
-
-                <div className="relative" ref={dropdownRef}>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <label className="block text-sm font-semibold text-slate-700">Paciente</label>
-                      {!mostrarNuevoPaciente && (
-                        <button
-                          type="button"
-                          onClick={() => { setMostrarNuevoPaciente(true); setPacienteId(null); setBusquedaPaciente("") }}
-                          className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
-                        >
-                          <UserPlus size={13} /> Añadir nuevo paciente
-                        </button>
-                      )}
-                    </div>
-
-                    {mostrarNuevoPaciente ? (
-                      <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3.5">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-semibold text-blue-700">Datos del paciente nuevo</p>
-                          <button type="button" onClick={() => setMostrarNuevoPaciente(false)} className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer">Cancelar</button>
-                        </div>
-                        <div>
-                          <input
-                            type="text" placeholder="Nombre completo" value={npNombre}
-                            onChange={(e) => setNpNombre(filtrarSoloLetras(e.target.value))}
-                            className={"w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.nombre ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                          />
-                          {npErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.nombre}</p>}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <div className="relative">
-                              <IdCard size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                              <input
-                                type="text" inputMode="numeric" maxLength={10} placeholder="Cédula" value={npCedula}
-                                onChange={(e) => setNpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus-visible:ring-2 " + (npErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                              />
-                            </div>
-                            {npErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.cedula}</p>}
-                          </div>
-                          <div>
-                            <div className="relative">
-                              <Phone size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                              <input
-                                type="text" inputMode="numeric" maxLength={10} placeholder="Teléfono" value={npTelefono}
-                                onChange={(e) => setNpTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.telefono ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                              />
-                            </div>
-                            {npErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.telefono}</p>}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <div className="relative">
-                              <Mail size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                              <input
-                                type="email" placeholder="Correo (opcional)" value={npCorreo}
-                                onChange={(e) => setNpCorreo(e.target.value)}
-                                className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 text-sm outline-none transition focus-visible:ring-2 " + (npErrores.correo ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                              />
-                            </div>
-                            {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
-                          </div>
-                      <CampoFecha id="np-nacimiento" valor={npFechaNacimiento} onCambiar={setNpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
-                        </div>
-                        <button
-                          type="button"
-                          disabled={npGuardando}
-                          onClick={guardarNuevoPacienteInline}
-                          className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                        >
-                          {npGuardando ? "Registrando…" : "Registrar y seleccionar"}
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                          <input
-                            type="text"
-                            value={busquedaPaciente}
-                            onFocus={() => setMostrarDropdown(true)}
-                            onChange={(e) => { setBusquedaPaciente(e.target.value); setPacienteId(null); setMostrarDropdown(true) }}
-                            placeholder="Escriba para buscar por nombre o cédula..."
-                            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                          />
-                        </div>
-                        {mostrarDropdown && pacientesFiltrados.length > 0 && (
-                          <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
-                            {pacientesFiltrados.map((p) => (
-                              <li
-                                key={p.id}
-                                className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => seleccionarPaciente(p)}
-                                  className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left"
-                                >
-                                  <span className="truncate font-semibold">{p.nombre}</span>
-                                  {p.cedula && <span className="shrink-0 font-mono text-xs text-slate-500">{p.cedula}</span>}
-                                </button>
-                                {/* Ya está registrado — atajo directo a su perfil completo
-                                    (ficha clínica, historial, etc.) sin tener que salir de
-                                    acá, buscarlo de nuevo en Pacientes. */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); cerrarModal(); onVerPerfil?.(p.id) }}
-                                  title="Ver perfil del paciente"
-                                  aria-label="Ver perfil del paciente"
-                                  className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-100 hover:text-blue-700 cursor-pointer"
-                                >
-                                  <Eye size={15} />
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                <CamposCita
-                  prefijoId="citas"
-                  motivosConsulta={motivosConsulta}
-                  equipo={equipo}
-                  disponibilidad={disponibilidad}
-                  citas={citas}
-                  atenderInmediato={atenderInmediato}
-                  errorHorarioCustom={errorHorarioCustom}
-                  valores={{ motivo, asignadoA, fecha, hora, horaPersonalizada, horaCustom, duracionCustom }}
-                  cambiar={{ setMotivo, setAsignadoA, setFecha, setHora, setHoraPersonalizada, setHoraCustom, setDuracionCustom, limpiarErrorHorario: () => setErrorHorarioCustom("") }}
-                />
-              </div>
-
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarModal} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {atenderInmediato ? "Atender ahora" : "Confirmar cita"}
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </form>
+          <CamposCita
+            prefijoId="citas"
+            motivosConsulta={motivosConsulta}
+            equipo={equipo}
+            disponibilidad={disponibilidad}
+            citas={citas}
+            atenderInmediato={atenderInmediato}
+            errorHorarioCustom={errorHorarioCustom}
+            valores={{ motivo, asignadoA, fecha, hora, horaPersonalizada, horaCustom, duracionCustom }}
+            cambiar={{ setMotivo, setAsignadoA, setFecha, setHora, setHoraPersonalizada, setHoraCustom, setDuracionCustom, limpiarErrorHorario: () => setErrorHorarioCustom("") }}
+          />
+        
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
@@ -1814,94 +1789,74 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
       })()}
 
       {/* ─── COMPLETAR REGISTRO DEL PACIENTE (Atender sobre una cita sin paciente vinculado) ─── */}
-      {completarPara && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarCompletarRegistro}>
-          <div ref={refModalCompletarRegistro} role="dialog" aria-modal="true" aria-labelledby="citas-modal-completar-titulo" className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <UserPlus size={20} />
-                </div>
-                <div>
-                  <h4 id="citas-modal-completar-titulo" className="text-lg font-bold" style={{ color: INK }}>{cpSolo ? "Registrar paciente" : "Completar registro"}</h4>
-                  <p className="text-xs text-slate-500">
-                    {cpSolo ? "Quedará vinculado a esta cita." : "Antes de abrir la ficha clínica, confirma sus datos."}
-                  </p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarCompletarRegistro} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={guardarCompletarRegistro} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto p-5">
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
-                  <input
-                    type="text" value={cpNombre} onChange={(e) => setCpNombre(filtrarSoloLetras(e.target.value))}
-                    className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.nombre ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                  />
-                  {cpErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.nombre}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
-                    <div className="relative">
-                      <IdCard size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="text" inputMode="numeric" maxLength={10} value={cpCedula}
-                        onChange={(e) => setCpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                      />
-                    </div>
-                    {cpErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.cedula}</p>}
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono</label>
-                    <div className="relative">
-                      <Phone size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="text" inputMode="numeric" maxLength={10} value={cpTelefono}
-                        onChange={(e) => setCpTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.telefono ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                      />
-                    </div>
-                    {cpErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.telefono}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo <span className="normal-case text-slate-500">(opcional)</span></label>
-                    <div className="relative">
-                      <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="email" value={cpCorreo} onChange={(e) => setCpCorreo(e.target.value)}
-                        className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.correo ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                      />
-                    </div>
-                    {cpErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.correo}</p>}
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
-                      <CampoFecha id="cp-nacimiento" valor={cpFechaNacimiento} onCambiar={setCpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarCompletarRegistro} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {cpGuardando ? "Guardando…" : cpSolo ? "Registrar paciente" : "Registrar y atender"}
-                  {!cpSolo && <ChevronRight size={16} />}
-                </button>
-              </div>
-            </form>
+      {completarPara && (
+        <Cascaron titulo={cpSolo ? "Registrar paciente" : "Completar registro"} subtitulo={cpSolo ? "Quedará vinculado a esta cita." : "Antes de abrir la ficha clínica, confirma sus datos."} Icono={UserPlus} ancho="max-w-md" onCerrar={cerrarCompletarRegistro} formulario={{ onSubmit: guardarCompletarRegistro }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={cerrarCompletarRegistro} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" disabled={cpGuardando} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD }}>
+              {cpGuardando ? "Guardando…" : cpSolo ? "Registrar paciente" : "Registrar y atender"}
+              {!cpSolo && <ChevronRight size={16} />}
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-3.5 p-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo</label>
+            <input
+              type="text" value={cpNombre} onChange={(e) => setCpNombre(filtrarSoloLetras(e.target.value))}
+              className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.nombre ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+            />
+            {cpErrores.nombre && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.nombre}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
+              <div className="relative">
+                <IdCard size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text" inputMode="numeric" maxLength={10} value={cpCedula}
+                  onChange={(e) => setCpCedula(filtrarSoloNumeros(e.target.value, 10))}
+                  className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                />
+              </div>
+              {cpErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.cedula}</p>}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono</label>
+              <div className="relative">
+                <Phone size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text" inputMode="numeric" maxLength={10} value={cpTelefono}
+                  onChange={(e) => setCpTelefono(filtrarSoloNumeros(e.target.value, 10))}
+                  className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.telefono ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                />
+              </div>
+              {cpErrores.telefono && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.telefono}</p>}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo <span className="normal-case text-slate-500">(opcional)</span></label>
+              <div className="relative">
+                <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="email" value={cpCorreo} onChange={(e) => setCpCorreo(e.target.value)}
+                  className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.correo ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                />
+              </div>
+              {cpErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.correo}</p>}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
+                <CampoFecha id="cp-nacimiento" valor={cpFechaNacimiento} onCambiar={setCpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
+            </div>
+          </div>
+        
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMAR DATOS DEL PACIENTE (D2, reunión 29 sept.) ─── */}
@@ -1934,174 +1889,140 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
       )}
 
       {/* ─── MODAL CANCELAR ─── */}
-      {porCancelar != null && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPorCancelar(null)}>
-          <div ref={refModalCancelar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-cancelar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-red-50">
-              <AlertTriangle size={24} className="text-red-500" />
-            </div>
-            <h4 id="citas-modal-cancelar-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h4>
-            <p className="mt-1.5 text-center text-sm text-slate-500">La cita queda marcada como Cancelada — el registro no se borra y se puede reagendar cuando quieras.</p>
-            <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setPorCancelar(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                Volver
-              </button>
-              <button type="button" onClick={confirmarCancelacion} className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer">
-                Sí, cancelar
-              </button>
-            </div>
+      {porCancelar != null && (
+        <Cascaron titulo="¿Cancelar esta cita?" subtitulo="Confirma antes de continuar" Icono={AlertTriangle} ancho="max-w-md" onCerrar={() => setPorCancelar(null)}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setPorCancelar(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Volver</button>
+            <button type="button" onClick={confirmarCancelacion} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer">Sí, cancelar</button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <p className="p-6 text-sm text-slate-600">La cita queda marcada como Cancelada — el registro no se borra y se puede reagendar cuando quieras.</p>
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMAR MOVIMIENTO (arrastrar y soltar en el calendario) ─── */}
-      {moviendo && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMoviendo(null)}>
-          <div ref={refModalMover} role="dialog" aria-modal="true" aria-labelledby="citas-modal-mover-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-blue-50">
-              <CalendarClock size={24} className="text-blue-600" />
-            </div>
-            <h4 id="citas-modal-mover-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>
-              ¿Mover la cita de {moviendo.cita.paciente} al {formatoFecha(moviendo.fecha, "calendario", { enFrase: true })} a las {moviendo.hora}?
-            </h4>
-            <p className="mt-1.5 text-center text-sm text-slate-500">
+      {moviendo && (
+        <Cascaron titulo="Mover la cita" subtitulo={moviendo.cita.paciente} Icono={CalendarClock} ancho="max-w-md" onCerrar={() => setMoviendo(null)}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setMoviendo(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Volver</button>
+            <button type="button" onClick={confirmarMovimiento} disabled={guardandoMovimiento} className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+              {guardandoMovimiento && <Loader2 size={14} className="animate-spin" />}
+              Sí, mover
+            </button>
+          </div>
+        </>}
+        >
+          <div className="p-6">
+            <p className="text-sm font-semibold" style={{ color: INK }}>¿Mover la cita al {formatoFecha(moviendo.fecha, "calendario", { enFrase: true })} a las {moviendo.hora}?</p>
+            <p className="mt-1.5 text-sm text-slate-500">
               Ahora está {moviendo.cita.fecha === moviendo.fecha ? "ese mismo día" : "el " + formatoFecha(moviendo.cita.fecha, "calendario", { enFrase: true })} a las {moviendo.cita.hora}. La cita se reagenda, no se crea otra.
             </p>
-            <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setMoviendo(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                Volver
-              </button>
-              <button type="button" onClick={confirmarMovimiento} disabled={guardandoMovimiento} className="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
-                {guardandoMovimiento && <Loader2 size={14} className="animate-spin" />}
-                Sí, mover
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MODAL REAGENDAR ─── */}
-      {reagendando && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarReagendar}>
-          <div ref={refModalReagendar} role="dialog" aria-modal="true" aria-labelledby="citas-modal-reagendar-titulo" className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <CalendarClock size={20} />
-                </div>
-                <div>
-                  <h4 id="citas-modal-reagendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Editar cita</h4>
-                  <p className="text-xs text-slate-500">{reagendando.paciente}</p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarReagendar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={confirmarReagendar} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {errorReagendar && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
-                    <AlertTriangle size={16} />
-                    {errorReagendar}
-                  </div>
-                )}
-
-                <p className="rounded-lg bg-slate-50 p-2.5 text-center text-sm text-slate-600">
-                  Horario actual: <span className="font-mono font-bold text-slate-800">{reagendando.fecha ? etiquetaFecha(reagendando.fecha) : "Sin fecha"} · {reagendando.hora}</span>
-                </p>
-
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo del examen</label>
-                  <select
-                    value={nuevoMotivo}
-                    onChange={(e) => setNuevoMotivo(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  >
-                    <option value="" disabled>Seleccione el motivo del examen</option>
-                    {motivosConsulta.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <SelectorFechaHora
-                  disponibilidad={disponibilidad}
-                  citas={citas.filter((c) => c.id !== reagendando.id)}
-                  fecha={nuevaFecha}
-                  hora={nuevaHora}
-                  onCambiarFecha={setNuevaFecha}
-                  onCambiarHora={setNuevaHora}
-                />
-
-                {/* Excepción, no flujo normal: el estado lo deduce el sistema
-                    (En atención al abrir la ficha, Atendida al cobrar, No
-                    asistió a los 10 minutos). Esto solo sirve para deshacer un
-                    estado puesto por error. */}
-                <details className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
-                  <summary className="cursor-pointer text-sm font-semibold text-slate-600">Corregir estado (excepción)</summary>
-                  <p className="mt-2 text-xs text-slate-500">El estado cambia solo según lo que ocurre en la visita. Úsalo únicamente para deshacer un estado puesto por error.</p>
-                  <label htmlFor="citas-estado-corregido" className="sr-only">Estado de la cita</label>
-                  <select
-                    id="citas-estado-corregido"
-                    value={estadoCorregido}
-                    onChange={(e) => setEstadoCorregido(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-                  >
-                    {estadosCorregibles(reagendando).map((e) => (
-                      <option key={e} value={e}>{etiquetaEstadoCita(e)}</option>
-                    ))}
-                  </select>
-                </details>
-              </div>
-
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={cerrarReagendar} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  Guardar cambios
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </form>
+      {reagendando && (
+        <Cascaron titulo="Editar cita" subtitulo={reagendando.paciente} Icono={CalendarClock} ancho="max-w-2xl" onCerrar={cerrarReagendar} formulario={{ onSubmit: confirmarReagendar }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={cerrarReagendar} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+              Guardar cambios
+              <ChevronRight size={16} />
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-4 p-5">
+          {errorReagendar && (
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
+              <AlertTriangle size={16} />
+              {errorReagendar}
+            </div>
+          )}
+
+          <p className="rounded-lg bg-slate-50 p-2.5 text-center text-sm text-slate-600">
+            Horario actual: <span className="font-mono font-bold text-slate-800">{reagendando.fecha ? etiquetaFecha(reagendando.fecha) : "Sin fecha"} · {reagendando.hora}</span>
+          </p>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo del examen</label>
+            <select
+              value={nuevoMotivo}
+              onChange={(e) => setNuevoMotivo(e.target.value)}
+              required
+              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+            >
+              <option value="" disabled>Seleccione el motivo del examen</option>
+              {motivosConsulta.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+
+          <SelectorFechaHora
+            disponibilidad={disponibilidad}
+            citas={citas.filter((c) => c.id !== reagendando.id)}
+            fecha={nuevaFecha}
+            hora={nuevaHora}
+            onCambiarFecha={setNuevaFecha}
+            onCambiarHora={setNuevaHora}
+          />
+
+          {/* Excepción, no flujo normal: el estado lo deduce el sistema
+              (En atención al abrir la ficha, Atendida al cobrar, No
+              asistió a los 10 minutos). Esto solo sirve para deshacer un
+              estado puesto por error. */}
+          <details className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-600">Corregir estado (excepción)</summary>
+            <p className="mt-2 text-xs text-slate-500">El estado cambia solo según lo que ocurre en la visita. Úsalo únicamente para deshacer un estado puesto por error.</p>
+            <label htmlFor="citas-estado-corregido" className="sr-only">Estado de la cita</label>
+            <select
+              id="citas-estado-corregido"
+              value={estadoCorregido}
+              onChange={(e) => setEstadoCorregido(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+            >
+              {estadosCorregibles(reagendando).map((e) => (
+                <option key={e} value={e}>{etiquetaEstadoCita(e)}</option>
+              ))}
+            </select>
+          </details>
+        
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── CITA REAGENDADA: ofrecer avisar al paciente ─── */}
-      {reagendada && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setReagendada(null)}>
-          <div ref={refModalReagendada} role="dialog" aria-modal="true" aria-labelledby="citas-modal-reagendada-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
-              <CheckCircle2 size={24} className="text-emerald-600" />
-            </div>
-            <h4 id="citas-modal-reagendada-titulo" className="text-center text-lg font-bold" style={{ color: INK }}>Cita reagendada</h4>
-            <p className="mt-1.5 text-center text-sm text-slate-500">
-              {reagendada.paciente} ahora tiene su cita el <span className="font-semibold text-slate-700">{etiquetaFecha(reagendada.fecha)} a las {reagendada.hora}</span>. Ya se actualizó en su portal — ¿quieres avisarle también por WhatsApp?
-            </p>
-            <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setReagendada(null)} className="flex-1 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                Ahora no
-              </button>
-              <button
-                type="button"
-                onClick={() => { avisarReagendoWhatsApp(reagendada); setReagendada(null) }}
-                disabled={!reagendada.telefono}
-                title={reagendada.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <MessageCircle size={15} /> Avisar
-              </button>
-            </div>
+      {reagendada && (
+        <Cascaron titulo="Cita reagendada" subtitulo={reagendada.paciente} Icono={CheckCircle2} ancho="max-w-md" onCerrar={() => setReagendada(null)}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setReagendada(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Ahora no</button>
+            <button
+              type="button"
+              onClick={() => { avisarReagendoWhatsApp(reagendada); setReagendada(null) }}
+              disabled={!reagendada.telefono}
+              title={reagendada.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <MessageCircle size={15} /> Avisar
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <p className="p-6 text-sm text-slate-600">
+            {reagendada.paciente} ahora tiene su cita el <span className="font-semibold text-slate-800">{etiquetaFecha(reagendada.fecha)} a las {reagendada.hora}</span>. Ya se actualizó en su portal — ¿quieres avisarle también por WhatsApp?
+          </p>
+        </Cascaron>
       )}
 
       {dejarCita && (
