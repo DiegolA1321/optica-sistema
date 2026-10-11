@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esEmailValido } from "../utilidades/validaciones"
 import { irALegal } from "../utilidades/resolverSitio"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import {
   Eye,
   Users,
@@ -680,106 +681,95 @@ export default function PaginaVenta() {
 
       {/* ─── MODAL: SOLICITUD ─── */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <ArrowRight size={20} />
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Obtener sistema</h4>
-                  <p className="text-xs text-slate-500">Cuéntanos de tu óptica y te contactamos.</p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
+        <Cascaron
+          titulo="Obtener sistema"
+          subtitulo="Cuéntanos de tu óptica y te contactamos."
+          Icono={ArrowRight}
+          ancho="max-w-lg"
+          onCerrar={cerrarModal}
+          formulario={enviado ? null : { onSubmit: enviarSolicitud }}
+          pie={enviado ? (<>
+            <span />
+            <button type="button" onClick={cerrarModal} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>) : (<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" disabled={enviando} onClick={cerrarModal} className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button type="submit" disabled={enviando} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+                {enviando ? <><Loader2 size={15} className="animate-spin" /> Enviando...</> : "Enviar solicitud"}
               </button>
             </div>
-
-            {enviado ? (
-              <div className="flex flex-col items-center gap-3 p-8 text-center">
-                <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600">
-                  <Check size={26} />
-                </div>
-                <h4 className="text-lg font-bold" style={{ color: INK }}>¡Listo! Recibimos tu solicitud</h4>
-                <p className="text-sm text-slate-500">Te vamos a contactar pronto para mostrarte el sistema completo y armar tu plan.</p>
-                <button type="button" onClick={cerrarModal} className="mt-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cerrar
-                </button>
+          </>)}
+        >
+          {enviado ? (
+            <div className="flex flex-col items-center gap-3 p-8 text-center">
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+                <Check size={26} />
               </div>
-            ) : (
-              <form onSubmit={enviarSolicitud} className="flex min-h-0 flex-1 flex-col">
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                  {error && (
-                    <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
-                      <AlertTriangle size={16} />
-                      {error}
-                    </div>
-                  )}
+              <h4 className="text-lg font-bold" style={{ color: INK }}>¡Listo! Recibimos tu solicitud</h4>
+              <p className="text-sm text-slate-500">Te vamos a contactar pronto para mostrarte el sistema completo y armar tu plan.</p>
+            </div>
+          ) : (
+            <div className="space-y-4 p-5">
+                {error && (
+                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                    <AlertTriangle size={16} />
+                    {error}
+                  </div>
+                )}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre de la óptica</label>
+                  <input
+                    type="text" value={campos.nombreOptica} onChange={(e) => actualizarCampo("nombreOptica", e.target.value)}
+                    placeholder="Ej. Óptica Vision Plus"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Alias o dominio que te gustaría <span className="font-normal text-slate-400">(opcional)</span></label>
+                  <input
+                    type="text" value={campos.slugDeseado} onChange={(e) => actualizarCampo("slugDeseado", e.target.value)}
+                    placeholder="Ej. vision-plus"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre de la óptica</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tu nombre</label>
                     <input
-                      type="text" value={campos.nombreOptica} onChange={(e) => actualizarCampo("nombreOptica", e.target.value)}
-                      placeholder="Ej. Óptica Vision Plus"
+                      type="text" value={campos.nombreAdmin} onChange={(e) => actualizarCampo("nombreAdmin", filtrarSoloLetras(e.target.value))}
+                      placeholder="Ej. Ana Torres"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Alias o dominio que te gustaría <span className="font-normal text-slate-400">(opcional)</span></label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono <span className="font-normal text-slate-400">(opcional)</span></label>
                     <input
-                      type="text" value={campos.slugDeseado} onChange={(e) => actualizarCampo("slugDeseado", e.target.value)}
-                      placeholder="Ej. vision-plus"
+                      type="tel" value={campos.telefono} onChange={(e) => actualizarCampo("telefono", filtrarSoloNumeros(e.target.value, 10))}
+                      placeholder="Ej. 0991234567"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tu nombre</label>
-                      <input
-                        type="text" value={campos.nombreAdmin} onChange={(e) => actualizarCampo("nombreAdmin", filtrarSoloLetras(e.target.value))}
-                        placeholder="Ej. Ana Torres"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono <span className="font-normal text-slate-400">(opcional)</span></label>
-                      <input
-                        type="tel" value={campos.telefono} onChange={(e) => actualizarCampo("telefono", filtrarSoloNumeros(e.target.value, 10))}
-                        placeholder="Ej. 0991234567"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
-                    <input
-                      type="email" value={campos.emailAdmin} onChange={(e) => actualizarCampo("emailAdmin", e.target.value)}
-                      placeholder="tucorreo@ejemplo.com"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cuéntanos algo más <span className="font-normal text-slate-400">(opcional)</span></label>
-                    <textarea
-                      rows={3} value={campos.mensaje} onChange={(e) => actualizarCampo("mensaje", e.target.value)}
-                      placeholder="Ej. cuántos optómetras trabajan en tu óptica..."
-                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
                 </div>
-                <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                  <button type="button" disabled={enviando} onClick={cerrarModal} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                    Cancelar
-                  </button>
-                  <button type="submit" disabled={enviando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                    {enviando ? <><Loader2 size={15} className="animate-spin" /> Enviando...</> : "Enviar solicitud"}
-                  </button>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico</label>
+                  <input
+                    type="email" value={campos.emailAdmin} onChange={(e) => actualizarCampo("emailAdmin", e.target.value)}
+                    placeholder="tucorreo@ejemplo.com"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                  />
                 </div>
-              </form>
-            )}
-          </div>
-        </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cuéntanos algo más <span className="font-normal text-slate-400">(opcional)</span></label>
+                  <textarea
+                    rows={3} value={campos.mensaje} onChange={(e) => actualizarCampo("mensaje", e.target.value)}
+                    placeholder="Ej. cuántos optómetras trabajan en tu óptica..."
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-50"
+                  />
+                </div>
+            </div>
+          )}
+        </Cascaron>
       )}
 
       {/* ─── FOOTER ─── */}
