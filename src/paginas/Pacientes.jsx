@@ -22,7 +22,6 @@ import {
   Calendar,
   CalendarPlus,
   Users,
-  X,
   Cake,
   ShoppingBag,
   AlertTriangle,
@@ -91,7 +90,7 @@ import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
 import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
 import CampoFecha from "../componentes/CampoFecha"
-import { ModalAtencion, ModalHistoriaClinica, ModalDatosPaciente } from "../componentes/AtencionPaciente"
+import { Cascaron, ModalAtencion, ModalHistoriaClinica, ModalDatosPaciente } from "../componentes/AtencionPaciente"
 import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelCompras, PanelPuntaje, PanelReferidos, PanelCumple, PanelCitasEstado } from "../componentes/DetallesResumen"
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
@@ -1501,171 +1500,139 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       )}
 
       {/* ─── MODAL CREAR / EDITAR ─── */}
-      {modalAbierto && createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={cerrarModal}>
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <UserPlus size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>
-                    {idEditando ? "Editar paciente" : "Crear paciente"}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {idEditando ? "Actualiza sus datos de contacto y registro." : "Datos básicos para registrarlo en el sistema."}
-                  </p>
-                </div>
-              </div>
-              <button type="button" onClick={cerrarModal} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+      {modalAbierto && (
+        <Cascaron titulo={idEditando ? "Editar paciente" : "Crear paciente"} subtitulo={idEditando ? "Actualiza sus datos de contacto y registro." : "Datos básicos para registrarlo en el sistema."} Icono={UserPlus} ancho="max-w-lg" capa="z-[60]" onCerrar={cerrarModal} formulario={{ onSubmit: manejarEnvio }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={cerrarModal} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" disabled={guardandoPaciente} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+              {guardandoPaciente ? "Guardando…" : idEditando ? "Guardar cambios" : "Registrar paciente"}
+            </button>
+          </div>
+        </>}
+        >
+          <div className="space-y-4 px-6 py-5">
+            <div>
+              <label htmlFor="p-nombre" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Apellidos y nombres <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego" autoComplete="name"
+                value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
+                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+              />
+              {erroresForm.nombre && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.nombre}</p>}
             </div>
 
-            <form onSubmit={manejarEnvio} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="p-nombre" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Apellidos y nombres <span className="text-red-500">*</span>
+                <label htmlFor="p-cedula" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Cédula <span className="text-red-500">*</span>
                 </label>
-                <input
-                  id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego" autoComplete="name"
-                  value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
-                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                />
-                {erroresForm.nombre && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.nombre}</p>}
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="p-cedula" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                    Cédula <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                    <input
-                      id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10} autoComplete="off"
-                      value={cedula} onChange={(e) => setCedula(filtrarSoloNumeros(e.target.value, 10))}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.cedula ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                    />
-                  </div>
-                  {erroresForm.cedula && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.cedula}</p>}
+                <div className="relative">
+                  <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                  <input
+                    id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10} autoComplete="off"
+                    value={cedula} onChange={(e) => setCedula(filtrarSoloNumeros(e.target.value, 10))}
+                    className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.cedula ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                  />
                 </div>
-
-                <div>
-                  <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento *</label>
-                  <CampoFecha id="p-nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido placeholder="Elige la fecha" />
-                  {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="p-telefono" className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                    <input
-                      id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10} autoComplete="tel"
-                      value={telefono} onChange={(e) => setTelefono(filtrarSoloNumeros(e.target.value, 10))}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.telefono ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                    />
-                  </div>
-                  {erroresForm.telefono && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.telefono}</p>}
-                </div>
-
-                <div>
-                  <label htmlFor="p-correo" className="mb-1.5 block text-sm font-semibold text-slate-700">Correo</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                    <input
-                      id="p-correo" type="email" placeholder="correo@ejemplo.com" autoComplete="email"
-                      value={correo} onChange={(e) => setCorreo(e.target.value)}
-                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.correo ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                    />
-                  </div>
-                  {erroresForm.correo && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.correo}</p>}
-                </div>
+                {erroresForm.cedula && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.cedula}</p>}
               </div>
 
               <div>
-                <label htmlFor="p-referido" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Referido por <span className="normal-case text-slate-500">(opcional)</span>
-                </label>
-                <SelectorBuscable
-                  id="p-referido"
-                  valor={referidoPor}
-                  onChange={setReferidoPor}
-                  icono={Heart}
-                  placeholder="Escribe un nombre…"
-                  etiquetaNinguno="Nadie / llegó por su cuenta"
-                  options={pacientes.filter((x) => x.nombre !== nombre).map((x) => ({ id: x.nombre, etiqueta: x.nombre, detalle: x.cedula }))}
-                />
-                <p className="mt-1 text-xs text-slate-500">Si vino recomendado por otro paciente, selecciónalo aquí para reconocerlo en el CRM.</p>
+                <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento *</label>
+                <CampoFecha id="p-nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido placeholder="Elige la fecha" />
+                {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="p-telefono" className="mb-1.5 block text-sm font-semibold text-slate-700">Teléfono</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                  <input
+                    id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10} autoComplete="tel"
+                    value={telefono} onChange={(e) => setTelefono(filtrarSoloNumeros(e.target.value, 10))}
+                    className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.telefono ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                  />
+                </div>
+                {erroresForm.telefono && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.telefono}</p>}
               </div>
 
-              <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4">
-                <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardandoPaciente}
-                  className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{ background: GRAD }}
-                >
-                  {guardandoPaciente ? "Guardando…" : idEditando ? "Guardar cambios" : "Registrar paciente"}
-                </button>
+              <div>
+                <label htmlFor="p-correo" className="mb-1.5 block text-sm font-semibold text-slate-700">Correo</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                  <input
+                    id="p-correo" type="email" placeholder="correo@ejemplo.com" autoComplete="email"
+                    value={correo} onChange={(e) => setCorreo(e.target.value)}
+                    className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.correo ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                  />
+                </div>
+                {erroresForm.correo && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.correo}</p>}
               </div>
-            </form>
+            </div>
+
+            <div>
+              <label htmlFor="p-referido" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Referido por <span className="normal-case text-slate-500">(opcional)</span>
+              </label>
+              <SelectorBuscable
+                id="p-referido"
+                valor={referidoPor}
+                onChange={setReferidoPor}
+                icono={Heart}
+                placeholder="Escribe un nombre…"
+                etiquetaNinguno="Nadie / llegó por su cuenta"
+                options={pacientes.filter((x) => x.nombre !== nombre).map((x) => ({ id: x.nombre, etiqueta: x.nombre, detalle: x.cedula }))}
+              />
+              <p className="mt-1 text-xs text-slate-500">Si vino recomendado por otro paciente, selecciónalo aquí para reconocerlo en el CRM.</p>
+            </div>
+            
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── PACIENTE CREADO: ofrecer abrir su ficha clínica ─── */}
-      {pacienteRecienCreado && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setPacienteRecienCreado(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-emerald-50">
-              <CheckCircle size={24} className="text-emerald-600" />
-            </div>
-            <h4 className="text-center text-lg font-bold" style={{ color: INK }}>Paciente registrado</h4>
-            <p className="mt-1.5 text-center text-sm text-slate-500">
-              <span className="font-semibold text-slate-700">{pacienteRecienCreado.nombre}</span> ya está en el sistema. ¿Qué quieres hacer ahora?
-            </p>
+      {pacienteRecienCreado && (
+        <Cascaron titulo="Paciente registrado" subtitulo={pacienteRecienCreado.nombre + " ya está en el sistema."} Icono={CheckCircle} ancho="max-w-md" onCerrar={() => setPacienteRecienCreado(null)}
+          pie={<>
+            <span />
+            <button type="button" onClick={() => setPacienteRecienCreado(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Ahora no</button>
+          </>}
+        >
+          <div className="p-6">
+            <p className="text-sm text-slate-500">¿Qué quieres hacer ahora?</p>
             {/* Antes solo ofrecía "Abrir ficha clínica" — asumía que siempre se
                 está registrando a alguien para atenderlo ya mismo. Pero
                 también se registra gente para agendarla más adelante (no
                 todo el que llega al mostrador es un walk-in) — sin esto,
                 había que cerrar el modal y buscarlo de nuevo en la lista
                 para agendarle una cita. */}
-            <div className="mt-6 space-y-2">
+            <div className="mt-4 space-y-2">
               {puedeAtender && (
-              <button
-                type="button"
-                onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); onIrAFichaClinica?.(p) }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
-                style={{ background: GRAD }}
-              >
-                <Stethoscope size={15} /> Atenderlo ahora — abrir ficha clínica
-              </button>
+                <button
+                  type="button"
+                  onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); onIrAFichaClinica?.(p) }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+                  style={{ background: GRAD }}
+                >
+                  <Stethoscope size={15} /> Atenderlo ahora — abrir ficha clínica
+                </button>
               )}
               <button
                 type="button"
                 onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); abrirAgendar(p) }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
               >
                 <CalendarPlus size={15} /> Agendarle una cita para después
               </button>
-              <button type="button" onClick={() => setPacienteRecienCreado(null)} className="w-full rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 cursor-pointer">
-                Ahora no
-              </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MENÚ "MÁS ACCIONES" (portal, ver comentario junto a abrirMenuAcciones) ─── */}
@@ -1733,69 +1700,50 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
         />
       )}
       {/* ─── MODAL CUENTA DE ACCESO (clave temporal) ─── */}
-      {cuentaPaciente && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setCuentaPaciente(null)}>
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <KeyRound size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold" style={{ color: INK }}>
-                    {cuentaPaciente.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"}
-                  </h2>
-                  <p className="text-xs text-slate-500">Portal del paciente</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setCuentaPaciente(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4 px-6 py-5">
-              <p className="text-sm text-slate-600">
-                Acceso para <span className="font-semibold text-slate-800">{cuentaPaciente.nombre}</span>. Con estos datos podrá entrar a ver sus recetas, citas y evolución.
-              </p>
-
-              {/* Credenciales */}
-              <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario</span>
-                  <span className="font-mono text-sm font-bold text-slate-800">{cuentaPaciente.cedula || cuentaPaciente.correo}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Clave temporal</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-base font-black" style={{ color: "#2563EB" }}>{claveGen}</span>
-                    <button type="button" onClick={regenerarClave} title="Generar otra clave" aria-label="Generar otra clave" className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-blue-600 cursor-pointer">
-                      <RefreshCw size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <button type="button" onClick={copiarCredenciales} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                {copiadoCred ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
-                {copiadoCred ? "¡Copiado!" : "Copiar usuario y clave"}
-              </button>
-
-              <p className="rounded-lg bg-blue-50 p-3 text-xs leading-relaxed text-blue-800">
-                Entrega estos datos al paciente. Es una <span className="font-semibold">clave temporal</span>: podrá cambiarla por la que desee cuando ingrese por primera vez.
-              </p>
-
-              <div className="flex gap-3 border-t border-slate-100 pt-4">
-                <button type="button" onClick={() => setCuentaPaciente(null)} disabled={guardandoCuenta} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                  Cancelar
-                </button>
-                <button type="button" onClick={guardarCuenta} disabled={guardandoCuenta} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
-                  {guardandoCuenta ? "Guardando…" : cuentaPaciente.tieneCuenta ? "Guardar nueva clave" : "Crear cuenta"}
-                </button>
-              </div>
-            </div>
+      {cuentaPaciente && (
+        <Cascaron titulo={cuentaPaciente.tieneCuenta ? "Restablecer clave" : "Crear cuenta de acceso"} subtitulo="Portal del paciente" Icono={KeyRound} ancho="max-w-md" onCerrar={() => setCuentaPaciente(null)}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setCuentaPaciente(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" disabled={guardandoCuenta}>Cancelar</button>
+            <button type="button" onClick={guardarCuenta} disabled={guardandoCuenta} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+              {guardandoCuenta ? "Guardando…" : cuentaPaciente.tieneCuenta ? "Guardar nueva clave" : "Crear cuenta"}
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-4 px-6 py-5">
+            <p className="text-sm text-slate-600">
+              Acceso para <span className="font-semibold text-slate-800">{cuentaPaciente.nombre}</span>. Con estos datos podrá entrar a ver sus recetas, citas y evolución.
+            </p>
+
+            {/* Credenciales */}
+            <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario</span>
+                <span className="font-mono text-sm font-bold text-slate-800">{cuentaPaciente.cedula || cuentaPaciente.correo}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Clave temporal</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-base font-black" style={{ color: "#2563EB" }}>{claveGen}</span>
+                  <button type="button" onClick={regenerarClave} title="Generar otra clave" aria-label="Generar otra clave" className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-blue-600 cursor-pointer">
+                    <RefreshCw size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" onClick={copiarCredenciales} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
+              {copiadoCred ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
+              {copiadoCred ? "¡Copiado!" : "Copiar usuario y clave"}
+            </button>
+
+            <p className="rounded-lg bg-blue-50 p-3 text-xs leading-relaxed text-blue-800">
+              Entrega estos datos al paciente. Es una <span className="font-semibold">clave temporal</span>: podrá cambiarla por la que desee cuando ingrese por primera vez.
+            </p>
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── MODAL HISTORIAL CLÍNICO ─── */}
@@ -2379,57 +2327,39 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       )}
 
       {/* ─── MODAL AGENDAR CITA (desde el perfil del paciente) ─── */}
-      {agendarPara && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAgendarPara(null)}>
-          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Stethoscope size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h3>
-                  <p className="text-xs text-slate-500">Para {agendarPara.nombre}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setAgendarPara(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={validarYPedirConfirmacionCita} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {errorAgendar && (
-                  <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
-                    <AlertCircle size={16} /> {errorAgendar}
-                  </div>
-                )}
-
-                <CamposCita
-                  prefijoId="pacientes-agendar"
-                  motivosConsulta={motivosConsulta}
-                  equipo={equipo}
-                  disponibilidad={disponibilidad}
-                  citas={citas}
-                  atenderInmediato={atenderInmediato}
-                  errorHorarioCustom={errorHorarioAgendar}
-                  valores={{ motivo: agendarMotivo, asignadoA: agendarAsignado, fecha: agendarFecha, hora: agendarHora, horaPersonalizada: agendarHoraPersonalizada, horaCustom: agendarHoraCustom, duracionCustom: agendarDuracion }}
-                  cambiar={{ setMotivo: setAgendarMotivo, setAsignadoA: setAgendarAsignado, setFecha: setAgendarFecha, setHora: setAgendarHora, setHoraPersonalizada: setAgendarHoraPersonalizada, setHoraCustom: setAgendarHoraCustom, setDuracionCustom: setAgendarDuracion, limpiarErrorHorario: () => setErrorHorarioAgendar("") }}
-                />
-              </div>
-
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setAgendarPara(null)} className="rounded-xl border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
-                  Cancelar
-                </button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                  {atenderInmediato ? "Atender ahora" : "Confirmar cita"} <ChevronRight size={16} />
-                </button>
-              </div>
-            </form>
+      {agendarPara && (
+        <Cascaron titulo="Agendar cita" subtitulo={"Para " + agendarPara.nombre} Icono={Stethoscope} ancho="max-w-xl" onCerrar={() => setAgendarPara(null)} formulario={{ onSubmit: validarYPedirConfirmacionCita }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setAgendarPara(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+              {atenderInmediato ? "Atender ahora" : "Confirmar cita"} <ChevronRight size={16} />
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-4 p-5">
+          {errorAgendar && (
+            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700">
+              <AlertCircle size={16} /> {errorAgendar}
+            </div>
+          )}
+
+          <CamposCita
+            prefijoId="pacientes-agendar"
+            motivosConsulta={motivosConsulta}
+            equipo={equipo}
+            disponibilidad={disponibilidad}
+            citas={citas}
+            atenderInmediato={atenderInmediato}
+            errorHorarioCustom={errorHorarioAgendar}
+            valores={{ motivo: agendarMotivo, asignadoA: agendarAsignado, fecha: agendarFecha, hora: agendarHora, horaPersonalizada: agendarHoraPersonalizada, horaCustom: agendarHoraCustom, duracionCustom: agendarDuracion }}
+            cambiar={{ setMotivo: setAgendarMotivo, setAsignadoA: setAgendarAsignado, setFecha: setAgendarFecha, setHora: setAgendarHora, setHoraPersonalizada: setAgendarHoraPersonalizada, setHoraCustom: setAgendarHoraCustom, setDuracionCustom: setAgendarDuracion, limpiarErrorHorario: () => setErrorHorarioAgendar("") }}
+          />
+        
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
@@ -2484,65 +2414,54 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       )}
 
       {/* ─── MODAL ENVIAR MENSAJE (desde el perfil del paciente) ─── */}
-      {mensajePara && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMensajePara(null)}>
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-                  <MessageCircle size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Enviar mensaje por CRM</h3>
-                  <p className="text-xs text-slate-500">Para {mensajePara.nombre} · {mensajePara.telefono}{tieneCorreoValido(mensajePara) ? " · " + mensajePara.correo : ""}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setMensajePara(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-3 p-5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Plantilla</span>
-                {plantillasMensaje(mensajePara).map((p) => (
-                  <button key={p.id} type="button" onClick={() => setTextoMensaje(p.texto)} className="rounded-full border border-slate-200/60 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">{p.etiqueta}</button>
-                ))}
-              </div>
-              <div>
-                <label htmlFor="texto-mensaje-whatsapp" className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
-                <textarea
-                  id="texto-mensaje-whatsapp"
-                  rows={4}
-                  value={textoMensaje}
-                  onChange={(e) => setTextoMensaje(e.target.value)}
-                  className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                />
-                <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp o Gmail con este texto ya escrito: tú lo revisas y lo mandas ahí. Funciona aunque los envíos automáticos estén apagados, y queda marcado como contactado hoy en el CRM.</p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={enviarMensajeWhatsApp}
-                disabled={!textoMensaje.trim()}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
-              >
-                <MessageCircle size={15} /> Enviar por WhatsApp
-              </button>
-                <button
-                  type="button"
-                  onClick={enviarMensajeGmail}
-                  disabled={!textoMensaje.trim() || !tieneCorreoValido(mensajePara)}
-                  title={tieneCorreoValido(mensajePara) ? "Abre Gmail con el mensaje escrito" : "Este paciente no tiene correo registrado"}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Mail size={15} /> Abrir en Gmail
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {mensajePara && (
+        <Cascaron
+          titulo="Enviar mensaje por CRM"
+          subtitulo={"Para " + mensajePara.nombre + " · " + mensajePara.telefono + (tieneCorreoValido(mensajePara) ? " · " + mensajePara.correo : "")}
+          ancho="max-w-md"
+          onCerrar={() => setMensajePara(null)}
+          marca={<div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}><MessageCircle size={21} aria-hidden="true" /></div>}
+        >
+    <div className="space-y-3 p-5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Plantilla</span>
+        {plantillasMensaje(mensajePara).map((p) => (
+          <button key={p.id} type="button" onClick={() => setTextoMensaje(p.texto)} className="rounded-full border border-slate-200/60 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">{p.etiqueta}</button>
+        ))}
+      </div>
+      <div>
+        <label htmlFor="texto-mensaje-whatsapp" className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
+        <textarea
+          id="texto-mensaje-whatsapp"
+          rows={4}
+          value={textoMensaje}
+          onChange={(e) => setTextoMensaje(e.target.value)}
+          className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+        />
+        <p className="mt-1.5 text-xs text-slate-500">Se abre WhatsApp o Gmail con este texto ya escrito: tú lo revisas y lo mandas ahí. Funciona aunque los envíos automáticos estén apagados, y queda marcado como contactado hoy en el CRM.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <button
+        type="button"
+        onClick={enviarMensajeWhatsApp}
+        disabled={!textoMensaje.trim()}
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}
+      >
+        <MessageCircle size={15} /> Enviar por WhatsApp
+      </button>
+        <button
+          type="button"
+          onClick={enviarMensajeGmail}
+          disabled={!textoMensaje.trim() || !tieneCorreoValido(mensajePara)}
+          title={tieneCorreoValido(mensajePara) ? "Abre Gmail con el mensaje escrito" : "Este paciente no tiene correo registrado"}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Mail size={15} /> Abrir en Gmail
+        </button>
+      </div>
+    </div>
+        </Cascaron>
       )}
     </div>
   )
