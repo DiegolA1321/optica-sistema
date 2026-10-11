@@ -1,4 +1,4 @@
-import { ahoraEcuador } from "./horaEcuador"
+import { ahoraEcuador, aEcuador } from "./horaEcuador"
 // Pases a venta ("Listo para venta"): motivos de "No compró" y ayudas para la
 // cola. Lógica pura.
 import { fechaAISO, isoAFechaLocal } from "./disponibilidad"
@@ -22,7 +22,7 @@ export const pasesDescartados = (pases = []) => pases.filter((p) => p.estado ===
 // Días que lleva en espera (0 = pasó hoy).
 export function diasEnEspera(pase, hoy = ahoraEcuador()) {
   if (!pase?.pasadaEn) return 0
-  const desde = fechaAISO(new Date(pase.pasadaEn))
+  const desde = fechaAISO(aEcuador(pase.pasadaEn))
   return Math.max(0, Math.round((isoAFechaLocal(fechaAISO(hoy)) - isoAFechaLocal(desde)) / 86400000))
 }
 

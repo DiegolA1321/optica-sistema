@@ -1,4 +1,4 @@
-import { ahoraEcuador } from "./horaEcuador"
+import { ahoraEcuador, aEcuador } from "./horaEcuador"
 // Cálculos del Inicio por rol (R52-R56). Cada fila de tarjetas habla de una sola cosa y lo dice en su título:
 // "Totales", "Hoy", "Este mes" o "Para vender". Funciones puras, con los datos que ya carga la aplicación.
 import { esHoy, hoyISO, fechaAISO, parseFechaFlexible, minutosDesdeMedianoche } from "./disponibilidad"
@@ -94,8 +94,8 @@ export function ventasDelMes(facturas, ahora = ahoraEcuador(), abonos = []) {
 // ¿Esta fecha de alta cae en el mes en curso? Es la única definición de "este mes" de los Totales: el Inicio cuenta con ella y cada módulo
 // filtra con ella al abrir "Nuevos este mes", así el número que se lee es el que se ve. Sin fecha no cuenta.
 export function esDeEsteMes(valor, ahora = ahoraEcuador()) {
-  const f = valor ? new Date(valor) : null
-  return Boolean(f) && !isNaN(f) && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth()
+  const f = aEcuador(valor) // un instante se mira con la hora de Ecuador, no con la del equipo ni la universal
+  return Boolean(f) && f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth()
 }
 
 // Cuántos registros se dieron de alta este mes (para el "+N este mes" de los Totales).

@@ -3,7 +3,7 @@ import SinDatosAun from "../componentes/SinDatosAun"
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
-import { ahoraEcuador } from "../utilidades/horaEcuador"
+import { ahoraEcuador, aEcuador } from "../utilidades/horaEcuador"
 
 import { MESES_CORTOS } from "../utilidades/formatoFecha"
 import { etiquetaCorreccion } from "../utilidades/correccion"
@@ -125,10 +125,10 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   // siempre en UTC) — recortarlo tal cual desplazaba una venta hecha de
   // noche en Ecuador (UTC-5) al día calendario SIGUIENTE en "Ingresos" y
   // "Productos más vendidos". Si el valor trae hora ("T" en el string), se
-  // convierte primero a la fecha calendario LOCAL real antes de comparar.
+  // convierte primero a la fecha calendario de ECUADOR (no la del equipo) antes de comparar.
   const enRango = (fecha) => {
     if (!fecha) return false
-    const f = fecha.includes("T") ? fechaAISO(new Date(fecha)) : fecha.slice(0, 10)
+    const f = fecha.includes("T") ? fechaAISO(aEcuador(fecha)) : fecha.slice(0, 10)
     return f >= rango.inicio && f <= rango.fin
   }
 

@@ -23,3 +23,17 @@ export function ahoraEcuador(instante = new Date()) {
   for (const x of formateador.formatToParts(instante)) p[x.type] = x.value
   return new Date(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second), instante.getMilliseconds())
 }
+
+// La hora de pared de Ecuador de un valor guardado: un instante (timestamp con "T" o un Date) se pasa a la hora de Ecuador; una fecha
+// sola ("2026-10-01", columna DATE) ya es un día calendario y se queda tal cual. Sirve para decir a qué día o mes pertenece un registro
+// sin depender de la zona del equipo ni de la hora universal.
+export function aEcuador(valor) {
+  if (!valor) return null
+  if (typeof valor === "string" && !valor.includes("T")) {
+    const [y, m, d] = valor.slice(0, 10).split("-").map(Number)
+    const f = new Date(y, (m || 1) - 1, d || 1)
+    return isNaN(f) ? null : f
+  }
+  const instante = new Date(valor)
+  return isNaN(instante) ? null : ahoraEcuador(instante)
+}

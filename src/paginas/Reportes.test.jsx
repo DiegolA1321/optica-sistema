@@ -1,9 +1,14 @@
 import React from "react"
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest"
 import { render, screen, within, fireEvent } from "@testing-library/react"
 import Reportes from "./Reportes"
 
-const ahora = new Date().toISOString()
+// Último día del mes por la noche en Ecuador (21:00 del 31 de octubre = 02:00 UTC del 1 de noviembre): la venta debe contarse en
+// octubre, el mes de Ecuador, sea cual sea la zona del equipo o la hora universal.
+const INSTANTE = "2026-10-31T21:00:00-05:00"
+const ahora = new Date(INSTANTE).toISOString()
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(INSTANTE)) })
+afterAll(() => { vi.useRealTimers() })
 const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1" }
 const facturasVenta = [{ id: "a", estado: "pendiente_pago", montoTotal: 223, creadoEn: ahora, pacienteId: "p1" }]
 const abonos = [{ facturaId: "a", monto: 94.5 }]
