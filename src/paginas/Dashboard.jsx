@@ -52,7 +52,7 @@ const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
 const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { umbralStock } from "../utilidades/inventario"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
@@ -728,7 +728,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   }
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-  const refModalMiCuenta = useModalAccesible(modalMiCuentaAbierto, () => setModalMiCuentaAbierto(false))
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
@@ -1068,58 +1067,35 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
 
       {/* ─── MODAL MI CUENTA ─── */}
       {modalMiCuentaAbierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }}
-          onClick={() => setModalMiCuentaAbierto(false)}
+        <Cascaron titulo="Mi cuenta" subtitulo={nombreUsuario + " · " + rolUsuario} Icono={Settings} ancho="max-w-md" onCerrar={() => setModalMiCuentaAbierto(false)}
+          pie={<>
+            <span />
+            <button type="button" onClick={() => setModalMiCuentaAbierto(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
         >
-          <div
-            ref={refModalMiCuenta}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="dashboard-modal-micuenta-titulo"
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl"
-            style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <Settings size={20} />
-                </div>
-                <div>
-                  <h4 id="dashboard-modal-micuenta-titulo" className="text-lg font-bold" style={{ color: INK }}>Mi cuenta</h4>
-                  <p className="text-xs text-slate-500">{nombreUsuario} · {rolUsuario}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setModalMiCuentaAbierto(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 cursor-pointer">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              <div className="mb-5 space-y-2 rounded-xl border border-slate-200/60 p-4">
-                <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
-                  Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
-                </label>
-                <p className="text-xs text-slate-500">Si atiendes pacientes tú mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="registroProfesional"
-                    type="text"
-                    value={campoRegistroProfesional}
-                    onChange={(e) => setCampoRegistroProfesional(e.target.value)}
-                    onBlur={guardarRegistroProfesional}
-                    placeholder="Ej. SENESCYT-1234567890"
-                    className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
-                  />
-                  {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
-                  {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}
-                </div>
-              </div>
-              <SeccionMfa />
+          <div className="p-5">
+          <div className="mb-5 space-y-2 rounded-xl border border-slate-200/60 p-4">
+            <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
+              Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
+            </label>
+            <p className="text-xs text-slate-500">Si atiendes pacientes tú mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
+            <div className="flex items-center gap-2">
+              <input
+                id="registroProfesional"
+                type="text"
+                value={campoRegistroProfesional}
+                onChange={(e) => setCampoRegistroProfesional(e.target.value)}
+                onBlur={guardarRegistroProfesional}
+                placeholder="Ej. SENESCYT-1234567890"
+                className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
+              />
+              {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
+              {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}
             </div>
           </div>
-        </div>
+          <SeccionMfa />
+          </div>
+        </Cascaron>
       )}
 
       {confirmSalirFicha && (
