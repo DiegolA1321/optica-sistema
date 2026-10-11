@@ -4,7 +4,6 @@ import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
 import {
   Eye,
@@ -51,6 +50,7 @@ import { moverCitaAHoy, necesitaMoverseAHoy } from "../utilidades/moverCitaAHoy"
 import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
@@ -2348,63 +2348,43 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         />
       )}
 
-      {mostrarHistorial && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setMostrarHistorial(false)}>
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}>
-                  <History size={20} />
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold" style={{ color: INK }}>Historial clínico</h4>
-                  <p className="text-xs text-slate-500">{pacienteSeleccionado}</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setMostrarHistorial(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-                <X size={20} />
-              </button>
+      {mostrarHistorial && (
+        <Cascaron titulo="Historial clínico" subtitulo={pacienteSeleccionado} Icono={History} ancho="max-w-2xl" onCerrar={() => setMostrarHistorial(false)}
+          pie={<>
+            <span />
+            <button type="button" onClick={() => setMostrarHistorial(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
+        >
+          <div className="space-y-3 p-5">
+          {historialPaciente.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={22} /></div>
+              <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
             </div>
-
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
-              {historialPaciente.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><History size={22} /></div>
-                  <p className="text-sm font-medium text-slate-500">Este paciente aún no tiene consultas registradas.</p>
-                </div>
-              ) : (
-                historialPaciente.map((c) => <TarjetaVisita key={c.id} consulta={c} />)
-              )}
-            </div>
+          ) : (
+            historialPaciente.map((c) => <TarjetaVisita key={c.id} consulta={c} />)
+          )}
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── AVISO: PRIMERA CONSULTA DEL PACIENTE (feedback del asesor) ─── */}
-      {avisoPrimeraVisita && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setAvisoPrimeraVisita(false)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-6 text-center">
-              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: GRAD }}>
-                <Sparkles size={22} />
-              </div>
-              <h2 className="text-lg font-bold" style={{ color: INK }}>Primera consulta de {pacienteSeleccionado}</h2>
-              <p className="mt-1.5 text-sm text-slate-500">No hay historial previo para este paciente. Completa antecedentes, alergias y antecedentes familiares antes de continuar con la refracción.</p>
-            </div>
-            <div className="border-t border-slate-100 px-6 py-4">
-              <button
-                type="button"
-                onClick={() => { setAvisoPrimeraVisita(false); setTimeout(() => document.getElementById("antecedentes")?.focus(), 50) }}
-                className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                style={{ background: GRAD }}
-              >
-                Entendido, completar antecedentes
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {avisoPrimeraVisita && (
+        <Cascaron titulo={"Primera consulta de " + pacienteSeleccionado} subtitulo="No hay historial previo para este paciente." Icono={Sparkles} ancho="max-w-md" onCerrar={() => setAvisoPrimeraVisita(false)}
+          pie={<>
+            <span />
+            <button
+              type="button"
+              onClick={() => { setAvisoPrimeraVisita(false); setTimeout(() => document.getElementById("antecedentes")?.focus(), 50) }}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+              style={{ background: GRAD }}
+            >
+              Entendido, completar antecedentes
+            </button>
+          </>}
+        >
+          <p className="p-6 text-sm text-slate-600">Completa antecedentes, alergias y antecedentes familiares antes de continuar con la refracción.</p>
+        </Cascaron>
       )}
 
       {/* ─── PANEL DE COBRO (Ronda 4): aparece al guardar la ficha ─── */}
