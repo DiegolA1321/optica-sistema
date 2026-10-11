@@ -31,16 +31,16 @@ export function SinInformacion({ Icono = Sparkles, titulo, texto, children }) {
   )
 }
 
-// Ventana del sistema: cabecera blanca con el ícono de marca, igual que el detalle de la cita.
-export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50", formulario = null }) {
+// Ventana del sistema: cabecera blanca con el ícono de marca. `marca` reemplaza el ícono (la fecha del día, las iniciales del paciente); `sinAnimarFondo` evita volver a animar el fondo cuando se abre sobre otra ventana.
+export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50", formulario = null, marca = null, sinAnimarFondo = false }) {
   const Raiz = formulario ? "form" : "div"
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
-    <div className={"fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm " + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+    <div className={"fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm " + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={onCerrar}>
       <Raiz ref={refModal} role="dialog" aria-modal="true" aria-label={titulo} {...(formulario ? { onSubmit: formulario.onSubmit } : {})} className={"flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl " + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>
+            {marca || <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>}
             <div className="min-w-0">
               <h2 className="text-lg font-bold leading-tight" style={{ color: INK }}>{titulo}</h2>
               <p className="truncate text-xs text-slate-500">{subtitulo}</p>
@@ -52,7 +52,7 @@ export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">{pie}</div>
+        {pie && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">{pie}</div>}
       </Raiz>
     </div>,
     document.body,
