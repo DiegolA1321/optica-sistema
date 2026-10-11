@@ -4,7 +4,6 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { createPortal } from "react-dom"
 import {
   LayoutDashboard,
   Calendar,
@@ -39,7 +38,7 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { minutosDesdeMedianoche, etiquetaFecha, hoyISO } from "../utilidades/disponibilidad"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
 import { validarClaveNueva, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
@@ -425,11 +424,6 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   }
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-  const refModalEliminar = useModalAccesible(modalEliminarAbierto, () => !enviandoEliminar && setModalEliminarAbierto(false))
-  const refModalAgendar = useModalAccesible(modalAgendar, () => setModalAgendar(false))
-  const refModalReagendar = useModalAccesible(!!reagendando, () => !guardandoReagenda && setReagendando(null))
-  const refModalCancelar = useModalAccesible(!!cancelando, () => !guardandoCancelar && setCancelando(null))
-  const refModalClave = useModalAccesible(modalClave, () => setModalClave(false))
 
   const navegar = (id) => { setSeccion(id); setMenuAbierto(false) }
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
@@ -842,21 +836,32 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       </main>
 
       {/* ─── MODAL SOLICITAR ELIMINACIÓN ─── */}
-      {modalEliminarAbierto && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !enviandoEliminar && setModalEliminarAbierto(false)}>
-          <div ref={refModalEliminar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-eliminar-titulo" className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
+      {modalEliminarAbierto && (
+        <Cascaron
+          titulo={solicitudEliminarEnviada ? "Solicitud enviada" : "¿Eliminar tu cuenta?"}
+          subtitulo={solicitudEliminarEnviada ? nombreOptica + " revisará tu pedido." : "Tus datos y tu cuenta"}
+          Icono={solicitudEliminarEnviada ? CheckCircle2 : ShieldAlert}
+          ancho="max-w-md"
+          onCerrar={() => !enviandoEliminar && setModalEliminarAbierto(false)}
+          pie={solicitudEliminarEnviada ? (<>
+            <span />
+            <button type="button" onClick={() => setModalEliminarAbierto(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>) : (<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setModalEliminarAbierto(false)} disabled={enviandoEliminar} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
+              <button type="button" onClick={confirmarSolicitudEliminar} disabled={enviandoEliminar} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-60">
+                {enviandoEliminar ? "Enviando…" : "Sí, solicitar"}
+              </button>
+            </div>
+          </>)}
+        >
+          <div className="p-6">
             {solicitudEliminarEnviada ? (
-              <>
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 size={24} /></div>
-                <h3 id="portal-modal-eliminar-titulo" className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>Solicitud enviada</h3>
-                <p className="mt-2 text-center text-sm text-slate-500">{nombreOptica} revisará tu pedido y se pondrá en contacto contigo.</p>
-                <button type="button" onClick={() => setModalEliminarAbierto(false)} className="mt-5 w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200 cursor-pointer">Cerrar</button>
-              </>
+              <p className="text-sm text-slate-600">{nombreOptica} revisará tu pedido y se pondrá en contacto contigo.</p>
             ) : (
               <>
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600"><ShieldAlert size={24} /></div>
-                <h3 id="portal-modal-eliminar-titulo" className="mt-3 text-center text-lg font-bold" style={{ color: INK }}>¿Eliminar tu cuenta?</h3>
-                <p className="mt-2 text-center text-sm text-slate-500">Le avisamos a {nombreOptica} para que elimine tu cuenta y tus datos. Esto no borra nada al instante — la óptica te contactará.</p>
+                <p className="text-sm text-slate-600">Le avisamos a {nombreOptica} para que elimine tu cuenta y tus datos. Esto no borra nada al instante — la óptica te contactará.</p>
                 {errorPrivacidad && (
                   <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
                     <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
@@ -867,133 +872,101 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                   placeholder="¿Por qué quieres eliminar tu cuenta? (opcional)"
                   className="mt-4 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-red-400 focus-visible:bg-white"
                 />
-                <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={() => setModalEliminarAbierto(false)} disabled={enviandoEliminar} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
-                  <button type="button" onClick={confirmarSolicitudEliminar} disabled={enviandoEliminar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-60">
-                    {enviandoEliminar ? "Enviando…" : "Sí, solicitar"}
-                  </button>
-                </div>
               </>
             )}
           </div>
-        </div>,
-        document.body
+        </Cascaron>
       )}
 
       {/* ─── MODAL AGENDAR ─── */}
-      {modalAgendar && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalAgendar(false)}>
-          <div ref={refModalAgendar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-agendar-titulo" className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Stethoscope size={20} /></div>
-                <div>
-                  <h3 id="portal-modal-agendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Agendar cita</h3>
-                  <p className="text-xs text-slate-500">Elige el motivo y un horario disponible.</p>
-                </div>
-              </div>
-              <button onClick={() => setModalAgendar(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
-            </div>
-            <form onSubmit={validarYPedirConfirmacion} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {error}</div>}
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-600">Paciente</label>
-                  <input type="text" disabled value={usuario?.nombre || "Paciente autenticado"} className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-500" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-600">Motivo de consulta</label>
-                  <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50">
-                    {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
-                  </select>
-                </div>
-                <SelectorFechaHora
-                  publico
-                  disponibilidad={disponibilidad}
-                  citas={horasOcupadas}
-                  fecha={fecha}
-                  hora={hora}
-                  onCambiarFecha={setFecha}
-                  onCambiarHora={setHora}
-                />
-              </div>
-              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-                <button type="button" onClick={() => setModalAgendar(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancelar</button>
-                <button type="submit" className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>Confirmar cita <ChevronRight size={16} /></button>
-              </div>
-            </form>
+      {modalAgendar && (
+        <Cascaron titulo="Agendar cita" subtitulo="Elige el motivo y un horario disponible." Icono={Stethoscope} ancho="max-w-xl" onCerrar={() => setModalAgendar(false)} formulario={{ onSubmit: validarYPedirConfirmacion }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setModalAgendar(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>Confirmar cita <ChevronRight size={16} /></button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-4 p-5">
+          {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {error}</div>}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-600">Paciente</label>
+            <input type="text" disabled value={usuario?.nombre || "Paciente autenticado"} className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-600">Motivo de consulta</label>
+            <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50">
+              {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
+            </select>
+          </div>
+          <SelectorFechaHora
+            publico
+            disponibilidad={disponibilidad}
+            citas={horasOcupadas}
+            fecha={fecha}
+            hora={hora}
+            onCambiarFecha={setFecha}
+            onCambiarHora={setHora}
+          />
+        
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── MODAL REAGENDAR ─── */}
-      {reagendando && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !guardandoReagenda && setReagendando(null)}>
-          <div ref={refModalReagendar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-reagendar-titulo" className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><CalendarClock size={20} /></div>
-                <div>
-                  <h3 id="portal-modal-reagendar-titulo" className="text-lg font-bold" style={{ color: INK }}>Reagendar cita</h3>
-                  <p className="text-xs text-slate-500">Tenías: {etiquetaFecha(reagendando.fecha)} · {reagendando.hora}</p>
-                </div>
-              </div>
-              <button onClick={() => !guardandoReagenda && setReagendando(null)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
-            </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
-              <SelectorFechaHora
-                disponibilidad={disponibilidad}
-                citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))}
-                fecha={fechaReagenda}
-                hora={horaReagenda}
-                onCambiarFecha={setFechaReagenda}
-                onCambiarHora={setHoraReagenda}
-              />
-            </div>
-            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-              <button type="button" disabled={guardandoReagenda} onClick={() => setReagendando(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
-              <button
-                type="button"
-                disabled={guardandoReagenda || !fechaReagenda || !horaReagenda}
-                onClick={confirmarReagenda}
-                className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}
-              >
-                {guardandoReagenda ? "Guardando..." : "Confirmar nuevo horario"}
-              </button>
-            </div>
+      {reagendando && (
+        <Cascaron titulo="Reagendar cita" subtitulo={"Tenías: " + etiquetaFecha(reagendando.fecha) + " · " + reagendando.hora} Icono={CalendarClock} ancho="max-w-xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" disabled={guardandoReagenda} onClick={() => setReagendando(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button
+              type="button"
+              disabled={guardandoReagenda || !fechaReagenda || !horaReagenda}
+              onClick={confirmarReagenda}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: GRAD }}
+            >
+              {guardandoReagenda ? "Guardando..." : "Confirmar nuevo horario"}
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-4 p-5">
+          {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
+          <SelectorFechaHora
+            disponibilidad={disponibilidad}
+            citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))}
+            fecha={fechaReagenda}
+            hora={horaReagenda}
+            onCambiarFecha={setFechaReagenda}
+            onCambiarHora={setHoraReagenda}
+          />
+        
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── MODAL CANCELAR CITA ─── */}
-      {cancelando && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => !guardandoCancelar && setCancelando(null)}>
-          <div ref={refModalCancelar} role="dialog" aria-modal="true" aria-labelledby="portal-modal-cancelar-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-5">
-              <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-red-50 text-red-600">
-                <AlertCircle size={22} />
-              </div>
-              <h2 id="portal-modal-cancelar-titulo" className="text-lg font-bold" style={{ color: INK }}>¿Cancelar esta cita?</h2>
-              <p className="mt-1.5 text-sm text-slate-500">
-                {etiquetaFecha(cancelando.fecha)} · {cancelando.hora}. Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.
-              </p>
-              {errorCancelar && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errorCancelar}</p>}
-            </div>
-            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
-              <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                Volver
-              </button>
-              <button type="button" disabled={guardandoCancelar} onClick={confirmarCancelar} className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
-                {guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}
-              </button>
-            </div>
+      {cancelando && (
+        <Cascaron titulo="¿Cancelar esta cita?" subtitulo={etiquetaFecha(cancelando.fecha) + " · " + cancelando.hora} Icono={AlertCircle} ancho="max-w-md" onCerrar={() => !guardandoCancelar && setCancelando(null)}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Volver</button>
+            <button type="button" disabled={guardandoCancelar} onClick={confirmarCancelar} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
+              {guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}
+            </button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="p-6">
+            <p className="text-sm text-slate-600">Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.</p>
+            {errorCancelar && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errorCancelar}</p>}
+          </div>
+        </Cascaron>
       )}
 
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
@@ -1011,42 +984,33 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       )}
 
       {/* ─── MODAL CAMBIAR CONTRASEÑA ─── */}
-      {modalClave && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={() => setModalClave(false)}>
-          <div ref={refModalClave} role="dialog" aria-modal="true" aria-labelledby="portal-modal-clave-titulo" className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD }}><KeyRound size={20} /></div>
-                <div>
-                  <h3 id="portal-modal-clave-titulo" className="text-lg font-bold" style={{ color: INK }}>Cambiar contraseña</h3>
-                  <p className="text-xs text-slate-500">Usa una que no hayas usado antes.</p>
-                </div>
-              </div>
-              <button onClick={() => setModalClave(false)} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleCambiarClave} className="space-y-4 p-5">
-              <p className="text-sm text-slate-500">Elige una contraseña nueva para reemplazar la temporal.</p>
-              {errorClave && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-600">Contraseña actual</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="8 o más, con letra y número" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-600">Confirmar contraseña</label>
-                <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la contraseña" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
-              </div>
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                <button type="button" disabled={guardandoClave} onClick={() => setModalClave(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
-                <button type="submit" disabled={guardandoClave} className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>{guardandoClave ? "Guardando..." : "Guardar contraseña"}</button>
-              </div>
-            </form>
+      {modalClave && (
+        <Cascaron titulo="Cambiar contraseña" subtitulo="Usa una que no hayas usado antes." Icono={KeyRound} ancho="max-w-md" onCerrar={() => setModalClave(false)} formulario={{ onSubmit: handleCambiarClave }}
+          pie={<>
+          <span />
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" disabled={guardandoClave} onClick={() => setModalClave(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+            <button type="submit" disabled={guardandoClave} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>{guardandoClave ? "Guardando..." : "Guardar contraseña"}</button>
           </div>
-        </div>,
-        document.body
+        </>}
+        >
+          <div className="space-y-4 p-5">
+        <p className="text-sm text-slate-500">Elige una contraseña nueva para reemplazar la temporal.</p>
+        {errorClave && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-600">Contraseña actual</label>
+          <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
+          <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="8 o más, con letra y número" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-600">Confirmar contraseña</label>
+          <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la contraseña" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
+        </div>
+          </div>
+        </Cascaron>
       )}
     </div>
   )
