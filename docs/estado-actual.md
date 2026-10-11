@@ -1,4 +1,11 @@
-# Estado actual — Citas, Inicio y perfil del paciente cerrados (nota de traspaso, 9 oct 2026)
+# Estado actual — Ventanas estándar (T1) y revisión de los demás módulos publicadas (10 oct. 2026)
+
+**Publicado el 10 oct. 2026** (último commit de código `9fc5d28` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito, confirmados con la API de GitHub). Incluye la revisión de los demás módulos (Horario, Reportes, CRM, Inventario, Configuración, Usuarios, Soporte; migración `0108`) y **T1 terminado salvo Ventas** (ver "T1 (ventanas), terminado salvo Ventas").
+- **Fechas:** `CampoFecha` recibe `etiqueta` y la expone a lectores de pantalla (con la fecha elegida); los 15 lugares que lo usan la pasan. Antes, al cambiar al calendario del sistema, el rótulo visible quedó sin conexión con el campo.
+- **"Este mes" con la hora de Ecuador:** se encontró que `esDeEsteMes` (Inicio, Inventario, Citas, saldos) y el filtro por período de Reportes y `diasEnEspera` leían el día de un registro con la hora del equipo o la universal; el último día de cada mes por la noche una venta caía en el mes equivocado. Ahora todo pasa por `aEcuador()` (`utilidades/horaEcuador.js`): un instante se convierte a la hora de Ecuador y una fecha sola (columna DATE) se deja como día calendario. Con pruebas del límite de mes. Regla: no usar `new Date(valor)` con `fechaAISO` o `getMonth` para decidir a qué día o mes pertenece un registro.
+- **CI:** el primer push falló por `Reportes.test.jsx` (usaba la hora real; entre las 19:00 y las 24:00 de Ecuador cae en el día siguiente en UTC). La prueba usa ahora un instante fijo (31 de octubre, 21:00 de Ecuador) y `scripts/probar-zonas-y-horas.mjs` pasa en todas las zonas y horas (603 de 603).
+- **Pruebas:** Vitest 603 de 603; Playwright (versión compilada, `--workers=1`) 92 pasadas y 1 omitida, antes de la corrección del mes. Las pruebas de "Citas del día", `elegirFecha` (ahora comprueba que el calendario se vea completo y use el selector de año), la orden de laboratorio y "Vendido" de Reportes se actualizaron.
+- **Pendiente siguiente:** la revisión de Ventas (`docs/revision-ventas.md`), que incluye pasar sus ventanas propias a `Cascaron`; después Portal y Superadmin (`docs/revision-portal-y-superadmin.md`).
 
 Para retomar en una sesión nueva sin leer la conversación anterior.
 
@@ -176,7 +183,7 @@ Reemplaza la estructura de la sección siguiente (que había vuelto a juntar "Re
 - **Pendiente (I6):** una sección "requiere tu atención" propia dentro de cada módulo; hoy "Ver todo →" lleva a la lista del módulo. Es trabajo nuevo y grande (el documento ya lo marcaba).
 - **Pruebas:** 502 unitarias y el build; Playwright completo contra la versión compilada con `--workers=1`: 81 pasaron y 1 omitida. Una corrida anterior tuvo un fallo intermitente de `perfil-paciente.spec.js` (abrir un perfil desde la búsqueda) que no se repitió: pasó 2 de 2 aislado y en la corrida completa siguiente.
 
-## Inicio: enlaces que cumplen lo que dicen y ventanas estándar (10 oct. 2026, sin publicar)
+## Inicio: enlaces que cumplen lo que dicen y ventanas estándar (10 oct. 2026, publicada)
 
 Todo lo de esta sección está en commits locales de `main`; **no se ha publicado nada**.
 
