@@ -1244,7 +1244,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
               </div>
               <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
                 <Calendar size={13} aria-hidden="true" /> Fecha de la consulta
-                <span className="w-44"><CampoFecha id="consulta-fecha" valor={fechaConsulta} onCambiar={setFechaConsulta} min={sumarDiasISO(hoyISO(), -365 * 3)} max={hoyISO()} /></span>
+                <span className="w-44"><CampoFecha id="consulta-fecha" etiqueta="Fecha de la consulta" valor={fechaConsulta} onCambiar={setFechaConsulta} min={sumarDiasISO(hoyISO(), -365 * 3)} max={hoyISO()} /></span>
               </label>
             </div>
             {(alergiaSignificativa || ultimaGraduacion || antecedentesAlerta.length > 0) && (

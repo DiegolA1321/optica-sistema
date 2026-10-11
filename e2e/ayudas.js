@@ -269,7 +269,12 @@ export async function elegirFecha(raiz, idCampo, iso) {
   const [anio, mes, dia] = iso.split('-').map(Number)
   await raiz.locator('#' + idCampo).click()
   const calendario = raiz.getByRole('dialog', { name: 'Elegir fecha' })
-  await calendario.getByLabel('Año').selectOption(String(anio))
-  await calendario.getByLabel('Mes').selectOption(String(mes - 1))
+  // El calendario debe verse completo dentro de la pantalla (ni recortado ni detrás de la ventana) antes de usarlo.
+  await expect(calendario).toBeVisible()
+  await calendario.scrollIntoViewIfNeeded()
+  await expect(calendario).toBeInViewport({ ratio: 1 })
+  await expect(calendario.getByLabel('Año', { exact: true })).toBeVisible()
+  await calendario.getByLabel('Año', { exact: true }).selectOption(String(anio))
+  await calendario.getByLabel('Mes', { exact: true }).selectOption(String(mes - 1))
   await calendario.getByRole('button', { name: String(dia), exact: true }).click()
 }

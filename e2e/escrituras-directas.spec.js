@@ -122,7 +122,7 @@ test('Mi horario: registrar y quitar una ausencia lejana (funciones registrar_au
   await irA(page, 'Mi horario')
   await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
   await page.getByRole('button', { name: 'Registrar' }).click()
-  const modal = page.getByRole('dialog').last()
+  const modal = page.getByRole('dialog', { name: 'No podré asistir' })
   await elegirFecha(modal, 'ausencia-fecha', fecha)
   await modal.getByRole('checkbox').check()
   await modal.getByPlaceholder('Ej. Cita médica').fill(`${PREFIJO}ausencia de prueba`)

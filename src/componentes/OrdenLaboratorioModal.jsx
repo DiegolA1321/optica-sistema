@@ -163,7 +163,7 @@ export default function OrdenLaboratorioModal({
                   <datalist id="laboratorios-usados">{laboratoriosSugeridos.map((l) => <option key={l} value={l} />)}</datalist>
                 </label>
                 <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega prometida *</span>
-                  <CampoFecha id="orden-fecha-prometida" valor={d.fechaPrometida} onCambiar={(v) => set("fechaPrometida", v)} min={sumarDiasISO(hoyISO(), -365)} max={sumarDiasISO(hoyISO(), 365)} />
+                  <CampoFecha id="orden-fecha-prometida" etiqueta="Entrega prometida" requerido valor={d.fechaPrometida} onCambiar={(v) => set("fechaPrometida", v)} min={sumarDiasISO(hoyISO(), -365)} max={sumarDiasISO(hoyISO(), 365)} />
                 </div>
                 <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Tipo de lente *</span>
                   <select value={d.tipoLente} onChange={(e) => set("tipoLente", e.target.value)} className={CAMPO}>

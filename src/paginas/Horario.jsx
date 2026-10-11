@@ -814,7 +814,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
             )}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-              <CampoFecha id="ausencia-fecha" valor={fechaAusencia} onCambiar={setFechaAusencia} min={hoy} max={sumarDiasISO(hoy, 730)} requerido />
+              <CampoFecha id="ausencia-fecha" etiqueta="Fecha de la ausencia" valor={fechaAusencia} onCambiar={setFechaAusencia} min={hoy} max={sumarDiasISO(hoy, 730)} requerido />
             </div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
               <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus-visible:ring-red-500" />

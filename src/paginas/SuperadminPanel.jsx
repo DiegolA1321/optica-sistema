@@ -3320,7 +3320,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <div className="mt-2.5 flex items-center gap-1.5 border-t border-slate-100 pt-2.5">
                         <Cake size={13} className="shrink-0 text-slate-400" />
                         <label className="text-xs text-slate-500">Cumpleaños</label>
-                        <span className="w-44"><CampoFecha id={`cumple-${a.id}`} valor={a.fecha_nacimiento || ""} onCambiar={(v) => { if (v !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, v) }} placeholder="Elige la fecha" /></span>
+                        <span className="w-44"><CampoFecha id={`cumple-${a.id}`} etiqueta="Cumpleaños" valor={a.fecha_nacimiento || ""} onCambiar={(v) => { if (v !== (a.fecha_nacimiento || "")) guardarCumpleanos(a.id, v) }} placeholder="Elige la fecha" /></span>
                         {guardandoCumple === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
                       </div>
                       <div className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2">
@@ -3447,7 +3447,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
-                  <CampoFecha id="suscripcion-vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
+                  <CampoFecha id="suscripcion-vencimiento" etiqueta="Próximo vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
                 </div>
               </div>
               {guardandoSuscripcion && <p className="text-xs text-slate-400">Guardando…</p>}
@@ -3967,7 +3967,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento <span className="font-normal text-slate-400">(opcional)</span></label>
-                    <CampoFecha id="admin-nacimiento" valor={campos.fechaNacimientoAdmin} onCambiar={(v) => actualizarCampo("fechaNacimientoAdmin", v)} icono={Cake} placeholder="Elige la fecha" />
+                    <CampoFecha id="admin-nacimiento" etiqueta="Fecha de nacimiento" valor={campos.fechaNacimientoAdmin} onCambiar={(v) => actualizarCampo("fechaNacimientoAdmin", v)} icono={Cake} placeholder="Elige la fecha" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -127,7 +127,7 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
-              <CampoFecha id="confirmar-nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} placeholder="Elige la fecha" />
+              <CampoFecha id="confirmar-nacimiento" etiqueta="Nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} placeholder="Elige la fecha" />
             </div>
           </div>
 

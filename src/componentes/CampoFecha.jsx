@@ -13,8 +13,9 @@ const aFecha = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)
 
 // Campo de fecha con el calendario del sistema (el mismo de SelectorFechaHora), para fechas que no dependen del horario:
 // fecha de nacimiento, vencimientos... El mes y el año se eligen en listas, para llegar a 1950 sin pulsar 800 veces "anterior".
+// `etiqueta` conecta el campo con su rótulo visible para lectores de pantalla (el nombre incluye la fecha elegida).
 // El calendario se abre en línea debajo del campo (no flota) para que ningún modal con scroll lo recorte.
-export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min = "", error = false, placeholder = "Elige una fecha", icono: Icono = Calendar, requerido = false }) {
+export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min = "", error = false, placeholder = "Elige una fecha", icono: Icono = Calendar, requerido = false, etiqueta = "" }) {
   const [abierto, setAbierto] = useState(false)
   const [mesVista, setMesVista] = useState(() => aFecha(valor || max))
   const raiz = useRef(null)
@@ -54,6 +55,7 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
     <div ref={raiz}>
       <button
         id={id} type="button" onClick={alAbrir} aria-haspopup="dialog" aria-expanded={abierto} aria-required={requerido || undefined}
+        aria-label={etiqueta ? etiqueta + ": " + (valor ? formatoFecha(valor, "medio") : "sin elegir") : undefined}
         className={"flex w-full items-center gap-2 rounded-xl border bg-slate-50 py-2.5 pl-3 pr-3 text-left text-sm outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 cursor-pointer " + (error ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
       >
         <Icono size={15} className="shrink-0 text-slate-500" aria-hidden="true" />

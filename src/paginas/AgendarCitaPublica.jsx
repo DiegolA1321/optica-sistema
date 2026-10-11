@@ -368,7 +368,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                     </div>
                     <div>
                       <label htmlFor="publica-nacimiento" className="mb-1.5 block text-xs font-semibold text-slate-700">Fecha de nacimiento</label>
-                      <CampoFecha id="publica-nacimiento" valor={formData.fechaNacimiento} onCambiar={(v) => setFormData({ ...formData, fechaNacimiento: v })} icono={Cake} placeholder="Elige tu fecha" />
+                      <CampoFecha id="publica-nacimiento" etiqueta="Fecha de nacimiento" valor={formData.fechaNacimiento} onCambiar={(v) => setFormData({ ...formData, fechaNacimiento: v })} icono={Cake} placeholder="Elige tu fecha" />
                     </div>
                   </div>
                   <p className="mt-1.5 text-[11px] text-slate-400">

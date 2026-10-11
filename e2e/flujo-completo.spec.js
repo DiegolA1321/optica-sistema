@@ -2,7 +2,7 @@
 // prefijo "E2E " (los nombres de paciente, "E Dos E ") y no depende de la hora del día ni de citas sembradas: la cita se
 // agenda en el primer día con cupo y Paula la atiende hoy.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, PREFIJO, nombrePrueba, cedulaValida, telefonoPrueba, agendarCitaParaPaula, crearCitaDeHoyParaPaula } from './ayudas.js'
+import { iniciarSesion, PREFIJO, nombrePrueba, cedulaValida, telefonoPrueba, agendarCitaParaPaula, crearCitaDeHoyParaPaula, elegirFecha } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 test.describe.configure({ mode: 'serial' })
@@ -25,7 +25,7 @@ async function leerReportes(page) {
   const leer = async () => {
     const texto = await cuerpo.innerText()
     const num = (re) => Number((texto.match(re)?.[1] ?? 'NaN').replace(/[^\d.]/g, ''))
-    return { consultas: num(/CONSULTAS\s+(\d+)/), ingresos: num(/INGRESOS\s+\$([\d.,]+)/), ventas: num(/(\d+) ventas? \(sin anuladas\)/) }
+    return { consultas: num(/CONSULTAS\s+(\d+)/), ingresos: num(/VENDIDO\s+\$([\d.,]+)/), ventas: num(/(\d+) ventas? \(sin anuladas\)/) }
   }
   // Los indicadores arrancan en 0 mientras cargan los datos, y en una óptica vacía 0 es un valor legítimo: no se puede esperar
   // "una cifra mayor que cero". Se espera a que el Reportes termine de cargar (sin esqueletos, con las tarjetas pintadas) y a que
@@ -103,7 +103,9 @@ test('3 · Vera vende con abono y luna', async ({ page }) => {
   const orden = page.getByRole('dialog', { name: 'Nueva orden de laboratorio' })
   await expect(orden).toBeVisible()
   await orden.getByLabel('Laboratorio').fill(PREFIJO + 'Laboratorio')
-  await orden.getByLabel('Entrega prometida *').fill(fechaEn(7))
+  // El campo de fecha es el calendario del sistema y conserva su etiqueta para lectores de pantalla.
+  await expect(orden.getByLabel('Entrega prometida')).toBeVisible()
+  await elegirFecha(orden, 'orden-fecha-prometida', fechaEn(7))
   await orden.getByLabel('Observaciones').fill(PREFIJO + 'orden de prueba')
   await orden.getByRole('button', { name: 'Crear orden', exact: true }).click()
   await expect(orden).toHaveCount(0, { timeout: 20_000 })

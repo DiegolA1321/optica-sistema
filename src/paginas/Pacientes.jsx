@@ -1543,7 +1543,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
 
               <div>
                 <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento *</label>
-                <CampoFecha id="p-nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido placeholder="Elige la fecha" />
+                <CampoFecha id="p-nacimiento" etiqueta="Fecha de nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido placeholder="Elige la fecha" />
                 {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
               </div>
             </div>

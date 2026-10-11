@@ -1677,7 +1677,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                       </div>
                       {npErrores.correo && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.correo}</p>}
                     </div>
-                <CampoFecha id="np-nacimiento" valor={npFechaNacimiento} onCambiar={setNpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
+                <CampoFecha id="np-nacimiento" etiqueta="Nacimiento" valor={npFechaNacimiento} onCambiar={setNpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
                   </div>
                   <button
                     type="button"
@@ -1851,7 +1851,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
-                <CampoFecha id="cp-nacimiento" valor={cpFechaNacimiento} onCambiar={setCpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
+                <CampoFecha id="cp-nacimiento" etiqueta="Nacimiento" valor={cpFechaNacimiento} onCambiar={setCpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
             </div>
           </div>
         

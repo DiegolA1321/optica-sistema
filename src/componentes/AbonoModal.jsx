@@ -92,7 +92,7 @@ export default function AbonoModal({ factura, paciente, abonos, usuario, onRegis
               <input type="number" min="0.01" step="0.01" max={saldo} value={monto} onChange={(e) => setMonto(e.target.value)} autoFocus className={CAMPO + " font-mono"} />
             </label>
             <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Fecha *</span>
-              <CampoFecha id="abono-fecha" valor={fecha} onCambiar={setFecha} min={fechaVenta || ""} max={hoyISO()} />
+              <CampoFecha id="abono-fecha" etiqueta="Fecha del abono" valor={fecha} onCambiar={setFecha} min={fechaVenta || ""} max={hoyISO()} />
             </div>
           </div>
           <button type="button" onClick={() => setMonto(saldo.toFixed(2))} className="text-xs font-semibold text-emerald-700 transition-colors hover:text-emerald-800 cursor-pointer">Pagar el saldo completo ({dinero(saldo)})</button>

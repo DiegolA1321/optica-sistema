@@ -21,7 +21,9 @@ test('Semana: el encabezado y una zona libre abren las citas del día (con mensa
   const dias = page.getByTitle('Ver las citas de este día')
   await dias.nth(hoyIdx).click()
   const dia = page.getByRole('dialog')
-  await expect(dia.getByRole('heading', { name: /Hoy/ })).toBeVisible()
+  // El título de la ventana es el día; "Hoy" va como etiqueta junto al título.
+  await expect(dia.getByRole('heading')).toBeVisible()
+  await expect(dia.getByText('Hoy', { exact: true })).toBeVisible()
   // Hoy puede tener citas o no (la Demo cambia): se dice cuántas hay o se avisa que no hay.
   await expect(dia.getByText(/\d+ citas? ·|Sin citas|Un día despejado|Cerrado · día sin atención/).first()).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/dia-con-citas.png' })

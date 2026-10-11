@@ -428,9 +428,9 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         ))}
         {periodo === "personalizado" && (
           <div className="flex flex-wrap items-start gap-2">
-            <div className="w-48"><CampoFecha id="reportes-desde" valor={inicioPersonalizado} onCambiar={setInicioPersonalizado} placeholder="Desde" /></div>
+            <div className="w-48"><CampoFecha id="reportes-desde" etiqueta="Desde" valor={inicioPersonalizado} onCambiar={setInicioPersonalizado} placeholder="Desde" /></div>
             <span className="pt-2.5 text-xs text-slate-400">a</span>
-            <div className="w-48"><CampoFecha id="reportes-hasta" valor={finPersonalizado} onCambiar={setFinPersonalizado} placeholder="Hasta" /></div>
+            <div className="w-48"><CampoFecha id="reportes-hasta" etiqueta="Hasta" valor={finPersonalizado} onCambiar={setFinPersonalizado} placeholder="Hasta" /></div>
           </div>
         )}
       </div>
