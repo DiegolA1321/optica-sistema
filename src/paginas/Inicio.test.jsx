@@ -329,7 +329,7 @@ describe("Inicio del optómetra", () => {
     expect(screen.queryByRole("region", { name: "Totales" })).not.toBeInTheDocument()
     expect(screen.queryByText(/stock bajo/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Requiere tu atención: Ventas" })).not.toBeInTheDocument()
-    expect(within(desenlace).queryByRole("button", { name: /^Atendidas/ })).toBeNull() // su desenlace es informativo
+    expect(within(desenlace).getByRole("button", { name: /^Atendidas/ })).toBeInTheDocument() // igual que el administrador: la tarjeta abre su lista
   })
 
   it("el número de citas va en el título de la agenda y las filas llevan primero el estado y al final la acción", () => {

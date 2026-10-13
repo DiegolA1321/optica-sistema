@@ -351,8 +351,8 @@ export default function Inicio({
       ))}
     </div>
   )
-  // Quien atiende ve su desenlace sin lista debajo (su agenda ya está arriba): las tarjetas son informativas.
-  const tarjetaDe = (clave, extra) => ({ ...extra, ...(esVistaOptometra ? {} : { seleccionada: tarjeta === clave, onClick: () => elegirTarjeta(clave) }) })
+  // Igual que en el administrador: tocar una tarjeta lista debajo esas citas (las propias, en la vista de quien atiende).
+  const tarjetaDe = (clave, extra) => ({ ...extra, seleccionada: tarjeta === clave, onClick: () => elegirTarjeta(clave) })
   const filaDesenlace = (
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
@@ -862,7 +862,11 @@ export default function Inicio({
           {bDiaOptometra}
           {bAgendaOptometra}
           {bRequiereAreas}
-          {filaDesenlace}
+          <div className="space-y-3">
+            {filaDesenlace}
+            {/* Hoy sin tarjeta elegida la lista sería su agenda de arriba repetida: solo aparece al elegir tarjeta o un período mayor */}
+            {(tarjeta || periodo !== "hoy") && bCitasPeriodo}
+          </div>
         </>
       )}
 
