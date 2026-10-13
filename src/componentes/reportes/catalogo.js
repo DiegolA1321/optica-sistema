@@ -1,0 +1,83 @@
+// Todo lo que se puede exportar de Reportes, ordenado por módulo (la pestaña a la que pertenece). Cada reporte sabe para qué sirve, si es
+// "a hoy" (no sigue las fechas) y cómo armar su archivo. Las fechas elegidas en la ventana Exportar mandan sobre los reportes del período.
+import { col } from "./listas"
+import { puede } from "../../utilidades/permisosUi"
+import { etiquetaEstadoCita } from "../../utilidades/estadosCita"
+import { coincideSeguimiento, responsableDeCita } from "../../utilidades/filtrosCitas"
+import { nombreDeMiembro } from "../../utilidades/equipo"
+import { diagnosticosPorMes } from "../../utilidades/reportesDiagnosticos"
+import { nombreMes } from "../../utilidades/formatoFecha"
+import { enRango, mesesDelRango } from "../../utilidades/reportesPeriodo"
+import { metricasDelPeriodo, resumenLaboratorios } from "../../utilidades/reportesDatos"
+import { modeloDeLista, modeloVentasContador, modeloSinFacturaElectronica, modeloCobros, modeloCampana, modeloInventario, modeloOrdenesPendientes } from "../../utilidades/reportesExcel"
+
+export const MODULOS = [
+  { id: "resumen", etiqueta: "Resumen" },
+  { id: "citas", etiqueta: "Citas" },
+  { id: "clinico", etiqueta: "Clínico" },
+  { id: "ventas", etiqueta: "Ventas" },
+  { id: "laboratorios", etiqueta: "Laboratorios" },
+]
+
+const MESES = Array.from({ length: 12 }, (_, i) => i)
+
+// r: el contexto de Reportes. rango: las fechas de la exportación. opciones: { incluirNoCompraron }.
+export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } = {}) {
+  const { datos, f, cols, ocultarMontos, propio, usuario, equipo, historial } = r
+  const montos = !ocultarMontos
+  const delRango = (m) => metricasDelPeriodo(f, datos, m)
+  const lista = (titulo, columnas, filas, personal = true) => modeloDeLista({ titulo, columnas, filas, rango, personal })
+  const profesional = (c) => (responsableDeCita(c) ? nombreDeMiembro(equipo, responsableDeCita(c)) || "Persona que ya no está en el equipo" : "Sin asignar")
+  const citasEnRango = f.citas.filter((c) => enRango(c.fecha, rango))
+  const meses = mesesDelRango(rango)
+  const pdf = (modulo, nombre) => ({ id: `pdf-${modulo}`, modulo, nombre: "Esta pestaña en PDF", linea: `La pestaña ${nombre} tal como se ve, con el período y los filtros en el encabezado, para presentar el desempeño. Se abre la impresión: elige “Guardar como PDF”.`, formato: "PDF", pdf: true })
+
+  const items = [
+    // ── Resumen ──
+    { id: "resumen-meses", modulo: "resumen", nombre: "Resumen mes a mes", linea: "Consultas, pacientes nuevos, citas, inasistencia y lo vendido y cobrado de cada mes del período.",
+      modelo: () => lista("Resumen mes a mes", [col("Mes", (m) => m.etiqueta), col("Consultas", (m) => m.m.cons.length, "entero"), col("Pacientes nuevos", (m) => m.m.nuevos.length, "entero"), col("Citas", (m) => m.m.programadas.length, "entero"), col("No asistió", (m) => m.m.noAsistio.length, "entero"), col("Tasa de inasistencia", (m) => m.m.tasaInasist, "tasa"), ...(montos ? [col("Vendido", (m) => m.m.vc.vendido, "dinero"), col("Cobrado", (m) => m.m.vc.cobrado, "dinero")] : [])], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
+    pdf("resumen", "Resumen"),
+
+    // ── Citas ──
+    { id: "citas-detalle", modulo: "citas", nombre: "Citas del período", linea: "Todas las citas con su paciente, motivo, origen, visita, profesional y estado.",
+      modelo: () => lista("Citas del período", [
+        col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => c.hora), col("Paciente", (c) => c.paciente), col("Cédula", (c) => c.cedula), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo),
+        col("Origen", (c) => (c.origen === "paciente" ? "Web" : "Recepción")), col("Visita", (c) => (coincideSeguimiento(c, "primera", historial) ? "Primera vez" : "Seguimiento")),
+        col("Profesional", profesional), col("Estado", (c) => etiquetaEstadoCita(c.estado)), col("Cancelada por", (c) => (c.estado !== "Cancelada" ? "" : c.canceladaPor === "paciente" ? "El paciente" : "La óptica")),
+      ], [...citasEnRango].sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1))) },
+    { id: "citas-inasistencias", modulo: "citas", nombre: "Inasistencias para reagendar", linea: "Las citas en que el paciente no asistió, con su teléfono, para contactarlo.",
+      modelo: () => lista("Inasistencias del período", [col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => c.hora), col("Paciente", (c) => c.paciente), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo), col("Profesional", profesional)], citasEnRango.filter((c) => c.estado === "No Asistió")) },
+    { id: "citas-tasa-mes", modulo: "citas", nombre: "Inasistencia mes a mes", linea: "Cuántas citas hubo cada mes y qué porcentaje no asistió.",
+      modelo: () => lista("Inasistencia mes a mes", [col("Mes", (x) => x.etiqueta), col("Citas", (x) => x.m.programadas.length, "entero"), col("Atendidas", (x) => x.m.atendidas.length, "entero"), col("No asistió", (x) => x.m.noAsistio.length, "entero"), col("Canceladas", (x) => x.m.canceladas.length, "entero"), col("Tasa de inasistencia", (x) => x.m.tasaInasist, "tasa")], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
+    pdf("citas", "Citas"),
+
+    // ── Clínico ──
+    { id: "consultas-detalle", modulo: "clinico", nombre: "Consultas del período", linea: "Cada consulta con su paciente, motivo, diagnóstico y profesional.",
+      modelo: () => lista("Consultas del período", [col("Fecha", (c) => c.fecha, "fecha"), col("Paciente", (c) => cols.nombre(c.pacienteId, c.paciente)), col("Cédula", (c) => datos.pacientes.find((p) => p.id === c.pacienteId)?.cedula || ""), ...cols.consulta.slice(2), col("Profesional", (c) => c.profesionalNombre || ""), col("Próximo control (días)", (c) => c.proximoControlDias || null, "entero")], f.consultas.filter((c) => enRango(c.fecha, rango))) },
+    { id: "diagnosticos-mes", modulo: "clinico", nombre: "Diagnósticos por mes", linea: `Pacientes con cada diagnóstico, mes a mes, del año ${rango.fin.slice(0, 4)}.`,
+      modelo: () => { const anio = Number(rango.fin.slice(0, 4)); return { ...lista(`Diagnósticos por mes en ${anio}`, [col("Diagnóstico", (x) => x.diagnostico), ...MESES.map((m) => col(nombreMes(m, "corto"), (x) => x.meses[m], "entero")), col("Año", (x) => x.anio, "entero")], diagnosticosPorMes(f.consultas, anio).filas, false), archivo: `diagnosticos-por-mes-${anio}` } } },
+    { id: "campana", modulo: "clinico", nombre: "Pacientes para campaña", linea: "Los pacientes con control vencido y su teléfono, para contactarlos.", aHoy: true, opcion: montos ? "noCompraron" : null,
+      modelo: () => modeloCampana({ pacientes: f.pacientes, historial, pases: datos.pases, facturas: datos.facturas, incluirNoCompraron: incluirNoCompraron && montos }) },
+    pdf("clinico", "Clínico"),
+
+    // ── Ventas ──
+    { id: "contador", modulo: "ventas", nombre: "Ventas para el contador", linea: "Todas las ventas con lo cobrado, el método de pago y la factura electrónica, y los totales por método. Para el IVA y el anexo de ventas.", visible: montos,
+      modelo: () => modeloVentasContador({ facturas: datos.facturas, abonos: datos.abonos, pacientes: datos.pacientes, rango }) },
+    { id: "sinfe", modulo: "ventas", nombre: "Ventas sin factura electrónica", linea: "Las ventas que todavía no tienen su factura electrónica, para emitirlas antes de declarar.", visible: montos,
+      modelo: () => modeloSinFacturaElectronica({ facturas: datos.facturas, pacientes: datos.pacientes, rango }) },
+    { id: "cobros", modulo: "ventas", nombre: "Cobros del período", linea: "El dinero que entró, con su método y la venta a la que corresponde. Para cuadrar la caja.", visible: montos,
+      modelo: () => modeloCobros({ facturas: datos.facturas, abonos: datos.abonos, pacientes: datos.pacientes, rango }) },
+    { id: "inventario", modulo: "ventas", nombre: "Inventario actual", linea: "Producto, categoría, existencia, precio y valor, con el total. Para el conteo físico.", aHoy: true, visible: !propio && puede(usuario, "inventario", "ver"),
+      modelo: () => modeloInventario({ inventario: r.inventario }) },
+    { ...pdf("ventas", "Ventas"), visible: montos },
+
+    // ── Laboratorios ──
+    { id: "ordenes", modulo: "laboratorios", nombre: "Órdenes pendientes por laboratorio", linea: "Las órdenes abiertas de cada laboratorio, con las atrasadas primero. Para reclamar los atrasos.", aHoy: true, visible: montos,
+      modelo: () => modeloOrdenesPendientes({ ordenes: datos.ordenes, pacientes: datos.pacientes, hoy: r.hoy }) },
+    { id: "labs-desempeno", modulo: "laboratorios", nombre: "Desempeño de cada laboratorio", linea: "Órdenes abiertas y atrasadas, entregadas a tiempo y tiempo promedio de entrega.", visible: montos,
+      modelo: () => lista("Desempeño de los laboratorios", [col("Laboratorio", (l) => l.laboratorio), col("Abiertas (hoy)", (l) => l.abiertas, "entero"), col("Atrasadas (hoy)", (l) => l.atrasadas, "entero"), col("Entregadas en el período", (l) => l.entregadas, "entero"), col("Entregadas a tiempo", (l) => l.pctATiempo, "tasa"), col("Promedio de entrega (días)", (l) => (l.promedioDias == null ? null : Math.round(l.promedioDias * 10) / 10), "decimal")], resumenLaboratorios(datos.ordenes, rango, r.hoy), false) },
+    pdf("laboratorios", "Laboratorios"),
+  ]
+  return items.filter((x) => x.visible !== false)
+}
+
