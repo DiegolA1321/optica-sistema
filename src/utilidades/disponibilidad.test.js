@@ -269,6 +269,9 @@ describe("conflictoHorarioPersonalizado", () => {
 })
 
 describe("abrir un día cerrado (excepción de una fecha)", () => {
+  // Las fechas de abajo son de octubre de 2026: sin reloj fijo, el día en que corre la prueba ya habrían pasado sus horas.
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-09T08:00:00-05:00")) })
+  afterEach(() => { vi.useRealTimers() })
   const semanal = {
     lunes: { manana: { activo: true, inicio: "08:30", fin: "12:30" }, tarde: { activo: true, inicio: "15:00", fin: "19:00" } },
     sabado: { manana: { activo: true, inicio: "09:00", fin: "13:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } },
