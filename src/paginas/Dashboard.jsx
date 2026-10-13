@@ -47,7 +47,7 @@ const ACCION_CREAR_PACIENTE = { accion: "crear" }
 const Citas = lazyConReintento(() => import("./Citas"), "Citas")
 const Horario = lazyConReintento(() => import("./Horario"), "Horario")
 const CRM = lazyConReintento(() => import("./CRM"), "CRM")
-const Reportes = lazyConReintento(() => import("./Reportes"), "Reportes")
+const Reportes = lazyConReintento(() => import("./ReportesV2"), "ReportesV2")
 const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
 const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
@@ -635,7 +635,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes usuario={usuario} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasReportes} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
+        return <Reportes usuario={usuario} onAbrirModulo={(m) => navegar(m)} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasReportes} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":
