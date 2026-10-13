@@ -6,6 +6,8 @@ import { saldoVenta, ventasPendientesPaciente } from "./ventas"
 import { numeroComprobante } from "./comprobantes"
 import { esDeEsteMes } from "./inicio"
 import { dinero } from "./formatoMoneda"
+import { aEcuador } from "./horaEcuador"
+import { fechaAISO } from "./disponibilidad"
 
 const normalizar = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
@@ -48,13 +50,15 @@ export const textoSaldos = (r, opciones) => `${r.ventas} ${textoSaldosSinNumero(
 
 // Búsqueda por paciente, cédula, número CV, número de factura electrónica o descripción de una línea.
 // estado "vigentes" = todas menos las anuladas (lo que cuenta la tarjeta Ventas del Inicio); periodo "mes" = las de este mes.
-export function filtrarComprobantes(facturas, { texto = "", estado = "todas", periodo = "todo", sinFacturaElectronica = false, pacientes = [], abonos = [] } = {}) {
+export function filtrarComprobantes(facturas, { texto = "", estado = "todas", periodo = "todo", desde = "", hasta = "", sinFacturaElectronica = false, pacientes = [], abonos = [] } = {}) {
   const q = normalizar(texto).trim()
   const qCV = q.replace(/^cv-?/, "")
   return facturas
     .filter((f) => {
       if (estado === "vigentes" && f.estado === "anulada") return false
       if (periodo === "mes" && !esDeEsteMes(f.creadoEn)) return false
+      // "rango": un período con fechas (llega desde Reportes); el día de la venta es el de Ecuador.
+      if (periodo === "rango") { const dia = f.creadoEn ? fechaAISO(aEcuador(f.creadoEn)) : ""; if (!dia || (desde && dia < desde) || (hasta && dia > hasta)) return false }
       if (estado === "pagadas" && f.estado !== "pagada") return false
       if (estado === "saldo" && saldoFactura(f, abonos) <= 0) return false
       if (estado === "anuladas" && f.estado !== "anulada") return false

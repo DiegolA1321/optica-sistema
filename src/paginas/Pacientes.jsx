@@ -643,6 +643,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       // Atajo desde Inicio (ej. "Pacientes sin atender"): abre esta lista ya filtrada.
       setFiltroCorreccion(accionInicial.correccion ?? "Todos")
       setFiltroRapido(accionInicial.rapido ?? "Todos")
+      setFiltroEstado(accionInicial.estado ?? "Todos") // "Tratamientos finalizados" de Reportes: los pacientes De alta
       setFiltroDesde(accionInicial.desde ?? "") // "Nuevos este mes" del Inicio: la fecha de registro de este mes
       setFiltroHasta(accionInicial.hasta ?? "")
     } else if (accionInicial.accion === "crear") {
@@ -947,6 +948,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
     if (clave === "PagosPendientes") return idsConDeuda.has(p.id)
     if (clave === "NoCompraron") return noCompraron.has(p.id)
     if (clave === "ControlSinAgendar") return sinAgendarPorPaciente.has(p.id)
+    if (clave === "ControlVencido") return esInactivo(p, consultas) // solo llega desde Reportes ("Control vencido")
     return true
   }
   const pacientesFiltrados = useMemo(
@@ -1090,6 +1092,8 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
     { key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` },
     { key: "NoCompraron", label: `Consultaron y no compraron (${cuentaRapida.NoCompraron})` },
     { key: "ControlSinAgendar", label: `Control sin agendar (${cuentaRapida.ControlSinAgendar})` },
+    // Aparece solo mientras está activo (se llega desde Reportes): un filtro activo siempre se ve y se puede quitar.
+    ...(filtroRapido === "ControlVencido" ? [{ key: "ControlVencido", label: `Control vencido (${pacientesSinRapido.filter((p) => cumpleRapido(p, "ControlVencido")).length})` }] : []),
   ]
   const badgeRapidoActivo = filtroRapido
   // "120 pacientes" sin filtros; "Mostrando 5 de 120 pacientes" cuando la búsqueda o algún filtro dejan menos (igual que Citas).
