@@ -12,11 +12,16 @@ const pct = (parte, total) => (total > 0 ? Math.round((parte / total) * 100) : n
 // Primera vez (R40): la consulta no tiene otra anterior del mismo paciente. Se mira en `historial` (todas las
 // consultas, sin el filtro por motivo) para que filtrar no convierta a un paciente antiguo en "primera vez".
 // esPrimeraVez trabaja con citas: se le pasa la consulta con la forma de una (id de su cita, paciente, fecha).
-const consultaEsPrimeraVez = (c, historial) =>
+export const consultaEsPrimeraVez = (c, historial) =>
   esPrimeraVez({ id: c.citaId ?? `consulta:${c.id}`, pacienteId: c.pacienteId, fecha: c.fecha }, historial.filter((o) => o.id !== c.id))
 
-export function calcularEmbudo({ consultas = [], pases = [], facturas = [], enRango, historial = consultas }) {
-  const delPeriodo = consultas.filter((c) => enRango(c.fecha))
+// Una consulta "con receta" lleva graduación anotada en algún ojo: de esas sale la pregunta "¿compró lo que le recetaron?".
+const llevaGraduacion = (ojo) => !!ojo && [ojo.esfera, ojo.cilindro, ojo.eje].some((v) => String(v ?? "").trim() !== "")
+export const tieneReceta = (c) => llevaGraduacion(c?.od) || llevaGraduacion(c?.oi)
+
+// conReceta: la cohorte son solo los atendidos con receta (Reportes). Sin esa opción son todas las consultas del período.
+export function calcularEmbudo({ consultas = [], pases = [], facturas = [], enRango, historial = consultas, conReceta = false }) {
+  const delPeriodo = consultas.filter((c) => enRango(c.fecha) && (!conReceta || tieneReceta(c)))
   const consultaron = delPeriodo.length
   const ids = new Set(delPeriodo.map((c) => c.id))
   const cohorte = pases.filter((p) => ids.has(p.consultaId))
@@ -35,6 +40,14 @@ export function calcularEmbudo({ consultas = [], pases = [], facturas = [], enRa
   const primeraVez = idsPrimeraVez.size
   const compraronPrimeraVez = [...idsCompra].filter((id) => idsPrimeraVez.has(id)).length
   return {
+    // Los registros detrás de cada número (para abrir su lista): ids de consulta.
+    ids: {
+      consultaron: ids, pasaron: idsPasaron, compraron: idsCompra, primeraVez: idsPrimeraVez,
+      noCompraronPorMotivo: Object.fromEntries(MOTIVOS_NO_COMPRO.map((m) => [m.id, descartados.filter((p) => p.motivoDescarte === m.id).map((p) => p.consultaId)])),
+      enEspera: cohorte.filter((p) => p.estado === "listo" && !idsCompra.has(p.consultaId)).map((p) => p.consultaId),
+      proformas: proformas.map((p) => p.consultaId),
+      proformasEnVenta: proformas.filter((p) => idsCompra.has(p.consultaId)).map((p) => p.consultaId),
+    },
     consultaron,
     primeraVez,
     yaEranPacientes: consultaron - primeraVez,

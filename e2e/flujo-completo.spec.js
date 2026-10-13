@@ -22,15 +22,24 @@ async function leerReportes(page) {
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await page.getByRole('button', { name: 'Reportes', exact: true }).first().click()
   const cuerpo = page.locator('main')
+  // Las tarjetas del Resumen dicen su número en su nombre accesible ("Vendido: $1,234.50. Ver la lista"); la cantidad de ventas
+  // está en el título de la lista que abre ("Vendido: 3 ventas").
   const leer = async () => {
-    const texto = await cuerpo.innerText()
-    const num = (re) => Number((texto.match(re)?.[1] ?? 'NaN').replace(/[^\d.]/g, ''))
-    return { consultas: num(/CONSULTAS\s+(\d+)/), ingresos: num(/VENDIDO\s+\$([\d.,]+)/), ventas: num(/(\d+) ventas? \(sin anuladas\)/) }
+    const num = (t) => Number(t.replace(/[^\d.]/g, ''))
+    const consultas = num((await cuerpo.getByRole('button', { name: /^Consultas realizadas: / }).getAttribute('aria-label')).match(/: (\d+)\./)[1])
+    const vendido = cuerpo.getByRole('button', { name: /^Vendido: / })
+    const ingresos = num((await vendido.getAttribute('aria-label')).match(/\$([\d.,]*\d)/)[1])
+    await vendido.click()
+    const ventana = page.getByRole('dialog', { name: /^Vendido: / })
+    const ventas = Number((await ventana.getAttribute('aria-label')).match(/(\d+) venta/)[1])
+    await page.keyboard.press('Escape')
+    await expect(ventana).toHaveCount(0)
+    return { consultas, ingresos, ventas }
   }
   // Los indicadores arrancan en 0 mientras cargan los datos, y en una óptica vacía 0 es un valor legítimo: no se puede esperar
   // "una cifra mayor que cero". Se espera a que el Reportes termine de cargar (sin esqueletos, con las tarjetas pintadas) y a que
   // la lectura se mantenga igual durante un par de segundos.
-  await expect(cuerpo.getByText(/ventas? \(sin anuladas\)/)).toBeVisible({ timeout: 25_000 })
+  await expect(cuerpo.getByRole('button', { name: /^Vendido: / })).toBeVisible({ timeout: 25_000 })
   await expect(cuerpo.locator('.animate-pulse')).toHaveCount(0, { timeout: 25_000 })
   let previa = JSON.stringify(await leer())
   await expect(async () => {

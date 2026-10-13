@@ -133,11 +133,17 @@ test('Mi horario: registrar y quitar una ausencia lejana (funciones registrar_au
   await expect(quitar).toHaveCount(0, { timeout: 20_000 })
 })
 
+// El día de hoy ya viene desplegado: pulsarlo en lunes lo cerraba y la prueba fallaba solo los lunes. Se despliega solo si está cerrado.
+async function abrirLunes(page) {
+  const lunes = page.getByRole('button', { name: /^Lunes/ })
+  if ((await lunes.getAttribute('aria-expanded')) !== 'true') await lunes.click()
+}
+
 test('Mi horario: guardar y restaurar el horario habitual propio (horarios_usuario: upsert)', async ({ page }) => {
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await irA(page, 'Mi horario')
   await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
-  await page.getByRole('button', { name: /^Lunes/ }).click()
+  await abrirLunes(page)
   const interruptor = () => page.getByRole('switch', { name: /la tarde$/ }).first()
   await expect(interruptor()).toBeVisible({ timeout: 20_000 })
   const original = await interruptor().getAttribute('aria-checked')
@@ -151,7 +157,7 @@ test('Mi horario: guardar y restaurar el horario habitual propio (horarios_usuar
     await page.reload()
     await irA(page, 'Mi horario')
     await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
-    await page.getByRole('button', { name: /^Lunes/ }).click()
+    await abrirLunes(page)
     await expect(interruptor()).toHaveAttribute('aria-checked', original === 'true' ? 'false' : 'true', { timeout: 25_000 })
   } finally {
     if (await interruptor().count() && (await interruptor().getAttribute('aria-checked')) !== original) await alternar('restaurar horario propio')

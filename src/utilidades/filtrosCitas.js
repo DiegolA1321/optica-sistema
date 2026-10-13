@@ -95,6 +95,8 @@ export function coincideEstado(cita, estado) {
     case "atendida": return cita.estado === "Atendida"
     case "cancelada": return cita.estado === "Cancelada"
     case "noAsistio": return cita.estado === "No Asistió"
+    // Lo que sigue por atender (pendiente, en espera y en atención): solo se llega desde Reportes, no es una opción del panel.
+    case "abiertas": return ["Pendiente", "En Espera", "En Atención"].includes(cita.estado)
     default: return true
   }
 }
@@ -147,6 +149,7 @@ export function citaPasaFiltros(cita, f, consultas = []) {
   const paraReagendar = !f.ventana && !buscando && p && !p.desde && !p.hasta && p.filtro === "reagendar"
   if (!paraReagendar && !coincideEstadoVisible(cita, f.estado)) return false
   if (f.alta === "mes" && !esDeEsteMes(cita.creadoEn)) return false
+  if (f.motivo && (cita.motivo || "").trim() !== f.motivo) return false
   if (!coincideOrigen(cita, f.origen)) return false
   if (!coincideSeguimiento(cita, f.seguimiento, consultas)) return false
   if (!coincideResponsable(cita, f.responsable)) return false

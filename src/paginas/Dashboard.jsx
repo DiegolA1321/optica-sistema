@@ -111,7 +111,7 @@ const OPCIONES = [
   { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true, delegable: true },
 ]
 
-export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, respuestasSatisfaccion = [], solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -152,11 +152,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const ids = new Set([...citasReportes.map((c) => c.pacienteId), ...consultasReportes.map((c) => c.pacienteId)].filter(Boolean))
     return pacientes.filter((p) => ids.has(p.id))
   }, [pacientes, citasReportes, consultasReportes, reportesAcotado])
-  const respuestasReportes = useMemo(() => {
-    if (!reportesAcotado) return respuestasSatisfaccion
-    const ids = new Set(citasReportes.map((c) => c.id))
-    return respuestasSatisfaccion.filter((r) => ids.has(r.citaId))
-  }, [respuestasSatisfaccion, citasReportes, reportesAcotado])
   const pasesReportes = useMemo(() => {
     if (!reportesAcotado) return pases
     const ids = new Set(consultasReportes.map((c) => c.id))
@@ -225,6 +220,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     setAviso(mensaje)
     clearTimeout(timeoutAviso.current)
     timeoutAviso.current = setTimeout(() => setAviso(null), mensaje?.accion ? 8000 : 4000)
+  }
+  // "Abrir en …" de Reportes: el módulo con el mismo período y los mismos filtros (así el número que se leyó es el que se ve).
+  const abrirDesdeReportes = (modulo, params = {}) => {
+    if (modulo === "citas") setEstadoCitasInicial(params.estado ? { ...params, periodo: "rango" } : null)
+    else if (modulo === "pacientes") setAccionPacienteInicio(params.accion ? params : null)
+    else if (modulo === "ventas") setAccionVentasInicio(params.tab ? params : null)
+    navegar(modulo)
   }
   // Destino pendiente cuando navegar() necesita confirmar que se van a
   // perder cambios sin guardar de la ficha clínica (antes: window.confirm
@@ -635,7 +637,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return <CRM usuario={usuario} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
       case "reportes":
-        return <Reportes usuario={usuario} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} respuestasSatisfaccion={respuestasReportes} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
+        return <Reportes usuario={usuario} inventario={inventario} equipo={equipo} onAviso={mostrarAviso} onAbrirModulo={abrirDesdeReportes} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
         return <Mensajes usuario={usuario} />
       case "usuarios":

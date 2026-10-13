@@ -1,4 +1,5 @@
-import { ahoraEcuador } from "./horaEcuador"
+import { ahoraEcuador, aEcuador } from "./horaEcuador"
+import { fechaAISO } from "./disponibilidad"
 // Reportes de laboratorio y de lunas: lógica pura.
 import { estaAtrasada } from "./ordenesLaboratorio"
 import { TIPOS_LENTE } from "./ordenesLaboratorio"
@@ -20,12 +21,19 @@ export const diasDeEntrega = (o) => {
   return Math.max(0, (new Date(fin) - new Date(o.creadaEn)) / DIA)
 }
 
-// Por laboratorio: abiertas, atrasadas y tiempo promedio de entrega (en días) de las entregadas.
+// ¿Se entregó en la fecha prometida o antes? (por el día de Ecuador de la entrega). Sin fecha prometida no se puede juzgar: cuenta como a tiempo.
+export const entregoATiempo = (o) => {
+  const cuando = entregadaEn(o)
+  if (!cuando || !o.fechaPrometida) return true
+  return fechaAISO(aEcuador(cuando)) <= o.fechaPrometida
+}
+
+// Por laboratorio: abiertas, atrasadas, % entregado a tiempo y tiempo promedio de entrega (en días) de las entregadas.
 // `enRango(fechaISO)` limita las ENTREGADAS al período (por fecha de entrega); las atrasadas son el estado actual.
 export function resumenPorLaboratorio(ordenes = [], { hoy = ahoraEcuador(), enRango = () => true } = {}) {
   const mapa = new Map()
   const fila = (lab) => {
-    if (!mapa.has(lab)) mapa.set(lab, { laboratorio: lab, abiertas: 0, atrasadas: 0, entregadas: 0, sumaDias: 0 })
+    if (!mapa.has(lab)) mapa.set(lab, { laboratorio: lab, abiertas: 0, atrasadas: 0, entregadas: 0, aTiempo: 0, sumaDias: 0 })
     return mapa.get(lab)
   }
   for (const o of ordenes) {
@@ -35,11 +43,11 @@ export function resumenPorLaboratorio(ordenes = [], { hoy = ahoraEcuador(), enRa
     if (o.estado === "entregada") {
       const d = diasDeEntrega(o)
       const cuando = entregadaEn(o)
-      if (d != null && enRango(cuando)) { f.entregadas++; f.sumaDias += d }
+      if (d != null && enRango(cuando)) { f.entregadas++; f.sumaDias += d; if (entregoATiempo(o)) f.aTiempo++ }
     }
   }
   return [...mapa.values()]
-    .map((f) => ({ laboratorio: f.laboratorio, abiertas: f.abiertas, atrasadas: f.atrasadas, entregadas: f.entregadas, promedioDias: f.entregadas ? f.sumaDias / f.entregadas : null }))
+    .map((f) => ({ laboratorio: f.laboratorio, abiertas: f.abiertas, atrasadas: f.atrasadas, entregadas: f.entregadas, aTiempo: f.aTiempo, pctATiempo: f.entregadas ? Math.round((f.aTiempo / f.entregadas) * 100) : null, promedioDias: f.entregadas ? f.sumaDias / f.entregadas : null }))
     .filter((f) => f.abiertas > 0 || f.entregadas > 0)
     .sort((a, b) => b.atrasadas - a.atrasadas || b.abiertas - a.abiertas || a.laboratorio.localeCompare(b.laboratorio))
 }

@@ -44,6 +44,7 @@ export default function Ventas({
   const [textoCola, setTextoCola] = useState("")
   const [estado, setEstado] = useState("todas")
   const [periodo, setPeriodo] = useState("todo") // "mes": solo las de este mes (el "+N este mes" de Inicio)
+  const [fechas, setFechas] = useState({ desde: "", hasta: "" }) // el período "rango": solo llega desde Reportes
   const [sinFE, setSinFE] = useState(false)
   const [visibles, setVisibles] = useState(POR_PAGINA)
   const [nuevaVenta, setNuevaVenta] = useState(false)
@@ -60,7 +61,7 @@ export default function Ventas({
     if (accionInicial.tab === "ordenes") setFiltroOrdenes(accionInicial.filtro || "abiertas")
     if (accionInicial.tab === "cola") setVerNoCompraron(false)
     if (accionInicial.texto != null) { setTexto(accionInicial.texto); setEstado("todas"); setSinFE(false) }
-    if (accionInicial.tab === "ventas") { setEstado(accionInicial.estado || "todas"); setPeriodo(accionInicial.periodo || "todo"); setSinFE(false) } // las tarjetas Ventas del Inicio piden vigentes, de siempre o de este mes
+    if (accionInicial.tab === "ventas") { setEstado(accionInicial.estado || "todas"); setFechas({ desde: accionInicial.desde || "", hasta: accionInicial.hasta || "" }); setPeriodo(accionInicial.desde || accionInicial.hasta ? "rango" : accionInicial.periodo || "todo"); setSinFE(!!accionInicial.sinFE) } // las tarjetas Ventas del Inicio piden vigentes, de siempre o de este mes
     onAccionInicialConsumida?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accionInicial])
@@ -71,7 +72,7 @@ export default function Ventas({
   const abiertas = ordenesAbiertas(ordenesLab).length
   const atrasadas = ordenesAtrasadas(ordenesLab).length
   const sinAvisar = ordenesListasSinAvisar(ordenesLab).length
-  const comprobantes = useMemo(() => filtrarComprobantes(facturasVenta, { texto, estado, periodo, sinFacturaElectronica: sinFE, pacientes, abonos }), [facturasVenta, texto, estado, periodo, sinFE, pacientes, abonos])
+  const comprobantes = useMemo(() => filtrarComprobantes(facturasVenta, { texto, estado, periodo, desde: fechas.desde, hasta: fechas.hasta, sinFacturaElectronica: sinFE, pacientes, abonos }), [facturasVenta, texto, estado, periodo, fechas, sinFE, pacientes, abonos])
   useEffect(() => { setVisibles(POR_PAGINA) }, [texto, estado, periodo, sinFE])
 
   const pacienteDe = (id) => pacientes.find((p) => p.id === id) || null
@@ -181,6 +182,7 @@ export default function Ventas({
                   <select aria-label="Período del comprobante" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm text-slate-700">
                     <option value="todo">Todo el tiempo</option>
                     <option value="mes">Este mes</option>
+                    {periodo === "rango" && <option value="rango">{`Del ${fechaLegible(fechas.desde)} al ${fechaLegible(fechas.hasta)}`}</option>}
                   </select>
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
                     <input type="checkbox" checked={sinFE} onChange={(e) => setSinFE(e.target.checked)} className="accent-emerald-600" /> Sin factura electrónica
