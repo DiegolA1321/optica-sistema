@@ -930,6 +930,8 @@ function App() {
       // recuerda en localStorage para sobrevivir un F5 dentro de la misma
       // sesión — ese recuerdo es para recargar la página, no para un login nuevo.
       localStorage.setItem('optica_seccion_activa', 'inicio');
+      // Un login nuevo siempre entra con la vista de Administrador (la vista elegida solo sobrevive a un F5).
+      try { localStorage.removeItem(`optica_vista_${datosOUsuario.id}`); } catch { /* sin almacenamiento */ }
       setPantallaActual('dashboard');
     } else if (datosOUsuario.rol === 'asistente') {
       // Sesión real de Supabase Auth: la persiste supabase-js mismo, no optica_sesion.
