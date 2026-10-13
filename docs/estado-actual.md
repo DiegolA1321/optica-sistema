@@ -7,6 +7,13 @@
 - **Pruebas:** Vitest 603 de 603; Playwright (versión compilada, `--workers=1`) 92 pasadas y 1 omitida, antes de la corrección del mes. Las pruebas de "Citas del día", `elegirFecha` (ahora comprueba que el calendario se vea completo y use el selector de año), la orden de laboratorio y "Vendido" de Reportes se actualizaron.
 - **Pendiente siguiente:** la revisión de Ventas (`docs/revision-ventas.md`), que incluye pasar sus ventanas propias a `Cascaron`; después Portal y Superadmin (`docs/revision-portal-y-superadmin.md`).
 
+## Reportes v2 (rama `reportes-v2`, 12 oct. 2026, sin publicar)
+- Cinco pestañas (Resumen, Citas, Clínico, Ventas, Laboratorios) con filtros únicos (período, motivo, origen, visita, profesional), comparación con el período anterior equivalente, ⓘ en cada indicador y ventana de detalle estándar por cada número. Código en `src/paginas/Reportes.jsx`, `src/componentes/reportes/`, `src/utilidades/reportes{Periodo,Datos,Excel,Pdf}.js`.
+- "Cobrado" = lo cobrado de las ventas del período (Vendido = Cobrado + Saldo, igual que el Inicio); su lista son los pagos. El Excel "Cobros del período" es el dinero que entró entre esas fechas (caja).
+- "Abrir en …" llega a Citas (estado, rango, origen, visita, profesional, motivo; estado `abiertas`), Ventas (rango, sinFE) y Pacientes (`estado`, `ControlVencido`) con los mismos filtros. Cambios aditivos en `filtrosCitas.js`, `Citas.jsx`, `Ventas.jsx`, `saldosVentas.js`, `Pacientes.jsx`.
+- Se quitó de Reportes la satisfacción (CSAT) y "Citas → atendidos" (no estaban en el pedido).
+- Pruebas: 674 unitarias; `e2e/reportes.spec.js` (sin desplazamiento horizontal a 1366×768, número = ventana, filtros estables).
+
 Para retomar en una sesión nueva sin leer la conversación anterior.
 
 ## Estado: Citas, el Inicio de todos los roles y el perfil del paciente están cerrados y publicados
