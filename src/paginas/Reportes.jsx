@@ -1,1024 +1,207 @@
-import CampoFecha from "../componentes/CampoFecha"
-import SinDatosAun from "../componentes/SinDatosAun"
 "use client"
 
-import { dinero } from "../utilidades/formatoMoneda"
-import { ahoraEcuador, aEcuador } from "../utilidades/horaEcuador"
-
-import { MESES_CORTOS } from "../utilidades/formatoFecha"
-import { etiquetaCorreccion } from "../utilidades/correccion"
 import { useMemo, useState } from "react"
-import {
-  BarChart3,
-  Stethoscope,
-  UserPlus,
-  CheckCircle2,
-  AlertTriangle,
-  CalendarClock,
-  CalendarCheck,
-  DollarSign,
-  Lock,
-  Wallet,
-  TrendingUp,
-  Star,
-  CalendarRange,
-  Info,
-  ShieldCheck,
-  FlaskConical,
-  Glasses,
-  Filter,
-} from "lucide-react"
-import { esInactivo } from "../utilidades/fidelizacion"
+import { Download, X } from "lucide-react"
+import CampoFecha from "../componentes/CampoFecha"
+import SinDatosAun from "../componentes/SinDatosAun"
+import TarjetaReporte from "../componentes/reportes/TarjetaReporte"
+import VentanaDetalle from "../componentes/reportes/VentanaDetalle"
+import VentanaExportar from "../componentes/reportes/VentanaExportar"
+import { crearColumnas } from "../componentes/reportes/listas"
+import PestanaResumen from "../componentes/reportes/PestanaResumen"
+import PestanaCitas from "../componentes/reportes/PestanaCitas"
+import PestanaClinico from "../componentes/reportes/PestanaClinico"
+import PestanaVentas from "../componentes/reportes/PestanaVentas"
+import PestanaLaboratorios from "../componentes/reportes/PestanaLaboratorios"
+import { INK, GRAD_MARCA } from "@/lib/tema"
+import { tituloSemana } from "../utilidades/formatoFecha"
+import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { fechaAISO } from "../utilidades/disponibilidad"
-import { useAnchoElemento } from "../utilidades/graficos"
-import { calcularEmbudo } from "../utilidades/embudo"
-import { vendidoYCobrado } from "../utilidades/vendidoCobrado"
-import { diagnosticosPorMes, motivosEnConsultas, filtrarPorMotivo, aniosConConsultas, claveDiagnostico, etiquetaDeVariantes, categoriasDeConsulta } from "../utilidades/reportesDiagnosticos"
-import { resumenPorLaboratorio, ventasPorTipoLuna, productosMasVendidos as rankingProductos } from "../utilidades/reportesLaboratorio"
-import { INK } from "@/lib/tema"
+import { motivosEnConsultas } from "../utilidades/reportesDiagnosticos"
+import { responsableDeCita, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO } from "../utilidades/filtrosCitas"
+import { nombreDeMiembro } from "../utilidades/equipo"
+import { PERIODOS, rangoDePeriodo, rangoAnterior, etiquetaComparacion, variacion } from "../utilidades/reportesPeriodo"
+import { FILTROS_VACIOS, hayFiltros, filtrarDatos, metricasDelPeriodo } from "../utilidades/reportesDatos"
+import { modeloDeLista, descargarModelo } from "../utilidades/reportesExcel"
+import { useParamUrl } from "../utilidades/urlEstado"
 
-// ─── Paleta de firma (consistente con el resto del sistema) ───
-const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
-
-
-// Colores de estado — los mismos que usan Pacientes.jsx / PortalPaciente.jsx,
-// para que un mismo estado se vea igual en todo el sistema.
-const COLOR_CORRECCION = {
-  "Bien corregido": "#059669",
-  "Requiere ajuste": "#dc2626",
-  "Sin evaluar": "#475569",
-  "Sin evaluación": "#d97706",
-}
-
-function ultimosNMeses(n) {
-  const hoy = ahoraEcuador()
-  const arr = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
-    arr.push({ clave: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, etiqueta: MESES_CORTOS[d.getMonth()] })
-  }
-  return arr
-}
-
-// Selector de período para los KPIs de flujo (consultas, pacientes nuevos,
-// ingresos, conversión) — antes fijos siempre a "este mes", sin forma de
-// comparar un trimestre o armar algo para el contador. Los KPIs de estado
-// actual (Bien corregidos, Tratamientos finalizados, Controles atrasados,
-// Citas → atendidos) no
-// cambian con el período: son una foto de ahora mismo, no un flujo.
-// Fechas como texto "AAAA-MM-DD" a propósito — mismo formato que ya usan
-// consultas.fecha/pacientes.fechaRegistro, comparar como texto alcanza
-// porque el ISO ordena igual que el calendario, sin líos de zona horaria.
-const fmtFecha = fechaAISO
-
-function calcularRango(periodo, inicioPersonalizado, finPersonalizado) {
-  const hoy = ahoraEcuador()
-  const y = hoy.getFullYear(), m = hoy.getMonth()
-  if (periodo === "personalizado") {
-    return { inicio: inicioPersonalizado || fmtFecha(new Date(y, m, 1)), fin: finPersonalizado || fmtFecha(hoy), etiqueta: "el período elegido" }
-  }
-  if (periodo === "mesPasado") {
-    return { inicio: fmtFecha(new Date(y, m - 1, 1)), fin: fmtFecha(new Date(y, m, 0)), etiqueta: "el mes pasado" }
-  }
-  if (periodo === "trimestre") {
-    return { inicio: fmtFecha(new Date(y, m - 2, 1)), fin: fmtFecha(hoy), etiqueta: "los últimos 3 meses" }
-  }
-  if (periodo === "semestre") {
-    return { inicio: fmtFecha(new Date(y, m - 5, 1)), fin: fmtFecha(hoy), etiqueta: "los últimos 6 meses" }
-  }
-  return { inicio: fmtFecha(new Date(y, m, 1)), fin: fmtFecha(hoy), etiqueta: "este mes" }
-}
-
-const PERIODOS = [
-  { id: "mes", label: "Este mes" },
-  { id: "mesPasado", label: "Mes pasado" },
-  { id: "trimestre", label: "Últimos 3 meses" },
-  { id: "semestre", label: "Últimos 6 meses" },
-  { id: "personalizado", label: "Personalizado" },
+// Las pestañas siguen el recorrido del paciente (el mismo orden del menú). Cada una responde una pregunta del negocio.
+const PESTANAS = [
+  { id: "resumen", etiqueta: "Resumen", pregunta: "¿Cómo le fue a la óptica en este período?" },
+  { id: "citas", etiqueta: "Citas", pregunta: "¿Cómo usamos la agenda y quién viene?" },
+  { id: "clinico", etiqueta: "Clínico", pregunta: "¿Qué atendemos y cómo están nuestros pacientes?" },
+  { id: "ventas", etiqueta: "Ventas", pregunta: "¿Cuánto vendemos, cuánto cobramos y por qué no compran?" },
+  { id: "laboratorios", etiqueta: "Laboratorios", pregunta: "¿Cumplen los laboratorios?" },
 ]
+const ETIQUETA_ORIGEN = Object.fromEntries(ORIGENES_FILTRO.map((o) => [o.id, o.etiqueta]))
+const ETIQUETA_VISITA = Object.fromEntries(SEGUIMIENTO_FILTRO.map((o) => [o.id, o.etiqueta]))
+const selector = "mt-0.5 block h-9 rounded-lg border border-slate-200/60 bg-white px-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500"
 
-export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], consultasCompletas = null, citas = [], ventas = [], facturasVenta = [], respuestasSatisfaccion = [], pases = [], abonos = [], ordenesLab = [], soloLoPropio = false, verMontos = true, onRegistrarPaciente }) {
-  // Vista por rol (D4, mismo criterio que Inicio.jsx:58-59): el admin ve
-  // todo, como siempre. Un optómetra que no es admin ve solo lo clínico/de
-  // atención — las métricas financieras (ingresos, conversión a venta,
-  // productos más vendidos) se ocultan porque no le competen a esa vista.
-  // No cambia qué tan permiso tiene para ENTRAR a Reportes (eso lo sigue
-  // decidiendo Dashboard.jsx vía usuario.permisos.reportes) — solo lo que
-  // ve una vez adentro.
-  // Vista acotada a lo propio (R49): por el alcance del rol o por ser optómetra sin ser administrador.
-  const esOptometraNoAdmin = soloLoPropio || (!!usuario?.esOptometra && usuario?.rol !== "admin")
-  // Montos (ingresos, ventas, conversión): se ocultan a quien no puede ver Ventas y a quien trabaja solo con lo suyo.
-  const ocultarMontos = esOptometraNoAdmin || verMontos === false
-  // Filtro por motivo de consulta (R61): acota todo lo que sale de las consultas (KPIs, gráficas, embudo).
-  const [motivo, setMotivo] = useState("")
-  const motivos = useMemo(() => motivosEnConsultas(consultasTodas), [consultasTodas])
-  const consultas = useMemo(() => filtrarPorMotivo(consultasTodas, motivo), [consultasTodas, motivo])
-  const [anioDx, setAnioDx] = useState(ahoraEcuador().getFullYear())
-  const [verTodosDx, setVerTodosDx] = useState(false)
+export default function Reportes({ usuario, cargaInicial = false, pacientes = [], consultas: consultasTodas = [], consultasCompletas = null, citas: citasTodas = [], ventas = [], facturasVenta = [], pases = [], abonos = [], ordenesLab = [], inventario = [], equipo = [], soloLoPropio = false, verMontos = true, onAbrirModulo, onRegistrarPaciente, onAviso }) {
+  const esAdmin = usuario?.rol === "admin" && !soloLoPropio
+  const propio = soloLoPropio || (!!usuario?.esOptometra && usuario?.rol !== "admin")
+  const ocultarMontos = propio || verMontos === false
+  const historial = consultasCompletas || consultasTodas
+
+  const pestanasVisibles = PESTANAS.filter((p) => !(p.id === "ventas" && ocultarMontos))
+  const [pestana, setPestana] = useParamUrl("tab", "resumen", pestanasVisibles.map((p) => p.id))
   const [periodo, setPeriodo] = useState("mes")
-  const [inicioPersonalizado, setInicioPersonalizado] = useState("")
-  const [finPersonalizado, setFinPersonalizado] = useState("")
-  const rango = useMemo(() => calcularRango(periodo, inicioPersonalizado, finPersonalizado), [periodo, inicioPersonalizado, finPersonalizado])
-  // `consultas.fecha` y `pacientes.fechaRegistro` son columnas DATE puras
-  // ("2026-09-09", sin hora ni zona) — comparar el string tal cual es
-  // correcto. Pero `ventas.creadoEn` es un timestamp real (timestamptz,
-  // siempre en UTC) — recortarlo tal cual desplazaba una venta hecha de
-  // noche en Ecuador (UTC-5) al día calendario SIGUIENTE en "Ingresos" y
-  // "Productos más vendidos". Si el valor trae hora ("T" en el string), se
-  // convierte primero a la fecha calendario de ECUADOR (no la del equipo) antes de comparar.
-  const enRango = (fecha) => {
-    if (!fecha) return false
-    const f = fecha.includes("T") ? fechaAISO(aEcuador(fecha)) : fecha.slice(0, 10)
-    return f >= rango.inicio && f <= rango.fin
+  const [personalizado, setPersonalizado] = useState({ inicio: "", fin: "" })
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  const [detalle, setDetalle] = useState(null)
+  const [exportando, setExportando] = useState(false)
+  const cambiarFiltro = (clave, valor) => setFiltros((f) => ({ ...f, [clave]: valor }))
+
+  const hoyClave = fechaAISO(ahoraEcuador())
+  const hoy = useMemo(() => ahoraEcuador(), [hoyClave]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rango = useMemo(() => rangoDePeriodo(periodo, personalizado, hoy), [periodo, personalizado, hoy])
+  const previo = useMemo(() => rangoAnterior(periodo, rango, hoy), [periodo, rango, hoy])
+
+  const motivos = useMemo(() => motivosEnConsultas([...consultasTodas, ...citasTodas]), [consultasTodas, citasTodas])
+  const profesionales = useMemo(() => {
+    const m = new Map()
+    for (const c of citasTodas) { const id = responsableDeCita(c); if (id && !m.has(id)) m.set(id, nombreDeMiembro(equipo, id)) }
+    for (const c of consultasTodas) if (c.profesionalId && !m.has(c.profesionalId)) m.set(c.profesionalId, nombreDeMiembro(equipo, c.profesionalId))
+    for (const [id, nombre] of m) if (!nombre) m.set(id, consultasTodas.find((c) => c.profesionalId === id)?.profesionalNombre || "Profesional")
+    return [...m.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [consultasTodas, citasTodas, equipo])
+  const nombreProfesional = profesionales.find((p) => p.id === filtros.profesional)?.nombre
+
+  const datos = useMemo(() => ({ pacientes, consultas: consultasTodas, historial, citas: citasTodas, ventas, facturas: facturasVenta, pases, ordenes: ordenesLab, abonos }), [pacientes, consultasTodas, historial, citasTodas, ventas, facturasVenta, pases, ordenesLab, abonos])
+  const f = useMemo(() => filtrarDatos(datos, filtros), [datos, filtros])
+  const act = useMemo(() => metricasDelPeriodo(f, datos, rango), [f, datos, rango])
+  const ant = useMemo(() => metricasDelPeriodo(f, datos, previo), [f, datos, previo])
+  const cols = useMemo(() => crearColumnas({ pacientes, abonos, historial }), [pacientes, abonos, historial])
+
+  const etiquetas = [
+    { id: "periodo", texto: `Período: ${tituloSemana(rango.inicio, rango.fin)}` },
+    filtros.motivo && { id: "motivo", texto: `Motivo: ${filtros.motivo}`, quitar: () => cambiarFiltro("motivo", "") },
+    filtros.origen !== "todos" && { id: "origen", texto: `Origen: ${ETIQUETA_ORIGEN[filtros.origen]}`, quitar: () => cambiarFiltro("origen", "todos") },
+    filtros.visita !== "todos" && { id: "visita", texto: `Visita: ${ETIQUETA_VISITA[filtros.visita]}`, quitar: () => cambiarFiltro("visita", "todos") },
+    esAdmin && filtros.profesional && { id: "profesional", texto: `Profesional: ${nombreProfesional || "—"}`, quitar: () => cambiarFiltro("profesional", "") },
+    propio && { id: "propio", texto: "Solo tus consultas y tus citas" },
+  ].filter(Boolean)
+  const filtrosTexto = etiquetas.map((e) => e.texto).join(" · ")
+  // Los filtros sin el período (el período va aparte en el encabezado de cada archivo).
+  const filtrosActivosTexto = etiquetas.filter((e) => e.id !== "periodo").map((e) => e.texto).join(" · ") || "ninguno"
+  const hay = hayFiltros(filtros)
+
+  // Una lista (la de una ventana o la de un bloque) como Excel, con el encabezado de siempre y registrada en la actividad si lleva personas.
+  const exportarLista = async ({ titulo, valor, columnas, filas, personal = true }) => {
+    if (filas.length === 0) { onAviso?.(`No hay datos para «${titulo}» con estos filtros: no se descargó nada.`); return }
+    const modelo = modeloDeLista({ titulo, valor, columnas, filas, rango, personal })
+    try { await descargarModelo(modelo, { usuario, opticaNombre: usuario?.opticaNombre, usuarioNombre: usuario?.nombre, rango, filtrosTexto: filtrosActivosTexto }); onAviso?.(`Se descargó «${titulo}» (${filas.length} filas).`) } catch { onAviso?.(`No se pudo descargar «${titulo}». Vuelve a intentarlo.`) }
   }
-
-  const consultasEsteMes = useMemo(
-    () => consultas.filter((c) => enRango(c.fecha)).length,
-    [consultas, rango],
-  )
-
-  const pacientesNuevosEsteMes = useMemo(
-    () => pacientes.filter((p) => enRango(p.fechaRegistro)).length,
-    [pacientes, rango],
-  )
-
-  // Diagnóstico con Diego (2026-09-10): "AV con lentes" arrancaba en 20/20
-  // por defecto en la ficha clínica, así que "Bien corregido" no distinguía
-  // "evaluado y confirmado" de "nunca evaluado" — el campo ya no tiene ese
-  // default (ver evaluarCorreccion en ConsultaMedica.jsx), y ahora puede
-  // devolver "Sin evaluar" además de "Sin evaluación" (nunca tuvo consulta).
-  // El % solo debe salir de pacientes con una evaluación real: ni los que
-  // nunca tuvieron consulta ni los que la tuvieron pero dejaron el campo
-  // vacío cuentan en el denominador — mismo criterio que antes, pero ahora
-  // filtrando por los dos valores reales en vez de excluir solo uno.
-  const tasaBienCorregido = useMemo(() => {
-    const evaluados = pacientes.filter((p) => p.estadoCorreccion === "Bien corregido" || p.estadoCorreccion === "Requiere ajuste")
-    if (evaluados.length === 0) return null
-    const bien = evaluados.filter((p) => p.estadoCorreccion === "Bien corregido").length
-    return Math.round((bien / evaluados.length) * 100)
-  }, [pacientes])
-
-  // Dato aparte que pidió Diego: cuántos pacientes tuvieron consulta pero
-  // quedaron "Sin evaluar" — no se esconde ni se cuenta como mal corregido,
-  // se muestra tal cual junto al KPI de arriba.
-  const pacientesSinEvaluarCorreccion = useMemo(
-    () => pacientes.filter((p) => p.estadoCorreccion === "Sin evaluar").length,
-    [pacientes],
-  )
-
-  // Se mide contra el historial completo (no el acotado por alcance): un control no vence más rápido porque se mire "lo mío".
-  const historialCompleto = consultasCompletas || consultasTodas
-  const controlesVencidos = useMemo(() => pacientes.filter((p) => esInactivo(p, historialCompleto)).length, [pacientes, historialCompleto])
-
-  // Punto 2.1 (plan 29 sept.): pacientes que el optómetra marcó "De alta"
-  // desde el Paso 3 de la ficha clínica (checkbox "Tratamiento finalizado").
-  const tratamientosFinalizados = useMemo(() => pacientes.filter((p) => p.estadoClinico === "De alta").length, [pacientes])
-
-  // Vínculo receta → venta (anteproyecto: "tasa de conversión de recetas a
-  // ventas" e "ingresos" como indicadores de impacto operativo).
-  // "Conversión" mide algo puntual: ¿la consulta terminó en una venta en el
-  // mismo acto? — sigue viviendo en consultas.productoId; desde el Punto 06,
-  // ConsultaMedica.jsx lo llena con la primera línea "producto" de la
-  // factura de esa consulta (ya no con un selector de un solo producto),
-  // para no dejar esta métrica en 0% al reemplazar ese mecanismo.
-  // "Ingresos" tiene que ser la venta REAL total del mes, y ahora hay DOS
-  // caminos que generan dinero real: `ventas` (Inventario/Pacientes →
-  // "Vender producto", camino viejo, una venta = un producto) y
-  // `facturas_venta` (Punto 06 — líneas múltiples, reemplaza el vínculo de
-  // ConsultaMedica.jsx). Si solo se sumara uno de los dos, "Ingresos"
-  // volvería a mostrar una fracción de las ventas reales — el mismo
-  // hallazgo real #1 de la auditoría del 2026-09-08, repetido en el camino
-  // nuevo si no se suman ambos. Una factura 'pendiente_pago' (cuotas) solo
-  // aporta lo efectivamente cobrado hasta ahora (monto_total × cuotas_pagadas
-  // / cuotas_totales), no el total — mismo bug que se encontró y se decidió
-  // no repetir (ver Punto 09): 1 de 6 cuotas pagadas no es el ingreso
-  // completo. Una factura 'anulada' no aporta nada.
-  const embudo = useMemo(() => calcularEmbudo({ consultas, pases, facturas: facturasVenta, enRango, historial: historialCompleto }), [consultas, historialCompleto, pases, facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
-  const ventasRealesEsteMes = useMemo(() => ventas.filter((v) => enRango(v.creadoEn)), [ventas, rango])
-  const facturasVentaEsteMes = useMemo(() => facturasVenta.filter((f) => enRango(f.creadoEn)), [facturasVenta, rango])
-  // "Vendido" y "Cobrado" salen de la misma función que usa el Inicio (utilidades/vendidoCobrado.js): dos números, dos nombres.
-  const { vendido: vendidoEsteMes, cobrado: cobradoEsteMes, cantidad: cantidadVentas } = useMemo(
-    () => vendidoYCobrado({ facturas: facturasVentaEsteMes, ventasViejas: ventasRealesEsteMes, abonos }),
-    [ventasRealesEsteMes, facturasVentaEsteMes, abonos],
-  )
-  // Conversión = el mismo "compraron / consultaron" del embudo (ventas reales: comprobantes no anulados).
-  const conversionVenta = embudo.compraronSobreConsultaron
-
-  // Satisfacción de pacientes (CSAT, 1 a 5) — respuestas de la encuesta
-  // automática enviada al marcar una cita "Atendida" (migración 0041).
-  const promedioSatisfaccion = useMemo(() => {
-    if (respuestasSatisfaccion.length === 0) return null
-    const suma = respuestasSatisfaccion.reduce((s, r) => s + (Number(r.puntaje) || 0), 0)
-    return suma / respuestasSatisfaccion.length
-  }, [respuestasSatisfaccion])
-  const distSatisfaccion = useMemo(() => {
-    const base = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    respuestasSatisfaccion.forEach((r) => { if (base[r.puntaje] != null) base[r.puntaje]++ })
-    return base
-  }, [respuestasSatisfaccion])
-  const maxSatisfaccion = Math.max(1, ...Object.values(distSatisfaccion))
-
-  const consultasPorMes = useMemo(() => {
-    const meses = ultimosNMeses(6)
-    const mapa = new Map()
-    consultas.forEach((c) => {
-      const clave = (c.fecha || "").slice(0, 7)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return meses.map((m) => ({ ...m, valor: mapa.get(m.clave) || 0 }))
-  }, [consultas])
-
-  const maxConsultasMes = Math.max(1, ...consultasPorMes.map((m) => m.valor))
-
-  // H2: antes solo se veía el total acumulado de "No Asistió" (sin ningún
-  // punto de comparación temporal) — con esto se puede ver si empeora o
-  // mejora mes a mes, no solo el número frío de siempre.
-  const noShowPorMes = useMemo(() => {
-    const meses = ultimosNMeses(6)
-    const mapa = new Map()
-    citas.forEach((c) => {
-      if (c.estado !== "No Asistió") return
-      const clave = (c.fecha || "").slice(0, 7)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return meses.map((m) => ({ ...m, valor: mapa.get(m.clave) || 0 }))
-  }, [citas])
-  const maxNoShowMes = Math.max(1, ...noShowPorMes.map((m) => m.valor))
-  const [refGraficoNoShow, anchoGraficoNoShow] = useAnchoElemento()
-  const [hoverMesNoShow, setHoverMesNoShow] = useState(null)
-  const barrasNoShow = useMemo(() => {
-    const w = anchoGraficoNoShow, base = 70, padTop = 8
-    const n = noShowPorMes.length || 1
-    const gap = 12
-    const barW = (w - gap * (n + 1)) / n
-    return noShowPorMes.map((m, i) => {
-      const alto = maxNoShowMes > 0 ? Math.max(m.valor > 0 ? 5 : 2, (m.valor / maxNoShowMes) * (base - padTop)) : 2
-      const x = gap + i * (barW + gap)
-      return { ...m, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
-    })
-  }, [noShowPorMes, maxNoShowMes, anchoGraficoNoShow])
-
-  // Barras SVG con tooltip propio (no el `title` nativo del navegador, que
-  // se ve genérico/lento) — mismo patrón que "Actividad por día" del Panel
-  // Superadmin: el viewBox sigue el ancho real del contenedor vía
-  // useAnchoElemento, así el gráfico nunca se ve estirado.
-  const [refGraficoConsultas, anchoGraficoConsultas] = useAnchoElemento()
-  const [hoverMesClave, setHoverMesClave] = useState(null)
-  const barrasConsultas = useMemo(() => {
-    const w = anchoGraficoConsultas, base = 108, padTop = 10
-    const n = consultasPorMes.length || 1
-    const gap = 14
-    const barW = (w - gap * (n + 1)) / n
-    return consultasPorMes.map((m, i) => {
-      const alto = maxConsultasMes > 0 ? Math.max(m.valor > 0 ? 6 : 2, (m.valor / maxConsultasMes) * (base - padTop)) : 2
-      const x = gap + i * (barW + gap)
-      return { ...m, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
-    })
-  }, [consultasPorMes, maxConsultasMes, anchoGraficoConsultas])
-  const [hoverDx, setHoverDx] = useState(null)
-  const [hoverCorreccion, setHoverCorreccion] = useState(null)
-  const [hoverCitaEstado, setHoverCitaEstado] = useState(null)
-
-  // Cuenta por categoría de diagnóstico, no por el texto completo de la
-  // ficha — caso de la reunión con el ing: "cuántos pacientes tengo con
-  // miopía, cuántos con astigmatismo, cuántos con presbicia". Antes esto
-  // agrupaba por el texto libre completo, así que dos fichas con la misma
-  // categoría pero distinto detalle contaban como diagnósticos distintos.
-  // Cae al texto completo solo para fichas viejas sin categorías guardadas.
-  const diagnosticosTop = useMemo(() => {
-    // Se agrupa sin importar tildes ni mayúsculas ("Sin alteracion" y "Sin alteración" son uno).
-    const cuenta = new Map() // clave -> { valor, variantes }
-    consultas.forEach((c) => {
-      categoriasDeConsulta(c).forEach((texto) => {
-        const clave = claveDiagnostico(texto)
-        if (!clave) return
-        const g = cuenta.get(clave) || { valor: 0, variantes: new Map() }
-        g.valor++
-        g.variantes.set(texto, (g.variantes.get(texto) || 0) + 1)
-        cuenta.set(clave, g)
-      })
-    })
-    return Array.from(cuenta.values())
-      .map((g) => ({ label: etiquetaDeVariantes(g.variantes), valor: g.valor }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 5)
-  }, [consultas])
-
-  const maxDiagnostico = Math.max(1, ...diagnosticosTop.map((d) => d.valor))
-
-  // H3: rotación de inventario — qué se está vendiendo de verdad en el
-  // período elegido arriba (mismo selector que ya usan ingresos/conversión),
-  // no solo el stock estático que ya se ve en Inventario.jsx.
-  // Sale de los comprobantes de venta (líneas "producto") y de las ventas sueltas, igual que Ingresos.
-  const productosMasVendidos = useMemo(
-    () => rankingProductos({ facturas: facturasVenta, ventas, enRango }),
-    [facturasVenta, ventas, rango], // eslint-disable-line react-hooks/exhaustive-deps
-  )
-  const maxProductoVendido = Math.max(1, ...productosMasVendidos.map((p) => p.valor))
-  const [hoverProducto, setHoverProducto] = useState(null)
-
-  const distCorreccion = useMemo(() => {
-    const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluar": 0, "Sin evaluación": 0 }
-    pacientes.forEach((p) => {
-      const k = p.estadoCorreccion || "Sin evaluación"
-      base[k] = (base[k] ?? 0) + 1
-    })
-    return base
-  }, [pacientes])
-
-  const totalPacientesDist = Math.max(1, pacientes.length)
-
-  // Se lee cita.estado (el desenlace real que el optómetra registra en Citas.jsx),
-  // no la fecha — una cita de la semana pasada sin marcar sigue contando como
-  // "pendiente" en vez de asumirse "atendida" solo porque el día ya pasó.
-  const citasAtendidas = useMemo(() => citas.filter((c) => c.estado === "Atendida").length, [citas])
-  const citasNoAsistio = useMemo(() => citas.filter((c) => c.estado === "No Asistió").length, [citas])
-  const citasCanceladas = useMemo(() => citas.filter((c) => c.estado === "Cancelada").length, [citas])
-  // Mismos grupos que el filtro de Estado de Citas médicas: "En espera" y "En atención" van aparte de "Pendientes".
-  const citasEnEspera = useMemo(() => citas.filter((c) => c.estado === "En Espera").length, [citas])
-  const citasEnAtencion = useMemo(() => citas.filter((c) => c.estado === "En Atención").length, [citas])
-  const citasPendientes = useMemo(() => citas.length - citasAtendidas - citasNoAsistio - citasCanceladas - citasEnAtencion - citasEnEspera, [citas, citasAtendidas, citasNoAsistio, citasCanceladas, citasEnAtencion, citasEnEspera])
-  const totalCitasDist = Math.max(1, citas.length)
-
-  // % de citas solicitadas que terminan en un paciente atendido — caso de
-  // la reunión con el ing: "100 personas solicitan cita, 90 se atienden =
-  // 90% de conversión". Sobre el total histórico de citas, mismo criterio
-  // que el resto de las métricas de citas de este reporte (no solo del mes).
-  const conversionCitas = useMemo(() => {
-    if (citas.length === 0) return null
-    return Math.round((citasAtendidas / citas.length) * 100)
-  }, [citas, citasAtendidas])
-
-  // Los 4 primeros KPIs "de flujo" siguen al selector de período (arriba);
-  // los siguientes 4 son una foto del estado actual y no cambian con él
-  // (no tendría sentido "Controles atrasados en marzo", por ejemplo).
-  const kpis = [
-    { key: "consultas", label: "Consultas", sub: `fichas clínicas guardadas · ${rango.etiqueta}`, valor: consultasEsteMes, icon: Stethoscope, iconBg: GRAD, iconFg: "#fff" },
-    { key: "nuevos", label: "Pacientes nuevos", sub: rango.etiqueta, valor: pacientesNuevosEsteMes, icon: UserPlus, iconBg: undefined, iconClass: "bg-blue-50 text-blue-600" },
-    { key: "vendido", label: "Vendido", valor: dinero(vendidoEsteMes), sub: `${cantidadVentas} venta${cantidadVentas === 1 ? "" : "s"} (sin anuladas) · ${rango.etiqueta}`, icon: DollarSign, iconClass: "bg-amber-50 text-amber-600", tooltip: "El monto total de las ventas del período, aunque todavía tengan saldo." },
-    { key: "cobrado", label: "Cobrado", valor: dinero(cobradoEsteMes), sub: `de esos ${dinero(vendidoEsteMes)} vendidos · ${rango.etiqueta}`, icon: Wallet, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "Lo que de esas ventas ya se pagó: las pagadas completas y, en las que tienen saldo, sus abonos." },
-    { key: "conversion", label: "Conversión a venta", valor: conversionVenta === null ? "—" : `${conversionVenta}%`, sub: `de las consultas de ${rango.etiqueta} terminaron en compra (igual que el embudo). Cuenta solo las ventas hechas desde una consulta del período${cantidadVentas > embudo.compraron ? `; hay ${cantidadVentas - embudo.compraron} más sin consulta` : ""}.`, icon: TrendingUp, iconClass: "bg-violet-50 text-violet-600" },
-    { key: "corregidos", label: "Bien corregidos", valor: tasaBienCorregido === null ? "—" : `${tasaBienCorregido}%`, sub: `de los pacientes evaluados, hoy · ${pacientesSinEvaluarCorreccion} sin agudeza visual con lentes registrada`, icon: CheckCircle2, iconClass: "bg-emerald-50 text-emerald-600", tooltip: "% de pacientes con corrección al día, calculado con la fecha de hoy. Solo cuenta pacientes con una evaluación real (Bien corregido o Requiere ajuste) — los que tuvieron consulta pero no se les registró la agudeza visual con lentes quedan 'sin evaluar' y no afectan este porcentaje." },
-    { key: "finalizados", label: "Tratamientos finalizados", valor: tratamientosFinalizados, sub: "pacientes de alta", icon: ShieldCheck, iconClass: "bg-slate-100 text-slate-600", tooltip: "Pacientes marcados 'De alta' desde el Paso 3 de la ficha clínica (checkbox 'Tratamiento finalizado') — no cambia con el período seleccionado arriba." },
-    { key: "vencidos", label: "Control vencido", valor: controlesVencidos, sub: "pacientes, a la fecha", icon: AlertTriangle, iconClass: "bg-red-50 text-red-600", tooltip: "Pacientes sin visita dentro del intervalo recomendado, calculado con la fecha de hoy — excluye a los pacientes de alta. No cambia con el período seleccionado arriba." },
-    { key: "conversionCitas", label: "Citas → pacientes atendidos", valor: conversionCitas === null ? "—" : `${conversionCitas}%`, sub: `${citasAtendidas} de ${citas.length} citas solicitadas${citasCanceladas > 0 ? ` (${citas.length - citasCanceladas} sin las canceladas)` : ""}`, icon: CalendarCheck, iconClass: "bg-cyan-50 text-cyan-600" },
-    { key: "satisfaccion", label: "Satisfacción", valor: promedioSatisfaccion === null ? "—" : `${promedioSatisfaccion.toFixed(1)}/5`, sub: `${respuestasSatisfaccion.length} encuesta${respuestasSatisfaccion.length === 1 ? "" : "s"} respondida${respuestasSatisfaccion.length === 1 ? "" : "s"}`, icon: Star, iconClass: "bg-rose-50 text-rose-600" },
+  // Las dos maneras de exportar un bloque: sus datos resumidos o todos los registros que lo componen. Cada una se arma al pulsarla.
+  const bloque = (titulo, datos, detalle) => [
+    { id: "datos", etiqueta: "Datos de la gráfica", descripcion: "Lo que se ve en el bloque, resumido.", ejecutar: () => exportarLista({ titulo: `${titulo} · datos`, personal: false, ...datos() }) },
+    { id: "detalle", etiqueta: "Detalle completo", descripcion: "Todos los registros que lo componen.", ejecutar: () => exportarLista({ titulo: `${titulo} · detalle`, ...detalle() }) },
   ]
 
-  // Un optómetra que no es admin no ve las métricas financieras (Diego,
-  // 2026-09-30): Ingresos y Conversión a venta salen de la grilla de KPIs;
-  // "Productos más vendidos" (más abajo) se oculta con el mismo criterio.
-  const kpisVisibles = ocultarMontos ? kpis.filter((k) => k.key !== "vendido" && k.key !== "cobrado" && k.key !== "conversion") : kpis
-
-  // R60: pacientes por diagnóstico, mes a mes, en el año elegido.
-  const aniosDx = useMemo(() => aniosConConsultas(consultas), [consultas])
-  const dxMensual = useMemo(() => diagnosticosPorMes(consultas, anioDx), [consultas, anioDx])
-  const filasDx = verTodosDx ? dxMensual.filas : dxMensual.filas.slice(0, 8)
-
-  // Laboratorios: abiertas y atrasadas hoy; tiempo promedio de lo entregado dentro del período.
-  const labs = useMemo(() => resumenPorLaboratorio(ordenesLab, { enRango: (cuando) => !!cuando && enRango(cuando) }), [ordenesLab, rango]) // eslint-disable-line react-hooks/exhaustive-deps
-  const lunasPorTipo = useMemo(() => ventasPorTipoLuna(facturasVenta, { enRango }), [facturasVenta, rango]) // eslint-disable-line react-hooks/exhaustive-deps
-  const maxLunas = Math.max(1, ...lunasPorTipo.map((l) => l.unidades))
-
-  // Cada KPI y cada gráfico se calcula directo de props (pacientes/consultas/
-  // citas/ventas) que App.jsx hidrata de forma asíncrona — sin esto, la
-  // primera vez que se entra a Reportes se veían todos los KPIs en 0 y cada
-  // gráfico en su estado vacío ("Aún no hay X registrados") durante el
-  // parpadeo antes de que llegaran los datos reales. Mismo criterio
-  // `cargaInicial` que ya usan Citas/Pacientes/Inventario.
-  if (cargaInicial && pacientes.length === 0 && consultas.length === 0 && citas.length === 0) {
-    return <ReportesSkeleton />
+  // Lo que se pasa a cada pestaña: los números ya calculados y la manera de abrir su lista.
+  const abrir = (spec) => setDetalle({
+    filtros: filtrosTexto,
+    ...spec,
+    exportar: () => exportarLista({ titulo: spec.titulo, valor: spec.valor, columnas: spec.columnas, filas: spec.filas }),
+    abrirEn: spec.abrirEn ? { etiqueta: spec.abrirEn.etiqueta, ir: () => onAbrirModulo?.(spec.abrirEn.modulo, spec.abrirEn.params) } : null,
+    irAPestana: pestana === "resumen" && spec.pestana ? { etiqueta: `Ir a la pestaña ${PESTANAS.find((p) => p.id === spec.pestana).etiqueta}`, ir: () => setPestana(spec.pestana) } : null,
+  })
+  const paramsFiltros = { origen: filtros.origen, visita: filtros.visita, profesional: filtros.profesional, motivo: filtros.motivo }
+  const etiquetaComp = etiquetaComparacion(previo, hoy)
+  const r = {
+    usuario, rango, previo, hoy, hay, bloque, exportarLista, f, datos, filtros, act, ant, cols, abrir, paramsFiltros, etiquetaComp, historial, equipo, inventario,
+    ocultarMontos, esAdmin, propio, filtrosTexto, filtrosActivosTexto, onAbrirModulo, onAviso, setPestana, setPeriodo,
+    quitarFiltros: () => setFiltros(FILTROS_VACIOS),
+    // Una tarjeta del período: el número, cómo va frente al anterior y su lista.
+    tarjeta: (props, a, b, opcionesVariacion) => <TarjetaReporte key={props.titulo} {...props} variacion={a === undefined ? undefined : variacion(a, b, opcionesVariacion)} comparacion={a === undefined ? undefined : etiquetaComp} />,
   }
 
+  if (cargaInicial && pacientes.length === 0 && consultasTodas.length === 0 && citasTodas.length === 0) {
+    return <div className="space-y-4" aria-busy="true" aria-label="Cargando reportes">{[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-200/70" />)}</div>
+  }
+  const sinNada = !cargaInicial && pacientes.length === 0 && consultasTodas.length === 0 && citasTodas.length === 0
+  const actual = pestanasVisibles.find((p) => p.id === pestana) || pestanasVisibles[0]
+
   return (
-    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
-      {/* ─── HEADER ─── */}
-      <div className="flex items-start gap-3.5">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-          <BarChart3 size={24} />
+    <div className="space-y-3" data-reportes>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold" style={{ color: INK }}>Reportes</h1>
+          <p className="text-sm text-slate-500">{actual.pregunta}</p>
         </div>
-        <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Reportes y estadísticas</h1>
-          <p className="text-sm text-slate-500">Panorama clínico y operativo a partir de los datos ya registrados en el sistema.</p>
-          {esOptometraNoAdmin && <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700"><Lock size={12} aria-hidden="true" /> Solo tus consultas y tus citas</p>}
-        </div>
+        <button type="button" onClick={() => setExportando(true)} className="ml-auto flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Download size={15} aria-hidden="true" /> Exportar</button>
       </div>
 
-      {!cargaInicial && pacientes.length === 0 && consultasTodas.length === 0 && (
-        <SinDatosAun titulo="Todavía no hay datos para mostrar" texto="Los reportes se llenan con los pacientes, las consultas y las ventas que se registren." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />
-      )}
+      {sinNada && <SinDatosAun titulo="Todavía no hay datos para mostrar" texto="Los reportes se llenan con los pacientes, las consultas y las ventas que se registren." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />}
 
-      {/* ─── SELECTOR DE PERÍODO — solo afecta Consultas, Pacientes nuevos,
-          Ingresos y Conversión a venta (los 4 KPIs "de flujo"); los demás
-          son una foto de ahora mismo. ─── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/60 bg-white p-3">
-        <span className="flex items-center gap-1.5 pl-1 text-xs font-bold uppercase tracking-wide text-slate-500">
-          <CalendarRange size={14} /> Período
-        </span>
-        {PERIODOS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setPeriodo(p.id)}
-            className="rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer"
-            style={periodo === p.id ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
-          >
-            {p.label}
-          </button>
-        ))}
-        {periodo === "personalizado" && (
-          <div className="flex flex-wrap items-start gap-2">
-            <div className="w-48"><CampoFecha id="reportes-desde" etiqueta="Desde" valor={inicioPersonalizado} onCambiar={setInicioPersonalizado} placeholder="Desde" /></div>
-            <span className="pt-2.5 text-xs text-slate-400">a</span>
-            <div className="w-48"><CampoFecha id="reportes-hasta" etiqueta="Hasta" valor={finPersonalizado} onCambiar={setFinPersonalizado} placeholder="Hasta" /></div>
+      {/* Filtros: arriba, iguales y en el mismo lugar en todas las pestañas */}
+      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Período" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
+            {PERIODOS.map((p) => (
+              <button key={p.id} type="button" aria-pressed={periodo === p.id} onClick={() => setPeriodo(p.id)} className={"rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (periodo === p.id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === p.id ? { background: GRAD_MARCA } : undefined}>{p.label}</button>
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* ─── FILTRO POR MOTIVO DE CONSULTA (R61) ─── */}
-      {motivos.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/60 bg-white p-3">
-          <label htmlFor="reportes-motivo" className="flex items-center gap-1.5 pl-1 text-xs font-bold uppercase tracking-wide text-slate-500">
-            <Filter size={14} /> Motivo de consulta
+          {periodo === "personalizado" && (
+            <>
+              <div className="w-44"><CampoFecha id="rep-desde" etiqueta="Desde" valor={personalizado.inicio || rango.inicio} onCambiar={(v) => setPersonalizado((p) => ({ ...p, inicio: v }))} max={personalizado.fin || rango.fin} /></div>
+              <div className="w-44"><CampoFecha id="rep-hasta" etiqueta="Hasta" valor={personalizado.fin || rango.fin} onCambiar={(v) => setPersonalizado((p) => ({ ...p, fin: v }))} min={personalizado.inicio || rango.inicio} /></div>
+            </>
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-semibold text-slate-500">Motivo de consulta
+            <select aria-label="Motivo de consulta" value={filtros.motivo} onChange={(e) => cambiarFiltro("motivo", e.target.value)} className={selector + " w-52"}>
+              <option value="">Todos</option>
+              {motivos.map((m) => <option key={m.motivo} value={m.motivo}>{m.motivo}</option>)}
+            </select>
           </label>
-          <select
-            id="reportes-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)}
-            className="rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
-          >
-            <option value="">Todos los motivos</option>
-            {motivos.map((m) => <option key={m.motivo} value={m.motivo}>{m.motivo} ({m.cantidad})</option>)}
-          </select>
-          {motivo && (
-            <>
-              <button type="button" onClick={() => setMotivo("")} className="cursor-pointer rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50">Quitar filtro</button>
-              <span className="text-xs text-slate-500">Aplica a consultas, diagnósticos, conversión y embudo.</span>
-            </>
+          <label className="text-xs font-semibold text-slate-500">Origen
+            <select aria-label="Origen" value={filtros.origen} onChange={(e) => cambiarFiltro("origen", e.target.value)} className={selector + " w-36"}>
+              {ORIGENES_FILTRO.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-slate-500">Visita
+            <select aria-label="Visita" value={filtros.visita} onChange={(e) => cambiarFiltro("visita", e.target.value)} className={selector + " w-40"}>
+              {SEGUIMIENTO_FILTRO.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
+            </select>
+          </label>
+          {esAdmin && (
+            <label className="text-xs font-semibold text-slate-500">Profesional
+              <select aria-label="Profesional" value={filtros.profesional} onChange={(e) => cambiarFiltro("profesional", e.target.value)} className={selector + " w-48"}>
+                <option value="">Todos</option>
+                {profesionales.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </label>
           )}
+          <ul className="ml-auto flex min-w-[160px] flex-1 flex-wrap items-center justify-end gap-1.5 self-center" aria-label="Filtros activos">
+            {etiquetas.map((e) => (
+              <li key={e.id} className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                {e.texto}
+                {e.quitar && <button type="button" onClick={e.quitar} aria-label={`Quitar el filtro ${e.texto}`} className="rounded-full p-0.5 text-slate-500 hover:bg-slate-200 cursor-pointer"><X size={12} aria-hidden="true" /></button>}
+              </li>
+            ))}
+            {hay && <li><button type="button" onClick={r.quitarFiltros} className="rounded-full px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Limpiar filtros</button></li>}
+          </ul>
         </div>
-      )}
+      </div>
 
-      {/* ─── KPIs ─── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpisVisibles.map((k, i) => (
-          <div
-            key={k.key}
-            className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-            style={{ animation: "rise-in 320ms ease-out both", animationDelay: `${i * 50}ms` }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-slate-500">
-                {k.label}
-                {k.tooltip && (
-                  <Info size={12} className="shrink-0 cursor-help text-slate-400" title={k.tooltip} aria-label={k.tooltip} />
-                )}
-              </span>
-              <div className={"grid h-9 w-9 place-items-center rounded-xl " + (k.iconClass || "")} style={k.iconBg ? { background: k.iconBg, color: k.iconFg } : undefined}>
-                <k.icon size={16} />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-serif font-semibold" style={{ color: INK }}>{k.valor}</p>
-            {k.sub && <p className="mt-0.5 text-[11px] text-slate-500">{k.sub}</p>}
-          </div>
+      <div role="tablist" aria-label="Reportes" className="flex gap-1 border-b border-slate-200/70">
+        {pestanasVisibles.map((p) => (
+          <button key={p.id} type="button" role="tab" id={`rep-tab-${p.id}`} aria-selected={actual.id === p.id} aria-controls="rep-panel" onClick={() => setPestana(p.id)} className={"-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (actual.id === p.id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700")}>{p.etiqueta}</button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* ─── CONSULTAS POR MES ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "120ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Consultas por mes</h3>
-          <p className="mb-5 text-xs text-slate-500">Fichas clínicas por mes · últimos 6 meses</p>
-          {consultas.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay consultas registradas.</p>
-          ) : (
-            <div ref={refGraficoConsultas} className="relative mt-1">
-              <svg viewBox={`0 0 ${anchoGraficoConsultas} 130`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="barraReportesConsultas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22D3EE" />
-                    <stop offset="100%" stopColor="#2563EB" />
-                  </linearGradient>
-                </defs>
-                {barrasConsultas.map((b) => (
-                  <g
-                    key={b.clave}
-                    className="cursor-default"
-                    onMouseEnter={() => setHoverMesClave(b.clave)}
-                    onMouseLeave={() => setHoverMesClave(null)}
-                  >
-                    <rect x={b.x} y="4" width={b.w} height="104" fill="transparent" />
-                    <rect
-                      x={b.x} y={b.y} width={b.w} height={b.h} rx="5"
-                      fill="url(#barraReportesConsultas)"
-                      className="transition-transform duration-150"
-                      style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverMesClave === b.clave ? "scaleY(1.06)" : "scaleY(1)" }}
-                    />
-                    <text x={b.cx} y="122" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8">{b.etiqueta}</text>
-                  </g>
-                ))}
-              </svg>
-              {hoverMesClave && (() => {
-                const b = barrasConsultas.find((x) => x.clave === hoverMesClave)
-                if (!b || !anchoGraficoConsultas) return null
-                return (
-                  <div
-                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ left: `${(b.cx / anchoGraficoConsultas) * 100}%`, top: b.y - 8, background: INK }}
-                  >
-                    {b.valor} consulta{b.valor === 1 ? "" : "s"}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* ─── DIAGNÓSTICOS MÁS FRECUENTES ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "170ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Diagnósticos más frecuentes</h3>
-          <p className="mb-5 text-xs text-slate-500">Top 5 · cuenta fichas clínicas (un paciente con varias fichas suma varias veces) · no cambia con el período</p>
-          {diagnosticosTop.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay diagnósticos registrados.</p>
-          ) : (
-            <div className="space-y-3.5">
-              {diagnosticosTop.map((d) => (
-                <div
-                  key={d.label}
-                  className="-mx-1.5 rounded-lg px-1.5 py-0.5 transition-colors"
-                  style={{ backgroundColor: hoverDx === d.label ? "#F0F9FF" : "transparent" }}
-                  onMouseEnter={() => setHoverDx(d.label)}
-                  onMouseLeave={() => setHoverDx(null)}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate font-semibold text-slate-700" title={d.label}>{d.label}</span>
-                    <span className="shrink-0 font-mono font-bold text-slate-500">{d.valor}</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full transition-all duration-200"
-                      style={{ width: `${Math.max(4, (d.valor / maxDiagnostico) * 100)}%`, background: GRAD, filter: hoverDx === d.label ? "brightness(1.1)" : "none" }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ─── TENDENCIA DE INASISTENCIAS (H2) ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "190ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Tendencia de inasistencias</h3>
-          <p className="mb-5 text-xs text-slate-500">Citas marcadas "No asistió" · últimos 6 meses</p>
-          {citasNoAsistio === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Ninguna cita marcada como no asistida todavía.</p>
-          ) : (
-            <div ref={refGraficoNoShow} className="relative mt-1">
-              <svg viewBox={`0 0 ${anchoGraficoNoShow} 90`} className="w-full" style={{ height: 90 }} preserveAspectRatio="none">
-                {barrasNoShow.map((b) => (
-                  <g
-                    key={b.clave}
-                    className="cursor-default"
-                    onMouseEnter={() => setHoverMesNoShow(b.clave)}
-                    onMouseLeave={() => setHoverMesNoShow(null)}
-                  >
-                    <rect x={b.x} y="2" width={b.w} height="66" fill="transparent" />
-                    <rect
-                      x={b.x} y={b.y} width={b.w} height={b.h} rx="4"
-                      fill={b.valor > 0 ? "#dc2626" : "#e2e8f0"}
-                      className="transition-transform duration-150"
-                      style={{ transformBox: "fill-box", transformOrigin: "bottom", transform: hoverMesNoShow === b.clave ? "scaleY(1.06)" : "scaleY(1)" }}
-                    />
-                    <text x={b.cx} y="82" textAnchor="middle" fontSize="11" fontWeight="700" fill="#94A3B8">{b.etiqueta}</text>
-                  </g>
-                ))}
-              </svg>
-              {hoverMesNoShow && (() => {
-                const b = barrasNoShow.find((x) => x.clave === hoverMesNoShow)
-                if (!b || !anchoGraficoNoShow) return null
-                return (
-                  <div
-                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ left: `${(b.cx / anchoGraficoNoShow) * 100}%`, top: b.y - 8, background: INK }}
-                  >
-                    {b.valor} inasistencia{b.valor === 1 ? "" : "s"}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* ─── PRODUCTOS MÁS VENDIDOS (H3, rotación de inventario) ───
-            Financiero (ventas) — oculto para un optómetra que no es admin. ─── */}
-        {!ocultarMontos && (
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "205ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Productos más vendidos</h3>
-          <p className="mb-5 text-xs text-slate-500">Top 5 por unidades · período seleccionado arriba</p>
-          {productosMasVendidos.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay ventas registradas en este período.</p>
-          ) : (
-            <div className="space-y-3.5">
-              {productosMasVendidos.map((p) => (
-                <div
-                  key={p.label}
-                  className="-mx-1.5 rounded-lg px-1.5 py-0.5 transition-colors"
-                  style={{ backgroundColor: hoverProducto === p.label ? "#F0F9FF" : "transparent" }}
-                  onMouseEnter={() => setHoverProducto(p.label)}
-                  onMouseLeave={() => setHoverProducto(null)}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate font-semibold text-slate-700" title={p.label}>{p.label}</span>
-                    <span className="shrink-0 font-mono font-bold text-slate-500">{p.valor} u.</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full transition-all duration-200"
-                      style={{ width: `${Math.max(4, (p.valor / maxProductoVendido) * 100)}%`, background: GRAD, filter: hoverProducto === p.label ? "brightness(1.1)" : "none" }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* ─── ESTADO DE CORRECCIÓN ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "220ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Estado de corrección de pacientes</h3>
-          <p className="mb-5 text-xs text-slate-500">{pacientes.length} paciente{pacientes.length === 1 ? "" : "s"} en total · hoy, no cambia con el período</p>
-          {pacientes.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay pacientes registrados.</p>
-          ) : (
-            <>
-              <div className="relative">
-                <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                  {Object.entries(distCorreccion).map(([estado, valor]) =>
-                    valor === 0 ? null : (
-                      <div
-                        key={estado}
-                        className="transition-[filter] duration-150"
-                        style={{ width: `${(valor / totalPacientesDist) * 100}%`, backgroundColor: COLOR_CORRECCION[estado], filter: hoverCorreccion === estado ? "brightness(1.12)" : "none" }}
-                        onMouseEnter={() => setHoverCorreccion(estado)}
-                        onMouseLeave={() => setHoverCorreccion(null)}
-                      />
-                    ),
-                  )}
-                </div>
-                {hoverCorreccion && (
-                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg" style={{ background: INK }}>
-                    {etiquetaCorreccion(hoverCorreccion)}: {distCorreccion[hoverCorreccion]}
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
-                {Object.entries(distCorreccion).map(([estado, valor]) => (
-                  <span key={estado} className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLOR_CORRECCION[estado] }} />
-                    {etiquetaCorreccion(estado)} <span className="text-slate-500">({valor})</span>
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ─── CITAS: PENDIENTES / ATENDIDAS / NO ASISTIÓ ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "270ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Citas: pendientes, en espera, en atención, atendidas e inasistencias</h3>
-          <p className="mb-5 text-xs text-slate-500">{citas.length} cita{citas.length === 1 ? "" : "s"} en la agenda · desenlace marcado desde Citas médicas · no cambia con el período</p>
-          {citas.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay citas agendadas.</p>
-          ) : (
-            <>
-              <div className="relative">
-                <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                  {citasPendientes > 0 && (
-                    <div
-                      className="transition-[filter] duration-150"
-                      style={{ width: `${(citasPendientes / totalCitasDist) * 100}%`, background: GRAD, filter: hoverCitaEstado === "Pendientes" ? "brightness(1.12)" : "none" }}
-                      onMouseEnter={() => setHoverCitaEstado("Pendientes")}
-                      onMouseLeave={() => setHoverCitaEstado(null)}
-                    />
-                  )}
-                  {citasEnEspera > 0 && (
-                    <div
-                      className="transition-[filter] duration-150"
-                      style={{ width: `${(citasEnEspera / totalCitasDist) * 100}%`, backgroundColor: "#7c3aed", filter: hoverCitaEstado === "En espera" ? "brightness(1.12)" : "none" }}
-                      onMouseEnter={() => setHoverCitaEstado("En espera")}
-                      onMouseLeave={() => setHoverCitaEstado(null)}
-                    />
-                  )}
-                  {citasEnAtencion > 0 && (
-                    <div
-                      className="transition-[filter] duration-150"
-                      style={{ width: `${(citasEnAtencion / totalCitasDist) * 100}%`, backgroundColor: "#2563eb", filter: hoverCitaEstado === "En atención" ? "brightness(1.12)" : "none" }}
-                      onMouseEnter={() => setHoverCitaEstado("En atención")}
-                      onMouseLeave={() => setHoverCitaEstado(null)}
-                    />
-                  )}
-                  {citasAtendidas > 0 && (
-                    <div
-                      className="transition-[filter] duration-150"
-                      style={{ width: `${(citasAtendidas / totalCitasDist) * 100}%`, backgroundColor: "#cbd5e1", filter: hoverCitaEstado === "Atendidas" ? "brightness(0.92)" : "none" }}
-                      onMouseEnter={() => setHoverCitaEstado("Atendidas")}
-                      onMouseLeave={() => setHoverCitaEstado(null)}
-                    />
-                  )}
-                  {citasNoAsistio > 0 && (
-                    <div
-                      className="transition-[filter] duration-150"
-                      style={{ width: `${(citasNoAsistio / totalCitasDist) * 100}%`, backgroundColor: "#dc2626", filter: hoverCitaEstado === "No asistió" ? "brightness(1.12)" : "none" }}
-                      onMouseEnter={() => setHoverCitaEstado("No asistió")}
-                      onMouseLeave={() => setHoverCitaEstado(null)}
-                    />
-                  )}
-                  {citasCanceladas > 0 && (
-                    <div
-                      className="transition-[filter] duration-150"
-                      style={{ width: `${(citasCanceladas / totalCitasDist) * 100}%`, backgroundColor: "#94a3b8", filter: hoverCitaEstado === "Canceladas" ? "brightness(1.12)" : "none" }}
-                      onMouseEnter={() => setHoverCitaEstado("Canceladas")}
-                      onMouseLeave={() => setHoverCitaEstado(null)}
-                    />
-                  )}
-                </div>
-                {hoverCitaEstado && (
-                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg" style={{ background: INK }}>
-                    {hoverCitaEstado}: {hoverCitaEstado === "Pendientes" ? citasPendientes : hoverCitaEstado === "En espera" ? citasEnEspera : hoverCitaEstado === "En atención" ? citasEnAtencion : hoverCitaEstado === "Atendidas" ? citasAtendidas : hoverCitaEstado === "No asistió" ? citasNoAsistio : citasCanceladas}
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: GRAD }} />
-                  Pendientes <span className="text-slate-500">({citasPendientes})</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-violet-600" />
-                  En espera <span className="text-slate-500">({citasEnEspera})</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                  En atención <span className="text-slate-500">({citasEnAtencion})</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                  Atendidas <span className="text-slate-500">({citasAtendidas})</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
-                  No asistió <span className="text-slate-500">({citasNoAsistio})</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-                  Canceladas <span className="text-slate-500">({citasCanceladas})</span>
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ─── EMBUDO DE VENTAS (R40): consultaron → pasaron a venta → compraron. Financiero: oculto para un optómetra que no es admin. ─── */}
-        {!ocultarMontos && (
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "240ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Embudo de ventas</h3>
-          <p className="mb-5 text-xs text-slate-500">De las consultas del período, cuántos pasaron a venta, compraron o no compraron · período seleccionado arriba</p>
-          {embudo.consultaron === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay consultas en este período.</p>
-          ) : (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="space-y-3">
-                {[
-                  { etiqueta: "Consultaron", valor: embudo.consultaron, nota: "" },
-                  { etiqueta: "Pasaron a venta", valor: embudo.pasaron, nota: embudo.pasaronSobreConsultaron != null ? `${embudo.pasaronSobreConsultaron}% de las consultas` : "" },
-                  { etiqueta: "Compraron", valor: embudo.compraron, nota: embudo.compraronSobrePasaron != null ? `${embudo.compraronSobrePasaron}% de los que pasaron` : "" },
-                ].map((paso) => (
-                  <div key={paso.etiqueta}>
-                    <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                      <span className="font-semibold text-slate-700">{paso.etiqueta}{paso.nota && <span className="ml-2 font-normal text-slate-500">{paso.nota}</span>}</span>
-                      <span className="font-mono font-bold text-slate-600">{paso.valor}</span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.max(paso.valor > 0 ? 3 : 0, (paso.valor / embudo.consultaron) * 100)}%`, background: GRAD }} />
-                    </div>
-                  </div>
-                ))}
-                <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-4 py-3 text-xs text-slate-600">
-                  <p className="mb-1 font-bold uppercase tracking-wide text-slate-500">Primera vez o ya eran pacientes</p>
-                  <p><span className="font-mono font-bold text-slate-700">{embudo.primeraVez}</span> vinieron por primera vez · <span className="font-mono font-bold text-slate-700">{embudo.yaEranPacientes}</span> ya eran pacientes</p>
-                  <p className="mt-0.5">
-                    De los de primera vez, <span className="font-mono font-bold text-slate-700">{embudo.compraronPrimeraVez}</span> {embudo.compraronPrimeraVez === 1 ? "compró" : "compraron"}
-                    {embudo.compraronPrimeraVezSobrePrimeraVez != null ? ` (${embudo.compraronPrimeraVezSobrePrimeraVez}%)` : ""}
-                  </p>
-                </div>
-                <p className="pt-1 text-xs text-slate-500">{embudo.enEspera > 0 ? `${embudo.enEspera} más siguen en la lista de espera. ` : ""}Los pacientes anonimizados se siguen contando.</p>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">No compraron ({embudo.noCompraron}) · por motivo</p>
-                  {embudo.noCompraron === 0 ? (
-                    <p className="text-xs text-slate-500">Nadie se ha marcado como "No compró" en este período.</p>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {embudo.motivos.map((m) => (
-                        <li key={m.id} className="flex items-center gap-3 text-xs">
-                          <span className="w-32 shrink-0 font-semibold text-slate-600">{m.etiqueta}</span>
-                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-slate-400" style={{ width: `${(m.cantidad / embudo.noCompraron) * 100}%` }} /></span>
-                          <span className="w-6 shrink-0 text-right font-mono font-bold text-slate-600">{m.cantidad}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3 text-sm text-blue-900">
-                  <span className="font-bold">{embudo.proformas}</span> proforma{embudo.proformas === 1 ? "" : "s"} entregada{embudo.proformas === 1 ? "" : "s"}
-                  {embudo.proformas > 0 && <> · <span className="font-bold">{embudo.proformasEnVenta}</span> terminaron en venta{embudo.proformasSobreVenta != null ? ` (${embudo.proformasSobreVenta}%)` : ""}</>}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* ─── DIAGNÓSTICOS POR MES (R60) ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "230ms" }}>
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Diagnósticos por mes</h3>
-              <p className="text-xs text-slate-500">
-                Pacientes distintos con cada diagnóstico{motivo ? ` · motivo: ${motivo}` : ""} · {dxMensual.totalPacientes} paciente{dxMensual.totalPacientes === 1 ? "" : "s"} con consulta en {anioDx}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5" role="group" aria-label="Año">
-              {aniosDx.map((a) => (
-                <button
-                  key={a} type="button" onClick={() => setAnioDx(a)} aria-pressed={anioDx === a}
-                  className="cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
-                  style={anioDx === a ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
-                >{a}</button>
-              ))}
-            </div>
-          </div>
-          {dxMensual.filas.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">No hay diagnósticos registrados en {anioDx}{motivo ? " para este motivo" : ""}.</p>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] border-separate border-spacing-y-1 text-xs">
-                  <thead>
-                    <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                      <th scope="col" className="w-40 text-left font-bold">Diagnóstico</th>
-                      {MESES_CORTOS.map((m) => <th key={m} scope="col" className="text-center font-bold">{m}</th>)}
-                      <th scope="col" className="pl-2 text-right font-bold">Año</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filasDx.map((f) => (
-                      <tr key={f.diagnostico}>
-                        <th scope="row" className="max-w-[10rem] truncate pr-2 text-left font-semibold text-slate-700" title={f.diagnostico}>{f.diagnostico}</th>
-                        {f.meses.map((n, i) => {
-                          const peso = n / Math.max(1, dxMensual.maxMes)
-                          return (
-                            <td key={i} className="p-0.5 text-center">
-                              <span
-                                className="grid h-7 place-items-center rounded-md font-mono font-semibold"
-                                style={{ backgroundColor: n > 0 ? `rgba(37,99,235,${0.12 + 0.78 * peso})` : "#F1F5F9", color: n === 0 ? "#CBD5E1" : peso > 0.55 ? "#fff" : "#1E3A8A" }}
-                                title={`${f.diagnostico} · ${MESES_CORTOS[i]} ${anioDx}: ${n} paciente${n === 1 ? "" : "s"}`}
-                              >{n > 0 ? n : "·"}</span>
-                            </td>
-                          )
-                        })}
-                        <td className="pl-2 text-right font-mono font-bold text-slate-700">{f.anio}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {dxMensual.filas.length > 8 && (
-                <button type="button" onClick={() => setVerTodosDx((v) => !v)} className="mt-3 cursor-pointer text-xs font-semibold text-blue-600 hover:underline">
-                  {verTodosDx ? "Ver solo los 8 más frecuentes" : `Ver los ${dxMensual.filas.length} diagnósticos`}
-                </button>
-              )}
-              <p className="mt-3 text-xs text-slate-500">Un paciente con dos diagnósticos en la misma ficha cuenta en ambos; en cada mes cuenta una sola vez por diagnóstico.</p>
-            </>
-          )}
-        </div>
-
-        {/* ─── LABORATORIOS: atrasos y tiempo de entrega ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "250ms" }}>
-          <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold" style={{ color: INK }}><FlaskConical size={15} /> Laboratorios</h3>
-          <p className="mb-4 text-xs text-slate-500">Órdenes abiertas y atrasadas hoy · tiempo de entrega de lo entregado en {rango.etiqueta}</p>
-          {labs.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">No hay órdenes de laboratorio abiertas ni entregadas en este período.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    <th scope="col" className="pb-2 text-left font-bold">Laboratorio</th>
-                    <th scope="col" className="pb-2 text-right font-bold">Abiertas</th>
-                    <th scope="col" className="pb-2 text-right font-bold">Atrasadas</th>
-                    <th scope="col" className="pb-2 text-right font-bold">Entrega prom.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {labs.map((l) => {
-                    const dias = l.promedioDias == null ? null : Math.round(l.promedioDias * 10) / 10
-                    return (
-                      <tr key={l.laboratorio} className="border-t border-slate-100">
-                        <th scope="row" className="py-2 pr-2 text-left font-semibold text-slate-700">{l.laboratorio}</th>
-                        <td className="py-2 text-right font-mono text-slate-600">{l.abiertas}</td>
-                        <td className="py-2 text-right font-mono font-bold" style={{ color: l.atrasadas > 0 ? "#dc2626" : "#94a3b8" }}>{l.atrasadas}</td>
-                        <td className="py-2 text-right font-mono text-slate-600">
-                          {dias == null ? "—" : `${dias} ${dias === 1 ? "día" : "días"}`}
-                          {l.entregadas > 0 && <span className="ml-1 font-sans text-slate-500">({l.entregadas})</span>}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* ─── VENTAS POR TIPO DE LUNA — oculto sin permiso para ver montos ─── */}
-        {!ocultarMontos && (
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "260ms" }}>
-          <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold" style={{ color: INK }}><Glasses size={15} /> Ventas por tipo de luna</h3>
-          <p className="mb-5 text-xs text-slate-500">Lunas vendidas en {rango.etiqueta} · sin comprobantes anulados</p>
-          {lunasPorTipo.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">No hay lunas vendidas en este período.</p>
-          ) : (
-            <div className="space-y-3.5">
-              {lunasPorTipo.map((l) => (
-                <div key={l.id}>
-                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                    <span className="font-semibold text-slate-700">{l.etiqueta}</span>
-                    <span className="shrink-0 font-mono font-bold text-slate-500">{l.unidades} u. · {dinero(l.monto)}</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full" style={{ width: `${Math.max(4, (l.unidades / maxLunas) * 100)}%`, background: GRAD }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* ─── SATISFACCIÓN DE PACIENTES (CSAT) ─── */}
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:col-span-2" style={{ animation: "rise-in 320ms ease-out both", animationDelay: "320ms" }}>
-          <h3 className="mb-1 text-sm font-bold" style={{ color: INK }}>Satisfacción de pacientes</h3>
-          <p className="mb-5 text-xs text-slate-500">Encuesta enviada por correo al marcar una cita como atendida — {respuestasSatisfaccion.length} respuesta{respuestasSatisfaccion.length === 1 ? "" : "s"} hasta ahora</p>
-          {respuestasSatisfaccion.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">Aún no hay respuestas de la encuesta de satisfacción.</p>
-          ) : (
-            <div className="space-y-2.5">
-              {[5, 4, 3, 2, 1].map((n) => (
-                <div key={n} className="flex items-center gap-3">
-                  <span className="flex w-14 shrink-0 items-center gap-1 text-xs font-semibold text-slate-600">
-                    {n} <Star size={12} fill="#C8A24E" stroke="#C8A24E" />
-                  </span>
-                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full transition-all duration-200"
-                      style={{ width: `${Math.max(distSatisfaccion[n] > 0 ? 4 : 0, (distSatisfaccion[n] / maxSatisfaccion) * 100)}%`, background: GRAD }}
-                    />
-                  </div>
-                  <span className="w-6 shrink-0 text-right font-mono text-xs font-bold text-slate-500">{distSatisfaccion[n]}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div id="rep-panel" role="tabpanel" aria-labelledby={`rep-tab-${actual.id}`} className="space-y-4 pb-6">
+        {actual.id === "resumen" && <PestanaResumen r={r} />}
+        {actual.id === "citas" && <PestanaCitas r={r} />}
+        {actual.id === "clinico" && <PestanaClinico r={r} />}
+        {actual.id === "ventas" && <PestanaVentas r={r} />}
+        {actual.id === "laboratorios" && <PestanaLaboratorios r={r} />}
       </div>
 
-      <p className="flex items-center gap-2 rounded-xl bg-slate-50 p-3.5 text-xs leading-relaxed text-slate-500">
-        <CalendarClock size={14} className="shrink-0" />
-        Estos reportes se calculan en vivo a partir de pacientes, consultas y citas ya registrados — no requieren configuración adicional.
-      </p>
-    </div>
-  )
-}
-
-// Misma forma real de la pantalla (header + selector + 8 KPIs + 6 tarjetas de
-// gráfico) para que no haya salto de layout cuando llegan los datos reales —
-// mismo lenguaje visual (animate-pulse + slate-200/70) que TablaSkeleton.jsx
-// e InicioSkeleton (Inicio.jsx).
-function ReportesSkeleton() {
-  return (
-    <div className="w-full space-y-6 text-left">
-      <div className="h-11 w-72 animate-pulse rounded-2xl bg-slate-200/70" />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-[104px] animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-52 animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />
-        ))}
-      </div>
+      {detalle && <VentanaDetalle d={detalle} onCerrar={() => setDetalle(null)} />}
+      {exportando && <VentanaExportar r={r} pestana={actual.id} onCerrar={() => setExportando(false)} />}
     </div>
   )
 }

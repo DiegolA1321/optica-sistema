@@ -57,14 +57,14 @@ export function diagnosticosPorMes(consultas = [], anio) {
       if (!dx) continue
       if (!variantes.has(dx)) variantes.set(dx, new Map())
       variantes.get(dx).set(texto, (variantes.get(dx).get(texto) || 0) + 1)
-      if (!porDx.has(dx)) porDx.set(dx, { meses: Array.from({ length: 12 }, () => new Set()), anio: new Set() })
+      if (!porDx.has(dx)) porDx.set(dx, { meses: Array.from({ length: 12 }, () => new Map()), anio: new Map() })
       const f = porDx.get(dx)
-      f.meses[mes].add(quien)
-      f.anio.add(quien)
+      f.meses[mes].set(quien, c)
+      f.anio.set(quien, c)
     }
   }
   const filas = [...porDx.entries()]
-    .map(([clave, f]) => ({ diagnostico: etiquetaDeVariantes(variantes.get(clave)), meses: f.meses.map((s) => s.size), anio: f.anio.size }))
+    .map(([clave, f]) => ({ diagnostico: etiquetaDeVariantes(variantes.get(clave)), meses: f.meses.map((s) => s.size), anio: f.anio.size, consultasMes: f.meses.map((s) => [...s.values()]), consultasAnio: [...f.anio.values()] }))
     .sort((a, b) => b.anio - a.anio || a.diagnostico.localeCompare(b.diagnostico))
   return { filas, maxMes: Math.max(0, ...filas.flatMap((f) => f.meses)), totalPacientes: pacientesAnio.size }
 }
