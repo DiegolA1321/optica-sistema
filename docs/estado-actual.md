@@ -1,17 +1,16 @@
 <!-- FE-INICIO -->
 ## EN CURSO: factura electrónica guardada y entregada (rama ventas-v2, sin publicar)
-Propuesta aprobada: `docs/propuesta-factura-electronica.md` y maqueta `docs/maquetas/factura-electronica.html`. Respuestas de Diego: el enlace de WhatsApp vence en 7 días; registrar y corregir con Ventas "editar"; descargar con Ventas "ver"; "Mis compras" muestra también lo que tiene saldo (con lo que debe y lo abonado); lo demás, como en la propuesta.
+Propuesta aprobada: `docs/propuesta-factura-electronica.md` y maqueta `docs/maquetas/factura-electronica.html`. Respuestas de Diego: el enlace de WhatsApp vence en 7 días; registrar y corregir con Ventas "editar"; descargar con Ventas "ver"; "Mis compras" muestra también lo que tiene saldo (con lo que debe y lo abonado).
 
-**Pasos** (un commit por paso; esta nota se actualiza en cada uno):
-- [x] 0. Prueba de Playwright de corregir y anular un abono (`e2e/ventas-abonos.spec.js`, óptica de pruebas). Al hacerla se corrigió que el detalle del comprobante no releía "Se corrigió un abono…" tras corregir.
-- [x] 1. Clave de acceso: validación (formato, módulo 11, cruce con el número) y reglas de los archivos, con pruebas.
-- [x] 2. Migración 0110 (borrador, NO aplicada: `supabase/migrations/0110_factura_electronica.sql`), su ensayo (`scripts/ensayo-0110.mjs`, revierte; pasa) y las Edge Functions `entregar-factura` y `enviar-factura-correo` (escritas, NO desplegadas: hace falta el token de Supabase de Diego). **Falta mostrar el SQL a Diego y su aprobación para aplicar.**
-- [x] 3. Registrar la factura electrónica (ventana `FacturaElectronicaModal`: número, clave con validación, fecha, PDF y XML) — hecho, con pruebas; solo funciona de verdad cuando se aplique la 0110.
-- [x] 4. Detalle del comprobante (y por él, el perfil): bloque con Descargar, Imprimir RIDE y Enviar al paciente (WhatsApp con enlace de 7 días; correo apagado hasta el dominio); comprobante impreso con número y clave — hecho, con pruebas.
-- [x] 5. Portal del paciente: "Mis compras" (`MisCompras.jsx`, pestaña nueva del portal) — hecho, con pruebas. También escrita la prueba de Playwright `e2e/factura-electronica.spec.js` (necesita la 0110).
-- [ ] 6. (PENDIENTE: aprobación del SQL de Diego)  Aplicar 0110 (con aprobación), verificar con sesión real, pruebas de Playwright y suite completa contra la versión compilada.
+**Dónde quedó (13 oct. 2026, noche):** TODO el código está hecho y la migración **0110 YA está aplicada** en la base (respaldo `pre-factura-electronica-2026-10-13.dump`; ensayo `scripts/ensayo-0110.mjs`). Verificada con sesiones reales (Vera con "editar", Paula con "ver", el administrador de otra óptica y sin sesión): solo quien tiene "editar" sube y registra; quien tiene "ver" descarga; nadie sin permiso ni de otra óptica ve, lista, baja, borra ni sobrescribe los archivos; el servidor rechaza una clave con dígito verificador malo; nadie llama a las funciones de entrega sin la clave de servicio; `mis_compras_paciente` con un token inventado o sin token no devuelve nada; los eventos se registran. Quedaron dos comprobantes de prueba en la óptica de pruebas, uno con un PDF en el bucket (los archivos no se pueden borrar a propósito).
 
-**Para retomar:** mirar qué casillas faltan arriba y `git log --oneline` de la rama.
+**Falta (en este orden):**
+1. **Diego despliega las dos Edge Functions** (no hay token de Supabase en esta máquina): `supabase functions deploy entregar-factura --no-verify-jwt` y, cuando haya dominio de Resend, `enviar-factura-correo` con sus secretos (comandos en el encabezado de cada archivo en `supabase/functions/`). `entregar-factura` es la que usan los enlaces de WhatsApp y "Mis compras"; sin ella esas descargas no funcionan (el resto sí).
+2. Correr `e2e/factura-electronica.spec.js` (registro, descarga, envío por WhatsApp, solo-ver) y comprobar con una sesión real de paciente que baja su factura y no la de otro, ya con la función desplegada.
+3. **La suite completa de Playwright contra la versión compilada con `--workers=1`** (`E2E_PREVIEW=1 E2E_PUERTO=5175 npx playwright test --workers=1`). Aún NO se corrió con la factura electrónica. Antes pasaba 103 de 103 más 1 omitida.
+4. Revisión de Diego en localhost y, si la aprueba, publicar (nada está publicado).
+
+**Hecho:** prueba de Playwright de corregir y anular un abono (`e2e/ventas-abonos.spec.js`); validación de la clave de acceso y de los archivos; ventana de registro; bloque del detalle del comprobante con Descargar, Imprimir RIDE y Enviar al paciente (WhatsApp con enlace de 7 días; correo apagado hasta el dominio); clave en el comprobante impreso; "Mis compras" en el portal; migración 0110 aplicada. Unitarias: 799 de 799.
 <!-- FE-FIN -->
 
 ## Ventas v2 (rama ventas-v2, sin publicar; la migración 0109 YA está aplicada en la base)
