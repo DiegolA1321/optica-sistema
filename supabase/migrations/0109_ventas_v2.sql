@@ -11,8 +11,12 @@
 --      que se cobra y el comprobante muestra el descuento. Solo con el nivel "editar" de Ventas (validado aquí).
 --   3. Corregir o anular un abono: nuevas funciones corregir_abono y anular_abono (nivel "editar" de Ventas, motivo
 --      obligatorio). Recalculan el saldo y el estado de la venta, y dejan una fila en `abonos_correcciones` con lo anterior,
---      lo nuevo, el motivo, quién y cuándo. Un abono anulado se quita de `abonos_factura` (así la pantalla publicada, que
---      calcula el saldo con esa tabla, sigue dando el saldo correcto) y queda en `abonos_correcciones`.
+--      lo nuevo, el motivo, quién y cuándo. Los registros de pago NO se borran: un abono anulado queda en `abonos_factura`
+--      marcado como anulado (quién, cuándo y por qué) y no cuenta en el saldo, en lo cobrado ni en "Cobrado hoy". Un abono
+--      corregido conserva su valor original (monto, fecha y forma de pago) en la misma fila y en `abonos_correcciones`.
+--      La pantalla publicada sigue calculando bien los saldos: la política de lectura de `abonos_factura` deja de mostrar
+--      los anulados, así que esa pantalla solo recibe los abonos vigentes. La pantalla nueva lee los anulados con la
+--      función abonos_anulados() para mostrarlos aparte.
 --   4. Las funciones registrar_abono, registrar_pago_cuota_venta y crear_factura_venta ganan un parámetro AL FINAL con valor
 --      por defecto (p_pagos). Se hace `drop function` de la firma anterior antes de crear la nueva (sin sobrecarga silenciosa).
 --
@@ -26,6 +30,19 @@
 -- 1. Pagos por método
 -- ════════════════════════════════════════════════════════════════
 alter table public.abonos_factura add column pagos jsonb;
+-- Anulado: quién, cuándo y por qué (los tres juntos). Original: lo que decía el abono antes de su primera corrección.
+alter table public.abonos_factura
+  add column anulado_en timestamptz,
+  add column anulado_por uuid references public.perfiles(id) on delete set null,
+  add column anulado_motivo text,
+  add column monto_original numeric,
+  add column fecha_original date,
+  add column pagos_original jsonb;
+alter table public.abonos_factura
+  add constraint abonos_factura_anulado_completo check (
+    (anulado_en is null and anulado_motivo is null)
+    or (anulado_en is not null and char_length(btrim(anulado_motivo)) between 3 and 200)
+  );
 alter table public.abonos_factura
   add constraint abonos_factura_pagos_lista check (pagos is null or (jsonb_typeof(pagos) = 'array' and jsonb_array_length(pagos) between 1 and 4));
 
@@ -133,6 +150,34 @@ create policy exige_aal2_si_mfa_activo on public.abonos_correcciones
 revoke all on public.abonos_correcciones from anon;
 revoke insert, update, delete on public.abonos_correcciones from authenticated;
 
+-- La política de lectura de los abonos no muestra los anulados: la pantalla publicada calcula el saldo con lo que lee, y así sigue dando el
+-- saldo correcto. (Es la misma política de antes más "anulado_en is null"; el superadmin conserva su acceso a todo.)
+drop policy abonos_factura_select on public.abonos_factura;
+create policy abonos_factura_select on public.abonos_factura for select
+  using (
+    anulado_en is null
+    and optica_id = (select perfiles.optica_id from public.perfiles where perfiles.id = auth.uid())
+    and optica_activa_actual()
+    and ((select tiene_permiso('ventas', 'ver')) or (select tiene_permiso('reportes', 'ver')) or (select tiene_permiso('pacientes', 'ver')) or (select tiene_permiso('consultas', 'ver')))
+  );
+
+-- Los abonos anulados de la óptica, para mostrarlos aparte (quién los anuló, cuándo y por qué). Solo con el nivel "ver" de Ventas.
+create function public.abonos_anulados()
+returns setof public.abonos_factura
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_optica uuid := optica_de_vendedor('ver');
+begin
+  return query select a.* from abonos_factura a where a.optica_id = v_optica and a.anulado_en is not null order by a.anulado_en;
+end;
+$function$;
+revoke all on function public.abonos_anulados() from public, anon;
+grant execute on function public.abonos_anulados() to authenticated;
+
 -- ════════════════════════════════════════════════════════════════
 -- 4. Recalcular el estado de una venta a partir de sus abonos (uso interno de las funciones de abajo)
 -- ════════════════════════════════════════════════════════════════
@@ -155,7 +200,7 @@ begin
   if v_f.estado = 'anulada' or v_f.metodo_pago not in ('cuotas', 'abonos') then
     return v_f.estado;
   end if;
-  select coalesce(sum(a.monto), 0) into v_abonado from abonos_factura a where a.factura_id = p_factura_id;
+  select coalesce(sum(a.monto), 0) into v_abonado from abonos_factura a where a.factura_id = p_factura_id and a.anulado_en is null;
   v_estado := case when v_abonado >= v_f.monto_total then 'pagada' else 'pendiente_pago' end;
   v_cuotas := case
     when v_f.metodo_pago <> 'cuotas' then v_f.cuotas_pagadas
@@ -227,7 +272,7 @@ begin
     raise exception 'La fecha del abono no puede ser anterior a la de la venta.';
   end if;
 
-  select coalesce(sum(a.monto), 0) into v_pagado from abonos_factura a where a.factura_id = p_factura_id;
+  select coalesce(sum(a.monto), 0) into v_pagado from abonos_factura a where a.factura_id = p_factura_id and a.anulado_en is null;
   v_saldo := v_factura.monto_total - v_pagado;
   if v_monto > v_saldo then
     raise exception 'El abono ($%) supera el saldo pendiente ($%).', v_monto, v_saldo;
@@ -289,7 +334,7 @@ begin
     raise exception 'Esta factura ya está totalmente pagada.';
   end if;
 
-  select coalesce(sum(a.monto), 0) into v_pagado from abonos_factura a where a.factura_id = p_factura_id;
+  select coalesce(sum(a.monto), 0) into v_pagado from abonos_factura a where a.factura_id = p_factura_id and a.anulado_en is null;
   v_saldo := v_factura.monto_total - v_pagado;
   v_nuevas_cuotas := v_factura.cuotas_pagadas + 1;
   v_monto := case when v_nuevas_cuotas >= v_factura.cuotas_totales then v_saldo
@@ -344,6 +389,9 @@ begin
   if not found then
     raise exception 'El abono no existe.';
   end if;
+  if v_a.anulado_en is not null then
+    raise exception 'Ese abono ya está anulado.';
+  end if;
   select * into v_f from facturas_venta f where f.id = v_a.factura_id for update;
   if v_f.estado = 'anulada' then
     raise exception 'La venta está anulada: ya no se puede cambiar sus abonos.';
@@ -351,10 +399,11 @@ begin
 
   insert into abonos_correcciones (optica_id, factura_id, abono_id, accion, motivo, monto_anterior, fecha_anterior, nota_anterior, pagos_anterior, registrado_por_anterior, realizado_por)
   values (v_optica, v_a.factura_id, v_a.id, 'anulado', left(v_motivo, 200), v_a.monto, v_a.fecha, v_a.nota, v_a.pagos, v_a.registrado_por, auth.uid());
-  delete from abonos_factura where id = p_abono_id;
+  -- El registro de pago no se borra: queda marcado como anulado y deja de contar.
+  update abonos_factura set anulado_en = now(), anulado_por = auth.uid(), anulado_motivo = left(v_motivo, 200) where id = p_abono_id;
 
   v_estado := recalcular_estado_venta(v_a.factura_id);
-  select coalesce(sum(x.monto), 0) into v_abonado from abonos_factura x where x.factura_id = v_a.factura_id;
+  select coalesce(sum(x.monto), 0) into v_abonado from abonos_factura x where x.factura_id = v_a.factura_id and x.anulado_en is null;
   return query select greatest(0, v_f.monto_total - v_abonado), v_estado;
 end;
 $function$;
@@ -404,6 +453,9 @@ begin
   if not found then
     raise exception 'El abono no existe.';
   end if;
+  if v_a.anulado_en is not null then
+    raise exception 'Ese abono está anulado: ya no se puede corregir.';
+  end if;
   -- Sin fecha nueva se conserva la que tenía.
   v_fecha := coalesce(p_fecha, v_a.fecha);
   if v_fecha > v_hoy then
@@ -416,7 +468,7 @@ begin
   if v_fecha < (v_f.created_at at time zone 'America/Guayaquil')::date then
     raise exception 'La fecha del abono no puede ser anterior a la de la venta.';
   end if;
-  select coalesce(sum(x.monto), 0) into v_otros from abonos_factura x where x.factura_id = v_a.factura_id and x.id <> p_abono_id;
+  select coalesce(sum(x.monto), 0) into v_otros from abonos_factura x where x.factura_id = v_a.factura_id and x.id <> p_abono_id and x.anulado_en is null;
   if v_otros + v_monto > v_f.monto_total then
     raise exception 'El abono ($%) supera el saldo de la venta ($%).', v_monto, v_f.monto_total - v_otros;
   end if;
@@ -428,7 +480,11 @@ begin
 
   insert into abonos_correcciones (optica_id, factura_id, abono_id, accion, motivo, monto_anterior, fecha_anterior, nota_anterior, pagos_anterior, registrado_por_anterior, monto_nuevo, fecha_nueva, pagos_nuevo, realizado_por)
   values (v_optica, v_a.factura_id, v_a.id, 'corregido', left(v_motivo, 200), v_a.monto, v_a.fecha, v_a.nota, v_a.pagos, v_a.registrado_por, v_monto, v_fecha, v_pagos, auth.uid());
-  update abonos_factura set monto = v_monto, fecha = v_fecha, nota = nullif(btrim(p_nota), ''), pagos = v_pagos where id = p_abono_id;
+  -- El valor original se guarda la primera vez que se corrige; las correcciones siguientes lo conservan.
+  update abonos_factura
+     set monto = v_monto, fecha = v_fecha, nota = nullif(btrim(p_nota), ''), pagos = v_pagos,
+         monto_original = coalesce(monto_original, v_a.monto), fecha_original = coalesce(fecha_original, v_a.fecha), pagos_original = coalesce(pagos_original, v_a.pagos)
+   where id = p_abono_id;
 
   v_estado := recalcular_estado_venta(v_a.factura_id);
   return query select greatest(0, v_f.monto_total - (v_otros + v_monto)), v_estado;
@@ -630,6 +686,9 @@ grant execute on function public.crear_factura_venta(uuid, uuid, text, jsonb, uu
 --   drop function public.corregir_abono(uuid, text, numeric, date, text, jsonb);
 --   drop function public.recalcular_estado_venta(uuid);
 --   drop function public.normalizar_pagos(jsonb, numeric);
+--   drop function public.abonos_anulados();
+--   drop policy abonos_factura_select on public.abonos_factura; (y volver a crearla sin "anulado_en is null")
+--   alter table public.abonos_factura drop column anulado_en, drop column anulado_por, drop column anulado_motivo, drop column monto_original, drop column fecha_original, drop column pagos_original;
 --   drop table public.abonos_correcciones;
 --   alter table public.facturas_venta_lineas drop column descuento_tipo, drop column descuento_valor, drop column descuento_monto, drop column descuento_motivo;
 --   alter table public.facturas_venta drop column pagos;

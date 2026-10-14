@@ -44,7 +44,8 @@ try {
   const admin = await perfil("QA Claude Tester")
   const vera = await perfil("Vera Ventas Pruebas")
   const paula = await perfil("Paula Optómetra Pruebas")
-  const paciente = (await c.query("select id from pacientes_base where optica_id = $1 and anonimizado_en is null limit 1", [optica])).rows[0]?.id
+  let paciente = (await c.query("select id from pacientes_base where optica_id = $1 and anonimizado_en is null limit 1", [optica])).rows[0]?.id
+  if (!paciente) paciente = (await c.query("insert into pacientes_base (optica_id, nombre) values ($1, 'ENSAYO 0109') returning id", [optica])).rows[0].id // la limpieza de las pruebas puede haber dejado la óptica sin pacientes
   if (!admin || !vera || !paula || !paciente) throw new Error("Faltan datos de la óptica de pruebas")
   const antes = {}
   for (const n of nombresTocados) antes[n] = await sobrecargas(n)
@@ -133,11 +134,18 @@ try {
   ok(/motivo/.test(x.e || ""), "sin motivo no se anula: " + x.e)
   x = await intenta(vera, async () => (await c.query("select * from anular_abono($1, 'Se registró dos veces')", [abono2])).rows[0])
   ok(x.r && Number(x.r.saldo) === 60 && x.r.estado === "pendiente_pago", "anular el abono que completaba la venta: saldo 60 y vuelve a 'pendiente_pago'")
-  ok((await c.query("select count(*)::int n from abonos_factura where id = $1", [abono2])).rows[0].n === 0, "…el abono ya no está en la lista de abonos (la pantalla publicada ve el saldo correcto)")
+  const fila = (await c.query("select anulado_en, anulado_por, anulado_motivo, monto from abonos_factura where id = $1", [abono2])).rows[0]
+  ok(fila && fila.anulado_en && fila.anulado_por === vera && fila.anulado_motivo === "Se registró dos veces" && Number(fila.monto) === 60, "…el registro del pago NO se borra: queda marcado como anulado, con quién, cuándo y por qué")
+  x = await intenta(vera, async () => (await c.query("select id from abonos_factura where factura_id = $1", [fa.id])).rows.map((r) => r.id))
+  ok(x.r && !x.r.includes(abono2) && x.r.includes(abono1), "…y la pantalla publicada (que lee la tabla) solo recibe los abonos vigentes: el saldo le sigue dando bien")
+  x = await intenta(vera, async () => (await c.query("select id, anulado_motivo from abonos_anulados()")).rows)
+  ok(x.r && x.r.some((r) => r.id === abono2 && r.anulado_motivo === "Se registró dos veces"), "…la pantalla nueva lee los anulados con abonos_anulados()")
   let corr = (await c.query("select accion, motivo, monto_anterior, realizado_por from abonos_correcciones where abono_id = $1", [abono2])).rows[0]
   ok(corr && corr.accion === "anulado" && Number(corr.monto_anterior) === 60 && corr.realizado_por === vera, "…y queda registrado quién lo anuló, cuándo y por qué")
   x = await intenta(admin, () => c.query("select * from anular_abono($1, 'Otra vez')", [abono2]))
-  ok(/no existe/.test(x.e || ""), "anular un abono ya anulado: " + x.e)
+  ok(/ya está anulado/.test(x.e || ""), "anular un abono ya anulado: " + x.e)
+  x = await intenta(vera, () => c.query("select * from corregir_abono($1, 'Tarde', 10, null, null, null)", [abono2]))
+  ok(/está anulado/.test(x.e || ""), "corregir un abono anulado: " + x.e)
 
   // ── Corregir un abono
   x = await intenta(vera, async () => (await c.query("select * from corregir_abono($1, 'Eran 30, no 40', 30, null, 'corregido', $2::jsonb)", [abono1, JSON.stringify([{ metodo: "efectivo", monto: 30 }])])).rows[0])
@@ -149,7 +157,9 @@ try {
   ok(/cómo se pagó/.test(x.e || ""), "corregir un abono que tenía forma de pago sin indicarla: " + x.e)
   x = await intenta(vera, () => c.query("select * from corregir_abono($1, 'Mal', 30, '2099-01-01', null, $2::jsonb)", [abono1, JSON.stringify([{ metodo: "efectivo", monto: 30 }])]))
   ok(/futura/.test(x.e || ""), "corregir con fecha futura: " + x.e)
-  corr = (await c.query("select accion, monto_anterior, monto_nuevo from abonos_correcciones where abono_id = $1", [abono1])).rows[0]
+  const orig = (await c.query("select monto_original, fecha_original, pagos_original from abonos_factura where id = $1", [abono1])).rows[0]
+  ok(Number(orig.monto_original) === 40 && Array.isArray(orig.pagos_original) && orig.pagos_original.length === 2, "el abono corregido conserva su valor original (40, con sus dos formas de pago)")
+  corr = (await c.query("select accion, monto_anterior, monto_nuevo from abonos_correcciones where abono_id = $1 and accion = 'corregido'", [abono1])).rows[0]
   ok(corr && corr.accion === "corregido" && Number(corr.monto_anterior) === 40 && Number(corr.monto_nuevo) === 30, "la corrección guarda el monto anterior (40) y el nuevo (30)")
 
   // ── Cuotas: anular un abono recalcula las cuotas pagadas
