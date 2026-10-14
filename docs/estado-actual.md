@@ -8,8 +8,8 @@ Propuesta aprobada: `docs/propuesta-factura-electronica.md` y maqueta `docs/maqu
 - [x] 2. Migración 0110 (borrador, NO aplicada: `supabase/migrations/0110_factura_electronica.sql`), su ensayo (`scripts/ensayo-0110.mjs`, revierte; pasa) y las Edge Functions `entregar-factura` y `enviar-factura-correo` (escritas, NO desplegadas: hace falta el token de Supabase de Diego). **Falta mostrar el SQL a Diego y su aprobación para aplicar.**
 - [x] 3. Registrar la factura electrónica (ventana `FacturaElectronicaModal`: número, clave con validación, fecha, PDF y XML) — hecho, con pruebas; solo funciona de verdad cuando se aplique la 0110.
 - [x] 4. Detalle del comprobante (y por él, el perfil): bloque con Descargar, Imprimir RIDE y Enviar al paciente (WhatsApp con enlace de 7 días; correo apagado hasta el dominio); comprobante impreso con número y clave — hecho, con pruebas.
-- [ ] 5. Portal del paciente: "Mis compras".
-- [ ] 6. Aplicar 0110 (con aprobación), verificar con sesión real, pruebas de Playwright y suite completa contra la versión compilada.
+- [x] 5. Portal del paciente: "Mis compras" (`MisCompras.jsx`, pestaña nueva del portal) — hecho, con pruebas. También escrita la prueba de Playwright `e2e/factura-electronica.spec.js` (necesita la 0110).
+- [ ] 6. (PENDIENTE: aprobación del SQL de Diego)  Aplicar 0110 (con aprobación), verificar con sesión real, pruebas de Playwright y suite completa contra la versión compilada.
 
 **Para retomar:** mirar qué casillas faltan arriba y `git log --oneline` de la rama.
 <!-- FE-FIN -->
