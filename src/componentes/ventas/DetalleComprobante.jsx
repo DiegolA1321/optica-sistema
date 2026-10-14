@@ -1,12 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Ban, FileText, FlaskConical, Pencil, Plus, Printer, Receipt, Wallet } from "lucide-react"
+import { Ban, FlaskConical, Pencil, Plus, Printer, Receipt, Wallet } from "lucide-react"
 import { GRAD_MARCA } from "@/lib/tema"
 import { supabase } from "../../lib/supabaseClient"
 import { Cascaron } from "../AtencionPaciente"
 import { Bloque, Columna, Dato } from "./Detalle"
 import { Insignia } from "./Lista"
+import BloqueFacturaElectronica from "./BloqueFacturaElectronica"
+import { useFacturaElectronica } from "./useFacturaElectronica"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN } from "./estilos"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible, fechaHoraLegible, hora } from "../../utilidades/formatoFecha"
@@ -26,8 +28,9 @@ const TONO_ESTADO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
 
 // El detalle de un comprobante de venta guardado: sus datos, las líneas con sus descuentos, los pagos (con quién los registró), sus órdenes de laboratorio
 // y la factura electrónica. Aquí están todas las acciones; la fila de la lista solo lleva "Abonar" (regla 9). Se puede reimprimir.
-export default function DetalleComprobante({ factura: f, paciente, abonos = [], abonosAnulados = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente }) {
+export default function DetalleComprobante({ factura: f, paciente, abonos = [], abonosAnulados = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente, onAviso }) {
   const [cambios, setCambios] = useState([]) // lo que se corrigió o anuló de los abonos
+  const fe = useFacturaElectronica(f.id, f.facturaElectronica)
   const estado = estadoDeComprobante(f, abonos)
   const anulada = estado.id === "anulada"
   const propios = abonosDeFactura(f.id, abonos)
@@ -48,7 +51,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
   }, [f.id, abonos.map((x) => x.id + x.monto).join(","), abonosAnulados.length])
 
   const imprimir = () => {
-    imprimirHtml(armarHtmlComprobante({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOpticaProforma(parametrizacion), paciente: paciente || {}, factura: f, abonos, vendedor: nombre(f.registradoPor) === "—" ? "" : nombre(f.registradoPor) }))
+    imprimirHtml(armarHtmlComprobante({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOpticaProforma(parametrizacion), paciente: paciente || {}, factura: f, abonos, claveAcceso: fe.datos?.claveAcceso || "", autorizadaEl: fe.datos?.autorizadaEl || "", vendedor: nombre(f.registradoPor) === "—" ? "" : nombre(f.registradoPor) }))
     registrarLog(usuario, "ventas", "Reimprimió un comprobante", `${paciente?.nombre || ""} · ${numeroComprobante(f.numero)}`)
   }
   const con = (accion) => () => accion({ factura: f, paciente })
@@ -81,7 +84,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
           </p>
         )}
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <Columna titulo="La venta">
             <Dato etiqueta="Fecha">{fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}{String(f.creadoEn || "").includes("T") ? ` · ${hora(f.creadoEn)}` : ""}</Dato>
             <Dato etiqueta="Registrada por">{nombre(f.registradoPor)}</Dato>
@@ -93,14 +96,6 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
             </Dato>
             <Dato etiqueta="Cédula" vacio={!paciente?.cedula}>{paciente?.cedula || "Sin cédula"}</Dato>
             <Dato etiqueta="Teléfono" vacio={!paciente?.telefono}>{paciente?.telefono || "Sin teléfono"}</Dato>
-          </Columna>
-          <Columna titulo="Factura electrónica">
-            <Dato etiqueta="Número" vacio={!f.facturaElectronica}><span className={f.facturaElectronica ? "font-mono" : ""}>{f.facturaElectronica || "Sin factura electrónica"}</span></Dato>
-            {puedeEditar && !anulada && (
-              <button type="button" onClick={con(v.setFacturaElectronicaPara)} className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer">
-                <FileText size={14} aria-hidden="true" /> {f.facturaElectronica ? "Corregir el número" : "Registrar el número"}
-              </button>
-            )}
           </Columna>
         </div>
 
@@ -139,6 +134,8 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
             {estado.id === "saldo" && <div className="flex justify-between font-bold text-amber-700"><dt>Saldo</dt><dd className="font-mono">{dinero(estado.saldo)}</dd></div>}
           </dl>
         </Bloque>
+
+        <BloqueFacturaElectronica factura={f} paciente={paciente} usuario={usuario} equipo={equipo} fe={fe} puedeEditar={puedeEditar} onRegistrar={() => v.setFacturaElectronicaPara({ factura: f, paciente })} onAviso={onAviso} />
 
         {(propios.length > 0 || anuladosDeVenta.length > 0 || restoAlContado > 0 || cambios.length > 0 || estado.id === "saldo") && (
           <Bloque titulo="Pagos">

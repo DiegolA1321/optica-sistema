@@ -75,7 +75,8 @@ export default function ModalesVentas({ v, usuario, parametrizacion, inventario,
         <FacturaElectronicaModal
           factura={v.facturaElectronicaPara.factura}
           paciente={v.facturaElectronicaPara.paciente}
-          onGuardar={v.guardarFacturaElectronica}
+          usuario={usuario}
+          onGuardado={v.alGuardarFacturaElectronica}
           onCerrar={() => v.setFacturaElectronicaPara(null)}
         />
       )}

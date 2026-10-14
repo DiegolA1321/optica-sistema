@@ -6,6 +6,8 @@ import { saldoPacienteFacturas } from "./abonos"
 import { saldoVenta, ventasPendientesPaciente } from "./ventas"
 import { armarHtmlProforma, imprimirHtml, datosOpticaProforma } from "./proforma"
 import { registrarLog } from "./logs"
+import { EVENTO_FE_CAMBIADA } from "./facturaElectronicaApi"
+import { numeroComprobante } from "./comprobantes"
 
 // Manejadores de venta compartidos por el módulo de Ventas y por el perfil del paciente
 // (abonar, anular, crear la orden, registrar la factura electrónica). Antes vivían dentro de
@@ -57,16 +59,13 @@ export function useVentas({
     notificar?.("Venta anulada.")
   }
 
-  // Cargar, corregir o quitar el número de la factura electrónica emitida por fuera (nivel "editar" de Ventas).
-  const guardarFacturaElectronica = async (factura, numero) => {
-    if (supabase) {
-      const { error } = await supabase.rpc("registrar_factura_electronica", { p_factura_id: factura.id, p_numero: numero })
-      if (error) return { error: esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : error.message || "No se pudo guardar el número. Revisa tu conexión e intenta de nuevo." }
-    }
+  // La ventana de la factura electrónica ya guardó todo (número, clave, fecha y archivos) con la base; aquí se refleja y se anota (nivel "editar" de Ventas).
+  const alGuardarFacturaElectronica = ({ numero, conArchivos }) => {
+    const { factura } = facturaElectronicaPara
     setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, facturaElectronica: numero } : f)))
-    registrarLog(usuario, "ventas", numero ? "Registró la factura electrónica de una venta" : "Quitó la factura electrónica de una venta", numero || "")
-    notificar?.(numero ? "Número de factura electrónica guardado." : "Se quitó el número de factura electrónica.")
-    return { error: null }
+    registrarLog(usuario, "ventas", numero ? "Registró la factura electrónica de una venta" : "Quitó la factura electrónica de una venta", `${numeroComprobante(factura.numero)}${numero ? ` · ${numero}` : ""}${conArchivos ? " · con archivos" : ""}`)
+    notificar?.(numero ? "Factura electrónica guardada." : "Se quitó el número de factura electrónica.")
+    window.dispatchEvent(new CustomEvent(EVENTO_FE_CAMBIADA, { detail: factura.id })) // el detalle del comprobante vuelve a leer sus archivos
   }
 
   const construirCola = (estado) => pases
@@ -130,6 +129,6 @@ export function useVentas({
     ventaCola, setVentaCola, noComproPara, setNoComproPara, abonoPara, setAbonoPara, anularPara, setAnularPara,
     ordenParaVenta, setOrdenParaVenta, facturaElectronicaPara, setFacturaElectronicaPara, corregirAbonoPara, setCorregirAbonoPara, reabriendoId,
     colaListos, colaDescartados, saldoDe,
-    registrarFactura, alAbonar, alCorregirAbono, alAnular, guardarFacturaElectronica, imprimirProformaCola, alVenderDesdeCola, reabrirPase, alNoComprar,
+    registrarFactura, alAbonar, alCorregirAbono, alAnular, alGuardarFacturaElectronica, imprimirProformaCola, alVenderDesdeCola, reabrirPase, alNoComprar,
   }
 }

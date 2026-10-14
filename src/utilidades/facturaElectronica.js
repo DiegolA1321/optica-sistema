@@ -87,8 +87,9 @@ export function revisarXml(texto, clave, analizar = typeof DOMParser !== "undefi
 
 export const nombreArchivoFactura = (numero, tipo) => `factura-${numero || "electronica"}.${tipo}`
 
-// El mensaje de WhatsApp con el enlace seguro de descarga. El saludo usa el nombre tal como está guardado (regla 34).
-export function mensajeFacturaWhatsApp({ paciente, opticaNombre, enlace, dias = DIAS_ENLACE_FACTURA, numero = "" }) {
+// El mensaje de WhatsApp con los enlaces seguros de descarga ([{ tipo: "pdf" | "xml", url }]). El saludo usa el nombre tal como está guardado (regla 34).
+export function mensajeFacturaWhatsApp({ paciente, opticaNombre, enlaces = [], dias = DIAS_ENLACE_FACTURA, numero = "" }) {
   const nombre = String(paciente?.nombre || "").trim()
-  return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${opticaNombre || "tu óptica"}. Aquí está tu factura electrónica${numero ? ` ${numero}` : ""}: ${enlace}\nEl enlace de descarga vence en ${dias} días.`
+  const lineas = enlaces.map((e) => `${e.tipo === "pdf" ? "PDF (RIDE)" : "XML"}: ${e.url}`).join("\n")
+  return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${opticaNombre || "tu óptica"}. Aquí está tu factura electrónica${numero ? ` ${numero}` : ""}:\n${lineas}\nLos enlaces de descarga vencen en ${dias} días.`
 }

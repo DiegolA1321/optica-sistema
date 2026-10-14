@@ -69,9 +69,11 @@ describe("fecha de autorización y archivos", () => {
 
 describe("mensaje para el paciente", () => {
   it("lleva el enlace, el número y cuándo vence, sin adivinar el nombre", () => {
-    const m = mensajeFacturaWhatsApp({ paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre: "Óptica Demo", enlace: "https://x/d?t=abc", numero: "001-001-000001216" })
+    const m = mensajeFacturaWhatsApp({ paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre: "Óptica Demo", enlaces: [{ tipo: "pdf", url: "https://x/d?t=abc" }, { tipo: "xml", url: "https://x/d?t=def" }], numero: "001-001-000001216" })
     expect(m).toMatch(/^Hola, Rosa Bravo Cedeño, te escribimos de Óptica Demo\./)
-    expect(m).toContain("factura electrónica 001-001-000001216: https://x/d?t=abc")
-    expect(m).toContain("vence en 7 días")
+    expect(m).toContain("factura electrónica 001-001-000001216:")
+    expect(m).toContain("PDF (RIDE): https://x/d?t=abc")
+    expect(m).toContain("XML: https://x/d?t=def")
+    expect(m).toContain("vencen en 7 días")
   })
 })

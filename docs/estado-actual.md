@@ -6,8 +6,8 @@ Propuesta aprobada: `docs/propuesta-factura-electronica.md` y maqueta `docs/maqu
 - [x] 0. Prueba de Playwright de corregir y anular un abono (`e2e/ventas-abonos.spec.js`, óptica de pruebas). Al hacerla se corrigió que el detalle del comprobante no releía "Se corrigió un abono…" tras corregir.
 - [x] 1. Clave de acceso: validación (formato, módulo 11, cruce con el número) y reglas de los archivos, con pruebas.
 - [x] 2. Migración 0110 (borrador, NO aplicada: `supabase/migrations/0110_factura_electronica.sql`), su ensayo (`scripts/ensayo-0110.mjs`, revierte; pasa) y las Edge Functions `entregar-factura` y `enviar-factura-correo` (escritas, NO desplegadas: hace falta el token de Supabase de Diego). **Falta mostrar el SQL a Diego y su aprobación para aplicar.**
-- [ ] 3. Registrar la factura electrónica (ventana) y adjuntar PDF y XML.
-- [ ] 4. Detalle del comprobante y perfil: Descargar, Enviar al paciente (WhatsApp con enlace; correo apagado hasta el dominio); comprobante impreso con número y clave.
+- [x] 3. Registrar la factura electrónica (ventana `FacturaElectronicaModal`: número, clave con validación, fecha, PDF y XML) — hecho, con pruebas; solo funciona de verdad cuando se aplique la 0110.
+- [x] 4. Detalle del comprobante (y por él, el perfil): bloque con Descargar, Imprimir RIDE y Enviar al paciente (WhatsApp con enlace de 7 días; correo apagado hasta el dominio); comprobante impreso con número y clave — hecho, con pruebas.
 - [ ] 5. Portal del paciente: "Mis compras".
 - [ ] 6. Aplicar 0110 (con aprobación), verificar con sesión real, pruebas de Playwright y suite completa contra la versión compilada.
 

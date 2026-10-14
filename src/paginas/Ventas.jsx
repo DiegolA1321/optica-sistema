@@ -171,7 +171,7 @@ export default function Ventas({
       {detalle && (
         <DetalleComprobante
           factura={detalle} paciente={pacienteDe(detalle.pacienteId)} abonos={abonos} abonosAnulados={abonosAnulados} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion}
-          v={v} ordenesApi={ordenesApi} puedeVender={puedeVender} puedeEditar={puedeEditar} puedeAnular={puedeAnular}
+          v={v} ordenesApi={ordenesApi} puedeVender={puedeVender} puedeEditar={puedeEditar} puedeAnular={puedeAnular} onAviso={notificar}
           onCerrar={() => setDetalleId(null)} onVerPaciente={(p) => { setDetalleId(null); verPaciente(p) }}
         />
       )}

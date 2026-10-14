@@ -43,4 +43,12 @@ describe("imprimir un comprobante guardado", () => {
     expect(textoFormaDePago({ ...factura, pagos: null, metodoPago: "directo" }, [])).toBe("Pago directo")
     expect(textoFormaDePago({ ...factura, pagos: null, metodoPago: "tarjeta" }, [])).toBe("Tarjeta")
   })
+  it("el comprobante impreso lleva la clave de acceso y la fecha de autorización de la factura electrónica", () => {
+    const clave = "0410202601179000000000110010010000012161234567815"
+    const h = armarHtmlComprobante({ opticaNombre: "Ó", paciente: { nombre: "Ana" }, factura, claveAcceso: clave, autorizadaEl: "2026-10-04" })
+    expect(h).toContain("Clave de acceso:")
+    expect(h).toContain(clave)
+    expect(h).toContain("autorizada el 4 oct 2026")
+    expect(armarHtmlComprobante({ opticaNombre: "Ó", paciente: { nombre: "Ana" }, factura })).not.toContain("Clave de acceso")
+  })
 })

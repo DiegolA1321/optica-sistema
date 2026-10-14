@@ -2310,7 +2310,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
         <DetalleComprobante
           factura={facturasVenta.find((f) => f.id === detalleFacturaId)} paciente={pacientes.find((p) => p.id === facturasVenta.find((f) => f.id === detalleFacturaId).pacienteId) || null}
           abonos={abonos} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion} v={ventasApi}
-          puedeVender={puedeVender} puedeEditar={puedeEditarVentas} puedeAnular={puedeAnular} onCerrar={() => setDetalleFacturaId(null)}
+          puedeVender={puedeVender} puedeEditar={puedeEditarVentas} puedeAnular={puedeAnular} onAviso={(m, t) => (t === "error" ? mostrarError(m) : mostrarNotif(m))} onCerrar={() => setDetalleFacturaId(null)}
         />
       )}
       <ModalesVentas

@@ -24,7 +24,7 @@ export function textoFormaDePago(factura, abonos = []) {
 const formaDeAbono = (a) => { const p = pagosDeAbono(a); return p.every((x) => x.metodo === SIN_INDICAR) ? "—" : textoPagos(p) }
 
 // datos: { opticaNombre, opticaDatos, paciente: { nombre, cedula }, factura, abonos, vendedor }
-export function armarHtmlComprobante({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, factura, abonos = [], vendedor = "" }) {
+export function armarHtmlComprobante({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, factura, abonos = [], vendedor = "", claveAcceso = "", autorizadaEl = "" }) {
   const contacto = [opticaDatos.direccion, opticaDatos.telefono && `Tel. ${opticaDatos.telefono}`, opticaDatos.ruc && `RUC ${opticaDatos.ruc}`].filter(Boolean).map(escapar).join(" · ")
   const lineas = factura.lineas || []
   const t = totalesDeLineas(lineas)
@@ -52,7 +52,8 @@ ${contacto ? `<p class="contacto">${contacto}</p>` : ""}
 ${anulada ? `<div class="anulada">VENTA ANULADA${factura.anuladaMotivo ? ` · ${escapar(factura.anuladaMotivo)}` : ""}</div>` : ""}
 <div class="aviso">${escapar(LEYENDA_INTERNO)}</div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}${paciente.cedula ? ` · ${escapar(paciente.cedula)}` : ""}</p>
-${factura.facturaElectronica ? `<p><b>Factura electrónica:</b> ${escapar(factura.facturaElectronica)}</p>` : ""}
+${factura.facturaElectronica ? `<p><b>Factura electrónica:</b> ${escapar(factura.facturaElectronica)}${autorizadaEl ? ` · autorizada el ${escapar(fechaLegible(autorizadaEl))}` : ""}</p>` : ""}
+${factura.facturaElectronica && claveAcceso ? `<p><b>Clave de acceso:</b> <span style="font-family:ui-monospace,Consolas,monospace;font-size:11px">${escapar(claveAcceso)}</span></p>` : ""}
 <h2>Detalle</h2>
 <table><thead><tr><th>Descripción</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Subtotal</th></tr></thead><tbody>${filas}</tbody></table>
 <div class="totales">
