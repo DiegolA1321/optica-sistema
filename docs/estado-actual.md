@@ -1,3 +1,19 @@
+<!-- FE-INICIO -->
+## EN CURSO: factura electrónica guardada y entregada (rama ventas-v2, sin publicar)
+Propuesta aprobada: `docs/propuesta-factura-electronica.md` y maqueta `docs/maquetas/factura-electronica.html`. Respuestas de Diego: el enlace de WhatsApp vence en 7 días; registrar y corregir con Ventas "editar"; descargar con Ventas "ver"; "Mis compras" muestra también lo que tiene saldo (con lo que debe y lo abonado); lo demás, como en la propuesta.
+
+**Pasos** (un commit por paso; esta nota se actualiza en cada uno):
+- [x] 0. Prueba de Playwright de corregir y anular un abono (`e2e/ventas-abonos.spec.js`, óptica de pruebas). Al hacerla se corrigió que el detalle del comprobante no releía "Se corrigió un abono…" tras corregir.
+- [ ] 1. Clave de acceso: validación (formato, módulo 11, cruce con el número) y reglas de los archivos, con pruebas.
+- [ ] 2. Migración 0110 (tablas, funciones, bucket privado y políticas) + ensayo + Edge Functions. **Se muestra a Diego antes de aplicar.**
+- [ ] 3. Registrar la factura electrónica (ventana) y adjuntar PDF y XML.
+- [ ] 4. Detalle del comprobante y perfil: Descargar, Enviar al paciente (WhatsApp con enlace; correo apagado hasta el dominio); comprobante impreso con número y clave.
+- [ ] 5. Portal del paciente: "Mis compras".
+- [ ] 6. Aplicar 0110 (con aprobación), verificar con sesión real, pruebas de Playwright y suite completa contra la versión compilada.
+
+**Para retomar:** mirar qué casillas faltan arriba y `git log --oneline` de la rama.
+<!-- FE-FIN -->
+
 ## Ventas v2 (rama ventas-v2, sin publicar; la migración 0109 YA está aplicada en la base)
 - Módulo rehecho: cabecera sin subtítulo ("Requieren atención" y "Nueva venta" como en los demás), cuatro pestañas con su número (Por vender, Comprobantes, Órdenes de laboratorio, Cobros y saldos), una acción por fila y todo lo demás en el detalle (ventana estándar `Cascaron`). Código en `src/paginas/Ventas.jsx` y `src/componentes/ventas/`.
 - Nuevo: detalle del comprobante con reimpresión (`imprimirComprobante.js`), quién registró cada venta y abono, corregir o anular un abono (con motivo), pagos divididos, descuentos por línea, "Cobrado hoy" por método con Excel (mismo modelo que "Cobros del período" de Reportes) y saldos con los lentes listos primero. El período de los comprobantes es el selector de la Lista de Citas (`periodoLista.js`).

@@ -43,7 +43,9 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
     let vivo = true
     supabase.from("abonos_correcciones").select("accion, motivo, monto_anterior, monto_nuevo, realizado_por, realizado_en").eq("factura_id", f.id).order("realizado_en").then(({ data }) => { if (vivo && data) setCambios(data) })
     return () => { vivo = false }
-  }, [f.id, abonos.length])
+  // Se vuelve a leer cuando cambia algún abono (uno nuevo, corregido o anulado).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.id, abonos.map((x) => x.id + x.monto).join(","), abonosAnulados.length])
 
   const imprimir = () => {
     imprimirHtml(armarHtmlComprobante({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOpticaProforma(parametrizacion), paciente: paciente || {}, factura: f, abonos, vendedor: nombre(f.registradoPor) === "—" ? "" : nombre(f.registradoPor) }))
