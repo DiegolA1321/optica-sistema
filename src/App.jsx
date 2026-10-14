@@ -7,7 +7,7 @@ import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { mapOrden, EVENTO_ORDEN } from './utilidades/ordenesLaboratorio';
 import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from './utilidades/sesionPermisos';
-import { mapAbono, EVENTO_ABONO } from './utilidades/abonos';
+import { mapAbono, EVENTO_ABONO, EVENTO_ABONO_QUITADO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import { registrarLog } from './utilidades/logs';
 import { registrarAuditoria } from './utilidades/auditoria';
@@ -253,6 +253,9 @@ function mapFacturaVenta(f) {
     montoTotal: Number(f.monto_total), estado: f.estado, creadoEn: f.created_at,
     // Nombre técnico facturas_venta; en pantalla es un "comprobante de venta interno" (migración 0094).
     numero: f.numero ?? null, facturaElectronica: f.factura_electronica || "",
+    // Quién la registró, cómo se pagó al contado (lista de pagos por método) y, si se anuló, quién, cuándo y por qué.
+    registradoPor: f.registrado_por || null, pagos: Array.isArray(f.pagos) ? f.pagos.map((p) => ({ metodo: p.metodo, monto: Number(p.monto) })) : null,
+    anuladaPor: f.anulada_por || null, anuladaEn: f.anulada_at || null, anuladaMotivo: f.anulada_motivo || "",
     // facturas_venta_lineas llega embebida por el select de abajo (join por
     // factura_id) — sin esto, `lineas` solo existía para una factura recién
     // creada en la misma sesión (ComprobanteVentaModal arma el objeto local con
@@ -261,6 +264,7 @@ function mapFacturaVenta(f) {
     lineas: (f.facturas_venta_lineas || []).map((l) => ({
       id: l.id, productoId: l.producto_id, tipo: l.tipo, descripcion: l.descripcion,
       cantidad: l.cantidad, precioUnitario: Number(l.precio_unitario), detalle: l.detalle || null,
+      descuentoTipo: l.descuento_tipo || null, descuentoValor: l.descuento_valor == null ? null : Number(l.descuento_valor), descuentoMonto: Number(l.descuento_monto) || 0, descuentoMotivo: l.descuento_motivo || "",
     })),
   }
 }
@@ -396,8 +400,10 @@ function App() {
   // Un abono registrado desde cualquier pantalla entra a la lista sin recargar.
   useEffect(() => {
     const alAbonar = (e) => setAbonos((prev) => [e.detail, ...prev.filter((a) => a.id !== e.detail.id)])
+    const alQuitar = (e) => setAbonos((prev) => prev.filter((a) => a.id !== e.detail))
     window.addEventListener(EVENTO_ABONO, alAbonar)
-    return () => window.removeEventListener(EVENTO_ABONO, alAbonar)
+    window.addEventListener(EVENTO_ABONO_QUITADO, alQuitar)
+    return () => { window.removeEventListener(EVENTO_ABONO, alAbonar); window.removeEventListener(EVENTO_ABONO_QUITADO, alQuitar) }
   }, []);
   // Una orden creada o corregida desde cualquier pantalla entra a la lista sin recargar.
   useEffect(() => {

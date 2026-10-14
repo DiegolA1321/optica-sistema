@@ -2,17 +2,20 @@
 
 import { dinero } from "../utilidades/formatoMoneda"
 import { useMemo, useState } from "react"
-import { createPortal } from "react-dom"
-import { Receipt, Search, X, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown, Glasses } from "lucide-react"
+import { Receipt, Search, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown, Glasses, BadgePercent } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
-import { useModalAccesible } from "../utilidades/useModalAccesible"
+import { puede } from "../utilidades/permisosUi"
+import { Cascaron } from "../componentes/AtencionPaciente"
+import CamposPagos, { FILAS_INICIALES } from "../componentes/ventas/CamposPagos"
+import { brutoLinea, descuentoLinea, subtotalLinea, totalesDeLineas, errorDeDescuento, lineaParaRpc, TIPOS_DESCUENTO } from "../utilidades/descuentos"
+import { filasParaTotal, revisarPagos, modalidadDePagos, textoPagos } from "../utilidades/pagos"
 import CampoCategoria from "../componentes/CampoCategoria"
 import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
-import { INK } from "@/lib/tema"
+import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
 import { esLineaDeLente, TIPOS_LENTE, MATERIALES_LENTE } from "../utilidades/ordenesLaboratorio"
@@ -20,9 +23,8 @@ import { LEYENDA_INTERNO, TRATAMIENTOS_LUNA, descripcionLuna, detalleLuna, datos
 import { mapAbono, EVENTO_ABONO } from "../utilidades/abonos"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 
-// ─── Paleta de firma (paleta de venta/dinero) ───
-const GRAD_VENTA = "linear-gradient(135deg,#34d399,#059669)" // verde: acción de venta/dinero
-const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul, tipo "producto"
+// ─── Colores: el azul de la marca para los botones principales; el color de cada tipo de línea solo distingue el tipo ───
+const GRAD = GRAD_MARCA // montura / accesorio
 const VIOLETA = "#7c3aed" // tipo "servicio"
 const AZUL_LUNA = "#0e7490" // tipo "luna"
 
@@ -161,9 +163,14 @@ export default function ComprobanteVentaModal({
     return base.slice(0, 8)
   }, [pacientes, busquedaPaciente])
 
-  const [metodoPago, setMetodoPago] = useState("directo")
+  // Cómo se paga: completo (al contado, con uno o varios métodos), en cuotas o con abonos (con un abono inicial opcional, también dividible).
+  const [modalidad, setModalidad] = useState("completo")
+  const [filasPago, setFilasPago] = useState(FILAS_INICIALES)
+  const [filasAbono, setFilasAbono] = useState(FILAS_INICIALES)
   const [cuotasTotales, setCuotasTotales] = useState("3")
   const [abonoInicial, setAbonoInicial] = useState("")
+  // Descontar es de quien puede corregir cobros (Ventas: editar); la base lo vuelve a exigir.
+  const puedeDescontar = puede(usuario, "ventas", "editar")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
@@ -176,7 +183,7 @@ export default function ComprobanteVentaModal({
     return disponibles.filter((p) => p.nombre.toLowerCase().includes(q)).slice(0, 8)
   }, [inventario, busquedaProducto])
 
-  const total = useMemo(() => lineas.reduce((sum, l) => sum + l.cantidad * l.precioUnitario, 0), [lineas])
+  const { bruto, descuento: totalDescuento, total } = useMemo(() => totalesDeLineas(lineas), [lineas])
 
   const limpiarCamposProducto = () => {
     setProductoId(null)
@@ -290,7 +297,8 @@ export default function ComprobanteVentaModal({
     setBusquedaProducto("")
   }
 
-  const cambiarMetodoPago = (m) => setMetodoPago(m)
+  const editarDescuento = (idx, cambios) => setLineas((prev) => prev.map((l, i) => (i === idx ? { ...l, ...cambios } : l)))
+  const quitarDescuento = (idx) => { editarDescuento(idx, { descuentoTipo: null, descuentoValor: null, descuentoMotivo: "" }) }
   const hayLente = lineas.some(esLineaDeLente)
   const incluyeLentes = crearOrden ?? hayLente
 
@@ -312,10 +320,26 @@ export default function ComprobanteVentaModal({
     if (lineas.some((l) => l.precioTexto !== undefined && (l.precioTexto.trim() === "" || Number.isNaN(parseFloat(l.precioTexto)) || parseFloat(l.precioTexto) < 0))) {
       setError("Revisa los precios: cada uno debe ser un número de 0 en adelante."); return
     }
-    const cuotasNum = metodoPago === "cuotas" ? parseInt(cuotasTotales, 10) : null
-    if (metodoPago === "cuotas" && (!cuotasNum || cuotasNum < 1)) { setError("Ingresa un número de cuotas válido."); return }
-    const abonoNum = metodoPago === "abonos" && abonoInicial.trim() !== "" ? Math.round(parseFloat(abonoInicial) * 100) / 100 : 0
-    if (metodoPago === "abonos" && abonoInicial.trim() !== "" && (!(abonoNum > 0) || abonoNum > total)) { setError("El abono inicial debe ser mayor que cero y no superar el total."); return }
+    for (const l of lineas) { const msg = errorDeDescuento(l); if (msg) { setError(msg); return } }
+    const cuotasNum = modalidad === "cuotas" ? parseInt(cuotasTotales, 10) : null
+    if (modalidad === "cuotas" && (!cuotasNum || cuotasNum < 1)) { setError("Ingresa un número de cuotas válido."); return }
+    const abonoNum = modalidad === "abonos" && abonoInicial.trim() !== "" ? Math.round(parseFloat(abonoInicial) * 100) / 100 : 0
+    if (modalidad === "abonos" && abonoInicial.trim() !== "" && (!(abonoNum > 0) || abonoNum > total)) { setError("El abono inicial debe ser mayor que cero y no superar el total."); return }
+
+    // Cómo se paga lo que se cobra ahora: la venta completa (al contado) o el abono inicial. Cada uno, con uno o varios métodos.
+    let pagosContado = null
+    let pagosAbono = null
+    if (modalidad === "completo" && total > 0) {
+      const r = revisarPagos(filasParaTotal(filasPago, total), total)
+      if (r.error) { setError(r.error); return }
+      pagosContado = r.pagos
+    }
+    if (abonoNum > 0) {
+      const r = revisarPagos(filasParaTotal(filasAbono, abonoNum), abonoNum)
+      if (r.error) { setError(r.error); return }
+      pagosAbono = r.pagos
+    }
+    const metodoPago = modalidad === "completo" ? modalidadDePagos(pagosContado || []) : modalidad
 
     const fe = normalizarFacturaElectronica(facturaElectronica)
     if (fe.demasiadoLargo) { setError("El número de la factura electrónica es demasiado largo (máximo 60 caracteres)."); return }
@@ -329,19 +353,13 @@ export default function ComprobanteVentaModal({
           p_optica_id: opticaId,
           p_paciente_id: paciente.id,
           p_metodo_pago: metodoPago,
-          p_lineas: lineas.map((l) => ({
-            producto_id: l.productoId,
-            tipo: l.tipo,
-            descripcion: l.descripcion,
-            cantidad: l.cantidad,
-            precio_unitario: l.precioUnitario,
-            ...(l.tipo === "luna" && l.detalle ? { detalle: l.detalle } : {}),
-          })),
+          p_lineas: lineas.map(lineaParaRpc),
           p_cita_id: citaIdEfectivo,
           p_consulta_id: consultaIdEfectivo,
           p_cuotas_totales: cuotasNum,
           p_registrado_por: usuario?.id || null,
           ...(fe.valor ? { p_factura_electronica: fe.valor } : {}),
+          ...(pagosContado ? { p_pagos: pagosContado } : {}),
         })
         .single()
       if (errorRpc) {
@@ -358,14 +376,15 @@ export default function ComprobanteVentaModal({
           return linea ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - linea.cantidad) } : p
         }))
       }
-      registrarLog(usuario, "ventas", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · ${dinero(total)}`)
+      registrarLog(usuario, "ventas", "Registró una venta", `${paciente.nombre} · ${lineas.length} línea(s) · ${dinero(total)}${pagosContado ? ` · ${textoPagos(pagosContado)}` : ""}`)
+      if (totalDescuento > 0) registrarLog(usuario, "ventas", "Aplicó un descuento", `${paciente.nombre} · ${dinero(totalDescuento)} · ${lineas.filter((l) => l.descuentoTipo).map((l) => `${l.descripcion}: ${String(l.descuentoMotivo).trim()}`).join("; ")}`)
       let estadoFinal = data.estado
       let avisoAbono = ""
       if (abonoNum > 0) {
         // El abono inicial se registra justo después de crear la venta (misma función que cualquier otro abono).
-        const { data: ab, error: errorAbono } = await supabase.rpc("registrar_abono", { p_factura_id: data.id, p_monto: abonoNum, p_nota: "Abono inicial" }).single()
+        const { data: ab, error: errorAbono } = await supabase.rpc("registrar_abono", { p_factura_id: data.id, p_monto: abonoNum, p_nota: "Abono inicial", p_pagos: pagosAbono }).single()
         if (errorAbono) {
-          avisoAbono = "La venta se guardó, pero el abono inicial no se pudo registrar: regístralo desde el perfil del paciente."
+          avisoAbono = "La venta se guardó, pero el abono inicial no se pudo registrar: regístralo desde el comprobante."
         } else {
           estadoFinal = ab.estado
           const { data: filas } = await supabase.from("abonos_factura").select("*").eq("factura_id", data.id)
@@ -377,7 +396,8 @@ export default function ComprobanteVentaModal({
         metodoPago, cuotasTotales: cuotasNum, cuotasPagadas: 0, montoTotal: data.monto_total,
         estado: estadoFinal, creadoEn: data.created_at,
         numero: data.numero ?? null, facturaElectronica: fe.valor,
-        lineas,
+        registradoPor: usuario?.id || null, pagos: pagosContado,
+        lineas: lineas.map((l, i) => ({ ...l, id: `${data.id}-${i}`, descuentoMonto: descuentoLinea(l), descuentoMotivo: l.descuentoTipo ? String(l.descuentoMotivo).trim() : "" })),
       }
       if (avisoAbono) window.dispatchEvent(new CustomEvent("aviso-global", { detail: avisoAbono }))
       onGuardado?.(facturaGuardada)
@@ -391,9 +411,6 @@ export default function ComprobanteVentaModal({
     setGuardando(false)
     onCerrar?.()
   }
-
-  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-  const refModal = useModalAccesible(true, onCerrar)
 
   // Venta guardada con lentes: sigue la orden de laboratorio (cerrarla o crearla después termina el flujo).
   if (ordenPara) {
@@ -412,35 +429,46 @@ export default function ComprobanteVentaModal({
     )
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <div ref={refModal} role="dialog" aria-modal="true" aria-labelledby="comprobante-modal-titulo" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl" style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)", willChange: "transform, opacity" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: GRAD_VENTA }}>
-              <Receipt size={20} />
-            </div>
-            <div>
-              <h2 id="comprobante-modal-titulo" className="text-lg font-bold" style={{ color: INK }}>{titulo}</h2>
-              <p className="text-xs text-slate-500">{subtitulo}</p>
-            </div>
-          </div>
-          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
-            <X size={20} />
-          </button>
+  // Pie de la ventana: a la izquierda lo que se hace con la consulta (proforma, "No compró"); a la derecha, salir o registrar.
+  const pie = agregandoProducto ? null : (
+    <>
+      {onProforma || onNoCompro ? (
+        <div className="flex items-center gap-4">
+          {onProforma && (
+            <button type="button" onClick={imprimirProforma} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+              <Printer size={14} aria-hidden="true" /> Imprimir proforma
+            </button>
+          )}
+          {onNoCompro && (
+            <button type="button" onClick={onNoCompro} className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-slate-800 cursor-pointer">
+              <UserX size={14} aria-hidden="true" /> No compró
+            </button>
+          )}
         </div>
+      ) : <span />}
+      <div className="ml-auto flex items-center gap-2">
+        <button type="button" onClick={onMasTarde || onCerrar} disabled={guardando} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
+          {onMasTarde ? "Más tarde" : "Cancelar"}
+        </button>
+        <button type="submit" disabled={guardando} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:opacity-60 cursor-pointer" style={{ background: GRAD_MARCA }}>
+          {guardando ? "Guardando..." : etiquetaGuardar}
+        </button>
+      </div>
+    </>
+  )
 
-        <form onSubmit={confirmarFactura} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+  return (
+    <Cascaron titulo={titulo} subtitulo={subtitulo} Icono={Receipt} ancho="max-w-xl" onCerrar={onCerrar} formulario={{ onSubmit: confirmarFactura }} pie={pie}>
+          <div className="space-y-4 p-5">
 
             <div className="relative">
               <label htmlFor="comprobante-paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">Paciente</label>
               {pacienteFijo ? (
                 <div className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">{pacienteFijo.nombre}</div>
               ) : pacienteSel ? (
-                <div className="flex items-center justify-between rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2.5">
-                  <span className="truncate text-sm font-semibold text-emerald-800">{pacienteSel.nombre}</span>
-                  <button type="button" onClick={() => { setPacienteSel(null); setBusquedaPaciente("") }} aria-label="Cambiar paciente" className="text-sm font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">×</button>
+                <div className="flex items-center justify-between rounded-xl border border-blue-200/60 bg-blue-50 px-3 py-2.5">
+                  <span className="truncate text-sm font-semibold text-blue-800">{pacienteSel.nombre}</span>
+                  <button type="button" onClick={() => { setPacienteSel(null); setBusquedaPaciente("") }} aria-label="Cambiar paciente" className="text-sm font-bold text-blue-600 hover:text-blue-800 cursor-pointer">×</button>
                 </div>
               ) : (
                 <>
@@ -476,8 +504,8 @@ export default function ComprobanteVentaModal({
             </div>
 
             {vinculo && !consultaId && (
-              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3 text-xs text-emerald-900">
-                <input type="checkbox" checked={vincular} onChange={(e) => setVincular(e.target.checked)} className="mt-0.5 accent-emerald-600" />
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-blue-200/60 bg-blue-50/60 p-3 text-xs text-blue-900">
+                <input type="checkbox" checked={vincular} onChange={(e) => setVincular(e.target.checked)} className="mt-0.5 accent-blue-600" />
                 <span><span className="font-bold">{vinculo.etiqueta}</span><br />Si es esta venta, queda vinculada a la consulta y el paciente sale de la lista de espera. Desmárcalo si es otra compra.</span>
               </label>
             )}
@@ -519,38 +547,58 @@ export default function ComprobanteVentaModal({
               ) : (
                 <div className="space-y-1.5">
                   {lineas.map((l, i) => (
-                    <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/60 bg-white px-3 py-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        {l.tipo === "producto" ? (
-                          <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
-                        ) : l.tipo === "luna" ? (
-                          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-cyan-50 text-cyan-700">
-                            <Glasses size={13} aria-hidden="true" />
-                          </span>
-                        ) : (
-                          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-violet-600">
-                            <Wrench size={13} />
-                          </span>
-                        )}
-                        <span className="truncate text-sm font-semibold text-slate-700">{l.descripcion}</span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {l.tipo === "servicio" || l.tipo === "luna" ? (
-                          <span className="flex items-center gap-1 font-mono text-xs text-slate-500">
-                            {l.cantidad} × $
-                            <input
-                              type="number" min="0" step="0.01" inputMode="decimal"
-                              aria-label={`Precio de ${l.descripcion}`}
-                              value={l.precioTexto ?? String(l.precioUnitario)}
-                              onChange={(e) => editarPrecioLinea(i, e.target.value)}
-                              className="w-20 rounded-md border border-slate-300 px-1.5 py-1 text-right text-xs outline-none focus-visible:border-blue-500"
-                            />
-                          </span>
-                        ) : (
-                          <span className="font-mono text-xs text-slate-500">{l.cantidad} × {dinero(l.precioUnitario)} = {dinero((l.cantidad * l.precioUnitario))}</span>
-                        )}
-                        <button type="button" onClick={() => quitarLinea(i)} aria-label="Quitar línea" className="text-sm font-bold text-slate-400 hover:text-red-600 cursor-pointer">×</button>
-                      </span>
+                    <div key={i} className="rounded-xl border border-slate-200/60 bg-white px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2">
+                          {l.tipo === "producto" ? (
+                            <MiniaturaProducto url={inventario.find((p) => p.id === l.productoId)?.imagen_url} alt={l.descripcion} size={24} />
+                          ) : l.tipo === "luna" ? (
+                            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-cyan-50 text-cyan-700">
+                              <Glasses size={13} aria-hidden="true" />
+                            </span>
+                          ) : (
+                            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-violet-600">
+                              <Wrench size={13} />
+                            </span>
+                          )}
+                          <span className="truncate text-sm font-semibold text-slate-700" title={l.descripcion}>{l.descripcion}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          {l.tipo === "servicio" || l.tipo === "luna" ? (
+                            <span className="flex items-center gap-1 font-mono text-xs text-slate-500">
+                              {l.cantidad} × $
+                              <input
+                                type="number" min="0" step="0.01" inputMode="decimal"
+                                aria-label={`Precio de ${l.descripcion}`}
+                                value={l.precioTexto ?? String(l.precioUnitario)}
+                                onChange={(e) => editarPrecioLinea(i, e.target.value)}
+                                className="w-20 rounded-md border border-slate-300 px-1.5 py-1 text-right text-xs outline-none focus-visible:border-blue-500"
+                              />
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs text-slate-500">{l.cantidad} × {dinero(l.precioUnitario)} = {dinero(brutoLinea(l))}</span>
+                          )}
+                          <button type="button" onClick={() => quitarLinea(i)} aria-label="Quitar línea" className="text-sm font-bold text-slate-400 hover:text-red-600 cursor-pointer">×</button>
+                        </span>
+                      </div>
+                      {l.descuentoTipo ? (
+                        <div className="mt-2 space-y-1.5 border-t border-slate-100 pt-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-600">Descuento</span>
+                            <select aria-label={`Tipo de descuento de ${l.descripcion}`} value={l.descuentoTipo} onChange={(e) => editarDescuento(i, { descuentoTipo: e.target.value })} className="h-8 rounded-md border border-slate-300 bg-white px-1.5 text-xs">
+                              {TIPOS_DESCUENTO.map((t) => <option key={t.id} value={t.id}>{t.etiqueta}</option>)}
+                            </select>
+                            <input type="number" min="0" step="0.01" inputMode="decimal" aria-label={`Valor del descuento de ${l.descripcion}`} value={l.descuentoValor ?? ""} onChange={(e) => editarDescuento(i, { descuentoValor: e.target.value })} className="h-8 w-20 rounded-md border border-slate-300 px-1.5 text-right font-mono text-xs outline-none focus-visible:border-blue-500" />
+                            <span className="ml-auto font-mono text-xs font-semibold text-slate-700">-{dinero(descuentoLinea(l))} → {dinero(subtotalLinea(l))}</span>
+                            <button type="button" onClick={() => quitarDescuento(i)} className="text-xs font-semibold text-slate-500 hover:text-red-600 cursor-pointer">Quitar</button>
+                          </div>
+                          <input type="text" maxLength={200} aria-label={`Motivo del descuento de ${l.descripcion}`} placeholder="Motivo del descuento (obligatorio)" value={l.descuentoMotivo || ""} onChange={(e) => editarDescuento(i, { descuentoMotivo: e.target.value })} className="h-8 w-full rounded-md border border-slate-300 px-2 text-xs outline-none focus-visible:border-blue-500" />
+                        </div>
+                      ) : puedeDescontar && (
+                        <button type="button" onClick={() => editarDescuento(i, { descuentoTipo: "porcentaje", descuentoValor: "", descuentoMotivo: "" })} className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer">
+                          <BadgePercent size={13} aria-hidden="true" /> Aplicar descuento
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -575,20 +623,20 @@ export default function ComprobanteVentaModal({
                     <label className="mb-1 block text-xs font-semibold text-slate-700">Descripción de la montura o accesorio</label>
                     <input type="text" required value={npNombre} onChange={(e) => setNpNombre(e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X"
                       className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresNp.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                    {erroresNp.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.nombre}</p>}
+                    {erroresNp.nombre && <p className="mt-1 text-xs font-medium text-red-600">{erroresNp.nombre}</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-xs font-semibold text-slate-700">Stock inicial</label>
                       <input type="number" min="0" step="1" required value={npStock} onChange={(e) => setNpStock(e.target.value)}
                         className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresNp.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                      {erroresNp.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.stock}</p>}
+                      {erroresNp.stock && <p className="mt-1 text-xs font-medium text-red-600">{erroresNp.stock}</p>}
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-semibold text-slate-700">Precio ($)</label>
                       <input type="number" min="0" step="0.01" required value={npPrecio} onChange={(e) => setNpPrecio(e.target.value)} placeholder="45.00"
                         className={"w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresNp.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                      {erroresNp.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresNp.precio}</p>}
+                      {erroresNp.precio && <p className="mt-1 text-xs font-medium text-red-600">{erroresNp.precio}</p>}
                     </div>
                   </div>
                   <div>
@@ -635,14 +683,14 @@ export default function ComprobanteVentaModal({
                 {tipoLinea === "producto" ? (
                   <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
                     {productoSeleccionado ? (
-                      <div className="flex items-center justify-between rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2.5">
+                      <div className="flex items-center justify-between rounded-xl border border-blue-200/60 bg-blue-50 px-3 py-2.5">
                         <span className="flex min-w-0 items-center gap-2">
                           <MiniaturaProducto url={productoSeleccionado.imagen_url} alt={productoSeleccionado.nombre} size={22} />
-                          <span className="truncate text-sm font-semibold text-emerald-800">{productoSeleccionado.nombre}</span>
+                          <span className="truncate text-sm font-semibold text-blue-800">{productoSeleccionado.nombre}</span>
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-emerald-700">{productoSeleccionado.stock} u. · {dinero(Number(productoSeleccionado.precio))}</span>
-                          <button type="button" onClick={limpiarCamposProducto} className="text-sm font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer">×</button>
+                          <span className="font-mono text-xs text-blue-700">{productoSeleccionado.stock} u. · {dinero(Number(productoSeleccionado.precio))}</span>
+                          <button type="button" onClick={limpiarCamposProducto} className="text-sm font-bold text-blue-600 hover:text-blue-800 cursor-pointer">×</button>
                         </div>
                       </div>
                     ) : (
@@ -734,9 +782,14 @@ export default function ComprobanteVentaModal({
                   </div>
                 )}
 
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <span className="text-sm font-semibold text-slate-600">Total</span>
-                  <span className="font-mono text-xl font-bold text-slate-800">{dinero(total)}</span>
+                <div className="space-y-1 border-t border-slate-100 pt-3">
+                  {totalDescuento > 0 && (
+                    <>
+                      <p className="flex items-center justify-between text-sm text-slate-600"><span>Subtotal</span><span className="font-mono">{dinero(bruto)}</span></p>
+                      <p className="flex items-center justify-between text-sm text-slate-600"><span>Descuento</span><span className="font-mono">-{dinero(totalDescuento)}</span></p>
+                    </>
+                  )}
+                  <p className="flex items-center justify-between"><span className="text-sm font-semibold text-slate-600">Total</span><span className="font-mono text-xl font-bold text-slate-800">{dinero(total)}</span></p>
                 </div>
 
                 <div>
@@ -759,32 +812,38 @@ export default function ComprobanteVentaModal({
                 </label>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Método de pago</label>
-                  <div className="flex gap-2">
-                    {[{ v: "directo", t: "Directo" }, { v: "tarjeta", t: "Tarjeta" }, { v: "cuotas", t: "Cuotas" }, { v: "abonos", t: "Abonos" }].map((m) => (
-                      <button key={m.v} type="button" onClick={() => cambiarMetodoPago(m.v)}
-                        className="flex-1 rounded-xl border py-2 text-sm font-semibold transition cursor-pointer"
-                        style={metodoPago === m.v ? { background: GRAD_VENTA, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cómo paga</label>
+                  <div role="group" aria-label="Cómo paga" className="flex gap-2">
+                    {[{ v: "completo", t: "Pago completo" }, { v: "cuotas", t: "Cuotas" }, { v: "abonos", t: "Abonos" }].map((m) => (
+                      <button key={m.v} type="button" aria-pressed={modalidad === m.v} onClick={() => setModalidad(m.v)}
+                        className="flex-1 rounded-xl border py-2 text-sm font-semibold transition-colors cursor-pointer"
+                        style={modalidad === m.v ? { background: GRAD_MARCA, borderColor: "transparent", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}>
                         {m.t}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {metodoPago === "cuotas" && (
+                {modalidad === "completo" && total > 0 && <CamposPagos filas={filasPago} onChange={setFilasPago} total={total} idBase="venta" />}
+
+                {modalidad === "cuotas" && (
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Número de cuotas</label>
-                    <input type="number" min="1" step="1" value={cuotasTotales} onChange={(e) => setCuotasTotales(e.target.value)}
+                    <label htmlFor="venta-cuotas" className="mb-1.5 block text-sm font-semibold text-slate-700">Número de cuotas</label>
+                    <input id="venta-cuotas" type="number" min="1" step="1" value={cuotasTotales} onChange={(e) => setCuotasTotales(e.target.value)}
                       className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+                    <p className="mt-1 text-xs text-slate-500">Cada cuota se cobra después, desde el comprobante.</p>
                   </div>
                 )}
 
-                {metodoPago === "abonos" && (
-                  <div>
-                    <label htmlFor="abono-inicial" className="mb-1.5 block text-sm font-semibold text-slate-700">Abono inicial (opcional)</label>
-                    <input id="abono-inicial" type="number" min="0" step="0.01" max={total} value={abonoInicial} onChange={(e) => setAbonoInicial(e.target.value)} placeholder="0.00"
-                      className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-                    <p className="mt-1 text-xs text-slate-500">El resto queda como saldo y se cobra con abonos de monto y fecha libres.</p>
+                {modalidad === "abonos" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="abono-inicial" className="mb-1.5 block text-sm font-semibold text-slate-700">Abono inicial (opcional)</label>
+                      <input id="abono-inicial" type="number" min="0" step="0.01" max={total} value={abonoInicial} onChange={(e) => setAbonoInicial(e.target.value)} placeholder="0.00"
+                        className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-right font-mono text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+                      <p className="mt-1 text-xs text-slate-500">El resto queda como saldo y se cobra con abonos de monto y fecha libres.</p>
+                    </div>
+                    {parseFloat(abonoInicial) > 0 && <CamposPagos filas={filasAbono} onChange={setFilasAbono} total={Math.round(parseFloat(abonoInicial) * 100) / 100} idBase="venta-abono" />}
                   </div>
                 )}
 
@@ -796,37 +855,6 @@ export default function ComprobanteVentaModal({
               </>
             )}
           </div>
-
-          {!agregandoProducto && (
-            <div className="space-y-2 border-t border-slate-100 px-6 py-4">
-              {(onProforma || onNoCompro) && (
-                <div className="flex items-center justify-between gap-3">
-                  {onProforma ? (
-                    <button type="button" onClick={imprimirProforma} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-                      <Printer size={14} aria-hidden="true" /> Imprimir proforma
-                    </button>
-                  ) : <span />}
-                  {onNoCompro && (
-                    <button type="button" onClick={onNoCompro} className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-red-700 cursor-pointer">
-                      <UserX size={14} aria-hidden="true" /> No compró
-                    </button>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-3">
-              <button type="button" onClick={onMasTarde || onCerrar} disabled={guardando} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
-                {onMasTarde ? "Más tarde" : "Cancelar"}
-              </button>
-              <button type="submit" disabled={guardando} className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer"
-                style={{ background: GRAD_VENTA, boxShadow: "0 12px 24px -12px rgba(5,150,105,0.5)" }}>
-                {guardando ? "Guardando..." : etiquetaGuardar}
-              </button>
-              </div>
-            </div>
-          )}
-        </form>
-      </div>
-    </div>,
-    document.body
+    </Cascaron>
   )
 }

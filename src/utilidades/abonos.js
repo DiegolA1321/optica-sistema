@@ -2,6 +2,8 @@
 // nota) y el saldo se calcula: total de la venta menos lo abonado. Las cuotas son
 // un plan de abonos iguales.
 export const EVENTO_ABONO = "abono-factura:registrado"
+// Un abono anulado sale de la lista sin recargar (detail: el id del abono).
+export const EVENTO_ABONO_QUITADO = "abono-factura:quitado"
 
 export function mapAbono(a) {
   return { id: a.id, facturaId: a.factura_id, monto: Number(a.monto), fecha: a.fecha, nota: a.nota || "", registradoPor: a.registrado_por || null, creadoEn: a.created_at, pagos: Array.isArray(a.pagos) ? a.pagos.map((p) => ({ metodo: p.metodo, monto: Number(p.monto) })) : null }

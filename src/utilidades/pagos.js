@@ -22,6 +22,9 @@ export const pagosDeFormulario = (filas = []) => filas
   .map((f) => ({ metodo: f.metodo, monto: redondear(parseFloat(f.monto)) }))
   .filter((p) => p.monto > 0)
 
+// Las filas que de verdad se cobran: con una sola fila, es por el total (así sigue al total sin tener que reescribirla).
+export const filasParaTotal = (filas, total) => (filas.length === 1 ? [{ ...filas[0], monto: String(redondear(total)) }] : filas)
+
 // Revisa lo que se escribió contra lo que se debe cobrar. `restante` > 0 falta por repartir; < 0 se pasó.
 export function revisarPagos(filas, total) {
   const pagos = pagosDeFormulario(filas)
