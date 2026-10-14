@@ -4,7 +4,7 @@
 export const EVENTO_ABONO = "abono-factura:registrado"
 
 export function mapAbono(a) {
-  return { id: a.id, facturaId: a.factura_id, monto: Number(a.monto), fecha: a.fecha, nota: a.nota || "", registradoPor: a.registrado_por || null, creadoEn: a.created_at }
+  return { id: a.id, facturaId: a.factura_id, monto: Number(a.monto), fecha: a.fecha, nota: a.nota || "", registradoPor: a.registrado_por || null, creadoEn: a.created_at, pagos: Array.isArray(a.pagos) ? a.pagos.map((p) => ({ metodo: p.metodo, monto: Number(p.monto) })) : null }
 }
 
 const redondear = (n) => Math.round((Number(n) || 0) * 100) / 100
@@ -30,4 +30,11 @@ export function abonoSugerido(factura, abonos) {
     return Math.min(saldo, redondear(factura.montoTotal / factura.cuotasTotales))
   }
   return saldo
+}
+
+// Lo que quedaría por cobrar de una venta si un abono pasara a valer `nuevoMonto` (0 = anularlo). Para avisar antes de enviar; el servidor lo vuelve a comprobar.
+export function saldoTrasCorregir(factura, abonos, abonoId, nuevoMonto) {
+  if (!factura || factura.estado === "anulada") return 0
+  const otros = redondear(abonos.filter((a) => a.facturaId === factura.id && a.id !== abonoId).reduce((s, a) => s + a.monto, 0))
+  return Math.max(0, redondear(factura.montoTotal - otros - (Number(nuevoMonto) || 0)))
 }

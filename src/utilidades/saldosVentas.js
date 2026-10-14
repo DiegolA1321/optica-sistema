@@ -1,7 +1,8 @@
 // Listas del módulo de Ventas: saldos por cobrar por paciente y búsqueda de comprobantes.
 // Lógica pura. El saldo de un comprobante sale de abonos.js; las ventas viejas (tabla `ventas`,
 // sin filas hoy) se suman igual que en el resto del sistema.
-import { saldoFactura } from "./abonos"
+import { saldoFactura, abonosDeFactura } from "./abonos"
+import { pagosAlContado, pagosDeAbono, redondear } from "./pagos"
 import { saldoVenta, ventasPendientesPaciente } from "./ventas"
 import { numeroComprobante } from "./comprobantes"
 import { esDeEsteMes } from "./inicio"
@@ -50,7 +51,7 @@ export const textoSaldos = (r, opciones) => `${r.ventas} ${textoSaldosSinNumero(
 
 // Búsqueda por paciente, cédula, número CV, número de factura electrónica o descripción de una línea.
 // estado "vigentes" = todas menos las anuladas (lo que cuenta la tarjeta Ventas del Inicio); periodo "mes" = las de este mes.
-export function filtrarComprobantes(facturas, { texto = "", estado = "todas", periodo = "todo", desde = "", hasta = "", sinFacturaElectronica = false, pacientes = [], abonos = [] } = {}) {
+export function filtrarComprobantes(facturas, { texto = "", estado = "todas", periodo = "todo", desde = "", hasta = "", sinFacturaElectronica = false, metodo = "", pacientes = [], abonos = [] } = {}) {
   const q = normalizar(texto).trim()
   const qCV = q.replace(/^cv-?/, "")
   return facturas
@@ -63,6 +64,7 @@ export function filtrarComprobantes(facturas, { texto = "", estado = "todas", pe
       if (estado === "saldo" && saldoFactura(f, abonos) <= 0) return false
       if (estado === "anuladas" && f.estado !== "anulada") return false
       if (sinFacturaElectronica && (f.facturaElectronica || f.estado === "anulada")) return false
+      if (metodo && !metodosDeComprobante(f, abonos).includes(metodo)) return false
       if (!q) return true
       const p = pacientes.find((x) => x.id === f.pacienteId)
       const campos = [p?.nombre, p?.cedula, numeroComprobante(f.numero), f.facturaElectronica, ...(f.lineas || []).map((l) => l.descripcion)]
@@ -71,4 +73,23 @@ export function filtrarComprobantes(facturas, { texto = "", estado = "todas", pe
     })
     .slice()
     .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : a.creadoEn > b.creadoEn ? -1 : (b.numero || 0) - (a.numero || 0)))
+}
+
+// Con qué métodos se cobró un comprobante (lo pagado al contado y cada abono): ["efectivo", "tarjeta", "sin_indicar"…].
+export function metodosDeComprobante(factura, abonos = []) {
+  const propios = abonosDeFactura(factura.id, abonos)
+  const listas = propios.map(pagosDeAbono)
+  if (factura.estado === "pagada") {
+    const resto = redondear((Number(factura.montoTotal) || 0) - propios.reduce((s, a) => s + a.monto, 0))
+    if (resto > 0) listas.push(pagosAlContado(factura, resto))
+  }
+  return [...new Set(listas.flat().map((p) => p.metodo))]
+}
+
+// El estado de un comprobante como lo dice la pantalla: Pagada, Con saldo (con su monto) o Anulada.
+export function estadoDeComprobante(factura, abonos = []) {
+  if (factura.estado === "anulada") return { id: "anulada", etiqueta: "Anulada", saldo: 0 }
+  const saldo = saldoFactura(factura, abonos)
+  if (saldo > 0) return { id: "saldo", etiqueta: "Con saldo", saldo }
+  return { id: "pagada", etiqueta: "Pagada", saldo: 0 }
 }

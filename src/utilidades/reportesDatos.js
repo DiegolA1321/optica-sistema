@@ -5,6 +5,7 @@ import { ahoraEcuador } from "./horaEcuador"
 import { coincideOrigen, coincideSeguimiento, responsableDeCita } from "./filtrosCitas"
 import { vendidoYCobrado } from "./vendidoCobrado"
 import { abonosDeFactura } from "./abonos"
+import { pagosDeAbono, pagosAlContado } from "./pagos"
 import { calcularEmbudo, consultaEsPrimeraVez, tieneReceta } from "./embudo"
 import { esInactivo, fechaProximoControl } from "./fidelizacion"
 import { estaAtrasada, ordenesAbiertas, ordenesListasSinAvisar } from "./ordenesLaboratorio"
@@ -62,13 +63,13 @@ export function pagosDeFacturas(facturas = [], abonos = [], ventasViejas = []) {
   for (const f of facturas) {
     if (f.estado === "anulada") continue
     const propios = abonosDeFactura(f.id, abonos)
-    for (const a of propios) filas.push({ fecha: diaDe(a.fecha), monto: a.monto, factura: f, esAbono: true })
+    for (const a of propios) filas.push({ fecha: diaDe(a.fecha), monto: a.monto, factura: f, esAbono: true, abono: a, pagos: pagosDeAbono(a) })
     if (f.estado === "pagada") {
       const resto = redondear((Number(f.montoTotal) || 0) - propios.reduce((s, a) => s + a.monto, 0))
-      if (resto > 0) filas.push({ fecha: diaDe(f.creadoEn), monto: resto, factura: f, esAbono: false })
+      if (resto > 0) filas.push({ fecha: diaDe(f.creadoEn), monto: resto, factura: f, esAbono: false, pagos: pagosAlContado(f, resto) })
     }
   }
-  for (const v of ventasViejas) filas.push({ fecha: diaDe(v.creadoEn), monto: Number(v.montoTotal) || 0, factura: null, venta: v, esAbono: false })
+  for (const v of ventasViejas) filas.push({ fecha: diaDe(v.creadoEn), monto: Number(v.montoTotal) || 0, factura: null, venta: v, esAbono: false, pagos: pagosAlContado({ metodoPago: v.metodoPago }, Number(v.montoTotal) || 0) })
   return filas.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0))
 }
 export const nombreMetodo = (m) => METODOS_PAGO[m] || m || "—"

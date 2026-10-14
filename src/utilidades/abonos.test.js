@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { mapAbono, saldoFactura, totalAbonado, saldoPacienteFacturas, abonoSugerido, abonosDeFactura } from "./abonos"
+import { mapAbono, saldoFactura, totalAbonado, saldoPacienteFacturas, abonoSugerido, abonosDeFactura, saldoTrasCorregir } from "./abonos"
 
 const fac = (extra = {}) => ({ id: "f1", pacienteId: "p1", montoTotal: 100, estado: "pendiente_pago", metodoPago: "abonos", ...extra })
 const ab = (monto, extra = {}) => ({ id: "a" + monto, facturaId: "f1", monto, fecha: "2026-10-06", creadoEn: "2026-10-06T10:00:00Z", ...extra })
@@ -29,5 +29,16 @@ describe("abonos", () => {
   })
   it("ordena el historial por fecha", () => {
     expect(abonosDeFactura("f1", [ab(5, { fecha: "2026-10-07" }), ab(9, { fecha: "2026-10-01" })]).map((a) => a.monto)).toEqual([9, 5])
+  })
+  it("mapea la forma de pago dividida del abono", () => {
+    expect(mapAbono({ id: "1", factura_id: "f", monto: "40", fecha: "2026-10-06", pagos: [{ metodo: "efectivo", monto: "25" }, { metodo: "tarjeta", monto: 15 }] }).pagos).toEqual([{ metodo: "efectivo", monto: 25 }, { metodo: "tarjeta", monto: 15 }])
+    expect(mapAbono({ id: "1", factura_id: "f", monto: "40", fecha: "2026-10-06" }).pagos).toBeNull()
+  })
+  it("el saldo que quedaría al corregir o anular un abono", () => {
+    const abonos = [ab(30), ab(20, { id: "a20" })]
+    expect(saldoTrasCorregir(fac(), abonos, "a30", 0)).toBe(80) // anular el de 30: 100 - 20
+    expect(saldoTrasCorregir(fac(), abonos, "a30", 45)).toBe(35) // corregirlo a 45: 100 - 20 - 45
+    expect(saldoTrasCorregir(fac({ estado: "pagada" }), [ab(100)], "a100", 0)).toBe(100) // una venta pagada vuelve a tener saldo
+    expect(saldoTrasCorregir(fac({ estado: "anulada" }), abonos, "a30", 0)).toBe(0)
   })
 })
