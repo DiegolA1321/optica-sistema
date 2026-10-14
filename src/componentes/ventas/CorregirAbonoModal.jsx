@@ -11,7 +11,7 @@ import { hoyISO } from "../../utilidades/disponibilidad"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../../utilidades/permisos"
 import { registrarLog } from "../../utilidades/logs"
-import { EVENTO_ABONO, EVENTO_ABONO_QUITADO, mapAbono, saldoTrasCorregir } from "../../utilidades/abonos"
+import { EVENTO_ABONO, EVENTO_ABONO_QUITADO, EVENTO_ABONO_ANULADO, mapAbono, saldoTrasCorregir } from "../../utilidades/abonos"
 import { filasParaTotal, revisarPagos, textoPagos, pagosDeAbono } from "../../utilidades/pagos"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { GRAD_MARCA } from "@/lib/tema"
@@ -61,14 +61,22 @@ export default function CorregirAbonoModal({ abono, factura, paciente, abonos, u
       // Lo que cambió en la venta (estado y cuotas) y en sus abonos se vuelve a leer para que la pantalla muestre exactamente lo guardado.
       const { data: f } = await supabase.from("facturas_venta").select("estado, cuotas_pagadas").eq("id", factura.id).maybeSingle()
       if (f) { estado = f.estado; cuotasPagadas = f.cuotas_pagadas }
-      if (anular) window.dispatchEvent(new CustomEvent(EVENTO_ABONO_QUITADO, { detail: abono.id }))
-      else {
+      if (anular) {
+        // El abono sale de los vigentes y entra a los anulados (la base lo conserva marcado, con quién, cuándo y por qué).
+        window.dispatchEvent(new CustomEvent(EVENTO_ABONO_QUITADO, { detail: abono.id }))
+        const { data: anulados } = await supabase.rpc("abonos_anulados")
+        const fila = (anulados || []).find((a) => a.id === abono.id)
+        window.dispatchEvent(new CustomEvent(EVENTO_ABONO_ANULADO, { detail: fila ? mapAbono(fila) : { ...abono, anuladoEn: new Date().toISOString(), anuladoPor: usuario?.id || null, anuladoMotivo: motivo.trim() } }))
+      } else {
         const { data: fila } = await supabase.from("abonos_factura").select("*").eq("id", abono.id).maybeSingle()
         if (fila) window.dispatchEvent(new CustomEvent(EVENTO_ABONO, { detail: mapAbono(fila) }))
       }
     } else {
       estado = saldoNuevo > 0 ? "pendiente_pago" : "pagada"
-      if (anular) window.dispatchEvent(new CustomEvent(EVENTO_ABONO_QUITADO, { detail: abono.id }))
+      if (anular) {
+        window.dispatchEvent(new CustomEvent(EVENTO_ABONO_QUITADO, { detail: abono.id }))
+        window.dispatchEvent(new CustomEvent(EVENTO_ABONO_ANULADO, { detail: { ...abono, anuladoEn: new Date().toISOString(), anuladoPor: usuario?.id || null, anuladoMotivo: motivo.trim() } }))
+      }
     }
     registrarLog(
       usuario, "ventas", anular ? "Anuló un abono" : "Corrigió un abono",

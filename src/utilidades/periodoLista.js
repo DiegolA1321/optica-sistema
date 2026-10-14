@@ -8,12 +8,14 @@ import { aEcuador } from "./horaEcuador"
 
 export const PERIODO_INICIAL = { filtro: "todas", ref: "", desde: "", hasta: "" } // ref "" = hoy
 
-export const hayRango = (p) => Boolean(p.desde || p.hasta)
+// "Rango" es una opción más del período (como Hoy o Este mes): con ella elegida, o con fechas puestas, el período es un rango libre.
+export const hayRango = (p) => p.filtro === "rango" || Boolean(p.desde || p.hasta)
+export const PERIODOS_CON_RANGO = [{ id: "hoy", etiqueta: "Hoy" }, { id: "semana", etiqueta: "Esta semana" }, { id: "mes", etiqueta: "Este mes" }, { id: "todas", etiqueta: "Todas" }, { id: "rango", etiqueta: "Rango" }]
 const refDe = (p, hoy) => p.ref || hoy
 
 // Los días que abarca el período, o null si abarca todas las fechas.
 export function rangoDelPeriodo(p, hoy = hoyISO()) {
-  if (hayRango(p)) return { desde: p.desde || p.hasta, hasta: p.hasta || p.desde }
+  if (hayRango(p)) return p.desde || p.hasta ? { desde: p.desde || p.hasta, hasta: p.hasta || p.desde } : null // "Rango" sin fechas todavía: todas
   const ref = refDe(p, hoy)
   if (p.filtro === "hoy") return { desde: ref, hasta: ref }
   if (p.filtro === "semana") { const l = lunesDeSemana(ref); return { desde: l, hasta: sumarDiasISO(l, 6) } }
@@ -40,6 +42,7 @@ export function enPeriodo(valor, p, hoy = hoyISO()) {
 // Las flechas: un día, una semana o un mes; un rango libre se mueve de a una semana. Con todas las fechas no hay nada que mover.
 export function moverPeriodo(p, sentido, hoy = hoyISO()) {
   if (hayRango(p)) {
+    if (!p.desde && !p.hasta) return p
     const desde = p.desde || p.hasta
     const hasta = p.hasta || sumarDiasISO(desde, 6)
     return { ...p, desde: sumarDiasISO(desde, 7 * sentido), hasta: sumarDiasISO(hasta, 7 * sentido) }
@@ -53,7 +56,7 @@ export function moverPeriodo(p, sentido, hoy = hoyISO()) {
 
 // "Hoy · jue 8 oct 2026", "5 – 11 oct 2026", "Octubre 2026" o "Todas las fechas".
 export function tituloDelPeriodo(p, hoy = hoyISO()) {
-  if (hayRango(p)) return p.desde && p.hasta ? tituloSemana(p.desde, p.hasta) : p.desde ? `Desde el ${formatoFecha(p.desde, "medio")}` : `Hasta el ${formatoFecha(p.hasta, "medio")}`
+  if (hayRango(p)) return p.desde && p.hasta ? tituloSemana(p.desde, p.hasta) : p.desde ? `Desde el ${formatoFecha(p.desde, "medio")}` : p.hasta ? `Hasta el ${formatoFecha(p.hasta, "medio")}` : "Elegir fechas"
   const ref = refDe(p, hoy)
   if (p.filtro === "hoy") return `${ref === hoy ? "Hoy · " : ""}${formatoFecha(ref, "corto")}`
   if (p.filtro === "semana") { const r = rangoDelPeriodo(p, hoy); return tituloSemana(r.desde, r.hasta) }
@@ -74,7 +77,7 @@ export function selectorDelPeriodo(p, cambiar, hoy = hoyISO()) {
 
 // Un período que llega de otro módulo: un rango de fechas (Reportes), "mes" (Inicio) o nada.
 export function periodoDeDestino({ periodo, desde, hasta } = {}) {
-  if (desde || hasta) return { filtro: "todas", ref: "", desde: desde || "", hasta: hasta || "" }
+  if (desde || hasta) return { filtro: "rango", ref: "", desde: desde || "", hasta: hasta || "" }
   if (periodo === "mes") return { filtro: "mes", ref: "", desde: "", hasta: "" }
   return PERIODO_INICIAL
 }

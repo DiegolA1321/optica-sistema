@@ -3,24 +3,21 @@
 import { useMemo, useState } from "react"
 import { Receipt, Search, ShoppingCart } from "lucide-react"
 import { GRAD_MARCA } from "@/lib/tema"
-import { BarraBusquedaFiltros, ConteoCitas, NavegadorPeriodo, PeriodoLista } from "../FiltrosCitas"
+import { BarraBusquedaFiltros, ConteoCitas, NavegadorPeriodo, PeriodoLista, SeccionRango } from "../FiltrosCitas"
 import FilaComprobante from "../FilaComprobante"
 import { ContenedorLista, EncabezadoLista, Vacio } from "./Lista"
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, COLUMNAS_COMPROBANTES, ENCABEZADO_COMPROBANTES, plural } from "./estilos"
 import { LEYENDA_INTERNO } from "../../utilidades/comprobantes"
 import { filtrarComprobantes } from "../../utilidades/saldosVentas"
 import { hoyISO } from "../../utilidades/disponibilidad"
-import { periodosFiltro } from "../../utilidades/filtrosCitas"
-import { PERIODO_INICIAL, hayRango, moverPeriodo, rangoDelPeriodo, selectorDelPeriodo, tituloDelPeriodo } from "../../utilidades/periodoLista"
+import { PERIODO_INICIAL, PERIODOS_CON_RANGO, hayRango, moverPeriodo, rangoDelPeriodo, selectorDelPeriodo, tituloDelPeriodo } from "../../utilidades/periodoLista"
 import { METODOS_COBRO, SIN_INDICAR } from "../../utilidades/pagos"
-import { formatoFecha } from "../../utilidades/formatoFecha"
 
 const POR_PAGINA = 30
 const ESTADOS = [{ id: "todos", etiqueta: "Todos" }, { id: "pagadas", etiqueta: "Pagadas" }, { id: "saldo", etiqueta: "Con saldo" }, { id: "anuladas", etiqueta: "Anuladas" }]
 const METODOS = [{ id: "todos", etiqueta: "Todos" }, ...METODOS_COBRO, { id: SIN_INDICAR, etiqueta: "Sin indicar" }]
 const FE = [{ id: "todas", etiqueta: "Todas" }, { id: "sin", etiqueta: "Sin factura electrónica" }]
 const SUFIJO = { hoy: "hoy", semana: "en la semana", mes: "en el mes" }
-const corta = (iso) => formatoFecha(iso, "medioSinAnio")
 
 // Pestaña "Comprobantes": las ventas registradas. Cada fila dice número, fecha, paciente, total, estado y si tiene factura electrónica; una sola
 // acción de contexto ("Abonar") y el resto en el detalle. El período es el mismo selector que usa la Lista de Citas.
@@ -46,13 +43,11 @@ export default function PestanaComprobantes({ facturas, abonos, pacientes, puede
     estado !== "todos" && { id: "estado", texto: `Estado: ${ESTADOS.find((e) => e.id === estado).etiqueta}`, quitar: () => setEstado("todos") },
     metodo !== "todos" && { id: "metodo", texto: `Método: ${METODOS.find((m) => m.id === metodo).etiqueta}`, quitar: () => setMetodo("todos") },
     fe === "sin" && { id: "fe", texto: "Sin factura electrónica", quitar: () => setFe("todas") },
-    hayRango(periodo) && { id: "fechas", texto: `Fechas: ${periodo.desde ? corta(periodo.desde) : "…"} – ${periodo.hasta ? corta(periodo.hasta) : "…"}`, quitar: () => setPeriodo(PERIODO_INICIAL) },
   ].filter(Boolean)
   const secciones = [
     { id: "estado", titulo: "Estado", valor: estado, onChange: cambiar(setEstado), opciones: ESTADOS },
     { id: "metodo", titulo: "Método de pago", valor: metodo, onChange: cambiar(setMetodo), opciones: METODOS },
     { id: "fe", titulo: "Factura electrónica", valor: fe, onChange: cambiar(setFe), opciones: FE },
-    { id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: periodo.desde, hasta: periodo.hasta, onDesde: (d) => setPeriodo({ filtro: "todas", ref: "", desde: d, hasta: periodo.hasta }), onHasta: (h) => setPeriodo({ filtro: "todas", ref: "", desde: periodo.desde, hasta: h }) } },
   ]
   const limpiar = () => { setEstado("todos"); setMetodo("todos"); setFe("todas"); setTexto(""); setPeriodo(PERIODO_INICIAL); setVisibles(POR_PAGINA) }
   const hayFiltros = etiquetas.length > 0 || buscando
@@ -73,11 +68,19 @@ export default function PestanaComprobantes({ facturas, abonos, pacientes, puede
         </div>
         {!buscando && (
           <div className="flex min-w-0 items-center gap-3">
-            <PeriodoLista valor={periodo.filtro} onChange={(id) => { setPeriodo({ filtro: id, ref: "", desde: "", hasta: "" }); setVisibles(POR_PAGINA) }} opciones={periodosFiltro()} sinActivo={hayRango(periodo)} />
-            {hayPeriodo ? (
+            <PeriodoLista valor={periodo.filtro} onChange={(id) => { setPeriodo({ filtro: id, ref: "", desde: "", hasta: "" }); setVisibles(POR_PAGINA) }} opciones={PERIODOS_CON_RANGO} />
+            {periodo.filtro === "rango" ? (
+              // El rango es una opción más del mismo selector: el título es el rango elegido y abre su calendario.
+              <NavegadorPeriodo
+                titulo={tituloDelPeriodo(periodo, hoy)}
+                tituloNodo={<div className="w-44 shrink-0"><SeccionRango flotante rango={{ desde: periodo.desde, hasta: periodo.hasta, onDesde: (d) => setPeriodo({ ...periodo, desde: d }), onHasta: (h) => setPeriodo({ ...periodo, hasta: h }) }} /></div>}
+                onAnterior={() => setPeriodo(moverPeriodo(periodo, -1, hoy))} onSiguiente={() => setPeriodo(moverPeriodo(periodo, 1, hoy))} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente"
+              />
+            ) : hayPeriodo ? (
               <NavegadorPeriodo titulo={tituloDelPeriodo(periodo, hoy)} onAnterior={() => setPeriodo(moverPeriodo(periodo, -1, hoy))} onSiguiente={() => setPeriodo(moverPeriodo(periodo, 1, hoy))} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" selector={selectorDelPeriodo(periodo, setPeriodo, hoy)} />
             ) : (
-              <NavegadorPeriodo inactivo titulo="Todas las fechas" etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" />
+              // Con todas las fechas no hay período que mover: el espacio queda reservado para que nada cambie de lugar (regla 1).
+              <div className="invisible" aria-hidden="true"><NavegadorPeriodo inactivo titulo="" etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" /></div>
             )}
           </div>
         )}

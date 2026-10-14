@@ -324,7 +324,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
 
 // Flechas ‹ › con el título del periodo que se ve (igual en Lista, Semana y Mes). Con `selector` el título abre el calendario para elegir otra fecha.
 // inactivo: el periodo no tiene un día, semana o mes que mover (p. ej. "Todas"); los controles se quedan en su sitio, apagados, para que nada salte (regla 1).
-export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnterior, etiquetaSiguiente, selector, inactivo = false }) {
+export function NavegadorPeriodo({ titulo, tituloNodo = null, onAnterior, onSiguiente, etiquetaAnterior, etiquetaSiguiente, selector, inactivo = false }) {
   if (inactivo) {
     const apagada = "grid h-full w-8 place-items-center rounded-lg text-slate-300 cursor-not-allowed"
     return (
@@ -340,7 +340,7 @@ export function NavegadorPeriodo({ titulo, onAnterior, onSiguiente, etiquetaAnte
   const flecha = "grid h-full w-8 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
   return (
     <div className="flex min-w-0 items-center gap-2">
-      {selector ? (
+      {tituloNodo ? tituloNodo : selector ? (
         <SelectorPeriodo titulo={titulo} unidad={selector.unidad} visible={selector.visible} onElegir={selector.onElegir} />
       ) : (
         <h2 className="min-w-[7.9rem] shrink-0 whitespace-nowrap text-[13px] font-semibold" style={{ color: INK }}>{titulo}</h2>

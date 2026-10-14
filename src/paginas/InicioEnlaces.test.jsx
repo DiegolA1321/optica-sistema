@@ -161,7 +161,7 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     fireEvent.click(within(area("Ventas")).getByRole("button", { name: "Abrir los avisos de Ventas" }))
     const ventas = screen.getByRole("dialog", { name: /^Ventas · / })
     expect(ventas).toHaveTextContent("1 orden de laboratorio lista sin avisar al paciente")
-    expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Órdenes listas (2)" })).toBeInTheDocument()
+    expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (1)" })).toBeInTheDocument()
     expect(ventas).toHaveTextContent("2 ventas con saldo · 1 paciente")
     expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Saldos por cobrar (1 paciente)" })).toBeInTheDocument()
   })
@@ -228,5 +228,53 @@ describe("Textos del estado de la cita", () => {
     expect(within(lista).getByText("No asistió")).toBeInTheDocument()
     expect(within(lista).getByText("En espera")).toBeInTheDocument()
     expect(lista.textContent).not.toMatch(/No Asistió|En Espera/)
+  })
+})
+
+// Los avisos de Ventas: cada enlace abre la pestaña con el filtro de ese aviso, y el número que dice es el que se ve allí.
+import Ventas from "./Ventas"
+describe("Ventas: 'Requieren atención' lo que dice / lo que abre", () => {
+  const pacientes = [{ id: "p1", nombre: "Paciente Uno", fechaRegistro: hoy, telefono: "0990000001" }, { id: "p2", nombre: "Paciente Dos", fechaRegistro: hoy }]
+  const pases = [
+    { id: "a", pacienteId: "p1", consultaId: "c1", estado: "listo", pasadaEn: "2026-03-01T10:00:00Z" }, // más de 30 días
+    { id: "b", pacienteId: "p2", consultaId: "c2", estado: "listo", pasadaEn: `${hoy}T10:00:00Z` },
+    { id: "c", pacienteId: "p2", consultaId: "c3", estado: "listo", pasadaEn: `${hoy}T11:00:00Z` },
+  ]
+  const lab = (n, extra = {}) => ({ id: "o" + n, numero: n, estado: "lista", pacienteId: "p1", laboratorio: "Lab", fechaPrometida: dia(3), ...extra })
+  const ordenesLab = [lab(1), lab(2), lab(3), lab(4, { pacienteAvisadoEn: "2026-10-01T10:00:00Z" })] // cuatro listas, tres sin avisar
+  const consultas = [{ id: "c1", pacienteId: "p1", fecha: hoy }, { id: "c2", pacienteId: "p2", fecha: hoy }, { id: "c3", pacienteId: "p2", fecha: hoy }]
+
+  const abrirAvisos = (props) => {
+    render(<Inicio {...base} pacientes={pacientes} pases={pases} ordenesLab={ordenesLab} consultas={consultas} {...props} />)
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: "Abrir los avisos de Ventas" }))
+    return screen.getByRole("dialog", { name: /^Ventas · / })
+  }
+
+  it("'1 paciente espera su venta hace más de 30 días' abre Por vender con el filtro 'Más de 30 días (1)'", () => {
+    const pedidos = []
+    const ventana = abrirAvisos({ onVerCola: (...a) => pedidos.push(a) })
+    expect(ventana).toHaveTextContent("1 paciente espera su venta hace más de 30 días")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Más de 30 días (1)" }))
+    expect(pedidos).toEqual([["mas30"]])
+  })
+
+  it("'3 órdenes listas sin avisar' abre Órdenes con el filtro 'Listas sin avisar (3)'", () => {
+    const pedidos = []
+    const ventana = abrirAvisos({ onVerOrdenes: (...a) => pedidos.push(a) })
+    expect(ventana).toHaveTextContent("3 órdenes de laboratorio listas sin avisar a los pacientes")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (3)" }))
+    expect(pedidos).toEqual([["sinavisar"]])
+  })
+
+  it("Ventas, al recibir esos filtros, muestra exactamente esos números", () => {
+    const comun = { usuario: base.usuario, pacientes, pases, ordenesLab, consultas, facturasVenta: [], abonos: [], equipo: [], onAccionInicialConsumida: () => {} }
+    const { unmount } = render(<Ventas {...comun} accionInicial={{ tab: "porvender", filtroCola: "mas30" }} />)
+    expect(screen.getByText("1 paciente con más de 30 días esperando")).toBeInTheDocument()
+    expect(within(screen.getByRole("list", { name: "Pacientes por vender" })).getAllByRole("listitem")).toHaveLength(1)
+    unmount()
+    window.history.replaceState({}, "", "/")
+    render(<Ventas {...comun} accionInicial={{ tab: "ordenes", filtro: "sinavisar" }} />)
+    expect(screen.getByText("3 órdenes listas sin avisar")).toBeInTheDocument()
+    expect(within(screen.getByRole("list", { name: "Órdenes de laboratorio" })).getAllByRole("listitem")).toHaveLength(3)
   })
 })

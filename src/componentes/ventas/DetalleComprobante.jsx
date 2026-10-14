@@ -26,13 +26,14 @@ const TONO_ESTADO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
 
 // El detalle de un comprobante de venta guardado: sus datos, las líneas con sus descuentos, los pagos (con quién los registró), sus órdenes de laboratorio
 // y la factura electrónica. Aquí están todas las acciones; la fila de la lista solo lleva "Abonar" (regla 9). Se puede reimprimir.
-export default function DetalleComprobante({ factura: f, paciente, abonos = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente }) {
+export default function DetalleComprobante({ factura: f, paciente, abonos = [], abonosAnulados = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente }) {
   const [cambios, setCambios] = useState([]) // lo que se corrigió o anuló de los abonos
   const estado = estadoDeComprobante(f, abonos)
   const anulada = estado.id === "anulada"
   const propios = abonosDeFactura(f.id, abonos)
   const totales = totalesDeLineas(f.lineas || [])
   const ordenesDeVenta = ordenes.filter((o) => o.facturaId === f.id)
+  const anuladosDeVenta = abonosAnulados.filter((a) => a.facturaId === f.id) // no cuentan en nada, pero el registro se conserva
   const nombre = (id) => (id ? equipo.find((m) => m.id === id)?.nombre || (id === usuario?.id ? usuario?.nombre : null) || "Equipo" : "—")
   const restoAlContado = f.estado === "pagada" ? redondear((Number(f.montoTotal) || 0) - propios.reduce((s, a) => s + a.monto, 0)) : 0
 
@@ -137,9 +138,9 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
           </dl>
         </Bloque>
 
-        {(propios.length > 0 || restoAlContado > 0 || cambios.length > 0 || estado.id === "saldo") && (
+        {(propios.length > 0 || anuladosDeVenta.length > 0 || restoAlContado > 0 || cambios.length > 0 || estado.id === "saldo") && (
           <Bloque titulo="Pagos">
-            {propios.length === 0 && restoAlContado <= 0 ? (
+            {propios.length === 0 && anuladosDeVenta.length === 0 && restoAlContado <= 0 ? (
               <p className="text-sm text-slate-500">Todavía no se ha recibido ningún pago.</p>
             ) : (
               <div className="overflow-hidden rounded-xl border border-slate-200/60">
@@ -164,7 +165,10 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
                       return (
                         <tr key={a.id}>
                           <td className="whitespace-nowrap px-3 py-2 text-slate-600">{fechaLegible(a.fecha)}</td>
-                          <td className="max-w-0 truncate px-3 py-2 text-slate-700" title={a.nota || "Abono"}>{a.nota || "Abono"}</td>
+                          <td className="max-w-0 px-3 py-2 text-slate-700">
+                            <p className="truncate" title={a.nota || "Abono"}>{a.nota || "Abono"}</p>
+                            {a.montoOriginal != null && <p className="truncate text-xs text-slate-500" title={`Corregido: antes ${dinero(a.montoOriginal)}`}>Corregido · antes {dinero(a.montoOriginal)}</p>}
+                          </td>
                           <td className="max-w-0 truncate px-3 py-2 text-slate-600" title={forma}>{forma}</td>
                           <td className="max-w-0 truncate px-3 py-2 text-slate-600" title={nombre(a.registradoPor)}>{nombre(a.registradoPor)}</td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{dinero(a.monto)}</td>
@@ -174,6 +178,17 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
                         </tr>
                       )
                     })}
+                    {anuladosDeVenta.map((a) => (
+                      <tr key={a.id} className="bg-slate-50/60 text-slate-400">
+                        <td className="whitespace-nowrap px-3 py-2">{fechaLegible(a.fecha)}</td>
+                        <td className="max-w-0 px-3 py-2" colSpan={3}>
+                          <p className="truncate" title={a.anuladoMotivo}>Abono anulado el {fechaLegible(diaDeRegistro(a.anuladoEn))} por {nombre(a.anuladoPor)}</p>
+                          <p className="truncate text-xs" title={a.anuladoMotivo}>Motivo: {a.anuladoMotivo}</p>
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono line-through">{dinero(a.monto)}</td>
+                        <td />
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

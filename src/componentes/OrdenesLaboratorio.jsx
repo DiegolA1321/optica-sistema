@@ -13,9 +13,9 @@ import { ContenedorLista, EncabezadoLista, Insignia, Vacio } from "./ventas/List
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN, plural } from "./ventas/estilos"
 import { useOrdenesLab } from "./ventas/useOrdenesLab"
 
-const COLUMNAS_MODULO = "lg:grid-cols-[4.5rem_minmax(0,1.3fr)_minmax(0,1fr)_6.5rem_9.5rem_11rem_11.5rem]"
-const COLUMNAS_PERFIL = "lg:grid-cols-[4.5rem_minmax(0,1fr)_6.5rem_9.5rem_11rem_11.5rem]"
-const ADJETIVO = { abiertas: "abierta", enviadas: "enviada", atrasadas: "atrasada", listas: "lista", entregadas: "entregada", canceladas: "cancelada", todas: "" }
+const COLUMNAS_MODULO = "lg:grid-cols-[4.5rem_minmax(0,1fr)_6.5rem_8.5rem_14rem_11.5rem]"
+const COLUMNAS_PERFIL = COLUMNAS_MODULO
+const ADJETIVO = { abiertas: ["abierta", "abiertas"], enviadas: ["enviada", "enviadas"], atrasadas: ["atrasada", "atrasadas"], listas: ["lista", "listas"], sinavisar: ["lista sin avisar", "listas sin avisar"], entregadas: ["entregada", "entregadas"], canceladas: ["cancelada", "canceladas"], todas: ["", ""] }
 
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio. Cada fila lleva la siguiente acción del proceso (marcar lista,
 // avisar al paciente o entregar); lo demás está en el detalle de la orden (R36-R37). La usa el módulo de Ventas y el perfil del paciente.
@@ -59,11 +59,11 @@ function ListaOrdenes({ api, ordenes, pacientes = [], pacienteFijo = null, filtr
   const limpiar = () => { setFiltro(porDefecto); setLaboratorio(""); setTexto("") }
   const hayFiltros = etiquetas.length > 0 || texto.trim() !== ""
   const n = visibles.length
-  const adj = ADJETIVO[filtro]
-  const conteo = `${plural(n, "orden", "órdenes")}${adj ? ` ${adj}${n === 1 ? "" : "s"}` : ""}`
+  const adj = ADJETIVO[filtro][n === 1 ? 0 : 1]
+  const conteo = `${plural(n, "orden", "órdenes")}${adj ? ` ${adj}` : ""}`
   const mostrarBarra = propias.length > (pacienteFijo ? 5 : 0)
   const columnas = pacienteFijo ? COLUMNAS_PERFIL : COLUMNAS_MODULO
-  const encabezado = [{ texto: "Orden" }, ...(pacienteFijo ? [] : [{ texto: "Paciente" }]), { texto: "Laboratorio" }, { texto: "Prometida" }, { texto: "Estado" }, { texto: "Pendiente" }, { texto: "" }]
+  const encabezado = [{ texto: "Orden" }, { texto: pacienteFijo ? "Laboratorio" : "Paciente y laboratorio" }, { texto: "Prometida" }, { texto: "Estado" }, { texto: "Pendiente" }, { texto: "" }]
 
   return (
     <section aria-label="Órdenes de laboratorio" className="space-y-3">
@@ -102,15 +102,13 @@ function ListaOrdenes({ api, ordenes, pacientes = [], pacienteFijo = null, filtr
             return (
               <li key={o.id} className={"relative grid grid-cols-1 gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-slate-50/70 lg:items-center " + columnas}>
                 <button type="button" onClick={() => api.verDetalle(o)} aria-label={`Ver la orden ${numeroOrden(o.numero)}`} className="text-left font-mono text-sm font-bold after:absolute after:inset-0 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{numeroOrden(o.numero)}</button>
-                {!pacienteFijo && (
-                  <div className="min-w-0">
-                    <button type="button" onClick={() => p && onVerPerfil?.(p)} title={p?.nombre} className="relative z-10 block max-w-full truncate text-left text-sm font-bold transition-colors hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{p?.nombre || "Paciente"}</button>
-                  </div>
-                )}
-                <p className="min-w-0 truncate text-sm text-slate-700" title={o.laboratorio || "Sin laboratorio"}>{o.laboratorio || <span className="text-slate-400">Sin laboratorio</span>}</p>
+                <div className="min-w-0">
+                  {!pacienteFijo && <button type="button" onClick={() => p && onVerPerfil?.(p)} title={p?.nombre} className="relative z-10 block max-w-full truncate text-left text-sm font-bold transition-colors hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{p?.nombre || "Paciente"}</button>}
+                  <p className={"truncate " + (pacienteFijo ? "text-sm text-slate-700" : "text-xs text-slate-500")} title={o.laboratorio || "Sin laboratorio"}>{o.laboratorio || "Sin laboratorio"}</p>
+                </div>
                 <p className={"text-sm " + (visible === "atrasada" ? "font-semibold text-red-700" : "text-slate-600")}>{fechaLegible(o.fechaPrometida) || "—"}</p>
                 <div className="min-w-0"><Insignia tono={TONO_ESTADO_ORDEN[visible]}>{textoEstadoOrden(o, dias)}</Insignia></div>
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
                   {faltaAvisar && <Insignia tono="ambar">Falta avisar</Insignia>}
                   {saldo > 0 && <Insignia tono="ambar" title="La venta tiene saldo por cobrar">Saldo {dinero(saldo)}</Insignia>}
                   {!faltaAvisar && !(saldo > 0) && <span className="text-sm text-slate-400">—</span>}

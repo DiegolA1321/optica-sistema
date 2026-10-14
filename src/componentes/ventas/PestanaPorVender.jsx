@@ -24,13 +24,13 @@ const ENCABEZADO = (nocompraron) => [{ texto: "Paciente" }, { texto: "Consulta" 
 // Pestaña "Por vender": los pacientes atendidos con receta que esperan su venta, y los que no compraron. Una sola acción por fila
 // ("Tomar datos del diagnóstico"); lo demás está en el detalle de la fila.
 export default function PestanaPorVender({ v, usuario, puedeVender, onVerPaciente, onNuevaVenta, filtroInicial = "todos" }) {
-  const [filtro, setFiltro] = useState(filtroInicial)
+  const [filtro, setFiltro] = useState(FILTROS_POR_VENDER.some((f) => f.id === filtroInicial) ? filtroInicial : "todos")
   const [texto, setTexto] = useState("")
   const [detalle, setDetalle] = useState(null) // { item, descartado }
   const hoy = useMemo(() => ahoraEcuador(), [])
   const nocompraron = filtro === "nocompraron"
 
-  const base = useMemo(() => listaPorVender(filtro, { listos: v.colaListos, descartados: v.colaDescartados }), [filtro, v.colaListos, v.colaDescartados])
+  const base = useMemo(() => listaPorVender(filtro, { listos: v.colaListos, descartados: v.colaDescartados, hoy }), [filtro, v.colaListos, v.colaDescartados, hoy])
   const items = base.filter(({ paciente }) => coincideTexto(texto, paciente?.nombre, paciente?.cedula))
   const hayAlgo = v.colaListos.length + v.colaDescartados.length > 0
   const etiquetas = [filtro !== "todos" && { id: "lista", texto: FILTROS_POR_VENDER.find((f) => f.id === filtro).etiqueta, quitar: () => setFiltro("todos") }].filter(Boolean)
@@ -38,7 +38,7 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
   const limpiar = () => { setFiltro("todos"); setTexto("") }
   const hayFiltros = etiquetas.length > 0 || texto.trim() !== ""
 
-  const conteo = nocompraron ? plural(items.length, "paciente no compró", "pacientes no compraron") : filtro === "con" ? plural(items.length, "paciente con proforma", "pacientes con proforma") : filtro === "sin" ? plural(items.length, "paciente sin proforma", "pacientes sin proforma") : plural(items.length, "paciente por vender", "pacientes por vender")
+  const conteo = nocompraron ? plural(items.length, "paciente no compró", "pacientes no compraron") : filtro === "con" ? plural(items.length, "paciente con proforma", "pacientes con proforma") : filtro === "sin" ? plural(items.length, "paciente sin proforma", "pacientes sin proforma") : filtro === "mas30" ? `${plural(items.length, "paciente", "pacientes")} con más de ${DIAS_PARA_SEGUIMIENTO} días esperando` : plural(items.length, "paciente por vender", "pacientes por vender")
 
   const escribir = (item) => {
     const tel = item.paciente?.telefono

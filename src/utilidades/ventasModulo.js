@@ -11,6 +11,7 @@ export const FILTROS_POR_VENDER = [
   { id: "todos", etiqueta: "Todos" },
   { id: "con", etiqueta: "Con proforma" },
   { id: "sin", etiqueta: "Sin proforma" },
+  { id: "mas30", etiqueta: `Más de ${DIAS_PARA_SEGUIMIENTO} días` },
   { id: "nocompraron", etiqueta: "No compraron" },
 ]
 
@@ -22,8 +23,9 @@ export const pacientesParaSeguimiento = (listos = [], hoy) =>
   listos.filter((i) => esperaDemasiado(i, hoy)).sort((a, b) => diasEnEspera(b.pase, hoy) - diasEnEspera(a.pase, hoy))
 
 // Lo que muestra "Por vender" según el filtro. `listos` y `descartados` son lo que arma useVentas ({ pase, paciente, consulta }).
-export function listaPorVender(filtro, { listos = [], descartados = [] }) {
+export function listaPorVender(filtro, { listos = [], descartados = [], hoy }) {
   if (filtro === "nocompraron") return descartados
+  if (filtro === "mas30") return pacientesParaSeguimiento(listos, hoy)
   if (filtro === "con") return listos.filter(llevaProforma)
   if (filtro === "sin") return listos.filter((i) => !llevaProforma(i))
   return listos
@@ -45,6 +47,7 @@ export const FILTROS_ORDENES = [
   { id: "enviadas", etiqueta: "Enviadas" },
   { id: "atrasadas", etiqueta: "Atrasadas" },
   { id: "listas", etiqueta: "Listas" },
+  { id: "sinavisar", etiqueta: "Listas sin avisar" },
   { id: "entregadas", etiqueta: "Entregadas" },
   { id: "todas", etiqueta: "Todas" },
   { id: "canceladas", etiqueta: "Canceladas" },
@@ -58,6 +61,7 @@ export function ordenesDelFiltro(ordenes = [], filtro) {
   if (filtro === "atrasadas") return ordenesAtrasadas(ordenes)
   if (filtro === "enviadas") return ordenes.filter((o) => o.estado === "enviada")
   if (filtro === "listas") return ordenes.filter((o) => o.estado === "lista")
+  if (filtro === "sinavisar") return ordenesListasSinAvisar(ordenes)
   if (filtro === "entregadas") return ordenes.filter((o) => o.estado === "entregada")
   if (filtro === "canceladas") return ordenes.filter((o) => o.estado === "cancelada")
   return ordenes.filter((o) => o.estado !== "cancelada")

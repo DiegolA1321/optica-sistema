@@ -66,7 +66,7 @@ export default function ComprobanteVentaModal({
   // productos sin stock (o ya inexistentes) se omiten en silencio.
   lineasIniciales,
   titulo = "Nueva venta",
-  subtitulo = "Montura, lunas y servicios, un solo pago.",
+  subtitulo = "Montura, lunas y servicios: pago completo, en cuotas o con abonos.",
   etiquetaGuardar = "Guardar venta",
   // Si se pasa, el botón secundario es "Más tarde" (en vez de "Cancelar").
   onMasTarde,

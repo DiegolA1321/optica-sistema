@@ -11,7 +11,7 @@ import { fechaLegible } from "../../utilidades/formatoFecha"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { hoyISO } from "../../utilidades/disponibilidad"
 import { cobrosDelDia, conceptoDelCobro, saldosConEntrega } from "../../utilidades/cobros"
-import { moverPeriodo, selectorDelPeriodo, tituloDelPeriodo } from "../../utilidades/periodoLista"
+import { diaDeRegistro, moverPeriodo, selectorDelPeriodo, tituloDelPeriodo } from "../../utilidades/periodoLista"
 import { saldosPorPaciente, resumenSaldos, textoSaldos } from "../../utilidades/saldosVentas"
 import { textoPagos, SIN_INDICAR } from "../../utilidades/pagos"
 import { nombreMetodo } from "../../utilidades/reportesDatos"
@@ -23,11 +23,13 @@ const DIA_DE_HOY = { filtro: "hoy", ref: "", desde: "", hasta: "" }
 
 // Pestaña "Cobros y saldos": a la izquierda, lo cobrado en un día por método de pago (para cuadrar la caja) con su lista y su Excel;
 // a la derecha, lo que se debe por paciente, con quienes ya tienen sus lentes listos primero. Los dos usan la misma lista de pagos que Reportes.
-export default function PestanaCobros({ facturas, abonos, pacientes, ventas = [], ordenes = [], puedeEditar, onCobrar, onVerComprobante, onVerPaciente, onExportar }) {
+export default function PestanaCobros({ facturas, abonos, abonosAnulados = [], pacientes, ventas = [], ordenes = [], puedeEditar, onCobrar, onVerComprobante, onVerPaciente, onExportar }) {
   const hoy = hoyISO()
   const [dia, setDia] = useState(DIA_DE_HOY)
   const diaISO = dia.ref || hoy
   const cobros = useMemo(() => cobrosDelDia({ facturas, abonos, dia: diaISO }), [facturas, abonos, diaISO])
+  // Los abonos anulados de ese día: no suman, pero se ven aparte (cuándo se anularon) para que el cuadre de caja de un día pasado siga entendiéndose.
+  const anulados = useMemo(() => abonosAnulados.filter((a) => a.fecha === diaISO && facturas.some((f) => f.id === a.facturaId)), [abonosAnulados, facturas, diaISO])
   const saldos = useMemo(() => saldosConEntrega(saldosPorPaciente({ pacientes, facturas, abonos, ventas }), ordenes), [pacientes, facturas, abonos, ventas, ordenes])
   const resumen = resumenSaldos(saldos)
   const nombrePaciente = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
@@ -58,7 +60,7 @@ export default function PestanaCobros({ facturas, abonos, pacientes, ventas = []
             })}
           </ul>
         </div>
-        {cobros.cantidad === 0 ? (
+        {cobros.cantidad === 0 && anulados.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <p className="text-sm font-semibold text-slate-600">{esHoy ? "Hoy todavía no se ha cobrado nada" : "Ese día no se cobró nada"}</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500">Los pagos de las ventas y los abonos aparecen aquí el día que se reciben.</p>
@@ -81,6 +83,25 @@ export default function PestanaCobros({ facturas, abonos, pacientes, ventas = []
               )
             })}
           </ul>
+        )}
+        {anulados.length > 0 && (
+          <div className="border-t border-slate-100">
+            <h3 className="px-4 pt-3 text-xs font-bold uppercase tracking-wide text-slate-500">Abonos anulados (no suman)</h3>
+            <ul className="divide-y divide-slate-100" aria-label="Abonos anulados de ese día">
+              {anulados.map((a) => {
+                const f = facturas.find((x) => x.id === a.facturaId)
+                return (
+                  <li key={a.id} className="px-4 py-2.5 text-slate-400">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate text-sm font-semibold" title={nombrePaciente(f?.pacienteId)}>{nombrePaciente(f?.pacienteId)}</span>
+                      <span className="shrink-0 font-mono text-sm line-through">{dinero(a.monto)}</span>
+                    </div>
+                    <p className="truncate text-sm" title={a.anuladoMotivo}>{numeroComprobante(f?.numero)} · anulado el {fechaLegible(diaDeRegistro(a.anuladoEn))} · {a.anuladoMotivo}</p>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         )}
       </section>
 

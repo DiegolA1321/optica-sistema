@@ -694,24 +694,23 @@ export default function Inicio({
       id: "esperan-venta", cantidad: esperanMucho.length,
       texto: uno(esperanMucho.length, `paciente espera su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`, `pacientes esperan su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`),
       nombres: nombresResumidos(esperanMucho.map(({ pase }) => nombreDe(pase.pacienteId))),
-      enlace: { texto: `Abrir en Ventas · Por vender (${listos.length})`, onClick: () => onVerCola?.() },
+      enlace: { texto: `Abrir en Ventas · Más de ${DIAS_PARA_SEGUIMIENTO} días (${esperanMucho.length})`, onClick: () => onVerCola?.("mas30") },
       casos: esperanMucho.map(({ pase }) => ({
         id: pase.id, nombre: nombreDe(pase.pacienteId),
         detalle: `Espera hace ${diasEnEspera(pase)} días`,
-        accion: { etiqueta: "Contactar", navega: true, onClick: () => onVerCola?.() },
+        accion: { etiqueta: "Contactar", navega: true, onClick: () => onVerCola?.("mas30") },
       })),
     })
     if (incOrdenes && listasSinAvisar.length > 0) {
-      const listasEnVentas = ordenesLab.filter((o) => o.estado === "lista").length
       poner("ventas", {
         id: "ordenes-listas", cantidad: listasSinAvisar.length,
         texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
-        enlace: { texto: `Abrir en Ventas · Órdenes listas (${listasEnVentas})`, onClick: () => onVerOrdenes?.("listas") },
+        enlace: { texto: `Abrir en Ventas · Listas sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },
         casos: listasSinAvisar.map((o) => ({
           id: o.id, nombre: nombreDe(o.pacienteId),
           detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Laboratorio"} · lista para entregar`,
-          accion: { etiqueta: puedeV("ventas", "editar") ? "Avisar" : "Ver", navega: true, onClick: () => onVerOrdenes?.("listas") },
+          accion: { etiqueta: puedeV("ventas", "editar") ? "Avisar" : "Ver", navega: true, onClick: () => onVerOrdenes?.("sinavisar") },
         })),
       })
     }

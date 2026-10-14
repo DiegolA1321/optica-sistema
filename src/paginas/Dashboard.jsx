@@ -112,7 +112,7 @@ const OPCIONES = [
   { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true, delegable: true },
 ]
 
-export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
 
@@ -560,6 +560,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             ordenesLab={ordenesLab}
             setOrdenesLab={setOrdenesLab}
             abonos={abonos}
+            abonosAnulados={abonosAnulados}
             equipo={equipo}
             accionInicial={accionVentasInicio}
             onAccionInicialConsumida={() => setAccionVentasInicio(null)}
@@ -687,7 +688,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             facturasVenta={facturasVenta}
             abonos={abonos}
             ventas={ventas}
-            onVerCola={() => { setAccionVentasInicio({ tab: "porvender" }); navegar("ventas") }}
+            onVerCola={(filtroCola) => { setAccionVentasInicio({ tab: "porvender", filtroCola }); navegar("ventas") }}
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo, fecha) => { setEstadoCitasInicial(periodo ? { estado, periodo, fecha } : estado); navegar("citas") }}
             onVerTotal={(modulo, opcion) => {

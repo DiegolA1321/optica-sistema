@@ -33,7 +33,7 @@ const TAB_ANTIGUO = { cola: "porvender", ventas: "comprobantes", saldos: "cobros
 export default function Ventas({
   usuario, cargaInicial = false, parametrizacion, pacientes = [], consultas = [], inventario = [], setInventario,
   categoriasInventario = [], setCategoriasInventario, ventas = [], facturasVenta = [], setFacturasVenta,
-  pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [],
+  pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], equipo = [],
   accionInicial, onAccionInicialConsumida, onVerPaciente, onAviso, avisosDelModulo = null,
 }) {
   const puedeVender = puede(usuario, "ventas", "crear")
@@ -62,6 +62,7 @@ export default function Ventas({
     setDestino((d) => ({
       n: d.n + 1,
       filtroOrdenes: filtroDeOrdenesValido(accionInicial.filtro),
+      filtroCola: accionInicial.filtroCola || "todos",
       comprobantes: {
         periodo: periodoDeDestino(accionInicial),
         estado: !accionInicial.estado || accionInicial.estado === "vigentes" || accionInicial.estado === "todas" ? "todos" : accionInicial.estado,
@@ -133,7 +134,7 @@ export default function Ventas({
 
           <div id="ventas-panel" role="tabpanel" aria-labelledby={`ventas-tab-${tab}`}>
             {tab === "porvender" && (
-              <PestanaPorVender v={v} usuario={usuario} puedeVender={puedeVender} onVerPaciente={onVerPaciente} onNuevaVenta={() => setNuevaVenta(true)} />
+              <PestanaPorVender key={destino.n} filtroInicial={destino.filtroCola} v={v} usuario={usuario} puedeVender={puedeVender} onVerPaciente={onVerPaciente} onNuevaVenta={() => setNuevaVenta(true)} />
             )}
             {tab === "comprobantes" && (
               <PestanaComprobantes
@@ -155,7 +156,7 @@ export default function Ventas({
             )}
             {tab === "cobros" && (
               <PestanaCobros
-                facturas={facturasVenta} abonos={abonos} pacientes={pacientes} ventas={ventas} ordenes={ordenesLab}
+                facturas={facturasVenta} abonos={abonos} abonosAnulados={abonosAnulados} pacientes={pacientes} ventas={ventas} ordenes={ordenesLab}
                 puedeEditar={puedeEditar}
                 onCobrar={abonar}
                 onVerComprobante={(f) => setDetalleId(f.id)}
@@ -169,7 +170,7 @@ export default function Ventas({
 
       {detalle && (
         <DetalleComprobante
-          factura={detalle} paciente={pacienteDe(detalle.pacienteId)} abonos={abonos} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion}
+          factura={detalle} paciente={pacienteDe(detalle.pacienteId)} abonos={abonos} abonosAnulados={abonosAnulados} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion}
           v={v} ordenesApi={ordenesApi} puedeVender={puedeVender} puedeEditar={puedeEditar} puedeAnular={puedeAnular}
           onCerrar={() => setDetalleId(null)} onVerPaciente={(p) => { setDetalleId(null); verPaciente(p) }}
         />
