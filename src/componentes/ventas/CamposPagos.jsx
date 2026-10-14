@@ -40,9 +40,7 @@ export default function CamposPagos({ filas, onChange, total, idBase = "pago" })
             </select>
             {dividido ? (
               <input aria-label={`Monto del pago ${i + 1}`} id={`${idBase}-monto-${i}`} type="number" inputMode="decimal" min="0" step="0.01" value={f.monto} onChange={(e) => cambiar(i, "monto", e.target.value)} placeholder="0.00" className={CAMPO + " w-28 text-right font-mono"} />
-            ) : (
-              <span className="w-28 text-right font-mono text-sm font-semibold text-slate-700" aria-label="Monto del pago">{dinero(total)}</span>
-            )}
+            ) : null}
             {dividido ? (
               <button type="button" onClick={() => quitar(i)} aria-label={`Quitar el pago ${i + 1}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={15} aria-hidden="true" /></button>
             ) : <span className="w-9 shrink-0" aria-hidden="true" />}
