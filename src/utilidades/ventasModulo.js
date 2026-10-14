@@ -1,7 +1,8 @@
 // Reglas del módulo de Ventas que no son de una sola pantalla: quién espera demasiado, qué filtra "Por vender" y cuál es la siguiente
 // acción de una orden de laboratorio. Lógica pura; los números salen de las mismas funciones que usan el Inicio y Reportes.
 import { diasEnEspera, textoDiagnostico } from "./pasesVenta"
-import { ordenesAbiertas, ordenesAtrasadas, estadoVisible } from "./ordenesLaboratorio"
+import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar, estadoVisible } from "./ordenesLaboratorio"
+import { saldosPorPaciente, resumenSaldos } from "./saldosVentas"
 
 // Un paciente que lleva más de 30 días esperando su venta pasa a "Requieren atención" para contactarlo o cerrarlo. Nunca se cierra solo.
 export const DIAS_PARA_SEGUIMIENTO = 30
@@ -89,4 +90,11 @@ export function mensajeSeguimientoVenta({ paciente, opticaNombre, conProforma })
   const nombre = String(paciente?.nombre || "").trim()
   const de = opticaNombre || "tu óptica"
   return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${de}. ${conProforma ? "Quedamos pendientes de la proforma de tus lentes que te entregamos: ¿pudiste revisarla? Si tienes alguna duda, con gusto te ayudamos." : "Quedamos pendientes de los lentes que te recomendó el optómetra: ¿quieres que te preparemos una proforma? Con gusto te ayudamos."}`
+}
+
+// Cuántos avisos tiene Ventas: es el número del menú y el del botón "Requieren atención" de la cabecera (los dos cuentan lo mismo que el Inicio):
+// órdenes listas sin avisar, órdenes atrasadas, ventas con saldo y pacientes que esperan más de 30 días su venta.
+export function contarAvisosVentas({ pases = [], ordenes = [], pacientes = [], facturas = [], abonos = [], ventas = [], hoy } = {}) {
+  const listos = pases.filter((p) => p.estado === "listo").map((pase) => ({ pase }))
+  return ordenesListasSinAvisar(ordenes).length + ordenesAtrasadas(ordenes, hoy).length + resumenSaldos(saldosPorPaciente({ pacientes, facturas, abonos, ventas })).ventas + pacientesParaSeguimiento(listos, hoy).length
 }

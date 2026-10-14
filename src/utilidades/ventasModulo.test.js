@@ -77,3 +77,19 @@ describe("diagnóstico sin la frase de plantilla", () => {
     expect(diagnosticoCorto({ diagnosticoCategorias: ["Astigmatismo"], diagnostico: "Astigmatismo leve" })).toBe("Astigmatismo leve")
   })
 })
+
+import { contarAvisosVentas } from "./ventasModulo"
+describe("el número de avisos de Ventas", () => {
+  it("suma lo mismo que el Inicio: sin avisar, atrasadas, ventas con saldo y quienes esperan más de 30 días", () => {
+    const hoy = new Date(2026, 9, 12, 10, 0)
+    const ordenes = [
+      { id: "1", estado: "lista", pacienteAvisadoEn: null },
+      { id: "2", estado: "lista", pacienteAvisadoEn: "x" },
+      { id: "3", estado: "enviada", fechaPrometida: "2020-01-01" },
+    ]
+    const facturas = [{ id: "f", pacienteId: "p1", estado: "pendiente_pago", montoTotal: 100, creadoEn: "2026-10-01T10:00:00Z" }]
+    const pases = [{ id: "a", estado: "listo", pasadaEn: "2026-03-01T10:00:00Z" }, { id: "b", estado: "listo", pasadaEn: "2026-10-10T10:00:00Z" }, { id: "c", estado: "descartado", pasadaEn: "2026-01-01T10:00:00Z" }]
+    expect(contarAvisosVentas({ pases, ordenes, facturas, pacientes: [{ id: "p1" }], hoy })).toBe(1 + 1 + 1 + 1)
+    expect(contarAvisosVentas({})).toBe(0)
+  })
+})

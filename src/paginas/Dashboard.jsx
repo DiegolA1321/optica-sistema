@@ -64,7 +64,8 @@ import { puedeReasignar } from "../utilidades/reasignacion"
 import { citasPropias, rangoDelMes } from "../utilidades/inicio"
 import { PARAMS_DE_SECCION, escribirParam, leerParam } from "../utilidades/urlEstado"
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
-import { EVENTO_ORDEN, numeroOrden, ordenesAtrasadas, ordenesListasSinAvisar } from "../utilidades/ordenesLaboratorio"
+import { EVENTO_ORDEN, numeroOrden } from "../utilidades/ordenesLaboratorio"
+import { contarAvisosVentas } from "../utilidades/ventasModulo"
 
 // Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
 // atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se muestra un
@@ -122,16 +123,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // operativos que son default true) — es la "administración delegada" que
   // pidió el ing para cuando el optómetra contrata a alguien que le
   // administre el sistema completo.
-  const listosParaVenta = useMemo(() => pases.filter((p) => p.estado === "listo").length, [pases])
-  // Órdenes de laboratorio que piden acción: lentes listos sin avisar y órdenes atrasadas (R37).
-  const ordenesPendientes = useMemo(() => ordenesListasSinAvisar(ordenesLab).length + ordenesAtrasadas(ordenesLab).length, [ordenesLab])
+  // El número del menú de Ventas es el de su botón "Requieren atención" y el del Inicio: una sola cuenta (contarAvisosVentas).
+  const avisosDeVentas = useMemo(() => contarAvisosVentas({ pases, ordenes: ordenesLab, pacientes, facturas: facturasVenta, abonos, ventas }), [pases, ordenesLab, pacientes, facturasVenta, abonos, ventas])
   // El contador del menú es de quien vende (ventas: crear), no de quien solo puede mirar Ventas: aparece sobre "Ventas".
   const vendeAqui = puede(usuario, "ventas", "crear")
-  const avisosVentas = vendeAqui ? listosParaVenta + ordenesPendientes : 0
-  const textoAvisosVentas = [
-    listosParaVenta > 0 && `${listosParaVenta} listo${listosParaVenta === 1 ? "" : "s"} para venta`,
-    ordenesPendientes > 0 && `${ordenesPendientes} orden${ordenesPendientes === 1 ? "" : "es"} de laboratorio por atender`,
-  ].filter(Boolean).join(" · ")
+  const avisosVentas = vendeAqui ? avisosDeVentas : 0
+  const textoAvisosVentas = `${avisosVentas} ${avisosVentas === 1 ? "aviso" : "avisos"} en Ventas`
   // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
   // menú de usuario con qué vista trabajar. La vista enfoca el menú y el Inicio; la base sigue aplicando
   // la suma de los permisos de todos sus roles.
@@ -236,7 +233,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const id = new URLSearchParams(window.location.search).get('paciente')
     return id && opcionesVisibles.some((o) => o.id === 'pacientes') ? { pacienteId: id, accion: 'historial' } : null
   })
-  // Destino pedido al módulo de Ventas: { tab: "cola" | "ventas" | "ordenes" | "saldos", filtro?, texto? }
+  // Destino pedido al módulo de Ventas: { tab: "porvender" | "comprobantes" | "ordenes" | "cobros", filtro?, texto? }
   const [accionVentasInicio, setAccionVentasInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Atajos de Inicio (Registrar paciente, Agendar cita, Agregar producto): el formulario se abre encima del Inicio.
@@ -690,7 +687,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             facturasVenta={facturasVenta}
             abonos={abonos}
             ventas={ventas}
-            onVerCola={() => { setAccionVentasInicio({ tab: "cola" }); navegar("ventas") }}
+            onVerCola={() => { setAccionVentasInicio({ tab: "porvender" }); navegar("ventas") }}
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo, fecha) => { setEstadoCitasInicial(periodo ? { estado, periodo, fecha } : estado); navegar("citas") }}
             onVerTotal={(modulo, opcion) => {
@@ -698,12 +695,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               const mes = opcion === "mes"
               if (modulo === "pacientes") setAccionPacienteInicio({ accion: "filtrar", ...(mes ? rangoDelMes() : {}) })
               else if (modulo === "citas") setEstadoCitasInicial({ estado: "todas", periodo: mes ? "nuevasMes" : "siempre" })
-              else if (modulo === "ventas") setAccionVentasInicio({ tab: "ventas", estado: "vigentes", periodo: mes ? "mes" : "todo" })
+              else if (modulo === "ventas") setAccionVentasInicio({ tab: "comprobantes", estado: "todos", periodo: mes ? "mes" : "todo" })
               else if (modulo === "inventario") setVerNuevosAlEntrar(mes)
               navegar(modulo)
             }}
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
-            onVerSaldos={() => { setAccionVentasInicio({ tab: "saldos" }); navegar("ventas") }}
+            onVerSaldos={() => { setAccionVentasInicio({ tab: "cobros" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
             onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}

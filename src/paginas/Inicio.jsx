@@ -43,6 +43,7 @@ import VentanaTotal from "../componentes/VentanaTotal"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
+import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento } from "../utilidades/ventasModulo"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
@@ -687,6 +688,19 @@ export default function Inicio({
         })),
       })
     }
+    // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
+    const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
+    if (esperanMucho.length > 0) poner("ventas", {
+      id: "esperan-venta", cantidad: esperanMucho.length,
+      texto: uno(esperanMucho.length, `paciente espera su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`, `pacientes esperan su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`),
+      nombres: nombresResumidos(esperanMucho.map(({ pase }) => nombreDe(pase.pacienteId))),
+      enlace: { texto: `Abrir en Ventas · Por vender (${listos.length})`, onClick: () => onVerCola?.() },
+      casos: esperanMucho.map(({ pase }) => ({
+        id: pase.id, nombre: nombreDe(pase.pacienteId),
+        detalle: `Espera hace ${diasEnEspera(pase)} días`,
+        accion: { etiqueta: "Contactar", navega: true, onClick: () => onVerCola?.() },
+      })),
+    })
     if (incOrdenes && listasSinAvisar.length > 0) {
       const listasEnVentas = ordenesLab.filter((o) => o.estado === "lista").length
       poner("ventas", {

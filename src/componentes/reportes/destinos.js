@@ -8,9 +8,9 @@ export function crearDestinos(r) {
     // estado: todas | atendida | noAsistio | cancelada | abiertas (pendiente, en espera y en atención)
     citas: (estado, r2 = rango) => ({ modulo: "citas", etiqueta: "Abrir en Citas", params: { estado, desde: r2.inicio, hasta: r2.fin, ...paramsFiltros } }),
     // Los comprobantes de Ventas: estado (vigentes | saldo | pagadas), período y, si se pide, solo los sin factura electrónica.
-    ventas: (extra = {}, r2 = rango) => ({ modulo: "ventas", etiqueta: `Abrir en Ventas${sinFiltros}`, params: { tab: "ventas", estado: "vigentes", desde: r2.inicio, hasta: r2.fin, ...extra } }),
+    ventas: (extra = {}, r2 = rango) => ({ modulo: "ventas", etiqueta: `Abrir en Ventas${sinFiltros}`, params: { tab: "comprobantes", estado: "todos", desde: r2.inicio, hasta: r2.fin, ...extra } }),
     ordenes: (filtro) => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "ordenes", filtro } }),
-    cola: () => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "cola" } }),
+    cola: () => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "porvender" } }),
     // Pacientes registrados en el período (su fecha de registro).
     pacientesNuevos: (r2 = rango) => ({ modulo: "pacientes", etiqueta: `Abrir en Pacientes${sinFiltros}`, params: { accion: "filtrar", desde: r2.inicio, hasta: r2.fin } }),
     pacientes: (params = {}, etiqueta = "Abrir en Pacientes") => ({ modulo: "pacientes", etiqueta: `${etiqueta}${sinFiltros}`, params: { accion: "filtrar", ...params } }),
