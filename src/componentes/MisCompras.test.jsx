@@ -12,7 +12,7 @@ vi.mock("../utilidades/facturaElectronicaApi", () => api)
 const usuario = { id: "p1", token: "tok" }
 const compra = (extra = {}) => ({ id: "f1", numero: 17, fecha: "2026-10-04T17:00:00Z", total: 138, estado: "pagada", abonado: 138, saldo: 0, lineas: [{ descripcion: "Montura 5", cantidad: 1, subtotal: 58 }, { descripcion: "Luna monofocal", cantidad: 1, subtotal: 80 }], factura_electronica: null, ...extra })
 
-beforeEach(() => { vi.clearAllMocks(); HTMLAnchorElement.prototype.click = vi.fn() })
+beforeEach(() => { vi.clearAllMocks(); window.HTMLAnchorElement.prototype.click = vi.fn() })
 
 describe("Portal: Mis compras", () => {
   it("lista sus compras, y las que tienen saldo dicen lo abonado y lo que debe", async () => {
