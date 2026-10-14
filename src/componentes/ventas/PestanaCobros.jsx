@@ -119,44 +119,35 @@ export default function PestanaCobros({ facturas, abonos, abonosAnulados = [], p
           </div>
         ) : (
           <ul className="divide-y divide-slate-100" aria-label="Pacientes con saldo">
-            {saldos.map((s) => {
-              // Con un solo comprobante la acción va en la misma línea; con varios, cada comprobante lleva su "Cobrar".
-              const unica = s.ventasPendientes.length === 1 && !s.ventasViejas
-              const unico = unica ? s.ventasPendientes[0] : null
-              return (
-                <li key={s.pacienteId} className="px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <button type="button" onClick={() => s.paciente && onVerPaciente(s.paciente)} title={s.paciente?.nombre} className="block max-w-full truncate text-left text-sm font-bold transition-colors hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{s.paciente?.nombre || "Paciente"}</button>
-                      <p className="text-sm text-slate-500">
-                        {unico && <><button type="button" onClick={() => onVerComprobante(unico)} className="font-mono font-semibold transition-colors hover:text-blue-700 cursor-pointer">{numeroComprobante(unico.numero)}</button> · </>}
-                        {s.masAntigua ? `Debe desde el ${fechaLegible(s.masAntigua)}` : "Venta anterior"}
-                      </p>
-                      {s.ordenesListas.length > 0 && (
-                        <div className="mt-1">
-                          <Insignia tono="verde" title={s.ordenesListas.map((o) => numeroOrden(o.numero)).join(", ")}>{s.ordenesListas.length === 1 ? "Sus lentes están listos para entregar" : `${s.ordenesListas.length} pedidos listos para entregar`}</Insignia>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span className="font-mono text-base font-bold text-amber-700">{dinero(s.saldo)}</span>
-                      {unico && puedeEditar && <button type="button" onClick={() => onCobrar(unico, s.paciente)} aria-label={`Cobrar ${numeroComprobante(unico.numero)}`} className={CLASE_ACCION_PRINCIPAL + " !px-3 !py-1.5"} style={{ background: GRAD_MARCA }}>Cobrar</button>}
-                    </div>
+            {saldos.map((s) => (
+              <li key={s.pacienteId} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <button type="button" onClick={() => s.paciente && onVerPaciente(s.paciente)} title={s.paciente?.nombre} className="block max-w-full truncate text-left text-sm font-bold transition-colors hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{s.paciente?.nombre || "Paciente"}</button>
+                    <p className="text-sm text-slate-500">{s.masAntigua ? `Debe desde el ${fechaLegible(s.masAntigua)}` : "Venta anterior"}</p>
+                    {s.ordenesListas.length > 0 && (
+                      <div className="mt-1">
+                        <Insignia tono="verde" title={s.ordenesListas.map((o) => numeroOrden(o.numero)).join(", ")}>{s.ordenesListas.length === 1 ? "Sus lentes están listos para entregar" : `${s.ordenesListas.length} pedidos listos para entregar`}</Insignia>
+                      </div>
+                    )}
                   </div>
-                  {!unica && s.ventasPendientes.length > 0 && (
-                    <ul className="mt-2 space-y-1.5" aria-label={`Comprobantes de ${s.paciente?.nombre || "paciente"} con saldo`}>
-                      {s.ventasPendientes.map((f) => (
-                        <li key={f.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50/70 px-3 py-1.5">
-                          <button type="button" onClick={() => onVerComprobante(f)} className="font-mono text-sm font-semibold text-slate-700 transition-colors hover:text-blue-700 cursor-pointer">{numeroComprobante(f.numero)}</button>
-                          <span className="min-w-0 flex-1 truncate text-sm text-slate-500">{fechaLegible(String(f.creadoEn).slice(0, 10))} · debe {dinero(saldoFactura(f, abonos))}</span>
-                          {puedeEditar && <button type="button" onClick={() => onCobrar(f, s.paciente)} aria-label={`Cobrar ${numeroComprobante(f.numero)}`} className={CLASE_ACCION_PRINCIPAL + " !px-3 !py-1.5"} style={{ background: GRAD_MARCA }}>Cobrar</button>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              )
-            })}
+                  <span className="shrink-0 font-mono text-base font-bold text-amber-700" title="Total que debe el paciente">{dinero(s.saldo)}</span>
+                </div>
+                {/* Cada comprobante en su propia fila y con su "Cobrar" en la misma columna, tenga el paciente uno o varios. */}
+                {s.ventasPendientes.length > 0 && (
+                  <ul className="mt-2 space-y-1.5" aria-label={`Comprobantes de ${s.paciente?.nombre || "paciente"} con saldo`}>
+                    {s.ventasPendientes.map((f) => (
+                      <li key={f.id} className="grid grid-cols-[5rem_minmax(0,1fr)_6rem_5.5rem] items-center gap-x-3 rounded-lg bg-slate-50/70 px-3 py-1.5">
+                        <button type="button" onClick={() => onVerComprobante(f)} className="text-left font-mono text-sm font-semibold text-slate-700 transition-colors hover:text-blue-700 cursor-pointer">{numeroComprobante(f.numero)}</button>
+                        <span className="min-w-0 truncate text-sm text-slate-500">{fechaLegible(String(f.creadoEn).slice(0, 10))}</span>
+                        <span className="text-right font-mono text-sm font-semibold text-slate-700">{dinero(saldoFactura(f, abonos))}</span>
+                        <span className="flex justify-end">{puedeEditar && <button type="button" onClick={() => onCobrar(f, s.paciente)} aria-label={`Cobrar ${numeroComprobante(f.numero)}`} className={CLASE_ACCION_PRINCIPAL + " !px-3 !py-1.5"} style={{ background: GRAD_MARCA }}>Cobrar</button>}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
           </ul>
         )}
       </section>

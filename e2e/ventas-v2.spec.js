@@ -84,6 +84,13 @@ test.describe('Ventas v2 (Demo, solo lectura)', () => {
     await expect(page.getByRole('list', { name: 'Pacientes con saldo' }).locator(':scope > li')).toHaveCount(conSaldo)
   })
 
+  test('en Cobros y saldos todos los botones Cobrar están en la misma columna', async ({ page }) => {
+    await page.getByRole('tab', { name: /Cobros y saldos/ }).click()
+    const izquierdas = await page.getByRole('button', { name: /^Cobrar CV-/ }).evaluateAll((bs) => bs.map((b) => Math.round(b.getBoundingClientRect().left)))
+    expect(izquierdas.length).toBeGreaterThan(1)
+    expect(new Set(izquierdas).size, 'posiciones: ' + izquierdas.join(',')).toBe(1)
+  })
+
   test('el detalle del comprobante se puede reimprimir y muestra quién registró cada pago', async ({ page }) => {
     await page.getByRole('tab', { name: /Comprobantes/ }).click()
     await page.getByRole('list', { name: 'Comprobantes de venta' }).getByRole('button', { name: /Ver el comprobante/ }).first().click()
