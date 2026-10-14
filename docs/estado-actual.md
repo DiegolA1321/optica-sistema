@@ -4,7 +4,7 @@ Propuesta aprobada: `docs/propuesta-factura-electronica.md` y maqueta `docs/maqu
 
 **Pasos** (un commit por paso; esta nota se actualiza en cada uno):
 - [x] 0. Prueba de Playwright de corregir y anular un abono (`e2e/ventas-abonos.spec.js`, óptica de pruebas). Al hacerla se corrigió que el detalle del comprobante no releía "Se corrigió un abono…" tras corregir.
-- [ ] 1. Clave de acceso: validación (formato, módulo 11, cruce con el número) y reglas de los archivos, con pruebas.
+- [x] 1. Clave de acceso: validación (formato, módulo 11, cruce con el número) y reglas de los archivos, con pruebas.
 - [ ] 2. Migración 0110 (tablas, funciones, bucket privado y políticas) + ensayo + Edge Functions. **Se muestra a Diego antes de aplicar.**
 - [ ] 3. Registrar la factura electrónica (ventana) y adjuntar PDF y XML.
 - [ ] 4. Detalle del comprobante y perfil: Descargar, Enviar al paciente (WhatsApp con enlace; correo apagado hasta el dominio); comprobante impreso con número y clave.
