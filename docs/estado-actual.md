@@ -1,3 +1,10 @@
+## Ventas v2 (rama ventas-v2, sin publicar; la migración 0109 NO está aplicada)
+- Módulo rehecho: cabecera sin subtítulo ("Requieren atención" y "Nueva venta" como en los demás), cuatro pestañas con su número (Por vender, Comprobantes, Órdenes de laboratorio, Cobros y saldos), una acción por fila y todo lo demás en el detalle (ventana estándar `Cascaron`). Código en `src/paginas/Ventas.jsx` y `src/componentes/ventas/`.
+- Nuevo: detalle del comprobante con reimpresión (`imprimirComprobante.js`), quién registró cada venta y abono, corregir o anular un abono (con motivo), pagos divididos, descuentos por línea, "Cobrado hoy" por método con Excel (mismo modelo que "Cobros del período" de Reportes) y saldos con los lentes listos primero. El período de los comprobantes es el selector de la Lista de Citas (`periodoLista.js`).
+- Los que llevan más de 30 días esperando su venta pasan a "Requieren atención" (Inicio). El número del menú de Ventas es el del botón (`contarAvisosVentas`). Los enlaces del Inicio y de Reportes usan las pestañas nuevas (los nombres viejos siguen funcionando).
+- Base de datos: `supabase/migrations/0109_ventas_v2.sql` (borrador; ensayo `scripts/ensayo-0109.mjs`, que revierte). Es compatible con la versión publicada.
+- Pruebas: Vitest completo y `e2e/ventas-v2.spec.js` (Demo, solo lectura, sin desplazamiento horizontal y números = listas). `e2e/flujo-completo.spec.js` usa el abono dividido y necesita la migración.
+
 # Estado actual — Ventanas estándar (T1) y revisión de los demás módulos publicadas (10 oct. 2026)
 
 **Publicado el 10 oct. 2026** (último commit de código `9fc5d28` de `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito, confirmados con la API de GitHub). Incluye la revisión de los demás módulos (Horario, Reportes, CRM, Inventario, Configuración, Usuarios, Soporte; migración `0108`) y **T1 terminado salvo Ventas** (ver "T1 (ventanas), terminado salvo Ventas").

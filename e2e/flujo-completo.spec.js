@@ -88,7 +88,7 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await expect(page.getByText(/Listo para venta/).first()).toBeVisible({ timeout: 15_000 })
 })
 
-test('3 · Vera vende con abono y luna', async ({ page }) => {
+test('3 · Vera vende con un abono dividido (efectivo y tarjeta) y luna', async ({ page }) => {
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
   await page.getByRole('tab', { name: /Por vender/ }).click()
@@ -105,6 +105,12 @@ test('3 · Vera vende con abono y luna', async ({ page }) => {
   await expect(venta.getByLabel('Esta venta incluye lentes')).toBeChecked()
   await venta.getByRole('button', { name: 'Abonos', exact: true }).click()
   await venta.locator('#abono-inicial').fill('30')
+  // El abono inicial se paga con dos métodos a la vez: $20 en efectivo y $10 con tarjeta.
+  await venta.getByRole('button', { name: /Dividir el pago/ }).click()
+  await venta.getByLabel('Monto del pago 1').fill('20')
+  await venta.getByLabel('Método del pago 2').selectOption('tarjeta')
+  await venta.getByLabel('Monto del pago 2').fill('10')
+  await expect(venta.getByText('Todo repartido')).toBeVisible()
   await venta.getByRole('button', { name: 'Registrar venta' }).click()
   await expect(page.getByText(`Venta registrada: ${datos.nombre} salió de la lista de espera.`)).toBeVisible({ timeout: 20_000 })
 
@@ -124,24 +130,25 @@ test('4 · Vera marca la orden lista, avisa, cobra el saldo y entrega', async ({
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
   await page.getByRole('tab', { name: /Órdenes de laboratorio/ }).click()
-  await page.getByLabel('Buscar orden de laboratorio').fill(datos.nombre)
+  await page.getByLabel(/Buscar orden/).fill(datos.nombre)
   const fila = page.getByRole('listitem').filter({ hasText: datos.nombre })
   await expect(fila).toHaveCount(1, { timeout: 20_000 })
   await expect(fila).toContainText(`${PREFIJO}Laboratorio`)
   await expect(fila).toContainText('Saldo $70.00') // $100 - abono inicial de $30
 
-  await fila.getByRole('button', { name: /Marcar lista/ }).click()
+  // Cada fila lleva UNA acción: la siguiente del proceso.
+  await fila.getByRole('button', { name: 'Marcar lista' }).click()
   await expect(page.getByText(/lista para entregar. Avísale al paciente./)).toBeVisible({ timeout: 15_000 })
-  await expect(fila).toContainText('Falta avisar al paciente')
+  await expect(fila).toContainText('Falta avisar')
 
   // "Avisar" solo abre WhatsApp en otra pestaña con el mensaje; no envía nada. Se cierra enseguida.
   const [whatsapp] = await Promise.all([page.waitForEvent('popup'), fila.getByRole('button', { name: 'Avisar por WhatsApp' }).click()])
   await whatsapp.close()
-  await expect(fila).toContainText('Pacie') // "Paciente avisado …"
+  await expect(fila).not.toContainText('Falta avisar')
 
   // Con saldo, entregar pide cobrarlo antes.
-  await fila.getByRole('button', { name: /Marcar entregada/ }).click()
-  const saldo = page.getByRole('alertdialog', { name: 'Hay un saldo por cobrar' })
+  await fila.getByRole('button', { name: 'Entregar', exact: true }).click()
+  const saldo = page.getByRole('dialog', { name: 'Hay un saldo por cobrar' })
   await expect(saldo).toContainText('$70.00')
   await saldo.getByRole('button', { name: 'Cobrar abono' }).click()
   const abono = page.getByRole('dialog', { name: 'Registrar abono' })
@@ -149,14 +156,36 @@ test('4 · Vera marca la orden lista, avisa, cobra el saldo y entrega', async ({
   await abono.getByLabel('Nota (opcional)').fill(`${PREFIJO}saldo`)
   await abono.getByRole('button', { name: 'Registrar abono', exact: true }).click()
   await expect(abono).toHaveCount(0, { timeout: 20_000 })
-  await expect(fila).not.toContainText(/Saldo \$/,{ timeout: 15_000 })
+  await expect(fila).not.toContainText(/Saldo \$/, { timeout: 15_000 })
 
   // Sin saldo, entregar es directo.
-  await fila.getByRole('button', { name: /Marcar entregada/ }).click()
+  await fila.getByRole('button', { name: 'Entregar', exact: true }).click()
   await expect(page.getByText(/OL-\d+: entregada\./)).toBeVisible({ timeout: 15_000 })
-  // Sale de las abiertas; aparece en "Entregadas".
-  await page.getByRole('button', { name: /^Entregadas/ }).click()
+  // Sale de las abiertas; aparece con el filtro "Entregadas".
+  await page.getByRole('button', { name: /Filtrar/ }).click()
+  await page.getByRole('dialog', { name: /Filtrar las órdenes/ }).getByRole('button', { name: 'Entregadas' }).click()
   await expect(fila).toContainText('Entregada', { timeout: 15_000 })
+})
+
+test('4b · Cobros y saldos: lo cobrado hoy por método y el comprobante con sus abonos', async ({ page }) => {
+  await iniciarSesion(page, 'VENTAS', 'E2E')
+  await page.getByRole('button', { name: /^Ventas/ }).first().click()
+  await page.getByRole('tab', { name: /Cobros y saldos/ }).click()
+  const cobros = page.getByRole('list', { name: 'Cobros del día' })
+  const cobrosDelPaciente = cobros.getByRole('listitem').filter({ hasText: datos.nombre })
+  await expect(cobrosDelPaciente).toHaveCount(2, { timeout: 20_000 }) // el abono inicial dividido y el pago del saldo
+  await expect(cobrosDelPaciente.first()).toContainText('Efectivo $20.00 + Tarjeta $10.00')
+  const metodos = page.getByRole('list', { name: 'Cobrado por método de pago' })
+  await expect(metodos).toContainText('Efectivo')
+  await expect(metodos).toContainText('Tarjeta')
+  // El comprobante muestra quién registró cada pago y se puede reimprimir.
+  await page.getByRole('tab', { name: /Comprobantes/ }).click()
+  await page.getByLabel(/Buscar: paciente/).fill(datos.nombre)
+  await page.getByRole('button', { name: /Ver el comprobante/ }).first().click()
+  const detalle = page.getByRole('dialog', { name: /^Comprobante CV-/ })
+  await expect(detalle).toContainText('Pagos')
+  await expect(detalle).toContainText('Efectivo $20.00 + Tarjeta $10.00')
+  await expect(detalle.getByRole('button', { name: /Imprimir comprobante/ })).toBeVisible()
 })
 
 test('5 · El administrador ve el resultado en Reportes y la cita quedó atendida', async ({ page }) => {
