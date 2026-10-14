@@ -29,8 +29,11 @@ export function listaPorVender(filtro, { listos = [], descartados = [] }) {
 }
 
 // El diagnóstico y el lente recomendado en una sola línea: "Miopía · Lente: Monofocal antirreflejo".
+// El diagnóstico sin la frase de plantilla "Corrección óptica indicada según refracción", que repite lo mismo en cada paciente (no decide nada).
+export const diagnosticoCorto = (consulta) => textoDiagnostico(consulta).replace(/\s*[—–-]\s*Corrección óptica indicada según refracción\.?/gi, "").replace(/^Corrección óptica indicada según refracción\.?\s*·?\s*/i, "").trim()
+
 export function lineaDiagnosticoYLente(consulta) {
-  const d = textoDiagnostico(consulta)
+  const d = diagnosticoCorto(consulta)
   const lente = String(consulta?.lenteRecomendado || "").trim()
   return [d, lente && `Lente: ${lente}`].filter(Boolean).join(" · ")
 }
@@ -76,4 +79,14 @@ export const NOMBRE_ESTADO_ORDEN = { enviada: "Enviada", atrasada: "Atrasada", l
 export function textoEstadoOrden(orden, dias = 0, hoy) {
   const v = estadoVisible(orden, hoy)
   return v === "atrasada" ? `Atrasada ${dias} ${dias === 1 ? "día" : "días"}` : NOMBRE_ESTADO_ORDEN[v] || v
+}
+
+// Los días de espera como se leen en la fila: "Hoy", "1 día", "45 días".
+export const textoDiasEspera = (dias) => (dias === 0 ? "Hoy" : `${dias} ${dias === 1 ? "día" : "días"}`)
+
+// El mensaje de seguimiento a quien consultó y todavía no compra. El saludo usa el nombre tal como está guardado (regla 34).
+export function mensajeSeguimientoVenta({ paciente, opticaNombre, conProforma }) {
+  const nombre = String(paciente?.nombre || "").trim()
+  const de = opticaNombre || "tu óptica"
+  return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${de}. ${conProforma ? "Quedamos pendientes de la proforma de tus lentes que te entregamos: ¿pudiste revisarla? Si tienes alguna duda, con gusto te ayudamos." : "Quedamos pendientes de los lentes que te recomendó el optómetra: ¿quieres que te preparemos una proforma? Con gusto te ayudamos."}`
 }

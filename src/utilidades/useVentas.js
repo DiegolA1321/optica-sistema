@@ -21,6 +21,7 @@ export function useVentas({
   const [anularPara, setAnularPara] = useState(null)
   const [ordenParaVenta, setOrdenParaVenta] = useState(null) // venta a la que se le crea una orden de laboratorio
   const [facturaElectronicaPara, setFacturaElectronicaPara] = useState(null) // { factura, paciente }
+  const [corregirAbonoPara, setCorregirAbonoPara] = useState(null) // { abono, factura, paciente }
   const [reabriendoId, setReabriendoId] = useState(null)
 
   // Una venta nueva entra a la lista; si venía de la cola, el pase pasa a "vendido".
@@ -37,9 +38,16 @@ export function useVentas({
     notificar?.(estado === "pagada" ? `Abono de ${dinero(monto)} registrado: la venta de ${paciente?.nombre || "el paciente"} quedó pagada.` : `Abono de ${dinero(monto)} registrado.`)
   }
 
-  const alAnular = () => {
+  // Corregir o anular un abono: la base ya recalculó el saldo y el estado de la venta; aquí se refleja sin recargar.
+  const alCorregirAbono = ({ anulado, estado, cuotasPagadas }) => {
+    const { factura } = corregirAbonoPara
+    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado, cuotasPagadas } : f)))
+    notificar?.(anulado ? "Abono anulado. El saldo de la venta se recalculó." : "Abono corregido. El saldo de la venta se recalculó.")
+  }
+
+  const alAnular = ({ motivo } = {}) => {
     const { factura } = anularPara
-    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado: "anulada" } : f)))
+    setFacturasVenta?.((prev) => prev.map((f) => (f.id === factura.id ? { ...f, estado: "anulada", anuladaMotivo: motivo || "", anuladaEn: new Date().toISOString(), anuladaPor: usuario?.id || null } : f)))
     // La base repone el stock y cancela las órdenes sin entregar; se refleja aquí sin recargar.
     setInventario?.((prev) => prev.map((p) => {
       const linea = (factura.lineas || []).find((l) => l.tipo === "producto" && l.productoId === p.id)
@@ -120,8 +128,8 @@ export function useVentas({
 
   return {
     ventaCola, setVentaCola, noComproPara, setNoComproPara, abonoPara, setAbonoPara, anularPara, setAnularPara,
-    ordenParaVenta, setOrdenParaVenta, facturaElectronicaPara, setFacturaElectronicaPara, reabriendoId,
+    ordenParaVenta, setOrdenParaVenta, facturaElectronicaPara, setFacturaElectronicaPara, corregirAbonoPara, setCorregirAbonoPara, reabriendoId,
     colaListos, colaDescartados, saldoDe,
-    registrarFactura, alAbonar, alAnular, guardarFacturaElectronica, imprimirProformaCola, alVenderDesdeCola, reabrirPase, alNoComprar,
+    registrarFactura, alAbonar, alCorregirAbono, alAnular, guardarFacturaElectronica, imprimirProformaCola, alVenderDesdeCola, reabrirPase, alNoComprar,
   }
 }

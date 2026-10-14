@@ -55,3 +55,25 @@ describe("órdenes de laboratorio", () => {
     expect(filtroDeOrdenesValido("xyz")).toBe("abiertas")
   })
 })
+
+import { textoDiasEspera, mensajeSeguimientoVenta } from "./ventasModulo"
+describe("seguimiento de quien no ha comprado", () => {
+  it("los días de espera como se leen en la fila", () => {
+    expect([0, 1, 45].map(textoDiasEspera)).toEqual(["Hoy", "1 día", "45 días"])
+  })
+  it("el mensaje trata a la persona por su nombre tal como está guardado y cambia si ya tiene proforma", () => {
+    const m = mensajeSeguimientoVenta({ paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre: "Óptica Demo", conProforma: true })
+    expect(m).toMatch(/^Hola, Rosa Bravo Cedeño, te escribimos de Óptica Demo\./)
+    expect(m).toMatch(/proforma/)
+    expect(mensajeSeguimientoVenta({ paciente: { nombre: "Rosa" }, conProforma: false })).toMatch(/preparemos una proforma/)
+  })
+})
+
+import { diagnosticoCorto } from "./ventasModulo"
+describe("diagnóstico sin la frase de plantilla", () => {
+  it("quita \"Corrección óptica indicada según refracción\" y deja lo que decide", () => {
+    expect(diagnosticoCorto({ diagnostico: "Miopía — Corrección óptica indicada según refracción" })).toBe("Miopía")
+    expect(diagnosticoCorto({ diagnostico: "Corrección óptica indicada según refracción" })).toBe("")
+    expect(diagnosticoCorto({ diagnosticoCategorias: ["Astigmatismo"], diagnostico: "Astigmatismo leve" })).toBe("Astigmatismo leve")
+  })
+})

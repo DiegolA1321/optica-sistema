@@ -6,6 +6,7 @@ import AbonoModal from "./AbonoModal"
 import AnularVentaModal from "./AnularVentaModal"
 import NoComproModal from "./NoComproModal"
 import FacturaElectronicaModal from "./FacturaElectronicaModal"
+import CorregirAbonoModal from "./ventas/CorregirAbonoModal"
 import { lineasProformaDeConsulta } from "../utilidades/proforma"
 
 // Los modales de venta que abren tanto el módulo de Ventas como el perfil del paciente.
@@ -47,6 +48,9 @@ export default function ModalesVentas({ v, usuario, parametrizacion, inventario,
       )}
       {v.abonoPara && (
         <AbonoModal factura={v.abonoPara.factura} paciente={v.abonoPara.paciente} abonos={abonos} usuario={usuario} onRegistrado={v.alAbonar} onCerrar={() => v.setAbonoPara(null)} />
+      )}
+      {v.corregirAbonoPara && (
+        <CorregirAbonoModal abono={v.corregirAbonoPara.abono} factura={v.corregirAbonoPara.factura} paciente={v.corregirAbonoPara.paciente} abonos={abonos} usuario={usuario} onCambiado={v.alCorregirAbono} onCerrar={() => v.setCorregirAbonoPara(null)} />
       )}
       {v.anularPara && (
         <AnularVentaModal

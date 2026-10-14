@@ -1,0 +1,212 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Ban, FileText, FlaskConical, Pencil, Plus, Printer, Receipt, Wallet } from "lucide-react"
+import { GRAD_MARCA } from "@/lib/tema"
+import { supabase } from "../../lib/supabaseClient"
+import { Cascaron } from "../AtencionPaciente"
+import { Bloque, Columna, Dato } from "./Detalle"
+import { Insignia } from "./Lista"
+import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN } from "./estilos"
+import { dinero } from "../../utilidades/formatoMoneda"
+import { fechaLegible, fechaHoraLegible, hora } from "../../utilidades/formatoFecha"
+import { numeroComprobante } from "../../utilidades/comprobantes"
+import { abonosDeFactura, totalAbonado } from "../../utilidades/abonos"
+import { estadoDeComprobante } from "../../utilidades/saldosVentas"
+import { brutoLinea, descuentoLinea, subtotalLinea, totalesDeLineas } from "../../utilidades/descuentos"
+import { pagosDeAbono, textoPagos, redondear, SIN_INDICAR } from "../../utilidades/pagos"
+import { textoFormaDePago, armarHtmlComprobante } from "../../utilidades/imprimirComprobante"
+import { diaDeRegistro } from "../../utilidades/periodoLista"
+import { imprimirHtml, datosOpticaProforma } from "../../utilidades/proforma"
+import { registrarLog } from "../../utilidades/logs"
+import { numeroOrden, diasDeAtraso, estadoVisible } from "../../utilidades/ordenesLaboratorio"
+import { textoEstadoOrden } from "../../utilidades/ventasModulo"
+
+const TONO_ESTADO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
+
+// El detalle de un comprobante de venta guardado: sus datos, las líneas con sus descuentos, los pagos (con quién los registró), sus órdenes de laboratorio
+// y la factura electrónica. Aquí están todas las acciones; la fila de la lista solo lleva "Abonar" (regla 9). Se puede reimprimir.
+export default function DetalleComprobante({ factura: f, paciente, abonos = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente }) {
+  const [cambios, setCambios] = useState([]) // lo que se corrigió o anuló de los abonos
+  const estado = estadoDeComprobante(f, abonos)
+  const anulada = estado.id === "anulada"
+  const propios = abonosDeFactura(f.id, abonos)
+  const totales = totalesDeLineas(f.lineas || [])
+  const ordenesDeVenta = ordenes.filter((o) => o.facturaId === f.id)
+  const nombre = (id) => (id ? equipo.find((m) => m.id === id)?.nombre || (id === usuario?.id ? usuario?.nombre : null) || "Equipo" : "—")
+  const restoAlContado = f.estado === "pagada" ? redondear((Number(f.montoTotal) || 0) - propios.reduce((s, a) => s + a.monto, 0)) : 0
+
+  // Qué se corrigió o anuló de los abonos de esta venta (la base lo guarda: lo anterior, el motivo, quién y cuándo).
+  useEffect(() => {
+    if (!supabase) return
+    let vivo = true
+    supabase.from("abonos_correcciones").select("accion, motivo, monto_anterior, monto_nuevo, realizado_por, realizado_en").eq("factura_id", f.id).order("realizado_en").then(({ data }) => { if (vivo && data) setCambios(data) })
+    return () => { vivo = false }
+  }, [f.id, abonos.length])
+
+  const imprimir = () => {
+    imprimirHtml(armarHtmlComprobante({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOpticaProforma(parametrizacion), paciente: paciente || {}, factura: f, abonos, vendedor: nombre(f.registradoPor) === "—" ? "" : nombre(f.registradoPor) }))
+    registrarLog(usuario, "ventas", "Reimprimió un comprobante", `${paciente?.nombre || ""} · ${numeroComprobante(f.numero)}`)
+  }
+  const con = (accion) => () => accion({ factura: f, paciente })
+
+  return (
+    <Cascaron
+      titulo={`Comprobante ${numeroComprobante(f.numero)}`}
+      subtitulo={`${paciente?.nombre || "Paciente"} · ${fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}`}
+      Icono={Receipt}
+      ancho="max-w-4xl"
+      etiqueta={`Comprobante ${numeroComprobante(f.numero)}`}
+      onCerrar={onCerrar}
+      derecha={<Insignia tono={TONO_ESTADO[estado.id]}>{estado.id === "saldo" ? `Con saldo ${dinero(estado.saldo)}` : estado.etiqueta}</Insignia>}
+      pie={(
+        <>
+          {puedeAnular && !anulada ? <button type="button" onClick={con(v.setAnularPara)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200/60 px-3.5 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 cursor-pointer"><Ban size={14} aria-hidden="true" /> Anular venta</button> : <span />}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <button type="button" onClick={imprimir} className={CLASE_ACCION_SECUNDARIA}><Printer size={14} aria-hidden="true" /> Imprimir comprobante</button>
+            {puedeVender && !anulada && <button type="button" onClick={con(v.setOrdenParaVenta)} className={CLASE_ACCION_SECUNDARIA}><FlaskConical size={14} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otra orden" : "Crear orden"}</button>}
+            {puedeEditar && estado.id === "saldo" && <button type="button" onClick={con(v.setAbonoPara)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><Wallet size={14} aria-hidden="true" /> Abonar</button>}
+            <button type="button" onClick={onCerrar} className={BOTON_CERRAR}>Cerrar</button>
+          </div>
+        </>
+      )}
+    >
+      <div className="space-y-5 p-5">
+        {anulada && (
+          <p role="status" className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <span className="font-bold">Venta anulada</span>{f.anuladaEn ? ` el ${fechaLegible(diaDeRegistro(f.anuladaEn))}` : ""}{f.anuladaPor ? ` por ${nombre(f.anuladaPor)}` : ""}{f.anuladaMotivo ? `. Motivo: ${f.anuladaMotivo}` : ""}.
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <Columna titulo="La venta">
+            <Dato etiqueta="Fecha">{fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}{String(f.creadoEn || "").includes("T") ? ` · ${hora(f.creadoEn)}` : ""}</Dato>
+            <Dato etiqueta="Registrada por">{nombre(f.registradoPor)}</Dato>
+            <Dato etiqueta="Forma de pago">{textoFormaDePago(f, abonos)}{f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales} cuotas)` : ""}</Dato>
+          </Columna>
+          <Columna titulo="Paciente">
+            <Dato etiqueta="Nombre">
+              {paciente && onVerPaciente ? <button type="button" onClick={() => onVerPaciente(paciente)} className="text-left text-blue-700 transition-colors hover:text-blue-800 hover:underline cursor-pointer">{paciente.nombre}</button> : (paciente?.nombre || "Paciente")}
+            </Dato>
+            <Dato etiqueta="Cédula" vacio={!paciente?.cedula}>{paciente?.cedula || "Sin cédula"}</Dato>
+            <Dato etiqueta="Teléfono" vacio={!paciente?.telefono}>{paciente?.telefono || "Sin teléfono"}</Dato>
+          </Columna>
+          <Columna titulo="Factura electrónica">
+            <Dato etiqueta="Número" vacio={!f.facturaElectronica}><span className={f.facturaElectronica ? "font-mono" : ""}>{f.facturaElectronica || "Sin factura electrónica"}</span></Dato>
+            {puedeEditar && !anulada && (
+              <button type="button" onClick={con(v.setFacturaElectronicaPara)} className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer">
+                <FileText size={14} aria-hidden="true" /> {f.facturaElectronica ? "Corregir el número" : "Registrar el número"}
+              </button>
+            )}
+          </Columna>
+        </div>
+
+        <Bloque titulo="Detalle de la venta">
+          <div className="overflow-hidden rounded-xl border border-slate-200/60">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr><th className="px-3 py-1.5 text-left font-bold">Descripción</th><th className="px-3 py-1.5 text-right font-bold">Cant.</th><th className="px-3 py-1.5 text-right font-bold">Precio</th><th className="px-3 py-1.5 text-right font-bold">Subtotal</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(f.lineas || []).map((l, i) => (
+                  <tr key={l.id || i} className="align-top">
+                    <td className="max-w-0 px-3 py-2">
+                      <p className="truncate font-semibold text-slate-800" title={l.descripcion}>{l.descripcion}</p>
+                      {l.descuentoTipo && (
+                        <p className="mt-0.5 text-xs text-slate-500">Descuento {l.descuentoTipo === "porcentaje" ? `de ${Number(l.descuentoValor)} % ` : ""}(−{dinero(descuentoLinea(l))}) · {l.descuentoMotivo}</p>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-600">{l.cantidad}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-600">{dinero(l.precioUnitario)}</td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{dinero(l.descuentoTipo ? subtotalLinea(l) : brutoLinea(l))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <dl className="ml-auto mt-3 w-full max-w-xs space-y-1 text-sm">
+            {totales.descuento > 0 && (
+              <>
+                <div className="flex justify-between text-slate-600"><dt>Subtotal</dt><dd className="font-mono">{dinero(totales.bruto)}</dd></div>
+                <div className="flex justify-between text-slate-600"><dt>Descuento</dt><dd className="font-mono">−{dinero(totales.descuento)}</dd></div>
+              </>
+            )}
+            <div className="flex justify-between text-base font-bold text-slate-900"><dt>Total</dt><dd className="font-mono">{dinero(f.montoTotal)}</dd></div>
+            {!anulada && propios.length > 0 && <div className="flex justify-between text-slate-600"><dt>Abonado</dt><dd className="font-mono">{dinero(totalAbonado(f.id, abonos))}</dd></div>}
+            {estado.id === "saldo" && <div className="flex justify-between font-bold text-amber-700"><dt>Saldo</dt><dd className="font-mono">{dinero(estado.saldo)}</dd></div>}
+          </dl>
+        </Bloque>
+
+        {(propios.length > 0 || restoAlContado > 0 || cambios.length > 0 || estado.id === "saldo") && (
+          <Bloque titulo="Pagos">
+            {propios.length === 0 && restoAlContado <= 0 ? (
+              <p className="text-sm text-slate-500">Todavía no se ha recibido ningún pago.</p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-slate-200/60">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr><th className="px-3 py-1.5 text-left font-bold">Fecha</th><th className="px-3 py-1.5 text-left font-bold">Concepto</th><th className="px-3 py-1.5 text-left font-bold">Forma de pago</th><th className="px-3 py-1.5 text-left font-bold">Registró</th><th className="px-3 py-1.5 text-right font-bold">Monto</th><th className="w-20 px-3 py-1.5" /></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {restoAlContado > 0 && (
+                      <tr>
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-600">{fechaLegible(diaDeRegistro(f.creadoEn))}</td>
+                        <td className="px-3 py-2 text-slate-700">Pago de la venta</td>
+                        <td className="max-w-0 truncate px-3 py-2 text-slate-600" title={textoFormaDePago(f, abonos)}>{textoFormaDePago(f, abonos)}</td>
+                        <td className="max-w-0 truncate px-3 py-2 text-slate-600">{nombre(f.registradoPor)}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{dinero(restoAlContado)}</td>
+                        <td />
+                      </tr>
+                    )}
+                    {propios.map((a) => {
+                      const pagos = pagosDeAbono(a)
+                      const forma = pagos.every((p) => p.metodo === SIN_INDICAR) ? "Sin indicar" : textoPagos(pagos)
+                      return (
+                        <tr key={a.id}>
+                          <td className="whitespace-nowrap px-3 py-2 text-slate-600">{fechaLegible(a.fecha)}</td>
+                          <td className="max-w-0 truncate px-3 py-2 text-slate-700" title={a.nota || "Abono"}>{a.nota || "Abono"}</td>
+                          <td className="max-w-0 truncate px-3 py-2 text-slate-600" title={forma}>{forma}</td>
+                          <td className="max-w-0 truncate px-3 py-2 text-slate-600" title={nombre(a.registradoPor)}>{nombre(a.registradoPor)}</td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{dinero(a.monto)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {puedeEditar && !anulada && <button type="button" onClick={() => v.setCorregirAbonoPara({ abono: a, factura: f, paciente })} aria-label={`Corregir el abono de ${dinero(a.monto)}`} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"><Pencil size={13} aria-hidden="true" /> Corregir</button>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {cambios.length > 0 && (
+              <ul aria-label="Cambios en los abonos" className="mt-2 space-y-1 text-sm text-slate-500">
+                {cambios.map((c, i) => (
+                  <li key={i}>{c.accion === "anulado" ? `Se anuló un abono de ${dinero(c.monto_anterior)}` : `Se corrigió un abono de ${dinero(c.monto_anterior)} a ${dinero(c.monto_nuevo)}`} · {c.motivo} · {nombre(c.realizado_por)}, {fechaHoraLegible(c.realizado_en, { anio: true })}</li>
+                ))}
+              </ul>
+            )}
+          </Bloque>
+        )}
+
+        <Bloque titulo="Órdenes de laboratorio" derecha={puedeVender && !anulada ? <button type="button" onClick={con(v.setOrdenParaVenta)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"><Plus size={13} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otra orden" : "Crear orden"}</button> : null}>
+          {ordenesDeVenta.length === 0 ? (
+            <p className="text-sm text-slate-500">Esta venta no tiene órdenes de laboratorio.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60" aria-label="Órdenes de la venta">
+              {ordenesDeVenta.map((o) => {
+                const visible = estadoVisible(o)
+                return (
+                  <li key={o.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                    <button type="button" onClick={() => ordenesApi?.verDetalle(o)} disabled={!ordenesApi} className="font-mono font-bold text-blue-700 transition-colors hover:text-blue-800 hover:underline cursor-pointer disabled:cursor-default disabled:text-slate-700 disabled:no-underline">{numeroOrden(o.numero)}</button>
+                    <span className="min-w-0 flex-1 truncate text-slate-600" title={o.laboratorio || "Sin laboratorio"}>{o.laboratorio || "Sin laboratorio"} · prometida el {fechaLegible(o.fechaPrometida) || "—"}</span>
+                    <Insignia tono={TONO_ESTADO_ORDEN[visible]}>{textoEstadoOrden(o, diasDeAtraso(o))}</Insignia>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Bloque>
+      </div>
+    </Cascaron>
+  )
+}
