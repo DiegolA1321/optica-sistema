@@ -242,7 +242,7 @@ test.describe('Inventario v2: la forma de la pantalla (Demo, solo lectura)', () 
     const texto = await page.locator('main').innerText()
     expect(texto).toMatch(/Montura/)
     expect(texto).not.toMatch(/armaz/i)
-    await expect(page.getByRole('group', { name: 'Filtros' }).getByRole('button', { name: /^Montura \(\d+\)$/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Filtros' }).getByRole('button', { name: /^Monturas \(\d+\)$/ })).toBeVisible()
   })
 
   test('las cuatro tarjetas abren una ventana con su desglose, todas igual; el stock bajo no es una tarjeta', async ({ page }) => {
