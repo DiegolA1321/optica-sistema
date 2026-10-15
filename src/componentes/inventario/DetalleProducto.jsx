@@ -89,6 +89,8 @@ export default function DetalleProducto({
         ))}
       </div>
 
+      {/* Alto fijo: la ventana no cambia de tamaño al pasar de una pestaña a otra (si el contenido es largo, se desplaza por dentro). */}
+      <div className="h-[340px] overflow-y-auto">
       {pestana === "resumen" && (
         <div className="grid gap-x-6 gap-y-5 px-5 py-4 sm:grid-cols-3">
           <Columna titulo="El producto">
@@ -206,6 +208,7 @@ export default function DetalleProducto({
           )}
         </div>
       )}
+      </div>
     </Cascaron>
   )
 }
