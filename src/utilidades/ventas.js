@@ -36,6 +36,9 @@ export function ventasDeFacturas(facturas = [], productoId) {
   return out
 }
 
+// ¿Se ha vendido alguna vez este producto? (las ventas de antes y las de los comprobantes vigentes)
+export const tieneVentasDeProducto = (ventas, facturas, productoId) => ventas.some((v) => v.productoId === productoId) || ventasDeFacturas(facturas, productoId).length > 0
+
 export function resumenVentasProducto(ventas, productoId, facturas = []) {
   const delProducto = [...ventas.filter((v) => v.productoId === productoId), ...ventasDeFacturas(facturas, productoId)]
   const pacientesUnicos = new Set(delProducto.map((v) => v.pacienteId))

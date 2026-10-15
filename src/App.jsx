@@ -1,3 +1,4 @@
+import { mapProducto } from './utilidades/mapProducto'
 import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
@@ -67,7 +68,7 @@ const PARAMETRIZACION_SEED = {
 // una lista fija — cada óptica agrega/renombra/elimina según su propio
 // lenguaje clínico.
 const MOTIVOS_SEED = ["Consulta General", "Adaptación de Lentes", "Examen de Control", "Garantía / Ajuste"]
-const CATEGORIAS_INVENTARIO_SEED = ["Armazones", "Accesorios"]
+const CATEGORIAS_INVENTARIO_SEED = ["Montura", "Accesorios"]
 // Categorías fijas de diagnóstico (caso de la reunión con el ing: se pueden
 // marcar varias a la vez en la ficha clínica, así que ya no hacen falta
 // combos como "Miopía y astigmatismo" — se seleccionan ambas por separado).
@@ -164,11 +165,6 @@ function mapPaciente(p) {
     medidasSolicitadasEn: p.medidas_solicitadas_en,
   }
 }
-// Un producto del inventario tal como lo usa la pantalla (se usa al cargar y al refrescar cada 20 s).
-function mapProducto(p) {
-  return { id: p.id, nombre: p.nombre, categoria: p.categoria, stock: p.stock, precio: Number(p.precio), observacion: p.observacion || '', critico: p.critico, imagen_url: p.imagen_url || null, activo: p.activo !== false, creadoEn: p.created_at }
-}
-
 function mapCita(c) {
   const partes = (c.paciente || '').trim().split(' ').filter(Boolean)
   const iniciales = partes.length > 1 ? (partes[0][0] + partes[1][0]).toUpperCase() : (partes[0]?.[0] || 'P').toUpperCase()
