@@ -455,7 +455,7 @@ export default function CRM({ usuario, pacientes = [], consultas = [], parametri
               value={nuevoAviso}
               onChange={(e) => setNuevoAviso(e.target.value)}
               rows={2}
-              placeholder={avisoDestinoId ? "Ej. Tu armazón ya llegó, puedes pasar a retirarlo cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
+              placeholder={avisoDestinoId ? "Ej. Tu montura ya llegó, puedes pasar a retirarla cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
               className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
             />
             {puede(usuario, "crm", "crear") && <button

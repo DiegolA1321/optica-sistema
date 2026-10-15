@@ -68,7 +68,7 @@ function MockHistorial() {
 
 function MockInventario() {
   const items = [
-    { nombre: "Armazón Aviator", pct: 18, estado: "Stock bajo", color: "#DC2626" },
+    { nombre: "Montura Aviator", pct: 18, estado: "Stock bajo", color: "#DC2626" },
     { nombre: "Lentes progresivos", pct: 64, estado: "OK", color: "#0EA5A0" },
   ]
   return (
