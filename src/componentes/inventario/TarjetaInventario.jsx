@@ -16,7 +16,7 @@ export default function TarjetaInventario({ icono: Icono, titulo, valor, sub, ay
           <span className="truncate text-xs font-bold uppercase tracking-wider text-slate-500">{titulo}</span>
           {ayuda && <span className="relative z-10 flex shrink-0"><Ayuda texto={ayuda} nombre={titulo} /></span>}
         </div>
-        <button type="button" onClick={onClick} aria-pressed={activa} aria-label={`${titulo}: ${valor}${sub ? `, ${sub}` : ""}`} className="mt-1 block w-full text-left outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-blue-500 cursor-pointer">
+        <button type="button" onClick={onClick} aria-pressed={activa} aria-label={`${titulo}: ${valor}.${sub ? ` ${sub}` : ""}`} className="mt-1 block w-full text-left outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-blue-500 cursor-pointer">
           <span className="block truncate font-serif text-2xl font-semibold leading-none tabular-nums" style={{ color: INK }}>{valor}</span>
           <span className="mt-1 block truncate text-xs leading-tight text-slate-500">{sub || " "}</span>
         </button>

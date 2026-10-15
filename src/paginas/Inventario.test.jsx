@@ -85,12 +85,16 @@ describe("Inventario: las tarjetas de arriba se comportan igual", () => {
     expect(tarjeta("Stock bajo")).toHaveAccessibleName(/Stock bajo: 1/)
   })
 
-  it("'Stock bajo' filtra la tabla (y se quita con su etiqueta) y 'Productos' la muestra completa", () => {
+  it("'Stock bajo' filtra la tabla (y se quita con otro clic o con Limpiar) y 'Productos' la muestra completa", () => {
     render(<Con inicial={datos} umbralStock={10} />)
     fireEvent.click(tarjeta("Stock bajo"))
     expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
     expect(tarjeta("Stock bajo")).toHaveAttribute("aria-pressed", "true")
-    fireEvent.click(screen.getByRole("button", { name: "Quitar el filtro Stock bajo" }))
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar" }))
+    expect(screen.getByText("Mostrando 3 de 3")).toBeInTheDocument()
+    expect(tarjeta("Stock bajo")).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(tarjeta("Stock bajo"))
+    fireEvent.click(tarjeta("Stock bajo"))
     expect(screen.getByText("Mostrando 3 de 3")).toBeInTheDocument()
     fireEvent.click(tarjeta("Stock bajo"))
     fireEvent.click(tarjeta("Productos"))

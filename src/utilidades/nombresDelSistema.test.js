@@ -21,6 +21,9 @@ describe("nombres del inventario", () => {
   it("ningún texto de pantalla llama 'bodega' al inventario", () => {
     expect(culpables(/\bbodega\b/i)).toEqual([])
   })
+  it("la categoría se llama 'Montura' en todo el sistema (como en Ventas y la orden de laboratorio): nunca 'Armazón' ni 'Armazones'", () => {
+    expect(culpables(/armaz[oó]n|armazones/i)).toEqual([])
+  })
   it("el módulo se titula 'Inventario' y no 'Monturas y accesorios'; el botón es 'Agregar producto' (no 'Añadir' ni 'Ingresar montura')", () => {
     expect(culpables(/>Monturas y accesorios</)).toEqual([])
     expect(culpables(/Añadir producto|Ingresar montura/)).toEqual([])

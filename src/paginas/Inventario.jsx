@@ -16,7 +16,6 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  X,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { valorInventario, CATEGORIA_MONTURA, etiquetaMovimiento } from "../utilidades/inventarioKardex"
@@ -358,7 +357,7 @@ export default function Inventario({
         <TarjetaInventario icono={DollarSign} titulo="Valor del inventario" valor={dinero(resumen.valor.aPrecio)}
           sub={valorConCosto ? `a precio de venta · ${dinero(resumen.valor.aCosto)} a costo` : "a precio de venta"} onClick={() => setResumenAbierto("valor")}
           ayuda={"A precio de venta: existencia × precio de cada producto activo." + (verCosto ? " Con el costo registrado también se muestra a costo (existencia × costo) y la ganancia posible." : "")} />
-        <TarjetaInventario icono={AlertTriangle} titulo="Stock bajo" valor={resumen.bajos} sub={resumen.bajos > 0 ? "Productos por agotarse" : "Nada por agotarse"} alerta={resumen.bajos > 0} activa={soloBajo} onClick={alternarBajo}
+        <TarjetaInventario icono={AlertTriangle} titulo="Stock bajo" valor={resumen.bajos} sub={resumen.bajos > 0 ? "Conviene reabastecerlos" : "Todo con existencia"} alerta={resumen.bajos > 0} activa={soloBajo} onClick={alternarBajo}
           ayuda="Productos activos con existencia igual o menor a su mínimo. Un clic filtra la tabla." />
       </div>
 
@@ -400,11 +399,6 @@ export default function Inventario({
             {descontinuados.length > 0 && (
               <button type="button" onClick={alternarDescontinuados} aria-pressed={verDescontinuados} className={pill(verDescontinuados)} style={estiloPill(verDescontinuados)} title="Conservan su historial; no aparecen para vender">
                 <Archive size={12} aria-hidden="true" /> Descontinuados ({cuentaDescontinuados})
-              </button>
-            )}
-            {soloBajo && (
-              <button type="button" onClick={() => setSoloBajo(false)} className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 cursor-pointer hover:bg-amber-100" aria-label="Quitar el filtro Stock bajo">
-                Stock bajo ({productosFiltrados.length}) <X size={12} aria-hidden="true" />
               </button>
             )}
             {hayFiltro && <button type="button" onClick={limpiarFiltros} className="rounded-full px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Limpiar</button>}

@@ -161,7 +161,7 @@ const MODULOS = [
   {
     icon: BarChart3,
     titulo: "Sabes exactamente qué tienes y qué vendes",
-    texto: "Stock de armazones y lentes con alertas de reabastecimiento, y reportes claros de ingresos y consultas para decidir con datos reales.",
+    texto: "Stock de monturas y accesorios con alertas de reabastecimiento, historial de movimientos y conteo físico, y reportes claros de ingresos y consultas para decidir con datos reales.",
     dark: false,
     mock: MockInventario,
     etiqueta: "inventario · stock",

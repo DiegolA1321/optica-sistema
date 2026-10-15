@@ -39,7 +39,7 @@ const diaHabilEn = (dias) => {
 }
 const confirmarEliminar = (page) => page.getByRole('dialog').last().getByRole('button', { name: 'Sí, eliminar' })
 
-test('Inventario: crear, editar y eliminar un producto (inventario: insert, update y delete)', async ({ page }) => {
+test('Inventario: crear, editar y descontinuar un producto (inventario: insert y update; los productos no se eliminan)', async ({ page }) => {
   const nombre = `${PREFIJO}Montura ${sufijo()}`
   const nombre2 = `${nombre} editada`
   await iniciarSesion(page, 'ADMIN', 'E2E')
@@ -48,15 +48,16 @@ test('Inventario: crear, editar y eliminar un producto (inventario: insert, upda
   await page.getByRole('button', { name: 'Agregar producto' }).click()
   const alta = page.getByRole('dialog')
   await alta.getByPlaceholder('Ej. Montura 1, marco negro, modelo X').fill(nombre)
-  await alta.getByPlaceholder('10').first().fill('5')
+  await alta.getByLabel('Existencia inicial').fill('5')
   await alta.getByPlaceholder('45.00').fill('12.50')
   await conEscritura(page, 'inventario', 'crear producto', () => alta.locator('button[type=submit]').click())
   const fila = page.locator('tr').filter({ hasText: nombre })
   await expect(fila).toHaveCount(1, { timeout: 20_000 })
 
-  await fila.getByRole('button', { name: /^Editar/ }).click()
+  await fila.click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Editar/ }).click()
   const edicion = page.getByRole('dialog').last()
-  await edicion.getByPlaceholder('Ej. Lentes Oakley Holbrook').fill(nombre2)
+  await edicion.getByPlaceholder('Ej. Montura 1, marco negro, modelo X').fill(nombre2)
   await edicion.getByPlaceholder('45.00').fill('15')
   await conEscritura(page, 'inventario', 'editar producto', () => edicion.getByRole('button', { name: 'Guardar cambios' }).click())
 
@@ -66,8 +67,9 @@ test('Inventario: crear, editar y eliminar un producto (inventario: insert, upda
   const fila2 = page.locator('tr').filter({ hasText: nombre2 })
   await expect(fila2).toContainText('15', { timeout: 25_000 })
 
-  await fila2.getByRole('button', { name: 'Eliminar o desactivar producto' }).click()
-  await conEscritura(page, 'inventario', 'eliminar producto', () => page.getByRole('dialog').last().getByRole('button', { name: 'Eliminar', exact: true }).click())
+  await fila2.click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Descontinuar' }).click()
+  await conEscritura(page, 'inventario', 'descontinuar producto', () => page.getByRole('dialog', { name: 'Descontinuar producto' }).getByRole('button', { name: 'Descontinuar', exact: true }).click())
   await expect(page.locator('tr').filter({ hasText: nombre2 })).toHaveCount(0, { timeout: 20_000 })
 })
 

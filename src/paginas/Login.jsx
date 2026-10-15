@@ -141,7 +141,7 @@ const SERVICIOS = [
     ilustracion: IlustracionLentes,
     titulo: "Monturas y lentes",
     texto: "Un catálogo pensado para tu estilo y tu graduación exacta.",
-    features: ["Armazones para cada rostro", "Lentes según tu receta", "Asesoría de estilo personalizada"],
+    features: ["Monturas para cada rostro", "Lentes según tu receta", "Asesoría de estilo personalizada"],
     grad: "linear-gradient(135deg,#A78BFA,#7C3AED)",
     glow: "rgba(124,58,237,0.5)",
   },
