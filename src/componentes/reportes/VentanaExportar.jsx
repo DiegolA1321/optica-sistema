@@ -89,9 +89,9 @@ export default function VentanaExportar({ r, pestana, onCerrar }) {
         <span className="text-xs text-slate-500">Cada archivo lleva la óptica, las fechas, los filtros, el día y quién lo generó.</span>
         <div className="flex items-center gap-2">
           <button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
-          <button type="button" onClick={exportar} disabled={ocupado || total === 0} className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer" style={{ background: GRAD_MARCA }}>
+          <button type="button" onClick={exportar} disabled={ocupado || total === 0 || !!r.kardex?.cargando} className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer" style={{ background: GRAD_MARCA }}>
             {ocupado ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
-            {ocupado ? "Preparando…" : total > 1 ? `Exportar (${total})` : "Exportar"}
+            {ocupado || r.kardex?.cargando ? "Preparando…" : total > 1 ? `Exportar (${total})` : "Exportar"}
           </button>
         </div>
       </>}

@@ -34,3 +34,37 @@ export function useMovimientos(productoId, version = 0) {
   const recargar = useCallback(() => setIntento((n) => n + 1), [])
   return { ...estado, recargar }
 }
+
+const PAGINA = 1000
+const MAXIMO = 20000
+
+// Todos los movimientos de la óptica (los más recientes primero), para la pestaña Inventario de Reportes y sus exportaciones. Se piden por páginas
+// de 1000 solo cuando `activo` se vuelve verdadero (una sola vez); si hay más de 20 000, avisa que faltan los más antiguos.
+export function useTodosLosMovimientos(activo) {
+  const [estado, setEstado] = useState({ movimientos: [], cargando: false, error: "", truncado: false, listo: false })
+  const [intento, setIntento] = useState(0)
+  useEffect(() => {
+    if (!activo || !supabase) return
+    let vivo = true
+    setEstado((e) => ({ ...e, cargando: true, error: "" }))
+    ;(async () => {
+      const todos = []
+      let truncado = false
+      for (let desde = 0; ; desde += PAGINA) {
+        const { data, error } = await supabase.from("movimientos_inventario").select(COLUMNAS_MOVIMIENTO)
+          .order("created_at", { ascending: false }).order("seq", { ascending: false }).range(desde, desde + PAGINA - 1)
+        if (!vivo) return
+        if (error) { setEstado({ movimientos: [], cargando: false, error: "No se pudieron cargar los movimientos del inventario. Revisa tu conexión e intenta de nuevo.", truncado: false, listo: false }); return }
+        todos.push(...(data || []).map(mapMovimiento))
+        if ((data || []).length < PAGINA) break
+        if (todos.length >= MAXIMO) { truncado = true; break }
+      }
+      if (vivo) setEstado({ movimientos: todos, cargando: false, error: "", truncado, listo: true })
+    })()
+    return () => { vivo = false }
+  }, [activo, intento])
+  const recargar = useCallback(() => setIntento((n) => n + 1), [])
+  // Entre que se pide y llega el primer resultado ya se cuenta como cargando (sin un parpadeo con datos vacíos).
+  const cargando = estado.cargando || (activo && !!supabase && !estado.listo && !estado.error)
+  return { ...estado, cargando, recargar }
+}

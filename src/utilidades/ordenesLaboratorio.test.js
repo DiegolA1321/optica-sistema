@@ -90,6 +90,15 @@ describe("ordenesLaboratorio", () => {
   })
 })
 
+describe("medidas de la montura (Inventario v2)", () => {
+  it("la orden trae escritas las medidas de la montura vendida (calibre-puente-varilla)", () => {
+    expect(datosInicialesOrden(null, { montura: "Montura 1", monturaMedidas: "52-18-140" })).toMatchObject({ montura: "Montura 1", monturaMedidas: "52-18-140" })
+  })
+  it("sin medidas en el inventario queda vacío y se escribe a mano, como siempre", () => {
+    expect(datosInicialesOrden(null, { montura: "Montura 1" }).monturaMedidas).toBe("")
+  })
+})
+
 describe("luna de la venta (Bloque E)", () => {
   it("la luna de la venta precarga tipo, material y tratamientos de la orden", () => {
     const d = datosInicialesOrden({ lenteRecomendado: "Progresivo" }, { montura: "M1", luna: { tipoLente: "bifocal", material: "CR-39", filtroAzul: true, otrosTratamientos: undefined } })

@@ -10,6 +10,8 @@ export function crearDestinos(r) {
     // Los comprobantes de Ventas: estado (vigentes | saldo | pagadas), período y, si se pide, solo los sin factura electrónica.
     ventas: (extra = {}, r2 = rango) => ({ modulo: "ventas", etiqueta: `Abrir en Ventas${sinFiltros}`, params: { tab: "comprobantes", estado: "todos", desde: r2.inicio, hasta: r2.fin, ...extra } }),
     ordenes: (filtro) => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "ordenes", filtro } }),
+    // Inventario no tiene filtros que reproduzcan estas listas: abre la lista completa y el texto lo dice (regla 42).
+    inventario: () => ({ modulo: "inventario", etiqueta: "Abrir Inventario (lista completa)", params: {} }),
     cola: () => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "porvender" } }),
     // Pacientes registrados en el período (su fecha de registro).
     pacientesNuevos: (r2 = rango) => ({ modulo: "pacientes", etiqueta: `Abrir en Pacientes${sinFiltros}`, params: { accion: "filtrar", desde: r2.inicio, hasta: r2.fin } }),

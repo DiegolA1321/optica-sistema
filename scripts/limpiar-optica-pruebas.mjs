@@ -19,7 +19,7 @@ const CONSERVAR = new Set(["perfiles", "roles", "perfil_roles", "auditoria", "di
 // Días que las pruebas de e2e/abrir-dia-cerrado.spec.js abren o cierran (domingo 20 y lunes 21 de diciembre de 2026).
 const DIAS_DE_PRUEBA = ["2026-12-20", "2026-12-21"]
 // Orden seguro respecto a llaves foráneas (lo que cuelga primero); lo demás se barre después.
-const ORDEN = ["ordenes_laboratorio", "pases_a_venta", "facturas_venta", "ventas", "consultas_base", "citas_base", "pacientes_base"]
+const ORDEN = ["movimientos_inventario", "ordenes_laboratorio", "pases_a_venta", "facturas_venta", "ventas", "consultas_base", "citas_base", "pacientes_base"]
 
 const c = new pg.Client()
 await c.connect()
@@ -38,6 +38,9 @@ try {
   if (!o || o.nombre !== NOMBRE) throw new Error(`El id no corresponde a "${NOMBRE}": se aborta.`)
   const { tablas, m: antes } = await conteos()
   await c.query("begin")
+  // El kárdex (migración 0111) no se puede borrar ni editar: para limpiar la óptica de PRUEBAS se desactiva su protección solo dentro de esta transacción.
+  const hayKardex = tablas.includes("movimientos_inventario")
+  if (hayKardex) await c.query("alter table public.movimientos_inventario disable trigger movimientos_inventario_inmutables")
 
   const borrados = {}
   const borrar = async (t) => { const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) borrados[t] = r.rowCount }
@@ -70,6 +73,7 @@ try {
     const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) contadores.push(`${t} reiniciado`)
   }
 
+  if (hayKardex) await c.query("alter table public.movimientos_inventario enable trigger movimientos_inventario_inmutables")
   const { m: despues } = await conteos()
   let ok = true
   for (const k of new Set([...Object.keys(antes), ...Object.keys(despues)])) {

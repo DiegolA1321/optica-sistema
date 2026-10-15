@@ -141,17 +141,28 @@ export function modeloCampana({ pacientes, historial, pases, facturas, incluirNo
 }
 
 // 5. Inventario actual: para el conteo físico.
-export function modeloInventario({ inventario }) {
+export function modeloInventario({ inventario, conCosto = false }) {
   const activos = inventario.filter((p) => p.activo !== false)
     .sort((a, b) => (a.categoria || "").localeCompare(b.categoria || "") || a.nombre.localeCompare(b.nombre))
+  const hayCosto = conCosto && activos.some((p) => p.costo !== null && p.costo !== undefined && p.costo !== "")
+  const costo = (p) => (p.costo === null || p.costo === undefined || p.costo === "" ? null : Number(p.costo))
   return {
     archivo: `inventario-actual`, hoja: "Inventario", titulo: "Inventario actual",
-    nota: "Productos activos con su existencia de hoy, para el conteo físico.",
+    nota: "Productos activos con su existencia de hoy. La columna «Contado» va en blanco para anotar el conteo físico.",
     columnas: [
-      { titulo: "Producto", tipo: "texto" }, { titulo: "Categoría", tipo: "texto" }, { titulo: "Existencia", tipo: "entero", suma: true },
-      { titulo: "Precio", tipo: "dinero" }, { titulo: "Valor", tipo: "dinero", suma: true },
+      { titulo: "Producto", tipo: "texto" }, { titulo: "Categoría", tipo: "texto" }, { titulo: "Código", tipo: "texto" }, { titulo: "Existencia", tipo: "entero", suma: true },
+      { titulo: "Precio", tipo: "dinero" }, { titulo: "Valor a precio", tipo: "dinero", suma: true },
+      ...(hayCosto ? [{ titulo: "Costo", tipo: "dinero" }, { titulo: "Valor a costo", tipo: "dinero", suma: true }] : []),
+      { titulo: "Contado", tipo: "texto" },
     ],
-    filas: activos.map((p) => ({ celdas: [p.nombre, p.categoria || "", Number(p.stock) || 0, Number(p.precio) || 0, redondear((Number(p.stock) || 0) * (Number(p.precio) || 0))] })),
+    filas: activos.map((p) => {
+      const existencia = Number(p.stock) || 0
+      return { celdas: [
+        p.nombre, p.categoria || "", p.codigo || "", existencia, Number(p.precio) || 0, redondear(existencia * (Number(p.precio) || 0)),
+        ...(hayCosto ? [costo(p), costo(p) === null ? null : redondear(existencia * costo(p))] : []),
+        "",
+      ] }
+    }),
     bloques: [], personal: false, sinPeriodo: true, sinFiltros: true, cuenta: "productos",
   }
 }

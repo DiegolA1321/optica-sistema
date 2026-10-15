@@ -66,7 +66,7 @@ export function variacion(actual, previo, { buenoSiSube = true, puntos = false, 
   const sube = actual > previo
   const tono = sube === buenoSiSube ? "bueno" : "malo"
   const flecha = sube ? "↑" : "↓"
-  if (puntos) return { texto: `${Math.abs(actual - previo)} pts`, tono, flecha }
+  if (puntos) return { texto: `${Math.round(Math.abs(actual - previo) * 10) / 10} pts`, tono, flecha }
   if (previo < baseMinima) return { texto: `antes ${formato(previo)}`, tono, flecha }
   return { texto: `${Math.abs(Math.round(((actual - previo) / previo) * 100))}%`, tono, flecha }
 }

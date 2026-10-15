@@ -22,10 +22,10 @@ const ctx = { opticaNombre: "Óptica", usuarioNombre: "Diego", rango, filtrosTex
 const item = (r, id, opciones) => catalogoExportaciones(r, rango, opciones).find((x) => x.id === id)
 
 describe("Qué se puede exportar, por módulo", () => {
-  it("el administrador ve los cinco módulos, cada uno con su PDF", () => {
+  it("el administrador ve los seis módulos, cada uno con su PDF, y el Inventario va al final", () => {
     const c = catalogoExportaciones(base, rango)
-    expect([...new Set(c.map((x) => x.modulo))]).toEqual(["resumen", "citas", "clinico", "ventas", "laboratorios"])
-    expect(c.filter((x) => x.pdf).map((x) => x.modulo)).toEqual(["resumen", "citas", "clinico", "ventas", "laboratorios"])
+    expect([...new Set(c.map((x) => x.modulo))]).toEqual(["resumen", "citas", "clinico", "ventas", "laboratorios", "inventario"])
+    expect(c.filter((x) => x.pdf).map((x) => x.modulo)).toEqual(["resumen", "citas", "clinico", "ventas", "laboratorios", "inventario"])
   })
   it("quien no ve montos no ve los reportes de ventas ni de laboratorios, pero sí los de citas y clínico", () => {
     const c = catalogoExportaciones({ ...base, ocultarMontos: true, propio: true }, rango)
@@ -38,6 +38,52 @@ describe("Qué se puede exportar, por módulo", () => {
   it("los que son de hoy lo dicen y no siguen las fechas", () => {
     const c = catalogoExportaciones(base, rango)
     expect(c.filter((x) => x.aHoy).map((x) => x.id).sort()).toEqual(["campana", "inventario", "ordenes"])
+  })
+})
+
+describe("Exportaciones de Inventario", () => {
+  const inventario = [
+    { id: "a", nombre: "Montura A", categoria: "Montura", stock: 8, precio: 100, costo: 40, creadoEn: "2026-01-05T15:00:00Z", activo: true },
+    { id: "b", nombre: "Estuche", categoria: "Accesorios", stock: 20, precio: 5, creadoEn: "2026-01-05T15:00:00Z", activo: true },
+  ]
+  const movimientos = [
+    { id: "m0", productoId: "a", tipo: "saldo_inicial", cantidad: 10, stockResultante: 10, motivo: "Saldo inicial", creadoEn: "2026-01-05T15:00:00Z", usuarioNombre: "" },
+    { id: "m1", productoId: "a", tipo: "venta", cantidad: -2, stockResultante: 8, motivo: "Venta", creadoEn: "2026-09-20T15:00:00Z", seq: 1, usuarioNombre: "Vera" },
+    { id: "m2", productoId: "a", tipo: "ingreso_compra", cantidad: 5, stockResultante: 13, motivo: "Factura 123", creadoEn: "2026-08-01T15:00:00Z", seq: 2, usuarioNombre: "Ana" },
+  ]
+  const facturas = [{ id: "f1", numero: 7, estado: "pagada", creadoEn: "2026-09-20T15:00:00Z", pacienteId: "p1", montoTotal: 200, lineas: [{ tipo: "producto", productoId: "a", descripcion: "Montura A", cantidad: 2, precioUnitario: 100 }] }]
+  const conInv = { ...base, inventario, movimientos, datos: { ...datos, facturas }, f: filtrarDatos({ ...datos, facturas }, FILTROS_VACIOS) }
+  it("Inventario trae sus reportes, cada uno para un propósito, y el 'Inventario actual' ya no está en Ventas", () => {
+    const c = catalogoExportaciones(conInv, rango).filter((x) => x.modulo === "inventario")
+    expect(c.map((x) => x.id)).toEqual(["inventario", "inventario-movimientos", "inventario-ventas", "inventario-sinventa", "pdf-inventario"])
+    expect(catalogoExportaciones(conInv, rango).filter((x) => x.modulo === "ventas").some((x) => x.id === "inventario")).toBe(false)
+  })
+  it("los movimientos del período salen con producto, tipo, cantidad, lo que quedó, motivo y quién, sin el saldo inicial y solo del rango", () => {
+    const m = item(conInv, "inventario-movimientos").modelo()
+    expect(m.columnas.map((c) => c.titulo)).toEqual(["Fecha", "Producto", "Categoría", "Movimiento", "Cantidad", "Quedó", "Motivo", "Quién"])
+    expect(m.filas.map((f) => f.celdas.slice(1))).toEqual([["Montura A", "Montura", "Venta", -2, 8, "Venta", "Vera"]]) // el ingreso de agosto queda fuera del rango
+    const ancho = catalogoExportaciones(conInv, { inicio: "2026-08-01", fin: "2026-10-12" }).find((x) => x.id === "inventario-movimientos").modelo()
+    expect(ancho.filas.map((f) => f.celdas.slice(1))).toEqual([
+      ["Montura A", "Montura", "Ingreso por compra", 5, 13, "Factura 123", "Ana"],
+      ["Montura A", "Montura", "Venta", -2, 8, "Venta", "Vera"],
+    ])
+  })
+  it("ventas y margen por producto traen unidades, ingreso, costo y ganancia, y solo se ofrecen a quien puede ver el costo", () => {
+    const m = item(conInv, "inventario-ventas").modelo()
+    expect(m.filas.map((f) => f.celdas)).toEqual([["Montura A", "Montura", 2, 200, 80, 120, 8]])
+    const soloVer = catalogoExportaciones({ ...conInv, usuario: { rol: "asistente", permisosNivel: { inventario: ["ver"], reportes: ["ver"] } } }, rango)
+    expect(soloVer.some((x) => x.id === "inventario-ventas")).toBe(false)
+    expect(soloVer.some((x) => x.id === "inventario-movimientos")).toBe(true)
+  })
+  it("las monturas sin venderse se miran al último día de las fechas elegidas", () => {
+    const m = item(conInv, "inventario-sinventa").modelo()
+    expect(m.filas).toHaveLength(0) // se vendió el 20 de septiembre: hace menos de 90 días
+    const tarde = catalogoExportaciones(conInv, { inventario: "x", inicio: "2026-12-01", fin: "2026-12-31" }).find((x) => x.id === "inventario-sinventa").modelo()
+    expect(tarde.filas.map((f) => f.celdas[0])).toEqual(["Montura A"])
+  })
+  it("quien no puede ver el inventario no ve el módulo", () => {
+    const c = catalogoExportaciones({ ...conInv, usuario: { rol: "asistente", permisosNivel: { reportes: ["ver"] } } }, rango)
+    expect(c.some((x) => x.modulo === "inventario")).toBe(false)
   })
 })
 

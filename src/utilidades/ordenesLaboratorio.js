@@ -63,7 +63,7 @@ export function laboratoriosUsados(ordenes) {
 
 // Datos con los que arranca la orden: lo que existe en la consulta; la vendedora completa el resto.
 // La ficha guarda un solo DP, que se precarga como DP de lejos.
-export function datosInicialesOrden(consulta, { montura = "", luna = null } = {}) {
+export function datosInicialesOrden(consulta, { montura = "", luna = null, monturaMedidas = "" } = {}) {
   const vacio = { esfera: "", cilindro: "", eje: "", adicion: "" }
   const ojo = (o) => ({ ...vacio, esfera: o?.esfera || "", cilindro: o?.cilindro || "", eje: o?.eje || "" })
   const m = consulta?.medidas || {}
@@ -85,7 +85,8 @@ export function datosInicialesOrden(consulta, { montura = "", luna = null } = {}
     fotocromatico: false,
     otrosTratamientos: "",
     montura,
-    monturaMedidas: "",
+    // Las medidas (calibre-puente-varilla) salen de la montura que se vendió, si el inventario las tiene.
+    monturaMedidas,
     laboratorio: "",
     fechaPrometida: "",
     // Las observaciones son para lo que el laboratorio debe saber además de los datos de la orden. Ya no se
