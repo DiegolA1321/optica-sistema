@@ -112,6 +112,8 @@ try {
   ok(/permission denied/.test(x.e || ""), "…ni la borra: " + x.e)
   await c.query("savepoint s")
   try { await c.query("update conteos_inventario set unidades_faltantes = 0"); ok(false, "ni con el servicio") } catch (e) { ok(/no se pueden modificar/.test(e.message), "ni con acceso directo a la base"); await c.query("rollback to savepoint s") }
+  await c.query("savepoint s2")
+  try { await c.query("delete from conteos_inventario"); ok(false, "ni borrarla con el servicio") } catch (e) { ok(/no se pueden borrar/.test(e.message), "…ni borrarla con acceso directo a la base: " + e.message); await c.query("rollback to savepoint s2") }
   x = await anonimo(() => c.query("select registrar_conteo_inventario('[]'::jsonb)"))
   ok(/permission denied/.test(x.e || ""), "sin sesión no se cuenta: " + x.e)
 } catch (e) {

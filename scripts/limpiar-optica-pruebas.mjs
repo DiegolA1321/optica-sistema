@@ -40,7 +40,9 @@ try {
   await c.query("begin")
   // El kárdex (migración 0111) no se puede borrar ni editar: para limpiar la óptica de PRUEBAS se desactiva su protección solo dentro de esta transacción.
   const hayKardex = tablas.includes("movimientos_inventario")
+  const hayActas = tablas.includes("conteos_inventario")
   if (hayKardex) await c.query("alter table public.movimientos_inventario disable trigger movimientos_inventario_inmutables")
+  if (hayActas) await c.query("alter table public.conteos_inventario disable trigger conteos_inventario_inmutables")
 
   const borrados = {}
   const borrar = async (t) => { const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) borrados[t] = r.rowCount }
@@ -74,6 +76,7 @@ try {
   }
 
   if (hayKardex) await c.query("alter table public.movimientos_inventario enable trigger movimientos_inventario_inmutables")
+  if (hayActas) await c.query("alter table public.conteos_inventario enable trigger conteos_inventario_inmutables")
   const { m: despues } = await conteos()
   let ok = true
   for (const k of new Set([...Object.keys(antes), ...Object.keys(despues)])) {

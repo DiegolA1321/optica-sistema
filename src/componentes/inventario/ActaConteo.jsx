@@ -14,13 +14,13 @@ const TONO = (n) => (n > 0 ? "text-emerald-700" : n < 0 ? "text-red-600" : "text
 
 // El acta de un conteo físico ya registrado: fecha, quién contó, los productos con diferencia y lo que valen en dinero.
 // «Imprimir o guardar PDF» abre la impresión del navegador (ahí se elige «Guardar como PDF»).
-export default function ActaConteo({ acta, opticaNombre, titulo = "Acta del conteo", onCerrar }) {
+export default function ActaConteo({ acta, opticaNombre, titulo = "Acta del conteo", sinAnimarFondo = false, onCerrar }) {
   const conCosto = acta.valorCosto != null
   const imprimir = () => imprimirHtml(htmlActaConteo({ opticaNombre, acta }))
   const caja = "rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center"
   return (
     <Cascaron
-      titulo={titulo} subtitulo={`${fechaHoraLegible(acta.creadoEn, { anio: true })} · contó ${acta.usuarioNombre || "—"}`} Icono={ClipboardList} ancho="max-w-3xl" onCerrar={onCerrar}
+      titulo={titulo} subtitulo={`${fechaHoraLegible(acta.creadoEn, { anio: true })} · contó ${acta.usuarioNombre || "—"}`} Icono={ClipboardList} ancho="max-w-3xl" sinAnimarFondo={sinAnimarFondo} onCerrar={onCerrar}
       pie={<>
         <span className="text-xs text-slate-500">Las diferencias quedaron como ajustes por conteo en el historial de cada producto.</span>
         <div className="flex items-center gap-2">

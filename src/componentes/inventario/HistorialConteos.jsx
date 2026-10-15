@@ -11,7 +11,7 @@ import { mapActa } from "../../utilidades/conteoImpresion"
 const dineroConSigno = (n) => (n < 0 ? `−${dinero(Math.abs(n))}` : dinero(n))
 
 // Los conteos físicos ya registrados, del más reciente al más antiguo. Cada uno abre su acta.
-export default function HistorialConteos({ onAbrirActa, onCerrar }) {
+export default function HistorialConteos({ onAbrirActa, onCerrar, sinAnimarFondo = false }) {
   const [estado, setEstado] = useState({ actas: [], cargando: !!supabase, error: "" })
   const [intento, setIntento] = useState(0)
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function HistorialConteos({ onAbrirActa, onCerrar }) {
 
   return (
     <Cascaron
-      titulo="Historial de conteos" subtitulo="Cada conteo confirmado, con su acta" Icono={History} ancho="max-w-3xl" onCerrar={onCerrar}
+      titulo="Historial de conteos" subtitulo="Cada conteo confirmado, con su acta" Icono={History} ancho="max-w-3xl" sinAnimarFondo={sinAnimarFondo} onCerrar={onCerrar}
       pie={<><span className="text-xs text-slate-500">Se muestran los 100 más recientes.</span><button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button></>}
     >
       <div className="px-5 py-4">

@@ -582,8 +582,8 @@ export default function Inventario({
       )}
 
       {conteo && <ConteoFisico productos={activos} categorias={CATEGORIAS} verCosto={verCosto} onConfirmar={confirmarConteo} onHoja={imprimirHojaConteo} onHistorial={() => { setConteo(false); setHistorialConteos(true) }} onCerrar={() => setConteo(false)} />}
-      {historialConteos && !acta && <HistorialConteos onAbrirActa={setActa} onCerrar={() => setHistorialConteos(false)} />}
-      {acta && <ActaConteo acta={acta} opticaNombre={usuario?.opticaNombre || ""} titulo={acta.id === "local" || !historialConteos ? "Conteo registrado" : "Acta del conteo"} onCerrar={() => setActa(null)} />}
+      {historialConteos && !acta && <HistorialConteos sinAnimarFondo onAbrirActa={setActa} onCerrar={() => setHistorialConteos(false)} />}
+      {acta && <ActaConteo sinAnimarFondo acta={acta} opticaNombre={usuario?.opticaNombre || ""} titulo={acta.id === "local" || !historialConteos ? "Conteo registrado" : "Acta del conteo"} onCerrar={() => setActa(null)} />}
 
       {resumenAbierto && (
         <VentanaResumen modo={resumenAbierto} productos={activos} descontinuados={descontinuados} categorias={CATEGORIAS} sinVender={sinVender} verCosto={verCosto}
