@@ -180,7 +180,7 @@ export async function prepararAvisosInicio(entorno = 'E2E') {
 
   const NOMBRE_PRODUCTO = 'E Dos E Montura agotada'
   const { data: producto } = await cliente.from('inventario').select('id').eq('optica_id', optica).eq('nombre', NOMBRE_PRODUCTO).maybeSingle()
-  if (!producto) falla('producto con stock bajo', (await cliente.from('inventario').insert({ optica_id: optica, nombre: NOMBRE_PRODUCTO, categoria: 'Montura', stock: 0, precio: 10, observacion: '' })).error)
+  if (!producto) falla('producto con stock bajo', (await cliente.from('inventario').insert({ optica_id: optica, nombre: NOMBRE_PRODUCTO, categoria: 'Monturas', stock: 0, precio: 10, observacion: '' })).error)
 
   const pacienteDe = async (nombre, extra = {}) => {
     const { data: existente } = await cliente.from('pacientes').select('id').eq('optica_id', optica).eq('nombre', nombre).maybeSingle()

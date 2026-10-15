@@ -5,11 +5,11 @@ import { metricasInventario, movimientosDelRango } from "./reportesInventario"
 // Montura A: costo 40, precio 100. Montura B: costo 20, precio 50. Accesorio C: costo 2, precio 5. Montura D: sin costo.
 // Septiembre (período anterior): se vende 1 de A. Octubre (período): se vende 2 de A y 1 de B; entran 10 de A el 3 oct.
 const productos = [
-  { id: "A", nombre: "Montura A", categoria: "Montura", stock: 12, precio: 100, costo: 40, creadoEn: "2026-01-05T15:00:00Z", activo: true },
-  { id: "B", nombre: "Montura B", categoria: "Montura", stock: 4, precio: 50, costo: 20, creadoEn: "2026-01-05T15:00:00Z", activo: true },
+  { id: "A", nombre: "Montura A", categoria: "Monturas", stock: 12, precio: 100, costo: 40, creadoEn: "2026-01-05T15:00:00Z", activo: true },
+  { id: "B", nombre: "Montura B", categoria: "Monturas", stock: 4, precio: 50, costo: 20, creadoEn: "2026-01-05T15:00:00Z", activo: true },
   { id: "C", nombre: "Estuche", categoria: "Accesorios", stock: 30, precio: 5, costo: 2, creadoEn: "2026-01-05T15:00:00Z", activo: true },
-  { id: "D", nombre: "Montura D", categoria: "Montura", stock: 6, precio: 80, creadoEn: "2026-01-05T15:00:00Z", activo: true },
-  { id: "E", nombre: "Vieja", categoria: "Montura", stock: 9, precio: 10, costo: 1, creadoEn: "2026-01-05T15:00:00Z", activo: false },
+  { id: "D", nombre: "Montura D", categoria: "Monturas", stock: 6, precio: 80, creadoEn: "2026-01-05T15:00:00Z", activo: true },
+  { id: "E", nombre: "Vieja", categoria: "Monturas", stock: 9, precio: 10, costo: 1, creadoEn: "2026-01-05T15:00:00Z", activo: false },
 ]
 const mov = (id, productoId, cantidad, creadoEn, tipo = "venta", seq = 1) => ({ id, productoId, cantidad, creadoEn, tipo, seq, stockResultante: 0, motivo: "", usuarioNombre: "" })
 const movimientos = [
@@ -89,7 +89,7 @@ describe("Reportes › Inventario: el kárdex", () => {
   it("los movimientos del rango salen del más antiguo al más reciente, con el nombre del producto", () => {
     const lista = movimientosDelRango(movimientos, productos, rango)
     expect(lista.map((x) => x.id)).toEqual(["m2", "m3", "m4"])
-    expect(lista[0]).toMatchObject({ producto: "Montura A", etiqueta: "Ingreso por compra", categoria: "Montura" })
+    expect(lista[0]).toMatchObject({ producto: "Montura A", etiqueta: "Ingreso por compra", categoria: "Monturas" })
   })
   it("sin productos o sin ventas no divide entre cero ni falla", () => {
     const vacio = metricasInventario({ productos: [], facturas: [], movimientos: [], rango, previo })

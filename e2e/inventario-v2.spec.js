@@ -201,7 +201,7 @@ test.describe('Inventario v2: la forma de la pantalla (Demo, solo lectura)', () 
     await expect(page.locator('main .animate-pulse')).toHaveCount(0, { timeout: 20_000 })
   })
 
-  test('un solo nombre: "Montura", y nunca "Armazones"', async ({ page }) => {
+  test('un solo nombre: "Monturas", y nunca "Armazones"', async ({ page }) => {
     const texto = await page.locator('main').innerText()
     expect(texto).toMatch(/Montura/)
     expect(texto).not.toMatch(/armaz/i)

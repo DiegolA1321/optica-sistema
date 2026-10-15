@@ -68,7 +68,7 @@ const PARAMETRIZACION_SEED = {
 // una lista fija — cada óptica agrega/renombra/elimina según su propio
 // lenguaje clínico.
 const MOTIVOS_SEED = ["Consulta General", "Adaptación de Lentes", "Examen de Control", "Garantía / Ajuste"]
-const CATEGORIAS_INVENTARIO_SEED = ["Montura", "Accesorios"]
+const CATEGORIAS_INVENTARIO_SEED = ["Monturas", "Accesorios"]
 // Categorías fijas de diagnóstico (caso de la reunión con el ing: se pueden
 // marcar varias a la vez en la ficha clínica, así que ya no hacen falta
 // combos como "Miopía y astigmatismo" — se seleccionan ambas por separado).

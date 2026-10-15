@@ -9,12 +9,12 @@ import Inventario from "./Inventario"
 const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1" }
 const soloVer = { id: "u2", rol: "asistente", nombre: "Vera", opticaId: "o1", permisosNivel: { inventario: ["ver"] } }
 const ahora = new Date().toISOString()
-const producto = (id, nombre, stock, extra = {}) => ({ id, nombre, categoria: "Montura", stock, precio: 10, creadoEn: ahora, activo: true, ...extra })
+const producto = (id, nombre, stock, extra = {}) => ({ id, nombre, categoria: "Monturas", stock, precio: 10, creadoEn: ahora, activo: true, ...extra })
 
 // La pantalla con su estado, como la monta el sistema.
 function Con({ inicial, usuario = admin, ...props }) {
   const [inv, setInv] = useState(inicial)
-  return <Inventario usuario={usuario} inventario={inv} setInventario={setInv} categorias={["Montura", "Accesorios"]} {...props} />
+  return <Inventario usuario={usuario} inventario={inv} setInventario={setInv} categorias={["Monturas", "Accesorios"]} {...props} />
 }
 const filaDe = (nombre) => screen.getByRole("button", { name: `Ver el detalle de ${nombre}` })
 
@@ -27,7 +27,7 @@ describe("Inventario", () => {
     expect(document.body.textContent).not.toMatch(/bodega/i)
   })
 
-  it("usa un solo nombre, 'Montura', y nunca 'Armazón'", () => {
+  it("usa un solo nombre, 'Monturas', y nunca 'Armazón'", () => {
     render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
     expect(document.body.textContent).toMatch(/Montura/)
     expect(document.body.textContent).not.toMatch(/armaz[oó]n|armazones/i)
@@ -45,10 +45,10 @@ describe("Inventario", () => {
     render(<Con inicial={[producto("a", "Montura 1", 5), producto("b", "Montura 2", 8), producto("c", "Estuche", 20, { categoria: "Accesorios" })]} />)
     const filtros = screen.getByRole("group", { name: "Filtros" })
     expect(within(filtros).getByRole("button", { name: "Todas (3)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Montura (2)" })).toBeInTheDocument()
+    expect(within(filtros).getByRole("button", { name: "Monturas (2)" })).toBeInTheDocument()
     expect(within(filtros).getByRole("button", { name: "Accesorios (1)" })).toBeInTheDocument()
     expect(within(filtros).getByRole("button", { name: "Nuevos este mes (3)" })).toBeInTheDocument()
-    fireEvent.click(within(filtros).getByRole("button", { name: "Montura (2)" }))
+    fireEvent.click(within(filtros).getByRole("button", { name: "Monturas (2)" }))
     expect(screen.getByText("Mostrando 2 de 2")).toBeInTheDocument()
     fireEvent.click(within(filtros).getByRole("button", { name: "Accesorios (1)" }))
     expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
@@ -59,7 +59,7 @@ describe("Inventario", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar producto" }), { target: { value: "rojo" } })
     const filtros = screen.getByRole("group", { name: "Filtros" })
     expect(within(filtros).getByRole("button", { name: "Todas (1)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Montura (0)" })).toBeInTheDocument()
+    expect(within(filtros).getByRole("button", { name: "Monturas (0)" })).toBeInTheDocument()
     expect(within(filtros).getByRole("button", { name: "Accesorios (1)" })).toBeInTheDocument()
   })
 
@@ -105,7 +105,7 @@ describe("Inventario: las tarjetas de arriba se comportan igual", () => {
     render(<Con inicial={datos} umbralStock={10} />)
     fireEvent.click(tarjeta("Unidades en stock"))
     let ventana = screen.getByRole("dialog", { name: "Unidades en stock" })
-    expect(within(ventana).getByText("Montura")).toBeInTheDocument()
+    expect(within(ventana).getByText("Monturas")).toBeInTheDocument()
     expect(within(ventana).getByText("55")).toBeInTheDocument() // 5 + 50
     fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()

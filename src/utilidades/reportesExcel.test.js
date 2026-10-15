@@ -134,14 +134,14 @@ describe("Excel: pacientes para campaña", () => {
 
 describe("Excel: inventario y órdenes pendientes", () => {
   it("el inventario trae producto, categoría, código, existencia, precio y valor, con totales y una columna 'Contado' en blanco, y deja fuera lo inactivo", () => {
-    const m = modeloInventario({ inventario: [{ nombre: "Montura B", categoria: "Montura", stock: 3, precio: 40 }, { nombre: "Montura A", categoria: "Montura", codigo: "A-1", stock: 2, precio: 25.5 }, { nombre: "Viejo", categoria: "Otros", stock: 9, precio: 1, activo: false }] })
+    const m = modeloInventario({ inventario: [{ nombre: "Montura B", categoria: "Monturas", stock: 3, precio: 40 }, { nombre: "Montura A", categoria: "Monturas", codigo: "A-1", stock: 2, precio: 25.5 }, { nombre: "Viejo", categoria: "Otros", stock: 9, precio: 1, activo: false }] })
     expect(m.columnas.map((c) => c.titulo)).toEqual(["Producto", "Categoría", "Código", "Existencia", "Precio", "Valor a precio", "Contado"])
-    expect(m.filas.map((f) => f.celdas)).toEqual([["Montura A", "Montura", "A-1", 2, 25.5, 51, ""], ["Montura B", "Montura", "", 3, 40, 120, ""]])
+    expect(m.filas.map((f) => f.celdas)).toEqual([["Montura A", "Monturas", "A-1", 2, 25.5, 51, ""], ["Montura B", "Monturas", "", 3, 40, 120, ""]])
     const total = modeloAHoja(m, ctx).data.find((f) => f[0]?.value?.startsWith?.("Total ("))
     expect([total[3].value, total[5].value]).toEqual([5, 171])
   })
   it("con permiso para ver el costo y algún costo registrado, trae el costo y el valor a costo; sin costo no agrega columnas", () => {
-    const inventario = [{ nombre: "A", categoria: "Montura", stock: 2, precio: 25, costo: 10 }, { nombre: "B", categoria: "Montura", stock: 3, precio: 40 }]
+    const inventario = [{ nombre: "A", categoria: "Monturas", stock: 2, precio: 25, costo: 10 }, { nombre: "B", categoria: "Monturas", stock: 3, precio: 40 }]
     const m = modeloInventario({ inventario, conCosto: true })
     expect(m.columnas.map((c) => c.titulo)).toEqual(["Producto", "Categoría", "Código", "Existencia", "Precio", "Valor a precio", "Costo", "Valor a costo", "Contado"])
     expect(m.filas.map((f) => f.celdas.slice(6, 8))).toEqual([[10, 20], [null, null]])

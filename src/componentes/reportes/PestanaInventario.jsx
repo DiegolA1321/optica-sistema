@@ -25,7 +25,7 @@ const COL_EXISTENCIA = [
   { titulo: "Valor a costo", ancho: 124, derecha: true, valor: (f) => dinero(f.valor), tipo: "dinero", crudo: (f) => f.valor },
 ]
 const COL_SIN_VENDER = [
-  { titulo: "Montura", valor: (f) => f.producto.nombre },
+  { titulo: "Monturas", valor: (f) => f.producto.nombre },
   { titulo: "Existencia", ancho: 104, derecha: true, valor: (f) => f.existencia, tipo: "entero", crudo: (f) => f.existencia },
   { titulo: "Última venta", ancho: 132, valor: (f) => (f.ultimaVenta ? fechaLegible(f.ultimaVenta) : "Nunca"), tipo: "fecha", crudo: (f) => f.ultimaVenta || "" },
   { titulo: "Valor a precio", ancho: 124, derecha: true, valor: (f) => dinero(f.valor), tipo: "dinero", crudo: (f) => f.valor },

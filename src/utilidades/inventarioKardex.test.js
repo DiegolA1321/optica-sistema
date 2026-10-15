@@ -4,7 +4,7 @@ import {
   masVendidas, monturasSinVender, diferenciasConteo, resumenConteo, cambioDeMovimiento, etiquetaMovimiento,
 } from "./inventarioKardex"
 
-const prod = (id, extra = {}) => ({ id, nombre: `Producto ${id}`, categoria: "Montura", stock: 10, precio: 100, costo: 40, activo: true, creadoEn: "2026-01-05T15:00:00Z", ...extra })
+const prod = (id, extra = {}) => ({ id, nombre: `Producto ${id}`, categoria: "Monturas", stock: 10, precio: 100, costo: 40, activo: true, creadoEn: "2026-01-05T15:00:00Z", ...extra })
 const mov = (productoId, cantidad, creadoEn, tipo = "venta") => ({ productoId, cantidad, creadoEn, tipo })
 const fac = (id, creadoEn, lineas, estado = "pagada") => ({ id, creadoEn, estado, lineas })
 const linea = (productoId, cantidad, precioUnitario, extra = {}) => ({ tipo: "producto", productoId, cantidad, precioUnitario, descripcion: `Producto ${productoId}`, ...extra })

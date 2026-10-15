@@ -138,10 +138,10 @@ export default function ComprobanteVentaModal({
 
   // Alta rápida de producto sin salir del flujo — mismo caso de la reunión
   // con el ing, ya resuelto antes en el modal de venta rápida (retirado).
-  const CATEGORIAS_NP = categorias.length > 0 ? categorias : ["Montura", "Accesorios"]
+  const CATEGORIAS_NP = categorias.length > 0 ? categorias : ["Monturas", "Accesorios"]
   const [agregandoProducto, setAgregandoProducto] = useState(false)
   const [npNombre, setNpNombre] = useState("")
-  const [npCategoria, setNpCategoria] = useState(CATEGORIAS_NP[0] || "Montura")
+  const [npCategoria, setNpCategoria] = useState(CATEGORIAS_NP[0] || "Monturas")
   const [npStock, setNpStock] = useState("1")
   const [npPrecio, setNpPrecio] = useState("")
   const [npObservacion, setNpObservacion] = useState("")
@@ -239,7 +239,7 @@ export default function ComprobanteVentaModal({
 
   const abrirAltaProducto = () => {
     setNpNombre(busquedaProducto)
-    setNpCategoria(CATEGORIAS_NP[0] || "Montura")
+    setNpCategoria(CATEGORIAS_NP[0] || "Monturas")
     setNpStock("1")
     setNpPrecio("")
     setNpObservacion("")

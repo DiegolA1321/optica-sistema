@@ -43,7 +43,7 @@ describe("Qué se puede exportar, por módulo", () => {
 
 describe("Exportaciones de Inventario", () => {
   const inventario = [
-    { id: "a", nombre: "Montura A", categoria: "Montura", stock: 8, precio: 100, costo: 40, creadoEn: "2026-01-05T15:00:00Z", activo: true },
+    { id: "a", nombre: "Montura A", categoria: "Monturas", stock: 8, precio: 100, costo: 40, creadoEn: "2026-01-05T15:00:00Z", activo: true },
     { id: "b", nombre: "Estuche", categoria: "Accesorios", stock: 20, precio: 5, creadoEn: "2026-01-05T15:00:00Z", activo: true },
   ]
   const movimientos = [
@@ -61,16 +61,16 @@ describe("Exportaciones de Inventario", () => {
   it("los movimientos del período salen con producto, tipo, cantidad, lo que quedó, motivo y quién, sin el saldo inicial y solo del rango", () => {
     const m = item(conInv, "inventario-movimientos").modelo()
     expect(m.columnas.map((c) => c.titulo)).toEqual(["Fecha", "Producto", "Categoría", "Movimiento", "Cantidad", "Quedó", "Motivo", "Quién"])
-    expect(m.filas.map((f) => f.celdas.slice(1))).toEqual([["Montura A", "Montura", "Venta", -2, 8, "Venta", "Vera"]]) // el ingreso de agosto queda fuera del rango
+    expect(m.filas.map((f) => f.celdas.slice(1))).toEqual([["Montura A", "Monturas", "Venta", -2, 8, "Venta", "Vera"]]) // el ingreso de agosto queda fuera del rango
     const ancho = catalogoExportaciones(conInv, { inicio: "2026-08-01", fin: "2026-10-12" }).find((x) => x.id === "inventario-movimientos").modelo()
     expect(ancho.filas.map((f) => f.celdas.slice(1))).toEqual([
-      ["Montura A", "Montura", "Ingreso por compra", 5, 13, "Factura 123", "Ana"],
-      ["Montura A", "Montura", "Venta", -2, 8, "Venta", "Vera"],
+      ["Montura A", "Monturas", "Ingreso por compra", 5, 13, "Factura 123", "Ana"],
+      ["Montura A", "Monturas", "Venta", -2, 8, "Venta", "Vera"],
     ])
   })
   it("ventas y margen por producto traen unidades, ingreso, costo y ganancia, y solo se ofrecen a quien puede ver el costo", () => {
     const m = item(conInv, "inventario-ventas").modelo()
-    expect(m.filas.map((f) => f.celdas)).toEqual([["Montura A", "Montura", 2, 200, 80, 120, 8]])
+    expect(m.filas.map((f) => f.celdas)).toEqual([["Montura A", "Monturas", 2, 200, 80, 120, 8]])
     const soloVer = catalogoExportaciones({ ...conInv, usuario: { rol: "asistente", permisosNivel: { inventario: ["ver"], reportes: ["ver"] } } }, rango)
     expect(soloVer.some((x) => x.id === "inventario-ventas")).toBe(false)
     expect(soloVer.some((x) => x.id === "inventario-movimientos")).toBe(true)

@@ -301,7 +301,7 @@ describe("Reportes: Exportar", () => {
 
 describe("Reportes: la pestaña Inventario", () => {
   const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1", opticaNombre: "Óptica Demo" }
-  const inv = [{ id: "i1", nombre: "Montura A", categoria: "Montura", stock: 3, precio: 40, costo: 10, creadoEn: "2026-01-05T15:00:00Z", activo: true }]
+  const inv = [{ id: "i1", nombre: "Montura A", categoria: "Monturas", stock: 3, precio: 40, costo: 10, creadoEn: "2026-01-05T15:00:00Z", activo: true }]
   const ventaDeI1 = { id: "f9", numero: 9, pacienteId: "p1", estado: "pagada", montoTotal: 40, creadoEn: "2026-10-02T15:00:00-05:00", metodoPago: "tarjeta", facturaElectronica: "", lineas: [{ tipo: "producto", productoId: "i1", cantidad: 1, precioUnitario: 40, descripcion: "Montura A" }] }
   const conInv = { ...datos, inventario: inv, facturasVenta: [ventaDeI1] }
 

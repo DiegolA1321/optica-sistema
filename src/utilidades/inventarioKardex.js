@@ -6,7 +6,7 @@ import { sumarDiasISO } from "./controles"
 
 const redondear = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
 
-export const CATEGORIA_MONTURA = "Montura"
+export const CATEGORIA_MONTURA = "Monturas"
 export const DIAS_SIN_VENDER = 90
 
 // Los tipos de movimiento: cómo se llama cada uno, si suma o resta y cuáles se pueden registrar a mano.
