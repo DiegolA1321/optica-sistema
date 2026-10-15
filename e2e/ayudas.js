@@ -278,3 +278,21 @@ export async function elegirFecha(raiz, idCampo, iso) {
   await calendario.getByLabel('Mes', { exact: true }).selectOption(String(mes - 1))
   await calendario.getByRole('button', { name: String(dia), exact: true }).click()
 }
+
+// Deja las fechas dadas SIN excepción de horario en la óptica de pruebas (con la sesión del administrador, por la misma API que la pantalla).
+// Las pruebas que abren o cierran un día lo llaman en un `finally`: si la prueba falla a medias, el día vuelve a su horario habitual.
+export async function restaurarDiasDeHorario(fechas, entorno = 'E2E') {
+  if (entorno !== 'E2E') throw new Error('Solo se restaura el horario de la óptica de pruebas.')
+  const { createClient } = await import('@supabase/supabase-js')
+  const { correo, clave } = credencial('ADMIN', entorno)
+  const cliente = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { data: sesion, error: errorSesion } = await cliente.auth.signInWithPassword({ email: correo, password: clave })
+  if (errorSesion) throw new Error('No se pudo iniciar la sesión del administrador para restaurar el horario.')
+  const { data: perfil } = await cliente.from('perfiles').select('optica_id').eq('id', sesion.user.id).single()
+  const { data: fila } = await cliente.from('disponibilidad').select('excepciones').eq('optica_id', perfil.optica_id).maybeSingle()
+  const excepciones = { ...(fila?.excepciones || {}) }
+  if (!fechas.some((f) => f in excepciones)) return
+  fechas.forEach((f) => delete excepciones[f])
+  const { error } = await cliente.from('disponibilidad').update({ excepciones }).eq('optica_id', perfil.optica_id)
+  if (error) throw new Error(`No se pudo restaurar el horario: ${error.message}`)
+}
