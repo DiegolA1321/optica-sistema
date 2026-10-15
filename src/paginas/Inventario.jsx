@@ -16,9 +16,14 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
+  X,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
-import { valorInventario, CATEGORIA_MONTURA, etiquetaMovimiento } from "../utilidades/inventarioKardex"
+import { valorInventario, CATEGORIA_MONTURA, etiquetaMovimiento, monturasSinVender, tieneCosto } from "../utilidades/inventarioKardex"
+import { htmlHojaConteo, mapActa } from "../utilidades/conteoImpresion"
+import { imprimirHtml } from "../utilidades/proforma"
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+import { fechaAISO } from "../utilidades/disponibilidad"
 import { tieneVentasDeProducto } from "../utilidades/ventas"
 import { mapProducto } from "../utilidades/mapProducto"
 import { registrarLog } from "../utilidades/logs"
@@ -32,6 +37,8 @@ import FormularioProducto from "../componentes/inventario/FormularioProducto"
 import MovimientoModal from "../componentes/inventario/MovimientoModal"
 import DetalleProducto from "../componentes/inventario/DetalleProducto"
 import ConteoFisico from "../componentes/inventario/ConteoFisico"
+import ActaConteo from "../componentes/inventario/ActaConteo"
+import HistorialConteos from "../componentes/inventario/HistorialConteos"
 import VentanaResumen from "../componentes/inventario/VentanaResumen"
 import { puede } from "../utilidades/permisosUi"
 import { INK, GRAD_MARCA } from "@/lib/tema"
@@ -107,7 +114,9 @@ export default function Inventario({
   const [formulario, setFormulario] = useState(null) // null | "crear" | producto (editar)
   const [movimiento, setMovimiento] = useState(null) // null | { modo: "ingreso" | "ajuste", productoId }
   const [conteo, setConteo] = useState(false)
-  const [resumenAbierto, setResumenAbierto] = useState(null) // null | "unidades" | "valor"
+  const [resumenAbierto, setResumenAbierto] = useState(null) // null | "productos" | "unidades" | "valor" | "sinvender"
+  const [historialConteos, setHistorialConteos] = useState(false)
+  const [acta, setActa] = useState(null) // el acta de un conteo (recién confirmado o del historial)
   const [porDescontinuar, setPorDescontinuar] = useState(null)
   const [descontinuando, setDescontinuando] = useState(false)
   const [errorDescontinuar, setErrorDescontinuar] = useState("")
@@ -168,28 +177,42 @@ export default function Inventario({
   const hayBase = !!(supabase && opticaId)
 
   const crearProducto = async (cambios) => {
-    let nuevo = { ...cambios, id: null, creadoEn: null }
+    const { costo = null, ...fila } = cambios
+    let nuevo
+    let avisoCosto = ""
     if (hayBase) {
-      const { data, error } = await supabase.from("inventario").insert({ ...cambios, optica_id: opticaId }).select().single()
+      const { data, error } = await supabase.from("inventario").insert({ ...fila, optica_id: opticaId }).select().single()
       if (error) return mensajeDeError(error, "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo.")
-      nuevo = mapProducto(data)
+      nuevo = mapProducto({ ...data, costo })
+      if (costo !== null) {
+        const { error: errorCosto } = await supabase.from("inventario_costos").insert({ producto_id: data.id, optica_id: opticaId, costo })
+        if (errorCosto) { nuevo = { ...nuevo, costo: null }; avisoCosto = " Pero no se pudo guardar el costo: edítalo e inténtalo de nuevo." }
+      }
     } else {
-      nuevo = { ...mapProducto({ ...cambios, id: Date.now(), created_at: new Date().toISOString() }), stock: cambios.stock }
+      nuevo = { ...mapProducto({ ...fila, costo, id: Date.now(), created_at: new Date().toISOString() }), stock: cambios.stock }
     }
     setProductos([nuevo, ...productos])
     registrarLog(usuario, "inventario", "Agregó un producto al inventario", nuevo.nombre)
-    avisar("Producto añadido al inventario.")
+    avisar("Producto añadido al inventario." + avisoCosto)
     setFormulario(null)
     return null
   }
 
   const editarProducto = async (producto, cambios) => {
+    const { costo, ...fila } = cambios
     if (hayBase) {
-      const { data: actualizados, error } = await supabase.from("inventario").update(cambios).eq("id", producto.id).select()
+      const { data: actualizados, error } = await supabase.from("inventario").update(fila).eq("id", producto.id).select()
       if (fueBloqueadoPorPermiso({ error, data: actualizados })) return MENSAJE_SIN_PERMISO
       if (error) return mensajeDeError(error, "No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo.")
+      // El costo vive aparte y solo lo escribe quien puede editar: vacío lo quita.
+      if (costo !== undefined) {
+        const { error: errorCosto } = costo === null
+          ? await supabase.from("inventario_costos").delete().eq("producto_id", producto.id)
+          : await supabase.from("inventario_costos").upsert({ producto_id: producto.id, optica_id: opticaId, costo, updated_at: new Date().toISOString() })
+        if (errorCosto) return mensajeDeError(errorCosto, "Se guardaron los cambios, pero no el costo. Revisa tu conexión e intenta de nuevo.")
+      }
     }
-    setProductos(productos.map((p) => (p.id === producto.id ? { ...p, ...mapProducto({ ...p, ...cambios, created_at: p.creadoEn }), stock: p.stock } : p)))
+    setProductos(productos.map((p) => (p.id === producto.id ? { ...p, ...mapProducto({ ...p, ...fila, costo: costo === undefined ? p.costo : costo, created_at: p.creadoEn }), stock: p.stock } : p)))
     registrarLog(usuario, "inventario", "Editó un producto del inventario", cambios.nombre)
     avisar("Cambios guardados correctamente.")
     setFormulario(null)
@@ -215,22 +238,40 @@ export default function Inventario({
   }
 
   const confirmarConteo = async (conteos) => {
-    let resultados
+    let ajustes
+    let actaNueva = null
     if (hayBase) {
       const { data, error } = await supabase.rpc("registrar_conteo_inventario", { p_conteos: conteos })
       if (error) return mensajeDeError(error, "No se pudo registrar el conteo. Revisa tu conexión e intenta de nuevo.")
-      resultados = (data || []).map((r) => ({ id: r.producto_id, despues: Number(r.despues) }))
+      ajustes = (data?.ajustes || []).map((r) => ({ id: r.producto_id, despues: Number(r.despues) }))
+      const { data: fila } = await supabase.from("conteos_inventario").select("*").eq("id", data?.conteo_id).maybeSingle()
+      if (fila) actaNueva = mapActa(fila)
     } else {
-      resultados = conteos.map((c) => ({ id: c.producto_id, despues: c.contado }))
+      ajustes = conteos.filter((c) => (Number(productos.find((p) => p.id === c.producto_id)?.stock) || 0) !== c.contado).map((c) => ({ id: c.producto_id, despues: c.contado }))
     }
-    const nuevos = new Map(resultados.map((r) => [r.id, r.despues]))
+    const nuevos = new Map(ajustes.map((r) => [r.id, r.despues]))
+    // Sin el acta de la base (pruebas), se arma con lo que se contó.
+    if (!actaNueva) {
+      const detalle = conteos.map((c) => ({ c, p: productos.find((x) => x.id === c.producto_id) })).filter(({ c, p }) => p && (Number(p.stock) || 0) !== c.contado)
+        .map(({ c, p }) => ({ productoId: p.id, nombre: p.nombre, categoria: p.categoria, antes: Number(p.stock) || 0, contado: c.contado, diferencia: c.contado - (Number(p.stock) || 0), precio: Number(p.precio) || 0, costo: tieneCosto(p) ? Number(p.costo) : null }))
+      actaNueva = {
+        id: "local", creadoEn: new Date().toISOString(), usuarioNombre: usuario?.nombre || "", contados: conteos.length, iguales: conteos.length - detalle.length,
+        sobrantes: detalle.filter((d) => d.diferencia > 0).reduce((t, d) => t + d.diferencia, 0), faltantes: detalle.filter((d) => d.diferencia < 0).reduce((t, d) => t - d.diferencia, 0),
+        valorPrecio: Math.round(detalle.reduce((t, d) => t + d.diferencia * d.precio, 0) * 100) / 100,
+        valorCosto: detalle.some((d) => d.costo !== null) ? Math.round(detalle.filter((d) => d.costo !== null).reduce((t, d) => t + d.diferencia * d.costo, 0) * 100) / 100 : null, detalle,
+      }
+    }
     setProductos((prev) => prev.map((p) => (nuevos.has(p.id) ? { ...p, stock: nuevos.get(p.id) } : p)))
     setVersionMovimientos((v) => v + 1)
-    registrarLog(usuario, "inventario", "Registró un conteo físico", `${resultados.length} ajuste${resultados.length === 1 ? "" : "s"}`)
-    avisar(`Conteo físico registrado: ${resultados.length} ajuste${resultados.length === 1 ? "" : "s"}.`)
+    registrarLog(usuario, "inventario", "Registró un conteo físico", `${ajustes.length} ajuste${ajustes.length === 1 ? "" : "s"}`)
+    avisar(`Conteo físico registrado: ${ajustes.length} ajuste${ajustes.length === 1 ? "" : "s"}.`)
     setConteo(false)
+    setActa(actaNueva)
     return null
   }
+
+  // La hoja en blanco para contar en el estante: sin lo que dice el sistema.
+  const imprimirHojaConteo = () => imprimirHtml(htmlHojaConteo({ opticaNombre: usuario?.opticaNombre || "", productos: productos.filter((p) => p.activo !== false), fecha: ahoraEcuador() }))
 
   // Un producto no se elimina nunca: se descontinúa (deja de poder venderse) y conserva su historial; se puede reactivar.
   const cambiarActivo = async (producto, activo) => {
@@ -300,14 +341,22 @@ export default function Inventario({
   }, [activos, umbralStock])
   const verCosto = puedeNivel("editar")
   const valorConCosto = verCosto && resumen.valor.hayCosto
+  // Monturas con existencia que llevan 90 días o más sin venderse, y lo que representan en dinero (a hoy).
+  const sinVender = useMemo(() => monturasSinVender({ productos: activos, facturas: facturasVenta, movimientos: [], fechaISO: fechaAISO(ahoraEcuador()) }), [activos, facturasVenta])
+  const dineroParado = sinVender.reduce((t, f) => t + f.valor, 0)
 
   const limpiarFiltros = () => { setBusqueda(""); setFiltroCategoria("Todas"); setSoloBajo(false); setSoloNuevos(false); setVerDescontinuados(false) }
   const hayFiltro = !!(busqueda || filtroCategoria !== "Todas" || soloBajo || soloNuevos || verDescontinuados)
   const elegirCategoria = (c) => { setFiltroCategoria(c); setSoloBajo(false); setSoloNuevos(false); setVerDescontinuados(false) }
   const alternarNuevos = () => { const nuevo = !soloNuevos; setSoloNuevos(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false); setVerDescontinuados(false) } }
-  const alternarBajo = () => { const nuevo = !soloBajo; setBusqueda(""); setSoloBajo(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloNuevos(false); setVerDescontinuados(false) } }
   const alternarDescontinuados = () => { const nuevo = !verDescontinuados; setVerDescontinuados(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false); setSoloNuevos(false) } }
-  const verCategoriaDesdeResumen = (c) => { setResumenAbierto(null); setBusqueda(""); elegirCategoria(c) }
+  // Cada fila de un desglose lleva a la tabla con ese mismo filtro.
+  const verDesdeResumen = ({ categoria, nuevos, descontinuados: desc }) => {
+    setResumenAbierto(null); setBusqueda("")
+    if (categoria) elegirCategoria(categoria)
+    else if (nuevos) { setSoloNuevos(true); setFiltroCategoria("Todas"); setSoloBajo(false); setVerDescontinuados(false) }
+    else if (desc) { setVerDescontinuados(true); setFiltroCategoria("Todas"); setSoloBajo(false); setSoloNuevos(false) }
+  }
 
   const pill = (activo) => "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50")
   const estiloPill = (activo) => (activo ? { background: GRAD_MARCA } : undefined)
@@ -350,15 +399,15 @@ export default function Inventario({
 
       {/* ─── RESUMEN: cuatro tarjetas iguales; cada una filtra la tabla o abre su detalle en la ventana estándar ─── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <TarjetaInventario icono={Package} titulo="Productos" valor={resumen.total} sub={resumen.total > 0 ? `+${resumen.nuevos} este mes` : "Todavía no hay productos"} onClick={limpiarFiltros}
-          ayuda="Los productos activos (monturas y accesorios). Un clic muestra todos en la tabla; los descontinuados no cuentan." />
+        <TarjetaInventario icono={Package} titulo="Productos" valor={resumen.total} sub={resumen.total > 0 ? `+${resumen.nuevos} este mes` : "Todavía no hay productos"} onClick={() => setResumenAbierto("productos")}
+          ayuda="Los productos activos (monturas y accesorios). Un clic los desglosa por categoría, con los nuevos del mes y los descontinuados." />
         <TarjetaInventario icono={Boxes} titulo="Unidades en stock" valor={resumen.unidades} sub="Ver por categoría" onClick={() => setResumenAbierto("unidades")}
           ayuda="La suma de la existencia de los productos activos. Un clic la desglosa por categoría." />
         <TarjetaInventario icono={DollarSign} titulo="Valor del inventario" valor={dinero(resumen.valor.aPrecio)}
           sub={valorConCosto ? `a precio de venta · ${dinero(resumen.valor.aCosto)} a costo` : "a precio de venta"} onClick={() => setResumenAbierto("valor")}
           ayuda={"A precio de venta: existencia × precio de cada producto activo." + (verCosto ? " Con el costo registrado también se muestra a costo (existencia × costo) y la ganancia posible." : "")} />
-        <TarjetaInventario icono={AlertTriangle} titulo="Stock bajo" valor={resumen.bajos} sub={resumen.bajos > 0 ? "Conviene reabastecerlos" : "Todo con existencia"} alerta={resumen.bajos > 0} activa={soloBajo} onClick={alternarBajo}
-          ayuda="Productos activos con existencia igual o menor a su mínimo. Un clic filtra la tabla." />
+        <TarjetaInventario icono={Archive} titulo="Sin venderse en 90 días" valor={sinVender.length} sub={sinVender.length > 0 ? `${dinero(dineroParado)} parados` : "Todo se está moviendo"} alerta={sinVender.length > 0} onClick={() => setResumenAbierto("sinvender")}
+          ayuda="Monturas activas con existencia que no se venden desde hace 90 días o más, o que nunca se vendieron (las registradas hace menos de 90 días no cuentan). Un clic lista esas monturas y lo que representan en dinero." />
       </div>
 
       {/* ─── TABLA ─── */}
@@ -399,6 +448,11 @@ export default function Inventario({
             {descontinuados.length > 0 && (
               <button type="button" onClick={alternarDescontinuados} aria-pressed={verDescontinuados} className={pill(verDescontinuados)} style={estiloPill(verDescontinuados)} title="Conservan su historial; no aparecen para vender">
                 <Archive size={12} aria-hidden="true" /> Descontinuados ({cuentaDescontinuados})
+              </button>
+            )}
+            {soloBajo && (
+              <button type="button" onClick={() => setSoloBajo(false)} aria-label="Quitar el filtro Stock bajo" className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
+                Stock bajo <X size={12} aria-hidden="true" />
               </button>
             )}
             {hayFiltro && <button type="button" onClick={limpiarFiltros} className="rounded-full px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Limpiar</button>}
@@ -527,10 +581,13 @@ export default function Inventario({
         />
       )}
 
-      {conteo && <ConteoFisico productos={activos} categorias={CATEGORIAS} onConfirmar={confirmarConteo} onCerrar={() => setConteo(false)} />}
+      {conteo && <ConteoFisico productos={activos} categorias={CATEGORIAS} verCosto={verCosto} onConfirmar={confirmarConteo} onHoja={imprimirHojaConteo} onHistorial={() => { setConteo(false); setHistorialConteos(true) }} onCerrar={() => setConteo(false)} />}
+      {historialConteos && !acta && <HistorialConteos onAbrirActa={setActa} onCerrar={() => setHistorialConteos(false)} />}
+      {acta && <ActaConteo acta={acta} opticaNombre={usuario?.opticaNombre || ""} titulo={acta.id === "local" || !historialConteos ? "Conteo registrado" : "Acta del conteo"} onCerrar={() => setActa(null)} />}
 
       {resumenAbierto && (
-        <VentanaResumen modo={resumenAbierto} productos={activos} categorias={CATEGORIAS} verCosto={verCosto} onVerCategoria={verCategoriaDesdeResumen} onCerrar={() => setResumenAbierto(null)} />
+        <VentanaResumen modo={resumenAbierto} productos={activos} descontinuados={descontinuados} categorias={CATEGORIAS} sinVender={sinVender} verCosto={verCosto}
+          onVer={verDesdeResumen} onVerProducto={(p) => { setResumenAbierto(null); abrirDetalle(p) }} onCerrar={() => setResumenAbierto(null)} />
       )}
 
       {porDescontinuar && (

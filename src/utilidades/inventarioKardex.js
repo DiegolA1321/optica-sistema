@@ -224,5 +224,8 @@ export const resumenConteo = (filas) => {
     contados: filas.length, invalidos: filas.length - validas.length, iguales: validas.length - conDiferencia.length, conDiferencia,
     sobrantes: conDiferencia.filter((x) => x.diferencia > 0).reduce((s, x) => s + x.diferencia, 0),
     faltantes: conDiferencia.filter((x) => x.diferencia < 0).reduce((s, x) => s - x.diferencia, 0),
+    // Lo que valen las diferencias: a precio de venta y, si los productos tienen costo, a costo (null si ninguno lo tiene).
+    valorPrecio: redondear(conDiferencia.reduce((s, x) => s + x.diferencia * (Number(x.producto.precio) || 0), 0)),
+    valorCosto: conDiferencia.some((x) => tieneCosto(x.producto)) ? redondear(conDiferencia.filter((x) => tieneCosto(x.producto)).reduce((s, x) => s + x.diferencia * Number(x.producto.costo), 0)) : null,
   }
 }

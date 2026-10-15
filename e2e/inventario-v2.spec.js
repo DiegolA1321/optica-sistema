@@ -70,6 +70,25 @@ test.describe('Inventario v2: el recorrido del kárdex (óptica de pruebas)', ()
     await expect(detalle.getByRole('row').filter({ hasText: 'Saldo inicial' })).toContainText('10')
   })
 
+  test('1b · el costo no llega al navegador de quien solo puede ver el inventario (se oculta en el servidor)', async () => {
+    const { cliente, optica } = await clienteAdmin()
+    const { data: prod } = await cliente.from('inventario').select('id').eq('optica_id', optica).eq('nombre', nombre).single()
+    const propio = await cliente.from('inventario_costos').select('costo').eq('producto_id', prod.id)
+    expect(propio.data?.map((c) => Number(c.costo))).toEqual([20]) // con Inventario "editar" se lee
+    const { createClient } = await import('@supabase/supabase-js')
+    const { correo, clave } = credencial('RECEPCION', 'E2E') // Recepción solo puede ver el inventario
+    const solo = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+    expect((await solo.auth.signInWithPassword({ email: correo, password: clave })).error).toBeNull()
+    const visto = await solo.from('inventario').select('*').eq('id', prod.id)
+    expect(visto.data).toHaveLength(1) // ve el producto…
+    expect(Object.keys(visto.data[0])).not.toContain('costo') // …sin costo en la fila
+    const costos = await solo.from('inventario_costos').select('costo').eq('producto_id', prod.id)
+    expect(costos.error).toBeNull()
+    expect(costos.data).toEqual([]) // y la tabla de costos le devuelve 0 filas
+    const escribe = await solo.from('inventario_costos').update({ costo: 1 }).eq('producto_id', prod.id).select()
+    expect(escribe.data ?? []).toEqual([]) // ni puede cambiarlo
+  })
+
   test('2 · registrar un ingreso con su motivo', async ({ page }) => {
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await irA(page, 'Inventario')
@@ -120,23 +139,41 @@ test.describe('Inventario v2: el recorrido del kárdex (óptica de pruebas)', ()
     await expect(detalle.getByText('3 u.')).toBeVisible()
   })
 
-  test('4 · conteo físico: se cuenta, se ven las diferencias y al confirmar quedan como ajustes', async ({ page }) => {
+  test('4 · conteo físico a ciegas: se cuenta, se ven las diferencias al revisar, y al confirmar queda el acta', async ({ page }) => {
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await irA(page, 'Inventario')
     await page.getByRole('button', { name: 'Conteo físico' }).click()
     const conteo = page.getByRole('dialog', { name: 'Conteo físico' })
     await expect(conteo.getByRole('button', { name: 'Revisar diferencias' })).toBeDisabled()
+    await expect(conteo.getByRole('columnheader', { name: /Sistema|Diferencia/ })).toHaveCount(0) // a ciegas
     await conteo.getByLabel('Buscar producto para contar').fill(nombre)
     await conteo.getByLabel(`Contado de ${nombre}`).fill('10')
-    await expect(conteo.getByText('1 contado · 1 con diferencia')).toBeVisible()
+    await expect(conteo.getByText('1 contado')).toBeVisible()
+    await expect(conteo.getByText(/con diferencia/)).toHaveCount(0)
     await conteo.getByRole('button', { name: 'Revisar diferencias' }).click()
     const revisar = conteo.getByRole('row').filter({ hasText: nombre })
     await expect(revisar).toContainText('12')
     await expect(revisar).toContainText('10')
     await expect(revisar).toContainText('−2')
+    await expect(revisar).toContainText('−$100.00') // 2 unidades × $50
     await conteo.getByRole('button', { name: 'Confirmar conteo' }).click()
     await expect(page.getByText('Conteo físico registrado: 1 ajuste.')).toBeVisible({ timeout: 20_000 })
+    const acta = page.getByRole('dialog', { name: 'Conteo registrado' })
+    await expect(acta.getByText('Productos contados')).toBeVisible()
+    await expect(acta.getByRole('row').filter({ hasText: nombre })).toContainText('−$100.00')
+    await expect(acta.getByText('−$40.00')).toBeVisible() // a costo: 2 × $20
+    await expect(acta.getByRole('button', { name: /Imprimir o guardar PDF/ })).toBeVisible()
+    await acta.getByRole('button', { name: 'Cerrar' }).last().click()
     await expect(page.getByRole('row').filter({ hasText: nombre })).toContainText('10 u.')
+    // El historial guarda el acta.
+    await page.getByRole('button', { name: 'Conteo físico' }).click()
+    await page.getByRole('dialog', { name: 'Conteo físico' }).getByRole('button', { name: /Historial/ }).click()
+    const historial = page.getByRole('dialog', { name: 'Historial de conteos' })
+    await historial.getByRole('button', { name: /^Ver el acta/ }).first().click()
+    await expect(page.getByRole('dialog', { name: 'Acta del conteo' }).getByRole('row').filter({ hasText: nombre })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(historial).toBeVisible() // vuelve al historial
+    expect(await desplazamientoHorizontal(page)).toEqual([])
   })
 
   test('5 · el historial queda completo y en orden, con quién lo hizo; el stock ya no se edita a mano', async ({ page }) => {
@@ -208,23 +245,30 @@ test.describe('Inventario v2: la forma de la pantalla (Demo, solo lectura)', () 
     await expect(page.getByRole('group', { name: 'Filtros' }).getByRole('button', { name: /^Montura \(\d+\)$/ })).toBeVisible()
   })
 
-  test('las cuatro tarjetas se pulsan, y las que no filtran abren una ventana estándar', async ({ page }) => {
-    const nombres = ['Productos', 'Unidades en stock', 'Valor del inventario', 'Stock bajo']
-    for (const n of nombres) await expect(page.getByRole('button', { name: new RegExp(`^${n}: `) })).toBeVisible()
-    await page.getByRole('button', { name: /^Unidades en stock: / }).click()
-    await expect(page.getByRole('dialog', { name: 'Unidades en stock' })).toBeVisible()
+  test('las cuatro tarjetas abren una ventana con su desglose, todas igual; el stock bajo no es una tarjeta', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /^Stock bajo:/ })).toHaveCount(0)
+    for (const [tarjeta, ventana] of [[/^Productos: /, 'Productos'], [/^Unidades en stock: /, 'Unidades en stock'], [/^Valor del inventario: /, 'Valor del inventario'], [/^Sin venderse en 90 días: /, 'Sin venderse en 90 días']]) {
+      await page.getByRole('button', { name: tarjeta }).click()
+      await expect(page.getByRole('dialog', { name: ventana })).toBeVisible()
+      expect(await desplazamientoHorizontal(page), ventana).toEqual([])
+      await page.keyboard.press('Escape')
+    }
+    await expect(page.getByRole('button', { name: /^Valor del inventario: / })).toHaveAccessibleName(/a precio de venta/)
+    await page.getByRole('button', { name: /^Productos: / }).click()
+    await page.getByRole('dialog', { name: 'Productos' }).getByRole('button', { name: /^Ver los productos de / }).first().click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Limpiar' })).toBeVisible()
+  })
+
+  test('el conteo es a ciegas y ofrece la hoja en blanco y el historial', async ({ page }) => {
+    await page.getByRole('button', { name: 'Conteo físico' }).click()
+    const conteo = page.getByRole('dialog', { name: 'Conteo físico' })
+    await expect(conteo.getByRole('columnheader', { name: /Sistema|Diferencia/ })).toHaveCount(0)
+    await expect(conteo.getByRole('button', { name: /Hoja en blanco/ })).toBeVisible()
+    await conteo.getByRole('button', { name: /Historial/ }).click()
+    await expect(page.getByRole('dialog', { name: 'Historial de conteos' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Historial de conteos' }).getByText(/Todavía no hay conteos registrados|Cerrar/).first()).toBeVisible({ timeout: 15_000 })
     expect(await desplazamientoHorizontal(page)).toEqual([])
-    await page.keyboard.press('Escape')
-    const valor = page.getByRole('button', { name: /^Valor del inventario: / })
-    await expect(valor).toHaveAccessibleName(/a precio de venta/)
-    await valor.click()
-    await expect(page.getByRole('dialog', { name: 'Valor del inventario' })).toBeVisible()
-    await page.keyboard.press('Escape')
-    const bajo = page.getByRole('button', { name: /^Stock bajo: / })
-    await bajo.click()
-    await expect(bajo).toHaveAttribute('aria-pressed', 'true')
-    await bajo.click()
-    await expect(bajo).toHaveAttribute('aria-pressed', 'false')
   })
 
   test('todos los filtros muestran su número y la fila solo resume (sin íconos de acción)', async ({ page }) => {

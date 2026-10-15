@@ -1,4 +1,4 @@
-import { mapProducto } from './utilidades/mapProducto'
+import { cargarProductos } from './utilidades/cargarProductos'
 import React, { useState, useEffect, Suspense } from 'react';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
@@ -577,9 +577,8 @@ function App() {
         const { data: anuladosData } = await supabase.rpc('abonos_anulados')
         if (anuladosData) setAbonosAnulados(anuladosData.map(mapAbono))
         // El inventario también se refresca: si el administrador cambia un precio o una cantidad, los demás roles lo ven sin cerrar sesión.
-        const { data: productosData } = await supabase.from('inventario').select('*').eq('optica_id', usuario.opticaId).order('created_at', { ascending: false })
-        if (productosData) {
-          const nuevos = productosData.map(mapProducto)
+        const { data: nuevos } = await cargarProductos(supabase, usuario.opticaId)
+        if (nuevos) {
           setInventario((prev) => (JSON.stringify(prev) === JSON.stringify(nuevos) ? prev : nuevos))
         }
         const { data } = await supabase.from('citas').select('*').eq('optica_id', usuario.opticaId).gte('fecha', iso)
@@ -632,8 +631,8 @@ function App() {
       // Supabase falla) y esas páginas usan ese flag para mostrar el
       // skeleton en vez de "no hay datos todavía" mientras tanto.
       Promise.allSettled([
-        supabase.from('inventario').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (data) setInventario(data.map(mapProducto))
+        cargarProductos(supabase, opticaId).then(({ data, error }) => {
+          if (data) setInventario(data)
           else if (error) registrarErrorCarga('inventario')
         }),
         // pacientes/citas/consultas: hidratan el estado local con lo real de

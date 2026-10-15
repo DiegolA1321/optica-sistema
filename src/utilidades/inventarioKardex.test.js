@@ -230,4 +230,11 @@ describe("conteo físico", () => {
     expect(r.faltantes).toBe(2)
     expect(r.invalidos).toBe(1)
   })
+  it("el valor de las diferencias sale del precio y, si hay costo, del costo", () => {
+    const ps = [prod("a", { stock: 10, precio: 100, costo: 40 }), prod("b", { stock: 5, precio: 20, costo: undefined }), prod("c", { stock: 3, precio: 50, costo: 10 })]
+    const r = resumenConteo(diferenciasConteo(ps, { a: "8", b: "6", c: "3" }))
+    expect(r.valorPrecio).toBe(-200 + 20)
+    expect(r.valorCosto).toBe(-80) // b no tiene costo y no suma
+    expect(resumenConteo(diferenciasConteo([prod("b", { stock: 5, costo: undefined })], { b: "6" })).valorCosto).toBeNull()
+  })
 })
