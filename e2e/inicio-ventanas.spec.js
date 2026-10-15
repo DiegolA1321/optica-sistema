@@ -46,7 +46,7 @@ test('Totales: cada opción de cada tarjeta lleva al módulo con el mismo númer
         else await expect(estado(page)).toHaveText(new RegExp(`^${n} comprobantes?( en el mes)?$`), { timeout: 15_000 })
       } else {
         if (mes) await expect(page.getByRole('button', { name: /^Nuevos este mes/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
-        else await expect(main(page)).toContainText(new RegExp(`${n}\\s*Productos`), { timeout: 15_000 })
+        else await expect(main(page)).toContainText(new RegExp(`Productos\\s*${n}`), { timeout: 15_000 })
         if (mes && n > 0) await expect(main(page)).toContainText(new RegExp(`Mostrando \\d+ de ${n}`))
       }
     }

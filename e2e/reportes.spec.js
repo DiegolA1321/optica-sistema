@@ -139,8 +139,8 @@ test('Exportar está ordenado por módulo, permite marcar varios y el inventario
   await irAReportes(page)
   await page.getByRole('button', { name: 'Exportar', exact: true }).click()
   const ventana = page.getByRole('dialog', { name: 'Exportar' })
-  await expect(ventana.getByRole('tab')).toHaveCount(5)
-  const pasos = { Resumen: ['Resumen mes a mes'], Citas: ['Citas del período', 'Inasistencias para reagendar'], 'Clínico': ['Consultas del período', 'Pacientes para campaña'], Ventas: ['Ventas para el contador', 'Cobros del período', 'Inventario actual'], Laboratorios: ['Órdenes pendientes por laboratorio'] }
+  await expect(ventana.getByRole('tab')).toHaveCount(6)
+  const pasos = { Resumen: ['Resumen mes a mes'], Citas: ['Citas del período', 'Inasistencias para reagendar'], 'Clínico': ['Consultas del período', 'Pacientes para campaña'], Ventas: ['Ventas para el contador', 'Cobros del período'], Laboratorios: ['Órdenes pendientes por laboratorio'], Inventario: ['Inventario actual', 'Movimientos del período'] }
   for (const [modulo, nombres] of Object.entries(pasos)) {
     await ventana.getByRole('tab', { name: new RegExp('^' + modulo) }).click()
     for (const nombre of nombres) await expect(ventana.getByText(nombre).first()).toBeVisible()
@@ -150,7 +150,7 @@ test('Exportar está ordenado por módulo, permite marcar varios y el inventario
   }
   await ventana.getByRole('tab', { name: /^Citas/ }).click()
   await ventana.getByRole('checkbox', { name: 'Citas del período' }).check()
-  await ventana.getByRole('tab', { name: /^Ventas/ }).click()
+  await ventana.getByRole('tab', { name: /^Inventario/ }).click()
   await ventana.getByRole('checkbox', { name: 'Inventario actual' }).check()
   await expect(ventana.getByRole('button', { name: 'Exportar (2)' })).toBeEnabled()
   await ventana.getByRole('tab', { name: /^Citas/ }).click()

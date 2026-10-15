@@ -372,7 +372,7 @@ export default function Inventario({
           </div>
           <div className="min-w-0">
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Inventario</h1>
-            <p className="text-sm text-slate-500">Existencias de monturas y accesorios. Las lunas se escriben en la venta.</p>
+            <p className="truncate text-sm text-slate-500" title="Existencias de monturas y accesorios. Las lunas se escriben en la venta.">Existencias de monturas y accesorios. Las lunas se escriben en la venta.</p>
           </div>
         </div>
 
