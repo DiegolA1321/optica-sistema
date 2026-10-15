@@ -1,5 +1,6 @@
 <!-- INV2-INICIO -->
-## Inventario v2 (rama inventario-v2, 14 oct. 2026; sin publicar; migraciones 0111, 0112 y 0113 YA aplicadas en la base)
+## Inventario v2 (14 oct. 2026, PUBLICADO: merge `dec9032` en `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito, confirmados con la API de GitHub; migraciones 0111, 0112 y 0113 aplicadas)
+Se publicó por pedido de Diego sin repetir las pruebas después del último ajuste (las pruebas previas están al final de esta sección).
 Detalle del diseño en los commits de la rama; lo esencial:
 - **Tarjetas:** Productos, Unidades en stock, Valor del inventario y Sin venderse en 90 días; las cuatro abren una ventana con su desglose (Productos: por categoría, nuevos del mes y descontinuados; Sin venderse: lista de monturas y dinero parado). El stock bajo vive solo en "Requieren atención": su enlace filtra la tabla y se ve como etiqueta con "x".
 - **Categoría "Monturas"** (0112) en datos, catálogo de cada óptica y predeterminada de las nuevas.
@@ -7,7 +8,7 @@ Detalle del diseño en los commits de la rama; lo esencial:
 - **Costo en el servidor** (0113): `inventario_costos`, solo con Inventario "editar" (otros reciben 0 filas). Reportes › Inventario muestra valor a costo, margen y rotación **solo a quien puede ver el costo**; los demás ven monturas sin venderse y más vendidas (nunca ceros ni números equivocados).
 - **Conteo físico:** a ciegas, hoja en blanco imprimible, acta imprimible o PDF (fecha, quién contó, diferencias y su valor en dinero) e historial de conteos (`conteos_inventario`, inmutable).
 - **Respaldos:** `pre-inventario-v2-2026-10-14.dump` (antes de 0111) y `pre-costos-y-actas-2026-10-14.dump` (antes de 0113). Ensayos: `scripts/ensayo-0111/0112/0113.mjs`; verificación con sesiones reales: `scripts/verificar-0111.mjs` y `verificar-0113.mjs`.
-- **Efecto en la versión publicada:** no se puede eliminar un producto (todos tienen kárdex); editar el stock a mano queda como "cambio directo"; el Inicio publicado seguirá contando los descontinuados hasta publicar esta rama.
+- **Efecto de publicar:** no se puede eliminar un producto (todos tienen kárdex); el Inicio ya cuenta solo productos activos.
 - **Pruebas:** Vitest 887+ en verde y build. Playwright contra la versión compilada con `--workers=1`: 123 pasadas y 1 omitida en la corrida completa; las 3 que fallaron eran pruebas viejas del Inicio y de Exportar que esperaban la pantalla anterior (se actualizaron y pasan: 15 de 15 en `inicio-ventanas` y `reportes`). `e2e/inventario-v2.spec.js` 14 de 14 (tras corregir el nombre del filtro).
 <!-- INV2-FIN -->
 
