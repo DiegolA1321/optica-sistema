@@ -5,7 +5,7 @@
 import fs from 'node:fs'
 
 export const ARCHIVO_ESCRITURAS_DEMO = 'test-results/escrituras-demo.log'
-const PERMITIDAS = /\/rest\/v1\/rpc\/(mis_permisos|equipo_optica|verificar_login_paciente|registrar_visita|permisos_por_nivel_vigentes|soy_administrador_principal)$/
+const PERMITIDAS = /\/rest\/v1\/rpc\/(mis_permisos|equipo_optica|verificar_login_paciente|registrar_visita|permisos_por_nivel_vigentes|soy_administrador_principal|abonos_anulados)$/
 
 export async function protegerDemo(page) {
   await page.route(/\/rest\/v1\//, async (route) => {

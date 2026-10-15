@@ -83,6 +83,9 @@ import { puede } from "../utilidades/permisosUi"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import FilaComprobante from "../componentes/FilaComprobante"
+import DetalleComprobante from "../componentes/ventas/DetalleComprobante"
+import { ContenedorLista, EncabezadoLista } from "../componentes/ventas/Lista"
+import { COLUMNAS_COMPROBANTES_PERFIL, ENCABEZADO_COMPROBANTES_PERFIL } from "../componentes/ventas/estilos"
 import ModalesVentas from "../componentes/ModalesVentas"
 import { useVentas } from "../utilidades/useVentas"
 import { saldoVenta, METODOS_PAGO, ventasPendientesPaciente } from "../utilidades/ventas"
@@ -406,7 +409,8 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
     notificar: (m) => mostrarNotif(m), avisarError: (m) => mostrarError(m),
   })
   const { registrarFactura } = ventasApi
-  const { setAbonoPara, setAnularPara, setOrdenParaVenta, setFacturaElectronicaPara, setVentaCola } = ventasApi
+  const { setAbonoPara, setOrdenParaVenta, setVentaCola } = ventasApi
+  const [detalleFacturaId, setDetalleFacturaId] = useState(null) // el comprobante que se abre desde la lista de compras
 
   // Cobro pendiente (Ronda 4): ficha guardada con "Más tarde" en el panel de
   // cobro. Se cobra con el mismo panel; al cobrar, la cita (si la hay) pasa a
@@ -2159,15 +2163,13 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
                         ) : (
                           <section aria-label="Compras del paciente">
                             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Receipt size={13} /> Compras <span className="font-normal normal-case text-slate-400">· {totalComprasCount}{comprobantesAnulados > 0 ? ` · ${comprobantesAnulados} anulada${comprobantesAnulados === 1 ? "" : "s"}` : ""}</span></h3>
-                            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60" aria-label="Compras del paciente">
+                            <ContenedorLista etiqueta="Compras del paciente" encabezado={<EncabezadoLista plantilla={COLUMNAS_COMPROBANTES_PERFIL} etiquetas={ENCABEZADO_COMPROBANTES_PERFIL} />}>
                               {comprobantesPaciente.map((c) => c.factura ? (
                                 <FilaComprobante
-                                  key={c.clave} factura={c.factura} abonos={abonos} ordenes={ordenesLab.filter((o) => o.facturaId === c.factura.id)}
-                                  puedeEditar={puedeEditarVentas} puedeVender={puedeVender} puedeAnular={puedeAnular} lineasDesplegables
+                                  key={c.clave} factura={c.factura} abonos={abonos}
+                                  puedeEditar={puedeEditarVentas}
+                                  onAbrir={(fac) => setDetalleFacturaId(fac.id)}
                                   onAbonar={(fac) => setAbonoPara({ factura: fac, paciente: pacienteHistorial })}
-                                  onOrden={(fac) => setOrdenParaVenta({ factura: fac, paciente: pacienteHistorial })}
-                                  onAnular={(fac) => setAnularPara({ factura: fac, paciente: pacienteHistorial })}
-                                  onFacturaElectronica={(fac) => setFacturaElectronicaPara({ factura: fac, paciente: pacienteHistorial })}
                                 />
                               ) : (() => {
                                 // Venta rápida de un producto (el mecanismo anterior a las facturas): se sigue cobrando en cuotas como siempre.
@@ -2205,7 +2207,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
                                   </li>
                                 )
                               })())}
-                            </ul>
+                            </ContenedorLista>
                           </section>
                         )}
                       </div>
@@ -2304,6 +2306,13 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
         />
       )}
 
+      {detalleFacturaId && facturasVenta.find((f) => f.id === detalleFacturaId) && (
+        <DetalleComprobante
+          factura={facturasVenta.find((f) => f.id === detalleFacturaId)} paciente={pacientes.find((p) => p.id === facturasVenta.find((f) => f.id === detalleFacturaId).pacienteId) || null}
+          abonos={abonos} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion} v={ventasApi}
+          puedeVender={puedeVender} puedeEditar={puedeEditarVentas} puedeAnular={puedeAnular} onAviso={(m, t) => (t === "error" ? mostrarError(m) : mostrarNotif(m))} onCerrar={() => setDetalleFacturaId(null)}
+        />
+      )}
       <ModalesVentas
         v={ventasApi} usuario={usuario} parametrizacion={parametrizacion} inventario={inventario} setInventario={setInventario}
         categoriasInventario={categoriasInventario} setCategoriasInventario={setCategoriasInventario} abonos={abonos} ordenesLab={ordenesLab}

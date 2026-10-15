@@ -32,6 +32,7 @@ import {
   ChevronsRight,
   Activity,
   ShieldAlert,
+  Receipt,
 } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -39,6 +40,7 @@ import { minutosDesdeMedianoche, etiquetaFecha, hoyISO } from "../utilidades/dis
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { Cascaron } from "../componentes/AtencionPaciente"
+import MisCompras from "../componentes/MisCompras"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
 import { validarClaveNueva, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
@@ -53,6 +55,7 @@ const OPCIONES = [
   { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
   { id: "citas", nombre: "Mis citas", icono: Calendar },
   { id: "receta", nombre: "Mi receta", icono: Glasses },
+  { id: "compras", nombre: "Mis compras", icono: Receipt },
   { id: "datos", nombre: "Mis datos", icono: User },
 ]
 
@@ -772,6 +775,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           )}
 
           {/* ── MI PERFIL ── */}
+          {/* ── MIS COMPRAS ── */}
+          {seccion === "compras" && <MisCompras usuario={usuario} onPedirCita={() => setModalAgendar(true)} />}
+
           {seccion === "datos" && (
             <div className="space-y-6">
               <div>

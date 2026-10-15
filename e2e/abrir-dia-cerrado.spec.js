@@ -2,9 +2,14 @@
 // elige mañana y/o tarde (solo para el personal), queda como excepción de esa fecha (se ve en Mi horario) y se puede volver a cerrar si no tiene
 // citas. ESCRIBE datos: corre en la óptica de pruebas (E2E) y deja el día como estaba.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion } from './ayudas.js'
+import { iniciarSesion, restaurarDiasDeHorario } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
+
+// Estas pruebas abren o cierran un día en la óptica de pruebas: pase lo que pase (un fallo, un corte), el día vuelve a su horario habitual.
+const conRestauracion = (fechas, cuerpo) => async ({ page, browser }) => {
+  try { await cuerpo({ page, browser }) } finally { await restaurarDiasDeHorario(fechas) }
+}
 
 async function irAlDomingo(page, rol) {
   await iniciarSesion(page, rol, 'E2E')
@@ -18,7 +23,7 @@ async function irAlDomingo(page, rol) {
   return page.getByRole('dialog')
 }
 
-test('el administrador abre un domingo solo para esa fecha, aparece en Mi horario y puede volver a cerrarlo', async ({ page }) => {
+test('el administrador abre un domingo solo para esa fecha, aparece en Mi horario y puede volver a cerrarlo', conRestauracion(['2026-12-20'], async ({ page, browser }) => {
   const errores = []
   page.on('pageerror', (e) => errores.push(e.message))
   const dia = await irAlDomingo(page, 'ADMIN')
@@ -62,9 +67,9 @@ test('el administrador abre un domingo solo para esa fecha, aparece en Mi horari
   await expect(page.getByText(/vuelve a estar cerrado/)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('dialog').getByText('La óptica no atiende este día')).toBeVisible()
   expect(errores).toEqual([])
-})
+}))
 
-test('"Abrir y agendar" deja el formulario de agendar con ese día; el personal sin permiso de horario no puede abrirlo', async ({ page, browser }) => {
+test('"Abrir y agendar" deja el formulario de agendar con ese día; el personal sin permiso de horario no puede abrirlo', conRestauracion(['2026-12-20'], async ({ page, browser }) => {
   const dia = await irAlDomingo(page, 'ADMIN')
   await dia.getByRole('button', { name: 'Abrir este día' }).click()
   await dia.getByRole('button', { name: 'Abrir y agendar' }).click()
@@ -86,7 +91,7 @@ test('"Abrir y agendar" deja el formulario de agendar con ese día; el personal 
     await expect(ventas.getByRole('button', { name: 'Abrir este día' })).toHaveCount(0)
   }
   await ventas.close()
-})
+}))
 
 test('Semana y Lista muestran el domingo cerrado y permiten abrirlo desde ahí', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
@@ -110,7 +115,7 @@ test('Semana y Lista muestran el domingo cerrado y permiten abrirlo desde ahí',
   await page.keyboard.press('Escape')
 })
 
-test('cerrar un día puntual con nombre de feriado: se ve en Citas (Semana, Mes y modal) y en Mi horario, y se restaura desde Mi horario', async ({ page }) => {
+test('cerrar un día puntual con nombre de feriado: se ve en Citas (Semana, Mes y modal) y en Mi horario, y se restaura desde Mi horario', conRestauracion(['2026-12-21'], async ({ page, browser }) => {
   const errores = []
   page.on('pageerror', (e) => errores.push(e.message))
   await iniciarSesion(page, 'ADMIN', 'E2E')
@@ -151,4 +156,4 @@ test('cerrar un día puntual con nombre de feriado: se ve en Citas (Semana, Mes 
   await page.getByRole('dialog').getByRole('button', { name: 'Volver al horario habitual' }).click()
   await expect(page.getByText(/Cerrado · Feriado: Día de los Difuntos/)).toHaveCount(0, { timeout: 15_000 })
   expect(errores).toEqual([])
-})
+}))

@@ -77,3 +77,51 @@ describe("ComprobanteVentaModal — luna como texto y factura electrónica (Bloq
     expect(screen.queryByText("Armazón Test")).not.toBeInTheDocument()
   })
 })
+
+describe("ComprobanteVentaModal — descuentos y pagos divididos (Ventas v2)", () => {
+  const servicio = [{ tipo: "servicio", descripcion: "Consulta", cantidad: 2, precioUnitario: 50 }]
+  const abrir = (extra = {}) => render(<ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} lineasIniciales={servicio} onCerrar={() => {}} {...extra} />)
+
+  it("un descuento en porcentaje baja el total y deja ver el subtotal", () => {
+    abrir()
+    fireEvent.click(screen.getByRole("button", { name: /Aplicar descuento/i }))
+    fireEvent.change(screen.getByLabelText("Valor del descuento de Consulta"), { target: { value: "10" } })
+    expect(screen.getByText("$90.00", { selector: "span.font-mono.text-xl" })).toBeInTheDocument()
+    expect(screen.getByText("Subtotal")).toBeInTheDocument()
+    expect(screen.getByText("-$10.00", { selector: "span.font-mono" })).toBeInTheDocument()
+  })
+  it("el descuento exige su motivo antes de guardar", () => {
+    abrir()
+    fireEvent.click(screen.getByRole("button", { name: /Aplicar descuento/i }))
+    fireEvent.change(screen.getByLabelText("Valor del descuento de Consulta"), { target: { value: "10" } })
+    fireEvent.click(screen.getByRole("button", { name: /Guardar venta/i }))
+    expect(screen.getByRole("alert")).toHaveTextContent(/motivo del descuento/i)
+  })
+  it("quien no puede editar Ventas no ve el descuento", () => {
+    abrir({ usuario: { rol: "asistente", permisosNivel: { ventas: ["ver", "crear"] } } })
+    expect(screen.queryByRole("button", { name: /Aplicar descuento/i })).not.toBeInTheDocument()
+  })
+  it("dividir el pago reparte el total y avisa si no cuadra", () => {
+    abrir()
+    expect(screen.getByLabelText("Método de pago")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /Dividir el pago/i }))
+    expect(screen.getByLabelText("Monto del pago 1")).toHaveValue(50)
+    expect(screen.getByLabelText("Monto del pago 2")).toHaveValue(50)
+    expect(screen.getByText("Todo repartido")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Monto del pago 1"), { target: { value: "70" } })
+    expect(screen.getByText("Se pasa $20.00")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /Guardar venta/i }))
+    expect(screen.getByRole("alert")).toHaveTextContent("Las formas de pago se pasan en $20.00.")
+    fireEvent.change(screen.getByLabelText("Monto del pago 1"), { target: { value: "60" } })
+    fireEvent.change(screen.getByLabelText("Monto del pago 2"), { target: { value: "30" } })
+    expect(screen.getByText("Faltan $10.00")).toBeInTheDocument()
+  })
+  it("con abonos, el abono inicial también se puede dividir", () => {
+    abrir()
+    fireEvent.click(screen.getByRole("button", { name: "Abonos" }))
+    fireEvent.change(screen.getByLabelText(/Abono inicial/i), { target: { value: "30" } })
+    fireEvent.click(screen.getByRole("button", { name: /Dividir el pago/i }))
+    expect(screen.getByLabelText("Monto del pago 1")).toHaveValue(15)
+    expect(screen.getByLabelText("Monto del pago 2")).toHaveValue(15)
+  })
+})

@@ -16,6 +16,8 @@ const NOMBRE = "QA Test Claude"
 const EJECUTAR = process.argv.includes("--ejecutar")
 // No se vacían: identidad, permisos y auditoría de la óptica.
 const CONSERVAR = new Set(["perfiles", "roles", "perfil_roles", "auditoria", "disponibilidad", "horarios_usuario"])
+// Días que las pruebas de e2e/abrir-dia-cerrado.spec.js abren o cierran (domingo 20 y lunes 21 de diciembre de 2026).
+const DIAS_DE_PRUEBA = ["2026-12-20", "2026-12-21"]
 // Orden seguro respecto a llaves foráneas (lo que cuelga primero); lo demás se barre después.
 const ORDEN = ["ordenes_laboratorio", "pases_a_venta", "facturas_venta", "ventas", "consultas_base", "citas_base", "pacientes_base"]
 
@@ -47,6 +49,22 @@ try {
     const r = await c.query(`update public.opticas set ${col} = array(select x from unnest(${col}) as x where x not like 'E2E %') where id = $1 and exists (select 1 from unnest(${col}) as y where y like 'E2E %')`, [OPTICA_ID])
     if (r.rowCount) borrados[`catálogo ${col}`] = r.rowCount
   }
+  // Excepciones de horario que dejan las pruebas si se interrumpen (un corte, un fallo): los días que usa abrir-dia-cerrado.spec.js y las
+  // ausencias con motivo "E2E ". La tabla `disponibilidad` se conserva (es el horario de la óptica); solo se quitan esas claves.
+  const quitadas = []
+  const fila = (await q("select excepciones from public.disponibilidad where optica_id = $1", [OPTICA_ID]))[0]
+  if (fila?.excepciones) {
+    const exc = { ...fila.excepciones }
+    for (const dia of DIAS_DE_PRUEBA) if (dia in exc) { delete exc[dia]; quitadas.push(`día ${dia}`) }
+    for (const [dia, e] of Object.entries(exc)) {
+      const sobran = (e?.ausencias || []).filter((a) => String(a?.motivo || "").startsWith("E2E "))
+      if (!sobran.length) continue
+      exc[dia] = { ...e, ausencias: e.ausencias.filter((a) => !sobran.includes(a)) }
+      quitadas.push(`${sobran.length} ausencia(s) de ${dia}`)
+    }
+    if (quitadas.length) await c.query("update public.disponibilidad set excepciones = $2 where optica_id = $1", [OPTICA_ID, JSON.stringify(exc)])
+  }
+  if (quitadas.length) borrados["excepciones de horario"] = quitadas.join(", ")
   const contadores = []
   for (const t of tablas.filter((x) => x.startsWith("contador_"))) {
     const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) contadores.push(`${t} reiniciado`)

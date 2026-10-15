@@ -41,8 +41,9 @@ test('Totales: cada opción de cada tarjeta lleva al módulo con el mismo númer
         if (mes) await expect(page.getByRole('button', { name: /Quitar el filtro Agendadas: este mes/ })).toBeVisible()
         else await expect(page.getByRole('button', { name: 'Todas', exact: true }).first()).toHaveAttribute('aria-pressed', 'true')
       } else if (tarjeta === 'Ventas') {
-        await expect(page.getByRole('tab', { name: /Comprobantes de venta/ })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 })
-        await expect(main(page)).toContainText(n === 0 ? 'Ninguna venta coincide' : new RegExp(`Mostrando ${Math.min(n, 25)} de ${n}\\.`), { timeout: 15_000 })
+        await expect(page.getByRole('tab', { name: /Comprobantes/ })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 })
+        if (n === 0) await expect(main(page)).toContainText(/Todavía no hay ventas|No hay ventas en este período/, { timeout: 15_000 })
+        else await expect(estado(page)).toHaveText(new RegExp(`^${n} comprobantes?( en el mes)?$`), { timeout: 15_000 })
       } else {
         if (mes) await expect(page.getByRole('button', { name: /^Nuevos este mes/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
         else await expect(main(page)).toContainText(new RegExp(`${n}\\s*Productos`), { timeout: 15_000 })

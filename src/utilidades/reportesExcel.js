@@ -11,6 +11,7 @@ import { pacientesQueNoCompraron } from "./pasesVenta"
 import { pagosDeFacturas, nombreMetodo, saldoDeFactura } from "./reportesDatos"
 import { cobradoDeFactura } from "./vendidoCobrado"
 import { diaDe, enRango } from "./reportesPeriodo"
+import { SIN_INDICAR, nombreMetodoCobro, textoPagos } from "./pagos"
 
 const redondear = (n) => Math.round((Number(n) || 0) * 100) / 100
 
@@ -88,9 +89,11 @@ export function modeloSinFacturaElectronica({ facturas, pacientes, rango }) {
 export function modeloCobros({ facturas, abonos, pacientes, rango }) {
   const pagos = pagosDeFacturas(facturas, abonos).filter((p) => enRango(p.fecha, rango))
   const porMetodo = new Map()
+  // Cómo se pagó cada cobro (una o varias formas de pago). Lo anterior a las formas de pago dice lo que decía la venta ("Pago directo", "Abonos"…).
+  const sinFormas = (p) => p.pagos.every((x) => x.metodo === SIN_INDICAR)
   const filas = pagos.map((p) => {
-    const metodo = nombreMetodo(p.factura?.metodoPago)
-    porMetodo.set(metodo, redondear((porMetodo.get(metodo) || 0) + p.monto))
+    const metodo = sinFormas(p) ? nombreMetodo(p.factura?.metodoPago) : textoPagos(p.pagos)
+    for (const x of p.pagos) { const clave = x.metodo === SIN_INDICAR ? nombreMetodo(p.factura?.metodoPago) : nombreMetodoCobro(x.metodo); porMetodo.set(clave, redondear((porMetodo.get(clave) || 0) + x.monto)) }
     return { celdas: [fechaExcel(p.fecha), nombreDe(pacientes, p.factura?.pacienteId), numeroComprobante(p.factura?.numero), redondear(p.monto), metodo, p.esAbono ? "Abono" : "Pago de la venta"] }
   })
   return {
@@ -98,7 +101,7 @@ export function modeloCobros({ facturas, abonos, pacientes, rango }) {
     nota: "Dinero recibido entre esas fechas, incluso de ventas anteriores. No sigue los demás filtros.",
     columnas: [
       { titulo: "Fecha", tipo: "fecha" }, { titulo: "Paciente", tipo: "texto" }, { titulo: "Comprobante", tipo: "texto" },
-      { titulo: "Monto", tipo: "dinero", suma: true }, { titulo: "Método de pago", tipo: "texto" }, { titulo: "Concepto", tipo: "texto" },
+      { titulo: "Monto", tipo: "dinero", suma: true }, { titulo: "Forma de pago", tipo: "texto" }, { titulo: "Concepto", tipo: "texto" },
     ],
     filas,
     bloques: [{ titulo: "Totales por método de pago", columnas: [{ titulo: "Método de pago", tipo: "texto" }, { titulo: "Cobrado", tipo: "dinero" }], filas: [...porMetodo.entries()] }],
