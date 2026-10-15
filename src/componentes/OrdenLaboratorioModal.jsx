@@ -11,6 +11,7 @@ import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "./AtencionPaciente"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { registrarLog } from "../utilidades/logs"
+import { medidasTexto } from "../utilidades/inventarioKardex"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { numeroComprobante, datosOrdenDeLinea } from "../utilidades/comprobantes"
 import {
@@ -53,13 +54,20 @@ export default function OrdenLaboratorioModal({
       // de su línea de luna: se escriben una sola vez, en la venta (Bloque E).
       let montura = monturaInicial
       let luna = lunaInicial && Object.keys(lunaInicial).length > 0 ? lunaInicial : null
-      if ((!montura || !luna) && supabase && facturaId) {
-        const { data: lineas } = await supabase.from("facturas_venta_lineas").select("tipo, descripcion, detalle").eq("factura_id", facturaId).in("tipo", ["producto", "luna"])
-        if (!montura) montura = (lineas || []).find((l) => l.tipo === "producto")?.descripcion || ""
+      let monturaMedidas = ""
+      if (supabase && facturaId) {
+        const { data: lineas } = await supabase.from("facturas_venta_lineas").select("tipo, descripcion, detalle, producto_id").eq("factura_id", facturaId).in("tipo", ["producto", "luna"])
+        const lineaMontura = (lineas || []).find((l) => l.tipo === "producto")
+        if (!montura) montura = lineaMontura?.descripcion || ""
         if (!luna) luna = datosOrdenDeLinea((lineas || []).find((l) => l.tipo === "luna"))
+        // Si la montura vendida tiene sus medidas en el inventario (calibre, puente y varilla), la orden las trae escritas.
+        if (lineaMontura?.producto_id) {
+          const { data: producto } = await supabase.from("inventario").select("calibre, puente, varilla").eq("id", lineaMontura.producto_id).maybeSingle()
+          monturaMedidas = medidasTexto(producto)
+        }
       }
       if (!vivo) return
-      const base = datosInicialesOrden(c, { montura, luna })
+      const base = datosInicialesOrden(c, { montura, luna, monturaMedidas })
       const entrega = ahoraEcuador(); entrega.setDate(entrega.getDate() + 7)
       setD({ ...base, fechaPrometida: iso(entrega) })
     }

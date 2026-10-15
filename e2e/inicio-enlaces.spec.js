@@ -44,7 +44,7 @@ test('administrador: cada "Abrir en …" de la ventana de avisos muestra al lleg
       } else if (/Saldos por cobrar/.test(etiqueta)) {
         await expect(main(page)).toContainText(new RegExp(`ventas? con saldo · ${n} pacientes?`), { timeout: 15_000 })
       } else if (/Stock bajo/.test(etiqueta)) {
-        await expect(page.getByRole('button', { name: new RegExp(`^Stock bajo: ${n}\\.`) })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
+        await expect(page.getByRole('button', { name: 'Quitar el filtro Stock bajo' })).toBeVisible({ timeout: 15_000 })
         await expect(main(page)).toContainText(new RegExp(`Mostrando ${n} de ${n}`))
       } else {
         throw new Error('Un enlace "Abrir en …" nuevo sin su pareja verificada: ' + etiqueta)

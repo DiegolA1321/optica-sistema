@@ -153,13 +153,13 @@ try {
     await Q("insert into inventario (id, optica_id, nombre, categoria, stock, precio, critico, observacion, activo) values ($1,$2,$3,$4,$5,$6,$7,$8,true)", [id, DEMO_ID, nombre, categoria, stock, precio, critico, obs])
     inv.push({ id, nombre, categoria, precio, stock, critico, vendidas: 0 })
   }
-  for (const [i, [n, p]] of MONTURAS.entries()) await insertInv(n, "Armazones", p, 0, 3, i % 3 === 0 ? "Unisex" : null) // el stock real se fija al final
+  for (const [i, [n, p]] of MONTURAS.entries()) await insertInv(n, "Monturas", p, 0, 3, i % 3 === 0 ? "Unisex" : null) // el stock real se fija al final
   for (const [n, p] of ACCESORIOS) await insertInv(n, "Accesorios", p, 0, 5, null)
-  const stockInicial = new Map(inv.map((p) => [p.id, p.categoria === "Armazones" ? entre(4, 14) : entre(12, 40)]))
+  const stockInicial = new Map(inv.map((p) => [p.id, p.categoria === "Monturas" ? entre(4, 14) : entre(12, 40)]))
   // Para ver alertas de stock: 3 monturas casi agotadas, 1 agotada, 1 accesorio bajo.
-  const bajos = mezcla(inv.filter((p) => p.categoria === "Armazones")).slice(0, 4)
+  const bajos = mezcla(inv.filter((p) => p.categoria === "Monturas")).slice(0, 4)
   bajos.slice(0, 3).forEach((p) => stockInicial.set(p.id, entre(4, 5))) // tras las ventas quedan en o bajo el mínimo
-  const armazones = inv.filter((p) => p.categoria === "Armazones")
+  const armazones = inv.filter((p) => p.categoria === "Monturas")
 
   // ── 3. Pacientes ──
   const usadasCedulas = new Set()

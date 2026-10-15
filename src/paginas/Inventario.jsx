@@ -2,50 +2,63 @@
 
 import { dinero } from "../utilidades/formatoMoneda"
 import { esDeEsteMes } from "../utilidades/inicio"
-import { fechaLegible } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import {
   Package,
   Search,
   AlertTriangle,
   CheckCircle,
-  Trash2,
   Boxes,
   DollarSign,
   Plus,
-  Pencil,
-  ShoppingCart,
-  BarChart3,
-  Users,
+  Archive,
+  ClipboardCheck,
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  Archive,
-  RotateCcw,
+  X,
 } from "lucide-react"
 import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
-import { resumenVentasProducto, ventasDeFacturas } from "../utilidades/ventas"
+import { valorInventario, CATEGORIA_MONTURA, etiquetaMovimiento, monturasSinVender, tieneCosto } from "../utilidades/inventarioKardex"
+import { htmlHojaConteo, mapActa } from "../utilidades/conteoImpresion"
+import { imprimirHtml } from "../utilidades/proforma"
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+import { fechaAISO } from "../utilidades/disponibilidad"
+import { tieneVentasDeProducto } from "../utilidades/ventas"
+import { mapProducto } from "../utilidades/mapProducto"
 import { registrarLog } from "../utilidades/logs"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
-import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
-import CampoCategoria from "../componentes/CampoCategoria"
-import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
-import CampoImagenProducto from "../componentes/CampoImagenProducto"
+import { Cascaron } from "../componentes/AtencionPaciente"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
+import TarjetaInventario from "../componentes/inventario/TarjetaInventario"
+import FormularioProducto from "../componentes/inventario/FormularioProducto"
+import MovimientoModal from "../componentes/inventario/MovimientoModal"
+import DetalleProducto from "../componentes/inventario/DetalleProducto"
+import ConteoFisico from "../componentes/inventario/ConteoFisico"
+import ActaConteo from "../componentes/inventario/ActaConteo"
+import HistorialConteos from "../componentes/inventario/HistorialConteos"
+import VentanaResumen from "../componentes/inventario/VentanaResumen"
 import { puede } from "../utilidades/permisosUi"
-import { INK, ACCION_VER, ACCION_CONFIRMAR, ACCION_ELIMINAR } from "@/lib/tema"
+import { INK, GRAD_MARCA } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
-const CATEGORIAS_FALLBACK = ["Armazones", "Accesorios"]
+const CATEGORIAS_FALLBACK = [CATEGORIA_MONTURA, "Accesorios"]
 const COLOR_CAT = {
-  Armazones: { fg: "#2563EB", bg: "#eff6ff" },
+  [CATEGORIA_MONTURA]: { fg: "#2563EB", bg: "#eff6ff" },
   Accesorios: { fg: "#7c3aed", bg: "#f5f3ff" },
 }
 const catColor = (c) => COLOR_CAT[c] || { fg: "#475569", bg: "#f1f5f9" }
+
+// El mensaje de un error de una función de la base: lo que ella misma explica ("No hay tantas unidades…") se muestra tal cual; lo demás, genérico.
+const mensajeDeError = (error, generico) => {
+  if (esErrorSinPermiso(error)) return MENSAJE_SIN_PERMISO
+  if (error?.code === "P0001" && error.message) return error.message
+  return generico
+}
 
 export default function Inventario({
   usuario,
@@ -57,9 +70,7 @@ export default function Inventario({
   setCategorias,
   pacientes = [],
   ventas = [],
-  setVentas,
   facturasVenta = [],
-  setFacturasVenta,
   abrirModalAlEntrar = false,
   onModalAlEntrarConsumido,
   overlaySolo = false,
@@ -75,82 +86,54 @@ export default function Inventario({
   onVerPerfil,
 }) {
   const opticaId = usuario?.opticaId
-  // Catálogo de categorías editable desde Configuración (feedback de la
-  // revisión total: antes era una lista fija de 2 valores en el código).
+  const puedeNivel = (nivel) => puede(usuario, "inventario", nivel)
+  // Catálogo de categorías editable desde Configuración.
   const CATEGORIAS = categorias.length > 0 ? categorias : CATEGORIAS_FALLBACK
   const [busqueda, setBusqueda] = useState("")
-  // C5: modo compacto opcional — ver más filas sin scroll cuando el
-  // catálogo crece. Persiste por navegador (preferencia visual, no un dato
-  // de negocio) — igual que otras preferencias puramente de interfaz.
+  // Modo compacto opcional — ver más filas sin scroll cuando el catálogo crece. Persiste por navegador (preferencia visual).
   const [compacto, setCompacto] = useState(() => { try { return localStorage.getItem("optica_inventario_compacto") === "1" } catch { return false } })
   const alternarCompacto = () => setCompacto((v) => { try { localStorage.setItem("optica_inventario_compacto", !v ? "1" : "0") } catch {} return !v })
   const celdaY = compacto ? "py-1.5" : "py-3"
-  const [nombre, setNombre] = useState("")
-  const [categoria, setCategoria] = useState(CATEGORIAS[0] || "Armazones")
-  const [stock, setStock] = useState("")
-  const [precio, setPrecio] = useState("")
-  const [observacion, setObservacion] = useState("")
-  const [critico, setCritico] = useState("")
-  const [imagenUrl, setImagenUrl] = useState(null)
   const [guardadoExitoso, setGuardadoExitoso] = useState("")
+  // Toda acción confirma con el aviso flotante del sistema; sin él (pruebas) se muestra en la página.
+  const avisar = (mensaje) => {
+    if (onAviso) { onAviso(mensaje); return }
+    setGuardadoExitoso(mensaje)
+    setTimeout(() => setGuardadoExitoso(""), 3000)
+  }
 
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
   const [soloBajo, setSoloBajo] = useState(false)
   const [soloNuevos, setSoloNuevos] = useState(false) // altas de este mes (el "+N este mes" de Inicio)
-  // Descontinuados (activo: false, migración 0081) ocultos por defecto — no
-  // deben estorbar el catálogo del día a día, pero siguen siendo
-  // encontrables/reactivables/con su reporte de ventas intacto.
+  // Descontinuados (activo: false) ocultos por defecto: no estorban el día a día, pero siguen encontrables, reactivables y con su historial intacto.
   const [verDescontinuados, setVerDescontinuados] = useState(false)
-  const [porEliminar, setPorEliminar] = useState(null)
-  const [errorEliminar, setErrorEliminar] = useState("")
-  const [eliminando, setEliminando] = useState(false)
-  const [erroresForm, setErroresForm] = useState({})
-  const [modalAbierto, setModalAbierto] = useState(false)
 
-  // Editar producto + añadir stock — antes eran dos acciones/modales
-  // separados (feedback del ing: "editar es lo mismo que añadir stock"),
-  // ahora es un solo flujo con un atajo de "+N unidades" sobre el mismo
-  // campo de existencia.
-  const [editando, setEditando] = useState(null)
-  const [edNombre, setEdNombre] = useState("")
-  const [edCategoria, setEdCategoria] = useState(CATEGORIAS[0] || "Armazones")
-  const [edStock, setEdStock] = useState("")
-  const [edPrecio, setEdPrecio] = useState("")
-  const [edObservacion, setEdObservacion] = useState("")
-  const [edCritico, setEdCritico] = useState("")
-  const [edImagenUrl, setEdImagenUrl] = useState(null)
-  const [sumarStock, setSumarStock] = useState("")
-  const [erroresEdicion, setErroresEdicion] = useState({})
+  // Las ventanas. Un producto se abre por su id para que siempre muestre lo último.
+  const [detalleId, setDetalleId] = useState(null)
+  const [pestanaDetalle, setPestanaDetalle] = useState("resumen")
+  const [formulario, setFormulario] = useState(null) // null | "crear" | producto (editar)
+  const [movimiento, setMovimiento] = useState(null) // null | { modo: "ingreso" | "ajuste", productoId }
+  const [conteo, setConteo] = useState(false)
+  const [resumenAbierto, setResumenAbierto] = useState(null) // null | "productos" | "unidades" | "valor" | "sinvender"
+  const [historialConteos, setHistorialConteos] = useState(false)
+  const [acta, setActa] = useState(null) // el acta de un conteo (recién confirmado o del historial)
+  const [porDescontinuar, setPorDescontinuar] = useState(null)
+  const [descontinuando, setDescontinuando] = useState(false)
+  const [errorDescontinuar, setErrorDescontinuar] = useState("")
+  const [versionMovimientos, setVersionMovimientos] = useState(0)
+  const [detalleReaparece, setDetalleReaparece] = useState(false)
 
-  // Vender producto (busca/selecciona paciente) — caso de la reunión.
-  const [vendiendo, setVendiendo] = useState(null)
+  const detalle = detalleId == null ? null : productos.find((p) => p.id === detalleId) || null
+  const hayVentanaSobreElDetalle = !!(formulario || movimiento || porDescontinuar)
+  const abrirDetalle = (p, pestana = "resumen") => { setPestanaDetalle(pestana); setDetalleReaparece(false); setDetalleId(p.id) }
+  const cerrarDetalle = () => { setDetalleId(null); setDetalleReaparece(false) }
+  // Una ventana abierta desde el detalle lo reemplaza mientras dura y el detalle vuelve al cerrarla.
+  const abrirSobreDetalle = (abrir) => { if (detalle) setDetalleReaparece(true); abrir() }
 
-  // Reporte por producto: unidades vendidas, ingreso, pacientes distintos,
-  // pagos pendientes — caso de la reunión.
-  const [verReporte, setVerReporte] = useState(null)
-
-  const limpiarFormulario = () => {
-    setNombre("")
-    setCategoria(CATEGORIAS[0] || "Armazones")
-    setStock("")
-    setPrecio("")
-    setObservacion("")
-    setCritico("")
-    setImagenUrl(null)
-    setErroresForm({})
-  }
-
-  const abrirModal = () => { limpiarFormulario(); setModalAbierto(true) }
-  const cerrarModal = () => { setModalAbierto(false); limpiarFormulario() }
-
-  // Acceso directo desde "Gestionar inventario" en Inicio: abre este modal
-  // sin pasar primero por la tabla completa — mismo patrón que "Agendar
-  // cita" ya usa en Citas.jsx (el ing probó los tres atajos del dashboard y
-  // esperaba entrar directo al formulario de "nuevo producto", no solo a la
-  // lista).
+  // Acceso directo desde "Agregar producto" en Inicio: abre el formulario sin pasar primero por la tabla completa.
   useEffect(() => {
     if (abrirModalAlEntrar) {
-      abrirModal()
+      setFormulario("crear")
       onModalAlEntrarConsumido?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,174 +143,23 @@ export default function Inventario({
   const abrioSobreInicio = useRef(false)
   useEffect(() => {
     if (!overlaySolo) return
-    if (modalAbierto) abrioSobreInicio.current = true
+    if (formulario) abrioSobreInicio.current = true
     else if (abrioSobreInicio.current) onOverlayCerrado?.()
-  }, [modalAbierto]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [formulario]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const registrarProducto = async (e) => {
-    e.preventDefault()
-    const stockNum = parseInt(stock, 10)
-    const precioNum = parseFloat(precio)
-    const errs = {}
-    if (!nombre.trim()) errs.nombre = "Escribe una descripción para el producto."
-    if (stock === "" || isNaN(stockNum) || stockNum < 0) errs.stock = "Ingresa una cantidad válida (0 o más)."
-    if (precio === "" || isNaN(precioNum) || precioNum < 0) errs.precio = "Ingresa un precio válido."
-    const duplicado = productos.find((p) => p.nombre.trim().toLowerCase() === nombre.trim().toLowerCase())
-    if (!errs.nombre && duplicado) {
-      // Si el duplicado está descontinuado (activo: false, oculto por
-      // defecto de la tabla — ver "Ver descontinuados"), el mensaje genérico
-      // de "usa el botón de editar de esa fila" apunta a una fila que el
-      // usuario no está viendo en este momento. Se le dice explícitamente
-      // que reactive en vez de crear uno nuevo.
-      errs.nombre = duplicado.activo === false
-        ? `"${duplicado.nombre}" ya existe pero está descontinuado. Actívalo desde "Ver descontinuados" en vez de crear uno nuevo.`
-        : `Ya existe "${duplicado.nombre}" en el inventario (${duplicado.stock} u.). Usa el botón de editar de esa fila para sumar stock, en vez de crear un producto duplicado.`
-    }
-    setErroresForm(errs)
-    if (Object.keys(errs).length > 0) return
-
-    const nuevo = {
-      nombre,
-      categoria,
-      stock: stockNum,
-      precio: precioNum,
-      observacion: observacion || "",
-      critico: critico === "" ? null : Math.max(0, parseInt(critico, 10) || 0),
-      imagen_url: imagenUrl || null,
-    }
-
-    if (supabase && opticaId) {
-      const { data, error: errorInsert } = await supabase.from("inventario").insert({ ...nuevo, optica_id: opticaId }).select().single()
-      if (errorInsert) {
-        setErroresForm({ general: esErrorSinPermiso(errorInsert) ? MENSAJE_SIN_PERMISO : "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo." })
-        return
-      }
-      if (data) { nuevo.id = data.id; nuevo.creadoEn = data.created_at }
-    }
-    if (nuevo.id == null) nuevo.id = Date.now()
-    if (!nuevo.creadoEn) nuevo.creadoEn = new Date().toISOString()
-
-    setProductos([nuevo, ...productos])
-    registrarLog(usuario, "inventario", "Agregó un producto al inventario", nuevo.nombre)
-    if (overlaySolo) onAviso?.("Producto añadido al inventario.")
-    else {
-      setGuardadoExitoso("Producto añadido al inventario.")
-      setTimeout(() => setGuardadoExitoso(""), 3000)
-    }
-
-    setModalAbierto(false)
-    limpiarFormulario()
-  }
-
-  // Un producto con ventas asociadas no se elimina — se desactiva (migración
-  // 0081, caso de la reunión con el ing: "conservar el registro en lugar de
-  // borrar"). Antes de esta columna, borrar un producto con ventas no
-  // rompía el historial (producto_id references ... on delete set null +
-  // producto_nombre cacheado, 0047), pero sí dejaba inalcanzable su "Reporte
-  // de ventas" desde la tabla. Un producto sin ninguna venta se sigue
-  // eliminando tal cual, con confirmación.
-  const tieneVentasAsociadas = (id) => ventas.some((v) => v.productoId === id) || ventasDeFacturas(facturasVenta, id).length > 0
-  const porEliminarTieneVentas = porEliminar != null && tieneVentasAsociadas(porEliminar)
-
-  const confirmarEliminar = async () => {
-    if (porEliminar == null) return
-    setEliminando(true)
-    const producto = productos.find((p) => p.id === porEliminar)
-
-    if (porEliminarTieneVentas) {
-      if (supabase && opticaId) {
-        const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update({ activo: false }).eq("id", porEliminar).select()
-        if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
-          setErrorEliminar(MENSAJE_SIN_PERMISO)
-          setEliminando(false)
-          return
-        }
-        if (errorUpdate) {
-          setErrorEliminar("No se pudo desactivar el producto. Revisa tu conexión e intenta de nuevo.")
-          setEliminando(false)
-          return
-        }
-      }
-      setProductos(productos.map((p) => (p.id === porEliminar ? { ...p, activo: false } : p)))
-      registrarLog(usuario, "inventario", "Desactivó un producto del inventario", producto?.nombre || "")
-      setEliminando(false)
-      setPorEliminar(null)
-      setErrorEliminar("")
-      return
-    }
-
-    if (supabase && opticaId) {
-      const { data: eliminados, error: errorDelete } = await supabase.from("inventario").delete().eq("id", porEliminar).select()
-      if (fueBloqueadoPorPermiso({ error: errorDelete, data: eliminados })) {
-        setErrorEliminar(MENSAJE_SIN_PERMISO)
-        setEliminando(false)
-        return
-      }
-      if (errorDelete) {
-        setErrorEliminar("No se pudo eliminar el producto. Revisa tu conexión e intenta de nuevo.")
-        setEliminando(false)
-        return
-      }
-    }
-    setProductos(productos.filter((p) => p.id !== porEliminar))
-    registrarLog(usuario, "inventario", "Eliminó un producto del inventario", producto?.nombre || "")
-    setEliminando(false)
-    setPorEliminar(null)
-    setErrorEliminar("")
-  }
-
-  const [activandoId, setActivandoId] = useState(null)
-  const activarProducto = async (prod) => {
-    setActivandoId(prod.id)
-    if (supabase && opticaId) {
-      const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update({ activo: true }).eq("id", prod.id).select()
-      if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados }) || errorUpdate) {
-        setActivandoId(null)
-        setGuardadoExitoso("")
-        return
-      }
-    }
-    setProductos(productos.map((p) => (p.id === prod.id ? { ...p, activo: true } : p)))
-    registrarLog(usuario, "inventario", "Reactivó un producto del inventario", prod.nombre)
-    setActivandoId(null)
-    setGuardadoExitoso(`"${prod.nombre}" reactivado — ya puede volver a venderse.`)
-    setTimeout(() => setGuardadoExitoso(""), 3000)
-  }
-
-  const abrirEditar = (prod) => {
-    setEditando(prod)
-    setEdNombre(prod.nombre)
-    setEdCategoria(prod.categoria)
-    setEdStock(String(prod.stock))
-    setEdPrecio(String(prod.precio))
-    setEdObservacion(prod.observacion || "")
-    setEdCritico(prod.critico != null ? String(prod.critico) : "")
-    setEdImagenUrl(prod.imagen_url || null)
-    setSumarStock("")
-    setErroresEdicion({})
-  }
-
-  const cerrarEditar = () => { setEditando(null); setErroresEdicion({}) }
-
-  // Acceso directo desde la alerta de stock bajo en Inicio: salta
-  // directamente al modal de editar/sumar stock de ESE producto, en vez de
-  // aterrizar en la tabla completa y obligar a buscarlo de nuevo — mismo
-  // criterio que "el ing" ya pidió para los otros atajos del dashboard
-  // (nunca hacer buscar dos veces algo que el usuario ya señaló).
+  // "Reabastecer" desde la alerta de stock bajo en Inicio: salta directo a registrar el ingreso de ESE producto (nunca hacer buscar dos veces lo ya señalado).
   useEffect(() => {
     if (!productoIdParaReabastecer) return
     const prod = productos.find((p) => p.id === productoIdParaReabastecer)
-    if (prod) abrirEditar(prod)
+    if (prod && puedeNivel("editar")) setMovimiento({ modo: "ingreso", productoId: prod.id })
     onProductoParaReabastecerConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productoIdParaReabastecer])
 
-  // Desde "Ver todo" del bloque Inventario del Inicio: abre la lista ya acotada al stock bajo.
+  // Desde "Ver todo" del bloque Inventario del Inicio: la lista ya acotada al stock bajo.
   useEffect(() => {
     if (!verStockBajoAlEntrar) return
-    setSoloBajo(true)
-    setSoloNuevos(false)
-    setFiltroCategoria("Todas")
+    setSoloBajo(true); setSoloNuevos(false); setFiltroCategoria("Todas"); setVerDescontinuados(false)
     onVerStockBajoConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verStockBajoAlEntrar])
@@ -335,78 +167,160 @@ export default function Inventario({
   // Desde "Nuevos este mes" de la tarjeta Productos del Inicio: la lista ya acotada a las altas de este mes.
   useEffect(() => {
     if (!verNuevosAlEntrar) return
-    setSoloNuevos(true)
-    setSoloBajo(false)
-    setFiltroCategoria("Todas")
+    setSoloNuevos(true); setSoloBajo(false); setFiltroCategoria("Todas"); setVerDescontinuados(false)
     onVerNuevosConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verNuevosAlEntrar])
 
-  // Atajo: suma unidades al campo de existencia sin salir del modal — no
-  // hace un guardado aparte, solo actualiza el número que se persiste junto
-  // con el resto de cambios al pulsar "Guardar cambios".
-  const aplicarSumaStock = () => {
-    const cantidad = parseInt(sumarStock, 10)
-    if (!cantidad || cantidad <= 0) return
-    setEdStock(String((parseInt(edStock, 10) || 0) + cantidad))
-    setSumarStock("")
+  // ─── Datos y acciones ───
+  // Cada una devuelve null si salió bien o el mensaje de error para mostrarlo en su ventana.
+  const hayBase = !!(supabase && opticaId)
+
+  const crearProducto = async (cambios) => {
+    const { costo = null, ...fila } = cambios
+    let nuevo
+    let avisoCosto = ""
+    if (hayBase) {
+      const { data, error } = await supabase.from("inventario").insert({ ...fila, optica_id: opticaId }).select().single()
+      if (error) return mensajeDeError(error, "No se pudo registrar el producto. Revisa tu conexión e intenta de nuevo.")
+      nuevo = mapProducto({ ...data, costo })
+      if (costo !== null) {
+        const { error: errorCosto } = await supabase.from("inventario_costos").insert({ producto_id: data.id, optica_id: opticaId, costo })
+        if (errorCosto) { nuevo = { ...nuevo, costo: null }; avisoCosto = " Pero no se pudo guardar el costo: edítalo e inténtalo de nuevo." }
+      }
+    } else {
+      nuevo = { ...mapProducto({ ...fila, costo, id: Date.now(), created_at: new Date().toISOString() }), stock: cambios.stock }
+    }
+    setProductos([nuevo, ...productos])
+    registrarLog(usuario, "inventario", "Agregó un producto al inventario", nuevo.nombre)
+    avisar("Producto añadido al inventario." + avisoCosto)
+    setFormulario(null)
+    return null
   }
 
-  const guardarEdicion = async (e) => {
-    e.preventDefault()
-    const stockNum = parseInt(edStock, 10)
-    const precioNum = parseFloat(edPrecio)
-    const errs = {}
-    if (!edNombre.trim()) errs.nombre = "Escribe una descripción para el producto."
-    if (edStock === "" || isNaN(stockNum) || stockNum < 0) errs.stock = "Ingresa una cantidad válida (0 o más)."
-    if (edPrecio === "" || isNaN(precioNum) || precioNum < 0) errs.precio = "Ingresa un precio válido."
-    const duplicado = productos.find((p) => p.id !== editando.id && p.nombre.trim().toLowerCase() === edNombre.trim().toLowerCase())
-    if (!errs.nombre && duplicado) {
-      errs.nombre = `Ya existe "${duplicado.nombre}" en el inventario. Usa un nombre distinto.`
-    }
-    setErroresEdicion(errs)
-    if (Object.keys(errs).length > 0) return
-
-    const cambios = { nombre: edNombre, categoria: edCategoria, stock: stockNum, precio: precioNum, observacion: edObservacion || "", critico: edCritico === "" ? null : Math.max(0, parseInt(edCritico, 10) || 0), imagen_url: edImagenUrl || null }
-    if (supabase && opticaId) {
-      const { data: actualizados, error: errorUpdate } = await supabase.from("inventario").update(cambios).eq("id", editando.id).select()
-      if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
-        setErroresEdicion({ general: MENSAJE_SIN_PERMISO })
-        return
-      }
-      if (errorUpdate) {
-        setErroresEdicion({ general: "No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo." })
-        return
+  const editarProducto = async (producto, cambios) => {
+    const { costo, ...fila } = cambios
+    if (hayBase) {
+      const { data: actualizados, error } = await supabase.from("inventario").update(fila).eq("id", producto.id).select()
+      if (fueBloqueadoPorPermiso({ error, data: actualizados })) return MENSAJE_SIN_PERMISO
+      if (error) return mensajeDeError(error, "No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo.")
+      // El costo vive aparte y solo lo escribe quien puede editar: vacío lo quita.
+      if (costo !== undefined) {
+        const { error: errorCosto } = costo === null
+          ? await supabase.from("inventario_costos").delete().eq("producto_id", producto.id)
+          : await supabase.from("inventario_costos").upsert({ producto_id: producto.id, optica_id: opticaId, costo, updated_at: new Date().toISOString() })
+        if (errorCosto) return mensajeDeError(errorCosto, "Se guardaron los cambios, pero no el costo. Revisa tu conexión e intenta de nuevo.")
       }
     }
-    setProductos(productos.map((p) => (p.id === editando.id ? { ...p, ...cambios } : p)))
+    setProductos(productos.map((p) => (p.id === producto.id ? { ...p, ...mapProducto({ ...p, ...fila, costo: costo === undefined ? p.costo : costo, created_at: p.creadoEn }), stock: p.stock } : p)))
     registrarLog(usuario, "inventario", "Editó un producto del inventario", cambios.nombre)
-    setEditando(null)
-    setGuardadoExitoso("Cambios guardados correctamente.")
-    setTimeout(() => setGuardadoExitoso(""), 3000)
+    avisar("Cambios guardados correctamente.")
+    setFormulario(null)
+    return null
   }
 
-  const productosFiltrados = productos.filter((p) => {
-    const q = busqueda.toLowerCase()
-    const coincideTexto = p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q)
-    const coincideCat = filtroCategoria === "Todas" || p.categoria === filtroCategoria
-    const coincideBajo = !soloBajo || esStockBajo(p, umbralStock)
-    const coincideNuevo = !soloNuevos || esDeEsteMes(p.creadoEn)
-    const coincideActivo = verDescontinuados ? p.activo === false : p.activo !== false
-    return coincideTexto && coincideCat && coincideBajo && coincideNuevo && coincideActivo
-  })
-  const descontinuados = productos.filter((p) => p.activo === false)
+  // Ingreso, merma, devolución o ajuste: pasan por la función de la base, que valida, deja el movimiento (con motivo y quién) y devuelve la existencia.
+  const registrarMovimiento = async (producto, { tipo, cambio, motivo }) => {
+    let nuevoStock
+    if (hayBase) {
+      const { data, error } = await supabase.rpc("registrar_movimiento_inventario", { p_producto_id: producto.id, p_tipo: tipo, p_cantidad: cambio, p_motivo: motivo })
+      if (error) return mensajeDeError(error, "No se pudo registrar el movimiento. Revisa tu conexión e intenta de nuevo.")
+      nuevoStock = Number(data)
+    } else {
+      nuevoStock = (Number(producto.stock) || 0) + cambio
+    }
+    setProductos((prev) => prev.map((p) => (p.id === producto.id ? { ...p, stock: nuevoStock } : p)))
+    setVersionMovimientos((v) => v + 1)
+    registrarLog(usuario, "inventario", `${etiquetaMovimiento(tipo)}: ${cambio > 0 ? "+" : "−"}${Math.abs(cambio)} u.`, producto.nombre)
+    avisar(`${etiquetaMovimiento(tipo)} registrado: ${producto.nombre} queda con ${nuevoStock} u.`)
+    setMovimiento(null)
+    return null
+  }
 
-  // Orden de la tabla — mismo patrón orden/cambiarOrden/IconoOrden que ya
-  // usa CRM.jsx y ahora Pacientes.jsx, para no inventar uno nuevo por página.
+  const confirmarConteo = async (conteos) => {
+    let ajustes
+    let actaNueva = null
+    if (hayBase) {
+      const { data, error } = await supabase.rpc("registrar_conteo_inventario", { p_conteos: conteos })
+      if (error) return mensajeDeError(error, "No se pudo registrar el conteo. Revisa tu conexión e intenta de nuevo.")
+      ajustes = (data?.ajustes || []).map((r) => ({ id: r.producto_id, despues: Number(r.despues) }))
+      const { data: fila } = await supabase.from("conteos_inventario").select("*").eq("id", data?.conteo_id).maybeSingle()
+      if (fila) actaNueva = mapActa(fila)
+    } else {
+      ajustes = conteos.filter((c) => (Number(productos.find((p) => p.id === c.producto_id)?.stock) || 0) !== c.contado).map((c) => ({ id: c.producto_id, despues: c.contado }))
+    }
+    const nuevos = new Map(ajustes.map((r) => [r.id, r.despues]))
+    // Sin el acta de la base (pruebas), se arma con lo que se contó.
+    if (!actaNueva) {
+      const detalle = conteos.map((c) => ({ c, p: productos.find((x) => x.id === c.producto_id) })).filter(({ c, p }) => p && (Number(p.stock) || 0) !== c.contado)
+        .map(({ c, p }) => ({ productoId: p.id, nombre: p.nombre, categoria: p.categoria, antes: Number(p.stock) || 0, contado: c.contado, diferencia: c.contado - (Number(p.stock) || 0), precio: Number(p.precio) || 0, costo: tieneCosto(p) ? Number(p.costo) : null }))
+      actaNueva = {
+        id: "local", creadoEn: new Date().toISOString(), usuarioNombre: usuario?.nombre || "", contados: conteos.length, iguales: conteos.length - detalle.length,
+        sobrantes: detalle.filter((d) => d.diferencia > 0).reduce((t, d) => t + d.diferencia, 0), faltantes: detalle.filter((d) => d.diferencia < 0).reduce((t, d) => t - d.diferencia, 0),
+        valorPrecio: Math.round(detalle.reduce((t, d) => t + d.diferencia * d.precio, 0) * 100) / 100,
+        valorCosto: detalle.some((d) => d.costo !== null) ? Math.round(detalle.filter((d) => d.costo !== null).reduce((t, d) => t + d.diferencia * d.costo, 0) * 100) / 100 : null, detalle,
+      }
+    }
+    setProductos((prev) => prev.map((p) => (nuevos.has(p.id) ? { ...p, stock: nuevos.get(p.id) } : p)))
+    setVersionMovimientos((v) => v + 1)
+    registrarLog(usuario, "inventario", "Registró un conteo físico", `${ajustes.length} ajuste${ajustes.length === 1 ? "" : "s"}`)
+    avisar(`Conteo físico registrado: ${ajustes.length} ajuste${ajustes.length === 1 ? "" : "s"}.`)
+    setConteo(false)
+    setActa(actaNueva)
+    return null
+  }
+
+  // La hoja en blanco para contar en el estante: sin lo que dice el sistema.
+  const imprimirHojaConteo = () => imprimirHtml(htmlHojaConteo({ opticaNombre: usuario?.opticaNombre || "", productos: productos.filter((p) => p.activo !== false), fecha: ahoraEcuador() }))
+
+  // Un producto no se elimina nunca: se descontinúa (deja de poder venderse) y conserva su historial; se puede reactivar.
+  const cambiarActivo = async (producto, activo) => {
+    if (hayBase) {
+      const { data: actualizados, error } = await supabase.from("inventario").update({ activo }).eq("id", producto.id).select()
+      if (fueBloqueadoPorPermiso({ error, data: actualizados })) return MENSAJE_SIN_PERMISO
+      if (error) return mensajeDeError(error, activo ? "No se pudo reactivar el producto. Revisa tu conexión e intenta de nuevo." : "No se pudo descontinuar el producto. Revisa tu conexión e intenta de nuevo.")
+    }
+    setProductos((prev) => prev.map((p) => (p.id === producto.id ? { ...p, activo } : p)))
+    registrarLog(usuario, "inventario", activo ? "Reactivó un producto del inventario" : "Descontinuó un producto del inventario", producto.nombre)
+    avisar(activo ? `"${producto.nombre}" reactivado: ya puede volver a venderse.` : `"${producto.nombre}" descontinuado: conserva su historial y puedes reactivarlo.`)
+    return null
+  }
+  const confirmarDescontinuar = async () => {
+    setDescontinuando(true)
+    const error = await cambiarActivo(porDescontinuar, false)
+    setDescontinuando(false)
+    if (error) { setErrorDescontinuar(error); return }
+    setPorDescontinuar(null)
+    setErrorDescontinuar("")
+    if (verDescontinuados === false) cerrarDetalle()
+  }
+
+  // ─── Lo que se ve ───
+  const activos = useMemo(() => productos.filter((p) => p.activo !== false), [productos])
+  const descontinuados = useMemo(() => productos.filter((p) => p.activo === false), [productos])
+  const coincideTexto = (p) => {
+    const q = busqueda.trim().toLowerCase()
+    if (!q) return true
+    return [p.nombre, p.categoria, p.codigo, p.marca, p.modelo, p.color].some((v) => (v || "").toLowerCase().includes(q))
+  }
+  // Los números de los filtros cuentan lo mismo que listan: siguen a la búsqueda (regla 5).
+  const base = verDescontinuados ? descontinuados : activos
+  const buscados = useMemo(() => activos.filter(coincideTexto), [activos, busqueda]) // eslint-disable-line react-hooks/exhaustive-deps
+  const cuentaCategoria = (c) => buscados.filter((p) => c === "Todas" || p.categoria === c).length
+  const cuentaNuevos = buscados.filter((p) => esDeEsteMes(p.creadoEn)).length
+  const cuentaDescontinuados = descontinuados.filter(coincideTexto).length
+
+  const productosFiltrados = base.filter((p) =>
+    coincideTexto(p) && (filtroCategoria === "Todas" || p.categoria === filtroCategoria) && (!soloBajo || esStockBajo(p, umbralStock)) && (!soloNuevos || esDeEsteMes(p.creadoEn)))
+
+  // Orden de la tabla — mismo patrón orden/cambiarOrden/IconoOrden que CRM y Pacientes.
   const [orden, setOrden] = useState({ campo: null, dir: "asc" })
-  const cambiarOrden = (campo) => {
-    setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: "asc" }))
-  }
+  const cambiarOrden = (campo) => setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: "asc" }))
   const IconoOrden = ({ campo }) => {
-    if (orden.campo !== campo) return <ArrowUpDown size={11} className="text-slate-300" />
-    return orden.dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
+    if (orden.campo !== campo) return <ArrowUpDown size={11} className="text-slate-300" aria-hidden="true" />
+    return orden.dir === "asc" ? <ChevronUp size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />
   }
+  const ariaOrden = (campo) => (orden.campo === campo ? (orden.dir === "asc" ? "ascending" : "descending") : "none")
   const productosOrdenados = !orden.campo ? productosFiltrados : [...productosFiltrados].sort((a, b) => {
     let cmp
     if (orden.campo === "nombre" || orden.campo === "categoria") cmp = (a[orden.campo] || "").localeCompare(b[orden.campo] || "", "es")
@@ -414,164 +328,154 @@ export default function Inventario({
     return orden.dir === "asc" ? cmp : -cmp
   })
 
-  // Corte de rango — mismo criterio que Pacientes.jsx (feedback del ing).
+  // Corte de rango — mismo criterio que Pacientes.jsx.
   const [cantidadVisible, setCantidadVisible] = useState(25)
-  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo, soloNuevos])
+  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtroCategoria, soloBajo, soloNuevos, verDescontinuados])
   const productosVisibles = productosOrdenados.slice(0, cantidadVisible)
-  // Barra de stock relativa a lo que se está viendo — misma idea visual que
-  // el widget de Inicio.jsx, para que "cuánto queda" se lea de un vistazo.
   const maxStockVisible = Math.max(1, ...productosVisibles.map((p) => Number(p.stock) || 0))
 
-  // Resumen (derivado de los datos reales)
+  // Resumen de arriba: siempre sobre los productos activos, que son los de la tabla.
   const resumen = useMemo(() => {
-    const unidades = productos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
-    const valor = productos.reduce((a, p) => a + (Number(p.stock) || 0) * (Number(p.precio) || 0), 0)
-    const bajos = productos.filter((p) => esStockBajo(p, umbralStock))
-    return { total: productos.length, unidades, valor, bajos, nuevos: productos.filter((p) => esDeEsteMes(p.creadoEn)).length }
-  }, [productos])
+    const unidades = activos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
+    return { total: activos.length, unidades, valor: valorInventario(activos), bajos: activos.filter((p) => esStockBajo(p, umbralStock)).length, nuevos: activos.filter((p) => esDeEsteMes(p.creadoEn)).length }
+  }, [activos, umbralStock])
+  const verCosto = puedeNivel("editar")
+  const valorConCosto = verCosto && resumen.valor.hayCosto
+  // Monturas con existencia que llevan 90 días o más sin venderse, y lo que representan en dinero (a hoy).
+  const sinVender = useMemo(() => monturasSinVender({ productos: activos, facturas: facturasVenta, movimientos: [], fechaISO: fechaAISO(ahoraEcuador()) }), [activos, facturasVenta])
+  const dineroParado = sinVender.reduce((t, f) => t + f.valor, 0)
 
-  const reporteProducto = useMemo(() => (verReporte ? resumenVentasProducto(ventas, verReporte.id, facturasVenta) : null), [ventas, facturasVenta, verReporte])
-  const nombrePaciente = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
-
-  const registrarVenta = (factura) => {
-    setFacturasVenta?.((prev) => [factura, ...prev])
-    setGuardadoExitoso("Venta registrada correctamente.")
-    setTimeout(() => setGuardadoExitoso(""), 3000)
+  const limpiarFiltros = () => { setBusqueda(""); setFiltroCategoria("Todas"); setSoloBajo(false); setSoloNuevos(false); setVerDescontinuados(false) }
+  const hayFiltro = !!(busqueda || filtroCategoria !== "Todas" || soloBajo || soloNuevos || verDescontinuados)
+  const elegirCategoria = (c) => { setFiltroCategoria(c); setSoloBajo(false); setSoloNuevos(false); setVerDescontinuados(false) }
+  const alternarNuevos = () => { const nuevo = !soloNuevos; setSoloNuevos(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false); setVerDescontinuados(false) } }
+  const alternarDescontinuados = () => { const nuevo = !verDescontinuados; setVerDescontinuados(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false); setSoloNuevos(false) } }
+  // Cada fila de un desglose lleva a la tabla con ese mismo filtro.
+  const verDesdeResumen = ({ categoria, nuevos, descontinuados: desc }) => {
+    setResumenAbierto(null); setBusqueda("")
+    if (categoria) elegirCategoria(categoria)
+    else if (nuevos) { setSoloNuevos(true); setFiltroCategoria("Todas"); setSoloBajo(false); setVerDescontinuados(false) }
+    else if (desc) { setVerDescontinuados(true); setFiltroCategoria("Todas"); setSoloBajo(false); setSoloNuevos(false) }
   }
 
-  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
+  const pill = (activo) => "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50")
+  const estiloPill = (activo) => (activo ? { background: GRAD_MARCA } : undefined)
+  const ventasDe = (id) => tieneVentasDeProducto(ventas, facturasVenta, id)
 
   return (
     <div className={"w-full space-y-6 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
-      {/* ─── HEADER ─── */}
+      {/* ─── CABECERA ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-            <Package size={24} />
+            <Package size={24} aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Inventario</h1>
-            <p className="text-sm text-slate-500">Existencias de armazones y accesorios. Las lunas se escriben en la venta.</p>
+            <p className="truncate text-sm text-slate-500" title="Existencias de monturas y accesorios. Las lunas se escriben en la venta.">Existencias de monturas y accesorios. Las lunas se escriben en la venta.</p>
           </div>
         </div>
 
         <AccionesDeCabecera avisos={avisosDelModulo}>
-        {puede(usuario, "inventario", "crear") && <button
-          type="button"
-          onClick={abrirModal}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <Plus size={18} />
-          Agregar producto
-        </button>}
+          {puedeNivel("editar") && (
+            <button type="button" onClick={() => setConteo(true)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
+              <ClipboardCheck size={18} aria-hidden="true" /> Conteo físico
+            </button>
+          )}
+          {puedeNivel("crear") && (
+            <button type="button" onClick={() => setFormulario("crear")} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+              <Plus size={18} aria-hidden="true" /> Agregar producto
+            </button>
+          )}
         </AccionesDeCabecera>
       </div>
 
-      {/* ─── ÉXITO ─── */}
       {guardadoExitoso && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
-          <CheckCircle className="shrink-0 text-emerald-500" size={20} />
+          <CheckCircle className="shrink-0 text-emerald-500" size={20} aria-hidden="true" />
           <p className="text-sm font-semibold">{guardadoExitoso}</p>
         </div>
       )}
 
-      {/* ─── RESUMEN ─── */}
+      {/* ─── RESUMEN: cuatro tarjetas iguales; cada una filtra la tabla o abre su detalle en la ventana estándar ─── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <ResumenCard icon={Package} valor={resumen.total} label="Productos" tile={GRAD} tileText="#fff" />
-        <ResumenCard icon={Boxes} valor={resumen.unidades} label="Unidades en stock" tile="#f1f5f9" tileText="#475569" />
-        <ResumenCard icon={DollarSign} valor={`${dinero(resumen.valor)}`} label="Valor del inventario" tile="#ecfdf5" tileText="#059669" />
-        {/* La tarjeta ES el filtro del stock bajo (R54: el stock bajo se dice una sola vez; el aviso amarillo y la píldora aparte se quitaron). */}
-        <ResumenCard icon={AlertTriangle} valor={resumen.bajos.length} label="Stock bajo" tile="#fffbeb" tileText="#d97706" activo={soloBajo} ayuda="Filtra la lista a los productos por agotarse" onClick={() => { const nuevo = !soloBajo; setSoloBajo(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloNuevos(false) } }} />
+        <TarjetaInventario icono={Package} titulo="Productos" valor={resumen.total} sub={resumen.total > 0 ? `+${resumen.nuevos} este mes` : "Todavía no hay productos"} onClick={() => setResumenAbierto("productos")}
+          ayuda="Los productos activos (monturas y accesorios). Un clic los desglosa por categoría, con los nuevos del mes y los descontinuados." />
+        <TarjetaInventario icono={Boxes} titulo="Unidades en stock" valor={resumen.unidades} sub="Ver por categoría" onClick={() => setResumenAbierto("unidades")}
+          ayuda="La suma de la existencia de los productos activos. Un clic la desglosa por categoría." />
+        <TarjetaInventario icono={DollarSign} titulo="Valor del inventario" valor={dinero(resumen.valor.aPrecio)}
+          sub={valorConCosto ? `a precio de venta · ${dinero(resumen.valor.aCosto)} a costo` : "a precio de venta"} onClick={() => setResumenAbierto("valor")}
+          ayuda={"A precio de venta: existencia × precio de cada producto activo." + (verCosto ? " Con el costo registrado también se muestra a costo (existencia × costo) y la ganancia posible." : "")} />
+        <TarjetaInventario icono={Archive} titulo="Sin venderse en 90 días" valor={sinVender.length} sub={sinVender.length > 0 ? `${dinero(dineroParado)} parados` : "Todo se está moviendo"} alerta={sinVender.length > 0} onClick={() => setResumenAbierto("sinvender")}
+          ayuda="Monturas activas con existencia que no se venden desde hace 90 días o más, o que nunca se vendieron (las registradas hace menos de 90 días no cuentan). Un clic lista esas monturas y lo que representan en dinero." />
       </div>
 
       {/* ─── TABLA ─── */}
       <div className="space-y-4 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-          <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Package size={16} /></span>
-            Stock disponible
-          </h4>
+          <h2 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600"><Package size={16} aria-hidden="true" /></span>
+            {verDescontinuados ? "Productos descontinuados" : "Stock disponible"}
+          </h2>
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <div className="relative flex-1 sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-              <input type="text" placeholder="Buscar producto..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} aria-hidden="true" />
+              <input type="text" aria-label="Buscar producto" placeholder="Buscar producto, código o marca…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
             </div>
-            {/* C5: modo compacto — ver más filas sin scroll cuando el catálogo crece */}
-            <button
-              type="button"
-              onClick={alternarCompacto}
-              title={compacto ? "Vista normal" : "Vista compacta"}
-              aria-pressed={compacto}
-              className={"flex shrink-0 items-center rounded-xl border px-2.5 py-2 text-xs font-semibold transition cursor-pointer " + (compacto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 text-slate-500 hover:bg-slate-50")}
-            >
+            <button type="button" onClick={alternarCompacto} title={compacto ? "Vista normal" : "Vista compacta"} aria-pressed={compacto}
+              className={"flex shrink-0 items-center rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors cursor-pointer " + (compacto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 text-slate-500 hover:bg-slate-50")}>
               <Boxes size={16} aria-hidden="true" /> <span className="ml-1.5 hidden sm:inline">{compacto ? "Vista normal" : "Vista compacta"}</span>
             </button>
           </div>
         </div>
 
-        {/* Filtros: categorías + stock bajo */}
-        <div className="flex flex-wrap items-center gap-2">
-          {["Todas", ...CATEGORIAS].map((c) => {
-            const activo = filtroCategoria === c && !soloBajo && !soloNuevos
-            const col = c === "Todas" ? { fg: "#2563EB" } : catColor(c)
-            return (
-              <button key={c} type="button" onClick={() => { setFiltroCategoria(c); setSoloBajo(false); setSoloNuevos(false) }}
-                className="rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
-                style={activo ? { backgroundColor: col.fg, borderColor: col.fg, color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}>
-                {c}
-              </button>
-            )
-          })}
-
-          <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
-
-          {/* Sin un solo producto este filtro no aporta nada: aparece cuando hay con qué filtrar (regla 25). */}
-          {resumen.total > 0 && (
-          <button type="button" onClick={() => { const nuevo = !soloNuevos; setSoloNuevos(nuevo); if (nuevo) { setFiltroCategoria("Todas"); setSoloBajo(false) } }} aria-pressed={soloNuevos}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer"
-            style={soloNuevos ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
-            title="Productos dados de alta este mes">
-            Nuevos este mes ({resumen.nuevos})
-          </button>
-          )}
-
-          {descontinuados.length > 0 && (
-            <button type="button" onClick={() => setVerDescontinuados((v) => !v)}
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer"
-              style={verDescontinuados ? { backgroundColor: "#475569", borderColor: "#475569", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
-              title="Productos descontinuados — conservan su historial de ventas, no aparecen para vender">
-              <Archive size={12} />
-              {verDescontinuados ? "Viendo descontinuados" : `Ver descontinuados (${descontinuados.length})`}
+        {/* Filtros: todos con su número (siguen a la búsqueda) */}
+        {(resumen.total > 0 || descontinuados.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtros">
+            {["Todas", ...CATEGORIAS].map((c) => {
+              const activo = filtroCategoria === c && !soloBajo && !soloNuevos && !verDescontinuados
+              return (
+                <button key={c} type="button" aria-pressed={activo} onClick={() => elegirCategoria(c)} className={pill(activo)} style={estiloPill(activo)}>
+                  {c} ({cuentaCategoria(c)})
+                </button>
+              )
+            })}
+            <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
+            <button type="button" onClick={alternarNuevos} aria-pressed={soloNuevos} className={pill(soloNuevos)} style={estiloPill(soloNuevos)} title="Productos dados de alta este mes">
+              Nuevos este mes ({cuentaNuevos})
             </button>
-          )}
-        </div>
+            {descontinuados.length > 0 && (
+              <button type="button" onClick={alternarDescontinuados} aria-pressed={verDescontinuados} className={pill(verDescontinuados)} style={estiloPill(verDescontinuados)} title="Conservan su historial; no aparecen para vender">
+                <Archive size={12} aria-hidden="true" /> Descontinuados ({cuentaDescontinuados})
+              </button>
+            )}
+            {soloBajo && (
+              <button type="button" onClick={() => setSoloBajo(false)} aria-label="Quitar el filtro Stock bajo" className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">
+                Stock bajo <X size={12} aria-hidden="true" />
+              </button>
+            )}
+            {hayFiltro && <button type="button" onClick={limpiarFiltros} className="rounded-full px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Limpiar</button>}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm">
+            <caption className="sr-only">Productos del inventario. Pulsa un producto para ver su detalle.</caption>
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("nombre")}>
-                  <span className="flex items-center gap-1">Ítem <IconoOrden campo="nombre" /></span>
-                </th>
-                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("categoria")}>
-                  <span className="flex items-center gap-1">Categoría <IconoOrden campo="categoria" /></span>
-                </th>
-                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("stock")}>
-                  <span className="flex items-center gap-1">Existencia <IconoOrden campo="stock" /></span>
-                </th>
-                <th className={"cursor-pointer select-none px-4 " + celdaY} onClick={() => cambiarOrden("precio")}>
-                  <span className="flex items-center gap-1">Precio U. <IconoOrden campo="precio" /></span>
-                </th>
-                <th className={"px-4 text-center " + celdaY}>Acciones</th>
+              <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-bold uppercase tracking-wide text-slate-500">
+                {[["nombre", "Producto"], ["categoria", "Categoría"], ["stock", "Existencia"], ["precio", "Precio"]].map(([campo, titulo]) => (
+                  <th key={campo} scope="col" aria-sort={ariaOrden(campo)} className={"px-4 " + celdaY}>
+                    <button type="button" onClick={() => cambiarOrden(campo)} className="flex cursor-pointer select-none items-center gap-1 font-bold uppercase tracking-wide">{titulo} <IconoOrden campo={campo} /></button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {cargaInicial && productos.length === 0 ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={"skeleton-" + i}>
-                    <td colSpan={5} className="px-4 py-4">
+                    <td colSpan={4} className="px-4 py-4">
                       <div className="flex items-center gap-4">
                         <div className="h-8 w-8 shrink-0 animate-pulse rounded-lg bg-slate-200/70" />
                         <div className="flex-1 space-y-1.5">
@@ -584,31 +488,34 @@ export default function Inventario({
                 ))
               ) : productosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center">
-                    <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Package size={22} /></div>
+                  <td colSpan={4} className="py-12 text-center">
+                    <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400"><Package size={22} aria-hidden="true" /></div>
                     <p className="mt-2 text-sm font-medium text-slate-500">
-                      {busqueda || filtroCategoria !== "Todas" || soloBajo || soloNuevos ? "Ningún producto coincide con el filtro." : "No hay productos en el inventario."}
+                      {productos.length === 0 ? "No hay productos en el inventario." : hayFiltro ? "Ningún producto coincide con el filtro." : "No hay productos activos."}
                     </p>
-                    {productos.length === 0 && (
-                      <button type="button" onClick={abrirModal} className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                        Agregar el primero
-                      </button>
+                    {productos.length === 0 && puedeNivel("crear") && (
+                      <button type="button" onClick={() => setFormulario("crear")} className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Agregar el primero</button>
+                    )}
+                    {productos.length > 0 && hayFiltro && (
+                      <button type="button" onClick={limpiarFiltros} className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Limpiar los filtros</button>
                     )}
                   </td>
                 </tr>
               ) : (
                 productosVisibles.map((prod) => {
                   const col = catColor(prod.categoria)
-                  const bajo = esStockBajo(prod, umbralStock)
+                  const bajo = prod.activo !== false && esStockBajo(prod, umbralStock)
+                  const sub = [prod.marca, prod.modelo, prod.color].filter(Boolean).join(" · ")
                   return (
-                    <tr key={prod.id} className="transition hover:bg-slate-50/70">
+                    <tr key={prod.id} onClick={() => abrirDetalle(prod)} className="cursor-pointer transition-colors hover:bg-slate-50/70">
                       <td className={"px-4 " + celdaY}>
                         <div className="flex items-center gap-2.5">
-                          <MiniaturaProducto url={prod.imagen_url} alt={prod.nombre} size={compacto ? 24 : 32} />
+                          <MiniaturaProducto url={prod.imagen_url} alt="" size={compacto ? 24 : 32} />
                           <div className="min-w-0">
-                            <p className="truncate font-bold text-slate-800">{prod.nombre}</p>
-                            {!compacto && prod.observacion && <p className="mt-0.5 truncate text-xs text-slate-500">{prod.observacion}</p>}
+                            <button type="button" onClick={(e) => { e.stopPropagation(); abrirDetalle(prod) }} aria-label={`Ver el detalle de ${prod.nombre}`} className="block max-w-[28rem] truncate text-left font-bold text-slate-800 hover:text-blue-700 cursor-pointer">{prod.nombre}</button>
+                            {!compacto && sub && <p className="mt-0.5 truncate text-xs text-slate-500">{sub}</p>}
                           </div>
+                          {prod.activo === false && <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Descontinuado</span>}
                         </div>
                       </td>
                       <td className={"px-4 " + celdaY}>
@@ -617,55 +524,15 @@ export default function Inventario({
                       <td className={"px-4 " + celdaY}>
                         <div className="flex items-center gap-2">
                           <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-800")}>{prod.stock} u.</span>
-                          {bajo && <AlertTriangle size={14} className="text-amber-500" />}
+                          {bajo && <AlertTriangle size={14} className="text-amber-500" aria-label="Stock bajo" />}
                         </div>
                         {!compacto && (
-                          <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`,
-                                background: bajo ? "#D97706" : "linear-gradient(135deg,#22D3EE,#2563EB)",
-                              }}
-                            />
+                          <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                            <div className="h-full rounded-full" style={{ width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`, background: bajo ? "#D97706" : GRAD }} />
                           </div>
                         )}
                       </td>
                       <td className={"px-4 font-mono font-bold text-slate-600 " + celdaY}>{dinero(Number(prod.precio))}</td>
-                      <td className={"px-4 " + celdaY}>
-                        <div className="flex items-center justify-center gap-1">
-                          {prod.activo === false ? (
-                            <>
-                              <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
-                                <BarChart3 size={16} />
-                              </button>
-                              <button type="button" onClick={() => activarProducto(prod)} disabled={activandoId === prod.id}
-                                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                                title="Reactivar producto — vuelve a poder venderse" aria-label="Reactivar producto">
-                                <RotateCcw size={16} />
-                              </button>
-                            </>
-                          ) : (
-                          <>
-                          {puede(usuario, "inventario", "editar") && <button type="button" onClick={() => abrirEditar(prod)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_VER} title="Editar / añadir stock" aria-label="Editar o añadir stock">
-                            <Pencil size={16} />
-                          </button>}
-                          {puede(usuario, "ventas", "crear") && <button type="button" onClick={() => setVendiendo(prod)} disabled={(Number(prod.stock) || 0) <= 0}
-                            className={"rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer " + ACCION_CONFIRMAR}
-                            title={(Number(prod.stock) || 0) <= 0 ? "Sin stock disponible" : "Vender a un paciente"} aria-label="Vender a un paciente">
-                            <ShoppingCart size={16} />
-                          </button>}
-                          <button type="button" onClick={() => setVerReporte(prod)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-violet-50 hover:text-violet-600 cursor-pointer" title="Ver reporte de ventas" aria-label="Ver reporte de ventas">
-                            <BarChart3 size={16} />
-                          </button>
-                          {puede(usuario, "inventario", "eliminar") && <button type="button" onClick={() => setPorEliminar(prod.id)} className={"rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}
-                            title={tieneVentasAsociadas(prod.id) ? "Desactivar producto (tiene ventas registradas)" : "Eliminar producto"} aria-label="Eliminar o desactivar producto">
-                            <Trash2 size={16} />
-                          </button>}
-                          </>
-                          )}
-                        </div>
-                      </td>
                     </tr>
                   )
                 })
@@ -677,247 +544,79 @@ export default function Inventario({
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
             <span>Mostrando {productosVisibles.length} de {productosFiltrados.length}</span>
             {cantidadVisible < productosFiltrados.length && (
-              <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                Mostrar 25 más
-              </button>
+              <button type="button" onClick={() => setCantidadVisible((v) => v + 25)} className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Mostrar 25 más</button>
             )}
           </div>
         )}
       </div>
 
-      {/* ─── MODAL AGREGAR PRODUCTO ─── */}
-      {modalAbierto && (
-        <Cascaron titulo="Agregar producto" subtitulo="Descríbela de forma genérica. Las lunas no van en el inventario: se escriben al vender." Icono={Plus} ancho="max-w-md" onCerrar={cerrarModal} formulario={{ onSubmit: registrarProducto }}
-          pie={<PieFormulario onCancelar={cerrarModal} etiquetaGuardar="Guardar producto" />}>
-          <div className="space-y-4 p-6">
-            <CampoImagenProducto opticaId={opticaId} valor={imagenUrl} onCambio={setImagenUrl} />
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
-              <CampoCategoria valor={categoria} onChange={setCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción de la montura o accesorio</label>
-              <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X"
-                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-              {erroresForm.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.nombre}</p>}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock</label>
-                <input type="number" min="0" step="1" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="10"
-                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                {erroresForm.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.stock}</p>}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
-                <input type="number" min="0" step="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="45.00"
-                  className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                {erroresForm.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresForm.precio}</p>}
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
-              <input type="number" min="0" step="1" value={critico} onChange={(e) => setCritico(e.target.value)} placeholder={String(umbralStock)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-              <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-            </div>
-            {erroresForm.general && (
-              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                <AlertTriangle size={14} /> {erroresForm.general}
-              </div>
-            )}
-          </div>
-        </Cascaron>
+      {/* ─── VENTANAS ─── */}
+      {detalle && !hayVentanaSobreElDetalle && (
+        <DetalleProducto
+          producto={detalle} umbralStock={umbralStock} usuarioPuede={puedeNivel} ventas={ventas} facturasVenta={facturasVenta} pacientes={pacientes}
+          versionMovimientos={versionMovimientos} pestana={pestanaDetalle} onPestana={setPestanaDetalle} sinAnimarFondo={detalleReaparece}
+          onIngreso={() => abrirSobreDetalle(() => setMovimiento({ modo: "ingreso", productoId: detalle.id }))}
+          onAjustar={() => abrirSobreDetalle(() => setMovimiento({ modo: "ajuste", productoId: detalle.id }))}
+          onEditar={() => abrirSobreDetalle(() => setFormulario(detalle))}
+          onDescontinuar={() => abrirSobreDetalle(() => { setErrorDescontinuar(""); setPorDescontinuar(detalle) })}
+          onReactivar={() => cambiarActivo(detalle, true)}
+          onVerPerfil={onVerPerfil} onCerrar={cerrarDetalle}
+        />
       )}
 
-      {/* ─── MODAL EDITAR PRODUCTO / AÑADIR STOCK (unificado) ─── */}
-      {editando && (
-        <Cascaron titulo="Editar producto" subtitulo={edNombre || "Actualiza sus datos o suma stock."} Icono={Pencil} ancho="max-w-md" onCerrar={cerrarEditar} formulario={{ onSubmit: guardarEdicion }}
-          pie={<PieFormulario onCancelar={cerrarEditar} etiquetaGuardar="Guardar cambios" />}>
-          <div className="space-y-4 p-6">
-            <CampoImagenProducto opticaId={opticaId} valor={edImagenUrl} onCambio={setEdImagenUrl} />
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
-              <CampoCategoria valor={edCategoria} onChange={setEdCategoria} categorias={CATEGORIAS} setCategorias={setCategorias} />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción del producto</label>
-              <input type="text" required value={edNombre} onChange={(e) => setEdNombre(e.target.value)} placeholder="Ej. Lentes Oakley Holbrook"
-                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-              {erroresEdicion.nombre && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.nombre}</p>}
-            </div>
-    
-            <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-3">
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Existencia</label>
-              <div className="flex gap-2">
-                <input type="number" min="0" step="1" required value={edStock} onChange={(e) => setEdStock(e.target.value)}
-                  className={"w-24 rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:ring-2 " + (erroresEdicion.stock ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-                <span className="self-center text-xs text-slate-500">unidades ·</span>
-                <input type="number" min="1" step="1" value={sumarStock} onChange={(e) => setSumarStock(e.target.value)} placeholder="+ agregar"
-                  className="w-24 rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm outline-none transition focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-50" />
-                <button type="button" onClick={aplicarSumaStock} disabled={!sumarStock}
-                  className="shrink-0 rounded-xl px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                  style={{ background: "linear-gradient(135deg,#34d399,#059669)" }}>
-                  Sumar
-                </button>
-              </div>
-              {erroresEdicion.stock && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.stock}</p>}
-              <p className="mt-1.5 text-[11px] text-slate-500">Escribe la existencia final directamente, o usa "+ agregar" para sumar unidades recibidas.</p>
-            </div>
-    
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Precio ($)</label>
-              <input type="number" min="0" step="0.01" required value={edPrecio} onChange={(e) => setEdPrecio(e.target.value)} placeholder="45.00"
-                className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (erroresEdicion.precio ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")} />
-              {erroresEdicion.precio && <p className="mt-1 text-[11px] font-medium text-red-600">{erroresEdicion.precio}</p>}
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Stock mínimo (alerta) <span className="normal-case text-slate-500">(opcional · vacío = {umbralStock})</span></label>
-              <input type="number" min="0" step="1" value={edCritico} onChange={(e) => setEdCritico(e.target.value)} placeholder={String(umbralStock)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Observación <span className="normal-case text-slate-500">(opcional)</span></label>
-              <textarea value={edObservacion} onChange={(e) => setEdObservacion(e.target.value)} rows={2} placeholder="Ej. Color negro mate, incluye estuche."
-                className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
-            </div>
-            {erroresEdicion.general && (
-              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                <AlertTriangle size={14} /> {erroresEdicion.general}
-              </div>
-            )}
-          </div>
-        </Cascaron>
+      {formulario && (
+        <FormularioProducto
+          producto={formulario === "crear" ? null : formulario} categorias={CATEGORIAS} setCategorias={setCategorias} umbralStock={umbralStock} opticaId={opticaId} productos={productos}
+          puedeVerCosto={verCosto} sinAnimarFondo={!!detalle}
+          onGuardar={(cambios) => (formulario === "crear" ? crearProducto(cambios) : editarProducto(formulario, cambios))}
+          onCerrar={() => setFormulario(null)}
+        />
       )}
 
-      {/* ─── MODAL ELIMINAR ─── */}
-      {porEliminar != null && (
+      {movimiento && productos.find((p) => p.id === movimiento.productoId) && (
+        <MovimientoModal
+          modo={movimiento.modo} producto={productos.find((p) => p.id === movimiento.productoId)} sinAnimarFondo={!!detalle}
+          onRegistrar={(datos) => registrarMovimiento(productos.find((p) => p.id === movimiento.productoId), datos)}
+          onCerrar={() => setMovimiento(null)}
+        />
+      )}
+
+      {conteo && <ConteoFisico productos={activos} categorias={CATEGORIAS} verCosto={verCosto} onConfirmar={confirmarConteo} onHoja={imprimirHojaConteo} onHistorial={() => { setConteo(false); setHistorialConteos(true) }} onCerrar={() => setConteo(false)} />}
+      {historialConteos && !acta && <HistorialConteos sinAnimarFondo onAbrirActa={setActa} onCerrar={() => setHistorialConteos(false)} />}
+      {acta && <ActaConteo sinAnimarFondo acta={acta} opticaNombre={usuario?.opticaNombre || ""} titulo={acta.id === "local" || !historialConteos ? "Conteo registrado" : "Acta del conteo"} onCerrar={() => setActa(null)} />}
+
+      {resumenAbierto && (
+        <VentanaResumen modo={resumenAbierto} productos={activos} descontinuados={descontinuados} categorias={CATEGORIAS} sinVender={sinVender} verCosto={verCosto}
+          onVer={verDesdeResumen} onVerProducto={(p) => { setResumenAbierto(null); abrirDetalle(p) }} onCerrar={() => setResumenAbierto(null)} />
+      )}
+
+      {porDescontinuar && (
         <Cascaron
-          titulo={porEliminarTieneVentas ? "Desactivar producto" : "Eliminar producto"}
-          subtitulo={porEliminar.nombre || ""}
-          Icono={porEliminarTieneVentas ? Archive : Trash2}
-          ancho="max-w-md"
-          onCerrar={() => !eliminando && setPorEliminar(null)}
+          titulo="Descontinuar producto" subtitulo={porDescontinuar.nombre} Icono={Archive} ancho="max-w-md" sinAnimarFondo={!!detalle}
+          onCerrar={() => !descontinuando && setPorDescontinuar(null)}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
-              <button type="button" disabled={eliminando} onClick={() => { setPorEliminar(null); setErrorEliminar("") }} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
-              <button type="button" disabled={eliminando} onClick={confirmarEliminar}
-                className={"rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-50 " + (porEliminarTieneVentas ? "bg-amber-600 hover:bg-amber-700" : "bg-red-600 hover:bg-red-700")}>
-                {eliminando ? (porEliminarTieneVentas ? "Desactivando..." : "Eliminando...") : (porEliminarTieneVentas ? "Desactivar" : "Eliminar")}
-              </button>
+              <button type="button" disabled={descontinuando} onClick={() => { setPorDescontinuar(null); setErrorDescontinuar("") }} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button type="button" disabled={descontinuando} onClick={confirmarDescontinuar} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 cursor-pointer disabled:opacity-50">{descontinuando ? "Descontinuando…" : "Descontinuar"}</button>
             </div>
           </>}
         >
           <div className="space-y-3 p-6">
-            <p className="text-sm text-slate-600">{porEliminarTieneVentas
-              ? "Este producto tiene ventas registradas — no se puede eliminar sin perder ese historial. Se va a desactivar: deja de poder elegirse en una venta nueva, pero conserva su historial y puedes reactivarlo cuando quieras."
-              : "¿Seguro que deseas quitar este producto del inventario? Esta acción no se puede deshacer."}</p>
-            {errorEliminar && (
-              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                <AlertTriangle size={14} /> {errorEliminar}
-              </div>
+            <p className="text-sm text-slate-600">
+              {ventasDe(porDescontinuar.id)
+                ? "Este producto tiene ventas registradas. Descontinuarlo no pierde ese historial: deja de poder elegirse en una venta nueva y puedes reactivarlo cuando quieras."
+                : "El producto deja de poder elegirse en una venta nueva. Conserva su historial y puedes reactivarlo cuando quieras. Los productos no se eliminan."}
+            </p>
+            {(Number(porDescontinuar.stock) || 0) > 0 && (
+              <p className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-sm text-amber-900"><AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" /> Todavía tiene {porDescontinuar.stock} unidad{Number(porDescontinuar.stock) === 1 ? "" : "es"}: dejarán de contarse en los totales del inventario. Si ya no están, regístralo antes con «Ajustar stock».</p>
+            )}
+            {errorDescontinuar && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700"><AlertTriangle size={14} aria-hidden="true" /> {errorDescontinuar}</div>
             )}
           </div>
         </Cascaron>
       )}
-
-      {/* ─── MODAL VENDER PRODUCTO ─── */}
-      {vendiendo && (
-        <ComprobanteVentaModal
-          usuario={usuario}
-          pacientes={pacientes}
-          inventario={productos}
-          setInventario={setProductos}
-          categorias={CATEGORIAS}
-          setCategorias={setCategorias}
-          lineasIniciales={[{ tipo: "producto", productoId: vendiendo.id, cantidad: 1 }]}
-          onGuardado={registrarVenta}
-          onCerrar={() => setVendiendo(null)}
-        />
-      )}
-
-      {/* ─── MODAL REPORTE POR PRODUCTO ─── */}
-      {verReporte && reporteProducto && (
-        <Cascaron titulo="Reporte de ventas" subtitulo={verReporte.nombre} Icono={BarChart3} ancho="max-w-lg" onCerrar={() => setVerReporte(null)}
-          pie={<><span className="text-xs text-slate-500">Ventas de este producto, de la más reciente a la más antigua.</span><button type="button" onClick={() => setVerReporte(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>
-          <div className="p-6">
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center">
-          <p className="text-xl font-serif font-semibold" style={{ color: INK }}>{reporteProducto.unidades}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-slate-500">Unidades vendidas</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 p-3 text-center">
-          <p className="text-xl font-serif font-semibold text-emerald-700">{dinero(reporteProducto.ingreso)}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-emerald-600">Ingreso generado</p>
-        </div>
-        <div className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-center">
-          <p className="text-xl font-serif font-semibold text-amber-700">{reporteProducto.pendientes}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-amber-600">Con pago pendiente</p>
-        </div>
-      </div>
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-        <Users size={13} /> {reporteProducto.pacientes} paciente{reporteProducto.pacientes === 1 ? "" : "s"} distinto{reporteProducto.pacientes === 1 ? "" : "s"} lo ha{reporteProducto.pacientes === 1 ? "" : "n"} comprado.
-      </p>
-
-      {reporteProducto.ventas.length === 0 ? (
-        <div className="mt-4 flex flex-col items-center gap-2 py-8 text-center">
-          <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><ShoppingCart size={20} /></div>
-          <p className="text-sm font-medium text-slate-500">Todavía no se ha vendido este producto.</p>
-        </div>
-      ) : (
-        <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200/60">
-          {reporteProducto.ventas.map((v) => (
-            <div key={v.id} className="flex items-center justify-between px-3 py-2.5">
-              <div>
-                {onVerPerfil && v.pacienteId != null ? (
-                  <button type="button" onClick={() => onVerPerfil(v.pacienteId)} className="text-sm font-semibold text-slate-700 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
-                    {nombrePaciente(v.pacienteId)}
-                  </button>
-                ) : (
-                  <p className="text-sm font-semibold text-slate-700">{nombrePaciente(v.pacienteId)}</p>
-                )}
-                <p className="text-[11px] text-slate-500">{v.cantidad} u. · {fechaLegible(v.creadoEn)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-bold text-slate-700">{dinero(Number(v.montoTotal))}</span>
-                <span className={"rounded-full px-2 py-0.5 text-[10px] font-bold " + (v.estado === "completado" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
-                  {v.estado === "completado" ? "Pagado" : "Pendiente"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-          </div>
-        </Cascaron>
-      )}
     </div>
-  )
-}
-
-function ResumenCard({ icon: Icon, valor, label, tile, tileText, onClick, activo = false, ayuda }) {
-  const contenido = (
-    <>
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: tile, color: tileText }}>
-        <Icon size={20} />
-      </div>
-      <div className="min-w-0 text-left">
-        <p className="truncate text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{valor}</p>
-        <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
-      </div>
-    </>
-  )
-  const base = "flex items-center gap-3 rounded-2xl border bg-white p-4 "
-  if (!onClick) return <div className={base + "border-slate-200/60"} style={{ boxShadow: "0 1px 2px rgba(14,43,51,0.04)" }}>{contenido}</div>
-  return (
-    <button type="button" onClick={onClick} aria-pressed={activo} aria-label={`${label}: ${valor}. ${ayuda || ""}`.trim()} title={ayuda}
-      className={base + "w-full transition-colors cursor-pointer hover:bg-slate-50 " + (activo ? "border-amber-400 ring-2 ring-amber-200" : "border-slate-200/60")} style={{ boxShadow: "0 1px 2px rgba(14,43,51,0.04)" }}>
-      {contenido}
-    </button>
   )
 }

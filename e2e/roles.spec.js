@@ -55,7 +55,7 @@ test.describe('Recepción', () => {
     await expect.soft(visible(page, 'Tomar datos del diagnóstico').first()).toBeVisible()
     await abrir(page, 'Inventario')
     await expect.soft(visible(page, 'Agregar producto'), 'Recepción solo ve el inventario').toHaveCount(0)
-    await expect.soft(visible(page, 'Editar o añadir stock')).toHaveCount(0)
+    await expect.soft(visible(page, 'Conteo físico')).toHaveCount(0)
     await abrir(page, 'CRM y fidelización')
     await expect.soft(visible(page, 'Publicar aviso')).toBeVisible()
   })
@@ -90,7 +90,7 @@ test.describe('Ventas', () => {
     await expect.soft(visible(page, 'Nueva venta')).toBeVisible()
     await abrir(page, 'Inventario')
     await expect.soft(visible(page, 'Agregar producto'), 'Ventas gestiona inventario').toBeVisible()
-    await expect.soft(visible(page, 'Editar o añadir stock').first()).toBeVisible()
+    await expect.soft(visible(page, 'Conteo físico'), 'Ventas con inventario: editar cuenta el stock').toBeVisible()
   })
 
   test('sin permiso para fichas clínicas: no ve "Atender" ni "Ingresar"', async ({ page }) => {
@@ -144,7 +144,7 @@ test.describe('Optómetra', () => {
     await expect.soft(visible(page, 'Tomar datos del diagnóstico')).toHaveCount(0)
     await abrir(page, 'Inventario')
     await expect.soft(visible(page, 'Agregar producto')).toHaveCount(0)
-    await expect.soft(visible(page, 'Editar o añadir stock')).toHaveCount(0)
+    await expect.soft(visible(page, 'Conteo físico')).toHaveCount(0)
     await abrir(page, 'Reportes')
     await expect.soft(page.getByRole('button', { name: 'Este mes' })).toBeVisible()
   })

@@ -13,6 +13,9 @@ import PestanaCitas from "../componentes/reportes/PestanaCitas"
 import PestanaClinico from "../componentes/reportes/PestanaClinico"
 import PestanaVentas from "../componentes/reportes/PestanaVentas"
 import PestanaLaboratorios from "../componentes/reportes/PestanaLaboratorios"
+import PestanaInventario from "../componentes/reportes/PestanaInventario"
+import { useTodosLosMovimientos } from "../componentes/inventario/useMovimientos"
+import { puede } from "../utilidades/permisosUi"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { tituloSemana } from "../utilidades/formatoFecha"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
@@ -32,6 +35,7 @@ const PESTANAS = [
   { id: "clinico", etiqueta: "Clínico", pregunta: "¿Qué atendemos y cómo están nuestros pacientes?" },
   { id: "ventas", etiqueta: "Ventas", pregunta: "¿Cuánto vendemos, cuánto cobramos y por qué no compran?" },
   { id: "laboratorios", etiqueta: "Laboratorios", pregunta: "¿Cumplen los laboratorios?" },
+  { id: "inventario", etiqueta: "Inventario", pregunta: "¿Cuánto vale lo que tenemos y qué se mueve?" },
 ]
 const ETIQUETA_ORIGEN = Object.fromEntries(ORIGENES_FILTRO.map((o) => [o.id, o.etiqueta]))
 const ETIQUETA_VISITA = Object.fromEntries(SEGUIMIENTO_FILTRO.map((o) => [o.id, o.etiqueta]))
@@ -43,7 +47,9 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const ocultarMontos = propio || verMontos === false
   const historial = consultasCompletas || consultasTodas
 
-  const pestanasVisibles = PESTANAS.filter((p) => !(p.id === "ventas" && ocultarMontos))
+  // Inventario trae costos y márgenes: lo ve quien ve montos y puede ver el inventario.
+  const verInventario = !ocultarMontos && puede(usuario, "inventario", "ver")
+  const pestanasVisibles = PESTANAS.filter((p) => !(p.id === "ventas" && ocultarMontos) && !(p.id === "inventario" && !verInventario))
   const [pestana, setPestana] = useParamUrl("tab", "resumen", pestanasVisibles.map((p) => p.id))
   const [periodo, setPeriodo] = useState("mes")
   const [personalizado, setPersonalizado] = useState({ inicio: "", fin: "" })
@@ -51,6 +57,9 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const [detalle, setDetalle] = useState(null)
   const [exportando, setExportando] = useState(false)
   const cambiarFiltro = (clave, valor) => setFiltros((f) => ({ ...f, [clave]: valor }))
+
+  // El kárdex se pide solo cuando hace falta: al abrir la pestaña Inventario o la ventana Exportar (una sola vez).
+  const kardex = useTodosLosMovimientos(verInventario && (pestana === "inventario" || exportando))
 
   const hoyClave = fechaAISO(ahoraEcuador())
   const hoy = useMemo(() => ahoraEcuador(), [hoyClave]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -109,7 +118,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const paramsFiltros = { origen: filtros.origen, visita: filtros.visita, profesional: filtros.profesional, motivo: filtros.motivo }
   const etiquetaComp = etiquetaComparacion(previo, hoy)
   const r = {
-    usuario, rango, previo, hoy, hay, bloque, exportarLista, f, datos, filtros, act, ant, cols, abrir, paramsFiltros, etiquetaComp, historial, equipo, inventario,
+    usuario, rango, previo, hoy, hay, bloque, exportarLista, f, datos, filtros, act, ant, cols, abrir, paramsFiltros, etiquetaComp, historial, equipo, inventario, movimientos: kardex.movimientos, kardex,
     ocultarMontos, esAdmin, propio, filtrosTexto, filtrosActivosTexto, onAbrirModulo, onAviso, setPestana, setPeriodo,
     quitarFiltros: () => setFiltros(FILTROS_VACIOS),
     // Una tarjeta del período: el número, cómo va frente al anterior y su lista.
@@ -198,6 +207,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {actual.id === "clinico" && <PestanaClinico r={r} />}
         {actual.id === "ventas" && <PestanaVentas r={r} />}
         {actual.id === "laboratorios" && <PestanaLaboratorios r={r} />}
+        {actual.id === "inventario" && <PestanaInventario r={r} />}
       </div>
 
       {detalle && <VentanaDetalle d={detalle} onCerrar={() => setDetalle(null)} />}

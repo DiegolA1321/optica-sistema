@@ -193,7 +193,9 @@ export default function Inicio({
 
   // Productos con stock bajo (por debajo de su mínimo), el más crítico primero. Se muestran una sola vez en
   // todo el Inicio, como una fila de "Requiere tu atención", con el reabastecimiento a un clic.
-  const productosBajoStock = useMemo(() => inventario.filter((p) => esStockBajo(p, umbralStock)).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)), [inventario, umbralStock])
+  // Solo los productos activos: los descontinuados no cuentan (el Inventario tampoco los cuenta ni los lista), así los números coinciden.
+  const productosActivos = useMemo(() => inventario.filter((p) => p.activo !== false), [inventario])
+  const productosBajoStock = useMemo(() => productosActivos.filter((p) => esStockBajo(p, umbralStock)).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)), [productosActivos, umbralStock])
 
   // Para "Mi agenda" (vista del optómetra, D4): pacientes en atención ahora
   // mismo (no acotado a hoy, mismo criterio sin fecha que ya usa el badge de
@@ -301,7 +303,7 @@ export default function Inicio({
   // Cuánto se dio de alta este mes: cada total lo dice junto al número, con la misma lógica en las tres tarjetas.
   const citasVigentes = useMemo(() => citas.filter((c) => c.estado !== "Cancelada"), [citas])
   const citasEsteMes = useMemo(() => creadosEsteMes(citasVigentes, "creadoEn"), [citasVigentes])
-  const productosEsteMes = useMemo(() => creadosEsteMes(inventario, "creadoEn"), [inventario])
+  const productosEsteMes = useMemo(() => creadosEsteMes(productosActivos, "creadoEn"), [productosActivos])
   const ventasMes = useMemo(() => ventasDelMes(facturasVenta, undefined, abonos), [facturasVenta, abonos])
   // La ventana de cada total: todo lo registrado o lo nuevo de este mes. Cada opción abre el módulo con ese mismo número (regla 42).
   const nombreMes = nombreMesDe(ahoraEcuador().getMonth()).toLowerCase()
@@ -320,7 +322,7 @@ export default function Inicio({
       { id: "mes", etiqueta: "Vendidas este mes", detalle: `${dinero(ventasMes.total)} vendido · ${dinero(ventasMes.cobrado)} cobrado en ${nombreMes}`, valor: ventasMes.cantidad, onClick: verTotal("ventas", "mes") },
     ] },
     productos: { id: "productos", titulo: "Productos", modulo: "Inventario", icono: Package, opciones: [
-      { id: "todos", etiqueta: "Todos los productos", detalle: "Todo el inventario", valor: inventario.length, onClick: verTotal("inventario", "todos") },
+      { id: "todos", etiqueta: "Todos los productos", detalle: "Todo el inventario", valor: productosActivos.length, onClick: verTotal("inventario", "todos") },
       { id: "mes", etiqueta: "Nuevos este mes", detalle: `Dados de alta en ${nombreMes}`, valor: productosEsteMes, onClick: verTotal("inventario", "mes") },
     ] },
   }
@@ -335,7 +337,7 @@ export default function Inicio({
         { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setTotalAbierto("pacientes") },
         { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setTotalAbierto("citas") },
         veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setTotalAbierto("ventas") },
-        { id: "productos", titulo: "Productos", valor: inventario.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setTotalAbierto("productos") },
+        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
   )

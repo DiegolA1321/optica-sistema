@@ -9,6 +9,8 @@ import { diagnosticosPorMes } from "../../utilidades/reportesDiagnosticos"
 import { nombreMes } from "../../utilidades/formatoFecha"
 import { enRango, mesesDelRango } from "../../utilidades/reportesPeriodo"
 import { metricasDelPeriodo, resumenLaboratorios } from "../../utilidades/reportesDatos"
+import { movimientosDelRango } from "../../utilidades/reportesInventario"
+import { lineasDeProducto, masVendidas, monturasSinVender, DIAS_SIN_VENDER } from "../../utilidades/inventarioKardex"
 import { modeloDeLista, modeloVentasContador, modeloSinFacturaElectronica, modeloCobros, modeloCampana, modeloInventario, modeloOrdenesPendientes } from "../../utilidades/reportesExcel"
 
 export const MODULOS = [
@@ -17,6 +19,7 @@ export const MODULOS = [
   { id: "clinico", etiqueta: "Clínico" },
   { id: "ventas", etiqueta: "Ventas" },
   { id: "laboratorios", etiqueta: "Laboratorios" },
+  { id: "inventario", etiqueta: "Inventario" },
 ]
 
 const MESES = Array.from({ length: 12 }, (_, i) => i)
@@ -25,6 +28,8 @@ const MESES = Array.from({ length: 12 }, (_, i) => i)
 export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } = {}) {
   const { datos, f, cols, ocultarMontos, propio, usuario, equipo, historial } = r
   const montos = !ocultarMontos
+  const verInventario = !propio && !ocultarMontos && puede(usuario, "inventario", "ver")
+  const verCosto = puede(usuario, "inventario", "editar")
   const delRango = (m) => metricasDelPeriodo(f, datos, m)
   const lista = (titulo, columnas, filas, personal = true) => modeloDeLista({ titulo, columnas, filas, rango, personal })
   const profesional = (c) => (responsableDeCita(c) ? nombreDeMiembro(equipo, responsableDeCita(c)) || "Persona que ya no está en el equipo" : "Sin asignar")
@@ -67,8 +72,6 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
       modelo: () => modeloSinFacturaElectronica({ facturas: datos.facturas, pacientes: datos.pacientes, rango }) },
     { id: "cobros", modulo: "ventas", nombre: "Cobros del período", linea: "El dinero que entró, con su método y la venta a la que corresponde. Para cuadrar la caja.", visible: montos,
       modelo: () => modeloCobros({ facturas: datos.facturas, abonos: datos.abonos, pacientes: datos.pacientes, rango }) },
-    { id: "inventario", modulo: "ventas", nombre: "Inventario actual", linea: "Producto, categoría, existencia, precio y valor, con el total. Para el conteo físico.", aHoy: true, visible: !propio && puede(usuario, "inventario", "ver"),
-      modelo: () => modeloInventario({ inventario: r.inventario }) },
     { ...pdf("ventas", "Ventas"), visible: montos },
 
     // ── Laboratorios ──
@@ -77,6 +80,20 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
     { id: "labs-desempeno", modulo: "laboratorios", nombre: "Desempeño de cada laboratorio", linea: "Órdenes abiertas y atrasadas, entregadas a tiempo y tiempo promedio de entrega.", visible: montos,
       modelo: () => lista("Desempeño de los laboratorios", [col("Laboratorio", (l) => l.laboratorio), col("Abiertas (hoy)", (l) => l.abiertas, "entero"), col("Atrasadas (hoy)", (l) => l.atrasadas, "entero"), col("Entregadas en el período", (l) => l.entregadas, "entero"), col("Entregadas a tiempo", (l) => l.pctATiempo, "tasa"), col("Promedio de entrega (días)", (l) => (l.promedioDias == null ? null : Math.round(l.promedioDias * 10) / 10), "decimal")], resumenLaboratorios(datos.ordenes, rango, r.hoy), false) },
     pdf("laboratorios", "Laboratorios"),
+
+    // ── Inventario ──
+    { id: "inventario", modulo: "inventario", nombre: "Inventario actual", linea: "Producto, categoría, código, existencia, precio y valor (a costo si lo puedes ver), con una columna «Contado» en blanco. Para el conteo físico.", aHoy: true, visible: verInventario,
+      modelo: () => modeloInventario({ inventario: r.inventario, conCosto: verCosto }) },
+    { id: "inventario-movimientos", modulo: "inventario", nombre: "Movimientos del período", linea: "Cada ingreso, venta, anulación, ajuste, merma, devolución y conteo, con su cantidad, lo que quedó, el motivo y quién lo hizo.", visible: verInventario,
+      modelo: () => lista("Movimientos de inventario", [col("Fecha", (m) => m.creadoEn, "fecha"), col("Producto", (m) => m.producto), col("Categoría", (m) => m.categoria), col("Movimiento", (m) => m.etiqueta), col("Cantidad", (m) => m.cantidad, "entero"), col("Quedó", (m) => m.stockResultante, "entero"), col("Motivo", (m) => m.motivo), col("Quién", (m) => m.usuarioNombre || "Sistema")],
+        movimientosDelRango(r.movimientos || [], r.inventario, rango).filter((m) => m.tipo !== "saldo_inicial")) },
+    { id: "inventario-ventas", modulo: "inventario", nombre: "Ventas y margen por producto", linea: "Unidades, ingreso, costo y ganancia de cada producto vendido en el período, con la existencia de hoy. Para decidir qué comprar.", visible: verInventario && verCosto,
+      modelo: () => lista("Ventas y margen por producto", [col("Producto", (p) => p.nombre), col("Categoría", (p) => p.producto?.categoria || ""), col("Unidades vendidas", (p) => p.unidades, "entero"), col("Ingreso", (p) => p.ingreso, "dinero"), col("Costo", (p) => (p.conCosto ? p.costo : null), "dinero"), col("Ganancia", (p) => p.ganancia, "dinero"), col("Existencia hoy", (p) => Number(p.producto?.stock) || 0, "entero")],
+        masVendidas(lineasDeProducto(datos.facturas, rango, r.inventario), 100000), false) },
+    { id: "inventario-sinventa", modulo: "inventario", nombre: "Monturas sin venderse", linea: `Las monturas con existencia que no se venden desde hace ${DIAS_SIN_VENDER} días (hasta el último día de las fechas), con su última venta. Para ofrecerlas o rebajarlas.`, visible: verInventario,
+      modelo: () => lista(`Monturas sin venderse en ${DIAS_SIN_VENDER} días`, [col("Monturas", (f) => f.producto.nombre), col("Código", (f) => f.producto.codigo || ""), col("Existencia", (f) => f.existencia, "entero"), col("Última venta", (f) => f.ultimaVenta || "", "fecha"), col("Precio", (f) => Number(f.producto.precio) || 0, "dinero"), col("Valor a precio", (f) => f.valor, "dinero")],
+        monturasSinVender({ productos: r.inventario, facturas: datos.facturas, movimientos: r.movimientos || [], fechaISO: rango.fin }), false) },
+    { ...pdf("inventario", "Inventario"), visible: verInventario },
   ]
   return items.filter((x) => x.visible !== false)
 }

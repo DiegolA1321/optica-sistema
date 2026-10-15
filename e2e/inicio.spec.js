@@ -126,8 +126,8 @@ test.describe('Inicio del administrador', () => {
     test.skip(await verTodo.count() === 0, 'Esta óptica no tiene productos con stock bajo')
     await verTodo.click()
     await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Inventario · Stock bajo/ }).click()
-    // Inventario abre con el filtro "Stock bajo" ya activo: la tarjeta Stock bajo es el filtro y queda pulsada
-    await expect(page.getByRole('button', { name: /^Stock bajo:/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
+    // Inventario abre con el filtro "Stock bajo" ya activo, visible como una etiqueta con su "x" (el stock bajo ya no es una tarjeta)
+    await expect(page.getByRole('button', { name: 'Quitar el filtro Stock bajo' })).toBeVisible({ timeout: 15_000 })
   })
 
   test('"Citas del día" muestra solo las de hoy', async ({ page }) => {

@@ -46,7 +46,7 @@ test('Totales: cada opción de cada tarjeta lleva al módulo con el mismo númer
         else await expect(estado(page)).toHaveText(new RegExp(`^${n} comprobantes?( en el mes)?$`), { timeout: 15_000 })
       } else {
         if (mes) await expect(page.getByRole('button', { name: /^Nuevos este mes/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
-        else await expect(main(page)).toContainText(new RegExp(`${n}\\s*Productos`), { timeout: 15_000 })
+        else await expect(main(page)).toContainText(new RegExp(`Productos\\s*${n}`), { timeout: 15_000 })
         if (mes && n > 0) await expect(main(page)).toContainText(new RegExp(`Mostrando \\d+ de ${n}`))
       }
     }
@@ -146,17 +146,14 @@ test('la cabecera de Citas, Pacientes, Ventas e Inventario pone "Requieren atenc
   }
 })
 
-test('Inventario dice el stock bajo una sola vez: la tarjeta es el filtro (sin aviso amarillo ni píldora aparte)', async ({ page }) => {
+test('Inventario dice el stock bajo una sola vez: solo en "Requieren atención" (sin tarjeta ni aviso aparte)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Inventario', exact: true }).first().click()
-  const tarjeta = page.getByRole('button', { name: /^Stock bajo:/ })
-  await expect(tarjeta).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /^Productos: / })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /^Stock bajo:/ })).toHaveCount(0)
   await expect(main(page).getByText(/por agotarse/)).toHaveCount(0)
-  await expect(main(page).getByText(/^Stock bajo/)).toHaveCount(1)
-  await tarjeta.click()
-  await expect(tarjeta).toHaveAttribute('aria-pressed', 'true')
-  await tarjeta.click()
-  await expect(tarjeta).toHaveAttribute('aria-pressed', 'false')
+  await expect(main(page).getByText(/^Stock bajo/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Requieren atención|Todo en orden/ })).toBeVisible()
 })
 
 test('el estado se escribe "No asistió" también en el Inicio del optómetra y las tarjetas sin casos dicen "Ver todo"', async ({ page }) => {

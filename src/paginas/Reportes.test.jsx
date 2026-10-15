@@ -1,6 +1,8 @@
 import React from "react"
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest"
 import { render, screen, within, fireEvent, cleanup } from "@testing-library/react"
+// Sin base de datos: la pestaña Inventario pide el kárdex y las pruebas nunca deben tocar una base real (aunque haya un .env.local).
+vi.mock("../lib/supabaseClient", () => ({ supabase: null }))
 import Reportes from "./Reportes"
 
 // 12 de octubre de 2026 por la noche en Ecuador (01:00 UTC del 13): "este mes" es octubre, el mes de Ecuador, sea cual sea la zona del equipo.
@@ -231,7 +233,7 @@ describe("Reportes: Exportar", () => {
 
   it("está ordenado por módulo, con las mismas pestañas de Reportes, y cada reporte dice para qué sirve", () => {
     const v = abrirExportar()
-    expect(v.getAllByRole("tab").map((t) => t.textContent.replace(/\d+$/, ""))).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Laboratorios"])
+    expect(v.getAllByRole("tab").map((t) => t.textContent.replace(/\d+$/, ""))).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Laboratorios", "Inventario"])
     modulo(v, "Citas")
     for (const t of ["Citas del período", "Inasistencias para reagendar", "Inasistencia mes a mes", "Esta pestaña en PDF"]) expect(v.getByText(t)).toBeInTheDocument()
     modulo(v, "Clínico")
@@ -239,9 +241,12 @@ describe("Reportes: Exportar", () => {
     modulo(v, "Ventas")
     expect(v.getByText(/Para el IVA y el anexo de ventas/)).toBeInTheDocument()
     expect(v.getByText(/Para cuadrar la caja/)).toBeInTheDocument()
-    expect(v.getByText(/Para el conteo físico/)).toBeInTheDocument()
+    expect(v.queryByText("Inventario actual")).not.toBeInTheDocument() // ya no está en Ventas
     modulo(v, "Laboratorios")
     expect(v.getByText("Órdenes pendientes por laboratorio")).toBeInTheDocument()
+    modulo(v, "Inventario")
+    for (const t of ["Inventario actual", "Movimientos del período", "Ventas y margen por producto", "Monturas sin venderse"]) expect(v.getByText(t)).toBeInTheDocument()
+    expect(v.getByText(/Para el conteo físico/)).toBeInTheDocument()
   })
 
   it("se pueden marcar varios reportes, también de módulos distintos, y el botón dice cuántos", () => {
@@ -291,5 +296,85 @@ describe("Reportes: Exportar", () => {
     const menu = within(screen.getByRole("menu"))
     expect(menu.getByRole("menuitem", { name: /Datos de la gráfica/ })).toBeInTheDocument()
     expect(menu.getByRole("menuitem", { name: /Detalle completo/ })).toBeInTheDocument()
+  })
+})
+
+describe("Reportes: la pestaña Inventario", () => {
+  const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1", opticaNombre: "Óptica Demo" }
+  const inv = [{ id: "i1", nombre: "Montura A", categoria: "Monturas", stock: 3, precio: 40, costo: 10, creadoEn: "2026-01-05T15:00:00Z", activo: true }]
+  const ventaDeI1 = { id: "f9", numero: 9, pacienteId: "p1", estado: "pagada", montoTotal: 40, creadoEn: "2026-10-02T15:00:00-05:00", metodoPago: "tarjeta", facturaElectronica: "", lineas: [{ tipo: "producto", productoId: "i1", cantidad: 1, precioUnitario: 40, descripcion: "Montura A" }] }
+  const conInv = { ...datos, inventario: inv, facturasVenta: [ventaDeI1] }
+
+  it("es la última pestaña y la ve quien puede ver el inventario", () => {
+    render(<Reportes usuario={admin} {...conInv} />)
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Laboratorios", "Inventario"])
+  })
+
+  it("no la ve quien solo ve lo suyo ni quien no tiene permiso sobre el inventario", () => {
+    cleanup()
+    render(<Reportes usuario={paula} {...conInv} soloLoPropio />)
+    expect(screen.queryByRole("tab", { name: "Inventario" })).not.toBeInTheDocument()
+    cleanup()
+    render(<Reportes usuario={{ id: "u3", rol: "asistente", nombre: "Vera", opticaId: "o1", permisosNivel: { reportes: ["ver"] } }} {...conInv} />)
+    expect(screen.queryByRole("tab", { name: "Inventario" })).not.toBeInTheDocument()
+  })
+
+  it("trae el valor a costo, el margen, la rotación y las monturas sin venderse, cada uno con su ⓘ y comparado con el período anterior", () => {
+    render(<Reportes usuario={admin} {...conInv} />)
+    pestana("Inventario")
+    expect(tarjeta("Valor del inventario a costo")).toHaveAccessibleName("Valor del inventario a costo: $30.00. Ver la lista") // 3 × $10
+    expect(tarjeta("Margen promedio")).toHaveAccessibleName("Margen promedio: 75%. Ver la lista") // (40 − 10) ÷ 40
+    expect(tarjeta("Rotación")).toHaveAccessibleName("Rotación: 0.33 veces. Ver la lista") // costo vendido 10 ÷ inventario promedio 30
+    expect(tarjeta("Monturas sin venderse en 90 días")).toHaveAccessibleName("Monturas sin venderse en 90 días: 0. Ver la lista")
+    for (const nombre of ["Valor del inventario a costo", "Margen promedio", "Rotación", "Monturas sin venderse en 90 días"]) expect(screen.getByRole("button", { name: new RegExp("^Qué es " + nombre) })).toBeInTheDocument()
+    expect(screen.getAllByText("vs. 1 al 12 sept").length).toBeGreaterThanOrEqual(3)
+  })
+
+  it("cada número abre su lista en la ventana estándar, con el mismo número y tantas filas como dice", () => {
+    render(<Reportes usuario={admin} {...conInv} />)
+    pestana("Inventario")
+    fireEvent.click(tarjeta("Valor del inventario a costo"))
+    expect(within(ventana()).getByText("$30.00", { selector: "[data-detalle-valor]" })).toBeInTheDocument()
+    expect(within(ventana()).getAllByRole("row")).toHaveLength(1 + 1)
+    expect(within(ventana()).getByRole("button", { name: /^Abrir Inventario \(lista completa\)/ })).toBeInTheDocument() // el texto dice adónde lleva
+    fireEvent.keyDown(ventana(), { key: "Escape" })
+    fireEvent.click(tarjeta("Margen promedio"))
+    expect(within(ventana()).getByText("75%", { selector: "[data-detalle-valor]" })).toBeInTheDocument()
+    expect(within(ventana()).getAllByRole("row")).toHaveLength(1 + 1)
+    expect(within(ventana()).getByRole("columnheader", { name: "Ganancia" })).toBeInTheDocument()
+  })
+
+  it("las más vendidas se ven con sus unidades y abren la lista de lo vendido", () => {
+    render(<Reportes usuario={admin} {...conInv} />)
+    pestana("Inventario")
+    fireEvent.click(screen.getByRole("button", { name: /^Montura A: 1 unidad por \$40\.00/ }))
+    expect(within(ventana()).getByText("1", { selector: "[data-detalle-valor]" })).toBeInTheDocument()
+    expect(within(ventana()).getAllByRole("row")).toHaveLength(1 + 1)
+  })
+
+  it("quien puede ver el inventario pero no editarlo no ve costos ni márgenes", () => {
+    render(<Reportes usuario={{ id: "u3", rol: "asistente", nombre: "Vera", opticaId: "o1", permisosNivel: { reportes: ["ver"], inventario: ["ver"], ventas: ["ver"] } }} {...conInv} />)
+    pestana("Inventario")
+    expect(screen.queryByRole("button", { name: /^Valor del inventario a costo: / })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^Margen promedio: / })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^Rotación: / })).not.toBeInTheDocument()
+    expect(tarjeta("Monturas sin venderse en 90 días")).toBeInTheDocument()
+  })
+
+  it("sin productos lo dice y lleva a Inventario", () => {
+    const ir = vi.fn()
+    render(<Reportes usuario={admin} {...datos} inventario={[]} onAbrirModulo={ir} />)
+    pestana("Inventario")
+    expect(screen.getByText(/Todavía no hay productos activos/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Ir a Inventario" }))
+    expect(ir).toHaveBeenCalledWith("inventario", {})
+  })
+
+  it("avisa que los filtros de consulta no cambian esta pestaña", () => {
+    render(<Reportes usuario={admin} {...conInv} />)
+    fireEvent.change(screen.getByRole("combobox", { name: "Motivo de consulta" }), { target: { value: "Examen de Control" } })
+    pestana("Inventario")
+    expect(screen.getByText(/no cambian esta pestaña/)).toBeInTheDocument()
+    expect(tarjeta("Margen promedio")).toHaveAccessibleName("Margen promedio: 75%. Ver la lista")
   })
 })
