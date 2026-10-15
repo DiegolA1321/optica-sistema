@@ -350,7 +350,7 @@ export default function Inventario({
 
       {/* ─── RESUMEN: cuatro tarjetas iguales; cada una filtra la tabla o abre su detalle en la ventana estándar ─── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <TarjetaInventario icono={Package} titulo="Productos" valor={resumen.total} sub={resumen.total > 0 ? `+${resumen.nuevos} este mes` : "Todavía no hay productos"} activa={!hayFiltro && resumen.total > 0} onClick={limpiarFiltros}
+        <TarjetaInventario icono={Package} titulo="Productos" valor={resumen.total} sub={resumen.total > 0 ? `+${resumen.nuevos} este mes` : "Todavía no hay productos"} onClick={limpiarFiltros}
           ayuda="Los productos activos (monturas y accesorios). Un clic muestra todos en la tabla; los descontinuados no cuentan." />
         <TarjetaInventario icono={Boxes} titulo="Unidades en stock" valor={resumen.unidades} sub="Ver por categoría" onClick={() => setResumenAbierto("unidades")}
           ayuda="La suma de la existencia de los productos activos. Un clic la desglosa por categoría." />

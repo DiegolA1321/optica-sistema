@@ -36,12 +36,11 @@ export default function VentanaResumen({ modo, productos, categorias, verCosto, 
               {conCosto && <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center"><p className="font-serif text-xl font-semibold" style={{ color: INK }}>{dinero(total.aCosto)}</p><p className="mt-0.5 text-xs font-medium text-slate-500">A costo</p></div>}
               {conCosto && <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center"><p className="font-serif text-xl font-semibold" style={{ color: INK }}>{dinero(ganancia)}</p><p className="mt-0.5 text-xs font-medium text-slate-500">Ganancia posible</p></div>}
             </div>
-            <p className="text-sm text-slate-600">
-              <strong>A precio de venta</strong> es la existencia de cada producto por su precio.
-              {verCosto && (total.hayCosto
-                ? <> <strong>A costo</strong> es la existencia por lo que costó{total.sinCosto > 0 ? `; ${total.sinCosto} producto${total.sinCosto === 1 ? "" : "s"} sin costo registrado no ${total.sinCosto === 1 ? "suma" : "suman"} ahí` : ""}. La ganancia posible es lo que dejaría vender todo lo que tiene costo.</>
-                : " Todavía ningún producto tiene costo registrado: al registrarlo (en Editar) se ve también el valor a costo y el margen.")}
-            </p>
+            {verCosto && <p className="text-sm text-slate-600">
+              {(total.hayCosto
+                ? <><strong>A costo</strong> es la existencia por lo que costó{total.sinCosto > 0 ? `; ${total.sinCosto} producto${total.sinCosto === 1 ? "" : "s"} sin costo registrado no ${total.sinCosto === 1 ? "suma" : "suman"} ahí` : ""}. La ganancia posible es lo que dejaría vender todo lo que tiene costo.</>
+                : "Todavía ningún producto tiene costo registrado: al registrarlo (en Editar) se ve también el valor a costo y el margen.")}
+            </p>}
           </>
         ) : (
           <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-center"><p className="font-serif text-xl font-semibold" style={{ color: INK }}>{unidades}</p><p className="mt-0.5 text-xs font-medium text-slate-500">Unidades en {productos.length} producto{productos.length === 1 ? "" : "s"}</p></div>
