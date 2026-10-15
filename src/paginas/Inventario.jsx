@@ -90,10 +90,7 @@ export default function Inventario({
   // Catálogo de categorías editable desde Configuración.
   const CATEGORIAS = categorias.length > 0 ? categorias : CATEGORIAS_FALLBACK
   const [busqueda, setBusqueda] = useState("")
-  // Modo compacto opcional — ver más filas sin scroll cuando el catálogo crece. Persiste por navegador (preferencia visual).
-  const [compacto, setCompacto] = useState(() => { try { return localStorage.getItem("optica_inventario_compacto") === "1" } catch { return false } })
-  const alternarCompacto = () => setCompacto((v) => { try { localStorage.setItem("optica_inventario_compacto", !v ? "1" : "0") } catch {} return !v })
-  const celdaY = compacto ? "py-1.5" : "py-3"
+  const celdaY = "py-3"
   const [guardadoExitoso, setGuardadoExitoso] = useState("")
   // Toda acción confirma con el aviso flotante del sistema; sin él (pruebas) se muestra en la página.
   const avisar = (mensaje) => {
@@ -423,10 +420,6 @@ export default function Inventario({
               <input type="text" aria-label="Buscar producto" placeholder="Buscar producto, código o marca…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
                 className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
             </div>
-            <button type="button" onClick={alternarCompacto} title={compacto ? "Vista normal" : "Vista compacta"} aria-pressed={compacto}
-              className={"flex shrink-0 items-center rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors cursor-pointer " + (compacto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 text-slate-500 hover:bg-slate-50")}>
-              <Boxes size={16} aria-hidden="true" /> <span className="ml-1.5 hidden sm:inline">{compacto ? "Vista normal" : "Vista compacta"}</span>
-            </button>
           </div>
         </div>
 
@@ -510,10 +503,10 @@ export default function Inventario({
                     <tr key={prod.id} onClick={() => abrirDetalle(prod)} className="cursor-pointer transition-colors hover:bg-slate-50/70">
                       <td className={"px-4 " + celdaY}>
                         <div className="flex items-center gap-2.5">
-                          <MiniaturaProducto url={prod.imagen_url} alt="" size={compacto ? 24 : 32} />
+                          <MiniaturaProducto url={prod.imagen_url} alt="" size={32} />
                           <div className="min-w-0">
                             <button type="button" onClick={(e) => { e.stopPropagation(); abrirDetalle(prod) }} aria-label={`Ver el detalle de ${prod.nombre}`} className="block max-w-[28rem] truncate text-left font-bold text-slate-800 hover:text-blue-700 cursor-pointer">{prod.nombre}</button>
-                            {!compacto && sub && <p className="mt-0.5 truncate text-xs text-slate-500">{sub}</p>}
+                            {sub &&<p className="mt-0.5 truncate text-xs text-slate-500">{sub}</p>}
                           </div>
                           {prod.activo === false && <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Descontinuado</span>}
                         </div>
@@ -526,11 +519,9 @@ export default function Inventario({
                           <span className={"font-mono font-bold " + (bajo ? "text-amber-600" : "text-slate-800")}>{prod.stock} u.</span>
                           {bajo && <AlertTriangle size={14} className="text-amber-500" aria-label="Stock bajo" />}
                         </div>
-                        {!compacto && (
-                          <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
-                            <div className="h-full rounded-full" style={{ width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`, background: bajo ? "#D97706" : GRAD }} />
-                          </div>
-                        )}
+                        <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(6, Math.round(((Number(prod.stock) || 0) / maxStockVisible) * 100))}%`, background: bajo ? "#D97706" : GRAD }} />
+                        </div>
                       </td>
                       <td className={"px-4 font-mono font-bold text-slate-600 " + celdaY}>{dinero(Number(prod.precio))}</td>
                     </tr>
