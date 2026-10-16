@@ -77,9 +77,17 @@ Menú sin Reportes, Usuarios ni Configuración. Ve "Nueva venta", "Agregar produ
 | V3 | Perfil y comprobante | En el perfil del paciente Ventas ve solo "Historia clínica", "Datos" y "Tomar datos" (no "Agendar cita", "Crear acceso" ni "Enviar mensaje"): bien. En el comprobante ve "Abonar", "Corregir" y "Otra orden" (Ventas: editar); el optómetra y los roles de solo ver solo ven "Imprimir comprobante". Sin hallazgo. | R7 | — |
 | V4 | Inicio · enlaces | "Abrir en Ventas · Más de 30 días (1) / Listas sin avisar (3) / Órdenes atrasadas (4) / Saldos por cobrar (6 pacientes)" y "Abrir en Inventario · Stock bajo (7)" llevan a pantallas que puede abrir y a los mismos números (1+3+4+8 ventas = 16). Sin hallazgo. | R42 | — |
 
-## 5. Rol propio con permisos parciales
+## 5. Rol propio con permisos parciales (actualizado el 16 oct., revisado de verdad)
 
-No existe uno en las ópticas de prueba (ver arriba). Por lectura del código, con un rol que solo tenga "ver":
+Diego pidió crearlo: rol temporal "E Dos E Rol parcial" (Citas ver, Ventas ver, Pacientes ver y crear) asignado a Vera en la óptica de pruebas, revisado con su sesión, y borrado al terminar (Vera volvió a su rol Ventas). Menú correcto: Inicio, Citas, Pacientes, Ventas (sin Soporte, CRM, Inventario ni Reportes).
+
+| Id | Módulo | Qué pasa | Regla | Imp. |
+|---|---|---|---|---|
+| P0 | Citas › detalle | Comprobado con el rol real: ve "Editar cita" y "Dejar de atender" con Citas solo ver (T1). | R7, R22 | Alta |
+| P0b | Pacientes › ⋮ | Comprobado: "Más acciones" abre un menú **vacío** (P1). | R7 | Media |
+| P0c | Pacientes y perfil | Sin Ficha clínica ver, igual ve el botón "Historia clínica" en el perfil y las tarjetas clínicas "Bien corregidos / Requieren ajuste / Sin agudeza visual". | R7 | Media |
+
+Lo anterior, por código:
 
 | Id | Módulo | Qué pasa | Regla | Imp. |
 |---|---|---|---|---|
@@ -87,9 +95,19 @@ No existe uno en las ópticas de prueba (ver arriba). Por lectura del código, c
 | P2 | Citas | V1 y O2 aplican tal cual. | R7, R22 | Alta |
 | P3 | Usuarios (al crearlo) | El aviso "administración delegada" (T2) aparecerá también en cualquier rol propio con Soporte. | R2 | Media |
 
-## 6. Portal del paciente
+## 6. Portal del paciente (actualizado el 16 oct., revisado de verdad)
 
-Solo por código (no hay cuenta con compras). Pestañas: Resumen, Mis citas, Mi receta, Mis compras, Mis datos. Las listas vacías tienen mensaje ("Todavía no tienes compras registradas", "Aún no tienes una receta registrada"); `MisCompras` y `PortalPaciente` tienen pruebas.
+Diego pidió crear en la óptica de pruebas un paciente con cuenta, una compra con abono y una factura electrónica: "E Dos E Portal Auditoria" (CV-0006, $60, abono $20, factura 001-001-000000006 con PDF y XML). Mis compras muestra bien el saldo ("Total $60.00 · Abonado $20.00 · Debes $40.00") y las descargas "Factura (PDF)" y "XML"; sin desbordes a 1366 px; el celular quedó sin revisar.
+
+| Id | Módulo | Qué pasa | Regla | Imp. |
+|---|---|---|---|---|
+| PO1 | Resumen | Quien debe $40 no lo lee en el Resumen: el saldo solo aparece en Mis compras. | R21 | Media |
+| PO2 | Resumen / Mis citas / Mi receta | Sin citas, lo mismo se dice tres veces en el Resumen; la receta vacía dice "Aún…" en un lado y "Todavía…" en otro (W2). | R3, R26 | Baja |
+| PO3 | Mis datos | "Recordatorios de salud: Avisos de su control…" está en tercera persona; el resto de la pantalla habla de "tu". | R2 | Baja |
+| PO4 | Mis datos | "Descargar mis datos" aparece como título del bloque y otra vez como botón. | R3, R8 | Baja |
+| PO5 | Encabezado | La palabra "Paciente" bajo el nombre mide 10 px. | R41 | Baja |
+
+Lo anterior, por código: Pestañas: Resumen, Mis citas, Mi receta, Mis compras, Mis datos. Las listas vacías tienen mensaje ("Todavía no tienes compras registradas", "Aún no tienes una receta registrada"); `MisCompras` y `PortalPaciente` tienen pruebas.
 
 | Id | Módulo | Qué pasa | Regla | Imp. |
 |---|---|---|---|---|
