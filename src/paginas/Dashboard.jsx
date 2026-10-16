@@ -428,7 +428,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // archivo (el resto del Dashboard es local/localStorage). Consultas propias
   // sin responder + avisos generales publicados en los últimos 14 días.
   const [mensajesResumen, setMensajesResumen] = useState({ respuestas: [], avisosSinLeer: 0 })
-  const puedeVerSoporte = puede(usuario, "mensajes", "ver")
+  const puedeVerSoporte = puede(usuario, "mensajes", "ver") && !usuario?.impersonadoPor // el superadmin dentro de una óptica no recibe sus avisos
   useEffect(() => {
     if (!supabase || !puedeVerSoporte || !usuario?.id) return
     let vigente = true

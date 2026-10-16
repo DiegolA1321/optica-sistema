@@ -22,7 +22,8 @@ const REFRESCO_MS = 45_000
 // resolverla (Mis consultas); y lee los anuncios del soporte (Avisos del sistema). "Nueva consulta" es la acción principal de la cabecera.
 export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = "otro", abrirConsultaId = null, onAbrirConsultaConsumida }) {
   const puedeVer = puede(usuario, "mensajes", "ver")
-  const puedeEscribir = puede(usuario, "mensajes", "crear")
+  // Quien entra a una óptica como superadmin mira, pero no escribe en nombre del administrador.
+  const puedeEscribir = puede(usuario, "mensajes", "crear") && !usuario.impersonadoPor
   const [tab, setTab] = useParamUrl("tab", "ayuda", TABS)
   const [consultas, setConsultas] = useState([])
   const [avisos, setAvisos] = useState([])
@@ -31,12 +32,12 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
   const [ventana, setVentana] = useState(null) // "nueva" | { consultaId } | { nueva: true, modulo }
 
   const recargar = useCallback(async () => {
-    const [c, a] = await Promise.all([leerMisConsultas(), leerAvisos(usuario.id)])
+    const [c, a] = await Promise.all([leerMisConsultas(usuario.opticaId), leerAvisos(usuario.id)])
     setConsultas(c.datos)
     setAvisos(a.datos)
     setError(c.error || a.error || "")
     setCargando(false)
-  }, [usuario.id])
+  }, [usuario.id, usuario.opticaId])
 
   useEffect(() => { recargar() }, [recargar])
   // Una respuesta nueva aparece sin recargar la página: al volver a la pestaña del navegador, cuando algo cambia aquí y cada 45 segundos.

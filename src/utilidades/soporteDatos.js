@@ -15,9 +15,12 @@ const SIN_BASE = { error: "No hay conexión con el servidor." }
 
 // ── Óptica ──
 // Las consultas que esta persona puede ver (las suyas; todas las de su óptica si es administrador). La base ya lo filtra.
-export async function leerMisConsultas() {
+export async function leerMisConsultas(opticaId = null) {
   if (!supabase) return { ...SIN_BASE, datos: [] }
-  const { data, error } = await supabase.from("soporte_consultas").select("*").order("actualizada_en", { ascending: false }).limit(300)
+  // La base ya entrega solo lo de cada persona; el filtro por óptica es para quien entra como una óptica siendo superadmin (que podría leer todas).
+  let q = supabase.from("soporte_consultas").select("*").order("actualizada_en", { ascending: false }).limit(300)
+  if (opticaId) q = q.eq("optica_id", opticaId)
+  const { data, error } = await q
   if (error) return { error: texto(error, "No se pudieron cargar tus consultas."), datos: [] }
   return { datos: (data || []).map(mapConsulta) }
 }
