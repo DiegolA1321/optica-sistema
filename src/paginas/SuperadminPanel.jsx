@@ -139,7 +139,7 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
 import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
 import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
-import { textoDeAccion, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
+import { textoDeAccion, ACCIONES_COMERCIALES, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
 import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
 import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
 import { SinResultados } from "../componentes/reportes/bloques"
@@ -490,7 +490,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (superadminsData?.length) {
       const conteos = await Promise.all(
         superadminsData.map(async (s) => {
-          const { count } = await supabase.from("auditoria").select("id", { count: "exact", head: true }).eq("actor_id", s.id)
+          let consultaConteo = supabase.from("auditoria").select("id", { count: "exact", head: true }).eq("actor_id", s.id)
+          if (!MODO_SAAS_VISIBLE) consultaConteo = consultaConteo.not("accion", "in", `(${ACCIONES_COMERCIALES.join(",")})`)
+          const { count } = await consultaConteo
           return [s.id, count || 0]
         }),
       )
@@ -597,7 +599,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       return
     }
     setMensajes((prev) => [data, ...prev])
-    await registrarAuditoria("publicar_anuncio", { opticaNombre: opticaDestino ? (opticas.find((o) => o.id === opticaDestino)?.nombre || "Óptica") : "Todas las ópticas", detalle: avisoAsunto.trim() })
+    await registrarAuditoria("publicar_anuncio", { opticaNombre: opticaDestino ? (opticas.find((o) => o.id === opticaDestino)?.nombre || "Óptica") : (MODO_SAAS_VISIBLE ? "Todas las ópticas" : "Todo el sistema"), detalle: avisoAsunto.trim() })
     cargarAuditoria(true)
     setPublicandoAviso(false)
     setModalAvisoAbierto(false)
@@ -659,7 +661,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // Lo que espera al soporte: consultas abiertas cuyo último mensaje es de la óptica (la insignia del menú y la bandeja cuentan lo mismo).
   const consultasAbiertas = useMemo(() => sinPruebas(consultasSoporte, opticas, incluirPrueba, "opticaId").filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte, opticas, incluirPrueba])
-  const mensajesFiltrados = useMemo(() => mensajes.filter((m) => m.tipo === "anuncio"), [mensajes])
+  // Con el modo de la tesis no se listan los avisos viejos sobre el estado de la suscripción (capa comercial).
+  const mensajesFiltrados = useMemo(() => mensajes.filter((m) => m.tipo === "anuncio" && (MODO_SAAS_VISIBLE || !/suscripci/i.test(`${m.asunto} ${m.cuerpo}`))), [mensajes])
   const opticasConPagoProblema = useMemo(() => opticas.filter((o) => o.estado_pago && o.estado_pago !== "al_dia"), [opticas])
   const cumpleanosProximos = useMemo(() => {
     return admins
@@ -779,6 +782,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const mapa = new Map()
     for (const a of auditoria) {
       if (!a.actor_id || mapa.has(a.actor_id)) continue
+      if (!MODO_SAAS_VISIBLE && ACCIONES_COMERCIALES.includes(a.accion)) continue
       mapa.set(a.actor_id, a)
     }
     return mapa
@@ -1721,7 +1725,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <div role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 text-center">
                     <Building2 size={22} className="text-slate-400" aria-hidden="true" />
                     <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : "Todas las ópticas son de prueba y no se muestran por defecto."}</p>
-                    {opticas.length === 0 && saas ? (
+                    {opticas.length === 0 ? (
                       <button type="button" onClick={abrirCrear} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Crear la primera óptica</button>
                     ) : etiquetasOpticas.length > 0 || !saas ? null : (
                       <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir ópticas de prueba</button>
@@ -1788,7 +1792,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const renderOpticas = () => (
     <div className="space-y-3" data-opticas>
       <CabeceraSeccion titulo="Ópticas" pregunta={MODO_SAAS_VISIBLE ? "¿Qué ópticas tengo, cómo van y cuál necesita atención?" : "¿Qué óptica usa el sistema y qué entornos de prueba hay?"}>
-        {MODO_SAAS_VISIBLE && <button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
+        {<button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
       </CabeceraSeccion>
 
       <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
@@ -2014,7 +2018,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     ) : <span className="tabular-nums text-slate-400">0</span>}
                   </td>
                   <td className="px-4 py-3">
-                    {ultima ? <p className="truncate text-slate-600" title={textoDeAccion(ultima)}>{textoDeAccion(ultima)} <span className="text-slate-500">· {formatearFechaHora(ultima.created_at)}</span></p> : <span className="text-slate-400">Todavía no hizo nada</span>}
+                    {ultima ? <p className="truncate text-slate-600" title={textoDeAccion(ultima, MODO_SAAS_VISIBLE)}>{textoDeAccion(ultima, MODO_SAAS_VISIBLE)} <span className="text-slate-500">· {formatearFechaHora(ultima.created_at)}</span></p> : <span className="text-slate-400">Todavía no hizo nada</span>}
                   </td>
                   <td className="px-2 py-3 text-center">
                     <button
@@ -2820,7 +2824,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {modalAvisoAbierto && (
         <Cascaron
           titulo="Nuevo aviso"
-          subtitulo={avisoDestino === "todos" ? "Lo van a ver todos los administradores de óptica." : "Solo lo va a ver el administrador de esa óptica."}
+          subtitulo={avisoDestino === "todos" ? (MODO_SAAS_VISIBLE ? "Lo van a ver todos los administradores de óptica." : "Lo van a ver todos los administradores.") : "Solo lo va a ver el administrador de esa óptica."}
           Icono={Megaphone}
           ancho="max-w-md"
           onCerrar={() => !publicandoAviso && setModalAvisoAbierto(false)}
@@ -2860,7 +2864,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestino !== "todos" ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                   style={avisoDestino !== "todos" ? { color: INK } : undefined}
                 >
-                  Una óptica puntual
+                  {MODO_SAAS_VISIBLE ? "Una óptica puntual" : "Un administrador"}
                 </button>
               </div>
               {avisoDestino !== "todos" && (
@@ -3388,7 +3392,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </p>
           {opticaAConfirmar.activa && (
             <label className="block text-sm font-semibold text-slate-700">Motivo (opcional)
-              <textarea rows={2} value={motivoSuspension} onChange={(e) => setMotivoSuspension(e.target.value)} placeholder="Ej. Pago vencido hace 40 días" className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm font-normal outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+              <textarea rows={2} value={motivoSuspension} onChange={(e) => setMotivoSuspension(e.target.value)} placeholder={MODO_SAAS_VISIBLE ? "Ej. Pago vencido hace 40 días" : "Ej. Cuenta duplicada"} className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm font-normal outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
               <span className="mt-1 block text-xs font-normal text-slate-500">Queda en la actividad y se le avisa al administrador por Mensajes.</span>
             </label>
           )}

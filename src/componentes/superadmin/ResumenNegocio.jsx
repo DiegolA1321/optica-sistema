@@ -346,7 +346,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
               <ul role="list" className="divide-y divide-slate-100">
                 {recientes.map((a) => (
                   <li key={a.id} className="flex items-center gap-3 py-2 text-sm text-slate-700">
-                    <span className="min-w-0 flex-1 truncate"><span className="font-semibold" style={{ color: INK }}>{a.actor_nombre}</span> {frasesDeAccion(a).map((x) => x.t).join("")}</span>
+                    <span className="min-w-0 flex-1 truncate"><span className="font-semibold" style={{ color: INK }}>{a.actor_nombre}</span> {frasesDeAccion(a, saas).map((x) => x.t).join("")}</span>
                     <span className="shrink-0 text-xs tabular-nums text-slate-500">{fechaHoraLegible(a.created_at)}</span>
                   </li>
                 ))}
@@ -359,10 +359,10 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
   return (
     <div className="space-y-3" data-resumen-negocio>
       <CabeceraSeccion titulo="Resumen" pregunta={saas ? "¿Cómo va el negocio y qué óptica necesita atención?" : "¿Funciona bien el sistema y lo están usando?"}>
-        {saas && <button type="button" onClick={onCrearOptica} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
+        {<button type="button" onClick={onCrearOptica} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
       </CabeceraSeccion>
 
-      {sinNada && <SinDatosAun titulo="Todavía no hay ópticas" texto="El resumen se llena con las ópticas que se creen y con lo que hagan en el sistema." accion={saas && onCrearOptica ? { etiqueta: "Crear la primera óptica", onClick: onCrearOptica } : null} />}
+      {sinNada && <SinDatosAun titulo="Todavía no hay ópticas" texto="El resumen se llena con las ópticas que se creen y con lo que hagan en el sistema." accion={onCrearOptica ? { etiqueta: "Crear la primera óptica", onClick: onCrearOptica } : null} />}
 
       <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
         <div className="flex flex-wrap items-center gap-2">

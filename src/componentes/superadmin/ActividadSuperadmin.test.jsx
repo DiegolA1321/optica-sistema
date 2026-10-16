@@ -46,6 +46,13 @@ describe("Actividad del superadmin", () => {
     expect(pestana("Accesos").textContent).toContain("1")
   })
 
+  it("abre en \"Este mes\", como el Resumen", async () => {
+    render(<Montado />)
+    await screen.findByText("3 acciones")
+    expect(screen.getByRole("button", { name: "Este mes" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByText(/Período: 1 – 16 oct 2026/)).toBeInTheDocument()
+  })
+
   it("agrupa por día y cada acción dice quién, qué hizo y sobre qué", async () => {
     render(<Montado />)
     await screen.findByText("3 acciones")

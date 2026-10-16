@@ -10,7 +10,7 @@ vi.mock("../../lib/supabaseClient", () => {
 })
 
 import ResumenNegocio from "./ResumenNegocio"
-import { filtrarActividad, contarPorTipo, tiposVisibles } from "../../utilidades/superadminNegocio"
+import { filtrarActividad, contarPorTipo, tiposVisibles, textoDeAccion, nombreDestino, ACCIONES_COMERCIALES } from "../../utilidades/superadminNegocio"
 
 const ins = (d) => `${d}T15:00:00Z`
 const opticas = [
@@ -28,6 +28,14 @@ beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new 
 afterEach(() => { vi.useRealTimers() })
 
 describe("modo de la tesis (capa comercial oculta)", () => {
+  it("un aviso general no habla de varias ópticas y las suscripciones son acciones comerciales", () => {
+    const aviso = { accion: "publicar_anuncio", optica_id: null, optica_nombre: "Todas las ópticas", detalle: "Mantenimiento" }
+    expect(textoDeAccion(aviso, false)).toBe("publicó un aviso general: Mantenimiento")
+    expect(nombreDestino(aviso, false)).toBe("Todo el sistema")
+    expect(textoDeAccion(aviso, true)).toBe("publicó un aviso para Todas las ópticas: Mantenimiento")
+    expect(ACCIONES_COMERCIALES).toEqual(expect.arrayContaining(["cambiar_suscripcion", "actualizar_pago", "generar_factura", "pagar_factura", "cambiar_estado_lead"]))
+  })
+
   const montar = () => render(<ResumenNegocio datos={datos} opticas={opticas} leads={[{ id: 1, estado: "nuevo", created_at: ins("2026-10-03") }]} consultas={[]} cargandoSoporte={false} estadoServidor={{ estado: "operativo", latenciaMs: 300 }} incluirPrueba={false} onIncluirPrueba={vi.fn()} usuario={{}} onAbrir={vi.fn()} onEntrarComo={vi.fn()} onAviso={vi.fn()} onCrearOptica={vi.fn()} actividad={actividad} />)
 
   it("el Resumen es la administración técnica: estado, uso, soporte y actividad reciente", () => {
@@ -38,8 +46,13 @@ describe("modo de la tesis (capa comercial oculta)", () => {
 
   it("no muestra ingresos, clientes, leads, pagos, salud ni 'Crear óptica'", () => {
     montar()
-    for (const t of [/Ingresos/, /Clientes/, /Leads/, /Facturado/, /Crear óptica/, /Salud de las ópticas/, /suscripci/i, /Incluir ópticas de prueba/]) expect(screen.queryByText(t)).toBeNull()
+    for (const t of [/Ingresos/, /Clientes/, /Leads/, /Facturado/, /Salud de las ópticas/, /suscripci/i, /Incluir ópticas de prueba/]) expect(screen.queryByText(t)).toBeNull()
     expect(screen.getByText("Incluir entornos de prueba", { exact: false })).toBeInTheDocument()
+  })
+
+  it("sí deja crear una óptica (es administración técnica) y no habla de suscripciones", () => {
+    montar()
+    expect(screen.getByRole("button", { name: /Crear óptica/ })).toBeInTheDocument()
   })
 
   it("la actividad reciente no lleva acciones de pagos", () => {

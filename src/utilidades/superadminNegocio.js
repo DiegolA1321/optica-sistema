@@ -216,6 +216,7 @@ export const TIPOS_ACTIVIDAD = [
 export const TIPOS_COMERCIALES = ["pagos", "leads"]
 export const tiposVisibles = (saas = true) => TIPOS_ACTIVIDAD.filter((t) => saas || !TIPOS_COMERCIALES.includes(t.id))
 const accionesComerciales = TIPOS_ACTIVIDAD.filter((t) => TIPOS_COMERCIALES.includes(t.id)).flatMap((t) => t.acciones)
+export const ACCIONES_COMERCIALES = accionesComerciales
 export const tipoDeAccion = (accion) => TIPOS_ACTIVIDAD.find((t) => t.acciones?.includes(accion))?.id || "otros"
 
 const ETIQUETA_PAGO = { al_dia: "Al día", pendiente: "Pendiente", vencido: "Vencido" }
@@ -224,8 +225,10 @@ const ETIQUETA_SOPORTE = { recibida: "Recibida", en_revision: "En revisión", re
 const etiquetaDe = (mapa, v) => mapa[v] || v
 
 // La frase de una acción en partes: { t: texto, b: negrita }. Quién la hizo va aparte (a.actor_nombre).
-export function frasesDeAccion(a) {
-  const o = a.optica_nombre
+// `saas`: con el modo de la tesis (una sola óptica) no se habla de varias ópticas: un aviso general es "para todo el sistema".
+export const nombreDestino = (a, saas = true) => (saas || a.optica_id || !/^Todas las ópticas$/i.test(a.optica_nombre || "") ? a.optica_nombre : "Todo el sistema")
+export function frasesDeAccion(a, saas = true) {
+  const o = nombreDestino(a, saas)
   const b = (t) => ({ t, b: true })
   const t = (x) => ({ t: x })
   switch (a.accion) {
@@ -244,14 +247,14 @@ export function frasesDeAccion(a) {
     case "cambiar_suscripcion": return [t("cambió la suscripción de "), b(o)]
     case "generar_factura": return [t("generó la factura "), b(a.detalle), t(" para "), b(o)]
     case "pagar_factura": return a.despues === "Pendiente" ? [t("devolvió a pendiente la factura "), b(a.detalle), t(" de "), b(o)] : [t("marcó como pagada la factura "), b(a.detalle), t(" de "), b(o)]
-    case "publicar_anuncio": return [t("publicó un aviso para "), b(o), ...(a.detalle ? [t(": "), b(a.detalle)] : [])]
+    case "publicar_anuncio": return [t(!saas && !a.optica_id ? "publicó un aviso general" : "publicó un aviso para "), ...(!saas && !a.optica_id ? [] : [b(o)]), ...(a.detalle ? [t(": "), b(a.detalle)] : [])]
     case "crear_superadmin": return [t("agregó a "), b(o), t(" como superadministrador")]
     case "eliminar_superadmin": return [t("quitó a "), b(o), t(" como superadministrador")]
     case "cambiar_estado_lead": return [t("pasó el lead "), b(a.detalle || ""), t(" a "), b(etiquetaDe(ETIQUETA_LEAD, a.despues))]
     default: return [t(a.accion)]
   }
 }
-export const textoDeAccion = (a) => frasesDeAccion(a).map((x) => x.t).join("")
+export const textoDeAccion = (a, saas = true) => frasesDeAccion(a, saas).map((x) => x.t).join("")
 
 // Qué cambió: { antes, despues } cuando la acción lo guarda (o se deduce de su texto), si no null.
 export function cambioDeAccion(a) {
@@ -278,7 +281,7 @@ export function filtrarActividad(items, { tipo = "todas", rango = null, opticaId
     if (opticaId && a.optica_id !== opticaId) return false
     if (actorId && a.actor_id !== actorId) return false
     if (acciones && !acciones.includes(a.accion)) return false
-    if (q && !`${a.actor_nombre} ${textoDeAccion(a)} ${a.detalle || ""}`.toLowerCase().includes(q)) return false
+    if (q && !`${a.actor_nombre} ${textoDeAccion(a, saas)} ${a.detalle || ""}`.toLowerCase().includes(q)) return false
     return true
   })
 }

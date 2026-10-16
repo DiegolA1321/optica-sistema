@@ -15,7 +15,7 @@ import { fechaHoraLegible, formatoFecha, hora, tituloSemana } from "../../utilid
 import { rangoDePeriodo, diaDe } from "../../utilidades/reportesPeriodo"
 import { modeloDeLista, descargarModelo } from "../../utilidades/reportesExcel"
 import {
-  TIPOS_ACTIVIDAD, tiposVisibles, tipoDeAccion, frasesDeAccion, textoDeAccion, cambioDeAccion, filtrarActividad, contarPorTipo, idsDePrueba, instanteInicio, instanteFin,
+  TIPOS_ACTIVIDAD, tiposVisibles, tipoDeAccion, frasesDeAccion, textoDeAccion, nombreDestino, cambioDeAccion, filtrarActividad, contarPorTipo, idsDePrueba, instanteInicio, instanteFin,
 } from "../../utilidades/superadminNegocio"
 
 const TOPE = 1000
@@ -25,7 +25,7 @@ function Frase({ a }) {
   return (
     <p className="text-sm leading-snug text-slate-700">
       <span className="font-semibold" style={{ color: INK }}>{a.actor_nombre}</span>{" "}
-      {frasesDeAccion(a).map((x, i) => (x.b ? <span key={i} className="font-semibold" style={{ color: INK }}>{x.t}</span> : <span key={i}>{x.t}</span>))}
+      {frasesDeAccion(a, MODO_SAAS_VISIBLE).map((x, i) => (x.b ? <span key={i} className="font-semibold" style={{ color: INK }}>{x.t}</span> : <span key={i}>{x.t}</span>))}
     </p>
   )
 }
@@ -62,7 +62,7 @@ function DetalleAccion({ a, opticaPrueba, onCerrar, onAbrir }) {
   )
   return (
     <Cascaron
-      titulo={textoDeAccion({ ...a, actor_nombre: "" }).replace(/^./, (c) => c.toUpperCase())}
+      titulo={textoDeAccion({ ...a, actor_nombre: "" }, MODO_SAAS_VISIBLE).replace(/^./, (c) => c.toUpperCase())}
       subtitulo={`${a.actor_nombre} · ${fechaHoraLegible(a.created_at, { anio: true })}`}
       Icono={History}
       ancho="max-w-2xl"
@@ -83,7 +83,7 @@ function DetalleAccion({ a, opticaPrueba, onCerrar, onAbrir }) {
         <Bloque titulo="Quién y dónde">
           <dl>
             <Dato etiqueta="Quién lo hizo">{a.actor_nombre}</Dato>
-            <Dato etiqueta="Óptica">{a.optica_id ? <span className="flex flex-wrap items-center gap-1.5">{a.optica_nombre}{opticaPrueba && <EtiquetaPrueba />}</span> : <span className="font-normal text-slate-500">{a.optica_nombre || "Ninguna en particular"}</span>}</Dato>
+            <Dato etiqueta="Óptica">{a.optica_id ? <span className="flex flex-wrap items-center gap-1.5">{a.optica_nombre}{opticaPrueba && <EtiquetaPrueba />}</span> : <span className="font-normal text-slate-500">{nombreDestino(a, MODO_SAAS_VISIBLE) || "Ninguna en particular"}</span>}</Dato>
           </dl>
         </Bloque>
         <div className="sm:col-span-2">
@@ -109,7 +109,7 @@ function DetalleAccion({ a, opticaPrueba, onCerrar, onAbrir }) {
 // La Actividad del superadmin: un registro de auditoría. Nada se borra ni se edita (la base lo impide). Se organiza por tipo de acción, se filtra
 // por período, óptica, persona y texto, se agrupa por día y cada acción abre su detalle en la ventana estándar.
 export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueba, onIncluirPrueba, destino, recarga, usuario, onAbrir, onAviso }) {
-  const [periodo, setPeriodo] = useState("trimestre")
+  const [periodo, setPeriodo] = useState("mes")
   const [personalizado, setPersonalizado] = useState({ inicio: "", fin: "" })
   const [tipo, setTipo] = useState("todas")
   const [opticaId, setOpticaId] = useState("")
@@ -180,7 +180,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
     const columnas = [
       { titulo: "Fecha y hora", tipo: "texto", valor: (a) => fechaHoraLegible(a.created_at, { anio: true }) },
       { titulo: "Quién", tipo: "texto", valor: (a) => a.actor_nombre },
-      { titulo: "Qué hizo", tipo: "texto", valor: (a) => textoDeAccion(a) },
+      { titulo: "Qué hizo", tipo: "texto", valor: (a) => textoDeAccion(a, MODO_SAAS_VISIBLE) },
       { titulo: "Óptica", tipo: "texto", valor: (a) => a.optica_nombre || "" },
       { titulo: "Tipo", tipo: "texto", valor: (a) => TIPOS_ACTIVIDAD.find((t) => t.id === tipoDeAccion(a.accion))?.nombre || "Otras" },
       { titulo: "Antes", tipo: "texto", valor: (a) => cambioDeAccion(a)?.antes || "" },
@@ -265,7 +265,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
                   <ul role="list" className="divide-y divide-slate-100">
                     {items.map((a) => (
                       <li key={a.id}>
-                        <button type="button" data-lista onClick={() => setAbierta(a)} aria-label={`${a.actor_nombre} ${textoDeAccion(a)}. Ver el detalle`} className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 cursor-pointer">
+                        <button type="button" data-lista onClick={() => setAbierta(a)} aria-label={`${a.actor_nombre} ${textoDeAccion(a, MODO_SAAS_VISIBLE)}. Ver el detalle`} className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 cursor-pointer">
                           <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500" aria-hidden="true"><Building2 size={15} /></span>
                           <span className="min-w-0 flex-1"><Frase a={a} /></span>
                           <span className="flex shrink-0 items-center gap-2">
