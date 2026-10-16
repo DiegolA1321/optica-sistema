@@ -231,6 +231,16 @@ Para ver un detalle o una lista encima de una pantalla se usa la misma ventana q
 
 ---
 
+## I. Privacidad de los datos de la óptica (16 oct. 2026)
+
+### 44. El superadmin ve lo necesario para operar el sistema, nunca los datos del negocio ni de los pacientes de una óptica, salvo con autorización de la óptica
+Por la ley de protección de datos personales, la óptica es la responsable de sus datos y el superadmin (quien administra el sistema) es el encargado. Por los principios de minimización y confidencialidad, y porque las fichas clínicas son datos de salud, el panel del superadmin solo muestra lo que hace falta para saber si el sistema funciona y se usa: estado del sistema, personas activas, qué módulos se usan y cuándo fue la última vez, el soporte y su propia actividad. No muestra cuántas citas, consultas, ventas o pacientes tiene una óptica, ni sus nombres, ni su actividad interna.
+- **Entrar como administrador** solo es posible si el administrador de la óptica activó «Permitir acceso del soporte» (Configuración › Privacidad, o al escalar una consulta) por un tiempo limitado (24 horas por defecto, máximo 7 días) y revocable. Al entrar, el superadmin indica el motivo; la entrada queda en la actividad de la propia óptica y en la del superadmin, y el administrador recibe un aviso con la fecha y el motivo. Un entorno de prueba no necesita autorización.
+- **Se valida en el servidor, no en la pantalla** (regla 36): `acceso_soporte(óptica)` en las políticas de todas las tablas con datos del negocio o de pacientes, en los archivos de fichas, facturas y fotos, y en las funciones que actúan sobre otra óptica (migración 0120). Ocultar un número en la pantalla no basta si el dato igual llega al navegador.
+- **Cómo aplicarlo:** al agregar algo al panel del superadmin, pregunta si sin eso se puede saber que el sistema funciona y se usa. Si la respuesta es no, no se muestra. Un dato nuevo del negocio o de los pacientes no entra en `datos_negocio_superadmin()`.
+
+---
+
 ## Lista de revisión antes de dar una pantalla por terminada
 
 Cada pregunta remite a una regla; la respuesta debe ser "sí".
@@ -265,3 +275,4 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 28. ¿Ningún texto es más pequeño que el del resto del sistema y ningún adorno de color queda sin significado? (41)
 29. ¿Cada tarjeta, número y enlace abre exactamente lo que promete (mismo período, mismos filtros, mismo número, vista del rol) y el texto dice adónde lleva? (42)
 30. ¿Los detalles y las listas se abren en la ventana estándar (centrada, fondo desenfocado, X y Escape, scroll interno) y no en un patrón nuevo? (43)
+31. ¿El panel del superadmin muestra solo lo necesario para operar (nunca volumen del negocio ni datos de pacientes), y lo que necesita ver de una óptica lo autorizó su administrador y lo exige el servidor? (44)

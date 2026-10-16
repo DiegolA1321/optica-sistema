@@ -887,7 +887,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             reunión con el ing). Salir vuelve al panel de superadmin sin
             cerrar la sesión real de Supabase Auth. */}
         {onSalirImpersonacion && (
-          <div className="relative z-30 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs font-semibold text-white sm:px-8" style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)" }}>
+          <div className="relative z-30 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs font-semibold text-white sm:px-8" style={{ background: "linear-gradient(135deg,#2563EB,#1D4ED8)" }}>
             <span className="flex items-center gap-2">
               <ShieldAlert size={15} />
               Estás dentro de <strong>{usuario?.opticaNombre}</strong> como superadmin — cualquier acción queda registrada.

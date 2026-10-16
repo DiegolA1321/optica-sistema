@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BarChart3, Clock, Timer, Inbox, MessageSquareText, Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { ContenedorLista, EncabezadoLista, Vacio } from "../ventas/Lista"
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
@@ -12,7 +13,8 @@ import {
   TIEMPO_ESTIMADO, ESTADOS_CONSULTA, MODULOS_SOPORTE, PERIODOS_SOPORTE, URGENCIAS, codigoConsulta, desdeDePeriodo, duracionLegible, filtrarBandeja, indicadoresSoporte, nombreModulo, ordenarBandeja,
 } from "../../utilidades/soporte"
 import { borrarRespuestaGuardada, guardarAjustesSoporte, guardarRespuestaGuardada, leerAjustesSoporte, leerRespuestasGuardadas } from "../../utilidades/soporteDatos"
-import { fechaHoraLegible, fechaLegible } from "../../utilidades/formatoFecha"
+import { fechaHoraLegible, fechaLegible, tituloSemana } from "../../utilidades/formatoFecha"
+import { instanteInicio, instanteFin } from "../../utilidades/superadminNegocio"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 
 const COLUMNAS = "lg:grid-cols-[5.5rem_minmax(0,2fr)_minmax(0,1.2fr)_6rem_9rem_7rem]"
@@ -153,8 +155,8 @@ function PestanaTiempos({ onToast }) {
 }
 
 // ─── Indicadores ───
-function PestanaIndicadores({ consultas, periodo, onVerConsultas }) {
-  const i = useMemo(() => indicadoresSoporte(consultas, { desde: desdeDePeriodo(periodo) }), [consultas, periodo])
+function PestanaIndicadores({ consultas, ventana, onVerConsultas }) {
+  const i = useMemo(() => indicadoresSoporte(consultas, ventana), [consultas, ventana])
   const maxModulo = Math.max(1, ...i.porModulo.map((m) => m.total))
   return (
     <div className="space-y-4">
@@ -190,10 +192,21 @@ function PestanaIndicadores({ consultas, periodo, onVerConsultas }) {
 
 // El soporte del superadmin: la bandeja de consultas, sus indicadores y las respuestas guardadas. `consultas` viene del panel (la insignia del menú
 // usa los mismos datos). `avisos` es el contenido de los avisos del sistema, que sigue como hoy.
-export default function SoporteSuperadmin({ consultas, cargando, error, onRecargar, opticas, onAuditoria, onToast, avisos }) {
-  const [tab, setTab] = useState("consultas")
+// `inicial`: a dónde llegó desde otra sección ("Abrir en Soporte" del Resumen): { tab, estado, urgencia, rango: { inicio, fin }, clave }.
+export default function SoporteSuperadmin({ consultas, cargando, error, onRecargar, opticas, onAuditoria, onToast, avisos, inicial = null, ocultas = 0 }) {
+  const [tab, setTab] = useState(inicial?.tab || "consultas")
   const [filtros, setFiltros] = useState(FILTROS_INICIALES)
   const [periodo, setPeriodo] = useState("todo")
+  // El período del Resumen (inicio y fin en días), para que los indicadores sean exactamente los mismos números.
+  const [rangoResumen, setRangoResumen] = useState(inicial?.rango || null)
+  const ventana = useMemo(() => (rangoResumen ? { desde: instanteInicio(rangoResumen.inicio), hasta: instanteFin(rangoResumen.fin) } : { desde: desdeDePeriodo(periodo) }), [rangoResumen, periodo])
+  useEffect(() => {
+    if (!inicial) return
+    if (inicial.tab) setTab(inicial.tab)
+    setRangoResumen(inicial.rango || null)
+    setPeriodo("todo")
+    if (inicial.tab === "consultas") setFiltros({ ...FILTROS_INICIALES, estado: inicial.estado || "abiertas", urgencia: inicial.urgencia || "" })
+  }, [inicial?.clave]) // eslint-disable-line react-hooks/exhaustive-deps
   const [abierta, setAbierta] = useState(null)
   const [respuestas, setRespuestas] = useState([])
   const [cargandoRespuestas, setCargandoRespuestas] = useState(true)
@@ -209,11 +222,11 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
   useEffect(() => { cargarRespuestas() }, [cargarRespuestas])
 
   const filtradas = useMemo(
-    () => ordenarBandeja(filtrarBandeja(consultas, { ...filtros, estado: filtros.estado === "todas" ? "" : filtros.estado, desde: desdeDePeriodo(periodo) }, nombreOptica)),
-    [consultas, filtros, periodo, nombreOptica],
+    () => ordenarBandeja(filtrarBandeja(consultas, { ...filtros, estado: filtros.estado === "todas" ? "" : filtros.estado, ...ventana }, nombreOptica)),
+    [consultas, filtros, ventana, nombreOptica],
   )
   const abiertas = consultas.filter((c) => c.estado !== "resuelta").length
-  const conFiltros = JSON.stringify(filtros) !== JSON.stringify(FILTROS_INICIALES) || periodo !== "todo"
+  const conFiltros = JSON.stringify(filtros) !== JSON.stringify(FILTROS_INICIALES) || periodo !== "todo" || !!rangoResumen
   const consultaAbierta = abierta ? consultas.find((c) => c.id === abierta) : null
   const verConsultas = (cambios) => { setFiltros({ ...FILTROS_INICIALES, estado: "todas", ...cambios }); setTab("consultas") }
   const ponerFiltro = (k) => (e) => setFiltros((f) => ({ ...f, [k]: e.target.value }))
@@ -222,7 +235,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" aria-label="Secciones de Soporte" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-          {[...TABS, { id: "avisos", etiqueta: "Avisos, pagos y cumpleaños", Icono: Clock }].map(({ id, etiqueta, Icono }) => {
+          {[...TABS, { id: "avisos", etiqueta: MODO_SAAS_VISIBLE ? "Avisos, pagos y cumpleaños" : "Avisos y cumpleaños", Icono: Clock }].map(({ id, etiqueta, Icono }) => {
             const activo = tab === id
             return (
               <button key={id} type="button" role="tab" id={`sa-tab-${id}`} aria-selected={activo} aria-controls="sa-panel" onClick={() => setTab(id)}
@@ -237,7 +250,10 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
         {(tab === "consultas" || tab === "indicadores") && (
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             Período
-            <select value={periodo} onChange={(e) => setPeriodo(e.target.value)} className={SELECT}>{PERIODOS_SOPORTE.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select>
+            <select value={rangoResumen ? "resumen" : periodo} onChange={(e) => { setRangoResumen(null); setPeriodo(e.target.value === "resumen" ? "todo" : e.target.value) }} className={SELECT}>
+              {rangoResumen && <option value="resumen">Período del Resumen · {tituloSemana(rangoResumen.inicio, rangoResumen.fin)}</option>}
+              {PERIODOS_SOPORTE.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
           </label>
         )}
       </div>
@@ -259,12 +275,12 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
               <select value={filtros.urgencia} onChange={ponerFiltro("urgencia")} aria-label="Filtrar por urgencia" className={SELECT}><option value="">Toda urgencia</option>{URGENCIAS.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select>
               <select value={filtros.modulo} onChange={ponerFiltro("modulo")} aria-label="Filtrar por módulo" className={SELECT}><option value="">Todos los módulos</option>{MODULOS_SOPORTE.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select>
               <select value={filtros.opticaId} onChange={ponerFiltro("opticaId")} aria-label="Filtrar por óptica" className={SELECT + " max-w-[14rem]"}><option value="">Todas las ópticas</option>{opticas.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select>
-              {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo") }} className={CLASE_ACCION_SECUNDARIA}><X size={14} aria-hidden="true" /> Limpiar</button>}
+              {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_SECUNDARIA}><X size={14} aria-hidden="true" /> Limpiar</button>}
             </div>
             <p role="status" className="px-1 text-sm font-semibold text-slate-600">{plural(filtradas.length, "consulta", "consultas")}{filtros.estado === "abiertas" && " abiertas"}</p>
             {cargando ? <div className="h-40 animate-pulse rounded-2xl bg-slate-100" /> : filtradas.length === 0 ? (
-              <Vacio Icono={Inbox} titulo={consultas.length === 0 ? "Todavía no hay consultas" : "Ninguna consulta coincide"} texto={consultas.length === 0 ? "Cuando una óptica escriba al soporte, su consulta aparecerá aquí, con las urgentes primero." : "Prueba con otros filtros."}>
-                {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo") }} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Limpiar los filtros</button>}
+              <Vacio Icono={Inbox} titulo={consultas.length === 0 ? (ocultas > 0 ? "No hay consultas de ópticas reales" : "Todavía no hay consultas") : "Ninguna consulta coincide"} texto={consultas.length === 0 ? (ocultas > 0 ? `Hay ${ocultas} de ópticas de prueba que no se muestran por defecto: usa «Incluir ópticas de prueba» para verlas.` : "Cuando una óptica escriba al soporte, su consulta aparecerá aquí, con las urgentes primero.") : "Prueba con otros filtros."}>
+                {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Limpiar los filtros</button>}
               </Vacio>
             ) : (
               <ContenedorLista etiqueta="Consultas de soporte" encabezado={<EncabezadoLista plantilla={COLUMNAS} etiquetas={ENCABEZADO} />}>
@@ -289,7 +305,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
           </div>
         )}
 
-        {tab === "indicadores" && (cargando ? <div className="h-40 animate-pulse rounded-2xl bg-slate-100" /> : <PestanaIndicadores consultas={consultas} periodo={periodo} onVerConsultas={verConsultas} />)}
+        {tab === "indicadores" && (cargando ? <div className="h-40 animate-pulse rounded-2xl bg-slate-100" /> : <PestanaIndicadores consultas={consultas} ventana={ventana} onVerConsultas={verConsultas} />)}
         {tab === "respuestas" && <PestanaRespuestas respuestas={respuestas} cargando={cargandoRespuestas} error={errorRespuestas} onRecargar={cargarRespuestas} onToast={onToast} />}
         {tab === "tiempos" && <PestanaTiempos onToast={onToast} />}
         {tab === "avisos" && avisos}

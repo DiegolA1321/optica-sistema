@@ -3,7 +3,7 @@
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaLegible, fechaHoraLegible, formatoFecha, MESES_CORTOS, diaSemanaCorto } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible, tituloSemana } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -40,7 +40,6 @@ import {
   UserPlus,
   Pencil,
   Trash2,
-  ChevronRight,
   ChevronDown,
   TrendingUp,
   Settings,
@@ -55,26 +54,22 @@ import {
   RefreshCw,
   Inbox,
   PhoneCall,
-  BarChart3,
   Users,
-  Stethoscope,
   Image as ImageIcon,
   LogIn,
 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
-import { esHoy, etiquetaFecha, fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
 import { sumarDiasISO } from "../utilidades/controles"
 import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
-import { useAnchoElemento } from "../utilidades/graficos"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
-import { NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
+import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
-import { MODO_SAAS_VISIBLE } from "@/lib/config"
-import { INK, ACCION_VER } from "@/lib/tema"
+import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -139,6 +134,17 @@ const formatearFechaHora = (fecha) =>
   fechaHoraLegible(fecha, { anio: true })
 
 import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
+import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
+import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
+import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
+import { textoDeAccion, ACCIONES_COMERCIALES, MODULOS_USO, ultimaActividadDe, haceDias, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
+import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
+import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
+import { SinResultados } from "../componentes/reportes/bloques"
+import { ESTADOS_LEAD_LISTA } from "../componentes/superadmin/ResumenNegocio"
+import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba } from "../componentes/superadmin/piezas"
+import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
 
 const NAV = [
@@ -150,184 +156,42 @@ const NAV = [
   { id: "superadmins", nombre: "Superadmins", icono: ShieldCheck },
 ]
 
-const AUDITORIA_PAGINA = 20
-
-
-function ultimosNMeses(n) {
-  const hoy = ahoraEcuador()
-  const arr = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
-    arr.push({ clave: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, etiqueta: MESES_CORTOS[d.getMonth()] })
-  }
-  return arr
-}
-
-function ultimosNDias(n) {
-  const hoy = ahoraEcuador()
-  const arr = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i)
-    const clave = fechaAISO(d)
-    arr.push({ clave, etiqueta: diaSemanaCorto(d.getDay()).toLowerCase() })
-  }
-  return arr
-}
-
-// "Actividad por día" del Resumen: 7d/30d usan el mismo formato que el resto
-// del sistema (abreviatura del día), pero "mes" (largo variable, 1-31 días)
-// se etiqueta por número de día — 30 abreviaturas de día de la semana
-// repetidas serían ilegibles en el eje X.
-function diasParaRangoActividad(rango) {
-  if (rango === "mes") {
-    const hoy = ahoraEcuador()
-    const n = hoy.getDate()
-    const arr = []
-    for (let i = 0; i < n; i++) {
-      const d = new Date(hoy.getFullYear(), hoy.getMonth(), 1 + i)
-      const clave = fechaAISO(d)
-      arr.push({ clave, etiqueta: String(d.getDate()) })
-    }
-    return arr
-  }
-  return ultimosNDias(rango === "30d" ? 30 : 7)
-}
-
-// Curva suave (Bézier cúbica con punto de control en el punto medio de cada
-// tramo) sobre coordenadas absolutas de un viewBox — a diferencia de un
-// div con height:X%, esto no depende de que el ancestro tenga una altura
-// definida, así que no puede caer en el bug de "altura 0 silenciosa" que
-// tuvo el gráfico de barras original (ver memoria de la sesión anterior).
-function construirCurva(valores, w, h, max, padTop = 10, padBottom = 8, padX = 24) {
-  const n = valores.length
-  if (n === 0) return { linea: "", area: "", puntos: [] }
-  const anchoUtil = w - padX * 2
-  const stepX = n > 1 ? anchoUtil / (n - 1) : 0
-  const rango = h - padTop - padBottom
-  const puntos = valores.map((v, i) => {
-    const x = n > 1 ? padX + i * stepX : w / 2
-    const y = padTop + rango - (max > 0 ? (v / max) * rango : 0)
-    return [x, y]
-  })
-  let linea = `M ${puntos[0][0].toFixed(1)} ${puntos[0][1].toFixed(1)}`
-  for (let i = 1; i < puntos.length; i++) {
-    const [x0, y0] = puntos[i - 1]
-    const [x1, y1] = puntos[i]
-    const mx = (x0 + x1) / 2
-    linea += ` C ${mx.toFixed(1)} ${y0.toFixed(1)}, ${mx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`
-  }
-  const area = `${linea} L ${puntos[puntos.length - 1][0].toFixed(1)} ${h - padBottom} L ${puntos[0][0].toFixed(1)} ${h - padBottom} Z`
-  return { linea, area, puntos }
-}
-
-// ─── Registro de actividad (auditoría) ───
-const AUDITORIA_INFO = {
-  crear_optica: { grupo: "opticas", icon: Plus, bg: "#E8F0FF", fg: "#2563EB" },
-  suspender_optica: { grupo: "opticas", icon: Ban, bg: "#FEEBEE", fg: "#E11D48" },
-  reactivar_optica: { grupo: "opticas", icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
-  renombrar_optica: { grupo: "opticas", icon: Pencil, bg: "#E8F0FF", fg: "#2563EB" },
-  // Van agrupadas con "opticas" (no en su propio grupo "administradores") —
-  // agregar/quitar un admin es parte del ciclo de vida de la óptica a la que
-  // pertenece, y un filtro aparte para esto resultaba redundante (feedback
-  // de Diego, igual que la tarjeta "Administradores" que se sacó de Resumen/Ópticas).
-  agregar_administrador: { grupo: "opticas", icon: UserPlus, bg: "#F1EAFE", fg: "#7C3AED" },
-  eliminar_administrador: { grupo: "opticas", icon: Trash2, bg: "#FEEBEE", fg: "#E11D48" },
-  crear_superadmin: { grupo: "superadmins", icon: ShieldCheck, bg: "#F1EAFE", fg: "#7C3AED" },
-  eliminar_superadmin: { grupo: "superadmins", icon: Trash2, bg: "#FEEBEE", fg: "#E11D48" },
-  responder_mensaje: { grupo: "mensajes", icon: MessageSquare, bg: "#E8F0FF", fg: "#2563EB" },
-  publicar_anuncio: { grupo: "mensajes", icon: Megaphone, bg: "#FFF7E6", fg: "#B45309" },
-  actualizar_pago: { grupo: "opticas", icon: Wallet, bg: "#FFF7E6", fg: "#B45309" },
-  generar_factura: { grupo: "opticas", icon: Receipt, bg: "#E7F7EF", fg: "#059669" },
-  // Entrar y salir de una óptica: tono neutro (el violeta es el color de "En espera" en Citas).
-  entrar_como_optica: { grupo: "opticas", icon: LogIn, bg: "#EEF2F7", fg: "#475569" },
-  salir_de_optica: { grupo: "opticas", icon: LogOut, bg: "#EEF2F7", fg: "#475569" },
-}
-
-const FILTROS_ACTIVIDAD = [
-  { key: "todas", label: "Todas" },
-  { key: "opticas", label: "Ópticas" },
-  { key: "mensajes", label: "Mensajes" },
-  { key: "superadmins", label: "Superadmins" },
-]
-
-function textoAuditoria(a) {
-  switch (a.accion) {
-    case "crear_optica": return <>creó la óptica <b>{a.optica_nombre}</b></>
-    case "suspender_optica": return <>suspendió la óptica <b>{a.optica_nombre}</b></>
-    case "reactivar_optica": return <>reactivó la óptica <b>{a.optica_nombre}</b></>
-    case "renombrar_optica": return <>renombró <b>{a.detalle}</b> a <b>{a.optica_nombre}</b></>
-    case "agregar_administrador": return <>agregó a <b>{a.detalle}</b> como administrador de <b>{a.optica_nombre}</b></>
-    case "eliminar_administrador": return <>quitó a <b>{a.detalle}</b> como administrador de <b>{a.optica_nombre}</b></>
-    case "crear_superadmin": return <>agregó a <b>{a.optica_nombre}</b> como superadministrador</>
-    case "eliminar_superadmin": return <>quitó a <b>{a.optica_nombre}</b> como superadministrador</>
-    case "responder_mensaje": return <>respondió una consulta de <b>{a.optica_nombre}</b></>
-    case "publicar_anuncio": return <>publicó un aviso general: <b>{a.detalle}</b></>
-    case "actualizar_pago": return <>marcó el pago de <b>{a.optica_nombre}</b> como <b>{a.detalle === "al_dia" ? "al día" : a.detalle}</b></>
-    case "generar_factura": return <>generó la factura <b>{a.detalle}</b> para <b>{a.optica_nombre}</b></>
-    case "entrar_como_optica": return <>entró como administrador a la óptica <b>{a.optica_nombre}</b></>
-    case "salir_de_optica": return <>salió de la óptica <b>{a.optica_nombre}</b>{a.detalle ? <span className="text-slate-400"> ({a.detalle})</span> : null}</>
-    default: return a.accion
-  }
-}
-
-function ItemAuditoria({ a }) {
-  const info = AUDITORIA_INFO[a.accion]
-  if (!info) return null
-  const Icono = info.icon
-  return (
-    <li className="flex items-start gap-3">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: info.bg, color: info.fg }}>
-        <Icono size={15} />
-      </div>
-      <div className="min-w-0 flex-1 border-b border-slate-100 pb-3.5">
-        <p className="text-[13.5px] leading-snug text-slate-700">
-          <span className="font-semibold text-slate-900">{a.actor_nombre}</span> {textoAuditoria(a)}
-        </p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
-          <Clock size={11} />
-          {formatearFechaHora(a.created_at)}
-        </p>
-      </div>
-    </li>
-  )
-}
-
-// Sparkline mini (stat cards): SVG estático de bajo costo, sin hover ni
-// tooltip propio — solo da una lectura visual rápida de "sube o baja",
-// mismo criterio de curva suave que construirCurva pero sin sus puntos ni
-// interacción (una tarjeta de 100px de alto no tiene espacio para eso).
-function MiniSparkline({ valores, color = "#2563EB" }) {
-  if (!valores || valores.length < 2) return null
-  const w = 72, h = 28, pad = 3
-  const max = Math.max(1, ...valores)
-  const min = Math.min(...valores)
-  const rango = Math.max(1, max - min)
-  const stepX = (w - pad * 2) / (valores.length - 1)
-  const puntos = valores.map((v, i) => [pad + i * stepX, h - pad - ((v - min) / rango) * (h - pad * 2)])
-  let linea = `M ${puntos[0][0].toFixed(1)} ${puntos[0][1].toFixed(1)}`
-  for (let i = 1; i < puntos.length; i++) {
-    const [x0, y0] = puntos[i - 1]
-    const [x1, y1] = puntos[i]
-    const mx = (x0 + x1) / 2
-    linea += ` C ${mx.toFixed(1)} ${y0.toFixed(1)}, ${mx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`
-  }
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0" aria-hidden="true">
-      <path d={linea} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={puntos[puntos.length - 1][0]} cy={puntos[puntos.length - 1][1]} r="2.25" fill={color} />
-    </svg>
-  )
-}
-
-// ─── Estilos de tarjeta reutilizables (mismo look en toda la superficie) ───
-// El hover-lift es a propósito parte de la base, no algo que cada pantalla
-// agregue por separado — Diego pidió que todos los módulos del panel se
-// "levanten" un poco al pasar el cursor, no solo los de Resumen.
-const CARD = "rounded-[22px] border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_36px_-28px_rgba(15,23,42,0.35)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_24px_44px_-24px_rgba(15,23,42,0.45)]"
-const CARD_PAD = CARD + " p-5 sm:p-6"
+// Con el modo de la tesis (una sola óptica) la capa comercial queda oculta: sin Leads en el menú. Nada se borra; con VITE_MOSTRAR_SAAS=true vuelve todo.
+const NAV_VISIBLE = NAV.filter((o) => MODO_SAAS_VISIBLE || o.id !== "leads")
 
 export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario, alEntrarComo }) {
   const [seccion, setSeccion] = useState("resumen")
+  // Las ópticas de prueba y de demostración no cuentan en las métricas del negocio ni en la actividad salvo que se pida verlas.
+  const [incluirPrueba, setIncluirPrueba] = useState(false)
+  const datosNegocio = useDatosNegocio()
+  const [rolesOptica, setRolesOptica] = useState(null)
+  const [restaurandoRoles, setRestaurandoRoles] = useState(false)
+  const [confirmarRestaurarRoles, setConfirmarRestaurarRoles] = useState(false)
+  const [motivoSuspension, setMotivoSuspension] = useState("")
+  // Entrar como administrador: solo con la autorización de la óptica (o en un entorno de prueba) y con el motivo. Lo valida el servidor.
+  const [entrada, setEntrada] = useState(null) // { optica, motivo, error, enviando }
+  const pedirEntrada = (optica) => setEntrada({ optica, motivo: "", error: "", enviando: false })
+  const confirmarEntrada = async (e) => {
+    e?.preventDefault?.()
+    if (!entrada || entrada.enviando) return
+    const prueba = esDePrueba(entrada.optica)
+    const motivo = entrada.motivo.trim()
+    if (!prueba && motivo.length < 5) { setEntrada((x) => ({ ...x, error: "Indica el motivo de la entrada (al menos 5 letras)." })); return }
+    setEntrada((x) => ({ ...x, enviando: true, error: "" }))
+    const { error } = await supabase.rpc("entrar_como_optica", { p_optica: entrada.optica.id, p_motivo: motivo || null })
+    if (error) { setEntrada((x) => ({ ...x, enviando: false, error: error.message || "No se pudo entrar a la óptica." })); return }
+    const o = entrada.optica
+    setEntrada(null)
+    setDetalle(null)
+    alEntrarComo?.(o)
+  }
+  // A dónde llevó el último "Abrir en …" del Resumen: cada sección parte de ahí con el mismo período y los mismos filtros.
+  const [destinoSoporte, setDestinoSoporte] = useState(null)
+  const [destinoActividad, setDestinoActividad] = useState(null)
+  const [filtrosOpticas, setFiltrosOpticas] = useState({ desde: "", hasta: "", pago: "" })
+  const [periodoLeads, setPeriodoLeads] = useState("todo")
+  const [personalizadoLeads, setPersonalizadoLeads] = useState({ inicio: "", fin: "" })
+  const [leadAbierto, setLeadAbierto] = useState(null)
   const [colapsado, setColapsado] = useState(false)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
@@ -347,14 +211,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // Solo optica_id: liviano, alcanza para contar por óptica y en total
   // (feedback del ing: reportes de usuarios administradores/asistentes/
   // pacientes, por óptica y del sistema completo).
-  const [asistentesOpticaId, setAsistentesOpticaId] = useState([])
-  const [pacientesOpticaId, setPacientesOpticaId] = useState([])
 
   // ─── Leads (formulario "Obtener sistema" de la página de venta) ───
   const [leads, setLeads] = useState([])
   const [leadEnCurso, setLeadEnCurso] = useState(null)
   const [procesandoLeadId, setProcesandoLeadId] = useState(null)
-  const [visitas, setVisitas] = useState([])
   // Búsqueda + filtro por estado — con pocos leads no hacía falta, pero
   // crece rápido y sin esto se vuelve una lista larga para revisar a mano.
   const [busquedaLeads, setBusquedaLeads] = useState("")
@@ -362,41 +223,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Auditoría (paginada + filtrable por grupo) ───
   const [auditoria, setAuditoria] = useState([])
-  const [auditoriaOffset, setAuditoriaOffset] = useState(0)
-  const [auditoriaTieneMas, setAuditoriaTieneMas] = useState(true)
-  const [auditoriaCargandoMas, setAuditoriaCargandoMas] = useState(false)
-  const [auditoriaFiltro, setAuditoriaFiltro] = useState("todas")
-  // Día colapsado manualmente (mismo patrón que Citas.jsx: si un día tiene
-  // muchos eventos, poder colapsarlo — sobre todo "hoy" — para llegar a los
-  // días anteriores sin tanto scroll) y filtro opcional a un solo día (se
-  // activa al hacer clic en una barra del gráfico "Actividad por día").
-  const [diasActividadColapsados, setDiasActividadColapsados] = useState(() => new Set())
-  const alternarDiaActividad = (dia) => {
-    setDiasActividadColapsados((prev) => {
-      const siguiente = new Set(prev)
-      if (siguiente.has(dia)) siguiente.delete(dia)
-      else siguiente.add(dia)
-      return siguiente
-    })
-  }
-  const [filtroFechaActividad, setFiltroFechaActividad] = useState(null)
-  // Filtro por autor — se activa al hacer clic en un superadmin desde la
-  // pantalla de Superadmins, para poder ver justo lo que esa cuenta hizo.
-  const [filtroActorActividad, setFiltroActorActividad] = useState(null) // { id, nombre } | null
-
-  // ─── "Actividad por día" del Resumen — dataset propio, acotado por fecha
-  // (mismo patrón que cargarVisitas), en vez de reusar `auditoria` (paginada
-  // de a 20 para la pestaña Actividad). Reusar esa lista paginada para un
-  // rango de 30 días o "este mes" podía subcontar: si hay más de 20 acciones
-  // en el rango, la página cargada no las cubre todas. ─── */
-  const [rangoActividadResumen, setRangoActividadResumen] = useState("7d") // "7d" | "30d" | "mes"
-  const [auditoriaResumen, setAuditoriaResumen] = useState([])
-
-  // ─── Métricas SaaS de red (Resumen): volumen real de consultas generadas
-  // en toda la red de ópticas, y un estado de conexión honesto (basado en la
-  // latencia real de la carga inicial, no un badge decorativo fijo). ───
-  const [totalConsultasRed, setTotalConsultasRed] = useState(null)
-  const [pacientesAtendidosRed, setPacientesAtendidosRed] = useState(null)
   const [estadoServidor, setEstadoServidor] = useState({ estado: "verificando", latenciaMs: null })
 
   // ─── Mensajes (consultas de administradores + avisos generales) ───
@@ -418,13 +244,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // (el punto/barra se agranda) como el tooltip propio que lo acompaña, en
   // vez de depender del tooltip nativo del navegador (lento y con estilo
   // inconsistente entre navegadores).
-  const [hoverMesIdx, setHoverMesIdx] = useState(null)
-  const [hoverBarClave, setHoverBarClave] = useState(null)
-  const [hoverVisitaIdx, setHoverVisitaIdx] = useState(null)
-
-  // Solo true en la primerísima carga — evita que cada refetch posterior
-  // (después de crear/editar algo) vuelva a tapar el panel con el estado de
-  // carga; los datos ya visibles se quedan mientras se refrescan en segundo plano.
   const [cargaInicial, setCargaInicial] = useState(true)
 
   // Toast flotante compartido — antes "Agregar superadmin", "Nuevo aviso" y
@@ -492,10 +311,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // Sexta Mirada, separado a propósito de la sección "Actividad" general del
   // superadmin (esa solo registra acciones del propio superadmin, ver
   // renderActividad). RLS: logs_optica_superadmin_all. ───
-  const [mostrarActividadOptica, setMostrarActividadOptica] = useState(false)
-  const [logsOptica, setLogsOptica] = useState([])
-  const [cargandoLogsOptica, setCargandoLogsOptica] = useState(false)
-  const [filtroUsuarioLogOptica, setFiltroUsuarioLogOptica] = useState("todos")
   const [generandoFactura, setGenerandoFactura] = useState(false)
   const [facturaImprimir, setFacturaImprimir] = useState(null)
   const [guardandoCumple, setGuardandoCumple] = useState(null) // id del admin en guardado
@@ -633,55 +448,35 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     }
   }, [menuAccionesId])
 
-  const cargarAuditoria = async (reset = true) => {
-    const desde = reset ? 0 : auditoriaOffset
-    if (!reset) setAuditoriaCargandoMas(true)
-    let consulta = supabase.from("auditoria").select("*").order("created_at", { ascending: false }).range(desde, desde + AUDITORIA_PAGINA - 1)
-    if (auditoriaFiltro !== "todas") {
-      const acciones = Object.entries(AUDITORIA_INFO).filter(([, v]) => v.grupo === auditoriaFiltro).map(([k]) => k)
-      consulta = consulta.in("accion", acciones)
-    }
-    const { data } = await consulta
-    setAuditoria((prev) => (reset ? (data || []) : [...prev, ...(data || [])]))
-    setAuditoriaOffset(desde + (data?.length || 0))
-    setAuditoriaTieneMas((data?.length || 0) === AUDITORIA_PAGINA)
-    setAuditoriaCargandoMas(false)
+  // Las últimas acciones (para "última acción" de cada superadmin y para avisarle a Actividad que hay algo nuevo). La pantalla Actividad
+  // lee por su cuenta, con sus filtros.
+  const cargarAuditoria = async () => {
+    const { data } = await supabase.from("auditoria").select("*").order("created_at", { ascending: false }).limit(200)
+    setAuditoria(data || [])
   }
 
   useEffect(() => {
-    cargarAuditoria(true)
-  }, [auditoriaFiltro])
+    cargarAuditoria()
+  }, [])
 
   const cargarDatos = async () => {
     setCargando(true)
     const t0 = performance.now()
-    let opticasData = null, adminsData = null, superadminsData = null, asistentesData = null, pacientesData = null
+    let opticasData = null, adminsData = null, superadminsData = null
     try {
       const resultados = await Promise.all([
         supabase.from("opticas").select("*").order("created_at", { ascending: false }),
         supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra, cedula, created_at").eq("rol", "admin"),
         supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
-        supabase.from("perfiles").select("optica_id, created_at, activo").eq("rol", "asistente"),
-        supabase.from("pacientes").select("optica_id, created_at"),
-        // count-only (head: true) — no trae filas, solo el número. Métrica
-        // SaaS de red pedida por Diego: volumen real de consultas generadas
-        // en TODAS las ópticas, no solo la que se esté mirando.
-        supabase.from("consultas").select("id", { count: "exact", head: true }),
-        // Pacientes que ya tuvieron al menos una consulta (su última consulta no es "Pendiente"): lo que dice "atendidos".
-        supabase.from("pacientes").select("id", { count: "exact", head: true }).neq("ultima_consulta", "Pendiente"),
       ])
       opticasData = resultados[0].data
       adminsData = resultados[1].data
       superadminsData = resultados[2].data
-      asistentesData = resultados[3].data
-      pacientesData = resultados[4].data
       // Estado de servidor honesto: basado en la latencia real de esta misma
       // carga, no un badge decorativo fijo en "operativo". Los umbrales son
       // orientativos (no un SLA), solo para distinguir "normal" de "lento".
       const latenciaMs = Math.round(performance.now() - t0)
       setEstadoServidor({ estado: latenciaMs < 1200 ? "operativo" : latenciaMs < 3500 ? "lento" : "critico", latenciaMs })
-      setTotalConsultasRed(resultados[5].count ?? 0)
-      setPacientesAtendidosRed(resultados[6].count ?? 0)
     } catch {
       setEstadoServidor({ estado: "sin_conexion", latenciaMs: null })
     }
@@ -689,19 +484,19 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setAdmins(adminsData || [])
     setSuperadmins(superadminsData || [])
     // Solo cuentan quienes trabajan hoy: las desactivadas no son "asistentes en la red".
-    setAsistentesOpticaId((asistentesData || []).filter((a) => a.activo !== false))
-    setPacientesOpticaId(pacientesData || [])
     setCargando(false)
     setCargaInicial(false)
     cargarAuditoria(true)
-    if (opticasData?.length) verificarVencimientosPago(opticasData)
+    if (MODO_SAAS_VISIBLE && opticasData?.length) verificarVencimientosPago(opticasData)
 
     // Conteo real de acciones por superadmin — un COUNT liviano por cuenta
     // (son pocas) en vez de traer toda la auditoría al cliente para sumarla.
     if (superadminsData?.length) {
       const conteos = await Promise.all(
         superadminsData.map(async (s) => {
-          const { count } = await supabase.from("auditoria").select("id", { count: "exact", head: true }).eq("actor_id", s.id)
+          let consultaConteo = supabase.from("auditoria").select("id", { count: "exact", head: true }).eq("actor_id", s.id)
+          if (!MODO_SAAS_VISIBLE) consultaConteo = consultaConteo.not("accion", "in", `(${ACCIONES_COMERCIALES.join(",")})`)
+          const { count } = await consultaConteo
           return [s.id, count || 0]
         }),
       )
@@ -713,28 +508,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     cargarMensajes()
     cargarSoporte()
     cargarLeads()
-    cargarVisitas()
-    cargarActividadResumen(rangoActividadResumen)
   }
-
-  // Igual que cargarVisitas: acota por fecha en el servidor en vez de traer
-  // toda la tabla `auditoria` (que puede ser larga) o de reusar la lista
-  // paginada de la pestaña Actividad, que no garantiza cubrir el rango
-  // elegido acá. "mes" usa el día 1 del mes calendario actual, igual que
-  // Reportes.jsx (fmtFecha/calcularRango).
-  const cargarActividadResumen = async (rango) => {
-    const hoy = ahoraEcuador()
-    const dias = rango === "30d" ? 30 : rango === "mes" ? null : 7
-    const desde = dias
-      ? new Date(Date.now() - dias * 24 * 60 * 60 * 1000)
-      : new Date(hoy.getFullYear(), hoy.getMonth(), 1)
-    const { data } = await supabase.from("auditoria").select("created_at").gte("created_at", desde.toISOString())
-    setAuditoriaResumen(data || [])
-  }
-
-  useEffect(() => {
-    cargarActividadResumen(rangoActividadResumen)
-  }, [rangoActividadResumen])
 
   const cargarMensajes = async () => {
     const { data } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
@@ -761,18 +535,17 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setLeads(data || [])
   }
 
-  // Últimos 90 días alcanza para el gráfico de Resumen (por día) sin traer
-  // toda la tabla histórica al cliente.
-  const cargarVisitas = async () => {
-    const desde = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-    const { data } = await supabase.from("visitas").select("tipo, created_at").gte("created_at", desde)
-    setVisitas(data || [])
-  }
-
   const marcarLead = async (id, estado) => {
+    const lead = leads.find((l) => l.id === id)
     setProcesandoLeadId(id)
     const { error } = await supabase.from("leads").update({ estado }).eq("id", id)
-    if (!error) setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, estado } : l)))
+    if (!error) {
+      setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, estado } : l)))
+      setLeadAbierto((prev) => (prev && prev.id === id ? { ...prev, estado } : prev))
+      await registrarAuditoria("cambiar_estado_lead", { opticaNombre: lead?.nombre_optica || "Lead", detalle: lead?.nombre_optica || null, antes: lead?.estado || null, despues: estado })
+      cargarAuditoria(true)
+      mostrarToast("exito", estado === "contactado" ? "Lead marcado como contactado." : estado === "descartado" ? "Lead descartado." : "Lead actualizado.")
+    } else mostrarToast("error", "No se pudo actualizar el lead. Vuelve a intentarlo.")
     setProcesandoLeadId(null)
   }
 
@@ -830,7 +603,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       return
     }
     setMensajes((prev) => [data, ...prev])
-    await registrarAuditoria("publicar_anuncio", { opticaNombre: opticaDestino ? (opticas.find((o) => o.id === opticaDestino)?.nombre || "Óptica") : "Todas las ópticas", detalle: avisoAsunto.trim() })
+    await registrarAuditoria("publicar_anuncio", { opticaNombre: opticaDestino ? (opticas.find((o) => o.id === opticaDestino)?.nombre || "Óptica") : (MODO_SAAS_VISIBLE ? "Todas las ópticas" : "Todo el sistema"), detalle: avisoAsunto.trim() })
     cargarAuditoria(true)
     setPublicandoAviso(false)
     setModalAvisoAbierto(false)
@@ -842,7 +615,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // Best-effort: si la tabla auditoria aún no existe (falta correr las
   // migraciones) esto no debe tumbar el resto de los flujos.
-  const registrarAuditoria = async (accion, { opticaId = null, opticaNombre, detalle: detalleTexto = null }) => {
+  const registrarAuditoria = async (accion, { opticaId = null, opticaNombre, detalle: detalleTexto = null, antes = null, despues = null }) => {
     const { error: errorAuditoria } = await supabase.from("auditoria").insert({
       actor_id: usuario?.id || null,
       actor_nombre: usuario?.nombre || "Superadmin",
@@ -850,6 +623,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       optica_id: opticaId,
       optica_nombre: opticaNombre,
       detalle: detalleTexto,
+      antes,
+      despues,
     })
     if (errorAuditoria) console.warn("[auditoria] no se pudo registrar:", errorAuditoria.message)
   }
@@ -880,22 +655,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // Conteo de asistentes/pacientes por óptica — feedback del ing: reportes
   // de usuarios (administradores/asistentes/pacientes) por óptica y en total.
-  const contarPorOptica = (filas) => {
-    const mapa = new Map()
-    for (const f of filas) mapa.set(f.optica_id, (mapa.get(f.optica_id) || 0) + 1)
-    return mapa
-  }
-  const asistentesPorOptica = useMemo(() => contarPorOptica(asistentesOpticaId), [asistentesOpticaId])
-  const pacientesPorOptica = useMemo(() => contarPorOptica(pacientesOpticaId), [pacientesOpticaId])
-  const totalesUsuarios = useMemo(() => ({
-    admins: admins.length,
-    asistentes: asistentesOpticaId.length,
-    pacientes: pacientesOpticaId.length,
-  }), [admins, asistentesOpticaId, pacientesOpticaId])
 
   // Lo que espera al soporte: consultas abiertas cuyo último mensaje es de la óptica (la insignia del menú y la bandeja cuentan lo mismo).
-  const consultasAbiertas = useMemo(() => consultasSoporte.filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte])
-  const mensajesFiltrados = useMemo(() => mensajes.filter((m) => m.tipo === "anuncio"), [mensajes])
+  const consultasAbiertas = useMemo(() => sinPruebas(consultasSoporte, opticas, incluirPrueba, "opticaId").filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte, opticas, incluirPrueba])
+  // Con el modo de la tesis no se listan los avisos viejos sobre el estado de la suscripción (capa comercial).
+  const mensajesFiltrados = useMemo(() => mensajes.filter((m) => m.tipo === "anuncio" && (MODO_SAAS_VISIBLE || !/suscripci/i.test(`${m.asunto} ${m.cuerpo}`))), [mensajes])
   const opticasConPagoProblema = useMemo(() => opticas.filter((o) => o.estado_pago && o.estado_pago !== "al_dia"), [opticas])
   const cumpleanosProximos = useMemo(() => {
     return admins
@@ -904,12 +668,26 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       .sort((a, b) => a.dias - b.dias)
   }, [admins])
 
+  // Las ópticas que cuentan: las de prueba solo con el interruptor. Todos los números de las secciones salen de aquí.
+  const opticasVisibles = useMemo(() => opticasDelNegocio(opticas, incluirPrueba), [opticas, incluirPrueba])
+  const consultasVisibles = useMemo(() => sinPruebas(consultasSoporte, opticas, incluirPrueba, "opticaId"), [consultasSoporte, opticas, incluirPrueba])
+  const saludPorOptica = useMemo(() => {
+    const filas = saludDeLaRed({ opticas: opticasVisibles, personas: datosNegocio.personas, uso: datosNegocio.uso, facturas: datosNegocio.facturas, consultas: consultasVisibles, hoyISO: hoyISO() })
+    return new Map(filas.map((f) => [f.optica.id, f.salud]))
+  }, [opticasVisibles, datosNegocio.personas, datosNegocio.uso, datosNegocio.facturas, consultasVisibles])
+  const usoPorOptica = useMemo(() => new Map(datosNegocio.uso.map((u) => [u.optica_id, u])), [datosNegocio.uso])
+
+  // El listado de Ópticas: con el modo de la tesis las de prueba van aparte, como "Entornos de prueba".
+  const opticasListado = useMemo(() => (MODO_SAAS_VISIBLE ? opticasVisibles : opticas.filter((o) => !esDePrueba(o))), [opticasVisibles, opticas])
   const opticasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    return opticas.filter((o) => {
+    return opticasListado.filter((o) => {
       const listaAdmins = adminsPorOptica.get(o.id) || []
       if (filtroEstado === "Activas" && !o.activa) return false
       if (filtroEstado === "Suspendidas" && o.activa) return false
+      if (filtrosOpticas.pago && (o.estado_pago || "al_dia") !== filtrosOpticas.pago) return false
+      if (filtrosOpticas.desde && diaDe(o.created_at) < filtrosOpticas.desde) return false
+      if (filtrosOpticas.hasta && diaDe(o.created_at) > filtrosOpticas.hasta) return false
       if (!q) return true
       return (
         o.nombre.toLowerCase().includes(q) ||
@@ -917,33 +695,52 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         listaAdmins.some((a) => a.nombre.toLowerCase().includes(q) || (a.email || "").toLowerCase().includes(q))
       )
     })
-  }, [opticas, adminsPorOptica, busqueda, filtroEstado])
+  }, [opticasListado, adminsPorOptica, busqueda, filtroEstado, filtrosOpticas])
 
-  const totalActivas = opticas.filter((o) => o.activa).length
-  const totalSuspendidas = opticas.length - totalActivas
+  const totalActivas = opticasListado.filter((o) => o.activa).length
+  const totalSuspendidas = opticasListado.length - totalActivas
+  const nPrueba = opticas.filter(esDePrueba).length
 
-  // Antes había una 4ta tarjeta "Administradores" — se sacó porque su número
-  // (admins.length) casi siempre coincide con "Ópticas totales" (cada óptica
-  // se crea junto con su admin) y el filtro que abría ("ópticas con al menos
-  // un admin") no correspondía uno a uno con ese número cuando una óptica
-  // tenía más de un admin — confuso y redundante (feedback de Diego).
   const tarjetas = [
-    { key: "Todas", label: "Ópticas totales", valor: opticas.length, icon: Building2, bg: "#E8F0FF", fg: "#2563EB" },
-    { key: "Activas", label: "Activas", valor: totalActivas, icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
-    { key: "Suspendidas", label: "Suspendidas", valor: totalSuspendidas, icon: Ban, bg: "#FEEBEE", fg: "#E11D48" },
+    { key: "Todas", label: "Todas", valor: opticasListado.length, fg: "#2563EB" },
+    { key: "Activas", label: "Activas", valor: totalActivas, fg: "#059669" },
+    { key: "Suspendidas", label: "Suspendidas", valor: totalSuspendidas, fg: "#E11D48" },
   ]
 
-  const irAOpticasConFiltro = (key) => { setFiltroEstado(key); setSeccion("opticas") }
+  // Los "Abrir en …" del Resumen: llegan a la sección con el mismo período y los mismos filtros que el número que se pulsó.
+  const irA = (modulo, params = {}) => {
+    if (params.incluirPrueba) setIncluirPrueba(true)
+    if (modulo === "opticas") {
+      setFiltroEstado(params.estado || "Todas")
+      setBusqueda("")
+      setFiltrosOpticas({ desde: params.desde || "", hasta: params.hasta || "", pago: params.pago || "" })
+      setSeccion("opticas")
+      const o = params.abrir ? opticas.find((x) => x.id === params.abrir) : null
+      if (o) abrirDetalleOptica(o)
+    } else if (modulo === "leads") {
+      if (params.desde || params.hasta) { setPeriodoLeads("personalizado"); setPersonalizadoLeads({ inicio: params.desde || "", fin: params.hasta || "" }) } else setPeriodoLeads("todo")
+      setFiltroEstadoLeads(params.estado || "todos")
+      setBusquedaLeads("")
+      setSeccion("leads")
+    } else if (modulo === "soporte") {
+      setDestinoSoporte({ ...params, clave: Date.now() })
+      setSeccion("mensajes")
+    } else if (modulo === "superadmins") {
+      setSeccion("superadmins")
+    } else if (modulo === "actividad") {
+      setDestinoActividad({ ...params, clave: Date.now() })
+      setSeccion("actividad")
+    }
+  }
 
   const abrirDetalleOptica = (o) => {
     setDetalle(o)
+    setConfirmarRestaurarRoles(false)
+    cargarRolesOptica(o.id)
     setCampoMonto(o.monto_mensual != null ? String(o.monto_mensual) : "")
     setCampoVencimiento(o.proximo_vencimiento || "")
     setFacturasOptica([])
     cargarFacturasOptica(o.id)
-    setMostrarActividadOptica(false)
-    setLogsOptica([])
-    setFiltroUsuarioLogOptica("todos")
   }
 
   // Mismo botón de subir logo, pero para "Crear óptica" — acá todavía no
@@ -971,178 +768,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     actualizarCampo("logoUrl", data.publicUrl)
   }
 
-  // created_at viene de Supabase en UTC — recortar el string ISO tal cual
-  // desalinea "hoy" con la fecha local del navegador (ej. un evento de las
-  // 21:48 en Ecuador ya cayó en el día siguiente en UTC). Hay que pasarlo
-  // por Date y leer año/mes/día en hora local, igual que ultimosNMeses/Días.
-  const claveMesLocal = (iso) => {
-    const d = new Date(iso)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-  }
-  const claveDiaLocal = (iso) => {
-    const d = new Date(iso)
-    return fechaAISO(d)
-  }
-
-  const opticasPorMes = useMemo(() => {
-    const meses = ultimosNMeses(6)
-    const mapa = new Map()
-    opticas.forEach((o) => {
-      if (!o.created_at) return
-      const clave = claveMesLocal(o.created_at)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return meses.map((m) => ({ ...m, valor: mapa.get(m.clave) || 0 }))
-  }, [opticas])
-  const maxOpticasMes = Math.max(1, ...opticasPorMes.map((m) => m.valor))
-
-  // Sparklines de las stat cards: acumulado real mes a mes (no solo "nuevos
-  // este mes"), para que la línea siempre termine en el total real de hoy.
-  // Reusa el mismo criterio de mes-local que opticasPorMes/claveMesLocal —
-  // nada decorativo, cada punto es un conteo real derivado de created_at.
-  const contarPorMesAcumulado = (items, meses) => {
-    const porMes = new Map()
-    items.forEach((it) => {
-      if (!it.created_at) return
-      const clave = claveMesLocal(it.created_at)
-      porMes.set(clave, (porMes.get(clave) || 0) + 1)
-    })
-    const clavesVentana = new Set(meses.map((m) => m.clave))
-    let base = 0
-    porMes.forEach((n, clave) => { if (!clavesVentana.has(clave)) base += n })
-    let acumulado = base
-    return meses.map((m) => {
-      acumulado += porMes.get(m.clave) || 0
-      return acumulado
-    })
-  }
-  const seisMeses = useMemo(() => ultimosNMeses(6), [])
-  const sparklineOpticas = useMemo(() => contarPorMesAcumulado(opticas, seisMeses), [opticas, seisMeses])
-  const sparklineAdmins = useMemo(() => contarPorMesAcumulado(admins, seisMeses), [admins, seisMeses])
-  const sparklineAsistentes = useMemo(() => contarPorMesAcumulado(asistentesOpticaId, seisMeses), [asistentesOpticaId, seisMeses])
-  const sparklinePacientes = useMemo(() => contarPorMesAcumulado(pacientesOpticaId, seisMeses), [pacientesOpticaId, seisMeses])
-
-  const actividadPorDia = useMemo(() => {
-    const dias = diasParaRangoActividad(rangoActividadResumen)
-    const mapa = new Map()
-    auditoriaResumen.forEach((a) => {
-      if (!a.created_at) return
-      const clave = claveDiaLocal(a.created_at)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return dias.map((d) => ({ ...d, valor: mapa.get(d.clave) || 0 }))
-  }, [auditoriaResumen, rangoActividadResumen])
-  const maxActividadDia = Math.max(1, ...actividadPorDia.map((d) => d.valor))
-  const totalActividadResumen = actividadPorDia.reduce((s, d) => s + d.valor, 0)
-
-  // ─── Datos derivados para el resumen visual (todo real, nada decorativo) ───
-  const opticasSinAdmin = useMemo(
-    () => opticas.filter((o) => o.activa && (adminsPorOptica.get(o.id) || []).length === 0),
-    [opticas, adminsPorOptica],
-  )
-  const pctActivas = opticas.length ? Math.round((totalActivas / opticas.length) * 100) : 0
-  const creadasEsteMes = opticasPorMes.length ? opticasPorMes[opticasPorMes.length - 1].valor : 0
-
-  const [refGraficoOpticas, anchoGraficoOpticas] = useAnchoElemento()
-  const curvaOpticas = useMemo(
-    () => construirCurva(opticasPorMes.map((m) => m.valor), anchoGraficoOpticas, 90, maxOpticasMes, 14),
-    [opticasPorMes, maxOpticasMes, anchoGraficoOpticas],
-  )
-
-  // ─── Funnel comercial (leads/visitas de la página de venta) ───
-  const visitasVenta = useMemo(() => visitas.filter((v) => v.tipo === "venta"), [visitas])
-  const visitasPorDia = useMemo(() => {
-    // Antes 14 días — el único de los dos gráficos diarios de esta pantalla
-    // que no seguía la convención de "Actividad por día" (7 días, más abajo
-    // en este mismo archivo). Con 14, cada abreviatura de día de la semana
-    // se repetía dos veces en el eje (JUE, VIE... JUE, VIE...), que además
-    // de verse apretado con barras casi vacías, leía confuso.
-    const dias = ultimosNDias(7)
-    const mapa = new Map()
-    visitasVenta.forEach((v) => {
-      if (!v.created_at) return
-      const clave = claveDiaLocal(v.created_at)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return dias.map((d) => ({ ...d, valor: mapa.get(d.clave) || 0 }))
-  }, [visitasVenta])
-  const maxVisitasDia = Math.max(1, ...visitasPorDia.map((d) => d.valor))
-  const [refGraficoVisitas, anchoGraficoVisitas] = useAnchoElemento()
-  // Auditoría 2026-09-09: este gráfico era el único de los tres que no usaba
-  // useAnchoElemento() — tenía un viewBox fijo (880) estirado con
-  // preserveAspectRatio="none" a lo que sea que midiera el contenedor real,
-  // que es exactamente el patrón que este hook existe para evitar (ver
-  // graficos.js). Esa era la causa real de que se viera "sin nitidez".
-  const [refGraficoActividad, anchoGraficoActividad] = useAnchoElemento()
-  // Barras, no línea: la mayoría de los días suele estar en 0 visitas — una
-  // línea plana que de golpe se dispara se ve como si algo estuviera roto;
-  // una barra en 0 se lee como dato normal. "Actividad por día" (más abajo)
-  // sí pasó a área/gradiente (pedido explícito de Diego) porque el relleno
-  // hasta la base sostiene la lectura visual incluso en días en cero.
-  const barrasVisitas = useMemo(() => {
-    const w = anchoGraficoVisitas, base = 82, padTop = 8
-    const n = visitasPorDia.length || 1
-    const gap = 10
-    const barW = (w - gap * (n + 1)) / n
-    return visitasPorDia.map((d, i) => {
-      const alto = maxVisitasDia > 0 ? Math.max(d.valor > 0 ? 4 : 2, (d.valor / maxVisitasDia) * (base - padTop)) : 2
-      const x = gap + i * (barW + gap)
-      return { ...d, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
-    })
-  }, [visitasPorDia, maxVisitasDia, anchoGraficoVisitas])
-  const leadsConvertidos = useMemo(() => leads.filter((l) => l.estado === "convertido").length, [leads])
-  const tasaConversion = leads.length ? Math.round((leadsConvertidos / leads.length) * 100) : 0
-  const tarjetasFunnel = [
-    { key: "visitas", label: "Visitas (últimos 90 días)", valor: visitasVenta.length, icon: BarChart3, bg: "#ECFEFF", fg: "#0E7490" },
-    { key: "leads", label: "Leads recibidos", valor: leads.length, icon: Inbox, bg: "#E8F0FF", fg: "#2563EB" },
-    { key: "conversion", label: "Convertidos a cliente", valor: `${leadsConvertidos} (${tasaConversion}%)`, icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
-  ]
-
-  // Área suave con gradiente (antes barras) — mismo helper que ya usa
-  // "Ópticas creadas por mes" (construirCurva), reutilizado en vez de
-  // inventar una segunda forma de dibujar curvas en el mismo archivo.
-  const curvaActividad = useMemo(
-    () => construirCurva(actividadPorDia.map((d) => d.valor), anchoGraficoActividad, 130, maxActividadDia, 16, 22),
-    [actividadPorDia, maxActividadDia, anchoGraficoActividad],
-  )
-  // Con 30 días o "este mes" mostrar las 30 etiquetas se vuelve ilegible —
-  // se ralea a ~6 etiquetas visibles (primer día, último día, y pasos
-  // parejos entre medio), igual que un dashboard real (Stripe/Vercel).
-  const pasoEtiquetaActividad = Math.max(1, Math.ceil(actividadPorDia.length / 6))
-
-  // Auditoría agrupada por día (mismo patrón que Citas.jsx: rail por fecha,
-  // colapsable por día — sobre todo para poder ocultar "hoy" y no tener que
-  // scrollear tanto para llegar a días anteriores). El Map preserva el orden
-  // de inserción, y auditoria ya viene ordenada desc por created_at.
-  const auditoriaAgrupada = useMemo(() => {
-    const visibles = auditoria.filter((a) => {
-      if (filtroFechaActividad && claveDiaLocal(a.created_at) !== filtroFechaActividad) return false
-      if (filtroActorActividad && a.actor_id !== filtroActorActividad.id) return false
-      return true
-    })
-    const mapa = new Map()
-    for (const a of visibles) {
-      const clave = claveDiaLocal(a.created_at)
-      if (!mapa.has(clave)) mapa.set(clave, [])
-      mapa.get(clave).push(a)
-    }
-    return Array.from(mapa.entries())
-  }, [auditoria, filtroFechaActividad, filtroActorActividad])
-
-  const anilloR = 54
-  const anilloCircunferencia = 2 * Math.PI * anilloR
-  const anilloProgreso = (pctActivas / 100) * anilloCircunferencia
-  // El strokeDasharray ya animaba con CSS transition, pero solo si el VALOR
-  // cambiaba después del primer render — en la carga inicial React pinta
-  // directo el valor final, sin ningún "de 0 a X" que animar. Arranca en 0 y
-  // pasa al valor real un tick después del montaje, para que la transición
-  // sí tenga algo que animar la primera vez que se ve el donut.
-  const [donutMontado, setDonutMontado] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setDonutMontado(true), 50)
-    return () => clearTimeout(t)
-  }, [])
-
   // Última acción real de cada superadmin (de lo que ya está cargado en
   // `auditoria`, que viene ordenada desc) — para que la lista de Superadmins
   // no sea solo nombre+correo, sino que cuente algo de lo que esa cuenta
@@ -1151,6 +776,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const mapa = new Map()
     for (const a of auditoria) {
       if (!a.actor_id || mapa.has(a.actor_id)) continue
+      if (!MODO_SAAS_VISIBLE && ACCIONES_COMERCIALES.includes(a.accion)) continue
       mapa.set(a.actor_id, a)
     }
     return mapa
@@ -1262,7 +888,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         .eq("optica_id", existente.id)
         .maybeSingle()
       if (perfilExistente) {
-        setError("Ese slug ya está en uso por otra óptica.")
+        setError("Esa dirección de la página ya está en uso por otra óptica.")
         setGuardando(false)
         return
       }
@@ -1290,7 +916,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         .select()
         .single()
       if (errorOptica) {
-        setError(errorOptica.message.includes("duplicate") ? "Ese slug ya está en uso por otra óptica." : errorOptica.message)
+        setError(errorOptica.message.includes("duplicate") ? "Esa dirección de la página ya está en uso por otra óptica." : errorOptica.message)
         setGuardando(false)
         return
       }
@@ -1326,7 +952,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
     if (errorPerfil) {
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas, revisa en Supabase.")
+      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas: revísala en la lista de ópticas.")
       setGuardando(false)
       cargarDatos()
       return
@@ -1355,15 +981,26 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setTimeout(() => document.getElementById("personalizacion-login")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100)
   }
 
-  const alternarActiva = async (optica) => {
+  const alternarActiva = async (optica, motivo = "") => {
     setProcesandoId(optica.id)
     const { error: errorUpdate } = await supabase.from("opticas").update({ activa: !optica.activa }).eq("id", optica.id)
     if (!errorUpdate) {
       setOpticas((prev) => prev.map((o) => (o.id === optica.id ? { ...o, activa: !o.activa } : o)))
       setDetalle((prev) => (prev && prev.id === optica.id ? { ...prev, activa: !prev.activa } : prev))
-      await registrarAuditoria(optica.activa ? "suspender_optica" : "reactivar_optica", { opticaId: optica.id, opticaNombre: optica.nombre })
+      await registrarAuditoria(optica.activa ? "suspender_optica" : "reactivar_optica", { opticaId: optica.id, opticaNombre: optica.nombre, detalle: motivo.trim() || null, antes: optica.activa ? "Activa" : "Suspendida", despues: optica.activa ? "Suspendida" : "Activa" })
+      // El administrador se entera por el canal de Mensajes (avisos del sistema), no solo porque de golpe no puede entrar.
+      await supabase.from("mensajes").insert({
+        tipo: "anuncio", optica_id: optica.id, remitente_id: usuario?.id || null, remitente_nombre: usuario?.nombre || "Superadmin",
+        asunto: optica.activa ? "Tu óptica fue suspendida" : "Tu óptica fue reactivada",
+        cuerpo: optica.activa ? `Se suspendió el acceso al sistema.${motivo.trim() ? ` Motivo: ${motivo.trim()}.` : ""} Escríbenos desde aquí para resolverlo.` : "Ya puedes volver a usar el sistema con normalidad.",
+        estado: "resuelto",
+      })
+      cargarMensajes()
       cargarAuditoria(true)
+      datosNegocio.recargar()
+      mostrarToast("exito", optica.activa ? `${optica.nombre} quedó suspendida.` : `${optica.nombre} quedó activa.`)
     }
+    else mostrarToast("error", "No se pudo cambiar el estado de la óptica. Vuelve a intentarlo.")
     setProcesandoId(null)
   }
 
@@ -1399,7 +1036,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       const anterior = detalle.nombre
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
-      await registrarAuditoria("renombrar_optica", { opticaId: detalle.id, opticaNombre: nuevo, detalle: anterior })
+      await registrarAuditoria("renombrar_optica", { opticaId: detalle.id, opticaNombre: nuevo, detalle: anterior, antes: anterior, despues: nuevo })
       cargarAuditoria(true)
       setRenombrando(false)
     }
@@ -1411,24 +1048,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const { data } = await supabase.from("facturas").select("*").eq("optica_id", opticaId).order("emitida_at", { ascending: false })
     setFacturasOptica(data || [])
     setCargandoFacturas(false)
-  }
-
-  const cargarActividadOptica = async (opticaId) => {
-    setCargandoLogsOptica(true)
-    const { data } = await supabase
-      .from("logs_optica")
-      .select("*")
-      .eq("optica_id", opticaId)
-      .order("created_at", { ascending: false })
-      .limit(100)
-    setLogsOptica(data || [])
-    setCargandoLogsOptica(false)
-  }
-
-  const alternarActividadOptica = () => {
-    const abrir = !mostrarActividadOptica
-    setMostrarActividadOptica(abrir)
-    if (abrir && logsOptica.length === 0 && detalle) cargarActividadOptica(detalle.id)
   }
 
   // Se corre después de cada cargarDatos() (o sea, cada vez que el superadmin
@@ -1465,7 +1084,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         cuerpo: `El pago de tu suscripción ${textoEstado}. Si ya lo hiciste, escríbenos desde aquí para confirmarlo.`,
         estado: "resuelto",
       })
-      await registrarAuditoria("actualizar_pago", { opticaId: o.id, opticaNombre: o.nombre, detalle: `${nuevoEstado} (automático)` })
+      await registrarAuditoria("actualizar_pago", { opticaId: o.id, opticaNombre: o.nombre, detalle: "Automático por la fecha de vencimiento", antes: o.estado_pago || "al_dia", despues: nuevoEstado })
     }
 
     setOpticas((prev) => prev.map((o) => {
@@ -1499,26 +1118,68 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         })
         cargarMensajes()
       }
-      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: nuevoEstado })
+      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: detalle.estado_pago || "al_dia", despues: nuevoEstado })
+      datosNegocio.recargar()
       cargarAuditoria(true)
     }
     setActualizandoPago(false)
   }
 
-  const guardarSuscripcion = async (vencimiento = campoVencimiento) => { // al elegir la fecha llega ya la nueva; al salir del monto, la guardada
-    if (!detalle) return
+  const textoSuscripcion = (monto, vence) => `${monto != null && monto !== "" ? `${dinero(Number(monto))} al mes` : "Sin precio"} · ${vence ? `vence el ${fechaLegible(vence)}` : "sin vencimiento"}`
+  const suscripcionCambio = !!detalle && (campoMonto !== (detalle.monto_mensual != null ? String(detalle.monto_mensual) : "") || campoVencimiento !== (detalle.proximo_vencimiento || ""))
+  const guardarSuscripcion = async () => {
+    if (!detalle || !suscripcionCambio) return
     setGuardandoSuscripcion(true)
-    const cambios = { monto_mensual: campoMonto ? Number(campoMonto) : null, proximo_vencimiento: (typeof vencimiento === "string" ? vencimiento : campoVencimiento) || null }
+    const cambios = { monto_mensual: campoMonto ? Number(campoMonto) : null, proximo_vencimiento: campoVencimiento || null }
+    const antes = textoSuscripcion(detalle.monto_mensual, detalle.proximo_vencimiento)
     const { error } = await supabase.from("opticas").update(cambios).eq("id", detalle.id)
     if (!error) {
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
-    }
+      await registrarAuditoria("cambiar_suscripcion", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes, despues: textoSuscripcion(cambios.monto_mensual, cambios.proximo_vencimiento) })
+      cargarAuditoria(true)
+      mostrarToast("exito", "Suscripción guardada.")
+    } else mostrarToast("error", "No se pudo guardar la suscripción. Vuelve a intentarlo.")
     setGuardandoSuscripcion(false)
+  }
+
+  // Marcar una óptica como de prueba o de demostración: deja de contar en las métricas del negocio y en la actividad, salvo que se pida verlas.
+  const marcarPrueba = async (valor) => {
+    if (!detalle) return
+    const { error } = await supabase.from("opticas").update({ es_de_prueba: valor }).eq("id", detalle.id)
+    if (error) { mostrarToast("error", "No se pudo cambiar la marca de prueba. Vuelve a intentarlo."); return }
+    setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, es_de_prueba: valor } : o)))
+    setDetalle((prev) => ({ ...prev, es_de_prueba: valor }))
+    await registrarAuditoria("marcar_optica_prueba", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: valor ? "Óptica real" : "Óptica de prueba", despues: valor ? "Óptica de prueba" : "Óptica real" })
+    cargarAuditoria(true)
+    mostrarToast("exito", valor ? `${detalle.nombre} ahora es una óptica de prueba.` : `${detalle.nombre} ahora cuenta en las métricas del negocio.`)
+  }
+
+  // Roles de la óptica (solo lectura) y su restauración a los predefinidos (Optómetra, Recepción y Ventas).
+  const cargarRolesOptica = async (opticaId) => {
+    setRolesOptica(null)
+    const [{ data: roles }, { data: asignados }] = await Promise.all([
+      supabase.from("roles").select("id, clave, nombre, es_predefinido, permisos").eq("optica_id", opticaId).order("es_predefinido", { ascending: false }).order("nombre"),
+      supabase.from("perfil_roles").select("rol_id"),
+    ])
+    const porRol = new Map()
+    for (const a of asignados || []) porRol.set(a.rol_id, (porRol.get(a.rol_id) || 0) + 1)
+    setRolesOptica((roles || []).map((r) => ({ ...r, personas: porRol.get(r.id) || 0 })))
+  }
+  const restaurarRoles = async () => {
+    if (!detalle) return
+    setRestaurandoRoles(true)
+    const { error } = await supabase.rpc("restaurar_roles_predefinidos", { p_optica_id: detalle.id })
+    setRestaurandoRoles(false)
+    setConfirmarRestaurarRoles(false)
+    if (error) { mostrarToast("error", /rol propio/.test(error.message || "") ? error.message : "No se pudieron restaurar los roles. Vuelve a intentarlo."); return }
+    mostrarToast("exito", "Los roles predefinidos volvieron a como los crea el sistema.")
+    cargarRolesOptica(detalle.id)
   }
 
   const registrarPago = async () => {
     if (!detalle) return
+    const estadoAntes = detalle.estado_pago || "al_dia"
     setActualizandoPago(true)
     const hoy = ahoraEcuador()
     // fechaAISO() arma la fecha con los componentes locales, no vía
@@ -1534,7 +1195,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
       setCampoVencimiento(siguienteVencimiento)
-      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: "al_dia" })
+      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: estadoAntes, despues: "al_dia" })
+      datosNegocio.recargar()
+      mostrarToast("exito", "Pago registrado: la óptica quedó al día.")
       cargarAuditoria(true)
     }
     setActualizandoPago(false)
@@ -1554,6 +1217,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!error) {
       setFacturasOptica((prev) => [data, ...prev])
       await registrarAuditoria("generar_factura", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: numero })
+      datosNegocio.recargar()
+      mostrarToast("exito", `Factura ${numero} generada.`)
       cargarAuditoria(true)
     }
     setGenerandoFactura(false)
@@ -1563,7 +1228,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const nuevoEstado = factura.estado === "pagada" ? "pendiente" : "pagada"
     const cambios = { estado: nuevoEstado, pagada_at: nuevoEstado === "pagada" ? new Date().toISOString() : null }
     const { error } = await supabase.from("facturas").update(cambios).eq("id", factura.id)
-    if (!error) setFacturasOptica((prev) => prev.map((f) => (f.id === factura.id ? { ...f, ...cambios } : f)))
+    if (!error) {
+      setFacturasOptica((prev) => prev.map((f) => (f.id === factura.id ? { ...f, ...cambios } : f)))
+      await registrarAuditoria("pagar_factura", { opticaId: factura.optica_id, opticaNombre: opticas.find((o) => o.id === factura.optica_id)?.nombre || detalle?.nombre || "Óptica", detalle: factura.numero, antes: factura.estado === "pagada" ? "Pagada" : "Pendiente", despues: nuevoEstado === "pagada" ? "Pagada" : "Pendiente" })
+      cargarAuditoria(true)
+      datosNegocio.recargar()
+      mostrarToast("exito", nuevoEstado === "pagada" ? `Factura ${factura.numero} marcada como pagada.` : `Factura ${factura.numero} devuelta a pendiente.`)
+    } else mostrarToast("error", "No se pudo cambiar la factura. Vuelve a intentarlo.")
   }
 
   const guardarCumpleanos = async (adminId, fecha) => {
@@ -1657,7 +1328,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     await temp.auth.signOut()
     if (errorPerfil) {
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada, revisa en Supabase.")
+      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada: vuelve a intentarlo o revísala en la lista.")
       setGuardandoAdminExtra(false)
       return
     }
@@ -1724,7 +1395,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     // perfiles vía la policy perfiles_superadmin_all/es_superadmin().
     const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, rol: "superadmin", nombre: nombre.trim(), email: email.trim() })
     if (errorPerfil) {
-      setErrorSuperadmin(errorPerfil.message + " — la cuenta de correo ya quedó creada, revisa en Supabase.")
+      setErrorSuperadmin(errorPerfil.message + " — la cuenta de correo ya quedó creada: vuelve a intentarlo o revísala en la lista.")
       setGuardandoSuperadmin(false)
       return
     }
@@ -1753,475 +1424,25 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Secciones ───
 
-  const hoyFechaResumen = formatoFecha(ahoraEcuador(), "largo")
 
   // Solo se muestra en la primerísima carga (cargaInicial) — evita el "flash"
   // de tarjetas en 0 y gráficos vacíos antes de que responda Supabase, sin
   // tapar el panel de nuevo en cada refetch posterior a una acción.
   const Skeleton = ({ className }) => <div className={"animate-pulse rounded-2xl bg-slate-200/70 " + className} />
 
-  const renderResumenSkeleton = () => (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Resumen</h1>
-          <p className="text-sm text-slate-400">Cargando panel…</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Skeleton className="h-[104px]" /><Skeleton className="h-[104px]" /><Skeleton className="h-[104px]" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Skeleton className="h-[220px] lg:col-span-3" />
-        <Skeleton className="h-[220px] lg:col-span-2" />
-      </div>
-      <Skeleton className="h-[180px]" />
-      <Skeleton className="h-[260px]" />
-    </div>
-  )
-
-  const renderResumen = () => cargaInicial ? renderResumenSkeleton() : (
-    <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Resumen</h1>
-          <p className="text-sm text-slate-500">
-            {hoyFechaResumen} · {opticas.length} óptica{opticas.length === 1 ? "" : "s"} bajo gestión
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={abrirCrear}
-            className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-            style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.55)" }}
-          >
-            <Plus size={16} /> Crear óptica
-          </button>
-          <button
-            type="button"
-            onClick={abrirCrearSuperadmin}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-md cursor-pointer"
-          >
-            <ShieldCheck size={16} className="text-violet-600" /> Agregar superadmin
-          </button>
-        </div>
-      </div>
-
-      {/* ─── Stat cards ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {tarjetas.map((t, i) => {
-          const Icono = t.icon
-          let delta = null
-          if (t.key === "Todas") delta = { texto: creadasEsteMes > 0 ? `+${creadasEsteMes} este mes` : "sin nuevas este mes", tono: creadasEsteMes > 0 ? "#059669" : "#94A3B8" }
-          else if (t.key === "Activas") delta = { texto: `${pctActivas}% del total`, tono: "#059669" }
-          else delta = { texto: totalSuspendidas > 0 ? "revisar" : "ninguna", tono: totalSuspendidas > 0 ? "#E11D48" : "#94A3B8" }
-          // Solo "Ópticas totales" tiene una serie histórica real y honesta
-          // (creación acumulada mes a mes) — "Activas"/"Suspendidas" son un
-          // estado actual, no un conteo con historia propia, así que no se
-          // les fabrica una tendencia que no existe.
-          const sparkline = t.key === "Todas" ? sparklineOpticas : null
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => irAOpticasConFiltro(t.key)}
-              style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${i * 40}ms` }}
-              className={CARD + " group relative overflow-hidden p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
-                  <Icono size={15} />
-                </div>
-              </div>
-              <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="text-xs font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
-                {sparkline && <MiniSparkline valores={sparkline} color={t.fg} />}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ─── Usuarios del sistema (feedback del ing: admins/asistentes/pacientes, total y por óptica) ─── */}
-      <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Usuarios del sistema</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            { label: "Administradores", valor: totalesUsuarios.admins, icon: ShieldCheck, bg: "#E8F0FF", fg: "#2563EB", sparkline: sparklineAdmins },
-            { label: "Asistentes", valor: totalesUsuarios.asistentes, icon: Users, bg: "#F3E8FF", fg: "#7C3AED", sparkline: sparklineAsistentes },
-            { label: "Pacientes", valor: totalesUsuarios.pacientes, icon: Stethoscope, bg: "#E7F7EF", fg: "#059669", sparkline: sparklinePacientes },
-          ].map((t, i) => (
-            <div key={t.label} className={CARD + " p-4"} style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${(i + 3) * 40}ms` }}>
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: t.bg, color: t.fg }}>
-                  <t.icon size={15} />
-                </div>
-              </div>
-              <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
-                <MiniSparkline valores={t.sparkline} color={t.fg} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── Métricas clave de la red (SaaS): impacto real acumulado (no por
-          óptica) + salud de la conexión a Supabase — esta última basada en
-          la latencia real de la carga de datos de esta misma pantalla, no
-          un badge fijo en verde. ─── */}
-      <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Métricas clave de la red</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className={CARD + " p-4"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pacientes atendidos en la red</p>
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E7F7EF", color: "#059669" }}>
-                <Stethoscope size={15} />
-              </div>
-            </div>
-            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{pacientesAtendidosRed ?? "—"}</p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">con al menos una consulta, de {totalesUsuarios.pacientes} registrados</p>
-          </div>
-          <div className={CARD + " p-4"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Volumen de consultas generadas</p>
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E8F0FF", color: "#2563EB" }}>
-                <Stethoscope size={15} />
-              </div>
-            </div>
-            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{totalConsultasRed ?? "—"}</p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">fichas clínicas registradas, toda la red</p>
-          </div>
-          <div className={CARD + " p-4"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado del servicio</p>
-              <div
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
-                style={
-                  estadoServidor.estado === "operativo" ? { background: "#E7F7EF", color: "#059669" }
-                    : estadoServidor.estado === "lento" ? { background: "#FFF7E6", color: "#B45309" }
-                    : estadoServidor.estado === "verificando" ? { background: "#F1F5F9", color: "#64748B" }
-                    : { background: "#FEEBEE", color: "#E11D48" }
-                }
-              >
-                {estadoServidor.estado === "operativo" ? <CheckCircle2 size={15} /> : estadoServidor.estado === "lento" ? <AlertTriangle size={15} /> : <Ban size={15} />}
-              </div>
-            </div>
-            <p className="mt-2 flex items-center gap-1.5 font-serif text-[22px] font-semibold leading-none tracking-tight" style={{ color: INK }}>
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: estadoServidor.estado === "operativo" ? "#10B981" : estadoServidor.estado === "lento" ? "#F59E0B" : estadoServidor.estado === "verificando" ? "#94A3B8" : "#E11D48",
-                }}
-              />
-              {estadoServidor.estado === "operativo" ? "Operativo" : estadoServidor.estado === "lento" ? "Lento" : estadoServidor.estado === "verificando" ? "Verificando…" : "Sin conexión"}
-            </p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              {estadoServidor.latenciaMs != null ? `${estadoServidor.latenciaMs} ms · última carga de datos` : "esperando la próxima carga de datos"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Funnel comercial: página de venta → leads → clientes ───
-          Oculto en modo anteproyecto (MODO_SAAS_VISIBLE apagado): estos
-          paneles muestran el lado comercial multi-óptica (visitas, leads,
-          conversión), pero el acceso al panel de superadmin en sí NO se
-          restringe — solo se ocultan estos widgets. Ver [[project_ocultar_saas_anteproyecto]]. */}
-      {MODO_SAAS_VISIBLE && (
-        <>
-          <div>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Página de venta</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {tarjetasFunnel.map((t, i) => {
-                const Icono = t.icon
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => t.key === "leads" && setSeccion("leads")}
-                    style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${i * 40}ms` }}
-                    className={CARD + " group relative overflow-hidden p-4 text-left transition-all " + (t.key === "leads" ? "hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50" : "cursor-default")}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
-                        <Icono size={15} />
-                      </div>
-                    </div>
-                    <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className={CARD_PAD}>
-            <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Visitas a la página de venta</h3>
-              <span className="text-xs font-semibold text-slate-400">Últimos 7 días</span>
-            </div>
-            {visitasVenta.length === 0 ? (
-              <p className="py-14 text-center text-sm text-slate-400">Aún no hay visitas registradas.</p>
-            ) : (
-              <div ref={refGraficoVisitas} className="relative mt-3">
-                <svg viewBox={`0 0 ${anchoGraficoVisitas} 98`} className="w-full" style={{ height: 98 }} preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="barraVisitas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22D3EE" />
-                      <stop offset="100%" stopColor="#2563EB" />
-                    </linearGradient>
-                  </defs>
-                  {barrasVisitas.map((b, i) => {
-                    const clicable = b.valor > 0
-                    return (
-                      <g
-                        key={i}
-                        className={clicable ? "cursor-pointer group/barravisita" : "group/barravisita"}
-                        onMouseEnter={() => clicable && setHoverVisitaIdx(i)}
-                        onMouseLeave={() => setHoverVisitaIdx(null)}
-                      >
-                        <rect x={b.x} y="2" width={b.w} height="80" fill="transparent" />
-                        <rect
-                          x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
-                          fill="url(#barraVisitas)"
-                          className={"transition-transform duration-150 " + (clicable ? "group-hover/barravisita:brightness-110" : "opacity-30")}
-                          style={hoverVisitaIdx === i ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.06)" } : undefined}
-                          shapeRendering="geometricPrecision"
-                        />
-                        <text x={b.cx} y="94" textAnchor="middle" fontSize="12" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
-                      </g>
-                    )
-                  })}
-                </svg>
-                {hoverVisitaIdx !== null && (
-                  <div
-                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ left: `${(barrasVisitas[hoverVisitaIdx].cx / anchoGraficoVisitas) * 100}%`, top: barrasVisitas[hoverVisitaIdx].y - 8, background: INK }}
-                  >
-                    {visitasPorDia[hoverVisitaIdx].valor} visita{visitasPorDia[hoverVisitaIdx].valor === 1 ? "" : "s"}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ─── Bento: ópticas creadas por mes + estado del sistema ─── */}
-      {/* items-start: cada tarjeta se ajusta a su propio contenido en vez de
-          estirarse a la altura de la más alta — "Estado del sistema" tiene
-          bastante más contenido (donut + tiles + aviso) que un gráfico
-          simple, y estirar el gráfico para igualar esa altura dejaba un
-          hueco vacío abajo en vez de una tarjeta más compacta. */}
-      <div className={MODO_SAAS_VISIBLE ? "grid grid-cols-1 items-start gap-4 lg:grid-cols-5" : ""}>
-        {/* "Ópticas creadas por mes" revela el ritmo de altas comerciales —
-            oculto en modo anteproyecto, ver [[project_ocultar_saas_anteproyecto]]. */}
-        {MODO_SAAS_VISIBLE && (
-          <div className={CARD_PAD + " lg:col-span-3"}>
-            <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Ópticas creadas por mes</h3>
-              <span className="text-xs font-semibold text-slate-400">Últimos 6 meses</span>
-            </div>
-            {opticas.length === 0 ? (
-              <p className="py-14 text-center text-sm text-slate-400">Aún no hay ópticas registradas.</p>
-            ) : (
-              <div ref={refGraficoOpticas} className="relative mt-3">
-                <svg viewBox={`0 0 ${anchoGraficoOpticas} 110`} className="w-full" style={{ height: 110 }} preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="areaOpticas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563EB" stopOpacity="0.18" />
-                      <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d={curvaOpticas.area} fill="url(#areaOpticas)" />
-                  <path d={curvaOpticas.linea} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  {curvaOpticas.puntos.map((p, i) => (
-                    <g key={i} className="cursor-pointer" onMouseEnter={() => setHoverMesIdx(i)} onMouseLeave={() => setHoverMesIdx(null)}>
-                      <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
-                      <circle
-                        cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
-                        className={"transition-transform duration-150 " + (hoverMesIdx === i ? "scale-[1.6]" : "scale-100")}
-                        style={{ transformBox: "fill-box", transformOrigin: "center" }}
-                      />
-                      <text x={p[0]} y={p[1] - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill="#334155">{opticasPorMes[i].valor}</text>
-                      <text x={p[0]} y="104" textAnchor="middle" fontSize="12" fontWeight="600" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{opticasPorMes[i].etiqueta}</text>
-                    </g>
-                  ))}
-                </svg>
-                {hoverMesIdx !== null && (
-                  <div
-                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ left: `${(curvaOpticas.puntos[hoverMesIdx][0] / anchoGraficoOpticas) * 100}%`, top: curvaOpticas.puntos[hoverMesIdx][1] - 14, background: INK }}
-                  >
-                    {opticasPorMes[hoverMesIdx].valor} óptica{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"} creada{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className={CARD_PAD + (MODO_SAAS_VISIBLE ? " lg:col-span-2 flex flex-col" : " flex flex-col lg:max-w-md")}>
-          <h3 className="mb-3 text-[13.5px] font-bold" style={{ color: INK }}>Estado del sistema</h3>
-          <div className="flex items-center justify-center gap-5">
-            <svg
-              width="128" height="128" viewBox="0 0 128 128"
-              className="shrink-0 cursor-pointer transition-transform duration-200 hover:scale-110"
-            >
-              <title>{`${pctActivas}% de las ópticas están activas`}</title>
-              <circle cx="64" cy="64" r={anilloR} fill="none" stroke="#FEE2E2" strokeWidth="14" />
-              <circle
-                cx="64" cy="64" r={anilloR} fill="none" stroke="#10B981" strokeWidth="14" strokeLinecap="round"
-                strokeDasharray={`${donutMontado ? anilloProgreso : 0} ${anilloCircunferencia}`}
-                transform="rotate(-90 64 64)"
-                style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.16,1,0.3,1)" }}
-              />
-              <text x="64" y="60" textAnchor="middle" fontSize="22" fontWeight="600" fontFamily="Newsreader, serif" fill={INK}>{pctActivas}%</text>
-              <text x="64" y="76" textAnchor="middle" fontSize="12" fontWeight="600" fill="#94A3B8">activas</text>
-            </svg>
-          </div>
-          {/* Solo ocupa espacio si realmente hay algo que atender — Diego: la
-              mayoría de las ópticas siempre van a tener admin (se crean juntos),
-              así que un aviso permanente todo-en-verde no aportaba nada. */}
-          {opticasSinAdmin.length > 0 && (
-            <button
-              type="button"
-              onClick={() => irAOpticasConFiltro("Todas")}
-              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
-            >
-              <AlertTriangle size={13} className="shrink-0" />
-              {opticasSinAdmin.length} óptica{opticasSinAdmin.length === 1 ? "" : "s"} sin administrador
-              <ChevronRight size={13} className="ml-auto shrink-0" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Actividad por día — área suave con gradiente (antes barras),
-          filtro de rango 7d/30d/este mes, punto activo + tooltip flotante.
-          Clic en un punto salta a Actividad filtrada a ese día. ─── */}
-      <div className={CARD_PAD}>
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad por día</h3>
-            <p className="text-xs font-semibold text-slate-400">
-              {totalActividadResumen} {totalActividadResumen === 1 ? "acción" : "acciones"} · clic en un punto para ver el detalle
-            </p>
-          </div>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-            {[{ key: "7d", label: "7 días" }, { key: "30d", label: "30 días" }, { key: "mes", label: "Este mes" }].map((r) => (
-              <button
-                key={r.key}
-                type="button"
-                onClick={() => setRangoActividadResumen(r.key)}
-                className={"rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (rangoActividadResumen === r.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                style={rangoActividadResumen === r.key ? { color: INK } : undefined}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {auditoriaResumen.length === 0 ? (
-          <p className="py-14 text-center text-sm text-slate-400">Sin actividad registrada en este rango.</p>
-        ) : (
-          <div ref={refGraficoActividad} className="relative mt-4">
-            <svg viewBox={`0 0 ${anchoGraficoActividad} 130`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
-              <defs>
-                <radialGradient id="areaActividadRadiante" cx="50%" cy="0%" r="100%">
-                  <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-                </radialGradient>
-                <linearGradient id="lineaActividad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#22D3EE" />
-                  <stop offset="100%" stopColor="#2563EB" />
-                </linearGradient>
-              </defs>
-              <path d={curvaActividad.area} fill="url(#areaActividadRadiante)" />
-              <path d={curvaActividad.linea} fill="none" stroke="url(#lineaActividad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              {curvaActividad.puntos.map((p, i) => {
-                const d = actividadPorDia[i]
-                const clicable = d.valor > 0
-                const mostrarEtiqueta = i === 0 || i === curvaActividad.puntos.length - 1 || i % pasoEtiquetaActividad === 0
-                return (
-                  <g
-                    key={d.clave}
-                    className={clicable ? "cursor-pointer" : ""}
-                    onMouseEnter={() => setHoverBarClave(d.clave)}
-                    onMouseLeave={() => setHoverBarClave(null)}
-                    onClick={() => {
-                      if (!clicable) return
-                      setFiltroFechaActividad(d.clave)
-                      setFiltroActorActividad(null)
-                      setDiasActividadColapsados((prev) => { const s = new Set(prev); s.delete(d.clave); return s })
-                      setSeccion("actividad")
-                    }}
-                  >
-                    <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
-                    <circle
-                      cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
-                      className="transition-transform duration-150"
-                      style={{ transformBox: "fill-box", transformOrigin: "center", transform: hoverBarClave === d.clave ? "scale(1.8)" : "scale(1)" }}
-                    />
-                    {mostrarEtiqueta && (
-                      <text x={p[0]} y="126" textAnchor="middle" fontSize="12" fontWeight="700" fill="#94A3B8">{d.etiqueta}</text>
-                    )}
-                  </g>
-                )
-              })}
-            </svg>
-            {hoverBarClave && (() => {
-              const idx = actividadPorDia.findIndex((x) => x.clave === hoverBarClave)
-              if (idx === -1) return null
-              const d = actividadPorDia[idx]
-              const p = curvaActividad.puntos[idx]
-              const fechaLinda = formatoFecha(d.clave, "medioSinAnio")
-              return (
-                <div
-                  className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(15,23,42,0.35)]"
-                  style={{ left: `${(p[0] / anchoGraficoActividad) * 100}%`, top: p[1] - 12, background: INK }}
-                >
-                  <span className="block text-xs font-bold uppercase tracking-wide text-white/60">{fechaLinda}</span>
-                  {d.valor} {d.valor === 1 ? "acción" : "acciones"}{d.valor > 0 && <span className="text-white/60"> · clic para ver el detalle</span>}
-                </div>
-              )
-            })()}
-          </div>
-        )}
-      </div>
-
-      {/* ─── Actividad reciente ─── */}
-      <div className={CARD_PAD}>
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History size={16} className="text-slate-400" />
-            <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad reciente</h3>
-          </div>
-          <button type="button" onClick={() => setSeccion("actividad")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-            Ver toda la actividad <ChevronRight size={13} />
-          </button>
-        </div>
-        {auditoria.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">Todavía no hay acciones registradas.</p>
-        ) : (
-          <ul className="space-y-3">
-            {auditoria.slice(0, 5).map((a) => <ItemAuditoria key={a.id} a={a} />)}
-          </ul>
-        )}
-      </div>
-    </div>
+  const renderResumen = () => cargaInicial ? (
+    <div className="space-y-4" aria-busy="true" aria-label="Cargando el resumen">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" />)}</div>
+  ) : (
+    <ResumenNegocio
+      datos={datosNegocio} opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
+      incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} usuario={usuario}
+      actividad={auditoria} onAbrir={irA} onEntrarComo={pedirEntrada} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
+    />
   )
 
   const MENSAJES_FILTROS = [
     { key: "anuncio", label: "Avisos" },
-    { key: "pago", label: "Pagos" },
+    ...(MODO_SAAS_VISIBLE ? [{ key: "pago", label: "Pagos" }] : []),
     { key: "cumpleanos", label: "Cumpleaños" },
   ]
 
@@ -2230,6 +1451,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-5">
       {/* ─── Panel de control: cada tarjeta es real y clickeable, mismo lenguaje visual que CRM.jsx (Dashboard) ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {MODO_SAAS_VISIBLE && (
         <button
           type="button"
           onClick={() => setMensajesFiltro(mensajesFiltro === "pago" ? "todas" : "pago")}
@@ -2248,6 +1470,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <Wallet size={22} />
           </div>
         </button>
+        )}
 
         <button
           type="button"
@@ -2417,278 +1640,180 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   )
 
   const renderMensajes = () => (
-    <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3.5">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-            <MessageSquare size={22} />
-          </div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Soporte</h1>
-        </div>
+    <div className="space-y-3" data-soporte>
+      <CabeceraSeccion titulo="Soporte" pregunta="¿Qué óptica necesita ayuda y qué tan rápido la estamos atendiendo?">
+        <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />
         <button
           type="button"
           onClick={() => { setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo(""); setAvisoDestino("todos"); setModalAvisoAbierto(true) }}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
+          className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
+          style={{ background: GRAD }}
         >
-          <Megaphone size={18} />
-          Nuevo aviso
+          <Megaphone size={15} aria-hidden="true" /> Nuevo aviso
         </button>
-      </div>
-      <SoporteSuperadmin consultas={consultasSoporte} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticas}
+      </CabeceraSeccion>
+      <SoporteSuperadmin ocultas={consultasSoporte.length - consultasVisibles.length} inicial={destinoSoporte} consultas={consultasVisibles} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticasVisibles}
         onAuditoria={async (accion, datos) => { await registrarAuditoria(accion, datos); cargarAuditoria(true) }} onToast={mostrarToast} avisos={renderAvisos()} />
     </div>
   )
 
-  const renderOpticas = () => (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Ópticas</h1>
-          <p className="text-sm text-slate-500">Crea y administra las ópticas que usan el sistema.</p>
-        </div>
-        <button
-          type="button"
-          onClick={abrirCrear}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <Plus size={18} />
-          Crear óptica
-        </button>
-      </div>
+  const PAGO_ETIQUETA = { al_dia: "Al día", pendiente: "Pendiente", vencido: "Vencido" }
+  const etiquetasOpticas = [
+    filtroEstado !== "Todas" && { id: "estado", texto: `Estado: ${filtroEstado === "Activas" ? "Activas" : "Suspendidas"}`, quitar: () => setFiltroEstado("Todas") },
+    filtrosOpticas.pago && { id: "pago", texto: `Pago: ${PAGO_ETIQUETA[filtrosOpticas.pago]}`, quitar: () => setFiltrosOpticas((f) => ({ ...f, pago: "" })) },
+    (filtrosOpticas.desde || filtrosOpticas.hasta) && { id: "creada", texto: `Creadas: ${filtrosOpticas.desde ? fechaLegible(filtrosOpticas.desde) : "…"} – ${filtrosOpticas.hasta ? fechaLegible(filtrosOpticas.hasta) : "…"}`, quitar: () => setFiltrosOpticas((f) => ({ ...f, desde: "", hasta: "" })) },
+    busqueda.trim() && { id: "busqueda", texto: `Texto: «${busqueda.trim()}»`, quitar: () => setBusqueda("") },
+    MODO_SAAS_VISIBLE && incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => setIncluirPrueba(false) },
+  ].filter(Boolean)
+  const limpiarOpticas = () => { setFiltroEstado("Todas"); setBusqueda(""); setFiltrosOpticas({ desde: "", hasta: "", pago: "" }); setIncluirPrueba(false) }
+  const celdaTitulo = "px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500"
 
-      <div className={CARD + " p-4"}>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative min-w-[220px] flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Nombre de la óptica, slug o administrador..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-            />
-            {busqueda && (
-              <button
-                type="button"
-                onClick={() => setBusqueda("")}
-                title="Limpiar búsqueda"
-                aria-label="Limpiar búsqueda"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-              >
-                <X size={14} />
-              </button>
+  const entornosPrueba = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    return opticas.filter(esDePrueba).filter((o) => !q || o.nombre.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q))
+  }, [opticas, busqueda])
+
+  // La tabla de ópticas. Con el modo de la tesis (una sola óptica) no lleva Pago ni Salud, que son de cliente.
+  const tablaOpticas = (lista, entorno) => {
+    const saas = MODO_SAAS_VISIBLE
+    const cols = saas ? 8 : 6
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <table className="w-full table-fixed text-left text-sm" aria-label={entorno ? "Entornos de prueba" : "Ópticas"}>
+          <thead>
+            <tr className="border-b border-slate-200/60 bg-slate-50/70">
+              <th scope="col" className={celdaTitulo + (saas ? " w-[25%]" : " w-[30%]")}>{entorno ? "Entorno" : "Óptica"}</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[19%]" : " w-[24%]")}>Administrador</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[13%]")}>Estado</th>
+              {saas && <th scope="col" className={celdaTitulo + " w-[10%]"}>Salud</th>}
+              {saas && <th scope="col" className={celdaTitulo + " w-[10%]"}>Pago</th>}
+              <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[12%]") + " text-right"}>Última actividad</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[11%]" : " w-[15%]")}>Creada</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[5%]" : " w-[6%]") + " text-center"}><span className="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {cargando ? (
+              [0, 1, 2, 3].map((i) => <tr key={i}><td colSpan={cols} className="px-4 py-3"><div className="h-9 animate-pulse rounded-lg bg-slate-200/70" /></td></tr>)
+            ) : lista.length === 0 ? (
+              <tr>
+                <td colSpan={cols} className="px-4 py-12">
+                  <div role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 text-center">
+                    <Building2 size={22} className="text-slate-400" aria-hidden="true" />
+                    <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : "Todas las ópticas son de prueba y no se muestran por defecto."}</p>
+                    {opticas.length === 0 ? (
+                      <button type="button" onClick={abrirCrear} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Crear la primera óptica</button>
+                    ) : etiquetasOpticas.length > 0 || !saas ? null : (
+                      <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir ópticas de prueba</button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              lista.map((o) => {
+                const listaAdmins = adminsPorOptica.get(o.id) || []
+                const procesando = procesandoId === o.id
+                const salud = saludPorOptica.get(o.id)
+                const u = usoPorOptica.get(o.id)
+                return (
+                  <tr key={o.id} className="group cursor-pointer transition-colors hover:bg-slate-50/70" onClick={() => abrirDetalleOptica(o)}>
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>{o.nombre.charAt(0).toUpperCase()}</div>
+                        <div className="min-w-0">
+                          <button type="button" onClick={(e) => { e.stopPropagation(); abrirDetalleOptica(o) }} aria-label={`Ver el detalle de ${o.nombre}`} className="block max-w-full truncate text-left font-semibold text-slate-800 transition-colors group-hover:text-blue-600 focus-visible:outline-none focus-visible:underline cursor-pointer" title={o.nombre}>{o.nombre}</button>
+                          <p className="flex items-center gap-1.5 text-xs text-slate-500"><span className="truncate font-mono">{o.slug}</span>{saas && esDePrueba(o) && <EtiquetaPrueba />}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {listaAdmins.length === 0 ? (
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700"><AlertTriangle size={13} aria-hidden="true" /> Sin administrador</span>
+                      ) : (
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-700">{listaAdmins[0].nombre}{listaAdmins.length > 1 ? ` +${listaAdmins.length - 1}` : ""}</p>
+                          <p className="truncate text-xs text-slate-500">{listaAdmins[0].email || "—"}</p>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold " + (o.activa ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700")}>{o.activa ? "Activa" : "Suspendida"}</span>
+                    </td>
+                    {saas && <td className="px-4 py-3">{o.activa && salud ? <InsigniaSalud estado={salud.estado} /> : <span className="text-slate-400">—</span>}</td>}
+                    {saas && <td className="px-4 py-3 text-slate-600">{PAGO_ETIQUETA[o.estado_pago || "al_dia"]}</td>}
+                    <td className="px-4 py-3 text-right text-slate-700">{u && ultimaActividadDe(u) ? haceDias(ultimaActividadDe(u), hoyISO()) : <span className="text-slate-400">—</span>}</td>
+                    <td className="px-4 py-3 text-slate-600">{fechaLegible(diaDe(o.created_at))}</td>
+                    <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => abrirMenuAcciones(o.id, e)}
+                        title="Más acciones"
+                        aria-label={`Más acciones para ${o.nombre}`}
+                        disabled={procesando}
+                        className={"rounded-lg p-2 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (menuAccionesId === o.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
             )}
-          </div>
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  const renderOpticas = () => (
+    <div className="space-y-3" data-opticas>
+      <CabeceraSeccion titulo="Ópticas" pregunta={MODO_SAAS_VISIBLE ? "¿Qué ópticas tengo, cómo van y cuál necesita atención?" : "¿Qué óptica usa el sistema y qué entornos de prueba hay?"}>
+        {<button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
+      </CabeceraSeccion>
+
+      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Estado" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
             {tarjetas.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setFiltroEstado(t.key)}
-                className={"flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (filtroEstado === t.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                style={filtroEstado === t.key ? { color: INK } : undefined}
-              >
-                {t.label} <span className={filtroEstado === t.key ? "font-extrabold" : "opacity-60"} style={filtroEstado === t.key ? { color: t.fg } : undefined}>{t.valor}</span>
+              <button key={t.key} type="button" aria-pressed={filtroEstado === t.key} onClick={() => setFiltroEstado(t.key)} className={"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (filtroEstado === t.key ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={filtroEstado === t.key ? { background: GRAD } : undefined}>
+                {t.label} <span className={filtroEstado === t.key ? "text-white/85" : "text-slate-500"}>{t.valor}</span>
               </button>
             ))}
           </div>
+          {MODO_SAAS_VISIBLE && <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />}
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
+            <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
+            <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre, dirección de la página o administrador" aria-label="Buscar ópticas" className="mt-0.5 block h-9 w-full rounded-lg border border-slate-200/60 bg-white pl-8 pr-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500 [&::-webkit-search-cancel-button]:hidden" />
+          </label>
+          {MODO_SAAS_VISIBLE && <label className="text-xs font-semibold text-slate-500">Pago
+            <select aria-label="Pago" value={filtrosOpticas.pago} onChange={(e) => setFiltrosOpticas((f) => ({ ...f, pago: e.target.value }))} className="mt-0.5 block h-9 w-40 rounded-lg border border-slate-200/60 bg-white px-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500">
+              <option value="">Todos</option>
+              {Object.entries(PAGO_ETIQUETA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>}
+          <EtiquetasFiltros etiquetas={etiquetasOpticas} onLimpiar={limpiarOpticas} />
         </div>
       </div>
 
-      <div className={CARD + " overflow-hidden"}>
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200/60 bg-slate-50/70 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                <th className="w-[30%] px-5 py-3.5">Óptica</th>
-                <th className="w-[26%] px-5 py-3.5">Administrador</th>
-                <th className="w-[14%] px-5 py-3.5">Estado</th>
-                <th className="w-[16%] px-5 py-3.5">Creada</th>
-                <th className="w-[14%] px-5 py-3.5 text-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {cargando ? (
-                <tr>
-                  <td colSpan={5} className="py-16 text-center text-sm text-slate-500">Cargando ópticas…</td>
-                </tr>
-              ) : opticasFiltradas.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-16 text-center">
-                    <div className="mx-auto max-w-xs space-y-3">
-                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-300">
-                        <Building2 size={28} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-500">
-                        {opticas.length === 0 ? "Aún no hay ópticas registradas." : "Ninguna óptica coincide con la búsqueda."}
-                      </p>
-                      {opticas.length === 0 && (
-                        <button type="button" onClick={abrirCrear} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                          Crear la primera
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                opticasFiltradas.map((o) => {
-                  const listaAdmins = adminsPorOptica.get(o.id) || []
-                  const procesando = procesandoId === o.id
-                  return (
-                    <tr key={o.id} className="group cursor-pointer transition-colors hover:bg-slate-50/70" onClick={() => abrirDetalleOptica(o)}>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>
-                            {o.nombre.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="break-words font-semibold text-slate-800 transition-colors group-hover:text-blue-600">{o.nombre}</p>
-                            <p className="truncate font-mono text-xs text-slate-400">{o.slug}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        {listaAdmins.length === 0 ? (
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
-                            <AlertTriangle size={13} /> Sin administrador
-                          </span>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <p className="font-medium text-slate-700">{listaAdmins[0].nombre}</p>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                              <Mail size={12} />
-                              <span className="max-w-[180px] truncate">{listaAdmins[0].email || "—"}</span>
-                            </div>
-                            {listaAdmins.length > 1 && <p className="text-xs text-slate-400">+{listaAdmins.length - 1} más</p>}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold " + (o.activa ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
-                          <span className={"h-1.5 w-1.5 rounded-full " + (o.activa ? "bg-emerald-500" : "bg-rose-500")} />
-                          {o.activa ? "Activa" : "Suspendida"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-slate-400" />
-                          <span>{formatearFecha(o.created_at)}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => abrirDetalleOptica(o)} title="Ver detalle" aria-label={`Ver detalle de ${o.nombre}`} className={"rounded-lg p-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + ACCION_VER}>
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => abrirMenuAcciones(o.id, e)}
-                            title="Más acciones"
-                            aria-label={`Más acciones para ${o.nombre}`}
-                            disabled={procesando}
-                            className={"rounded-lg p-2 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (menuAccionesId === o.id ? "bg-slate-100 text-slate-700" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700")}
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {tablaOpticas(opticasFiltradas, false)}
+      <p role="status" className="px-1 text-sm font-semibold text-slate-600">{opticasFiltradas.length} {opticasFiltradas.length === 1 ? "óptica" : "ópticas"}</p>
+      {!MODO_SAAS_VISIBLE && entornosPrueba.length > 0 && (
+        <section aria-label="Entornos de prueba" className="space-y-2 pt-2">
+          <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Entornos de prueba</h2>
+          <p className="text-sm text-slate-500">Datos de demostración y de las pruebas automáticas. No cuentan en el uso ni en la actividad.</p>
+          {tablaOpticas(entornosPrueba, true)}
+        </section>
+      )}
     </div>
   )
 
   const renderActividad = () => (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Actividad</h1>
-        <p className="text-sm text-slate-500">Registro de auditoría de acciones administrativas.</p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-          {FILTROS_ACTIVIDAD.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setAuditoriaFiltro(f.key)}
-              className={"rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (auditoriaFiltro === f.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-              style={auditoriaFiltro === f.key ? { color: INK } : undefined}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        {filtroFechaActividad && (
-          <span className="flex items-center gap-1.5 rounded-full bg-blue-50 py-1.5 pl-3.5 pr-2 text-xs font-semibold text-blue-700">
-            {etiquetaFecha(filtroFechaActividad)}
-            <button type="button" onClick={() => setFiltroFechaActividad(null)} title="Quitar filtro de fecha" aria-label="Quitar filtro de fecha" className="rounded-full p-0.5 hover:bg-blue-100 cursor-pointer"><X size={12} /></button>
-          </span>
-        )}
-        {filtroActorActividad && (
-          <span className="flex items-center gap-1.5 rounded-full bg-blue-50 py-1.5 pl-3.5 pr-2 text-xs font-semibold text-blue-700">
-            De {filtroActorActividad.nombre}
-            <button type="button" onClick={() => setFiltroActorActividad(null)} title="Quitar filtro de persona" aria-label="Quitar filtro de persona" className="rounded-full p-0.5 hover:bg-blue-100 cursor-pointer"><X size={12} /></button>
-          </span>
-        )}
-      </div>
-
-      {auditoriaAgrupada.length === 0 ? (
-        <div className={CARD_PAD}>
-          <p className="py-10 text-center text-sm text-slate-400">No hay actividad para este filtro.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {auditoriaAgrupada.map(([dia, items]) => {
-            const hoyDia = esHoy(dia)
-            const colapsado = diasActividadColapsados.has(dia)
-            return (
-              <div key={dia} className={CARD}>
-                <button
-                  type="button"
-                  onClick={() => alternarDiaActividad(dia)}
-                  className="flex w-full items-center gap-2 rounded-t-[22px] px-5 py-3.5 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset"
-                  title={colapsado ? "Expandir este día" : "Colapsar este día"}
-                >
-                  <ChevronDown size={15} className={"shrink-0 text-slate-400 transition-transform " + (colapsado ? "-rotate-90" : "")} />
-                  <h4 className="text-sm font-bold capitalize" style={{ color: INK }}>{etiquetaFecha(dia)}</h4>
-                  {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
-                  <span className="text-xs text-slate-400">· {items.length} {items.length === 1 ? "acción" : "acciones"}</span>
-                </button>
-                {!colapsado && (
-                  <ul className="space-y-3 border-t border-slate-100 px-5 pb-5 pt-4">
-                    {items.map((a) => <ItemAuditoria key={a.id} a={a} />)}
-                  </ul>
-                )}
-              </div>
-            )
-          })}
-          {!filtroFechaActividad && (
-            <div className="flex justify-center pt-1">
-              {auditoriaTieneMas ? (
-                <button
-                  type="button"
-                  onClick={() => cargarAuditoria(false)}
-                  disabled={auditoriaCargandoMas}
-                  className="rounded-xl border border-slate-200/60 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
-                >
-                  {auditoriaCargandoMas ? "Cargando…" : "Cargar más"}
-                </button>
-              ) : (
-                <p className="text-xs text-slate-400">No hay más actividad para mostrar.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <ActividadSuperadmin
+      opticas={opticas} superadmins={superadmins} incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} destino={destinoActividad}
+      recarga={auditoria[0]?.id || ""} usuario={usuario} onAbrir={irA} onAviso={(t) => mostrarToast("exito", t)}
+    />
   )
 
   const ESTADO_LEAD = {
@@ -2698,223 +1823,198 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     descartado: { label: "Descartado", bg: "bg-slate-100", fg: "text-slate-500" },
   }
 
-  const leadsFiltrados = leads.filter((l) => {
+  const rangoLeadsActual = periodoLeads === "todo" ? null : rangoDePeriodo(periodoLeads, personalizadoLeads, ahoraEcuador())
+  const leadsDelPeriodo = leads.filter((l) => !rangoLeadsActual || enRango(l.created_at, rangoLeadsActual))
+  const leadsFiltrados = leadsDelPeriodo.filter((l) => {
     const q = busquedaLeads.trim().toLowerCase()
     const coincideTexto = !q || [l.nombre_optica, l.nombre_admin, l.email_admin, l.telefono, l.slug_deseado].some((v) => (v || "").toLowerCase().includes(q))
     const coincideEstado = filtroEstadoLeads === "todos" || l.estado === filtroEstadoLeads
     return coincideTexto && coincideEstado
   })
+  const etiquetasLeads = [
+    rangoLeadsActual && { id: "periodo", texto: `Recibidos: ${tituloSemana(rangoLeadsActual.inicio, rangoLeadsActual.fin)}`, quitar: () => setPeriodoLeads("todo") },
+    filtroEstadoLeads !== "todos" && { id: "estado", texto: `Estado: ${ESTADO_LEAD[filtroEstadoLeads]?.label}`, quitar: () => setFiltroEstadoLeads("todos") },
+    busquedaLeads.trim() && { id: "busqueda", texto: `Texto: «${busquedaLeads.trim()}»`, quitar: () => setBusquedaLeads("") },
+  ].filter(Boolean)
+  const limpiarLeads = () => { setPeriodoLeads("todo"); setFiltroEstadoLeads("todos"); setBusquedaLeads("") }
 
   const renderLeads = () => (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Leads</h1>
-        <p className="text-sm text-slate-500">Solicitudes recibidas desde la página de venta del sistema.</p>
-      </div>
+    <div className="space-y-3" data-leads>
+      <CabeceraSeccion titulo="Leads" pregunta="¿Quién quiere el sistema y en qué paso va?" />
 
       {leads.length === 0 ? (
-        <div className={CARD_PAD}>
-          <p className="py-10 text-center text-sm text-slate-400">Todavía no llegó ninguna solicitud.</p>
-        </div>
+        <SinResultados texto="Todavía no llegó ninguna solicitud desde la página de venta. Cuando alguien escriba, aparecerá aquí." />
       ) : (
         <>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-            <input
-              type="text" value={busquedaLeads} onChange={(e) => setBusquedaLeads(e.target.value)}
-              placeholder="Buscar por óptica, nombre, correo o teléfono..."
-              className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-            />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[{ id: "todos", label: "Todos" }, ...Object.entries(ESTADO_LEAD).map(([id, e]) => ({ id, label: e.label }))].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setFiltroEstadoLeads(f.id)}
-                className="rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer"
-                style={filtroEstadoLeads === f.id ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {leadsFiltrados.length === 0 ? (
-          <div className={CARD_PAD}>
-            <p className="py-10 text-center text-sm text-slate-400">Ningún lead coincide con la búsqueda o el filtro.</p>
-          </div>
-        ) : (
-        <div className="space-y-3">
-          {leadsFiltrados.map((l) => {
-            const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
-            const procesando = procesandoLeadId === l.id
-            return (
-              <div key={l.id} className={CARD_PAD}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm font-bold" style={{ color: INK }}>{l.nombre_optica}</h4>
-                      <span className={"rounded-full px-2.5 py-0.5 text-xs font-semibold " + estado.bg + " " + estado.fg}>{estado.label}</span>
-                      {l.slug_deseado && <span className="font-mono text-xs text-slate-400">{l.slug_deseado}</span>}
-                    </div>
-                    <p className="mt-1 text-sm text-slate-600">{l.nombre_admin} · {l.email_admin}{l.telefono ? ` · ${l.telefono}` : ""}</p>
-                    {l.mensaje && <p className="mt-1.5 text-xs italic leading-relaxed text-slate-500">"{l.mensaje}"</p>}
-                    <p className="mt-1.5 text-xs text-slate-400">{formatearFechaHora(l.created_at)}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => contactarLeadWhatsApp(l)}
-                      disabled={!l.telefono}
-                      title={l.telefono ? "Escribir por WhatsApp" : "Este lead no dejó teléfono"}
-                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <MessageSquare size={13} /> WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => contactarLeadGmail(l)}
-                      title="Escribir por Gmail"
-                      className="flex items-center gap-1.5 rounded-xl border border-blue-200/60 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
-                    >
-                      <Mail size={13} /> Gmail
-                    </button>
-                    {l.estado === "nuevo" && (
-                      <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "contactado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                        <PhoneCall size={13} /> Marcar contactado
-                      </button>
-                    )}
-                    {(l.estado === "nuevo" || l.estado === "contactado") && (
-                      <>
-                        <button type="button" disabled={procesando} onClick={() => abrirCrearDesdeLead(l)} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}>
-                          <Plus size={13} /> Crear cuenta
-                        </button>
-                        <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "descartado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                          <X size={13} /> Descartar
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+          <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+            <div className="flex flex-wrap items-center gap-2">
+              <SelectorPeriodo periodo={periodoLeads} onPeriodo={setPeriodoLeads} personalizado={personalizadoLeads} onPersonalizado={setPersonalizadoLeads} rango={rangoLeadsActual || rangoDePeriodo("anio", {}, ahoraEcuador())} extra={[{ id: "todo", label: "Todo" }]} prefijo="lead" />
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div role="group" aria-label="Estado" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
+                {[{ id: "todos", nombre: "Todos", n: leadsDelPeriodo.length }, ...ESTADOS_LEAD_LISTA.map((e) => ({ id: e.id, nombre: e.nombre, n: leadsDelPeriodo.filter((l) => l.estado === e.id).length }))].map((e) => (
+                  <button key={e.id} type="button" aria-pressed={filtroEstadoLeads === e.id} onClick={() => setFiltroEstadoLeads(e.id)} className={"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (filtroEstadoLeads === e.id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={filtroEstadoLeads === e.id ? { background: GRAD } : undefined}>
+                    {e.nombre} <span className={filtroEstadoLeads === e.id ? "text-white/85" : "text-slate-500"}>{e.n}</span>
+                  </button>
+                ))}
               </div>
-            )
-          })}
-        </div>
-        )}
+              <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
+                <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
+                <input type="search" value={busquedaLeads} onChange={(e) => setBusquedaLeads(e.target.value)} placeholder="Óptica, nombre, correo o teléfono" aria-label="Buscar leads" className="mt-0.5 block h-9 w-full rounded-lg border border-slate-200/60 bg-white pl-8 pr-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500 [&::-webkit-search-cancel-button]:hidden" />
+              </label>
+              <EtiquetasFiltros etiquetas={etiquetasLeads} onLimpiar={limpiarLeads} />
+            </div>
+          </div>
+
+          <p role="status" className="px-1 text-sm font-semibold text-slate-600">{leadsFiltrados.length} {leadsFiltrados.length === 1 ? "lead" : "leads"}</p>
+          {leadsFiltrados.length === 0 ? (
+            <SinResultados texto="Ningún lead coincide con estos filtros. Quita alguno con su «x» o con «Limpiar filtros»." />
+          ) : (
+            <ul role="list" className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+              {leadsFiltrados.map((l) => {
+                const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
+                return (
+                  <li key={l.id}>
+                    <button type="button" data-lista onClick={() => setLeadAbierto(l)} aria-label={`${l.nombre_optica}: ${estado.label}. Ver el detalle`} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 cursor-pointer">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold" style={{ color: INK }}>{l.nombre_optica}</span>
+                        <span className="block truncate text-sm text-slate-600">{l.nombre_admin} · {l.email_admin}{l.telefono ? ` · ${l.telefono}` : ""}</span>
+                      </span>
+                      <span className={"shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold " + estado.bg + " " + estado.fg}>{estado.label}</span>
+                      <span className="w-28 shrink-0 text-right text-sm text-slate-500">{fechaLegible(diaDe(l.created_at))}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </>
       )}
+
+      {leadAbierto && (() => {
+        const l = leads.find((x) => x.id === leadAbierto.id) || leadAbierto
+        const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
+        const procesando = procesandoLeadId === l.id
+        const Dato = ({ etiqueta, children }) => (
+          <div className="mt-2.5 first:mt-0">
+            <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
+            <dd className="mt-0.5 break-words text-sm font-semibold" style={{ color: INK }}>{children}</dd>
+          </div>
+        )
+        return (
+          <Cascaron
+            titulo={l.nombre_optica}
+            subtitulo={`Recibido el ${formatearFechaHora(l.created_at)}`}
+            Icono={Inbox}
+            ancho="max-w-2xl"
+            onCerrar={() => setLeadAbierto(null)}
+            derecha={<span className={"rounded-full px-2.5 py-0.5 text-xs font-bold " + estado.bg + " " + estado.fg}>{estado.label}</span>}
+            pie={<>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => contactarLeadWhatsApp(l)} disabled={!l.telefono} title={l.telefono ? "Escribir por WhatsApp" : "Este lead no dejó teléfono"} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><MessageSquare size={14} aria-hidden="true" /> WhatsApp</button>
+                <button type="button" onClick={() => contactarLeadGmail(l)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Mail size={14} aria-hidden="true" /> Correo</button>
+                {l.estado === "nuevo" && <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "contactado")} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"><PhoneCall size={14} aria-hidden="true" /> Marcar contactado</button>}
+                {(l.estado === "nuevo" || l.estado === "contactado") && <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "descartado")} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"><X size={14} aria-hidden="true" /> Descartar</button>}
+              </div>
+              <div className="flex items-center gap-2">
+                {(l.estado === "nuevo" || l.estado === "contactado") && <button type="button" disabled={procesando} onClick={() => { setLeadAbierto(null); abrirCrearDesdeLead(l) }} className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}><Plus size={14} aria-hidden="true" /> Crear cuenta</button>}
+                <button type="button" onClick={() => setLeadAbierto(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+              </div>
+            </>}
+          >
+            <div className="grid grid-cols-1 gap-x-8 gap-y-5 px-5 py-4 sm:grid-cols-2">
+              <section>
+                <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">La solicitud</h3>
+                <dl>
+                  <Dato etiqueta="Óptica">{l.nombre_optica}</Dato>
+                  <Dato etiqueta="Dirección que pidió">{l.slug_deseado ? <span className="font-mono">{l.slug_deseado}</span> : <span className="font-normal text-slate-500">No indicó</span>}</Dato>
+                  <Dato etiqueta="Mensaje">{l.mensaje ? <span className="font-normal italic">«{l.mensaje}»</span> : <span className="font-normal text-slate-500">Sin mensaje</span>}</Dato>
+                </dl>
+              </section>
+              <section>
+                <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">Contacto</h3>
+                <dl>
+                  <Dato etiqueta="Nombre">{l.nombre_admin}</Dato>
+                  <Dato etiqueta="Correo">{l.email_admin}</Dato>
+                  <Dato etiqueta="Teléfono">{l.telefono || <span className="font-normal text-slate-500">No dejó teléfono</span>}</Dato>
+                </dl>
+              </section>
+            </div>
+          </Cascaron>
+        )
+      })()}
     </div>
   )
 
   const renderSuperadminsSkeleton = () => (
-    <div className="space-y-4">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
-        <p className="text-sm text-slate-400">Cargando…</p>
-      </div>
-      <Skeleton className="h-[104px]" />
-      <Skeleton className="h-[104px]" />
+    <div className="space-y-3" aria-busy="true" aria-label="Cargando los superadmins">
+      <CabeceraSeccion titulo="Superadmins" pregunta="Cargando…" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
     </div>
   )
 
   const renderSuperadmins = () => cargaInicial ? renderSuperadminsSkeleton() : (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
-          <p className="text-sm text-slate-500">Cuentas con acceso total al sistema — crea una de respaldo, no dependas de una sola.</p>
-        </div>
-        <button
-          type="button"
-          onClick={abrirCrearSuperadmin}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <UserPlus size={18} />
-          Agregar superadmin
-        </button>
+    <div className="space-y-3" data-superadmins>
+      <CabeceraSeccion titulo="Superadmins" pregunta="Las cuentas con acceso total al sistema. Crea una de respaldo: no dependas de una sola.">
+        <button type="button" onClick={abrirCrearSuperadmin} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><UserPlus size={15} aria-hidden="true" /> Agregar superadmin</button>
+      </CabeceraSeccion>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <table className="w-full table-fixed text-left text-sm" aria-label="Superadmins">
+          <thead>
+            <tr className="border-b border-slate-200/60 bg-slate-50/70">
+              <th scope="col" className={celdaTitulo + " w-[30%]"}>Persona</th>
+              <th scope="col" className={celdaTitulo + " w-[13%]"}>Desde</th>
+              <th scope="col" className={celdaTitulo + " w-[13%] text-right"}>Acciones</th>
+              <th scope="col" className={celdaTitulo}>Última acción</th>
+              <th scope="col" className={celdaTitulo + " w-[7%] text-center"}><span className="sr-only">Quitar</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {superadmins.map((s) => {
+              const ultima = ultimaAccionPorSuperadmin.get(s.id)
+              const esVos = s.id === usuario?.id
+              const n = accionesPorSuperadmin[s.id] ?? 0
+              return (
+                <tr key={s.id} className="hover:bg-slate-50/60">
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => (esVos ? abrirMiCuenta() : irA("actividad", { actorId: s.id, desde: "2024-01-01" }))} title={esVos ? "Editar mi cuenta" : `Ver la actividad de ${s.nombre}`} className="group flex w-full min-w-0 items-center gap-3 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>{s.nombre.charAt(0).toUpperCase()}</span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 font-semibold text-slate-800 transition-colors group-hover:text-blue-600"><span className="truncate">{s.nombre}</span>{esVos && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">Tú</span>}</span>
+                        <span className="block truncate text-xs text-slate-500">{s.email || "—"}</span>
+                      </span>
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{fechaLegible(diaDe(s.created_at))}</td>
+                  <td className="px-4 py-3 text-right">
+                    {n > 0 ? (
+                      <button type="button" data-lista onClick={() => irA("actividad", { actorId: s.id, desde: "2024-01-01" })} aria-label={`${n} ${n === 1 ? "acción" : "acciones"} de ${s.nombre}. Ver en Actividad`} className="rounded-md px-1.5 py-0.5 font-semibold tabular-nums transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{n}</button>
+                    ) : <span className="tabular-nums text-slate-400">0</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {ultima ? <p className="truncate text-slate-600" title={textoDeAccion(ultima, MODO_SAAS_VISIBLE)}>{textoDeAccion(ultima, MODO_SAAS_VISIBLE)} <span className="text-slate-500">· {formatearFechaHora(ultima.created_at)}</span></p> : <span className="text-slate-400">Todavía no hizo nada</span>}
+                  </td>
+                  <td className="px-2 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setSuperadminAEliminar(s); setErrorEliminarSuperadmin("") }}
+                      disabled={esVos || superadmins.length <= 1}
+                      title={esVos ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
+                      aria-label={esVos ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
+                      className={"rounded-lg p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer " + ACCION_ELIMINAR}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
-
-      {/* Antes había una franja de 3 stat cards, y después un banner amber de
-          "sos el único superadmin" — Diego tampoco quedó conforme con el
-          banner: decía casi palabra por palabra lo mismo que ya dice el
-          subtítulo de arriba ("creá una de respaldo, no dependas de una
-          sola"), solo que más fuerte y separado — quedaba redundante consigo
-          misma. El subtítulo + el botón "Agregar superadmin" ya arriba
-          cubren esto sin duplicar el mensaje. */}
-
-      <div className="space-y-3">
-        {superadmins.map((s) => {
-          const ultima = ultimaAccionPorSuperadmin.get(s.id)
-          const esVos = s.id === usuario?.id
-          return (
-          <div key={s.id} className={CARD_PAD}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  if (esVos) { abrirMiCuenta(); return }
-                  setFiltroActorActividad({ id: s.id, nombre: s.nombre }); setFiltroFechaActividad(null); setAuditoriaFiltro("todas"); setSeccion("actividad")
-                }}
-                title={esVos ? "Editar mi cuenta" : `Ver actividad de ${s.nombre}`}
-                className="group flex min-w-0 items-center gap-3.5 rounded-xl text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-              >
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-base font-bold text-white" style={{ background: GRAD }}>
-                  {s.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 truncate text-[15px] font-bold text-slate-800 transition-colors group-hover:text-blue-600">
-                    {s.nombre}
-                    {s.id === usuario?.id && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">TÚ</span>}
-                  </p>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
-                    <Mail size={12} /> {s.email || "—"}
-                  </div>
-                </div>
-              </button>
-
-              <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  <Calendar size={13} className="text-slate-400" />
-                  Superadmin desde {formatearFecha(s.created_at)}
-                </div>
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  <History size={13} className="text-slate-400" />
-                  {accionesPorSuperadmin[s.id] ?? 0} {(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "acción" : "acciones"} registrada{(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "" : "s"}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setSuperadminAEliminar(s); setErrorEliminarSuperadmin("") }}
-                  disabled={s.id === usuario?.id || superadmins.length <= 1}
-                  title={s.id === usuario?.id ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
-                  aria-label={s.id === usuario?.id ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
-                  className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 cursor-pointer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            {ultima && (
-              <div className="mt-3.5 flex items-start gap-2.5 border-t border-slate-100 pt-3.5">
-                {(() => {
-                  const info = AUDITORIA_INFO[ultima.accion]
-                  if (!info) return null
-                  const Icono = info.icon
-                  return <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: info.bg, color: info.fg }}><Icono size={13} /></div>
-                })()}
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Última acción</p>
-                  <p className="text-[13px] text-slate-600">{textoAuditoria(ultima)} <span className="text-slate-400">· {formatearFechaHora(ultima.created_at)}</span></p>
-                </div>
-              </div>
-            )}
-          </div>
-          )
-        })}
-      </div>
+      <p role="status" className="px-1 text-sm font-semibold text-slate-600">{superadmins.length} {superadmins.length === 1 ? "superadmin" : "superadmins"}</p>
     </div>
   )
 
@@ -2973,7 +2073,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
           <nav className="space-y-1.5 px-4 py-6">
             <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
-            {NAV.map((opcion) => {
+            {NAV_VISIBLE.map((opcion) => {
               const Icono = opcion.icono
               const activo = seccion === opcion.id
               return (
@@ -3005,7 +2105,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           {!colapsado && (
             <div className="hidden rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm lg:block">
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                <TrendingUp size={12} /> {opticas.length} óptica{opticas.length === 1 ? "" : "s"} · {superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
+                <TrendingUp size={12} /> {MODO_SAAS_VISIBLE ? `${opticas.length} óptica${opticas.length === 1 ? "" : "s"} · ` : ""}{superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
               </p>
             </div>
           )}
@@ -3114,8 +2214,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
-          <div className="mx-auto w-full max-w-6xl">
+        <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-8 pt-3 sm:pt-3 lg:pt-4">
+          <div className="w-full">
             {seccion === "resumen" && renderResumen()}
             {seccion === "opticas" && renderOpticas()}
             {seccion === "leads" && renderLeads()}
@@ -3143,8 +2243,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               type="button"
               disabled={!o.activa}
               title={o.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
-              onClick={() => { setMenuAccionesId(null); alEntrarComo?.(o) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
+              onClick={() => { setMenuAccionesId(null); pedirEntrada(o) }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
             >
               <LogIn size={15} /> Entrar como administrador
             </button>
@@ -3161,7 +2261,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               onClick={() => { setMenuAccionesId(null); copiarSlug(o.slug) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
             >
-              <Copy size={15} /> Copiar slug
+              <Copy size={15} /> Copiar dirección
             </button>
           </div>,
           document.body,
@@ -3191,7 +2291,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               <button type="button" onClick={iniciarRenombrar} title="Renombrar" aria-label="Renombrar" className="shrink-0 rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
             </span>
           )}
-          subtitulo={<span className="font-mono">{detalle.slug}</span>}
+          subtitulo={<span className="flex items-center gap-2"><span className="font-mono">{detalle.slug}</span>{detalle.es_de_prueba && <EtiquetaPrueba />}</span>}
           marca={<div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{detalle.nombre.charAt(0).toUpperCase()}</div>}
           ancho="max-w-lg"
           onCerrar={cerrarDetalle}
@@ -3224,22 +2324,46 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             type="button"
             disabled={!detalle.activa}
             title={detalle.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
-            onClick={() => alEntrarComo?.(detalle)}
+            onClick={() => pedirEntrada(detalle)}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer"
-            style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)", boxShadow: "0 12px 24px -14px rgba(109,40,217,0.6)" }}
+            style={{ background: GRAD }}
           >
             <LogIn size={16} /> Entrar como administrador
           </button>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Users size={13} /> Asistentes</p>
-              <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{asistentesPorOptica.get(detalle.id) || 0}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Stethoscope size={13} /> Pacientes</p>
-              <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{pacientesPorOptica.get(detalle.id) || 0}</p>
-            </div>
+          {/* ─── Óptica de prueba ─── */}
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200/60 p-3.5">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-800">{MODO_SAAS_VISIBLE ? "Óptica de prueba" : "Entorno de prueba"}</span>
+              <span className="block text-xs text-slate-500">{MODO_SAAS_VISIBLE ? "No cuenta en las métricas del negocio ni en la actividad, salvo que se pida verla. No se borra nada." : "No cuenta en el uso ni en la actividad, salvo que se pida verlo. No se borra nada."}</span>
+            </span>
+            <input type="checkbox" checked={!!detalle.es_de_prueba} onChange={(e) => marcarPrueba(e.target.checked)} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500" />
+          </label>
+
+          {/* ─── Uso: lo registrado y lo de los últimos 30 días ─── */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Uso del sistema · sin volumen del negocio</p>
+            {(() => {
+              const u = datosNegocio.uso.find((x) => x.optica_id === detalle.id)
+              const usados = u ? MODULOS_USO.filter((m) => u.modulos?.[m.id]) : []
+              const ultima = u ? ultimaActividadDe(u) : ""
+              const celdas = [
+                { t: "Personas activas", v: u ? u.personas_activas : "—", i: Users, nota: "en 30 días" },
+                { t: "Módulos en uso", v: u ? `${usados.length} de ${MODULOS_USO.length}` : "—", i: Building2, nota: "en 30 días" },
+                { t: "Última actividad", v: u ? (ultima ? haceDias(ultima, hoyISO()) : "Ninguna") : "—", i: History, nota: "del personal" },
+              ]
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  {celdas.map((c) => (
+                    <div key={c.t} className="rounded-xl border border-slate-200/60 bg-slate-50 p-3">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><c.i size={12} aria-hidden="true" /> {c.t}</p>
+                      <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{c.v}</p>
+                      <p className="text-xs text-slate-500">{c.nota}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
 
           <div>
@@ -3372,6 +2496,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             )}
           </div>
 
+          {MODO_SAAS_VISIBLE && (<>
           {/* ─── Suscripción ─── */}
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Suscripción</p>
@@ -3401,24 +2526,72 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   </button>
                 )}
               </div>
+              {detalle.estado_pago === "vencido" && detalle.activa && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                  El pago está vencido y la óptica sigue activa.
+                  <button type="button" onClick={() => setOpticaAConfirmar(detalle)} className="rounded-lg border border-rose-200/60 bg-white px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer">Suspender ahora</button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
+                  <label htmlFor="suscripcion-monto" className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
                   <input
-                    type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={() => guardarSuscripcion()}
+                    id="suscripcion-monto" type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)}
                     placeholder="0.00"
                     className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
-                  <CampoFecha id="suscripcion-vencimiento" etiqueta="Próximo vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
+                  <CampoFecha id="suscripcion-vencimiento" etiqueta="Próximo vencimiento" valor={campoVencimiento} onCambiar={(v) => setCampoVencimiento(v)} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
                 </div>
               </div>
-              {guardandoSuscripcion && <p className="text-xs text-slate-400">Guardando…</p>}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500">{detalle.monto_mensual == null ? "Esta óptica todavía no tiene precio de suscripción." : suscripcionCambio ? "Hay cambios sin guardar." : "Guardado."}</span>
+                <button type="button" onClick={guardarSuscripcion} disabled={!suscripcionCambio || guardandoSuscripcion} className="rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer" style={{ background: GRAD }}>{guardandoSuscripcion ? "Guardando…" : "Guardar suscripción"}</button>
+              </div>
             </div>
           </div>
 
+          </>)}
+
+          {/* ─── Roles de la óptica (solo lectura) ─── */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Roles</p>
+              {confirmarRestaurarRoles ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-600">¿Devolver Optómetra, Recepción y Ventas a como los crea el sistema?</span>
+                  <button type="button" onClick={() => setConfirmarRestaurarRoles(false)} className="rounded-lg px-2 py-1 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                  <button type="button" onClick={restaurarRoles} disabled={restaurandoRoles} className="rounded-lg bg-blue-600 px-2.5 py-1 font-semibold text-white hover:bg-blue-700 cursor-pointer disabled:opacity-60">{restaurandoRoles ? "Restaurando…" : "Restaurar"}</button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmarRestaurarRoles(true)} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"><RefreshCw size={13} /> Restaurar los predefinidos</button>
+              )}
+            </div>
+            {rolesOptica === null ? (
+              <p className="py-3 text-center text-xs text-slate-500">Cargando…</p>
+            ) : rolesOptica.length === 0 ? (
+              <p className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-xs font-semibold text-amber-800">Esta óptica no tiene roles. Pulsa «Restaurar los predefinidos» para crearlos.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60 text-sm">
+                {rolesOptica.map((r) => {
+                  const modulos = Object.keys(r.permisos || {}).map((m) => NOMBRE_MODULO[m] || m)
+                  return (
+                    <li key={r.id} className="px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate font-semibold text-slate-800">{r.nombre}</span>
+                        <span className="shrink-0 text-xs text-slate-500">{r.es_predefinido ? "Predefinido" : "Propio"} · {r.personas} {r.personas === 1 ? "persona" : "personas"}</span>
+                      </div>
+                      <p className="truncate text-xs text-slate-500" title={modulos.join(", ")}>{modulos.length ? modulos.join(", ") : "Sin permisos"}</p>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
+          {MODO_SAAS_VISIBLE && (<>
           {/* ─── Facturación ─── */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
@@ -3463,8 +2636,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             )}
           </div>
 
+          </>)}
+
           <div>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Slug</p>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Dirección de la página</p>
             <div className="flex items-center justify-between rounded-xl border border-slate-200/60 p-3.5">
               <span className="font-mono text-sm text-slate-700">{detalle.slug}</span>
               <button type="button" onClick={() => copiarSlug(detalle.slug)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
@@ -3472,59 +2647,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 {slugCopiado ? "Copiado" : "Copiar"}
               </button>
             </div>
-          </div>
-
-          {/* ─── Ver actividades de esta óptica (logs_optica) — separado de
-              "Actividad" del panel general, que es solo del superadmin. ─── */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actividad de esta óptica</p>
-              <button type="button" onClick={alternarActividadOptica} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                <History size={13} /> {mostrarActividadOptica ? "Ocultar" : "Ver actividades"}
-              </button>
-            </div>
-
-            {mostrarActividadOptica && (
-              <div className="rounded-xl border border-slate-200/60 p-3.5">
-                {(() => {
-                  const usuariosEnLogsOptica = [...new Set(logsOptica.map((l) => l.usuario_nombre))]
-                  const logsFiltradosOptica = filtroUsuarioLogOptica === "todos" ? logsOptica : logsOptica.filter((l) => l.usuario_nombre === filtroUsuarioLogOptica)
-                  return (
-                    <>
-                      {usuariosEnLogsOptica.length > 0 && (
-                        <select
-                          value={filtroUsuarioLogOptica}
-                          onChange={(e) => setFiltroUsuarioLogOptica(e.target.value)}
-                          className="mb-2.5 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white"
-                        >
-                          <option value="todos">Todos los usuarios</option>
-                          {usuariosEnLogsOptica.map((n) => (<option key={n} value={n}>{n}</option>))}
-                        </select>
-                      )}
-                      {cargandoLogsOptica ? (
-                        <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
-                          <Loader2 size={14} className="animate-spin" /> Cargando actividad…
-                        </div>
-                      ) : logsFiltradosOptica.length === 0 ? (
-                        <p className="py-4 text-center text-xs text-slate-400">Sin actividad registrada para esta óptica.</p>
-                      ) : (
-                        <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto">
-                          {logsFiltradosOptica.map((l) => (
-                            <div key={l.id} className="py-2">
-                              <p className="text-xs text-slate-700">
-                                <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
-                                {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
-                              </p>
-                              <p className="mt-0.5 text-xs text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )
-                })()}
-              </div>
-            )}
           </div>
 
           {/* ─── Personalización del login (lo único que ve el cliente) — desde
@@ -3552,10 +2674,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500">
-            <Info size={14} className="mt-0.5 shrink-0" />
-            Los datos operativos de esta óptica (pacientes, citas, inventario) ya viven centralizados en Supabase, con acceso multi-tenant por RLS — no dependen del navegador de su administrador.
-          </div>
           </div>
         </Cascaron>
       )}
@@ -3628,7 +2746,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {modalAvisoAbierto && (
         <Cascaron
           titulo="Nuevo aviso"
-          subtitulo={avisoDestino === "todos" ? "Lo van a ver todos los administradores de óptica." : "Solo lo va a ver el administrador de esa óptica."}
+          subtitulo={avisoDestino === "todos" ? (MODO_SAAS_VISIBLE ? "Lo van a ver todos los administradores de óptica." : "Lo van a ver todos los administradores.") : "Solo lo va a ver el administrador de esa óptica."}
           Icono={Megaphone}
           ancho="max-w-md"
           onCerrar={() => !publicandoAviso && setModalAvisoAbierto(false)}
@@ -3668,7 +2786,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestino !== "todos" ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                   style={avisoDestino !== "todos" ? { color: INK } : undefined}
                 >
-                  Una óptica puntual
+                  {MODO_SAAS_VISIBLE ? "Una óptica puntual" : "Un administrador"}
                 </button>
               </div>
               {avisoDestino !== "todos" && (
@@ -3762,7 +2880,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Slug (código interno)</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Dirección de la página (código interno)</label>
                   <div className="relative">
                     <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
@@ -4162,6 +3280,37 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         </Cascaron>
       )}
 
+      {/* ─── ENTRAR COMO ADMINISTRADOR (con autorización de la óptica y motivo) ─── */}
+      {entrada && (
+        <Cascaron
+          titulo="Entrar como administrador"
+          subtitulo={entrada.optica.nombre}
+          Icono={LogIn}
+          ancho="max-w-md"
+          onCerrar={() => !entrada.enviando && setEntrada(null)}
+          formulario={{ onSubmit: confirmarEntrada }}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setEntrada(null)} disabled={entrada.enviando} className="rounded-lg border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button type="submit" disabled={entrada.enviando} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}><LogIn size={15} aria-hidden="true" /> {entrada.enviando ? "Entrando…" : "Entrar"}</button>
+            </div>
+          </>}
+        >
+          <div className="space-y-3 p-5">
+            {esDePrueba(entrada.optica) ? (
+              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600">Es un entorno de prueba: no hace falta la autorización de su administrador.</p>
+            ) : (
+              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600">Los datos de la óptica son suyos. Solo puedes entrar si su administrador activó <span className="font-semibold">«Permitir acceso del soporte»</span>. Recibirá un aviso con la fecha y el motivo, y la entrada queda en su actividad.</p>
+            )}
+            <label className="block text-sm font-semibold text-slate-700">Motivo{esDePrueba(entrada.optica) ? " (opcional)" : ""}
+              <textarea rows={3} value={entrada.motivo} onChange={(e) => setEntrada((x) => ({ ...x, motivo: e.target.value }))} placeholder="Ej. Revisar el error de la consulta SOP-0042" autoFocus className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm font-normal outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+            </label>
+            {entrada.error && <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" /> {entrada.error}</p>}
+          </div>
+        </Cascaron>
+      )}
+
       {/* ─── CONFIRMAR SUSPENDER/REACTIVAR ÓPTICA ───
           Antes esto pasaba con un solo clic, sin ningún paso de confirmación
           — el mismo menú de "⋮" que tiene "Copiar slug" al lado. */}
@@ -4171,14 +3320,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           subtitulo={opticaAConfirmar.nombre}
           Icono={opticaAConfirmar.activa ? Ban : CheckCircle2}
           ancho="max-w-md"
-          onCerrar={() => setOpticaAConfirmar(null)}
+          onCerrar={() => { setOpticaAConfirmar(null); setMotivoSuspension("") }}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
-              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={() => { setOpticaAConfirmar(null); setMotivoSuspension("") }} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
               <button
                 type="button"
-                onClick={async () => { const o = opticaAConfirmar; setOpticaAConfirmar(null); await alternarActiva(o) }}
+                onClick={async () => { const o = opticaAConfirmar; const motivo = motivoSuspension; setOpticaAConfirmar(null); setMotivoSuspension(""); await alternarActiva(o, motivo) }}
                 className={"rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors cursor-pointer " + (opticaAConfirmar.activa ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700")}
               >
                 {opticaAConfirmar.activa ? "Suspender" : "Reactivar"}
@@ -4186,13 +3335,21 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
           </>}
         >
-          <p className="p-6 text-sm text-slate-600">
+          <div className="space-y-3 p-6">
+          <p className="text-sm text-slate-600">
             {opticaAConfirmar.activa ? (
               <>¿Seguro que deseas suspender <span className="font-semibold text-slate-800">{opticaAConfirmar.nombre}</span>? Su administrador y todo su equipo pierden acceso al sistema de inmediato.</>
             ) : (
               <>¿Reactivar <span className="font-semibold text-slate-800">{opticaAConfirmar.nombre}</span>? Recupera el acceso al sistema de inmediato.</>
             )}
           </p>
+          {opticaAConfirmar.activa && (
+            <label className="block text-sm font-semibold text-slate-700">Motivo (opcional)
+              <textarea rows={2} value={motivoSuspension} onChange={(e) => setMotivoSuspension(e.target.value)} placeholder={MODO_SAAS_VISIBLE ? "Ej. Pago vencido hace 40 días" : "Ej. Cuenta duplicada"} className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm font-normal outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+              <span className="mt-1 block text-xs font-normal text-slate-500">Queda en la actividad y se le avisa al administrador por Mensajes.</span>
+            </label>
+          )}
+          </div>
         </Cascaron>
       )}
     </div>

@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react"
 import { Download, X } from "lucide-react"
-import CampoFecha from "../componentes/CampoFecha"
 import SinDatosAun from "../componentes/SinDatosAun"
+import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
 import TarjetaReporte from "../componentes/reportes/TarjetaReporte"
 import VentanaDetalle from "../componentes/reportes/VentanaDetalle"
 import VentanaExportar from "../componentes/reportes/VentanaExportar"
@@ -23,7 +23,7 @@ import { fechaAISO } from "../utilidades/disponibilidad"
 import { motivosEnConsultas } from "../utilidades/reportesDiagnosticos"
 import { responsableDeCita, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO } from "../utilidades/filtrosCitas"
 import { nombreDeMiembro } from "../utilidades/equipo"
-import { PERIODOS, rangoDePeriodo, rangoAnterior, etiquetaComparacion, variacion } from "../utilidades/reportesPeriodo"
+import { rangoDePeriodo, rangoAnterior, etiquetaComparacion, variacion } from "../utilidades/reportesPeriodo"
 import { FILTROS_VACIOS, hayFiltros, filtrarDatos, metricasDelPeriodo } from "../utilidades/reportesDatos"
 import { modeloDeLista, descargarModelo } from "../utilidades/reportesExcel"
 import { useParamUrl } from "../utilidades/urlEstado"
@@ -146,17 +146,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
       {/* Filtros: arriba, iguales y en el mismo lugar en todas las pestañas */}
       <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
         <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Período" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
-            {PERIODOS.map((p) => (
-              <button key={p.id} type="button" aria-pressed={periodo === p.id} onClick={() => setPeriodo(p.id)} className={"rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (periodo === p.id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === p.id ? { background: GRAD_MARCA } : undefined}>{p.label}</button>
-            ))}
-          </div>
-          {periodo === "personalizado" && (
-            <>
-              <div className="w-44"><CampoFecha id="rep-desde" etiqueta="Desde" valor={personalizado.inicio || rango.inicio} onCambiar={(v) => setPersonalizado((p) => ({ ...p, inicio: v }))} max={personalizado.fin || rango.fin} /></div>
-              <div className="w-44"><CampoFecha id="rep-hasta" etiqueta="Hasta" valor={personalizado.fin || rango.fin} onCambiar={(v) => setPersonalizado((p) => ({ ...p, fin: v }))} min={personalizado.inicio || rango.inicio} /></div>
-            </>
-          )}
+          <SelectorPeriodo periodo={periodo} onPeriodo={setPeriodo} personalizado={personalizado} onPersonalizado={setPersonalizado} rango={rango} />
         </div>
         <div className="flex flex-wrap items-end gap-3">
           {!sinNada && <>

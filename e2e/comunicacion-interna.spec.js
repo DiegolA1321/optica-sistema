@@ -76,6 +76,8 @@ test('Recepción reporta con un PDF; el administrador la escala; el superadmin r
   const superadmin = await ctxSuper.newPage()
   await entrarComoSuperadmin(superadmin)
   await irASoporte(superadmin)
+  // QA Test Claude es un entorno de prueba: el Soporte del superadmin lo oculta por defecto.
+  await superadmin.getByRole('checkbox', { name: /Incluir entornos de prueba/ }).check({ force: true })
   const lista = superadmin.getByRole('list', { name: 'Consultas de soporte' })
   await lista.getByRole('button', { name: asunto }).click({ timeout: 30_000 })
   const ventanaSuper = superadmin.getByRole('dialog')
