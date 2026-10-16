@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   MODULOS_SOPORTE, TIPOS_CONSULTA, URGENCIAS, ESTADOS_CONSULTA, codigoConsulta, problemaDeCaptura, nombreSeguro, contextoDeConsulta, navegadorLegible,
-  ordenarBandeja, ordenarMisConsultas, filtrarBandeja, indicadoresSoporte, duracionLegible, avisosConLeido, tiempoEstimado, nombreModulo, mapConsulta,
+  ordenarBandeja, ordenarMisConsultas, filtrarBandeja, desdeDePeriodo, PERIODOS_SOPORTE, indicadoresSoporte, duracionLegible, avisosConLeido, tiempoEstimado, nombreModulo, mapConsulta,
 } from "./soporte"
 
 const c = (extra) => ({ id: Math.random().toString(36).slice(2), numero: 1, opticaId: "o1", autorNombre: "Ana", asunto: "Algo", modulo: "citas", urgencia: "normal", estado: "recibida", ultimoMensajeDe: "optica", creadaEn: "2026-10-10T10:00:00Z", ...extra })
@@ -102,6 +102,21 @@ describe("filtros de la bandeja", () => {
     expect(filtrarBandeja(lista, { busqueda: "cobra" }).map((x) => x.id)).toEqual(["1"])
     expect(filtrarBandeja(lista, { busqueda: "luis" }).map((x) => x.id)).toEqual(["3"])
     expect(filtrarBandeja(lista, { busqueda: "solna" }, (id) => (id === "o2" ? "Óptica Solna" : "")).map((x) => x.id)).toEqual(["2", "3"])
+  })
+})
+
+describe("período de la bandeja y de los indicadores", () => {
+  it("'todo' no acota; los demás cuentan hacia atrás desde ahora", () => {
+    const ahora = Date.parse("2026-10-15T12:00:00Z")
+    expect(desdeDePeriodo("todo", ahora)).toBeNull()
+    expect(desdeDePeriodo("7", ahora)).toBe("2026-10-08T12:00:00.000Z")
+    expect(desdeDePeriodo("30", ahora)).toBe("2026-09-15T12:00:00.000Z")
+    expect(PERIODOS_SOPORTE.map((x) => x.id)).toEqual(["7", "30", "90", "todo"])
+  })
+  it("la bandeja deja fuera lo anterior al período, y los indicadores usan el mismo corte", () => {
+    const lista = [c({ id: "vieja", creadaEn: "2026-09-01T10:00:00Z" }), c({ id: "nueva", creadaEn: "2026-10-14T10:00:00Z" })]
+    expect(filtrarBandeja(lista, { desde: "2026-10-01T00:00:00Z" }).map((x) => x.id)).toEqual(["nueva"])
+    expect(indicadoresSoporte(lista, { desde: "2026-10-01T00:00:00Z" }).total).toBe(1)
   })
 })
 

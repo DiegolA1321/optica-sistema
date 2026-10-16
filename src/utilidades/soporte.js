@@ -103,9 +103,10 @@ export function ordenarMisConsultas(consultas) {
 }
 
 // Filtros de la bandeja. "" = sin filtrar.
-export function filtrarBandeja(consultas, { estado = "", urgencia = "", modulo = "", opticaId = "", busqueda = "" } = {}, nombreOptica = () => "") {
+export function filtrarBandeja(consultas, { estado = "", urgencia = "", modulo = "", opticaId = "", busqueda = "", desde = null } = {}, nombreOptica = () => "") {
   const q = String(busqueda || "").trim().toLowerCase()
   return consultas.filter((c) => {
+    if (desde !== null && desde !== undefined && c2ms(c.creadaEn) < c2ms(desde)) return false
     if (estado === "abiertas" ? c.estado === "resuelta" : estado && c.estado !== estado) return false
     if (urgencia && c.urgencia !== urgencia) return false
     if (modulo && c.modulo !== modulo) return false
@@ -113,6 +114,18 @@ export function filtrarBandeja(consultas, { estado = "", urgencia = "", modulo =
     if (q && !`${codigoConsulta(c.numero)} ${c.asunto} ${c.autorNombre} ${nombreOptica(c.opticaId)}`.toLowerCase().includes(q)) return false
     return true
   })
+}
+
+// El período de la bandeja y de los indicadores (el mismo en las dos pestañas, para que los números coincidan con la lista). Devuelve el instante desde el cual se cuenta, o null = todo.
+export const PERIODOS_SOPORTE = [
+  { id: "7", nombre: "Últimos 7 días", dias: 7 },
+  { id: "30", nombre: "Últimos 30 días", dias: 30 },
+  { id: "90", nombre: "Últimos 90 días", dias: 90 },
+  { id: "todo", nombre: "Todo el tiempo", dias: null },
+]
+export function desdeDePeriodo(periodo, ahoraMs = Date.now()) {
+  const p = PERIODOS_SOPORTE.find((x) => x.id === periodo)
+  return p?.dias ? new Date(ahoraMs - p.dias * 86400000).toISOString() : null
 }
 
 // ── Indicadores del superadmin
