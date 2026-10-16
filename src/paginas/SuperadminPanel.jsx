@@ -3,7 +3,7 @@
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaLegible, fechaHoraLegible, formatoFecha, MESES_CORTOS, diaSemanaCorto } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -40,7 +40,6 @@ import {
   UserPlus,
   Pencil,
   Trash2,
-  ChevronRight,
   ChevronDown,
   TrendingUp,
   Settings,
@@ -55,7 +54,6 @@ import {
   RefreshCw,
   Inbox,
   PhoneCall,
-  BarChart3,
   Users,
   Stethoscope,
   Image as ImageIcon,
@@ -64,16 +62,14 @@ import {
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
-import { esHoy, etiquetaFecha, fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
 import { sumarDiasISO } from "../utilidades/controles"
 import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
-import { useAnchoElemento } from "../utilidades/graficos"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
 import { NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
-import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { INK, ACCION_VER } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -139,6 +135,9 @@ const formatearFechaHora = (fecha) =>
   fechaHoraLegible(fecha, { anio: true })
 
 import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
+import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
+import { textoDeAccion } from "../utilidades/superadminNegocio"
+import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
 
 const NAV = [
@@ -150,75 +149,7 @@ const NAV = [
   { id: "superadmins", nombre: "Superadmins", icono: ShieldCheck },
 ]
 
-const AUDITORIA_PAGINA = 20
 
-
-function ultimosNMeses(n) {
-  const hoy = ahoraEcuador()
-  const arr = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
-    arr.push({ clave: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, etiqueta: MESES_CORTOS[d.getMonth()] })
-  }
-  return arr
-}
-
-function ultimosNDias(n) {
-  const hoy = ahoraEcuador()
-  const arr = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i)
-    const clave = fechaAISO(d)
-    arr.push({ clave, etiqueta: diaSemanaCorto(d.getDay()).toLowerCase() })
-  }
-  return arr
-}
-
-// "Actividad por día" del Resumen: 7d/30d usan el mismo formato que el resto
-// del sistema (abreviatura del día), pero "mes" (largo variable, 1-31 días)
-// se etiqueta por número de día — 30 abreviaturas de día de la semana
-// repetidas serían ilegibles en el eje X.
-function diasParaRangoActividad(rango) {
-  if (rango === "mes") {
-    const hoy = ahoraEcuador()
-    const n = hoy.getDate()
-    const arr = []
-    for (let i = 0; i < n; i++) {
-      const d = new Date(hoy.getFullYear(), hoy.getMonth(), 1 + i)
-      const clave = fechaAISO(d)
-      arr.push({ clave, etiqueta: String(d.getDate()) })
-    }
-    return arr
-  }
-  return ultimosNDias(rango === "30d" ? 30 : 7)
-}
-
-// Curva suave (Bézier cúbica con punto de control en el punto medio de cada
-// tramo) sobre coordenadas absolutas de un viewBox — a diferencia de un
-// div con height:X%, esto no depende de que el ancestro tenga una altura
-// definida, así que no puede caer en el bug de "altura 0 silenciosa" que
-// tuvo el gráfico de barras original (ver memoria de la sesión anterior).
-function construirCurva(valores, w, h, max, padTop = 10, padBottom = 8, padX = 24) {
-  const n = valores.length
-  if (n === 0) return { linea: "", area: "", puntos: [] }
-  const anchoUtil = w - padX * 2
-  const stepX = n > 1 ? anchoUtil / (n - 1) : 0
-  const rango = h - padTop - padBottom
-  const puntos = valores.map((v, i) => {
-    const x = n > 1 ? padX + i * stepX : w / 2
-    const y = padTop + rango - (max > 0 ? (v / max) * rango : 0)
-    return [x, y]
-  })
-  let linea = `M ${puntos[0][0].toFixed(1)} ${puntos[0][1].toFixed(1)}`
-  for (let i = 1; i < puntos.length; i++) {
-    const [x0, y0] = puntos[i - 1]
-    const [x1, y1] = puntos[i]
-    const mx = (x0 + x1) / 2
-    linea += ` C ${mx.toFixed(1)} ${y0.toFixed(1)}, ${mx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`
-  }
-  const area = `${linea} L ${puntos[puntos.length - 1][0].toFixed(1)} ${h - padBottom} L ${puntos[0][0].toFixed(1)} ${h - padBottom} Z`
-  return { linea, area, puntos }
-}
 
 // ─── Registro de actividad (auditoría) ───
 const AUDITORIA_INFO = {
@@ -243,82 +174,6 @@ const AUDITORIA_INFO = {
   salir_de_optica: { grupo: "opticas", icon: LogOut, bg: "#EEF2F7", fg: "#475569" },
 }
 
-const FILTROS_ACTIVIDAD = [
-  { key: "todas", label: "Todas" },
-  { key: "opticas", label: "Ópticas" },
-  { key: "mensajes", label: "Mensajes" },
-  { key: "superadmins", label: "Superadmins" },
-]
-
-function textoAuditoria(a) {
-  switch (a.accion) {
-    case "crear_optica": return <>creó la óptica <b>{a.optica_nombre}</b></>
-    case "suspender_optica": return <>suspendió la óptica <b>{a.optica_nombre}</b></>
-    case "reactivar_optica": return <>reactivó la óptica <b>{a.optica_nombre}</b></>
-    case "renombrar_optica": return <>renombró <b>{a.detalle}</b> a <b>{a.optica_nombre}</b></>
-    case "agregar_administrador": return <>agregó a <b>{a.detalle}</b> como administrador de <b>{a.optica_nombre}</b></>
-    case "eliminar_administrador": return <>quitó a <b>{a.detalle}</b> como administrador de <b>{a.optica_nombre}</b></>
-    case "crear_superadmin": return <>agregó a <b>{a.optica_nombre}</b> como superadministrador</>
-    case "eliminar_superadmin": return <>quitó a <b>{a.optica_nombre}</b> como superadministrador</>
-    case "responder_mensaje": return <>respondió una consulta de <b>{a.optica_nombre}</b></>
-    case "publicar_anuncio": return <>publicó un aviso general: <b>{a.detalle}</b></>
-    case "actualizar_pago": return <>marcó el pago de <b>{a.optica_nombre}</b> como <b>{a.detalle === "al_dia" ? "al día" : a.detalle}</b></>
-    case "generar_factura": return <>generó la factura <b>{a.detalle}</b> para <b>{a.optica_nombre}</b></>
-    case "entrar_como_optica": return <>entró como administrador a la óptica <b>{a.optica_nombre}</b></>
-    case "salir_de_optica": return <>salió de la óptica <b>{a.optica_nombre}</b>{a.detalle ? <span className="text-slate-400"> ({a.detalle})</span> : null}</>
-    default: return a.accion
-  }
-}
-
-function ItemAuditoria({ a }) {
-  const info = AUDITORIA_INFO[a.accion]
-  if (!info) return null
-  const Icono = info.icon
-  return (
-    <li className="flex items-start gap-3">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: info.bg, color: info.fg }}>
-        <Icono size={15} />
-      </div>
-      <div className="min-w-0 flex-1 border-b border-slate-100 pb-3.5">
-        <p className="text-[13.5px] leading-snug text-slate-700">
-          <span className="font-semibold text-slate-900">{a.actor_nombre}</span> {textoAuditoria(a)}
-        </p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
-          <Clock size={11} />
-          {formatearFechaHora(a.created_at)}
-        </p>
-      </div>
-    </li>
-  )
-}
-
-// Sparkline mini (stat cards): SVG estático de bajo costo, sin hover ni
-// tooltip propio — solo da una lectura visual rápida de "sube o baja",
-// mismo criterio de curva suave que construirCurva pero sin sus puntos ni
-// interacción (una tarjeta de 100px de alto no tiene espacio para eso).
-function MiniSparkline({ valores, color = "#2563EB" }) {
-  if (!valores || valores.length < 2) return null
-  const w = 72, h = 28, pad = 3
-  const max = Math.max(1, ...valores)
-  const min = Math.min(...valores)
-  const rango = Math.max(1, max - min)
-  const stepX = (w - pad * 2) / (valores.length - 1)
-  const puntos = valores.map((v, i) => [pad + i * stepX, h - pad - ((v - min) / rango) * (h - pad * 2)])
-  let linea = `M ${puntos[0][0].toFixed(1)} ${puntos[0][1].toFixed(1)}`
-  for (let i = 1; i < puntos.length; i++) {
-    const [x0, y0] = puntos[i - 1]
-    const [x1, y1] = puntos[i]
-    const mx = (x0 + x1) / 2
-    linea += ` C ${mx.toFixed(1)} ${y0.toFixed(1)}, ${mx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`
-  }
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0" aria-hidden="true">
-      <path d={linea} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={puntos[puntos.length - 1][0]} cy={puntos[puntos.length - 1][1]} r="2.25" fill={color} />
-    </svg>
-  )
-}
-
 // ─── Estilos de tarjeta reutilizables (mismo look en toda la superficie) ───
 // El hover-lift es a propósito parte de la base, no algo que cada pantalla
 // agregue por separado — Diego pidió que todos los módulos del panel se
@@ -328,6 +183,13 @@ const CARD_PAD = CARD + " p-5 sm:p-6"
 
 export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario, alEntrarComo }) {
   const [seccion, setSeccion] = useState("resumen")
+  // Las ópticas de prueba y de demostración no cuentan en las métricas del negocio ni en la actividad salvo que se pida verlas.
+  const [incluirPrueba, setIncluirPrueba] = useState(false)
+  // A dónde llevó el último "Abrir en …" del Resumen: cada sección parte de ahí con el mismo período y los mismos filtros.
+  const [destinoSoporte, setDestinoSoporte] = useState(null)
+  const [destinoActividad, setDestinoActividad] = useState(null)
+  const [filtrosOpticas, setFiltrosOpticas] = useState({ desde: "", hasta: "", pago: "" })
+  const [rangoLeads, setRangoLeads] = useState({ desde: "", hasta: "" })
   const [colapsado, setColapsado] = useState(false)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
@@ -354,7 +216,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [leads, setLeads] = useState([])
   const [leadEnCurso, setLeadEnCurso] = useState(null)
   const [procesandoLeadId, setProcesandoLeadId] = useState(null)
-  const [visitas, setVisitas] = useState([])
   // Búsqueda + filtro por estado — con pocos leads no hacía falta, pero
   // crece rápido y sin esto se vuelve una lista larga para revisar a mano.
   const [busquedaLeads, setBusquedaLeads] = useState("")
@@ -362,41 +223,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Auditoría (paginada + filtrable por grupo) ───
   const [auditoria, setAuditoria] = useState([])
-  const [auditoriaOffset, setAuditoriaOffset] = useState(0)
-  const [auditoriaTieneMas, setAuditoriaTieneMas] = useState(true)
-  const [auditoriaCargandoMas, setAuditoriaCargandoMas] = useState(false)
-  const [auditoriaFiltro, setAuditoriaFiltro] = useState("todas")
-  // Día colapsado manualmente (mismo patrón que Citas.jsx: si un día tiene
-  // muchos eventos, poder colapsarlo — sobre todo "hoy" — para llegar a los
-  // días anteriores sin tanto scroll) y filtro opcional a un solo día (se
-  // activa al hacer clic en una barra del gráfico "Actividad por día").
-  const [diasActividadColapsados, setDiasActividadColapsados] = useState(() => new Set())
-  const alternarDiaActividad = (dia) => {
-    setDiasActividadColapsados((prev) => {
-      const siguiente = new Set(prev)
-      if (siguiente.has(dia)) siguiente.delete(dia)
-      else siguiente.add(dia)
-      return siguiente
-    })
-  }
-  const [filtroFechaActividad, setFiltroFechaActividad] = useState(null)
-  // Filtro por autor — se activa al hacer clic en un superadmin desde la
-  // pantalla de Superadmins, para poder ver justo lo que esa cuenta hizo.
-  const [filtroActorActividad, setFiltroActorActividad] = useState(null) // { id, nombre } | null
-
-  // ─── "Actividad por día" del Resumen — dataset propio, acotado por fecha
-  // (mismo patrón que cargarVisitas), en vez de reusar `auditoria` (paginada
-  // de a 20 para la pestaña Actividad). Reusar esa lista paginada para un
-  // rango de 30 días o "este mes" podía subcontar: si hay más de 20 acciones
-  // en el rango, la página cargada no las cubre todas. ─── */
-  const [rangoActividadResumen, setRangoActividadResumen] = useState("7d") // "7d" | "30d" | "mes"
-  const [auditoriaResumen, setAuditoriaResumen] = useState([])
-
-  // ─── Métricas SaaS de red (Resumen): volumen real de consultas generadas
-  // en toda la red de ópticas, y un estado de conexión honesto (basado en la
-  // latencia real de la carga inicial, no un badge decorativo fijo). ───
-  const [totalConsultasRed, setTotalConsultasRed] = useState(null)
-  const [pacientesAtendidosRed, setPacientesAtendidosRed] = useState(null)
   const [estadoServidor, setEstadoServidor] = useState({ estado: "verificando", latenciaMs: null })
 
   // ─── Mensajes (consultas de administradores + avisos generales) ───
@@ -418,13 +244,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // (el punto/barra se agranda) como el tooltip propio que lo acompaña, en
   // vez de depender del tooltip nativo del navegador (lento y con estilo
   // inconsistente entre navegadores).
-  const [hoverMesIdx, setHoverMesIdx] = useState(null)
-  const [hoverBarClave, setHoverBarClave] = useState(null)
-  const [hoverVisitaIdx, setHoverVisitaIdx] = useState(null)
-
-  // Solo true en la primerísima carga — evita que cada refetch posterior
-  // (después de crear/editar algo) vuelva a tapar el panel con el estado de
-  // carga; los datos ya visibles se quedan mientras se refrescan en segundo plano.
   const [cargaInicial, setCargaInicial] = useState(true)
 
   // Toast flotante compartido — antes "Agregar superadmin", "Nuevo aviso" y
@@ -633,24 +452,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     }
   }, [menuAccionesId])
 
-  const cargarAuditoria = async (reset = true) => {
-    const desde = reset ? 0 : auditoriaOffset
-    if (!reset) setAuditoriaCargandoMas(true)
-    let consulta = supabase.from("auditoria").select("*").order("created_at", { ascending: false }).range(desde, desde + AUDITORIA_PAGINA - 1)
-    if (auditoriaFiltro !== "todas") {
-      const acciones = Object.entries(AUDITORIA_INFO).filter(([, v]) => v.grupo === auditoriaFiltro).map(([k]) => k)
-      consulta = consulta.in("accion", acciones)
-    }
-    const { data } = await consulta
-    setAuditoria((prev) => (reset ? (data || []) : [...prev, ...(data || [])]))
-    setAuditoriaOffset(desde + (data?.length || 0))
-    setAuditoriaTieneMas((data?.length || 0) === AUDITORIA_PAGINA)
-    setAuditoriaCargandoMas(false)
+  // Las últimas acciones (para "última acción" de cada superadmin y para avisarle a Actividad que hay algo nuevo). La pantalla Actividad
+  // lee por su cuenta, con sus filtros.
+  const cargarAuditoria = async () => {
+    const { data } = await supabase.from("auditoria").select("*").order("created_at", { ascending: false }).limit(200)
+    setAuditoria(data || [])
   }
 
   useEffect(() => {
-    cargarAuditoria(true)
-  }, [auditoriaFiltro])
+    cargarAuditoria()
+  }, [])
 
   const cargarDatos = async () => {
     setCargando(true)
@@ -663,12 +474,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
         supabase.from("perfiles").select("optica_id, created_at, activo").eq("rol", "asistente"),
         supabase.from("pacientes").select("optica_id, created_at"),
-        // count-only (head: true) — no trae filas, solo el número. Métrica
-        // SaaS de red pedida por Diego: volumen real de consultas generadas
-        // en TODAS las ópticas, no solo la que se esté mirando.
-        supabase.from("consultas").select("id", { count: "exact", head: true }),
-        // Pacientes que ya tuvieron al menos una consulta (su última consulta no es "Pendiente"): lo que dice "atendidos".
-        supabase.from("pacientes").select("id", { count: "exact", head: true }).neq("ultima_consulta", "Pendiente"),
       ])
       opticasData = resultados[0].data
       adminsData = resultados[1].data
@@ -680,8 +485,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       // orientativos (no un SLA), solo para distinguir "normal" de "lento".
       const latenciaMs = Math.round(performance.now() - t0)
       setEstadoServidor({ estado: latenciaMs < 1200 ? "operativo" : latenciaMs < 3500 ? "lento" : "critico", latenciaMs })
-      setTotalConsultasRed(resultados[5].count ?? 0)
-      setPacientesAtendidosRed(resultados[6].count ?? 0)
     } catch {
       setEstadoServidor({ estado: "sin_conexion", latenciaMs: null })
     }
@@ -713,28 +516,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     cargarMensajes()
     cargarSoporte()
     cargarLeads()
-    cargarVisitas()
-    cargarActividadResumen(rangoActividadResumen)
   }
-
-  // Igual que cargarVisitas: acota por fecha en el servidor en vez de traer
-  // toda la tabla `auditoria` (que puede ser larga) o de reusar la lista
-  // paginada de la pestaña Actividad, que no garantiza cubrir el rango
-  // elegido acá. "mes" usa el día 1 del mes calendario actual, igual que
-  // Reportes.jsx (fmtFecha/calcularRango).
-  const cargarActividadResumen = async (rango) => {
-    const hoy = ahoraEcuador()
-    const dias = rango === "30d" ? 30 : rango === "mes" ? null : 7
-    const desde = dias
-      ? new Date(Date.now() - dias * 24 * 60 * 60 * 1000)
-      : new Date(hoy.getFullYear(), hoy.getMonth(), 1)
-    const { data } = await supabase.from("auditoria").select("created_at").gte("created_at", desde.toISOString())
-    setAuditoriaResumen(data || [])
-  }
-
-  useEffect(() => {
-    cargarActividadResumen(rangoActividadResumen)
-  }, [rangoActividadResumen])
 
   const cargarMensajes = async () => {
     const { data } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
@@ -759,14 +541,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const cargarLeads = async () => {
     const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false })
     setLeads(data || [])
-  }
-
-  // Últimos 90 días alcanza para el gráfico de Resumen (por día) sin traer
-  // toda la tabla histórica al cliente.
-  const cargarVisitas = async () => {
-    const desde = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-    const { data } = await supabase.from("visitas").select("tipo, created_at").gte("created_at", desde)
-    setVisitas(data || [])
   }
 
   const marcarLead = async (id, estado) => {
@@ -887,11 +661,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }
   const asistentesPorOptica = useMemo(() => contarPorOptica(asistentesOpticaId), [asistentesOpticaId])
   const pacientesPorOptica = useMemo(() => contarPorOptica(pacientesOpticaId), [pacientesOpticaId])
-  const totalesUsuarios = useMemo(() => ({
-    admins: admins.length,
-    asistentes: asistentesOpticaId.length,
-    pacientes: pacientesOpticaId.length,
-  }), [admins, asistentesOpticaId, pacientesOpticaId])
 
   // Lo que espera al soporte: consultas abiertas cuyo último mensaje es de la óptica (la insignia del menú y la bandeja cuentan lo mismo).
   const consultasAbiertas = useMemo(() => consultasSoporte.filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte])
@@ -933,7 +702,32 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     { key: "Suspendidas", label: "Suspendidas", valor: totalSuspendidas, icon: Ban, bg: "#FEEBEE", fg: "#E11D48" },
   ]
 
-  const irAOpticasConFiltro = (key) => { setFiltroEstado(key); setSeccion("opticas") }
+
+  // Los "Abrir en …" del Resumen: llegan a la sección con el mismo período y los mismos filtros que el número que se pulsó.
+  const irA = (modulo, params = {}) => {
+    if (params.incluirPrueba) setIncluirPrueba(true)
+    if (modulo === "opticas") {
+      setFiltroEstado(params.estado || "Todas")
+      setBusqueda("")
+      setFiltrosOpticas({ desde: params.desde || "", hasta: params.hasta || "", pago: params.pago || "" })
+      setSeccion("opticas")
+      const o = params.abrir ? opticas.find((x) => x.id === params.abrir) : null
+      if (o) abrirDetalleOptica(o)
+    } else if (modulo === "leads") {
+      setRangoLeads({ desde: params.desde || "", hasta: params.hasta || "" })
+      setFiltroEstadoLeads(params.estado || "todos")
+      setBusquedaLeads("")
+      setSeccion("leads")
+    } else if (modulo === "soporte") {
+      setDestinoSoporte({ ...params, clave: Date.now() })
+      setSeccion("mensajes")
+    } else if (modulo === "superadmins") {
+      setSeccion("superadmins")
+    } else if (modulo === "actividad") {
+      setDestinoActividad({ ...params, clave: Date.now() })
+      setSeccion("actividad")
+    }
+  }
 
   const abrirDetalleOptica = (o) => {
     setDetalle(o)
@@ -970,178 +764,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const { data } = supabase.storage.from("logos").getPublicUrl(ruta)
     actualizarCampo("logoUrl", data.publicUrl)
   }
-
-  // created_at viene de Supabase en UTC — recortar el string ISO tal cual
-  // desalinea "hoy" con la fecha local del navegador (ej. un evento de las
-  // 21:48 en Ecuador ya cayó en el día siguiente en UTC). Hay que pasarlo
-  // por Date y leer año/mes/día en hora local, igual que ultimosNMeses/Días.
-  const claveMesLocal = (iso) => {
-    const d = new Date(iso)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-  }
-  const claveDiaLocal = (iso) => {
-    const d = new Date(iso)
-    return fechaAISO(d)
-  }
-
-  const opticasPorMes = useMemo(() => {
-    const meses = ultimosNMeses(6)
-    const mapa = new Map()
-    opticas.forEach((o) => {
-      if (!o.created_at) return
-      const clave = claveMesLocal(o.created_at)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return meses.map((m) => ({ ...m, valor: mapa.get(m.clave) || 0 }))
-  }, [opticas])
-  const maxOpticasMes = Math.max(1, ...opticasPorMes.map((m) => m.valor))
-
-  // Sparklines de las stat cards: acumulado real mes a mes (no solo "nuevos
-  // este mes"), para que la línea siempre termine en el total real de hoy.
-  // Reusa el mismo criterio de mes-local que opticasPorMes/claveMesLocal —
-  // nada decorativo, cada punto es un conteo real derivado de created_at.
-  const contarPorMesAcumulado = (items, meses) => {
-    const porMes = new Map()
-    items.forEach((it) => {
-      if (!it.created_at) return
-      const clave = claveMesLocal(it.created_at)
-      porMes.set(clave, (porMes.get(clave) || 0) + 1)
-    })
-    const clavesVentana = new Set(meses.map((m) => m.clave))
-    let base = 0
-    porMes.forEach((n, clave) => { if (!clavesVentana.has(clave)) base += n })
-    let acumulado = base
-    return meses.map((m) => {
-      acumulado += porMes.get(m.clave) || 0
-      return acumulado
-    })
-  }
-  const seisMeses = useMemo(() => ultimosNMeses(6), [])
-  const sparklineOpticas = useMemo(() => contarPorMesAcumulado(opticas, seisMeses), [opticas, seisMeses])
-  const sparklineAdmins = useMemo(() => contarPorMesAcumulado(admins, seisMeses), [admins, seisMeses])
-  const sparklineAsistentes = useMemo(() => contarPorMesAcumulado(asistentesOpticaId, seisMeses), [asistentesOpticaId, seisMeses])
-  const sparklinePacientes = useMemo(() => contarPorMesAcumulado(pacientesOpticaId, seisMeses), [pacientesOpticaId, seisMeses])
-
-  const actividadPorDia = useMemo(() => {
-    const dias = diasParaRangoActividad(rangoActividadResumen)
-    const mapa = new Map()
-    auditoriaResumen.forEach((a) => {
-      if (!a.created_at) return
-      const clave = claveDiaLocal(a.created_at)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return dias.map((d) => ({ ...d, valor: mapa.get(d.clave) || 0 }))
-  }, [auditoriaResumen, rangoActividadResumen])
-  const maxActividadDia = Math.max(1, ...actividadPorDia.map((d) => d.valor))
-  const totalActividadResumen = actividadPorDia.reduce((s, d) => s + d.valor, 0)
-
-  // ─── Datos derivados para el resumen visual (todo real, nada decorativo) ───
-  const opticasSinAdmin = useMemo(
-    () => opticas.filter((o) => o.activa && (adminsPorOptica.get(o.id) || []).length === 0),
-    [opticas, adminsPorOptica],
-  )
-  const pctActivas = opticas.length ? Math.round((totalActivas / opticas.length) * 100) : 0
-  const creadasEsteMes = opticasPorMes.length ? opticasPorMes[opticasPorMes.length - 1].valor : 0
-
-  const [refGraficoOpticas, anchoGraficoOpticas] = useAnchoElemento()
-  const curvaOpticas = useMemo(
-    () => construirCurva(opticasPorMes.map((m) => m.valor), anchoGraficoOpticas, 90, maxOpticasMes, 14),
-    [opticasPorMes, maxOpticasMes, anchoGraficoOpticas],
-  )
-
-  // ─── Funnel comercial (leads/visitas de la página de venta) ───
-  const visitasVenta = useMemo(() => visitas.filter((v) => v.tipo === "venta"), [visitas])
-  const visitasPorDia = useMemo(() => {
-    // Antes 14 días — el único de los dos gráficos diarios de esta pantalla
-    // que no seguía la convención de "Actividad por día" (7 días, más abajo
-    // en este mismo archivo). Con 14, cada abreviatura de día de la semana
-    // se repetía dos veces en el eje (JUE, VIE... JUE, VIE...), que además
-    // de verse apretado con barras casi vacías, leía confuso.
-    const dias = ultimosNDias(7)
-    const mapa = new Map()
-    visitasVenta.forEach((v) => {
-      if (!v.created_at) return
-      const clave = claveDiaLocal(v.created_at)
-      mapa.set(clave, (mapa.get(clave) || 0) + 1)
-    })
-    return dias.map((d) => ({ ...d, valor: mapa.get(d.clave) || 0 }))
-  }, [visitasVenta])
-  const maxVisitasDia = Math.max(1, ...visitasPorDia.map((d) => d.valor))
-  const [refGraficoVisitas, anchoGraficoVisitas] = useAnchoElemento()
-  // Auditoría 2026-09-09: este gráfico era el único de los tres que no usaba
-  // useAnchoElemento() — tenía un viewBox fijo (880) estirado con
-  // preserveAspectRatio="none" a lo que sea que midiera el contenedor real,
-  // que es exactamente el patrón que este hook existe para evitar (ver
-  // graficos.js). Esa era la causa real de que se viera "sin nitidez".
-  const [refGraficoActividad, anchoGraficoActividad] = useAnchoElemento()
-  // Barras, no línea: la mayoría de los días suele estar en 0 visitas — una
-  // línea plana que de golpe se dispara se ve como si algo estuviera roto;
-  // una barra en 0 se lee como dato normal. "Actividad por día" (más abajo)
-  // sí pasó a área/gradiente (pedido explícito de Diego) porque el relleno
-  // hasta la base sostiene la lectura visual incluso en días en cero.
-  const barrasVisitas = useMemo(() => {
-    const w = anchoGraficoVisitas, base = 82, padTop = 8
-    const n = visitasPorDia.length || 1
-    const gap = 10
-    const barW = (w - gap * (n + 1)) / n
-    return visitasPorDia.map((d, i) => {
-      const alto = maxVisitasDia > 0 ? Math.max(d.valor > 0 ? 4 : 2, (d.valor / maxVisitasDia) * (base - padTop)) : 2
-      const x = gap + i * (barW + gap)
-      return { ...d, x, w: barW, h: alto, y: base - alto, cx: x + barW / 2 }
-    })
-  }, [visitasPorDia, maxVisitasDia, anchoGraficoVisitas])
-  const leadsConvertidos = useMemo(() => leads.filter((l) => l.estado === "convertido").length, [leads])
-  const tasaConversion = leads.length ? Math.round((leadsConvertidos / leads.length) * 100) : 0
-  const tarjetasFunnel = [
-    { key: "visitas", label: "Visitas (últimos 90 días)", valor: visitasVenta.length, icon: BarChart3, bg: "#ECFEFF", fg: "#0E7490" },
-    { key: "leads", label: "Leads recibidos", valor: leads.length, icon: Inbox, bg: "#E8F0FF", fg: "#2563EB" },
-    { key: "conversion", label: "Convertidos a cliente", valor: `${leadsConvertidos} (${tasaConversion}%)`, icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
-  ]
-
-  // Área suave con gradiente (antes barras) — mismo helper que ya usa
-  // "Ópticas creadas por mes" (construirCurva), reutilizado en vez de
-  // inventar una segunda forma de dibujar curvas en el mismo archivo.
-  const curvaActividad = useMemo(
-    () => construirCurva(actividadPorDia.map((d) => d.valor), anchoGraficoActividad, 130, maxActividadDia, 16, 22),
-    [actividadPorDia, maxActividadDia, anchoGraficoActividad],
-  )
-  // Con 30 días o "este mes" mostrar las 30 etiquetas se vuelve ilegible —
-  // se ralea a ~6 etiquetas visibles (primer día, último día, y pasos
-  // parejos entre medio), igual que un dashboard real (Stripe/Vercel).
-  const pasoEtiquetaActividad = Math.max(1, Math.ceil(actividadPorDia.length / 6))
-
-  // Auditoría agrupada por día (mismo patrón que Citas.jsx: rail por fecha,
-  // colapsable por día — sobre todo para poder ocultar "hoy" y no tener que
-  // scrollear tanto para llegar a días anteriores). El Map preserva el orden
-  // de inserción, y auditoria ya viene ordenada desc por created_at.
-  const auditoriaAgrupada = useMemo(() => {
-    const visibles = auditoria.filter((a) => {
-      if (filtroFechaActividad && claveDiaLocal(a.created_at) !== filtroFechaActividad) return false
-      if (filtroActorActividad && a.actor_id !== filtroActorActividad.id) return false
-      return true
-    })
-    const mapa = new Map()
-    for (const a of visibles) {
-      const clave = claveDiaLocal(a.created_at)
-      if (!mapa.has(clave)) mapa.set(clave, [])
-      mapa.get(clave).push(a)
-    }
-    return Array.from(mapa.entries())
-  }, [auditoria, filtroFechaActividad, filtroActorActividad])
-
-  const anilloR = 54
-  const anilloCircunferencia = 2 * Math.PI * anilloR
-  const anilloProgreso = (pctActivas / 100) * anilloCircunferencia
-  // El strokeDasharray ya animaba con CSS transition, pero solo si el VALOR
-  // cambiaba después del primer render — en la carga inicial React pinta
-  // directo el valor final, sin ningún "de 0 a X" que animar. Arranca en 0 y
-  // pasa al valor real un tick después del montaje, para que la transición
-  // sí tenga algo que animar la primera vez que se ve el donut.
-  const [donutMontado, setDonutMontado] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setDonutMontado(true), 50)
-    return () => clearTimeout(t)
-  }, [])
 
   // Última acción real de cada superadmin (de lo que ya está cargado en
   // `auditoria`, que viene ordenada desc) — para que la lista de Superadmins
@@ -1753,470 +1375,20 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Secciones ───
 
-  const hoyFechaResumen = formatoFecha(ahoraEcuador(), "largo")
 
   // Solo se muestra en la primerísima carga (cargaInicial) — evita el "flash"
   // de tarjetas en 0 y gráficos vacíos antes de que responda Supabase, sin
   // tapar el panel de nuevo en cada refetch posterior a una acción.
   const Skeleton = ({ className }) => <div className={"animate-pulse rounded-2xl bg-slate-200/70 " + className} />
 
-  const renderResumenSkeleton = () => (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Resumen</h1>
-          <p className="text-sm text-slate-400">Cargando panel…</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Skeleton className="h-[104px]" /><Skeleton className="h-[104px]" /><Skeleton className="h-[104px]" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Skeleton className="h-[220px] lg:col-span-3" />
-        <Skeleton className="h-[220px] lg:col-span-2" />
-      </div>
-      <Skeleton className="h-[180px]" />
-      <Skeleton className="h-[260px]" />
-    </div>
-  )
-
-  const renderResumen = () => cargaInicial ? renderResumenSkeleton() : (
-    <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Resumen</h1>
-          <p className="text-sm text-slate-500">
-            {hoyFechaResumen} · {opticas.length} óptica{opticas.length === 1 ? "" : "s"} bajo gestión
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={abrirCrear}
-            className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-            style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.55)" }}
-          >
-            <Plus size={16} /> Crear óptica
-          </button>
-          <button
-            type="button"
-            onClick={abrirCrearSuperadmin}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-md cursor-pointer"
-          >
-            <ShieldCheck size={16} className="text-violet-600" /> Agregar superadmin
-          </button>
-        </div>
-      </div>
-
-      {/* ─── Stat cards ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {tarjetas.map((t, i) => {
-          const Icono = t.icon
-          let delta = null
-          if (t.key === "Todas") delta = { texto: creadasEsteMes > 0 ? `+${creadasEsteMes} este mes` : "sin nuevas este mes", tono: creadasEsteMes > 0 ? "#059669" : "#94A3B8" }
-          else if (t.key === "Activas") delta = { texto: `${pctActivas}% del total`, tono: "#059669" }
-          else delta = { texto: totalSuspendidas > 0 ? "revisar" : "ninguna", tono: totalSuspendidas > 0 ? "#E11D48" : "#94A3B8" }
-          // Solo "Ópticas totales" tiene una serie histórica real y honesta
-          // (creación acumulada mes a mes) — "Activas"/"Suspendidas" son un
-          // estado actual, no un conteo con historia propia, así que no se
-          // les fabrica una tendencia que no existe.
-          const sparkline = t.key === "Todas" ? sparklineOpticas : null
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => irAOpticasConFiltro(t.key)}
-              style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${i * 40}ms` }}
-              className={CARD + " group relative overflow-hidden p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
-                  <Icono size={15} />
-                </div>
-              </div>
-              <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="text-xs font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
-                {sparkline && <MiniSparkline valores={sparkline} color={t.fg} />}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ─── Usuarios del sistema (feedback del ing: admins/asistentes/pacientes, total y por óptica) ─── */}
-      <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Usuarios del sistema</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            { label: "Administradores", valor: totalesUsuarios.admins, icon: ShieldCheck, bg: "#E8F0FF", fg: "#2563EB", sparkline: sparklineAdmins },
-            { label: "Asistentes", valor: totalesUsuarios.asistentes, icon: Users, bg: "#F3E8FF", fg: "#7C3AED", sparkline: sparklineAsistentes },
-            { label: "Pacientes", valor: totalesUsuarios.pacientes, icon: Stethoscope, bg: "#E7F7EF", fg: "#059669", sparkline: sparklinePacientes },
-          ].map((t, i) => (
-            <div key={t.label} className={CARD + " p-4"} style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${(i + 3) * 40}ms` }}>
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: t.bg, color: t.fg }}>
-                  <t.icon size={15} />
-                </div>
-              </div>
-              <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
-                <MiniSparkline valores={t.sparkline} color={t.fg} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── Métricas clave de la red (SaaS): impacto real acumulado (no por
-          óptica) + salud de la conexión a Supabase — esta última basada en
-          la latencia real de la carga de datos de esta misma pantalla, no
-          un badge fijo en verde. ─── */}
-      <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Métricas clave de la red</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className={CARD + " p-4"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pacientes atendidos en la red</p>
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E7F7EF", color: "#059669" }}>
-                <Stethoscope size={15} />
-              </div>
-            </div>
-            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{pacientesAtendidosRed ?? "—"}</p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">con al menos una consulta, de {totalesUsuarios.pacientes} registrados</p>
-          </div>
-          <div className={CARD + " p-4"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Volumen de consultas generadas</p>
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E8F0FF", color: "#2563EB" }}>
-                <Stethoscope size={15} />
-              </div>
-            </div>
-            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{totalConsultasRed ?? "—"}</p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">fichas clínicas registradas, toda la red</p>
-          </div>
-          <div className={CARD + " p-4"}>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado del servicio</p>
-              <div
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
-                style={
-                  estadoServidor.estado === "operativo" ? { background: "#E7F7EF", color: "#059669" }
-                    : estadoServidor.estado === "lento" ? { background: "#FFF7E6", color: "#B45309" }
-                    : estadoServidor.estado === "verificando" ? { background: "#F1F5F9", color: "#64748B" }
-                    : { background: "#FEEBEE", color: "#E11D48" }
-                }
-              >
-                {estadoServidor.estado === "operativo" ? <CheckCircle2 size={15} /> : estadoServidor.estado === "lento" ? <AlertTriangle size={15} /> : <Ban size={15} />}
-              </div>
-            </div>
-            <p className="mt-2 flex items-center gap-1.5 font-serif text-[22px] font-semibold leading-none tracking-tight" style={{ color: INK }}>
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: estadoServidor.estado === "operativo" ? "#10B981" : estadoServidor.estado === "lento" ? "#F59E0B" : estadoServidor.estado === "verificando" ? "#94A3B8" : "#E11D48",
-                }}
-              />
-              {estadoServidor.estado === "operativo" ? "Operativo" : estadoServidor.estado === "lento" ? "Lento" : estadoServidor.estado === "verificando" ? "Verificando…" : "Sin conexión"}
-            </p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              {estadoServidor.latenciaMs != null ? `${estadoServidor.latenciaMs} ms · última carga de datos` : "esperando la próxima carga de datos"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Funnel comercial: página de venta → leads → clientes ───
-          Oculto en modo anteproyecto (MODO_SAAS_VISIBLE apagado): estos
-          paneles muestran el lado comercial multi-óptica (visitas, leads,
-          conversión), pero el acceso al panel de superadmin en sí NO se
-          restringe — solo se ocultan estos widgets. Ver [[project_ocultar_saas_anteproyecto]]. */}
-      {MODO_SAAS_VISIBLE && (
-        <>
-          <div>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Página de venta</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {tarjetasFunnel.map((t, i) => {
-                const Icono = t.icon
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => t.key === "leads" && setSeccion("leads")}
-                    style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${i * 40}ms` }}
-                    className={CARD + " group relative overflow-hidden p-4 text-left transition-all " + (t.key === "leads" ? "hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50" : "cursor-default")}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
-                        <Icono size={15} />
-                      </div>
-                    </div>
-                    <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className={CARD_PAD}>
-            <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Visitas a la página de venta</h3>
-              <span className="text-xs font-semibold text-slate-400">Últimos 7 días</span>
-            </div>
-            {visitasVenta.length === 0 ? (
-              <p className="py-14 text-center text-sm text-slate-400">Aún no hay visitas registradas.</p>
-            ) : (
-              <div ref={refGraficoVisitas} className="relative mt-3">
-                <svg viewBox={`0 0 ${anchoGraficoVisitas} 98`} className="w-full" style={{ height: 98 }} preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="barraVisitas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22D3EE" />
-                      <stop offset="100%" stopColor="#2563EB" />
-                    </linearGradient>
-                  </defs>
-                  {barrasVisitas.map((b, i) => {
-                    const clicable = b.valor > 0
-                    return (
-                      <g
-                        key={i}
-                        className={clicable ? "cursor-pointer group/barravisita" : "group/barravisita"}
-                        onMouseEnter={() => clicable && setHoverVisitaIdx(i)}
-                        onMouseLeave={() => setHoverVisitaIdx(null)}
-                      >
-                        <rect x={b.x} y="2" width={b.w} height="80" fill="transparent" />
-                        <rect
-                          x={b.x} y={b.y} width={b.w} height={b.h} rx="6"
-                          fill="url(#barraVisitas)"
-                          className={"transition-transform duration-150 " + (clicable ? "group-hover/barravisita:brightness-110" : "opacity-30")}
-                          style={hoverVisitaIdx === i ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.06)" } : undefined}
-                          shapeRendering="geometricPrecision"
-                        />
-                        <text x={b.cx} y="94" textAnchor="middle" fontSize="12" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
-                      </g>
-                    )
-                  })}
-                </svg>
-                {hoverVisitaIdx !== null && (
-                  <div
-                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ left: `${(barrasVisitas[hoverVisitaIdx].cx / anchoGraficoVisitas) * 100}%`, top: barrasVisitas[hoverVisitaIdx].y - 8, background: INK }}
-                  >
-                    {visitasPorDia[hoverVisitaIdx].valor} visita{visitasPorDia[hoverVisitaIdx].valor === 1 ? "" : "s"}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ─── Bento: ópticas creadas por mes + estado del sistema ─── */}
-      {/* items-start: cada tarjeta se ajusta a su propio contenido en vez de
-          estirarse a la altura de la más alta — "Estado del sistema" tiene
-          bastante más contenido (donut + tiles + aviso) que un gráfico
-          simple, y estirar el gráfico para igualar esa altura dejaba un
-          hueco vacío abajo en vez de una tarjeta más compacta. */}
-      <div className={MODO_SAAS_VISIBLE ? "grid grid-cols-1 items-start gap-4 lg:grid-cols-5" : ""}>
-        {/* "Ópticas creadas por mes" revela el ritmo de altas comerciales —
-            oculto en modo anteproyecto, ver [[project_ocultar_saas_anteproyecto]]. */}
-        {MODO_SAAS_VISIBLE && (
-          <div className={CARD_PAD + " lg:col-span-3"}>
-            <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Ópticas creadas por mes</h3>
-              <span className="text-xs font-semibold text-slate-400">Últimos 6 meses</span>
-            </div>
-            {opticas.length === 0 ? (
-              <p className="py-14 text-center text-sm text-slate-400">Aún no hay ópticas registradas.</p>
-            ) : (
-              <div ref={refGraficoOpticas} className="relative mt-3">
-                <svg viewBox={`0 0 ${anchoGraficoOpticas} 110`} className="w-full" style={{ height: 110 }} preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="areaOpticas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563EB" stopOpacity="0.18" />
-                      <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d={curvaOpticas.area} fill="url(#areaOpticas)" />
-                  <path d={curvaOpticas.linea} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  {curvaOpticas.puntos.map((p, i) => (
-                    <g key={i} className="cursor-pointer" onMouseEnter={() => setHoverMesIdx(i)} onMouseLeave={() => setHoverMesIdx(null)}>
-                      <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
-                      <circle
-                        cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
-                        className={"transition-transform duration-150 " + (hoverMesIdx === i ? "scale-[1.6]" : "scale-100")}
-                        style={{ transformBox: "fill-box", transformOrigin: "center" }}
-                      />
-                      <text x={p[0]} y={p[1] - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill="#334155">{opticasPorMes[i].valor}</text>
-                      <text x={p[0]} y="104" textAnchor="middle" fontSize="12" fontWeight="600" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{opticasPorMes[i].etiqueta}</text>
-                    </g>
-                  ))}
-                </svg>
-                {hoverMesIdx !== null && (
-                  <div
-                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ left: `${(curvaOpticas.puntos[hoverMesIdx][0] / anchoGraficoOpticas) * 100}%`, top: curvaOpticas.puntos[hoverMesIdx][1] - 14, background: INK }}
-                  >
-                    {opticasPorMes[hoverMesIdx].valor} óptica{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"} creada{opticasPorMes[hoverMesIdx].valor === 1 ? "" : "s"}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className={CARD_PAD + (MODO_SAAS_VISIBLE ? " lg:col-span-2 flex flex-col" : " flex flex-col lg:max-w-md")}>
-          <h3 className="mb-3 text-[13.5px] font-bold" style={{ color: INK }}>Estado del sistema</h3>
-          <div className="flex items-center justify-center gap-5">
-            <svg
-              width="128" height="128" viewBox="0 0 128 128"
-              className="shrink-0 cursor-pointer transition-transform duration-200 hover:scale-110"
-            >
-              <title>{`${pctActivas}% de las ópticas están activas`}</title>
-              <circle cx="64" cy="64" r={anilloR} fill="none" stroke="#FEE2E2" strokeWidth="14" />
-              <circle
-                cx="64" cy="64" r={anilloR} fill="none" stroke="#10B981" strokeWidth="14" strokeLinecap="round"
-                strokeDasharray={`${donutMontado ? anilloProgreso : 0} ${anilloCircunferencia}`}
-                transform="rotate(-90 64 64)"
-                style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.16,1,0.3,1)" }}
-              />
-              <text x="64" y="60" textAnchor="middle" fontSize="22" fontWeight="600" fontFamily="Newsreader, serif" fill={INK}>{pctActivas}%</text>
-              <text x="64" y="76" textAnchor="middle" fontSize="12" fontWeight="600" fill="#94A3B8">activas</text>
-            </svg>
-          </div>
-          {/* Solo ocupa espacio si realmente hay algo que atender — Diego: la
-              mayoría de las ópticas siempre van a tener admin (se crean juntos),
-              así que un aviso permanente todo-en-verde no aportaba nada. */}
-          {opticasSinAdmin.length > 0 && (
-            <button
-              type="button"
-              onClick={() => irAOpticasConFiltro("Todas")}
-              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
-            >
-              <AlertTriangle size={13} className="shrink-0" />
-              {opticasSinAdmin.length} óptica{opticasSinAdmin.length === 1 ? "" : "s"} sin administrador
-              <ChevronRight size={13} className="ml-auto shrink-0" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Actividad por día — área suave con gradiente (antes barras),
-          filtro de rango 7d/30d/este mes, punto activo + tooltip flotante.
-          Clic en un punto salta a Actividad filtrada a ese día. ─── */}
-      <div className={CARD_PAD}>
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad por día</h3>
-            <p className="text-xs font-semibold text-slate-400">
-              {totalActividadResumen} {totalActividadResumen === 1 ? "acción" : "acciones"} · clic en un punto para ver el detalle
-            </p>
-          </div>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-            {[{ key: "7d", label: "7 días" }, { key: "30d", label: "30 días" }, { key: "mes", label: "Este mes" }].map((r) => (
-              <button
-                key={r.key}
-                type="button"
-                onClick={() => setRangoActividadResumen(r.key)}
-                className={"rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (rangoActividadResumen === r.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                style={rangoActividadResumen === r.key ? { color: INK } : undefined}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {auditoriaResumen.length === 0 ? (
-          <p className="py-14 text-center text-sm text-slate-400">Sin actividad registrada en este rango.</p>
-        ) : (
-          <div ref={refGraficoActividad} className="relative mt-4">
-            <svg viewBox={`0 0 ${anchoGraficoActividad} 130`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
-              <defs>
-                <radialGradient id="areaActividadRadiante" cx="50%" cy="0%" r="100%">
-                  <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-                </radialGradient>
-                <linearGradient id="lineaActividad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#22D3EE" />
-                  <stop offset="100%" stopColor="#2563EB" />
-                </linearGradient>
-              </defs>
-              <path d={curvaActividad.area} fill="url(#areaActividadRadiante)" />
-              <path d={curvaActividad.linea} fill="none" stroke="url(#lineaActividad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              {curvaActividad.puntos.map((p, i) => {
-                const d = actividadPorDia[i]
-                const clicable = d.valor > 0
-                const mostrarEtiqueta = i === 0 || i === curvaActividad.puntos.length - 1 || i % pasoEtiquetaActividad === 0
-                return (
-                  <g
-                    key={d.clave}
-                    className={clicable ? "cursor-pointer" : ""}
-                    onMouseEnter={() => setHoverBarClave(d.clave)}
-                    onMouseLeave={() => setHoverBarClave(null)}
-                    onClick={() => {
-                      if (!clicable) return
-                      setFiltroFechaActividad(d.clave)
-                      setFiltroActorActividad(null)
-                      setDiasActividadColapsados((prev) => { const s = new Set(prev); s.delete(d.clave); return s })
-                      setSeccion("actividad")
-                    }}
-                  >
-                    <circle cx={p[0]} cy={p[1]} r="11" fill="transparent" />
-                    <circle
-                      cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#2563EB" strokeWidth="2"
-                      className="transition-transform duration-150"
-                      style={{ transformBox: "fill-box", transformOrigin: "center", transform: hoverBarClave === d.clave ? "scale(1.8)" : "scale(1)" }}
-                    />
-                    {mostrarEtiqueta && (
-                      <text x={p[0]} y="126" textAnchor="middle" fontSize="12" fontWeight="700" fill="#94A3B8">{d.etiqueta}</text>
-                    )}
-                  </g>
-                )
-              })}
-            </svg>
-            {hoverBarClave && (() => {
-              const idx = actividadPorDia.findIndex((x) => x.clave === hoverBarClave)
-              if (idx === -1) return null
-              const d = actividadPorDia[idx]
-              const p = curvaActividad.puntos[idx]
-              const fechaLinda = formatoFecha(d.clave, "medioSinAnio")
-              return (
-                <div
-                  className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(15,23,42,0.35)]"
-                  style={{ left: `${(p[0] / anchoGraficoActividad) * 100}%`, top: p[1] - 12, background: INK }}
-                >
-                  <span className="block text-xs font-bold uppercase tracking-wide text-white/60">{fechaLinda}</span>
-                  {d.valor} {d.valor === 1 ? "acción" : "acciones"}{d.valor > 0 && <span className="text-white/60"> · clic para ver el detalle</span>}
-                </div>
-              )
-            })()}
-          </div>
-        )}
-      </div>
-
-      {/* ─── Actividad reciente ─── */}
-      <div className={CARD_PAD}>
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History size={16} className="text-slate-400" />
-            <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad reciente</h3>
-          </div>
-          <button type="button" onClick={() => setSeccion("actividad")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-            Ver toda la actividad <ChevronRight size={13} />
-          </button>
-        </div>
-        {auditoria.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">Todavía no hay acciones registradas.</p>
-        ) : (
-          <ul className="space-y-3">
-            {auditoria.slice(0, 5).map((a) => <ItemAuditoria key={a.id} a={a} />)}
-          </ul>
-        )}
-      </div>
-    </div>
+  const renderResumen = () => cargaInicial ? (
+    <div className="space-y-4" aria-busy="true" aria-label="Cargando el resumen">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" />)}</div>
+  ) : (
+    <ResumenNegocio
+      opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
+      incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} usuario={usuario}
+      onAbrir={irA} onEntrarComo={(o) => alEntrarComo?.(o)} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
+    />
   )
 
   const MENSAJES_FILTROS = [
@@ -2606,89 +1778,10 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   )
 
   const renderActividad = () => (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Actividad</h1>
-        <p className="text-sm text-slate-500">Registro de auditoría de acciones administrativas.</p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-          {FILTROS_ACTIVIDAD.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setAuditoriaFiltro(f.key)}
-              className={"rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (auditoriaFiltro === f.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-              style={auditoriaFiltro === f.key ? { color: INK } : undefined}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        {filtroFechaActividad && (
-          <span className="flex items-center gap-1.5 rounded-full bg-blue-50 py-1.5 pl-3.5 pr-2 text-xs font-semibold text-blue-700">
-            {etiquetaFecha(filtroFechaActividad)}
-            <button type="button" onClick={() => setFiltroFechaActividad(null)} title="Quitar filtro de fecha" aria-label="Quitar filtro de fecha" className="rounded-full p-0.5 hover:bg-blue-100 cursor-pointer"><X size={12} /></button>
-          </span>
-        )}
-        {filtroActorActividad && (
-          <span className="flex items-center gap-1.5 rounded-full bg-blue-50 py-1.5 pl-3.5 pr-2 text-xs font-semibold text-blue-700">
-            De {filtroActorActividad.nombre}
-            <button type="button" onClick={() => setFiltroActorActividad(null)} title="Quitar filtro de persona" aria-label="Quitar filtro de persona" className="rounded-full p-0.5 hover:bg-blue-100 cursor-pointer"><X size={12} /></button>
-          </span>
-        )}
-      </div>
-
-      {auditoriaAgrupada.length === 0 ? (
-        <div className={CARD_PAD}>
-          <p className="py-10 text-center text-sm text-slate-400">No hay actividad para este filtro.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {auditoriaAgrupada.map(([dia, items]) => {
-            const hoyDia = esHoy(dia)
-            const colapsado = diasActividadColapsados.has(dia)
-            return (
-              <div key={dia} className={CARD}>
-                <button
-                  type="button"
-                  onClick={() => alternarDiaActividad(dia)}
-                  className="flex w-full items-center gap-2 rounded-t-[22px] px-5 py-3.5 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset"
-                  title={colapsado ? "Expandir este día" : "Colapsar este día"}
-                >
-                  <ChevronDown size={15} className={"shrink-0 text-slate-400 transition-transform " + (colapsado ? "-rotate-90" : "")} />
-                  <h4 className="text-sm font-bold capitalize" style={{ color: INK }}>{etiquetaFecha(dia)}</h4>
-                  {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
-                  <span className="text-xs text-slate-400">· {items.length} {items.length === 1 ? "acción" : "acciones"}</span>
-                </button>
-                {!colapsado && (
-                  <ul className="space-y-3 border-t border-slate-100 px-5 pb-5 pt-4">
-                    {items.map((a) => <ItemAuditoria key={a.id} a={a} />)}
-                  </ul>
-                )}
-              </div>
-            )
-          })}
-          {!filtroFechaActividad && (
-            <div className="flex justify-center pt-1">
-              {auditoriaTieneMas ? (
-                <button
-                  type="button"
-                  onClick={() => cargarAuditoria(false)}
-                  disabled={auditoriaCargandoMas}
-                  className="rounded-xl border border-slate-200/60 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-60"
-                >
-                  {auditoriaCargandoMas ? "Cargando…" : "Cargar más"}
-                </button>
-              ) : (
-                <p className="text-xs text-slate-400">No hay más actividad para mostrar.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <ActividadSuperadmin
+      opticas={opticas} superadmins={superadmins} incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} destino={destinoActividad}
+      recarga={auditoria[0]?.id || ""} usuario={usuario} onAbrir={irA} onAviso={(t) => mostrarToast("exito", t)}
+    />
   )
 
   const ESTADO_LEAD = {
@@ -2857,7 +1950,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 type="button"
                 onClick={() => {
                   if (esVos) { abrirMiCuenta(); return }
-                  setFiltroActorActividad({ id: s.id, nombre: s.nombre }); setFiltroFechaActividad(null); setAuditoriaFiltro("todas"); setSeccion("actividad")
+                  irA("actividad", { actorId: s.id })
                 }}
                 title={esVos ? "Editar mi cuenta" : `Ver actividad de ${s.nombre}`}
                 className="group flex min-w-0 items-center gap-3.5 rounded-xl text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
@@ -2907,7 +2000,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 })()}
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Última acción</p>
-                  <p className="text-[13px] text-slate-600">{textoAuditoria(ultima)} <span className="text-slate-400">· {formatearFechaHora(ultima.created_at)}</span></p>
+                  <p className="text-[13px] text-slate-600">{textoDeAccion(ultima)} <span className="text-slate-400">· {formatearFechaHora(ultima.created_at)}</span></p>
                 </div>
               </div>
             )}

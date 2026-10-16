@@ -156,15 +156,24 @@ export function saludDeLaRed({ opticas, personas, uso, facturas, consultas, hoyI
 }
 export const contarSalud = (filas) => ({ riesgo: filas.filter((f) => f.salud.estado === "riesgo").length, atencion: filas.filter((f) => f.salud.estado === "atencion").length, saludable: filas.filter((f) => f.salud.estado === "saludable").length })
 
+// ── Soporte ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Las consultas que estaban abiertas al cierre de un día (creadas hasta ese día y todavía no resueltas ese día), para comparar con hoy.
+export function consultasAbiertasAl(consultas, fechaISO) {
+  return consultas.filter((c) => diaDe(c.creadaEn) <= fechaISO && !(c.resueltaEn && diaDe(c.resueltaEn) <= fechaISO))
+}
+// Los instantes que abren y cierran un día de Ecuador (UTC-5 todo el año), para pedirle a `indicadoresSoporte` un período.
+export const instanteInicio = (diaISO) => `${diaISO}T00:00:00-05:00`
+export const instanteFin = (diaISO) => `${diaISO}T23:59:59.999-05:00`
+
 // ── Uso del sistema ──────────────────────────────────────────────────────────────────────────────────────────────────
 export const MODULOS_USO = [
-  { id: "citas", nombre: "Citas médicas" },
-  { id: "pacientes", nombre: "Pacientes" },
-  { id: "consultas", nombre: "Ficha clínica" },
-  { id: "ventas", nombre: "Ventas" },
-  { id: "inventario", nombre: "Inventario" },
-  { id: "crm", nombre: "CRM y fidelización" },
-  { id: "reportes", nombre: "Reportes" },
+  { id: "citas", nombre: "Citas médicas", corto: "Citas" },
+  { id: "pacientes", nombre: "Pacientes", corto: "Pacientes" },
+  { id: "consultas", nombre: "Ficha clínica", corto: "Fichas" },
+  { id: "ventas", nombre: "Ventas", corto: "Ventas" },
+  { id: "inventario", nombre: "Inventario", corto: "Inventario" },
+  { id: "crm", nombre: "CRM y fidelización", corto: "CRM" },
+  { id: "reportes", nombre: "Reportes", corto: "Reportes" },
 ]
 // Personas que registraron alguna acción en 30 días y los 30 anteriores, sumando las ópticas dadas.
 export function usoDeLaRed(uso, opticaIds) {
