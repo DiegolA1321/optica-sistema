@@ -3,7 +3,7 @@
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible, tituloSemana } from "../utilidades/formatoFecha"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -138,7 +138,12 @@ import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
 import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
 import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
-import { textoDeAccion } from "../utilidades/superadminNegocio"
+import { textoDeAccion, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
+import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
+import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
+import { SinResultados } from "../componentes/reportes/bloques"
+import { ESTADOS_LEAD_LISTA } from "../componentes/superadmin/ResumenNegocio"
+import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba } from "../componentes/superadmin/piezas"
 import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
 
@@ -196,7 +201,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [destinoSoporte, setDestinoSoporte] = useState(null)
   const [destinoActividad, setDestinoActividad] = useState(null)
   const [filtrosOpticas, setFiltrosOpticas] = useState({ desde: "", hasta: "", pago: "" })
-  const [rangoLeads, setRangoLeads] = useState({ desde: "", hasta: "" })
+  const [periodoLeads, setPeriodoLeads] = useState("todo")
+  const [personalizadoLeads, setPersonalizadoLeads] = useState({ inicio: "", fin: "" })
+  const [leadAbierto, setLeadAbierto] = useState(null)
   const [colapsado, setColapsado] = useState(false)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
@@ -551,9 +558,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }
 
   const marcarLead = async (id, estado) => {
+    const lead = leads.find((l) => l.id === id)
     setProcesandoLeadId(id)
     const { error } = await supabase.from("leads").update({ estado }).eq("id", id)
-    if (!error) setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, estado } : l)))
+    if (!error) {
+      setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, estado } : l)))
+      setLeadAbierto((prev) => (prev && prev.id === id ? { ...prev, estado } : prev))
+      await registrarAuditoria("cambiar_estado_lead", { opticaNombre: lead?.nombre_optica || "Lead", detalle: lead?.nombre_optica || null, antes: lead?.estado || null, despues: estado })
+      cargarAuditoria(true)
+      mostrarToast("exito", estado === "contactado" ? "Lead marcado como contactado." : estado === "descartado" ? "Lead descartado." : "Lead actualizado.")
+    } else mostrarToast("error", "No se pudo actualizar el lead. Vuelve a intentarlo.")
     setProcesandoLeadId(null)
   }
 
@@ -672,7 +686,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const pacientesPorOptica = useMemo(() => contarPorOptica(pacientesOpticaId), [pacientesOpticaId])
 
   // Lo que espera al soporte: consultas abiertas cuyo último mensaje es de la óptica (la insignia del menú y la bandeja cuentan lo mismo).
-  const consultasAbiertas = useMemo(() => consultasSoporte.filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte])
+  const consultasAbiertas = useMemo(() => sinPruebas(consultasSoporte, opticas, incluirPrueba, "opticaId").filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte, opticas, incluirPrueba])
   const mensajesFiltrados = useMemo(() => mensajes.filter((m) => m.tipo === "anuncio"), [mensajes])
   const opticasConPagoProblema = useMemo(() => opticas.filter((o) => o.estado_pago && o.estado_pago !== "al_dia"), [opticas])
   const cumpleanosProximos = useMemo(() => {
@@ -682,12 +696,24 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       .sort((a, b) => a.dias - b.dias)
   }, [admins])
 
+  // Las ópticas que cuentan: las de prueba solo con el interruptor. Todos los números de las secciones salen de aquí.
+  const opticasVisibles = useMemo(() => opticasDelNegocio(opticas, incluirPrueba), [opticas, incluirPrueba])
+  const consultasVisibles = useMemo(() => sinPruebas(consultasSoporte, opticas, incluirPrueba, "opticaId"), [consultasSoporte, opticas, incluirPrueba])
+  const saludPorOptica = useMemo(() => {
+    const filas = saludDeLaRed({ opticas: opticasVisibles, personas: datosNegocio.personas, uso: datosNegocio.uso, facturas: datosNegocio.facturas, consultas: consultasVisibles, hoyISO: hoyISO() })
+    return new Map(filas.map((f) => [f.optica.id, f.salud]))
+  }, [opticasVisibles, datosNegocio.personas, datosNegocio.uso, datosNegocio.facturas, consultasVisibles])
+  const usoPorOptica = useMemo(() => new Map(datosNegocio.uso.map((u) => [u.optica_id, u])), [datosNegocio.uso])
+
   const opticasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    return opticas.filter((o) => {
+    return opticasVisibles.filter((o) => {
       const listaAdmins = adminsPorOptica.get(o.id) || []
       if (filtroEstado === "Activas" && !o.activa) return false
       if (filtroEstado === "Suspendidas" && o.activa) return false
+      if (filtrosOpticas.pago && (o.estado_pago || "al_dia") !== filtrosOpticas.pago) return false
+      if (filtrosOpticas.desde && diaDe(o.created_at) < filtrosOpticas.desde) return false
+      if (filtrosOpticas.hasta && diaDe(o.created_at) > filtrosOpticas.hasta) return false
       if (!q) return true
       return (
         o.nombre.toLowerCase().includes(q) ||
@@ -695,22 +721,17 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         listaAdmins.some((a) => a.nombre.toLowerCase().includes(q) || (a.email || "").toLowerCase().includes(q))
       )
     })
-  }, [opticas, adminsPorOptica, busqueda, filtroEstado])
+  }, [opticasVisibles, adminsPorOptica, busqueda, filtroEstado, filtrosOpticas])
 
-  const totalActivas = opticas.filter((o) => o.activa).length
-  const totalSuspendidas = opticas.length - totalActivas
+  const totalActivas = opticasVisibles.filter((o) => o.activa).length
+  const totalSuspendidas = opticasVisibles.length - totalActivas
+  const nPrueba = opticas.filter(esDePrueba).length
 
-  // Antes había una 4ta tarjeta "Administradores" — se sacó porque su número
-  // (admins.length) casi siempre coincide con "Ópticas totales" (cada óptica
-  // se crea junto con su admin) y el filtro que abría ("ópticas con al menos
-  // un admin") no correspondía uno a uno con ese número cuando una óptica
-  // tenía más de un admin — confuso y redundante (feedback de Diego).
   const tarjetas = [
-    { key: "Todas", label: "Ópticas totales", valor: opticas.length, icon: Building2, bg: "#E8F0FF", fg: "#2563EB" },
-    { key: "Activas", label: "Activas", valor: totalActivas, icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
-    { key: "Suspendidas", label: "Suspendidas", valor: totalSuspendidas, icon: Ban, bg: "#FEEBEE", fg: "#E11D48" },
+    { key: "Todas", label: "Todas", valor: opticasVisibles.length, fg: "#2563EB" },
+    { key: "Activas", label: "Activas", valor: totalActivas, fg: "#059669" },
+    { key: "Suspendidas", label: "Suspendidas", valor: totalSuspendidas, fg: "#E11D48" },
   ]
-
 
   // Los "Abrir en …" del Resumen: llegan a la sección con el mismo período y los mismos filtros que el número que se pulsó.
   const irA = (modulo, params = {}) => {
@@ -723,7 +744,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       const o = params.abrir ? opticas.find((x) => x.id === params.abrir) : null
       if (o) abrirDetalleOptica(o)
     } else if (modulo === "leads") {
-      setRangoLeads({ desde: params.desde || "", hasta: params.hasta || "" })
+      if (params.desde || params.hasta) { setPeriodoLeads("personalizado"); setPersonalizadoLeads({ inicio: params.desde || "", fin: params.hasta || "" }) } else setPeriodoLeads("todo")
       setFiltroEstadoLeads(params.estado || "todos")
       setBusquedaLeads("")
       setSeccion("leads")
@@ -1663,191 +1684,153 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   )
 
   const renderMensajes = () => (
-    <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3.5">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-            <MessageSquare size={22} />
-          </div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Soporte</h1>
-        </div>
+    <div className="space-y-3" data-soporte>
+      <CabeceraSeccion titulo="Soporte" pregunta="¿Qué óptica necesita ayuda y qué tan rápido la estamos atendiendo?">
+        <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />
         <button
           type="button"
           onClick={() => { setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo(""); setAvisoDestino("todos"); setModalAvisoAbierto(true) }}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
+          className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
+          style={{ background: GRAD }}
         >
-          <Megaphone size={18} />
-          Nuevo aviso
+          <Megaphone size={15} aria-hidden="true" /> Nuevo aviso
         </button>
-      </div>
-      <SoporteSuperadmin consultas={consultasSoporte} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticas}
+      </CabeceraSeccion>
+      <SoporteSuperadmin inicial={destinoSoporte} consultas={consultasVisibles} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticasVisibles}
         onAuditoria={async (accion, datos) => { await registrarAuditoria(accion, datos); cargarAuditoria(true) }} onToast={mostrarToast} avisos={renderAvisos()} />
     </div>
   )
 
-  const renderOpticas = () => (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Ópticas</h1>
-          <p className="text-sm text-slate-500">Crea y administra las ópticas que usan el sistema.</p>
-        </div>
-        <button
-          type="button"
-          onClick={abrirCrear}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <Plus size={18} />
-          Crear óptica
-        </button>
-      </div>
+  const PAGO_ETIQUETA = { al_dia: "Al día", pendiente: "Pendiente", vencido: "Vencido" }
+  const etiquetasOpticas = [
+    filtroEstado !== "Todas" && { id: "estado", texto: `Estado: ${filtroEstado === "Activas" ? "Activas" : "Suspendidas"}`, quitar: () => setFiltroEstado("Todas") },
+    filtrosOpticas.pago && { id: "pago", texto: `Pago: ${PAGO_ETIQUETA[filtrosOpticas.pago]}`, quitar: () => setFiltrosOpticas((f) => ({ ...f, pago: "" })) },
+    (filtrosOpticas.desde || filtrosOpticas.hasta) && { id: "creada", texto: `Creadas: ${filtrosOpticas.desde ? fechaLegible(filtrosOpticas.desde) : "…"} – ${filtrosOpticas.hasta ? fechaLegible(filtrosOpticas.hasta) : "…"}`, quitar: () => setFiltrosOpticas((f) => ({ ...f, desde: "", hasta: "" })) },
+    busqueda.trim() && { id: "busqueda", texto: `Texto: «${busqueda.trim()}»`, quitar: () => setBusqueda("") },
+    incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => setIncluirPrueba(false) },
+  ].filter(Boolean)
+  const limpiarOpticas = () => { setFiltroEstado("Todas"); setBusqueda(""); setFiltrosOpticas({ desde: "", hasta: "", pago: "" }); setIncluirPrueba(false) }
+  const celdaTitulo = "px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500"
 
-      <div className={CARD + " p-4"}>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative min-w-[220px] flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Nombre, dirección de la página o administrador..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-            />
-            {busqueda && (
-              <button
-                type="button"
-                onClick={() => setBusqueda("")}
-                title="Limpiar búsqueda"
-                aria-label="Limpiar búsqueda"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
+  const renderOpticas = () => (
+    <div className="space-y-3" data-opticas>
+      <CabeceraSeccion titulo="Ópticas" pregunta="¿Qué ópticas tengo, cómo van y cuál necesita atención?">
+        <button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>
+      </CabeceraSeccion>
+
+      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Estado" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
             {tarjetas.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setFiltroEstado(t.key)}
-                className={"flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (filtroEstado === t.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                style={filtroEstado === t.key ? { color: INK } : undefined}
-              >
-                {t.label} <span className={filtroEstado === t.key ? "font-extrabold" : "opacity-60"} style={filtroEstado === t.key ? { color: t.fg } : undefined}>{t.valor}</span>
+              <button key={t.key} type="button" aria-pressed={filtroEstado === t.key} onClick={() => setFiltroEstado(t.key)} className={"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (filtroEstado === t.key ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={filtroEstado === t.key ? { background: GRAD } : undefined}>
+                {t.label} <span className={filtroEstado === t.key ? "text-white/85" : "text-slate-500"}>{t.valor}</span>
               </button>
             ))}
           </div>
+          <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
+            <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
+            <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre, dirección de la página o administrador" aria-label="Buscar ópticas" className="mt-0.5 block h-9 w-full rounded-lg border border-slate-200/60 bg-white pl-8 pr-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500 [&::-webkit-search-cancel-button]:hidden" />
+          </label>
+          <label className="text-xs font-semibold text-slate-500">Pago
+            <select aria-label="Pago" value={filtrosOpticas.pago} onChange={(e) => setFiltrosOpticas((f) => ({ ...f, pago: e.target.value }))} className="mt-0.5 block h-9 w-40 rounded-lg border border-slate-200/60 bg-white px-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500">
+              <option value="">Todos</option>
+              {Object.entries(PAGO_ETIQUETA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <EtiquetasFiltros etiquetas={etiquetasOpticas} onLimpiar={limpiarOpticas} />
         </div>
       </div>
 
-      <div className={CARD + " overflow-hidden"}>
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200/60 bg-slate-50/70 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                <th className="w-[30%] px-5 py-3.5">Óptica</th>
-                <th className="w-[26%] px-5 py-3.5">Administrador</th>
-                <th className="w-[14%] px-5 py-3.5">Estado</th>
-                <th className="w-[16%] px-5 py-3.5">Creada</th>
-                <th className="w-[14%] px-5 py-3.5 text-center">Acciones</th>
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <table className="w-full table-fixed text-left text-sm" aria-label="Ópticas">
+          <thead>
+            <tr className="border-b border-slate-200/60 bg-slate-50/70">
+              <th scope="col" className={celdaTitulo + " w-[25%]"}>Óptica</th>
+              <th scope="col" className={celdaTitulo + " w-[19%]"}>Administrador</th>
+              <th scope="col" className={celdaTitulo + " w-[10%]"}>Estado</th>
+              <th scope="col" className={celdaTitulo + " w-[10%]"}>Salud</th>
+              <th scope="col" className={celdaTitulo + " w-[10%]"}>Pago</th>
+              <th scope="col" className={celdaTitulo + " w-[10%] text-right"}>Uso 30 d</th>
+              <th scope="col" className={celdaTitulo + " w-[11%]"}>Creada</th>
+              <th scope="col" className={celdaTitulo + " w-[5%] text-center"}><span className="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {cargando ? (
+              [0, 1, 2, 3].map((i) => <tr key={i}><td colSpan={8} className="px-4 py-3"><div className="h-9 animate-pulse rounded-lg bg-slate-200/70" /></td></tr>)
+            ) : opticasFiltradas.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-12">
+                  <div role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 text-center">
+                    <Building2 size={22} className="text-slate-400" aria-hidden="true" />
+                    <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : "Todas las ópticas son de prueba y no se muestran por defecto."}</p>
+                    {opticas.length === 0 ? (
+                      <button type="button" onClick={abrirCrear} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Crear la primera óptica</button>
+                    ) : etiquetasOpticas.length > 0 ? (
+                      <button type="button" onClick={limpiarOpticas} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Limpiar filtros</button>
+                    ) : (
+                      <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir ópticas de prueba</button>
+                    )}
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {cargando ? (
-                <tr>
-                  <td colSpan={5} className="py-16 text-center text-sm text-slate-500">Cargando ópticas…</td>
-                </tr>
-              ) : opticasFiltradas.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-16 text-center">
-                    <div className="mx-auto max-w-xs space-y-3">
-                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-300">
-                        <Building2 size={28} />
+            ) : (
+              opticasFiltradas.map((o) => {
+                const listaAdmins = adminsPorOptica.get(o.id) || []
+                const procesando = procesandoId === o.id
+                const salud = saludPorOptica.get(o.id)
+                const u = usoPorOptica.get(o.id)
+                return (
+                  <tr key={o.id} className="group cursor-pointer transition-colors hover:bg-slate-50/70" onClick={() => abrirDetalleOptica(o)}>
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>{o.nombre.charAt(0).toUpperCase()}</div>
+                        <div className="min-w-0">
+                          <button type="button" onClick={(e) => { e.stopPropagation(); abrirDetalleOptica(o) }} aria-label={`Ver el detalle de ${o.nombre}`} className="block max-w-full truncate text-left font-semibold text-slate-800 transition-colors group-hover:text-blue-600 focus-visible:outline-none focus-visible:underline cursor-pointer" title={o.nombre}>{o.nombre}</button>
+                          <p className="flex items-center gap-1.5 text-xs text-slate-500"><span className="truncate font-mono">{o.slug}</span>{esDePrueba(o) && <EtiquetaPrueba />}</p>
+                        </div>
                       </div>
-                      <p className="text-sm font-semibold text-slate-500">
-                        {opticas.length === 0 ? "Aún no hay ópticas registradas." : "Ninguna óptica coincide con la búsqueda."}
-                      </p>
-                      {opticas.length === 0 && (
-                        <button type="button" onClick={abrirCrear} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                          Crear la primera
-                        </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      {listaAdmins.length === 0 ? (
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700"><AlertTriangle size={13} aria-hidden="true" /> Sin administrador</span>
+                      ) : (
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-700">{listaAdmins[0].nombre}{listaAdmins.length > 1 ? ` +${listaAdmins.length - 1}` : ""}</p>
+                          <p className="truncate text-xs text-slate-500">{listaAdmins[0].email || "—"}</p>
+                        </div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                opticasFiltradas.map((o) => {
-                  const listaAdmins = adminsPorOptica.get(o.id) || []
-                  const procesando = procesandoId === o.id
-                  return (
-                    <tr key={o.id} className="group cursor-pointer transition-colors hover:bg-slate-50/70" onClick={() => abrirDetalleOptica(o)}>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>
-                            {o.nombre.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="break-words font-semibold text-slate-800 transition-colors group-hover:text-blue-600">{o.nombre}</p>
-                            <p className="truncate font-mono text-xs text-slate-400">{o.slug}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        {listaAdmins.length === 0 ? (
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
-                            <AlertTriangle size={13} /> Sin administrador
-                          </span>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <p className="font-medium text-slate-700">{listaAdmins[0].nombre}</p>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                              <Mail size={12} />
-                              <span className="max-w-[180px] truncate">{listaAdmins[0].email || "—"}</span>
-                            </div>
-                            {listaAdmins.length > 1 && <p className="text-xs text-slate-400">+{listaAdmins.length - 1} más</p>}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold " + (o.activa ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
-                          <span className={"h-1.5 w-1.5 rounded-full " + (o.activa ? "bg-emerald-500" : "bg-rose-500")} />
-                          {o.activa ? "Activa" : "Suspendida"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-slate-400" />
-                          <span>{formatearFecha(o.created_at)}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1">
-                          <button type="button" onClick={() => abrirDetalleOptica(o)} title="Ver detalle" aria-label={`Ver detalle de ${o.nombre}`} className={"rounded-lg p-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + ACCION_VER}>
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => abrirMenuAcciones(o.id, e)}
-                            title="Más acciones"
-                            aria-label={`Más acciones para ${o.nombre}`}
-                            disabled={procesando}
-                            className={"rounded-lg p-2 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (menuAccionesId === o.id ? "bg-slate-100 text-slate-700" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700")}
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold " + (o.activa ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700")}>{o.activa ? "Activa" : "Suspendida"}</span>
+                    </td>
+                    <td className="px-4 py-3">{o.activa && salud ? <InsigniaSalud estado={salud.estado} /> : <span className="text-slate-400">—</span>}</td>
+                    <td className="px-4 py-3 text-slate-600">{PAGO_ETIQUETA[o.estado_pago || "al_dia"]}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700" title={u ? `${u.citas} citas · ${u.consultas} consultas · ${u.ventas} ventas` : undefined}>{u ? u.citas + u.consultas + u.ventas : <span className="text-slate-400">—</span>}</td>
+                    <td className="px-4 py-3 text-slate-600">{fechaLegible(diaDe(o.created_at))}</td>
+                    <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => abrirMenuAcciones(o.id, e)}
+                        title="Más acciones"
+                        aria-label={`Más acciones para ${o.nombre}`}
+                        disabled={procesando}
+                        className={"rounded-lg p-2 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (menuAccionesId === o.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
       </div>
+      <p role="status" className="px-1 text-sm font-semibold text-slate-600">{opticasFiltradas.length} {opticasFiltradas.length === 1 ? "óptica" : "ópticas"}</p>
     </div>
   )
 
@@ -1865,114 +1848,126 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     descartado: { label: "Descartado", bg: "bg-slate-100", fg: "text-slate-500" },
   }
 
-  const leadsFiltrados = leads.filter((l) => {
+  const rangoLeadsActual = periodoLeads === "todo" ? null : rangoDePeriodo(periodoLeads, personalizadoLeads, ahoraEcuador())
+  const leadsDelPeriodo = leads.filter((l) => !rangoLeadsActual || enRango(l.created_at, rangoLeadsActual))
+  const leadsFiltrados = leadsDelPeriodo.filter((l) => {
     const q = busquedaLeads.trim().toLowerCase()
     const coincideTexto = !q || [l.nombre_optica, l.nombre_admin, l.email_admin, l.telefono, l.slug_deseado].some((v) => (v || "").toLowerCase().includes(q))
     const coincideEstado = filtroEstadoLeads === "todos" || l.estado === filtroEstadoLeads
     return coincideTexto && coincideEstado
   })
+  const etiquetasLeads = [
+    rangoLeadsActual && { id: "periodo", texto: `Recibidos: ${tituloSemana(rangoLeadsActual.inicio, rangoLeadsActual.fin)}`, quitar: () => setPeriodoLeads("todo") },
+    filtroEstadoLeads !== "todos" && { id: "estado", texto: `Estado: ${ESTADO_LEAD[filtroEstadoLeads]?.label}`, quitar: () => setFiltroEstadoLeads("todos") },
+    busquedaLeads.trim() && { id: "busqueda", texto: `Texto: «${busquedaLeads.trim()}»`, quitar: () => setBusquedaLeads("") },
+  ].filter(Boolean)
+  const limpiarLeads = () => { setPeriodoLeads("todo"); setFiltroEstadoLeads("todos"); setBusquedaLeads("") }
 
   const renderLeads = () => (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Leads</h1>
-        <p className="text-sm text-slate-500">Solicitudes recibidas desde la página de venta del sistema.</p>
-      </div>
+    <div className="space-y-3" data-leads>
+      <CabeceraSeccion titulo="Leads" pregunta="¿Quién quiere el sistema y en qué paso va?" />
 
       {leads.length === 0 ? (
-        <div className={CARD_PAD}>
-          <p className="py-10 text-center text-sm text-slate-400">Todavía no llegó ninguna solicitud.</p>
-        </div>
+        <SinResultados texto="Todavía no llegó ninguna solicitud desde la página de venta. Cuando alguien escriba, aparecerá aquí." />
       ) : (
         <>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-            <input
-              type="text" value={busquedaLeads} onChange={(e) => setBusquedaLeads(e.target.value)}
-              placeholder="Buscar por óptica, nombre, correo o teléfono..."
-              className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-            />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[{ id: "todos", label: "Todos" }, ...Object.entries(ESTADO_LEAD).map(([id, e]) => ({ id, label: e.label }))].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setFiltroEstadoLeads(f.id)}
-                className="rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer"
-                style={filtroEstadoLeads === f.id ? { backgroundColor: "#2563EB", borderColor: "#2563EB", color: "#fff" } : { borderColor: "rgba(14,43,51,0.12)", color: "#64748b", backgroundColor: "#fff" }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {leadsFiltrados.length === 0 ? (
-          <div className={CARD_PAD}>
-            <p className="py-10 text-center text-sm text-slate-400">Ningún lead coincide con la búsqueda o el filtro.</p>
-          </div>
-        ) : (
-        <div className="space-y-3">
-          {leadsFiltrados.map((l) => {
-            const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
-            const procesando = procesandoLeadId === l.id
-            return (
-              <div key={l.id} className={CARD_PAD}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm font-bold" style={{ color: INK }}>{l.nombre_optica}</h4>
-                      <span className={"rounded-full px-2.5 py-0.5 text-xs font-semibold " + estado.bg + " " + estado.fg}>{estado.label}</span>
-                      {l.slug_deseado && <span className="font-mono text-xs text-slate-400">{l.slug_deseado}</span>}
-                    </div>
-                    <p className="mt-1 text-sm text-slate-600">{l.nombre_admin} · {l.email_admin}{l.telefono ? ` · ${l.telefono}` : ""}</p>
-                    {l.mensaje && <p className="mt-1.5 text-xs italic leading-relaxed text-slate-500">"{l.mensaje}"</p>}
-                    <p className="mt-1.5 text-xs text-slate-400">{formatearFechaHora(l.created_at)}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => contactarLeadWhatsApp(l)}
-                      disabled={!l.telefono}
-                      title={l.telefono ? "Escribir por WhatsApp" : "Este lead no dejó teléfono"}
-                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <MessageSquare size={13} /> WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => contactarLeadGmail(l)}
-                      title="Escribir por Gmail"
-                      className="flex items-center gap-1.5 rounded-xl border border-blue-200/60 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
-                    >
-                      <Mail size={13} /> Gmail
-                    </button>
-                    {l.estado === "nuevo" && (
-                      <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "contactado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                        <PhoneCall size={13} /> Marcar contactado
-                      </button>
-                    )}
-                    {(l.estado === "nuevo" || l.estado === "contactado") && (
-                      <>
-                        <button type="button" disabled={procesando} onClick={() => abrirCrearDesdeLead(l)} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}>
-                          <Plus size={13} /> Crear cuenta
-                        </button>
-                        <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "descartado")} className="flex items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50">
-                          <X size={13} /> Descartar
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+          <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+            <div className="flex flex-wrap items-center gap-2">
+              <SelectorPeriodo periodo={periodoLeads} onPeriodo={setPeriodoLeads} personalizado={personalizadoLeads} onPersonalizado={setPersonalizadoLeads} rango={rangoLeadsActual || rangoDePeriodo("anio", {}, ahoraEcuador())} extra={[{ id: "todo", label: "Todo" }]} prefijo="lead" />
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div role="group" aria-label="Estado" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
+                {[{ id: "todos", nombre: "Todos", n: leadsDelPeriodo.length }, ...ESTADOS_LEAD_LISTA.map((e) => ({ id: e.id, nombre: e.nombre, n: leadsDelPeriodo.filter((l) => l.estado === e.id).length }))].map((e) => (
+                  <button key={e.id} type="button" aria-pressed={filtroEstadoLeads === e.id} onClick={() => setFiltroEstadoLeads(e.id)} className={"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (filtroEstadoLeads === e.id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={filtroEstadoLeads === e.id ? { background: GRAD } : undefined}>
+                    {e.nombre} <span className={filtroEstadoLeads === e.id ? "text-white/85" : "text-slate-500"}>{e.n}</span>
+                  </button>
+                ))}
               </div>
-            )
-          })}
-        </div>
-        )}
+              <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
+                <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
+                <input type="search" value={busquedaLeads} onChange={(e) => setBusquedaLeads(e.target.value)} placeholder="Óptica, nombre, correo o teléfono" aria-label="Buscar leads" className="mt-0.5 block h-9 w-full rounded-lg border border-slate-200/60 bg-white pl-8 pr-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500 [&::-webkit-search-cancel-button]:hidden" />
+              </label>
+              <EtiquetasFiltros etiquetas={etiquetasLeads} onLimpiar={limpiarLeads} />
+            </div>
+          </div>
+
+          <p role="status" className="px-1 text-sm font-semibold text-slate-600">{leadsFiltrados.length} {leadsFiltrados.length === 1 ? "lead" : "leads"}</p>
+          {leadsFiltrados.length === 0 ? (
+            <SinResultados texto="Ningún lead coincide con estos filtros." acciones={[{ etiqueta: "Limpiar filtros", onClick: limpiarLeads }]} />
+          ) : (
+            <ul role="list" className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+              {leadsFiltrados.map((l) => {
+                const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
+                return (
+                  <li key={l.id}>
+                    <button type="button" data-lista onClick={() => setLeadAbierto(l)} aria-label={`${l.nombre_optica}: ${estado.label}. Ver el detalle`} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 cursor-pointer">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold" style={{ color: INK }}>{l.nombre_optica}</span>
+                        <span className="block truncate text-sm text-slate-600">{l.nombre_admin} · {l.email_admin}{l.telefono ? ` · ${l.telefono}` : ""}</span>
+                      </span>
+                      <span className={"shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold " + estado.bg + " " + estado.fg}>{estado.label}</span>
+                      <span className="w-28 shrink-0 text-right text-sm text-slate-500">{fechaLegible(diaDe(l.created_at))}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </>
       )}
+
+      {leadAbierto && (() => {
+        const l = leads.find((x) => x.id === leadAbierto.id) || leadAbierto
+        const estado = ESTADO_LEAD[l.estado] || ESTADO_LEAD.nuevo
+        const procesando = procesandoLeadId === l.id
+        const Dato = ({ etiqueta, children }) => (
+          <div className="mt-2.5 first:mt-0">
+            <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
+            <dd className="mt-0.5 break-words text-sm font-semibold" style={{ color: INK }}>{children}</dd>
+          </div>
+        )
+        return (
+          <Cascaron
+            titulo={l.nombre_optica}
+            subtitulo={`Recibido el ${formatearFechaHora(l.created_at)}`}
+            Icono={Inbox}
+            ancho="max-w-2xl"
+            onCerrar={() => setLeadAbierto(null)}
+            derecha={<span className={"rounded-full px-2.5 py-0.5 text-xs font-bold " + estado.bg + " " + estado.fg}>{estado.label}</span>}
+            pie={<>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => contactarLeadWhatsApp(l)} disabled={!l.telefono} title={l.telefono ? "Escribir por WhatsApp" : "Este lead no dejó teléfono"} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><MessageSquare size={14} aria-hidden="true" /> WhatsApp</button>
+                <button type="button" onClick={() => contactarLeadGmail(l)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Mail size={14} aria-hidden="true" /> Correo</button>
+                {l.estado === "nuevo" && <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "contactado")} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"><PhoneCall size={14} aria-hidden="true" /> Marcar contactado</button>}
+                {(l.estado === "nuevo" || l.estado === "contactado") && <button type="button" disabled={procesando} onClick={() => marcarLead(l.id, "descartado")} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50"><X size={14} aria-hidden="true" /> Descartar</button>}
+              </div>
+              <div className="flex items-center gap-2">
+                {(l.estado === "nuevo" || l.estado === "contactado") && <button type="button" disabled={procesando} onClick={() => { setLeadAbierto(null); abrirCrearDesdeLead(l) }} className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}><Plus size={14} aria-hidden="true" /> Crear cuenta</button>}
+                <button type="button" onClick={() => setLeadAbierto(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+              </div>
+            </>}
+          >
+            <div className="grid grid-cols-1 gap-x-8 gap-y-5 px-5 py-4 sm:grid-cols-2">
+              <section>
+                <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">La solicitud</h3>
+                <dl>
+                  <Dato etiqueta="Óptica">{l.nombre_optica}</Dato>
+                  <Dato etiqueta="Dirección que pidió">{l.slug_deseado ? <span className="font-mono">{l.slug_deseado}</span> : <span className="font-normal text-slate-500">No indicó</span>}</Dato>
+                  <Dato etiqueta="Mensaje">{l.mensaje ? <span className="font-normal italic">«{l.mensaje}»</span> : <span className="font-normal text-slate-500">Sin mensaje</span>}</Dato>
+                </dl>
+              </section>
+              <section>
+                <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">Contacto</h3>
+                <dl>
+                  <Dato etiqueta="Nombre">{l.nombre_admin}</Dato>
+                  <Dato etiqueta="Correo">{l.email_admin}</Dato>
+                  <Dato etiqueta="Teléfono">{l.telefono || <span className="font-normal text-slate-500">No dejó teléfono</span>}</Dato>
+                </dl>
+              </section>
+            </div>
+          </Cascaron>
+        )
+      })()}
     </div>
   )
 

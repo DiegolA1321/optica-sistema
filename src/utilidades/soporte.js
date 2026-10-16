@@ -119,10 +119,11 @@ export function ordenarMisConsultas(consultas) {
 }
 
 // Filtros de la bandeja. "" = sin filtrar.
-export function filtrarBandeja(consultas, { estado = "", urgencia = "", modulo = "", opticaId = "", busqueda = "", desde = null } = {}, nombreOptica = () => "") {
+export function filtrarBandeja(consultas, { estado = "", urgencia = "", modulo = "", opticaId = "", busqueda = "", desde = null, hasta = null } = {}, nombreOptica = () => "") {
   const q = String(busqueda || "").trim().toLowerCase()
   return consultas.filter((c) => {
     if (desde !== null && desde !== undefined && c2ms(c.creadaEn) < c2ms(desde)) return false
+    if (hasta !== null && hasta !== undefined && c2ms(c.creadaEn) > c2ms(hasta)) return false
     if (estado === "abiertas" ? c.estado === "resuelta" : estado && c.estado !== estado) return false
     if (urgencia && c.urgencia !== urgencia) return false
     if (modulo && c.modulo !== modulo) return false
