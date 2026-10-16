@@ -70,7 +70,7 @@ import { Cascaron } from "../componentes/AtencionPaciente"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
 import { NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
-import { INK, ACCION_VER } from "@/lib/tema"
+import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -155,38 +155,6 @@ const NAV = [
   { id: "actividad", nombre: "Actividad", icono: History },
   { id: "superadmins", nombre: "Superadmins", icono: ShieldCheck },
 ]
-
-
-
-// ─── Registro de actividad (auditoría) ───
-const AUDITORIA_INFO = {
-  crear_optica: { grupo: "opticas", icon: Plus, bg: "#E8F0FF", fg: "#2563EB" },
-  suspender_optica: { grupo: "opticas", icon: Ban, bg: "#FEEBEE", fg: "#E11D48" },
-  reactivar_optica: { grupo: "opticas", icon: CheckCircle2, bg: "#E7F7EF", fg: "#059669" },
-  renombrar_optica: { grupo: "opticas", icon: Pencil, bg: "#E8F0FF", fg: "#2563EB" },
-  // Van agrupadas con "opticas" (no en su propio grupo "administradores") —
-  // agregar/quitar un admin es parte del ciclo de vida de la óptica a la que
-  // pertenece, y un filtro aparte para esto resultaba redundante (feedback
-  // de Diego, igual que la tarjeta "Administradores" que se sacó de Resumen/Ópticas).
-  agregar_administrador: { grupo: "opticas", icon: UserPlus, bg: "#F1EAFE", fg: "#7C3AED" },
-  eliminar_administrador: { grupo: "opticas", icon: Trash2, bg: "#FEEBEE", fg: "#E11D48" },
-  crear_superadmin: { grupo: "superadmins", icon: ShieldCheck, bg: "#F1EAFE", fg: "#7C3AED" },
-  eliminar_superadmin: { grupo: "superadmins", icon: Trash2, bg: "#FEEBEE", fg: "#E11D48" },
-  responder_mensaje: { grupo: "mensajes", icon: MessageSquare, bg: "#E8F0FF", fg: "#2563EB" },
-  publicar_anuncio: { grupo: "mensajes", icon: Megaphone, bg: "#FFF7E6", fg: "#B45309" },
-  actualizar_pago: { grupo: "opticas", icon: Wallet, bg: "#FFF7E6", fg: "#B45309" },
-  generar_factura: { grupo: "opticas", icon: Receipt, bg: "#E7F7EF", fg: "#059669" },
-  // Entrar y salir de una óptica: tono neutro (el violeta es el color de "En espera" en Citas).
-  entrar_como_optica: { grupo: "opticas", icon: LogIn, bg: "#EEF2F7", fg: "#475569" },
-  salir_de_optica: { grupo: "opticas", icon: LogOut, bg: "#EEF2F7", fg: "#475569" },
-}
-
-// ─── Estilos de tarjeta reutilizables (mismo look en toda la superficie) ───
-// El hover-lift es a propósito parte de la base, no algo que cada pantalla
-// agregue por separado — Diego pidió que todos los módulos del panel se
-// "levanten" un poco al pasar el cursor, no solo los de Resumen.
-const CARD = "rounded-[22px] border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_36px_-28px_rgba(15,23,42,0.35)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_24px_44px_-24px_rgba(15,23,42,0.45)]"
-const CARD_PAD = CARD + " p-5 sm:p-6"
 
 export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario, alEntrarComo }) {
   const [seccion, setSeccion] = useState("resumen")
@@ -1972,111 +1940,74 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   )
 
   const renderSuperadminsSkeleton = () => (
-    <div className="space-y-4">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
-        <p className="text-sm text-slate-400">Cargando…</p>
-      </div>
-      <Skeleton className="h-[104px]" />
-      <Skeleton className="h-[104px]" />
+    <div className="space-y-3" aria-busy="true" aria-label="Cargando los superadmins">
+      <CabeceraSeccion titulo="Superadmins" pregunta="Cargando…" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
     </div>
   )
 
   const renderSuperadmins = () => cargaInicial ? renderSuperadminsSkeleton() : (
-    <div className="space-y-4" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Superadmins</h1>
-          <p className="text-sm text-slate-500">Cuentas con acceso total al sistema — crea una de respaldo, no dependas de una sola.</p>
-        </div>
-        <button
-          type="button"
-          onClick={abrirCrearSuperadmin}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <UserPlus size={18} />
-          Agregar superadmin
-        </button>
+    <div className="space-y-3" data-superadmins>
+      <CabeceraSeccion titulo="Superadmins" pregunta="Las cuentas con acceso total al sistema. Crea una de respaldo: no dependas de una sola.">
+        <button type="button" onClick={abrirCrearSuperadmin} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><UserPlus size={15} aria-hidden="true" /> Agregar superadmin</button>
+      </CabeceraSeccion>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+        <table className="w-full table-fixed text-left text-sm" aria-label="Superadmins">
+          <thead>
+            <tr className="border-b border-slate-200/60 bg-slate-50/70">
+              <th scope="col" className={celdaTitulo + " w-[30%]"}>Persona</th>
+              <th scope="col" className={celdaTitulo + " w-[13%]"}>Desde</th>
+              <th scope="col" className={celdaTitulo + " w-[13%] text-right"}>Acciones</th>
+              <th scope="col" className={celdaTitulo}>Última acción</th>
+              <th scope="col" className={celdaTitulo + " w-[7%] text-center"}><span className="sr-only">Quitar</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {superadmins.map((s) => {
+              const ultima = ultimaAccionPorSuperadmin.get(s.id)
+              const esVos = s.id === usuario?.id
+              const n = accionesPorSuperadmin[s.id] ?? 0
+              return (
+                <tr key={s.id} className="hover:bg-slate-50/60">
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => (esVos ? abrirMiCuenta() : irA("actividad", { actorId: s.id, desde: "2024-01-01" }))} title={esVos ? "Editar mi cuenta" : `Ver la actividad de ${s.nombre}`} className="group flex w-full min-w-0 items-center gap-3 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>{s.nombre.charAt(0).toUpperCase()}</span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 font-semibold text-slate-800 transition-colors group-hover:text-blue-600"><span className="truncate">{s.nombre}</span>{esVos && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">Tú</span>}</span>
+                        <span className="block truncate text-xs text-slate-500">{s.email || "—"}</span>
+                      </span>
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{fechaLegible(diaDe(s.created_at))}</td>
+                  <td className="px-4 py-3 text-right">
+                    {n > 0 ? (
+                      <button type="button" data-lista onClick={() => irA("actividad", { actorId: s.id, desde: "2024-01-01" })} aria-label={`${n} ${n === 1 ? "acción" : "acciones"} de ${s.nombre}. Ver en Actividad`} className="rounded-md px-1.5 py-0.5 font-semibold tabular-nums transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{n}</button>
+                    ) : <span className="tabular-nums text-slate-400">0</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {ultima ? <p className="truncate text-slate-600" title={textoDeAccion(ultima)}>{textoDeAccion(ultima)} <span className="text-slate-500">· {formatearFechaHora(ultima.created_at)}</span></p> : <span className="text-slate-400">Todavía no hizo nada</span>}
+                  </td>
+                  <td className="px-2 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setSuperadminAEliminar(s); setErrorEliminarSuperadmin("") }}
+                      disabled={esVos || superadmins.length <= 1}
+                      title={esVos ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
+                      aria-label={esVos ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
+                      className={"rounded-lg p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer " + ACCION_ELIMINAR}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
-
-      {/* Antes había una franja de 3 stat cards, y después un banner amber de
-          "sos el único superadmin" — Diego tampoco quedó conforme con el
-          banner: decía casi palabra por palabra lo mismo que ya dice el
-          subtítulo de arriba ("creá una de respaldo, no dependas de una
-          sola"), solo que más fuerte y separado — quedaba redundante consigo
-          misma. El subtítulo + el botón "Agregar superadmin" ya arriba
-          cubren esto sin duplicar el mensaje. */}
-
-      <div className="space-y-3">
-        {superadmins.map((s) => {
-          const ultima = ultimaAccionPorSuperadmin.get(s.id)
-          const esVos = s.id === usuario?.id
-          return (
-          <div key={s.id} className={CARD_PAD}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  if (esVos) { abrirMiCuenta(); return }
-                  irA("actividad", { actorId: s.id })
-                }}
-                title={esVos ? "Editar mi cuenta" : `Ver actividad de ${s.nombre}`}
-                className="group flex min-w-0 items-center gap-3.5 rounded-xl text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-              >
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-base font-bold text-white" style={{ background: GRAD }}>
-                  {s.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 truncate text-[15px] font-bold text-slate-800 transition-colors group-hover:text-blue-600">
-                    {s.nombre}
-                    {s.id === usuario?.id && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">TÚ</span>}
-                  </p>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
-                    <Mail size={12} /> {s.email || "—"}
-                  </div>
-                </div>
-              </button>
-
-              <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  <Calendar size={13} className="text-slate-400" />
-                  Superadmin desde {formatearFecha(s.created_at)}
-                </div>
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  <History size={13} className="text-slate-400" />
-                  {accionesPorSuperadmin[s.id] ?? 0} {(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "acción" : "acciones"} registrada{(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "" : "s"}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setSuperadminAEliminar(s); setErrorEliminarSuperadmin("") }}
-                  disabled={s.id === usuario?.id || superadmins.length <= 1}
-                  title={s.id === usuario?.id ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : "Quitar superadmin"}
-                  aria-label={s.id === usuario?.id ? "No puedes quitarte a ti mismo" : superadmins.length <= 1 ? "Debe quedar al menos un superadmin" : `Quitar superadmin ${s.nombre || ""}`.trim()}
-                  className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 cursor-pointer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            {ultima && (
-              <div className="mt-3.5 flex items-start gap-2.5 border-t border-slate-100 pt-3.5">
-                {(() => {
-                  const info = AUDITORIA_INFO[ultima.accion]
-                  if (!info) return null
-                  const Icono = info.icon
-                  return <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: info.bg, color: info.fg }}><Icono size={13} /></div>
-                })()}
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Última acción</p>
-                  <p className="text-[13px] text-slate-600">{textoDeAccion(ultima)} <span className="text-slate-400">· {formatearFechaHora(ultima.created_at)}</span></p>
-                </div>
-              </div>
-            )}
-          </div>
-          )
-        })}
-      </div>
+      <p role="status" className="px-1 text-sm font-semibold text-slate-600">{superadmins.length} {superadmins.length === 1 ? "superadmin" : "superadmins"}</p>
     </div>
   )
 

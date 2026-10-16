@@ -133,6 +133,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
     if (destino.opticaId !== undefined) setOpticaId(destino.opticaId || "")
     if (destino.actorId !== undefined) setActorId(destino.actorId || "")
     if (destino.dia) { setPeriodo("personalizado"); setPersonalizado({ inicio: destino.dia, fin: destino.dia }) }
+    else if (destino.desde) { setPeriodo("personalizado"); setPersonalizado({ inicio: destino.desde, fin: destino.hasta || fechaAISO(ahoraEcuador()) }) }
   }, [destino?.clave]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

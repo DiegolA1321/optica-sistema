@@ -54,6 +54,7 @@ export default function VentanaConsultaSoporte({ consulta, opticaNombre, respues
     const r = await cambiarEstadoSoporte(consulta.id, estado)
     setEnviando(false)
     if (r.error) { setError(r.error); return }
+    onAuditoria?.("cambiar_estado_soporte", { opticaId: consulta.opticaId, opticaNombre, detalle: codigoConsulta(consulta.numero), antes: consulta.estado, despues: estado })
     onCambio?.()
   }
 
