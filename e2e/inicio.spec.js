@@ -261,11 +261,13 @@ test('el contador del menú de Ventas solo lo ve quien puede vender', async ({ b
     await entrar(page, cuenta)
     // Con el Inicio ya hidratado (el bloque "Requiere tu atención" visible) el contador ya tiene sus datos.
     await expect(page.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
-    const texto = await page.getByRole('button', { name: 'Ventas', exact: true }).first().innerText()
+    // Sin Ventas "ver" (el Optómetra desde el 16 oct. 2026) el menú ni siquiera tiene el módulo.
+    const boton = page.getByRole('button', { name: 'Ventas', exact: true })
+    const texto = (await boton.count()) ? await boton.first().innerText() : ''
     await contexto.close()
     return /\d/.test(texto)
   }
-  expect(await veContador('OPTOMETRA'), 'Paula (ventas: solo ver) no debe verlo').toBe(false)
+  expect(await veContador('OPTOMETRA'), 'Paula (sin Ventas) no debe verlo').toBe(false)
   expect(await veContador('VENTAS'), 'Ventas sí').toBe(true)
   expect(await veContador('RECEPCION'), 'Recepción (ventas: crear) sí').toBe(true)
 })
