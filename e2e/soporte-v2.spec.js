@@ -36,7 +36,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await optica.getByRole('button', { name: 'Soporte', exact: true }).first().click()
   await expect(optica.getByRole('heading', { level: 1, name: 'Soporte' })).toBeVisible()
   // Ayuda primero: las preguntas por módulo, con buscador
-  await expect(optica.getByRole('region', { name: 'Ayuda de Citas' })).toBeVisible()
+  await expect(optica.getByRole('group', { name: 'Ayuda de Citas' })).toBeVisible()
   await optica.getByLabel('Buscar en la ayuda').fill('abono')
   await expect(optica.getByText('¿Cómo registro, corrijo o anulo un abono?')).toBeVisible()
   await optica.getByLabel('Buscar en la ayuda').fill('')

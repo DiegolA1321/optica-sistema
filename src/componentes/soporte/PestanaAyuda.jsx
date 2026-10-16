@@ -26,7 +26,7 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
   const buscando = busqueda.trim().length > 0
   const encontradas = useMemo(() => (buscando ? buscarAyuda(busqueda, modulo) : []), [busqueda, modulo, buscando])
   const grupos = modulo ? AYUDA_POR_MODULO.filter((g) => g.modulo === modulo) : AYUDA_POR_MODULO
-  const total = AYUDA_POR_MODULO.reduce((n, g) => n + g.preguntas.length, 0)
+  const modulosConResultado = [...new Set(encontradas.map((q) => q.modulo))]
 
   const pieEscribir = (
     <div className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -53,34 +53,28 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
         </select>
       </div>
 
-      {buscando ? (
-        encontradas.length === 0 ? (
-          <Vacio Icono={Search} titulo={`No encontramos preguntas con «${busqueda.trim()}»`} texto="Prueba con otra palabra o quita el filtro de módulo. Si no está, escríbenos y lo resolvemos.">
-            {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Escribir al soporte</button>}
-          </Vacio>
-        ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-            <p className="border-b border-slate-100 bg-slate-50/70 px-4 py-2 text-xs font-semibold text-slate-500" role="status">{encontradas.length === 1 ? "1 pregunta" : `${encontradas.length} preguntas`}</p>
-            {encontradas.map((q) => (
-              <div key={q.p}>
-                <p className="px-4 pt-2.5 text-[11px] font-bold uppercase tracking-wide text-blue-700">{q.moduloNombre}</p>
-                <Pregunta q={q} abierta={encontradas.length === 1} />
-              </div>
-            ))}
-          </div>
-        )
+      {buscando && encontradas.length === 0 ? (
+        <Vacio Icono={Search} titulo={`No encontramos preguntas con «${busqueda.trim()}»`} texto="Prueba con otra palabra o quita el filtro de módulo. Si no está, escríbenos y lo resolvemos.">
+          {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Escribir al soporte</button>}
+        </Vacio>
       ) : (
-        <div className="space-y-4">
-          {grupos.map((g) => (
-            <section key={g.modulo} aria-label={`Ayuda de ${g.nombre}`} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-              <h2 className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-2.5 text-sm font-bold" style={{ color: INK }}>
-                <BookOpen size={15} className="text-blue-700" aria-hidden="true" /> {g.nombre}
-                <span className="text-xs font-semibold text-slate-500">{g.preguntas.length === 1 ? "1 pregunta" : `${g.preguntas.length} preguntas`}</span>
-              </h2>
-              {g.preguntas.map((q) => <Pregunta key={q.p} q={q} />)}
-            </section>
-          ))}
-          {!modulo && <p className="px-1 text-xs text-slate-500">{total} preguntas en {AYUDA_POR_MODULO.length} módulos.</p>}
+        <div className="space-y-3">
+          {buscando && <p role="status" className="px-1 text-xs font-semibold text-slate-500">{encontradas.length === 1 ? "1 pregunta" : `${encontradas.length} preguntas`} en {modulosConResultado.length === 1 ? "1 módulo" : `${modulosConResultado.length} módulos`}</p>}
+          {grupos.map((g) => {
+            const preguntas = buscando ? encontradas.filter((q) => q.modulo === g.modulo) : g.preguntas
+            if (buscando && preguntas.length === 0) return null
+            return (
+              // Cada módulo empieza cerrado, con su título y cuántas preguntas tiene; al buscar, se abren los que tienen resultados.
+              <details key={`${g.modulo}-${buscando}`} open={buscando || undefined} aria-label={`Ayuda de ${g.nombre}`} role="group" className="group/m overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-bold transition-colors hover:bg-slate-50 [&::-webkit-details-marker]:hidden" style={{ color: INK }}>
+                  <BookOpen size={15} className="text-blue-700" aria-hidden="true" />
+                  <span>{g.nombre} · {preguntas.length === 1 ? "1 pregunta" : `${preguntas.length} preguntas`}</span>
+                  <ChevronDown size={16} className="ml-auto shrink-0 text-slate-400 transition-transform group-open/m:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="border-t border-slate-100">{preguntas.map((q) => <Pregunta key={q.p} q={q} abierta={buscando && encontradas.length === 1} />)}</div>
+              </details>
+            )
+          })}
         </div>
       )}
 

@@ -66,8 +66,22 @@ describe("Soporte: Ayuda", () => {
   it("organiza las preguntas por los nueve módulos", async () => {
     render(<Mensajes usuario={admin} />)
     for (const m of ["Citas", "Pacientes", "Ventas", "Inventario", "Reportes", "CRM", "Mi horario", "Usuarios y permisos", "Configuración"]) {
-      expect(await screen.findByRole("region", { name: `Ayuda de ${m}` })).toBeInTheDocument()
+      expect(await screen.findByRole("group", { name: `Ayuda de ${m}` })).toBeInTheDocument()
     }
+  })
+  it("cada módulo empieza cerrado con su título y cuántas preguntas tiene; se abre al hacer clic", async () => {
+    render(<Mensajes usuario={admin} />)
+    const citas = await screen.findByRole("group", { name: "Ayuda de Citas" })
+    expect(citas).not.toHaveAttribute("open")
+    expect(within(citas).getByText("Citas · 6 preguntas")).toBeInTheDocument()
+    expect(screen.getAllByRole("group").every((g) => !g.hasAttribute("open"))).toBe(true)
+  })
+  it("al buscar se abren solo los módulos con resultados", async () => {
+    render(<Mensajes usuario={admin} />)
+    fireEvent.change(await screen.findByLabelText("Buscar en la ayuda"), { target: { value: "conteo fisico" } })
+    const inv = await screen.findByRole("group", { name: "Ayuda de Inventario" })
+    expect(inv).toHaveAttribute("open")
+    expect(screen.queryByRole("group", { name: "Ayuda de Citas" })).toBeNull()
   })
   it("el buscador filtra por pregunta o respuesta, sin importar tildes", async () => {
     render(<Mensajes usuario={admin} />)
