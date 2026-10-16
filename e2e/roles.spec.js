@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test'
 import { iniciarSesion } from './ayudas.js'
 
 const TODOS = ['Inicio', 'Citas médicas', 'Pacientes', 'Ventas', 'Inventario', 'CRM y fidelización', 'Mi horario', 'Reportes']
+// Soporte (ver y crear) lo traen los roles predefinidos Optómetra, Recepción y Ventas (migración 0115): cada persona ve solo sus consultas.
 const SOLO_ADMIN = ['Usuarios y permisos', 'Configuración', 'Soporte']
 
 const modulo = (page, nombre) => page.getByRole('button', { name: nombre, exact: true })
@@ -41,7 +42,7 @@ test.describe('Recepción', () => {
   test('menú, Inicio y permisos', async ({ page }) => {
     await iniciarSesion(page, 'RECEPCION')
     await expect(page.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 15_000 })
-    expect.soft(await menuVisible(page)).toEqual(TODOS.filter((n) => n !== 'Reportes'))
+    expect.soft(await menuVisible(page)).toEqual([...TODOS.filter((n) => n !== 'Reportes'), 'Soporte'])
     await expect.soft(page.getByText('MIS CITAS DE HOY')).toHaveCount(0)
 
     totalRecepcion = await totalAgendadas(page)
@@ -78,7 +79,7 @@ test.describe('Ventas', () => {
   test('menú, Inicio y permisos', async ({ page }) => {
     await iniciarSesion(page, 'VENTAS')
     await expect(page.getByText('Lo que espera a quien vende')).toBeVisible({ timeout: 15_000 })
-    expect.soft(await menuVisible(page)).toEqual(TODOS.filter((n) => n !== 'Reportes'))
+    expect.soft(await menuVisible(page)).toEqual([...TODOS.filter((n) => n !== 'Reportes'), 'Soporte'])
     await expect.soft(page.getByText('SALDOS POR COBRAR')).toBeVisible()
 
     await abrir(page, 'Citas médicas')
@@ -111,7 +112,7 @@ test.describe('Optómetra', () => {
   test('menú, Inicio y alcance propio', async ({ page }) => {
     await iniciarSesion(page, 'OPTOMETRA')
     await expect(page.getByRole('region', { name: /^Mi (agenda de hoy|próxima jornada)/ })).toBeVisible({ timeout: 15_000 })
-    expect.soft(await menuVisible(page)).toEqual(TODOS)
+    expect.soft(await menuVisible(page)).toEqual([...TODOS, 'Soporte'])
     await expect.soft(page.getByRole('heading', { name: /Mi (agenda de hoy|próxima jornada)/i })).toBeVisible()
 
     const propias = await totalAgendadas(page)

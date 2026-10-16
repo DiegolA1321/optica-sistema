@@ -4,6 +4,7 @@
 // que la base la acepte (2xx), así que si faltara un permiso fallaría con 401/403.
 // Todo lo que crean lleva el prefijo "E2E " y se borra o se restaura al terminar la prueba (también si la prueba falla).
 import { test, expect } from '@playwright/test'
+import { limpiarSoporteDePruebas } from './limpiar-soporte.js'
 import { iniciarSesion, PREFIJO, PREFIJO_NOMBRE, crearCitaDeHoyParaPaula, cedulaValida, escribirSecreto, elegirFecha } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
@@ -285,9 +286,11 @@ test('Soporte: el administrador envía una consulta al soporte (rpc crear_consul
   await v.getByLabel('Asunto').fill(asunto)
   await v.getByLabel('Descripción').fill(`${PREFIJO}mensaje de prueba, no requiere respuesta`)
   await conEscritura(page, 'rpc/crear_consulta_soporte', 'enviar consulta', () => v.getByRole('button', { name: 'Enviar consulta' }).click())
-  await expect(v.getByText(/^SOP-d{4}$/)).toBeVisible({ timeout: 20_000 })
-  await v.getByRole('button', { name: 'Ver mis consultas' }).click()
+  const enviada = page.getByRole("dialog", { name: "Consulta enviada" })
+  await expect(enviada.getByText(/^SOP-\d{4}$/)).toBeVisible({ timeout: 20_000 })
+  await enviada.getByRole("button", { name: "Ver mis consultas" }).click()
   await expect(page.getByText(asunto).first()).toBeVisible({ timeout: 20_000 })
+  await limpiarSoporteDePruebas() // la consulta de prueba no queda en la bandeja del soporte
 })
 
 test('Citas y pacientes: corregir los datos de un paciente y cancelar su cita (pacientes y citas: update)', async ({ page }) => {
