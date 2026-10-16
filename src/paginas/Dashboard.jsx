@@ -57,7 +57,6 @@ import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { INK } from "@/lib/tema"
-import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
 import { puedeReasignar } from "../utilidades/reasignacion"
@@ -67,12 +66,10 @@ import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { contarAvisosVentas } from "../utilidades/ventasModulo"
 import { useCrmDatos } from "../utilidades/crmDatos"
+import { EVENTO_SOPORTE_CAMBIADO, leerResumenSoporte } from "../utilidades/soporteDatos"
+import { codigoConsulta } from "../utilidades/soporte"
 import { listaParaContactar } from "../utilidades/crmContactos"
 
-// Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
-// atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se muestra un
-// texto neutral que no lo insinúa.
-const NOMBRE_EQUIPO = MODO_SAAS_VISIBLE ? "Diego Óptica" : "la óptica"
 
 // ─── Paleta de firma ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -113,6 +110,11 @@ const OPCIONES = [
   { id: "usuarios", nombre: "Usuarios y permisos", icono: ShieldCheck, soloAdmin: true },
   { id: "configuracion", nombre: "Configuración", icono: Settings, soloAdmin: true, delegable: true },
 ]
+
+// Soporte: de qué pantalla viene quien escribe (se manda como contexto de la consulta) y a qué módulo de Soporte corresponde.
+const nombreDeSeccion = (id) => OPCIONES.find((o) => o.id === id)?.nombre || ""
+const MODULO_DE_SECCION = { inicio: "inicio", citas: "citas", consultas: "pacientes", pacientes: "pacientes", ventas: "ventas", inventario: "inventario", crm: "crm", horario: "horario", reportes: "reportes", usuarios: "usuarios", configuracion: "configuracion" }
+const moduloDeSoporte = (id) => MODULO_DE_SECCION[id] || "otro"
 
 export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
@@ -353,6 +355,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // de cambios sin guardar en la ficha clínica.
   const irADestino = (destino) => {
     if (destino !== seccionActiva) {
+      seccionPrevia.current = seccionActiva
       const params = new URLSearchParams(window.location.search)
       params.set("seccion", destino)
       // El detalle de una sección (pestaña, paciente abierto, ficha) no viaja a la siguiente.
@@ -424,29 +427,36 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Resumen de Mensajes para la campanita — única llamada a Supabase de este
   // archivo (el resto del Dashboard es local/localStorage). Consultas propias
   // sin responder + avisos generales publicados en los últimos 14 días.
-  const [mensajesResumen, setMensajesResumen] = useState({ abiertas: 0, avisosRecientes: 0 })
+  const [mensajesResumen, setMensajesResumen] = useState({ respuestas: [], avisosSinLeer: 0 })
+  const puedeVerSoporte = puede(usuario, "mensajes", "ver")
   useEffect(() => {
-    if (!supabase || !esAdmin || !usuario?.opticaId) return
+    if (!supabase || !puedeVerSoporte || !usuario?.id) return
     let vigente = true
     const cargar = async () => {
-      const desde14dias = new Date(Date.now() - 14 * 86400000).toISOString()
-      const [{ count: abiertas }, { count: avisosRecientes }] = await Promise.all([
-        supabase.from("mensajes").select("id", { count: "exact", head: true }).eq("optica_id", usuario.opticaId).eq("tipo", "consulta").eq("estado", "abierto"),
-        supabase.from("mensajes").select("id", { count: "exact", head: true }).eq("tipo", "anuncio").gte("created_at", desde14dias),
-      ])
-      if (vigente) setMensajesResumen({ abiertas: abiertas || 0, avisosRecientes: avisosRecientes || 0 })
+      const r = await leerResumenSoporte(usuario.id)
+      if (vigente) setMensajesResumen(r)
     }
     cargar()
-    return () => { vigente = false }
-  }, [esAdmin, usuario?.opticaId, seccionActiva])
+    // La respuesta del soporte llega a la campanita sin recargar: al cambiar de sección, cuando algo cambia en Soporte, al volver a la pestaña y cada minuto.
+    const alVolver = () => { if (document.visibilityState === "visible") cargar() }
+    window.addEventListener(EVENTO_SOPORTE_CAMBIADO, cargar)
+    document.addEventListener("visibilitychange", alVolver)
+    const reloj = setInterval(alVolver, 60_000)
+    return () => { vigente = false; window.removeEventListener(EVENTO_SOPORTE_CAMBIADO, cargar); document.removeEventListener("visibilitychange", alVolver); clearInterval(reloj) }
+  }, [puedeVerSoporte, usuario?.id, seccionActiva])
+
+  // Soporte: la pantalla desde la que se escribe (para el contexto de la consulta) y la consulta que se abre desde la campanita.
+  const seccionPrevia = useRef(null)
+  const [consultaAAbrir, setConsultaAAbrir] = useState(null)
+  const abrirConsultaDeSoporte = (id) => { setConsultaAAbrir(id); navegar("mensajes") }
 
   // Centro de notificaciones: solo lo que NO está ya en "Requiere tu atención" del Inicio (el stock bajo, las citas, los cumpleaños y los
   // controles viven allí): consultas de soporte, avisos generales y solicitudes de medidas del portal. Cada una según el permiso del rol.
   const alertas = useMemo(() => {
     const arr = []
-    if (puede(usuario, "mensajes", "ver")) {
-      if (mensajesResumen.abiertas > 0) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.abiertas} consulta${mensajesResumen.abiertas > 1 ? "s" : ""} esperando respuesta`, sub: `Le escribiste al equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
-      if (mensajesResumen.avisosRecientes > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosRecientes} aviso${mensajesResumen.avisosRecientes > 1 ? "s" : ""} general${mensajesResumen.avisosRecientes > 1 ? "es" : ""}`, sub: `Publicado por el equipo de ${NOMBRE_EQUIPO}`, destino: "mensajes" })
+    if (puedeVerSoporte) {
+      for (const r of mensajesResumen.respuestas.slice(0, 5)) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `Respondieron tu consulta ${codigoConsulta(r.numero)}`, sub: r.asunto, destino: "mensajes", alAbrir: () => abrirConsultaDeSoporte(r.id) })
+      if (mensajesResumen.avisosSinLeer > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosSinLeer} aviso${mensajesResumen.avisosSinLeer > 1 ? "s" : ""} del sistema sin leer`, sub: "Mira qué cambió o qué viene", destino: "mensajes", alAbrir: () => { escribirParam("tab", "avisos"); navegar("mensajes") } })
     }
     // Solicitud de medidas completas desde el portal (migración 0080): el paciente pide ver esfera/cilindro/eje.
     if (puede(usuario, "pacientes", "ver")) {
@@ -454,7 +464,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas de montaje`, sub: "Un paciente pidió su distancia pupilar y altura", destino: "pacientes" })
     }
     return arr
-  }, [usuario, pacientes, mensajesResumen])
+  }, [usuario, pacientes, mensajesResumen, puedeVerSoporte]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hora = ahoraEcuador().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
@@ -655,7 +665,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "reportes":
         return <Reportes usuario={usuario} inventario={inventario} equipo={equipo} onAviso={mostrarAviso} onAbrirModulo={abrirDesdeReportes} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
-        return <Mensajes usuario={usuario} />
+        return <Mensajes usuario={usuario} pantallaOrigen={nombreDeSeccion(seccionPrevia.current)} moduloOrigen={moduloDeSoporte(seccionPrevia.current)} abrirConsultaId={consultaAAbrir} onAbrirConsultaConsumida={() => setConsultaAAbrir(null)} />
       case "usuarios":
         return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} alActualizarUsuario={alActualizarUsuario} />
       case "configuracion":
@@ -926,7 +936,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                   ) : (
                     <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
                       {alertas.map((a, i) => (
-                        <button key={i} type="button" onClick={() => navegar(a.destino)} className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                        <button key={i} type="button" onClick={() => (a.alAbrir ? a.alAbrir() : navegar(a.destino))} className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer">
                           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ backgroundColor: a.bg, color: a.color }}>
                             <a.icon size={16} />
                           </div>
