@@ -12,6 +12,30 @@ Solo se revisó: **no se corrigió nada**. Contra `docs/principios-diseno.md` (r
   3. Celular: solo las páginas públicas (sin desbordamiento horizontal a 390 px).
 - Importancia: **alta** = el perfil ve o puede intentar lo que no le corresponde, o un dato que lleva a decidir mal; **media** = incumple una regla de forma visible o un número no coincide; **baja** = pulido.
 
+## Estado de las correcciones (16 oct. 2026, sin publicar)
+
+Diego revisó la auditoría y pidió corregirlo todo, de mayor a menor. Resultado:
+
+| Hallazgo | Estado |
+|---|---|
+| T1 · acciones del detalle de la cita (V1, P0, O2) | **Corregido.** Cada acción depende de su permiso; "Cobrar" también. Prueba unitaria y de Playwright. |
+| T2 · "administración delegada" (A1, P3) | **Corregido.** Solo Configuración la da. |
+| T3 · catálogos sin tildes (E1, PU2) | **Corregido** con la migración 0117 (valor por defecto y ópticas con la lista vieja). |
+| T4 · actividad ajena en la óptica nueva (E2) | **Corregido** con la 0117 (el registro ya no anota lo que no hace una persona ni los roles predefinidos; se quitaron 15 entradas). |
+| T5 · cifras del optómetra (O1) | **Corregido.** Nota "de tus pacientes y de tus citas" en Pacientes y CRM. |
+| T6 · texto menor de 12 px (A3, W1, S6, PO5) | **Corregido** en todo el sistema; una prueba vigila que no vuelva. |
+| T7, T8 · superadmin (S1–S5) | **Corregido** (asistentes activos, pacientes atendidos reales, sin números repetidos, "acciones"). El donut de "Estado del sistema" se dejó, sin los números repetidos (acordado con Diego). |
+| Rol propio (P0b, P0c, P1) | **Corregido y revisado de nuevo con el rol temporal:** sin menú ⋮ vacío, sin historia clínica ni tarjetas clínicas sin permiso de fichas, sin "Editar cita". |
+| Portal (PO1–PO4, W2) | **Corregido:** saldo en el Resumen, textos sin repetir, segunda persona. |
+| Pantallas vacías (E3–E7) | **Corregido:** "Para empezar", Citas, Pacientes, Inventario y Reportes sin controles de más. |
+| Bajas (A2, A4, O7, V2, PU1, S7) | **Corregidas.** Se dejó el "Ver todo" de las tarjetas "Todo en orden" (O6, E3), que pide la estructura del ingeniero (regla 38). |
+| Decisión de rol: Optómetra sin Ventas (O3) | **Hecho** con la 0117 y, para que el servidor no entregue lo que el rol no ve, la **0118**: función `compras_de_paciente` (producto y fecha) y comprobantes, líneas, abonos y ventas solo con Ventas "ver". Verificado con sesiones reales. |
+| Recepción y "Tomar datos del diagnóstico" (R2) | Decisión de Diego: es correcto, no se cambia. |
+
+Sin ver todavía: el portal en celular.
+
+---
+
 ## Resumen: lo más importante
 
 | # | Importancia | Dónde | Qué |
