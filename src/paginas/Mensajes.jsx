@@ -24,7 +24,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
   const puedeVer = puede(usuario, "mensajes", "ver")
   // Quien entra a una óptica como superadmin mira, pero no escribe en nombre del administrador.
   const puedeEscribir = puede(usuario, "mensajes", "crear") && !usuario.impersonadoPor
-  const [tab, setTab] = useParamUrl("tab", "ayuda", TABS)
+  const [tab, setTab] = useParamUrl("tab", "consultas", TABS)
   const [consultas, setConsultas] = useState([])
   const [avisos, setAvisos] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -66,9 +66,9 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
   const escribir = (modulo) => setVentana({ nueva: true, modulo: modulo || moduloOrigen })
 
   const pestanas = useMemo(() => [
-    { id: "ayuda", etiqueta: "Ayuda", Icono: BookOpen },
     { id: "consultas", etiqueta: "Mis consultas", cuenta: consultas.length, nuevas: respuestasNuevas, Icono: MessageSquare },
     { id: "avisos", etiqueta: "Avisos del sistema", cuenta: avisos.length, nuevas: avisosSinLeer, Icono: Megaphone },
+    { id: "ayuda", etiqueta: "Ayuda", Icono: BookOpen },
   ], [consultas.length, respuestasNuevas, avisos.length, avisosSinLeer])
 
   return (

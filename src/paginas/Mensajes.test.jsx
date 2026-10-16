@@ -45,14 +45,14 @@ describe("Soporte: cabecera y pestañas", () => {
   it("se llama 'Soporte', no lleva subtítulo y su acción principal es 'Nueva consulta'", async () => {
     render(<Mensajes usuario={admin} />)
     expect(await screen.findByRole("heading", { level: 1, name: "Soporte" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Nueva consulta/ })).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /Nueva consulta/ })[0]).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/Escribe a el soporte|equipo de la óptica/i)
   })
-  it("tiene las tres pestañas y abre en Ayuda: lo primero es encontrar la respuesta", async () => {
+  it("tiene las tres pestañas y abre en Mis consultas", async () => {
     render(<Mensajes usuario={admin} />)
     await screen.findByRole("heading", { level: 1, name: "Soporte" })
-    expect(screen.getAllByRole("tab").map((t) => t.textContent.replace(/\d+/g, "").trim())).toEqual(["Ayuda", "Mis consultas", "Avisos del sistema"])
-    expect(screen.getByRole("tab", { name: /Ayuda/ })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getAllByRole("tab").map((t) => t.textContent.replace(/\d+/g, "").trim())).toEqual(["Mis consultas", "Avisos del sistema", "Ayuda"])
+    expect(screen.getByRole("tab", { name: /Mis consultas/ })).toHaveAttribute("aria-selected", "true")
   })
   it("sin permiso de 'crear' no hay botón para escribir, ni en la cabecera ni al pie de la ayuda", async () => {
     render(<Mensajes usuario={staff(["ver"])} />)
@@ -63,6 +63,7 @@ describe("Soporte: cabecera y pestañas", () => {
 })
 
 describe("Soporte: Ayuda", () => {
+  beforeEach(() => window.history.replaceState({}, "", "/?tab=ayuda"))
   it("organiza las preguntas por los nueve módulos", async () => {
     render(<Mensajes usuario={admin} />)
     for (const m of ["Citas", "Pacientes", "Ventas", "Inventario", "Reportes", "CRM", "Mi horario", "Usuarios y permisos", "Configuración"]) {
