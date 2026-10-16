@@ -1,3 +1,10 @@
+<!-- AUD-INICIO -->
+## Auditoría transversal por perfil (16 oct. 2026, solo revisar: no se corrige nada)
+Pedido: revisar, solo leyendo, todo el sistema con cada perfil (administrador, optómetra, Recepción, Ventas, rol propio, portal, superadmin, páginas públicas y óptica nueva vacía) contra `docs/principios-diseno.md`. Resultado en `docs/auditoria-transversal.md`.
+**Dónde voy:**
+- [x] Paso 1 — Preparación: servidor local, recorrido automático de solo lectura (bloquea cualquier escritura a tablas) y datos de prueba. Hallazgo de partida: en la Demo y en la óptica de pruebas NO hay ningún rol propio ni un paciente del portal con compras (la cuenta de portal guardada ya no existe); se simulan o se revisan por código y se dice en el informe.
+<!-- AUD-FIN -->
+
 <!-- COM-INICIO -->
 ## Comunicación interna por niveles (16 oct. 2026, PUBLICADO: merge `17a08d8` en `main`; el CI "build-and-test" y el despliegue de Vercel (Production) terminaron con éxito, confirmados con la API de GitHub; migración 0116 aplicada)
 Pedido: avisos del administrador a su personal, consultas del personal a su administrador (que responde, resuelve o escala al superadmin), soporte del sistema solo para el administrador, avisos del sistema como hoy, y adjuntos PDF/Word/Excel.
