@@ -884,7 +884,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         .eq("optica_id", existente.id)
         .maybeSingle()
       if (perfilExistente) {
-        setError("Ese slug ya está en uso por otra óptica.")
+        setError("Esa dirección de la página ya está en uso por otra óptica.")
         setGuardando(false)
         return
       }
@@ -912,7 +912,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         .select()
         .single()
       if (errorOptica) {
-        setError(errorOptica.message.includes("duplicate") ? "Ese slug ya está en uso por otra óptica." : errorOptica.message)
+        setError(errorOptica.message.includes("duplicate") ? "Esa dirección de la página ya está en uso por otra óptica." : errorOptica.message)
         setGuardando(false)
         return
       }
@@ -948,7 +948,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
     if (errorPerfil) {
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas, revisa en Supabase.")
+      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la óptica y la cuenta de correo ya quedaron creadas: revísala en la lista de ópticas.")
       setGuardando(false)
       cargarDatos()
       return
@@ -1342,7 +1342,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     await temp.auth.signOut()
     if (errorPerfil) {
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada, revisa en Supabase.")
+      setErrorAdminExtra((cedulaDuplicada ? "Esa cédula ya está registrada por otro administrador de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada: vuelve a intentarlo o revísala en la lista.")
       setGuardandoAdminExtra(false)
       return
     }
@@ -1409,7 +1409,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     // perfiles vía la policy perfiles_superadmin_all/es_superadmin().
     const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, rol: "superadmin", nombre: nombre.trim(), email: email.trim() })
     if (errorPerfil) {
-      setErrorSuperadmin(errorPerfil.message + " — la cuenta de correo ya quedó creada, revisa en Supabase.")
+      setErrorSuperadmin(errorPerfil.message + " — la cuenta de correo ya quedó creada: vuelve a intentarlo o revísala en la lista.")
       setGuardandoSuperadmin(false)
       return
     }
@@ -2715,10 +2715,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500">
-            <Info size={14} className="mt-0.5 shrink-0" />
-            Los datos operativos de esta óptica (pacientes, citas, inventario) ya viven centralizados en Supabase, con acceso multi-tenant por RLS — no dependen del navegador de su administrador.
-          </div>
           </div>
         </Cascaron>
       )}
