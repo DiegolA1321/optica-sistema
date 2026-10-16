@@ -1,14 +1,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, Copy, Download, Megaphone, MessageCircle, RotateCcw } from "lucide-react"
+import { Check, Copy, Download, Megaphone, MessageCircle, RotateCcw, Zap } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
 import { Insignia } from "../ventas/Lista"
 import { NombrePaciente } from "./piezas"
+import EditorMensaje from "./EditorMensaje"
 import {
-  GRUPOS_CAMPANA, MAX_PLANTILLA, ORDEN_GRUPOS, PLANTILLAS_BASE, VARIABLES_PLANTILLA, armarMensaje, destinatariosCampana, modeloListaCampana, plantillaDe,
+  CORREO_AUTOMATICO_ACTIVO, GRUPOS_CAMPANA, MAX_PLANTILLA, ORDEN_GRUPOS, PLANTILLAS_BASE, armarMensaje, destinatariosCampana, modeloListaCampana, plantillaDe,
 } from "../../utilidades/crmContactos"
 import { fechaHoraLegible, formatoFecha } from "../../utilidades/formatoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
@@ -19,17 +20,6 @@ const NOMBRE_MOTIVO_PLANTILLA = {
   postventa: "Seguimiento después de la compra", promocion: "Promoción",
 }
 const CAMPO = "w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-
-function FichasVariables({ onAgregar, deshabilitado }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-slate-500">Variables:</span>
-      {VARIABLES_PLANTILLA.map((v) => (
-        <button key={v.id} type="button" disabled={deshabilitado} onClick={() => onAgregar(v.id)} title={v.ayuda} className="rounded-md border border-slate-200/60 bg-white px-2 py-0.5 font-mono text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer">{v.id}</button>
-      ))}
-    </div>
-  )
-}
 
 // ─── Nueva campaña: grupo, nombre y mensaje ───
 export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNombre, onCrear, onCerrar }) {
@@ -93,11 +83,7 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
 
         <div className="space-y-2">
           <label htmlFor="campana-mensaje" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Mensaje</label>
-          <textarea id="campana-mensaje" rows={4} value={mensaje} onChange={(e) => { setMensaje(e.target.value); setEditado((x) => ({ ...x, mensaje: true })) }} className={CAMPO} aria-describedby="campana-mensaje-ayuda" />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <FichasVariables onAgregar={(v) => { setMensaje((m) => `${m}${m && !m.endsWith(" ") ? " " : ""}${v}`); setEditado((x) => ({ ...x, mensaje: true })) }} />
-            <span id="campana-mensaje-ayuda" className={"text-xs " + (mensaje.length > MAX_PLANTILLA ? "font-semibold text-red-600" : "text-slate-500")}>{mensaje.length} / {MAX_PLANTILLA}</span>
-          </div>
+          <EditorMensaje id="campana-mensaje" ayudaId="campana-mensaje-ayuda" filas={4} valor={mensaje} onCambio={(t) => { setMensaje(t); setEditado((x) => ({ ...x, mensaje: true })) }} />
           <div className="rounded-xl bg-slate-50 px-3.5 py-3">
             <p className="mb-1 text-xs font-semibold text-slate-500">Así lo recibirá {ejemplo ? ejemplo.nombre : "cada paciente"}</p>
             <p className="whitespace-pre-wrap text-sm text-slate-700">{vista}</p>
@@ -201,8 +187,35 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
   )
 }
 
-// ─── Plantillas: el mensaje de cada motivo ───
-export function VentanaPlantillas({ plantillas, opticaNombre, puedeEditar, onGuardar, onCerrar }) {
+// ─── Mensajes y envíos automáticos: el texto de cada motivo y, en los que pueden salir solos, su interruptor ───
+// Hoy solo el saludo de cumpleaños puede enviarse solo (por correo). El interruptor sigue apagado mientras no haya correo configurado.
+const CUANDO_SE_USA = {
+  control_vencido: "Recordatorio de salud para quien ya pasó su control.",
+  control_proximo: "Recordatorio de salud para quien está por cumplir su control.",
+  cumpleanos: "Saludo para quien cumple años. Va a quien aceptó promociones y saludos.",
+  sin_visitar: "Recordatorio de salud para quien lleva más de 12 meses sin venir.",
+  postventa: "Recordatorio de salud unos días después de entregar los lentes.",
+  promocion: "Para campañas de ofertas. Solo va a quien aceptó promociones y saludos.",
+}
+
+function InterruptorAutomatico({ activo, puedeEditar, onCambiar }) {
+  const bloqueado = !CORREO_AUTOMATICO_ACTIVO || !puedeEditar
+  const encendido = CORREO_AUTOMATICO_ACTIVO && activo
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-2.5">
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><Zap size={14} aria-hidden="true" /> Enviar solo el día del cumpleaños, por correo</p>
+        <p className="text-xs text-slate-500">{CORREO_AUTOMATICO_ACTIVO ? (encendido ? "Activo: sale a quien tenga correo y no lo haya recibido este año." : "Apagado: tú decides a quién saludar desde Para contactar.") : "Requiere el correo configurado."}</p>
+      </div>
+      <button type="button" role="switch" aria-checked={encendido} aria-label="Enviar el saludo de cumpleaños automáticamente" disabled={bloqueado} onClick={() => onCambiar(!activo)}
+        className={"relative h-7 w-12 shrink-0 rounded-full transition-colors " + (bloqueado ? "cursor-not-allowed opacity-50 " : "cursor-pointer ") + (encendido ? "" : "bg-slate-200")} style={encendido ? { background: GRAD_MARCA } : undefined}>
+        <span className={"absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (encendido ? "translate-x-5" : "translate-x-0")} />
+      </button>
+    </div>
+  )
+}
+
+export function VentanaPlantillas({ plantillas, opticaNombre, puedeEditar, cumpleAuto, onCumpleAuto, onGuardar, onCerrar }) {
   const [borrador, setBorrador] = useState(() => Object.fromEntries(Object.keys(PLANTILLAS_BASE).map((m) => [m, plantillaDe(m, plantillas)])))
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
@@ -223,26 +236,25 @@ export function VentanaPlantillas({ plantillas, opticaNombre, puedeEditar, onGua
   }
 
   return (
-    <Cascaron titulo="Plantillas de mensajes" subtitulo="El texto que sale al contactar por cada motivo" Icono={MessageCircle} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
+    <Cascaron titulo="Mensajes y envíos automáticos" subtitulo="El texto de cada motivo y los que pueden enviarse solos" Icono={MessageCircle} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
       pie={puedeEditar
         ? <PieFormulario onCancelar={() => onCerrar(false)} etiquetaGuardar={cambios.length > 1 ? `Guardar ${cambios.length} cambios` : "Guardar"} guardando={guardando} deshabilitado={cambios.length === 0 || invalido} nota="Mensajes cortos, cordiales y con el nombre de la óptica." />
         : <><span className="text-xs text-slate-500">Solo quien tiene permiso de editar el CRM puede cambiar los mensajes.</span><button type="button" onClick={() => onCerrar(false)} className={BOTON_CERRAR}>Cerrar</button></>}>
       <div className="space-y-5 px-5 py-4">
         {Object.keys(PLANTILLAS_BASE).map((m) => {
-          const largo = borrador[m].length
           const esBase = borrador[m].trim() === PLANTILLAS_BASE[m].trim()
           return (
             <div key={m} className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <label htmlFor={`plantilla-${m}`} className="text-sm font-bold" style={{ color: INK }}>{NOMBRE_MOTIVO_PLANTILLA[m]}</label>
-                {puedeEditar && !esBase && <button type="button" onClick={() => setBorrador((b) => ({ ...b, [m]: PLANTILLAS_BASE[m] }))} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"><RotateCcw size={12} aria-hidden="true" /> Volver al mensaje base</button>}
+                <div className="min-w-0">
+                  <label htmlFor={`plantilla-${m}`} className="text-sm font-bold" style={{ color: INK }}>{NOMBRE_MOTIVO_PLANTILLA[m]}</label>
+                  <p className="text-xs text-slate-500">{CUANDO_SE_USA[m]}</p>
+                </div>
+                {puedeEditar && !esBase && <button type="button" onClick={() => setBorrador((b) => ({ ...b, [m]: PLANTILLAS_BASE[m] }))} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"><RotateCcw size={12} aria-hidden="true" /> Volver al mensaje base</button>}
               </div>
-              <textarea id={`plantilla-${m}`} rows={3} value={borrador[m]} readOnly={!puedeEditar} onChange={(e) => setBorrador((b) => ({ ...b, [m]: e.target.value }))} className={CAMPO} />
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <FichasVariables deshabilitado={!puedeEditar} onAgregar={(v) => setBorrador((b) => ({ ...b, [m]: `${b[m]}${b[m] && !b[m].endsWith(" ") ? " " : ""}${v}` }))} />
-                <span className={"text-xs " + (largo > MAX_PLANTILLA ? "font-semibold text-red-600" : "text-slate-500")}>{largo} / {MAX_PLANTILLA}</span>
-              </div>
+              <EditorMensaje id={`plantilla-${m}`} ayudaId={`plantilla-${m}-largo`} valor={borrador[m]} soloLectura={!puedeEditar} onCambio={(t) => setBorrador((b) => ({ ...b, [m]: t }))} />
               <p className="text-xs text-slate-500">Ejemplo: {armarMensaje(borrador[m], { paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre })}</p>
+              {m === "cumpleanos" && <InterruptorAutomatico activo={cumpleAuto} puedeEditar={puedeEditar} onCambiar={onCumpleAuto} />}
             </div>
           )
         })}

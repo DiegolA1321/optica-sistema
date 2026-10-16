@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   motivosDe, listaParaContactar, contarPorMotivo, filtrarPorMotivo, avisosDelCrm, estadoDelMotivo, resultadoEfectivo, citaPosterior,
   aceptaRecordatorios, aceptaPromociones, puedeContactarPor, permisoDeMotivo, armarMensaje, plantillaDe, PLANTILLAS_BASE,
-  destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION,
+  destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION, insertarEnCursor, VARIABLES_PLANTILLA,
 } from "./crmContactos"
 import { diasCumpleEnVentana, esInactivo } from "./fidelizacion"
 import { hoyISO } from "./disponibilidad"
@@ -246,17 +246,44 @@ describe("mensajes", () => {
     expect(plantillaDe("control_vencido", { control_vencido: "   " })).toBe(PLANTILLAS_BASE.control_vencido)
     expect(plantillaDe("cumpleanos")).toBe(PLANTILLAS_BASE.cumpleanos)
   })
-  it("reemplaza {nombre} y {optica}; el nombre va tal como está guardado", () => {
-    const texto = armarMensaje("Hola {nombre}, de {optica}.", { paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre: "Óptica Solna" })
+  it("reemplaza {nombre} y {óptica}; el nombre va tal como está guardado", () => {
+    const texto = armarMensaje("Hola {nombre}, de {óptica}.", { paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre: "Óptica Solna" })
     expect(texto).toBe("Hola Rosa Bravo Cedeño, de Óptica Solna.")
   })
   it("sin nombre de óptica no deja la variable a la vista", () => {
-    expect(armarMensaje("De {optica}", { paciente: { nombre: "A" } })).toBe("De tu óptica")
+    expect(armarMensaje("De {óptica}", { paciente: { nombre: "A" } })).toBe("De tu óptica")
+  })
+  it("los mensajes guardados con los nombres viejos se siguen entendiendo", () => {
+    expect(armarMensaje("De {optica}: tu control es el {control}", { paciente: { nombre: "A" }, opticaNombre: "Solna" })).toBe("De Solna: tu control es el pronto")
+  })
+  it("{fecha_del_control} sin fecha dice 'pronto'", () => {
+    expect(armarMensaje("Control: {fecha_del_control}", { paciente: { nombre: "A" } })).toBe("Control: pronto")
+  })
+  it("una variable se inserta donde está el cursor, no al final", () => {
+    const r = insertarEnCursor("Hola , bienvenido", "{nombre}", 5, 5)
+    expect(r.texto).toBe("Hola {nombre}, bienvenido")
+    expect(r.cursor).toBe(5 + "{nombre}".length)
+  })
+  it("reemplaza lo seleccionado y separa con espacios solo cuando hace falta", () => {
+    expect(insertarEnCursor("De hola mundo", "{óptica}", 3, 7).texto).toBe("De {óptica} mundo")
+    expect(insertarEnCursor("Hola", "{nombre}", 4, 4).texto).toBe("Hola {nombre}")
+    expect(insertarEnCursor("Hola ", "{nombre}", 5, 5).texto).toBe("Hola {nombre}")
+    expect(insertarEnCursor("", "{nombre}", 0, 0).texto).toBe("{nombre}")
+  })
+  it("sin cursor conocido va al final", () => {
+    expect(insertarEnCursor("Hola", "{nombre}").texto).toBe("Hola {nombre}")
+  })
+  it("las tres variables tienen nombre claro y explicación", () => {
+    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
+    expect(VARIABLES_PLANTILLA.every((v) => v.ayuda.length > 5)).toBe(true)
+  })
+  it("el control vencido es un recordatorio de salud, no una promoción", () => {
+    expect(PLANTILLAS_BASE.control_vencido).not.toMatch(/promoci|oferta|descuento/i)
   })
   it("todas las plantillas base son cortas y nombran a la óptica", () => {
     for (const t of Object.values(PLANTILLAS_BASE)) {
       expect(t.length).toBeLessThanOrEqual(200)
-      expect(t).toContain("{optica}")
+      expect(t).toContain("{óptica}")
       expect(t).toContain("{nombre}")
     }
   })

@@ -197,19 +197,39 @@ export function avisosDelCrm(filas, contactos = [], hoy = hoyISO()) {
 
 // ─── Mensajes ───
 export const PLANTILLAS_BASE = {
-  control_vencido: "Hola {nombre}, te saludamos de {optica}. Ya pasó la fecha de tu control visual y revisarlo a tiempo cuida tu salud. ¿Te agendamos una cita?",
-  control_proximo: "Hola {nombre}, te saludamos de {optica}. Tu control visual se acerca ({control}). Escríbenos y te reservamos tu horario.",
-  cumpleanos: "¡Feliz cumpleaños, {nombre}! Todo el equipo de {optica} te desea un día excelente.",
-  sin_visitar: "Hola {nombre}, te saludamos de {optica}. Hace tiempo no te vemos y queremos saber cómo estás. ¿Agendamos una revisión de tu vista?",
-  postventa: "Hola {nombre}, te escribimos de {optica}. ¿Cómo te has adaptado a tus lentes nuevos? Si sientes alguna molestia, cuéntanos y lo revisamos.",
-  [MOTIVO_PROMOCION]: "Hola {nombre}, en {optica} tenemos una promoción para ti. Escríbenos y te contamos los detalles.",
+  control_vencido: "Hola {nombre}, te saludamos de {óptica}. Ya pasó la fecha de tu control visual y revisarlo a tiempo cuida tu salud. ¿Te agendamos una cita?",
+  control_proximo: "Hola {nombre}, te saludamos de {óptica}. Tu control visual se acerca ({fecha_del_control}). Escríbenos y te reservamos tu horario.",
+  cumpleanos: "¡Feliz cumpleaños, {nombre}! Todo el equipo de {óptica} te desea un día excelente.",
+  sin_visitar: "Hola {nombre}, te saludamos de {óptica}. Hace tiempo no te vemos y queremos saber cómo estás. ¿Agendamos una revisión de tu vista?",
+  postventa: "Hola {nombre}, te escribimos de {óptica}. ¿Cómo te has adaptado a tus lentes nuevos? Si sientes alguna molestia, cuéntanos y lo revisamos.",
+  [MOTIVO_PROMOCION]: "Hola {nombre}, en {óptica} tenemos una promoción para ti. Escríbenos y te contamos los detalles.",
 }
 export const VARIABLES_PLANTILLA = [
   { id: "{nombre}", ayuda: "Nombre del paciente, como está guardado" },
-  { id: "{optica}", ayuda: "Nombre de tu óptica" },
-  { id: "{control}", ayuda: "Fecha de su próximo control" },
+  { id: "{óptica}", ayuda: "Nombre de tu óptica" },
+  { id: "{fecha_del_control}", ayuda: "Fecha de su próximo control" },
 ]
 export const MAX_PLANTILLA = 500
+
+// Los mensajes que salen solos van por correo. Se enciende cuando la óptica tenga su correo configurado (igual que el correo de la factura electrónica).
+export const CORREO_AUTOMATICO_ACTIVO = false
+
+// Los mensajes que las ópticas guardaron antes usan los nombres viejos: se siguen entendiendo.
+const NOMBRES_VIEJOS = { "{optica}": "{óptica}", "{control}": "{fecha_del_control}" }
+const alNombreActual = (texto) => Object.entries(NOMBRES_VIEJOS).reduce((t, [viejo, nuevo]) => t.replaceAll(viejo, nuevo), String(texto || ""))
+
+// Un texto con una variable insertada donde estaba el cursor (o en lugar de lo seleccionado); sin cursor, al final.
+// Devuelve el texto nuevo y dónde queda el cursor, justo después de la variable.
+export function insertarEnCursor(texto, variable, inicio, fin) {
+  const t = String(texto || "")
+  const desde = Number.isInteger(inicio) ? Math.min(inicio, t.length) : t.length
+  const hasta = Number.isInteger(fin) ? Math.min(Math.max(fin, desde), t.length) : desde
+  const antes = t.slice(0, desde)
+  const despues = t.slice(hasta)
+  const espacioAntes = antes && !/[\s(¿¡]$/.test(antes) ? " " : ""
+  const espacioDespues = despues && !/^[\s,.;:!?)]/.test(despues) ? " " : ""
+  return { texto: `${antes}${espacioAntes}${variable}${espacioDespues}${despues}`, cursor: antes.length + espacioAntes.length + variable.length }
+}
 
 // El texto de una plantilla: la de la óptica si la editó, la base si no.
 export const plantillaDe = (motivo, guardadas = {}) => (guardadas[motivo] && guardadas[motivo].trim() ? guardadas[motivo] : PLANTILLAS_BASE[motivo] || PLANTILLAS_BASE.control_vencido)
@@ -217,10 +237,10 @@ export const plantillaDe = (motivo, guardadas = {}) => (guardadas[motivo] && gua
 export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = [] } = {}) {
   const control = paciente ? fechaProximoControl(paciente, consultas) : null
   const textoControl = control ? formatoFecha(fechaAISO(control), "medio") : "pronto"
-  return String(plantilla || "")
+  return alNombreActual(plantilla)
     .replaceAll("{nombre}", paciente?.nombre || "")
-    .replaceAll("{optica}", opticaNombre || "tu óptica")
-    .replaceAll("{control}", textoControl)
+    .replaceAll("{óptica}", opticaNombre || "tu óptica")
+    .replaceAll("{fecha_del_control}", textoControl)
     .replace(/\s+([,.!?])/g, "$1")
     .trim()
 }

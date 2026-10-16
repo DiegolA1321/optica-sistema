@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { Contact, Gift, HeartHandshake, Megaphone, Send, Zap } from "lucide-react"
+import { Contact, Gift, HeartHandshake, Megaphone, Send } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
@@ -190,18 +190,6 @@ export default function CRM({
             )}
             {tab === "campanas" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-2.5 shadow-sm">
-                  <div className="flex min-w-0 items-center gap-3" title={cumpleAuto ? "El día del cumpleaños se manda un correo de saludo a quien tenga correo y no haya dicho que no quiere mensajes." : "Tú decides a quién saludar desde Para contactar."}>
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><Zap size={15} aria-hidden="true" /></span>
-                    <p className="truncate text-sm font-bold" style={{ color: INK }}>Saludo automático de cumpleaños <span className={"ml-1.5 text-xs font-semibold " + (cumpleAuto ? "text-emerald-700" : "text-slate-500")}>{cumpleAuto ? "· Activo" : "· Apagado"}</span></p>
-                  </div>
-                  {puedeEditar && (
-                    <button type="button" role="switch" aria-checked={cumpleAuto} aria-label="Saludo automático de cumpleaños" onClick={() => setCumpleAuto(!cumpleAuto)}
-                      className={"relative h-7 w-12 shrink-0 rounded-full transition-colors cursor-pointer " + (cumpleAuto ? "" : "bg-slate-200")} style={cumpleAuto ? { background: GRAD_MARCA } : undefined}>
-                      <span className={"absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (cumpleAuto ? "translate-x-5" : "translate-x-0")} />
-                    </button>
-                  )}
-                </div>
                 <PestanaCampanas
                   campanas={campanas} contactos={contactos} pacientes={pacientes} consultas={consultas} puedeCrear={puedeContactar} puedeVerPlantillas
                   onNueva={() => setVentana("nueva")} onAbrir={(id) => setVentana({ campanaId: id })} onPlantillas={() => setVentana("plantillas")}
@@ -222,7 +210,7 @@ export default function CRM({
         />
       )}
       {ventana === "plantillas" && (
-        <VentanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} puedeEditar={puedeEditar} onGuardar={crm.guardarPlantilla}
+        <VentanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} puedeEditar={puedeEditar} cumpleAuto={cumpleAuto} onCumpleAuto={setCumpleAuto} onGuardar={crm.guardarPlantilla}
           onCerrar={(guardado) => { setVentana(null); if (guardado) notificar("Plantillas guardadas.") }} />
       )}
     </div>
