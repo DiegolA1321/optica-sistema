@@ -60,7 +60,7 @@ try {
   ok(Array.isArray(d.personas) && d.personas.length > 0, `el superadmin recibe las personas (${d.personas.length})`)
   ok(d.personas.every((p) => "ultimo_ingreso" in p && "optica_id" in p), "cada persona trae su último ingreso y su óptica")
   ok(Array.isArray(d.opticas) && d.opticas.length === (await uno("select count(*)::int n from opticas")).n, "una fila de uso por cada óptica")
-  ok(d.opticas.every((o) => "citas" in o && "consultas" in o && "ventas" in o && typeof o.modulos === "object"), "cada óptica trae citas, consultas, ventas y módulos")
+  ok(d.opticas.every((o) => "citas" in o && "consultas" in o && "ventas" in o && typeof o.modulos === "object" && "personas_activas" in o && o.previo && "ventas" in o.previo), "cada óptica trae citas, consultas, ventas, personas activas, módulos y los 30 días anteriores")
   ok(/solo el superadministrador/i.test(await falla(admin, "select datos_negocio_superadmin()") || ""), "el administrador NO puede llamarla")
   ok(/solo el superadministrador/i.test(await falla(asistente, "select datos_negocio_superadmin()") || ""), "el personal NO puede llamarla")
   ok(!!(await falla(null, "select datos_negocio_superadmin()")), "sin sesión NO puede llamarla")

@@ -62,6 +62,7 @@ set search_path = public
 as $$
 declare
   v_desde timestamptz := now() - interval '30 days';
+  v_antes timestamptz := now() - interval '60 days';
   v_personas jsonb;
   v_opticas jsonb;
 begin
@@ -82,6 +83,13 @@ begin
            'citas', (select count(*) from citas_base c where c.optica_id = o.id and c.created_at >= v_desde),
            'consultas', (select count(*) from consultas_base c where c.optica_id = o.id and c.created_at >= v_desde),
            'ventas', (select count(*) from facturas_venta f where f.optica_id = o.id and f.created_at >= v_desde and f.estado <> 'anulada'),
+           'personas_activas', (select count(distinct l.usuario_id) from logs_optica l where l.optica_id = o.id and l.created_at >= v_desde),
+           -- Los 30 días anteriores a esos 30, para comparar.
+           'previo', jsonb_build_object(
+             'citas', (select count(*) from citas_base c where c.optica_id = o.id and c.created_at >= v_antes and c.created_at < v_desde),
+             'consultas', (select count(*) from consultas_base c where c.optica_id = o.id and c.created_at >= v_antes and c.created_at < v_desde),
+             'ventas', (select count(*) from facturas_venta f where f.optica_id = o.id and f.created_at >= v_antes and f.created_at < v_desde and f.estado <> 'anulada'),
+             'personas_activas', (select count(distinct l.usuario_id) from logs_optica l where l.optica_id = o.id and l.created_at >= v_antes and l.created_at < v_desde)),
            'modulos', coalesce((select jsonb_object_agg(m.modulo, m.n)
                                   from (select l.modulo, count(*) n from logs_optica l
                                          where l.optica_id = o.id and l.created_at >= v_desde group by l.modulo) m), '{}'::jsonb)
