@@ -12,7 +12,7 @@ import { hoyISO } from "../../utilidades/disponibilidad"
 // Pestaña "Avisos": los del sistema (del soporte, para todas las ópticas) y los internos (del administrador a su personal), juntos, con su fecha. Los no leídos
 // van primero y destacados; cada uno se marca como leído a mano, para que nadie pierda un aviso solo por haber abierto la pestaña.
 // El administrador publica ("Nuevo aviso"), ve a quién va cada aviso interno y cuántos lo leyeron, y puede retirarlo.
-export default function PestanaAvisos({ avisos, esAdmin = false, lecturas = {}, destinatarios = {}, onMarcar, onMarcarTodos, onVerAyuda, onNuevo, onRetirar }) {
+export default function PestanaAvisos({ avisos, esAdmin = false, lecturas = {}, destinatarios = {}, onMarcar, onMarcarTodos, onVerAyuda, onNuevo, onRetirar, accionVacio = "Ver la ayuda" }) {
   const [retirando, setRetirando] = useState(null)
   const hoy = hoyISO()
   const mios = (a) => a.origen === "interno" && esAdmin
@@ -24,7 +24,7 @@ export default function PestanaAvisos({ avisos, esAdmin = false, lecturas = {}, 
         texto={esAdmin ? "Publica un aviso para todo tu personal, para un rol o para una persona. Aquí también aparecen las novedades y los mantenimientos del soporte del sistema." : "Aquí aparecen los avisos de tu administrador y las novedades, los mantenimientos y los comunicados del soporte."}>
         {esAdmin
           ? <button type="button" onClick={onNuevo} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><Plus size={15} aria-hidden="true" /> Nuevo aviso</button>
-          : <button type="button" onClick={onVerAyuda} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Ver la ayuda</button>}
+          : <button type="button" onClick={onVerAyuda} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{accionVacio}</button>}
       </Vacio>
     )
   }

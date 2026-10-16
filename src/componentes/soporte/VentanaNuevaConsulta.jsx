@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCircle2, MessageSquarePlus } from "lucide-react"
+import { BookOpen, CheckCircle2, MessageSquarePlus } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL } from "../ventas/estilos"
@@ -16,7 +16,7 @@ const ETIQUETA = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-sl
 
 // "Nueva consulta": módulo, tipo, urgencia, asunto, descripción y capturas. El sistema agrega solo quién escribe, su rol, la pantalla y el navegador.
 // Al enviar, la misma ventana confirma con el número de la consulta y el tiempo estimado de respuesta.
-export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", pantallaOrigen = "", onCerrar, onVerMisConsultas }) {
+export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", pantallaOrigen = "", onCerrar, onVerMisConsultas, onAbrirAyuda }) {
   const [modulo, setModulo] = useState(MODULOS_SOPORTE.some((m) => m.id === moduloInicial) ? moduloInicial : "otro")
   const [tipo, setTipo] = useState("problema")
   const [urgencia, setUrgencia] = useState("normal")
@@ -70,6 +70,13 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
     <Cascaron titulo="Nueva consulta" subtitulo={textos.subtitulo} Icono={MessageSquarePlus} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
       pie={<PieFormulario onCancelar={() => onCerrar(false)} etiquetaGuardar="Enviar consulta" guardando={enviando} deshabilitado={falta} nota="Se envía con tu nombre, tu rol, la pantalla y el navegador." />}>
       <div className="space-y-5 px-5 py-4">
+        {onAbrirAyuda && (
+          <p className="flex flex-wrap items-center gap-x-2 rounded-xl bg-blue-50/60 px-3.5 py-2.5 text-sm text-slate-600">
+            <BookOpen size={15} className="text-blue-700" aria-hidden="true" />
+            <span>¿Ya buscaste en la ayuda?</span>
+            <button type="button" onClick={() => onAbrirAyuda(asunto.trim())} className="font-semibold text-blue-700 underline-offset-2 hover:underline cursor-pointer">Buscar en la ayuda</button>
+          </p>
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="soporte-modulo" className={ETIQUETA}>¿De qué módulo es?</label>

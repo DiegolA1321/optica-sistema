@@ -39,6 +39,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
   const [avisos, setAvisos] = useState([])
   const [internos, setInternos] = useState({ datos: [], leidos: [], lecturas: [] })
   const [destinatarios, setDestinatarios] = useState({ roles: [], personas: [] })
+  const [ayuda, setAyuda] = useState({ clave: 0, texto: "" }) // "¿Ya buscaste en la ayuda?": abre la Ayuda con el buscador listo
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState("")
   const [ventana, setVentana] = useState(null) // "nueva" | "aviso" | { consultaId } | { nueva: true, modulo }
@@ -161,7 +162,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
       </div>
 
       <div id="soporte-panel" role="tabpanel" aria-labelledby={`soporte-tab-${tab}`}>
-        {tab === "ayuda" && <PestanaAyuda esAdmin={esAdmin} puedeEscribir={puedeEscribir} onEscribir={escribir} />}
+        {tab === "ayuda" && <PestanaAyuda key={ayuda.clave} esAdmin={esAdmin} puedeEscribir={puedeEscribir} onEscribir={escribir} busquedaInicial={ayuda.texto} enfocar={ayuda.clave > 0} />}
         {(tab === "consultas" || tab === "personal" || tab === "sistema") && (cargando ? <TablaSkeleton /> : puedeVer
           ? <PestanaMisConsultas variante={tab} consultas={consultasDe(tab)} usuario={usuario} puedeEscribir={puedeEscribir} onAbrir={(id) => setVentana({ consultaId: id })} onNueva={() => escribir("")}
               onAccionVacia={() => { setTab("avisos"); setVentana("aviso") }} />
@@ -174,7 +175,8 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
 
       {(ventana === "nueva" || ventana?.nueva) && (
         <VentanaNuevaConsulta usuario={usuario} moduloInicial={ventana?.modulo || moduloOrigen} pantallaOrigen={pantallaOrigen}
-          onCerrar={(enviada) => { setVentana(null); if (enviada) recargar() }} onVerMisConsultas={() => setTab(esAdmin ? "sistema" : "consultas")} />
+          onCerrar={(enviada) => { setVentana(null); if (enviada) recargar() }} onVerMisConsultas={() => setTab(esAdmin ? "sistema" : "consultas")}
+          onAbrirAyuda={(texto) => { setVentana(null); setAyuda((a) => ({ clave: a.clave + 1, texto })); setTab("ayuda") }} />
       )}
       {ventana === "aviso" && esAdmin && <VentanaNuevoAviso usuario={usuario} onCerrar={() => setVentana(null)} onPublicado={() => { setTab("avisos"); recargar(); avisarCambioSoporte() }} />}
       {consultaAbierta && <VentanaConsulta consulta={consultaAbierta} usuario={usuario} puedeEscribir={puedeEscribir} onCambio={recargar} onCerrar={() => setVentana(null)} />}

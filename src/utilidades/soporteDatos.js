@@ -135,8 +135,14 @@ export async function leerDestinatariosDeAvisos(opticaId) {
 
 // Lo de la campanita: respuestas sin leer (de sus consultas) y avisos nuevos.
 // A cada uno lo suyo: respuestas sin leer, avisos del sistema y avisos internos nuevos, y (administrador) las consultas del personal que esperan respuesta.
-export async function leerResumenSoporte(perfilId, esAdmin = false) {
+export async function leerResumenSoporte(perfilId, esAdmin = false, conSoporte = true) {
   if (!supabase || !perfilId) return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [] }
+  // Los avisos internos le llegan a todo el personal destinatario; lo demás (respuestas, avisos del sistema, consultas por responder) solo a quien tiene Soporte.
+  if (!conSoporte) {
+    const i = await leerAvisosInternos(perfilId, false)
+    const vistos = new Set(i.leidos || [])
+    return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: (i.datos || []).filter((x) => x.autorId !== perfilId && !vistos.has(x.id)).length, porResponder: [] }
+  }
   const [r, a, i, p] = await Promise.all([
     supabase.from("soporte_consultas").select("id, numero, asunto, estado").eq("autor_id", perfilId).eq("respuesta_sin_leer", true).order("actualizada_en", { ascending: false }).limit(20),
     leerAvisos(perfilId),

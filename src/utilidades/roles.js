@@ -21,7 +21,7 @@ export const MODULOS_PERMISO = [
   { id: "reportes", nombre: "Reportes", grupo: "Gestión y operación", niveles: ["ver"], ayuda: "El alcance decide si ve todo o solo lo suyo." },
   { id: "horario", nombre: "Mi horario", grupo: "Gestión y operación", niveles: ["ver"], ayuda: "Ve su agenda y edita su propio horario y sus ausencias." },
   { id: "horario_optica", nombre: "Horario de la óptica", grupo: "Gestión y operación", niveles: ["ver", "editar"], sensible: true, ayuda: "Ver: el horario general en lectura · Editar: cambiarlo, cerrar o abrir días y la duración de las citas. El administrador siempre puede." },
-  { id: "mensajes", nombre: "Soporte", grupo: "Administración", niveles: ["ver", "crear"], ayuda: "Ver: la ayuda, sus propias consultas y los avisos (del sistema y de su administrador) · Crear: escribir a su administrador y responder. Solo el administrador escribe al soporte del sistema, ve las consultas de todo su personal y publica avisos." },
+  { id: "mensajes", nombre: "Soporte", grupo: "Administración", niveles: ["ver", "crear"], ayuda: "Ver: la ayuda, sus propias consultas y los avisos del sistema · Crear: escribir a su administrador (no al soporte del sistema) y responder. Solo el administrador escribe al soporte del sistema, ve y escala las consultas de su personal y publica avisos. Los avisos de la óptica le llegan a todo el personal destinatario, tenga o no este permiso." },
   { id: "configuracion", nombre: "Configuración", grupo: "Administración", niveles: ["ver", "editar"], sensible: true, ayuda: "Datos de la óptica y parámetros." },
 ]
 export const GRUPOS_MODULOS = [...new Set(MODULOS_PERMISO.map((m) => m.grupo))]

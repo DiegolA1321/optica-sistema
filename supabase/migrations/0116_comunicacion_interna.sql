@@ -9,8 +9,8 @@
 --   3. El superadmin solo ve (y solo responde) las de destino 'superadmin', con su conversación y sus archivos. Lo que se queda entre el personal y su
 --      administrador no llega al superadmin. Cada persona ve las suyas; el administrador, las de toda su óptica; ninguna óptica ve las de otra.
 --   4. Las respuestas del administrador a su personal se guardan con `de = 'admin'` (nuevo valor permitido).
---   5. Avisos internos: `avisos_internos` (para todos, un rol o una persona; con vencimiento opcional) y `avisos_internos_leidos`. Solo el administrador los
---      publica y los retira; cada persona ve los dirigidos a ella (que no hayan vencido); el administrador ve "quién leyó" con `lecturas_avisos_internos`.
+--   5. Avisos internos (los recibe todo el personal destinatario, tenga o no el permiso de Soporte): `avisos_internos` (para todos, un rol o una persona; con vencimiento opcional) y `avisos_internos_leidos`. Solo el administrador los
+--      publica y los retira; cada persona ve los dirigidos a ella, sin importar su permiso de Soporte (que no hayan vencido); el administrador ve "quién leyó" con `lecturas_avisos_internos`.
 --   6. Adjuntos: PDF, Word (.docx) y Excel (.xlsx) además de PNG, JPG, WebP y GIF; hasta 10 MB cada uno. El servidor valida tipo y extensión al subir
 --      (almacenamiento) y otra vez al enviar el mensaje; .docm, .xlsm y cualquier otro tipo se rechazan. El bucket sigue privado.
 --
@@ -331,7 +331,7 @@ grant execute on function public._aviso_interno_para_mi(text, uuid, uuid, date) 
 
 create policy avisos_internos_lectura on public.avisos_internos for select
   using (optica_id = (select perfiles.optica_id from public.perfiles where perfiles.id = auth.uid())
-    and optica_activa_actual() and perfil_activo_actual() and tiene_permiso('mensajes', 'ver')
+    and optica_activa_actual() and perfil_activo_actual()
     and (_es_admin_optica_actual() or _aviso_interno_para_mi(para, rol_id, perfil_id, vence_el)));
 create policy avisos_internos_leidos_propios on public.avisos_internos_leidos for select using (perfil_id = auth.uid());
 
@@ -380,6 +380,26 @@ $function$;
 revoke all on function public.retirar_aviso_interno(uuid) from public, anon;
 grant execute on function public.retirar_aviso_interno(uuid) to authenticated;
 
+-- Los avisos internos son comunicación de la óptica: los recibe todo el personal destinatario, tenga o no el permiso de Soporte.
+-- Esta comprobación pide estar en una óptica activa con el segundo factor, pero no el permiso de Soporte.
+create function public._optica_del_personal()
+returns uuid
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_optica uuid;
+begin
+  select p.optica_id into v_optica from perfiles p where p.id = auth.uid() and p.rol in ('admin', 'asistente');
+  if v_optica is null then raise exception 'No tienes acceso a esta óptica.'; end if;
+  if not optica_activa_actual() or not perfil_activo_actual() then raise exception 'La óptica está suspendida o tu cuenta está desactivada.'; end if;
+  if not mfa_satisfecho() then raise exception 'Verifica tu segundo factor para continuar.'; end if;
+  return v_optica;
+end;
+$function$;
+revoke all on function public._optica_del_personal() from public, anon, authenticated;
+
 -- Marca como leídos los avisos internos dirigidos a quien llama (sin lista: todos los suyos).
 create function public.marcar_avisos_internos_leidos(p_avisos uuid[] default null)
 returns void
@@ -388,7 +408,7 @@ security definer
 set search_path to 'public'
 as $function$
 declare
-  v_optica uuid := _optica_de_soporte('ver');
+  v_optica uuid := _optica_del_personal();
 begin
   insert into avisos_internos_leidos (perfil_id, aviso_id)
   select auth.uid(), a.id from avisos_internos a

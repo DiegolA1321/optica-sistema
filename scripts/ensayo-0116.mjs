@@ -268,6 +268,24 @@ try {
   x = await intenta(admin, () => comoSigue(admin, () => c.query("select retirar_aviso_interno($1)", [aTodos])))
   ok(!x.e && (await avisosDe(admin)).length === 2, "el administrador retira un aviso" + (x.e ? " — " + x.e : ""))
 
+  // Los avisos internos no dependen del permiso de Soporte
+  await c.query("delete from perfil_roles where perfil_id = $1", [paula])
+  const rolSinSoporte = (await c.query("insert into roles (optica_id, nombre, permisos, alcance, es_predefinido) values ($1, 'Ensayo 0116 sin soporte', '{\"citas\":[\"ver\"]}'::jsonb, '{}'::jsonb, false) returning id", [optica])).rows[0].id
+  await c.query("insert into perfil_roles (perfil_id, rol_id) values ($1, $2)", [paula, rolSinSoporte])
+  x = await intenta(admin, () => publicar(admin, "ENSAYO sin permiso", "Para quien no tiene Soporte", "persona", null, paula))
+  const aSinPermiso = x.r
+  ok(!x.e && aSinPermiso, "el administrador avisa a alguien sin el permiso de Soporte" + (x.e ? " — " + x.e : ""))
+  x = await intenta(paula, async () => (await c.query("select titulo from avisos_internos where id = $1", [aSinPermiso])).rows.length)
+  ok(x.r === 1, "…y esa persona lo ve (los avisos son comunicación de la óptica, no dependen de Soporte)")
+  x = await intenta(paula, () => marcar(paula, [aSinPermiso]))
+  ok(!x.e, "…y lo marca como leído" + (x.e ? " — " + x.e : ""))
+  x = await intenta(paula, async () => (await c.query("select count(*)::int n from soporte_consultas")).rows[0].n)
+  ok(x.r === 0, "…sin que eso le abra las consultas de Soporte")
+  x = await intenta(paula, () => comoSigue(paula, () => c.query("select * from crear_consulta_soporte($1,'citas','problema','normal','abc','x','{}'::jsonb,'[]'::jsonb)", [randomUUID()])))
+  ok(/No tienes permiso/.test(x.e || ""), "…ni le deja escribir consultas: " + x.e)
+  x = await lecturas(admin)
+  ok((x.r || []).some((f) => f.aviso_id === aSinPermiso && f.perfil_id === paula && f.leido_en), "el administrador ve que lo leyó")
+
   // ── 7. Los avisos del sistema (superadmin → ópticas) siguen igual
   ok((await sobrecargas("marcar_avisos_leidos")) === 1, "marcar_avisos_leidos (avisos del sistema) no cambió")
   x = await intenta(paula, () => comoSigue(paula, () => c.query("select marcar_avisos_leidos(null)")))
