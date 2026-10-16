@@ -151,3 +151,18 @@ export async function borrarRespuestaGuardada(id) {
   const { error } = await supabase.from("soporte_respuestas_guardadas").delete().eq("id", id)
   return error ? { error: texto(error, "No se pudo borrar la respuesta.") } : { datos: true }
 }
+
+// Los tiempos de respuesta que se le dicen al usuario (los configura el superadmin).
+export async function leerAjustesSoporte() {
+  if (!supabase) return { datos: {} }
+  const { data } = await supabase.from("soporte_ajustes").select("clave, valor")
+  return { datos: Object.fromEntries((data || []).map((r) => [r.clave, r.valor])) }
+}
+export async function guardarAjustesSoporte(ajustes) {
+  if (!supabase) return SIN_BASE
+  for (const [clave, valor] of Object.entries(ajustes)) {
+    const { error } = await supabase.from("soporte_ajustes").update({ valor: valor.trim(), actualizado_en: new Date().toISOString() }).eq("clave", clave)
+    if (error) return { error: texto(error, "No se pudieron guardar los tiempos.") }
+  }
+  return { datos: true }
+}

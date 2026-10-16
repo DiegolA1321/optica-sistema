@@ -17,6 +17,7 @@ vi.mock("../utilidades/soporteDatos", () => ({
   marcarConsultaLeida: vi.fn(),
   marcarAvisosLeidos: vi.fn(),
   urlDeCaptura: vi.fn(() => Promise.resolve("")),
+  leerAjustesSoporte: vi.fn(() => Promise.resolve({ datos: {} })),
 }))
 
 import Mensajes from "./Mensajes"
@@ -215,7 +216,7 @@ describe("Soporte: Nueva consulta", () => {
     expect(args).toMatchObject({ opticaId: "o1", modulo: "citas", tipo: "problema", urgencia: "urgente", asunto: "No puedo agendar", descripcion: "Al pulsar Agendar no pasa nada" })
     expect(args.contexto).toMatchObject({ quien: "Ana Pérez", rol: "Administrador", pantalla: "Citas médicas" })
     expect(await screen.findByText("SOP-0012")).toBeInTheDocument()
-    expect(screen.getByText(/2 horas/)).toBeInTheDocument()
+    expect(screen.getByText(/el mismo día hábil/)).toBeInTheDocument()
   })
   it("una consulta normal promete el tiempo normal", async () => {
     datos.crearConsulta.mockResolvedValue({ datos: { id: "c9", numero: 3 } })
@@ -225,7 +226,7 @@ describe("Soporte: Nueva consulta", () => {
     fireEvent.change(within(v).getByLabelText("Asunto"), { target: { value: "Una duda" } })
     fireEvent.change(within(v).getByLabelText("Descripción"), { target: { value: "¿Cómo se hace tal cosa?" } })
     fireEvent.click(within(v).getByRole("button", { name: "Enviar consulta" }))
-    expect(await screen.findByText(/1 día hábil/)).toBeInTheDocument()
+    expect(await screen.findByText(/en un máximo de 1 día hábil/)).toBeInTheDocument()
   })
   it("si falla el envío lo dice y no pierde lo escrito", async () => {
     datos.crearConsulta.mockResolvedValue({ error: "No hay conexión con el servidor." })

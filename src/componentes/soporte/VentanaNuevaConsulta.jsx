@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CheckCircle2, MessageSquarePlus } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
@@ -8,7 +8,7 @@ import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL } from "../ventas/estilos"
 import { GRAD_MARCA } from "@/lib/tema"
 import { CampoCapturas } from "./piezas"
 import { MODULOS_SOPORTE, TIPOS_CONSULTA, URGENCIAS, codigoConsulta, contextoDeConsulta, tiempoEstimado } from "../../utilidades/soporte"
-import { crearConsulta } from "../../utilidades/soporteDatos"
+import { crearConsulta, leerAjustesSoporte } from "../../utilidades/soporteDatos"
 
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 const ETIQUETA = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500"
@@ -25,6 +25,8 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState("")
   const [enviada, setEnviada] = useState(null)
+  const [ajustes, setAjustes] = useState({})
+  useEffect(() => { leerAjustesSoporte().then((r) => setAjustes(r.datos || {})) }, [])
 
   const contexto = contextoDeConsulta({ usuario, pantalla: pantallaOrigen })
   const falta = asunto.trim().length < 3 || descripcion.trim().length < 5
@@ -53,7 +55,7 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
         <div role="status" className="space-y-3 px-5 py-6 text-center">
           <p className="text-sm text-slate-500">Número de tu consulta</p>
           <p className="font-mono text-3xl font-bold tracking-wide" style={{ color: INK }}>{codigoConsulta(enviada.numero)}</p>
-          <p className="text-sm text-slate-600">Te respondemos en un máximo de <strong>{tiempoEstimado(enviada.urgencia)}</strong>. Cuando respondan, te avisamos en la campanita y verás la respuesta en «Mis consultas».</p>
+          <p className="text-sm text-slate-600">Te respondemos <strong>{tiempoEstimado(enviada.urgencia, ajustes)}</strong>. Cuando respondan, te avisamos en la campanita y verás la respuesta en «Mis consultas».</p>
         </div>
       </Cascaron>
     )

@@ -50,6 +50,8 @@ try {
     consultas: (await c.query("select count(*)::int n from mensajes where tipo = 'consulta' and optica_id is not null")).rows[0].n,
     mensajes: (await c.query("select count(*)::int n from mensajes")).rows[0].n,
     politicasMensajes: (await c.query("select polname from pg_policy where polrelid = 'public.mensajes'::regclass order by 1")).rows.map((r) => r.polname).join(","),
+    propiosConSoporte: (await c.query("select count(*)::int n from roles where not es_predefinido and permisos ? 'mensajes'")).rows[0].n,
+    predefinidos: (await c.query("select count(*)::int n from roles where es_predefinido and clave in ('optometra','recepcion','ventas')")).rows[0].n,
     plantillaOptometra: (await c.query("select _plantilla_rol('optometra') p")).rows[0].p,
   }
   console.log(`(antes: ${antes.consultas} consultas y ${antes.mensajes} mensajes en total)`)
@@ -286,6 +288,20 @@ try {
   ok(!x.e, "anonimizar un paciente sigue funcionando" + (x.e ? " — " + x.e : ""))
   const t = (await c.query("select c.asunto, c.descripcion, (select string_agg(m.cuerpo, ' ') from soporte_mensajes m where m.consulta_id = c.id) conv from soporte_consultas c where c.id = $1", [cPac])).rows[0]
   ok(!/Zoilo|0900000015/.test(`${t.asunto} ${t.descripcion} ${t.conv}`), "…y su nombre y cédula desaparecen de las consultas de Soporte: " + t.asunto)
+
+  // ── 11. Ajustes y roles existentes
+  const aj = (await c.query("select clave, valor from soporte_ajustes order by clave")).rows
+  ok(aj.length === 2 && aj.find((a) => a.clave === "tiempo_urgente").valor === "el mismo día hábil" && aj.find((a) => a.clave === "tiempo_normal").valor === "en un máximo de 1 día hábil", "los tiempos de respuesta nacen con los textos acordados")
+  x = await intenta(admin, () => c.query("update soporte_ajustes set valor = 'en 5 minutos' where clave = 'tiempo_urgente'"))
+  ok(/permission|row-level/.test(x.e || "") || (await c.query("select valor from soporte_ajustes where clave = 'tiempo_urgente'")).rows[0].valor === "el mismo día hábil", "el administrador de una óptica no cambia los tiempos")
+  x = await intenta(admin, async () => (await c.query("select count(*)::int n from soporte_ajustes")).rows[0].n)
+  ok(x.r === 2, "…pero sí los lee")
+  x = await intenta(sup, () => c.query("update soporte_ajustes set valor = 'en unas 4 horas hábiles' where clave = 'tiempo_urgente' returning valor"))
+  ok(!x.e && x.r.rows[0]?.valor === "en unas 4 horas hábiles", "el superadmin sí los cambia")
+  const rolesFaltan = (await c.query("select count(*)::int n from roles where es_predefinido and clave in ('optometra','recepcion','ventas') and not (permisos -> 'mensajes' @> '[\"ver\",\"crear\"]'::jsonb)")).rows[0].n
+  ok(rolesFaltan === 0, "todos los roles predefinidos de las ópticas que ya existen tienen Soporte (ver y crear)")
+  ok((await c.query("select count(*)::int n from roles where not es_predefinido and permisos ? 'mensajes' and nombre not like 'Ensayo 0115%'")).rows[0].n === antes.propiosConSoporte, "los roles propios no se tocaron")
+  ok((await c.query("select count(*)::int n from roles where es_predefinido and clave in ('optometra','recepcion','ventas')")).rows[0].n === antes.predefinidos, "no se creó ni se borró ningún rol")
 
   // ── 10. Roles de una óptica nueva
   const plantillas = (await c.query("select _plantilla_rol('optometra') o, _plantilla_rol('recepcion') r, _plantilla_rol('ventas') v")).rows[0]

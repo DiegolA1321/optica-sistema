@@ -12,6 +12,8 @@ vi.mock("../../utilidades/soporteDatos", () => ({
   leerRespuestasGuardadas: vi.fn(),
   guardarRespuestaGuardada: vi.fn(),
   borrarRespuestaGuardada: vi.fn(),
+  leerAjustesSoporte: vi.fn(),
+  guardarAjustesSoporte: vi.fn(),
   urlDeCaptura: vi.fn(() => Promise.resolve("")),
 }))
 
@@ -34,6 +36,7 @@ const montar = (consultas = lista, extra = {}) => render(<SoporteSuperadmin cons
 
 beforeEach(() => {
   vi.clearAllMocks()
+  datos.leerAjustesSoporte.mockResolvedValue({ datos: {} })
   datos.leerRespuestasGuardadas.mockResolvedValue({ datos: [{ id: "g1", titulo: "Restablecer clave", texto: "Entra a Usuarios y permisos y usa Restablecer clave." }] })
   datos.leerConversacionSoporte.mockResolvedValue({ datos: [
     { id: "m1", de: "optica", autorNombre: "Ana", cuerpo: "No puedo cobrar", adjuntos: [], interna: false, creadoEn: "2026-10-12T10:00:00Z" },
@@ -188,6 +191,16 @@ describe("Soporte del superadmin: respuestas guardadas y avisos", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Respuestas guardadas/ }))
     expect(await screen.findByText("Todavía no hay respuestas guardadas")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Crear la primera respuesta" })).toBeInTheDocument()
+  })
+  it("los tiempos de respuesta se editan desde aquí, con los textos acordados por defecto", async () => {
+    datos.guardarAjustesSoporte.mockResolvedValue({ datos: true })
+    montar()
+    fireEvent.click(screen.getByRole("tab", { name: /Tiempos de respuesta/ }))
+    expect(await screen.findByLabelText("Consulta normal")).toHaveValue("en un máximo de 1 día hábil")
+    expect(screen.getByLabelText("Consulta urgente")).toHaveValue("el mismo día hábil")
+    fireEvent.change(screen.getByLabelText("Consulta urgente"), { target: { value: "en unas 4 horas hábiles" } })
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }))
+    await waitFor(() => expect(datos.guardarAjustesSoporte).toHaveBeenCalledWith({ tiempo_normal: "en un máximo de 1 día hábil", tiempo_urgente: "en unas 4 horas hábiles" }))
   })
   it("los avisos, pagos y cumpleaños siguen en su pestaña", async () => {
     montar()

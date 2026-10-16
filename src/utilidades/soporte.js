@@ -40,8 +40,9 @@ export const estadoDe = (id) => ESTADOS_CONSULTA.find((e) => e.id === id) || EST
 export const esAbierta = (c) => c?.estado !== "resuelta"
 
 // Lo que se le promete a quien escribe. Un compromiso del sistema: se cambia aquí y se ve igual en la confirmación y en la ayuda.
-export const TIEMPO_ESTIMADO = { normal: "1 día hábil", urgente: "2 horas" }
-export const tiempoEstimado = (urgencia) => TIEMPO_ESTIMADO[urgencia] || TIEMPO_ESTIMADO.normal
+export const TIEMPO_ESTIMADO = { normal: "en un máximo de 1 día hábil", urgente: "el mismo día hábil" }
+// ajustes: lo que configuró el superadmin ({ tiempo_normal, tiempo_urgente }); sin él, los textos de arriba. Se lee después de "Te respondemos ".
+export const tiempoEstimado = (urgencia, ajustes = {}) => (urgencia === "urgente" ? ajustes.tiempo_urgente || TIEMPO_ESTIMADO.urgente : ajustes.tiempo_normal || TIEMPO_ESTIMADO.normal)
 
 export const MAX_ADJUNTOS = 3
 export const MAX_BYTES_ADJUNTO = 5 * 1024 * 1024

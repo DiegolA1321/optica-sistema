@@ -46,7 +46,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
     if (conCaptura) await v.locator('input[type=file]').setInputFiles({ name: 'captura.png', mimeType: 'image/png', buffer: PNG })
     await v.getByRole('button', { name: 'Enviar consulta' }).click()
     await expect(v.getByText(/^SOP-\d{4}$/)).toBeVisible({ timeout: 30_000 })
-    await expect(v.getByText(urgente ? /2 horas/ : /1 día hábil/)).toBeVisible()
+    await expect(v.getByText(urgente ? /el mismo día hábil/ : /1 día hábil/)).toBeVisible()
     const codigo = (await v.getByText(/^SOP-\d{4}$/).textContent()).trim()
     await v.getByRole('button', { name: 'Cerrar', exact: true }).click()
     return codigo

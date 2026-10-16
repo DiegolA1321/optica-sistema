@@ -23,6 +23,12 @@ describe("nombres y códigos", () => {
     expect(URGENCIAS[1].ayuda).toBe("Urgente: no puedo atender, vender o cobrar.")
     expect(ESTADOS_CONSULTA.map((e) => e.nombre)).toEqual(["Recibida", "En revisión", "Respondida", "Resuelta"])
   })
+  it("lo urgente es el mismo día hábil, nunca un número de horas, y lo configurado manda", () => {
+    expect(tiempoEstimado("urgente")).toBe("el mismo día hábil")
+    expect(tiempoEstimado("normal")).toBe("en un máximo de 1 día hábil")
+    expect(tiempoEstimado("urgente", { tiempo_urgente: "en 3 horas hábiles" })).toBe("en 3 horas hábiles")
+    expect(tiempoEstimado("normal", { tiempo_urgente: "x" })).toBe("en un máximo de 1 día hábil")
+  })
   it("promete un tiempo distinto a lo urgente", () => {
     expect(tiempoEstimado("urgente")).not.toBe(tiempoEstimado("normal"))
     expect(tiempoEstimado("lo-que-sea")).toBe(tiempoEstimado("normal"))

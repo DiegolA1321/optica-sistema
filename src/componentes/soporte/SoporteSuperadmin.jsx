@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { BarChart3, Clock, Inbox, MessageSquareText, Pencil, Plus, Search, Trash2, X } from "lucide-react"
+import { BarChart3, Clock, Timer, Inbox, MessageSquareText, Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { ContenedorLista, EncabezadoLista, Vacio } from "../ventas/Lista"
@@ -9,9 +9,9 @@ import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../vent
 import { InsigniaEstado, InsigniaUrgencia } from "./piezas"
 import VentanaConsultaSoporte from "./VentanaConsultaSoporte"
 import {
-  ESTADOS_CONSULTA, MODULOS_SOPORTE, PERIODOS_SOPORTE, URGENCIAS, codigoConsulta, desdeDePeriodo, duracionLegible, filtrarBandeja, indicadoresSoporte, nombreModulo, ordenarBandeja,
+  TIEMPO_ESTIMADO, ESTADOS_CONSULTA, MODULOS_SOPORTE, PERIODOS_SOPORTE, URGENCIAS, codigoConsulta, desdeDePeriodo, duracionLegible, filtrarBandeja, indicadoresSoporte, nombreModulo, ordenarBandeja,
 } from "../../utilidades/soporte"
-import { borrarRespuestaGuardada, guardarRespuestaGuardada, leerRespuestasGuardadas } from "../../utilidades/soporteDatos"
+import { borrarRespuestaGuardada, guardarAjustesSoporte, guardarRespuestaGuardada, leerAjustesSoporte, leerRespuestasGuardadas } from "../../utilidades/soporteDatos"
 import { fechaHoraLegible, fechaLegible } from "../../utilidades/formatoFecha"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 
@@ -23,6 +23,7 @@ const TABS = [
   { id: "consultas", etiqueta: "Consultas", Icono: Inbox },
   { id: "indicadores", etiqueta: "Indicadores", Icono: BarChart3 },
   { id: "respuestas", etiqueta: "Respuestas guardadas", Icono: MessageSquareText },
+  { id: "tiempos", etiqueta: "Tiempos de respuesta", Icono: Timer },
 ]
 
 function Tarjeta({ titulo, valor, nota, onClick, alerta = false }) {
@@ -114,6 +115,40 @@ function PestanaRespuestas({ respuestas, cargando, error, onRecargar, onToast })
       )}
       {ventana && <VentanaRespuesta respuesta={ventana === "nueva" ? null : ventana} onCerrar={() => setVentana(null)} onGuardar={() => { setVentana(null); onToast?.("exito", "Respuesta guardada."); onRecargar() }} />}
     </div>
+  )
+}
+
+// ─── Tiempos de respuesta que se le dicen al usuario ───
+function PestanaTiempos({ onToast }) {
+  const [valores, setValores] = useState(null)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState("")
+  useEffect(() => { leerAjustesSoporte().then((r) => setValores({ tiempo_normal: r.datos.tiempo_normal || TIEMPO_ESTIMADO.normal, tiempo_urgente: r.datos.tiempo_urgente || TIEMPO_ESTIMADO.urgente })) }, [])
+  if (!valores) return <div className="h-32 animate-pulse rounded-2xl bg-slate-100" />
+  const invalido = Object.values(valores).some((v) => v.trim().length < 3)
+  const guardar = async (e) => {
+    e.preventDefault()
+    setGuardando(true); setError("")
+    const r = await guardarAjustesSoporte(valores)
+    setGuardando(false)
+    if (r.error) { setError(r.error); return }
+    onToast?.("exito", "Tiempos de respuesta guardados.")
+  }
+  const campo = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
+  return (
+    <form onSubmit={guardar} className="max-w-xl space-y-4 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+      <p className="text-sm text-slate-600">Es lo que se le dice a quien envía una consulta: «Te respondemos <em>…</em>». Escribe solo lo que puedas cumplir.</p>
+      <div>
+        <label htmlFor="ts-normal" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Consulta normal</label>
+        <input id="ts-normal" value={valores.tiempo_normal} maxLength={80} onChange={(e) => setValores((v) => ({ ...v, tiempo_normal: e.target.value }))} className={campo} />
+      </div>
+      <div>
+        <label htmlFor="ts-urgente" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Consulta urgente</label>
+        <input id="ts-urgente" value={valores.tiempo_urgente} maxLength={80} onChange={(e) => setValores((v) => ({ ...v, tiempo_urgente: e.target.value }))} className={campo} />
+      </div>
+      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
+      <button type="submit" disabled={guardando || invalido} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{guardando ? "Guardando…" : "Guardar"}</button>
+    </form>
   )
 }
 
@@ -256,6 +291,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
 
         {tab === "indicadores" && (cargando ? <div className="h-40 animate-pulse rounded-2xl bg-slate-100" /> : <PestanaIndicadores consultas={consultas} periodo={periodo} onVerConsultas={verConsultas} />)}
         {tab === "respuestas" && <PestanaRespuestas respuestas={respuestas} cargando={cargandoRespuestas} error={errorRespuestas} onRecargar={cargarRespuestas} onToast={onToast} />}
+        {tab === "tiempos" && <PestanaTiempos onToast={onToast} />}
         {tab === "avisos" && avisos}
       </div>
 

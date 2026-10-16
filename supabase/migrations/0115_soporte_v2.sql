@@ -15,7 +15,9 @@
 --   7. Quién ve qué: cada persona ve SUS consultas; el administrador de la óptica ve las de toda su óptica; el superadmin ve todas; ninguna óptica ve
 --      las de otra. Las notas internas y sus archivos solo los ve el superadmin.
 --   8. `anonimizar_paciente` también limpia el nombre del paciente en estas tablas (igual que ya hace con `mensajes`).
---   9. Los roles predefinidos de las ópticas NUEVAS (Optómetra, Recepción, Ventas) reciben Soporte (ver y crear): cada persona ve solo lo suyo.
+--   9. Los roles predefinidos Optómetra, Recepción y Ventas reciben Soporte (ver y crear): en las ópticas NUEVAS (plantilla) y en las que YA EXISTEN
+--      (se agrega solo ese permiso a sus roles predefinidos). Los roles propios de cada óptica no se tocan.
+--  10. `soporte_ajustes`: los tiempos de respuesta que se le dicen al usuario (normal y urgente); los edita el superadmin, todos los leen.
 --
 -- CÓMO NO ROMPE LO PUBLICADO
 --   · No toca la tabla `mensajes` ni sus políticas: la pantalla publicada sigue escribiendo y leyendo ahí.
@@ -620,11 +622,10 @@ end;
 $$;
 
 -- ════════════════════════════════════════════════════════════════
--- 8. Soporte en los roles predefinidos de las ópticas NUEVAS
+-- 8. Soporte en los roles predefinidos (ópticas nuevas y existentes)
 -- ════════════════════════════════════════════════════════════════
 -- Cada persona ve solo sus consultas, así que Soporte ya no da acceso a lo de toda la óptica: Optómetra, Recepción y Ventas lo reciben ("ver" y "crear").
--- Solo cambia la plantilla (misma firma que 0108, sin sobrecarga): las ópticas que ya existen conservan sus roles tal como están, salvo si el
--- administrador usa "Restaurar valores originales" en uno de ellos.
+-- La plantilla cambia (misma firma que 0108, sin sobrecarga): vale para las ópticas nuevas y para "Restaurar valores originales".
 create or replace function public._plantilla_rol(p_clave text)
 returns jsonb
 language sql
@@ -652,9 +653,33 @@ as $$
   end;
 $$;
 
+-- Las ópticas que ya existen: SOLO sus roles predefinidos (clave optometra, recepcion o ventas) ganan Soporte "ver" y "crear" si no lo tenían.
+-- Nada más cambia en esos roles, y los roles propios (es_predefinido = false) no se tocan.
+update public.roles
+   set permisos = permisos || '{"mensajes":["ver","crear"]}'::jsonb
+ where es_predefinido and clave in ('optometra', 'recepcion', 'ventas')
+   and not (permisos ? 'mensajes');
+
+-- ════════════════════════════════════════════════════════════════
+-- 9. Tiempos de respuesta configurables
+-- ════════════════════════════════════════════════════════════════
+create table public.soporte_ajustes (
+  clave       text primary key check (clave in ('tiempo_normal', 'tiempo_urgente')),
+  valor       text not null check (char_length(btrim(valor)) between 3 and 80),
+  actualizado_en timestamptz not null default now()
+);
+insert into public.soporte_ajustes (clave, valor) values ('tiempo_normal', 'en un máximo de 1 día hábil'), ('tiempo_urgente', 'el mismo día hábil');
+alter table public.soporte_ajustes enable row level security;
+revoke all on public.soporte_ajustes from anon, authenticated;
+grant select on public.soporte_ajustes to authenticated;
+grant update on public.soporte_ajustes to authenticated;
+create policy soporte_ajustes_lectura on public.soporte_ajustes for select using (perfil_activo_actual());
+create policy soporte_ajustes_superadmin on public.soporte_ajustes for update using (es_superadmin()) with check (es_superadmin());
+
 -- ════════════════════════════════════════════════════════════════
 -- Para deshacer (solo si hiciera falta; la plantilla de roles: volver a aplicar la de 0108; las consultas de las tablas nuevas se perderían, las de `mensajes` siguen):
 --   drop trigger mensajes_a_soporte_insert on public.mensajes; drop trigger mensajes_a_soporte_update on public.mensajes;
+--   drop table public.soporte_ajustes; (los permisos agregados a los roles existentes se quitan a mano si hiciera falta)
 --   drop table public.avisos_leidos, public.soporte_respuestas_guardadas, public.soporte_mensajes, public.soporte_consultas cascade;
 --   drop sequence public.soporte_numero_seq;
 --   (las funciones nuevas y las políticas de storage.objects 'soporte_adjuntos_*', y vaciar y borrar el bucket 'soporte-adjuntos')
