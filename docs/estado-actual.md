@@ -4,11 +4,11 @@ Pedido: rediseñar "CRM y fidelización" para responder "¿a quién contacto hoy
 **Dónde voy:**
 - [x] Paso 1 — Lógica pura con pruebas: `src/utilidades/crmContactos.js` (grupos, resultados, descansos, consentimiento, plantillas, campañas, rankings) y `diasCumpleEnVentana` en `fidelizacion.js` (el Inicio y el CRM comparten la ventana de cumpleaños).
 - [x] Paso 2 — Migración `0114_crm_v2.sql` + `scripts/ensayo-0114.mjs` (ensayo en transacción que revierte: pasa completo). Respaldo: `pre-crm-v2-2026-10-15.dump`. **Falta: que Diego revise el SQL y autorice aplicarla.**
-- [ ] Paso 3 — Datos del CRM en pantalla (carga, mapeo `mapPaciente` con los permisos, contactos, plantillas, campañas).
-- [ ] Paso 4 — Estructura y pestaña "Para contactar" (+ "Requieren atención" y cabecera).
-- [ ] Paso 5 — Seguimiento · Campañas · Fidelización.
-- [ ] Paso 6 — Permisos del paciente en su perfil y en "Mis datos" del portal.
-- [ ] Paso 7 — Playwright del recorrido y suite completa; comparación con los criterios del ingeniero.
+- [x] Paso 3 — Datos del CRM (`crmDatos.js`, `mapPaciente` con los permisos).
+- [x] Paso 4 — Estructura y "Para contactar" (+ "Requieren atención", cabecera y enlaces del Inicio con el mismo número).
+- [x] Paso 5 — Seguimiento, Campañas (con plantillas) y Fidelización.
+- [x] Paso 6 — Permisos en "Datos del paciente" (perfil) y en "Mis datos" del portal (`PermisosMensajes.jsx`).
+- [~] Paso 7 — `e2e/crm-v2.spec.js` escrito (7 pruebas); **falta correrlo y la suite completa de Playwright: necesitan la migración aplicada.** Revisión contra el pedido y los criterios del ingeniero: `docs/revision-crm-v2.md`. Vitest 970 de 970; build bien.
 **Decisiones de diseño (para que Diego las confirme o corrija):** una fila por paciente con todos sus motivos (un paciente con control vencido y cumpleaños cuenta en los dos filtros; el total cuenta cada paciente una vez); "no respondió" descansa 3 días, "agendó" 30, "no le interesa" 180; una cita agendada después del contacto lo resuelve sola; cumpleaños y seguimiento de compra se tratan como recordatorios de salud (sin oferta); promociones solo a quien las aceptó (el servidor lo impide); recordatorios sí por defecto, promociones no.
 <!-- CRM2-FIN -->
 

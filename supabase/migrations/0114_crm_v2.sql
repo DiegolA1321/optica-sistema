@@ -8,7 +8,9 @@
 --      intentar, quién lo hizo). Lo escriben solo las funciones de abajo, que ponen ellas mismas quién y cuándo.
 --   3. `crm_campanas`: un mensaje preparado para un grupo; cada envío por WhatsApp es un contacto con el id de la campaña.
 --   4. `crm_plantillas`: los mensajes editables por motivo (si no hay fila, vale el texto base de la pantalla).
---   5. Funciones: registrar_contacto_crm, registrar_resultado_contacto_crm, crear_campana_crm, guardar_plantilla_crm,
+--   5. Los dos correos automáticos de hoy (saludo de cumpleaños y recordatorio de la cita de mañana) dejan de salir para quien no acepta
+--      'Recordatorios de salud' (mismas funciones, misma firma, una condición más).
+--   6. Funciones: registrar_contacto_crm, registrar_resultado_contacto_crm, crear_campana_crm, guardar_plantilla_crm,
 --      cambiar_consentimiento_paciente (personal) y actualizar_consentimiento_paciente / mis_permisos_mensajes (portal del paciente).
 --
 -- CÓMO NO ROMPE LO PUBLICADO
