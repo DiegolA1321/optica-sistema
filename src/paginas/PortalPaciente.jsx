@@ -41,6 +41,8 @@ import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import MisCompras from "../componentes/MisCompras"
+import PermisosMensajes from "../componentes/PermisosMensajes"
+import { cambiarMisPermisos, leerMisPermisos } from "../utilidades/permisosMensajes"
 import { supabase } from "../lib/supabaseClient"
 import { INK, GOLD } from "@/lib/tema"
 import { validarClaveNueva, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
@@ -795,6 +797,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 </div>
 
                 <MisDatosContacto usuario={usuario} onActualizado={alActualizarUsuario} />
+                <MisPermisosMensajes usuario={usuario} />
 
                 <div className="mt-6 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
                   <div>
@@ -1124,6 +1127,31 @@ function MedidasMontaje({ medidas = {} }) {
         </div>
       ))}
     </div>
+  )
+}
+
+// Los dos permisos para recibir mensajes: el paciente los ve y los cambia aquí, y la óptica los respeta (el servidor lo exige).
+function MisPermisosMensajes({ usuario }) {
+  const [permisos, setPermisos] = useState(null)
+  const [error, setError] = useState("")
+  useEffect(() => {
+    let vivo = true
+    leerMisPermisos(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token).then((r) => { if (!vivo) return; if (r.ok) setPermisos(r); else setError(r.error) })
+    return () => { vivo = false }
+  }, [usuario?.id, usuario?.token])
+  const cambiar = async (cambios) => {
+    const r = await cambiarMisPermisos(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token, cambios)
+    if (r.ok) setPermisos((p) => ({ ...p, ...(r.recordatorios !== undefined ? { recordatorios: r.recordatorios, promociones: r.promociones, actualizadoEn: r.actualizadoEn } : cambios) }))
+    return r
+  }
+  return (
+    <section aria-label="Permisos para recibir mensajes" className="mt-6 border-t border-slate-100 pt-5">
+      <h3 className="text-base font-bold" style={{ color: INK }}>Mensajes que quieres recibir</h3>
+      <p className="mb-3 mt-0.5 text-sm text-slate-500">Tú decides. Puedes cambiarlo cuando quieras.</p>
+      {error ? <p role="alert" className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700"><AlertCircle size={14} className="shrink-0" /> {error}</p>
+        : !permisos ? <div className="h-24 animate-pulse rounded-xl bg-slate-100" aria-hidden="true" />
+        : <PermisosMensajes recordatorios={permisos.recordatorios} promociones={permisos.promociones} actualizadoEn={permisos.actualizadoEn} onCambiar={cambiar} quien="yo" />}
+    </section>
   )
 }
 

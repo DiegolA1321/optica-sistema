@@ -44,6 +44,9 @@ test('Por registrar: el detalle ofrece "Registrar paciente" y vincula sin cambia
   const registro = page.getByRole('dialog', { name: 'Registrar paciente' })
   await expect(registro).toBeVisible()
   await expect(registro.getByText('Quedará vinculado a esta cita.')).toBeVisible()
+  // Igual que "Crear paciente": recordatorios de salud marcado, promociones y saludos desmarcado.
+  await expect(registro.getByLabel('Recordatorios de salud')).toBeChecked()
+  await expect(registro.getByLabel('Promociones y saludos')).not.toBeChecked()
   await registro.getByRole('button', { name: 'Registrar paciente' }).click()
   await expect(page.getByText('Paciente registrado y vinculado a la cita.')).toBeVisible({ timeout: 15_000 })
 

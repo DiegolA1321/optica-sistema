@@ -27,3 +27,12 @@ describe("Agendar cita pública — motivos", () => {
     expect(screen.getByText("¿Qué síntomas tienes?")).toBeInTheDocument()
   })
 })
+
+describe("Agendar cita pública — permisos para recibir mensajes", () => {
+  it("el formulario pregunta por los dos: recordatorios marcado, promociones y saludos desmarcado", () => {
+    render(<AgendarCitaPublica {...base} />)
+    fireEvent.click(screen.getByRole("button", { name: /Continuar|Siguiente/ }))
+    expect(screen.getByRole("checkbox", { name: /Recordatorios de salud/ })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: /Promociones y saludos/ })).not.toBeChecked()
+  })
+})

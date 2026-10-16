@@ -64,6 +64,7 @@ import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPend
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
+import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { moverCitaAHoy as moverCitaAHoyCompartido } from "../utilidades/moverCitaAHoy"
 import { estadosCorregibles, estadoCorregibleEs, etiquetaEstadoCita } from "../utilidades/estadosCita"
@@ -71,6 +72,7 @@ import { Cascaron } from "../componentes/AtencionPaciente"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
+const PERMISOS_INICIALES = { recordatorios: true, promociones: false } // igual que "Crear paciente"
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 
 // Orden de los grupos por estado dentro del modal "Citas del día" (vista por
@@ -359,6 +361,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const [npCorreo, setNpCorreo] = useState("")
   const [npFechaNacimiento, setNpFechaNacimiento] = useState("")
   const [npErrores, setNpErrores] = useState({})
+  const [npPermisos, setNpPermisos] = useState(PERMISOS_INICIALES)
   const [npGuardando, setNpGuardando] = useState(false)
 
   // ── Cobro pendiente (Ronda 4): una cita "En atención" cuya ficha ya se
@@ -401,6 +404,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const [cpCorreo, setCpCorreo] = useState("")
   const [cpFechaNacimiento, setCpFechaNacimiento] = useState("")
   const [cpErrores, setCpErrores] = useState({})
+  const [cpPermisos, setCpPermisos] = useState(PERMISOS_INICIALES)
   const [cpGuardando, setCpGuardando] = useState(false)
   // D2 (reunión 29 sept.): paciente que YA existe (se registró/dedupe al
   // agendar por la web, migración 0067) y solo falta que recepción confirme o
@@ -416,8 +420,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // "Completar registro" (Atender sobre una cita sin paciente vinculado).
   // La alta en sí (insert + shape) vive en utilidades/pacientes.js, compartida
   // con Pacientes.jsx, para no tener dos copias que puedan desincronizarse.
-  const crearPacienteInline = async ({ nombre, cedula, telefono, correo, fechaNacimiento }) => {
-    const { paciente: nuevoPaciente, error } = await crearRegistroPaciente(supabase, opticaId, { nombre, cedula, telefono, correo, fechaNacimiento })
+  const crearPacienteInline = async ({ nombre, cedula, telefono, correo, fechaNacimiento, permisos = PERMISOS_INICIALES }) => {
+    const { paciente: nuevoPaciente, error } = await crearRegistroPaciente(supabase, opticaId, { nombre, cedula, telefono, correo, fechaNacimiento, aceptaRecordatorios: permisos.recordatorios, aceptaPromociones: permisos.promociones })
     if (error) return { error }
     setPacientes?.([nuevoPaciente, ...pacientes])
     return { paciente: nuevoPaciente }
@@ -566,6 +570,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setNpCorreo("")
     setNpFechaNacimiento("")
     setNpErrores({})
+    setNpPermisos(PERMISOS_INICIALES)
   }
 
   const guardarNuevoPacienteInline = async (e) => {
@@ -576,7 +581,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
 
     setNpGuardando(true)
     const { paciente: nuevoPaciente, error } = await crearPacienteInline({
-      nombre: npNombre, cedula: npCedula, telefono: npTelefono, correo: npCorreo, fechaNacimiento: npFechaNacimiento,
+      nombre: npNombre, cedula: npCedula, telefono: npTelefono, correo: npCorreo, fechaNacimiento: npFechaNacimiento, permisos: npPermisos,
     })
     setNpGuardando(false)
     if (error) {
@@ -592,6 +597,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setNpCorreo("")
     setNpFechaNacimiento("")
     setNpErrores({})
+    setNpPermisos(PERMISOS_INICIALES)
   }
 
   // No se elimina la cita (reunión 29 sept., punto 2 del plan: "no deberíamos
@@ -742,6 +748,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setCpCorreo(cita.correo || "")
     setCpFechaNacimiento("")
     setCpErrores({})
+    setCpPermisos(PERMISOS_INICIALES)
   }
 
   // Desde el detalle: registrar al paciente de una cita "Por registrar" y vincularlo, sin atenderla ni tocar su estado.
@@ -755,6 +762,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setCpCorreo(cita.correo && cita.correo !== "Sin Correo" ? cita.correo : "")
     setCpFechaNacimiento("")
     setCpErrores({})
+    setCpPermisos(PERMISOS_INICIALES)
   }
 
   const cerrarCompletarRegistro = () => {
@@ -766,6 +774,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setCpCorreo("")
     setCpFechaNacimiento("")
     setCpErrores({})
+    setCpPermisos(PERMISOS_INICIALES)
   }
 
   const guardarCompletarRegistro = async (e) => {
@@ -777,7 +786,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setCpGuardando(true)
 
     const { paciente: nuevoPaciente, error } = await crearPacienteInline({
-      nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento,
+      nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento, permisos: cpPermisos,
     })
     if (error) {
       setCpGuardando(false)
@@ -1684,6 +1693,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                     </div>
                 <CampoFecha id="np-nacimiento" etiqueta="Nacimiento" valor={npFechaNacimiento} onCambiar={setNpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
                   </div>
+                  <PermisosAlRegistrar idBase="np-permisos" recordatorios={npPermisos.recordatorios} promociones={npPermisos.promociones} onCambiar={(c) => setNpPermisos((p) => ({ ...p, ...c }))} />
                   <button
                     type="button"
                     disabled={npGuardando}
@@ -1857,6 +1867,9 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Nacimiento <span className="normal-case text-slate-500">(opcional)</span></label>
                 <CampoFecha id="cp-nacimiento" etiqueta="Nacimiento" valor={cpFechaNacimiento} onCambiar={setCpFechaNacimiento} icono={Cake} placeholder="Nacimiento" />
+            </div>
+            <div>
+              <PermisosAlRegistrar idBase="cp-permisos" recordatorios={cpPermisos.recordatorios} promociones={cpPermisos.promociones} onCambiar={(c) => setCpPermisos((p) => ({ ...p, ...c }))} />
             </div>
           </div>
         

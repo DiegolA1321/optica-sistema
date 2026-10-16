@@ -15,3 +15,8 @@ export function formatearTelefonoEC(telefono) {
 export function linkWhatsApp(telefono, mensaje) {
   return `https://api.whatsapp.com/send?phone=${formatearTelefonoEC(telefono)}&text=${encodeURIComponent(mensaje)}`
 }
+
+// Abre WhatsApp con el mensaje escrito. Va síncrono dentro del clic (si se espera a otra cosa antes, el navegador bloquea la ventana).
+export function abrirWhatsApp(telefono, mensaje) {
+  window.open(linkWhatsApp(telefono, mensaje), "_blank", "noopener")
+}

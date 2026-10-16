@@ -1,372 +1,129 @@
-import { dinero } from "../utilidades/formatoMoneda"
-import { useEffect, useState } from "react"
-import { fechaLegible, fechaHoraLegible } from "../utilidades/formatoFecha"
-import { MessageSquare, Megaphone, Send, Clock, AlertCircle, CheckCircle2, Wallet, Receipt, Printer } from "lucide-react"
-import { supabase } from "../lib/supabaseClient"
-import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
-import { INK } from "@/lib/tema"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { BookOpen, Megaphone, MessageSquare, MessageSquarePlus } from "lucide-react"
+import { GRAD_MARCA, INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
+import TablaSkeleton from "../componentes/TablaSkeleton"
+import PestanaAyuda from "../componentes/soporte/PestanaAyuda"
+import PestanaMisConsultas from "../componentes/soporte/PestanaMisConsultas"
+import PestanaAvisos from "../componentes/soporte/PestanaAvisos"
+import VentanaNuevaConsulta from "../componentes/soporte/VentanaNuevaConsulta"
+import VentanaConsulta from "../componentes/soporte/VentanaConsulta"
+import BloqueSuscripcion from "../componentes/soporte/BloqueSuscripcion"
+import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
+import { EVENTO_SOPORTE_CAMBIADO, avisarCambioSoporte, leerAvisos, leerMisConsultas, marcarAvisosLeidos } from "../utilidades/soporteDatos"
+import { useParamUrl } from "../utilidades/urlEstado"
+import { puede } from "../utilidades/permisosUi"
 
-// ─── Paleta de firma ───
-const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
+const TABS = ["ayuda", "consultas", "avisos"]
+const REFRESCO_MS = 45_000
 
-// Modo anteproyecto: "el equipo de Diego Óptica" revela que hay un
-// proveedor atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se
-// muestra un texto neutral que no lo insinúa.
-const SOPORTE = MODO_SAAS_VISIBLE ? "el soporte de Diego Óptica" : "el soporte del sistema"
-
-const formatearFecha = (fecha) => fechaLegible(fecha)
-const formatearFechaHora = (fecha) =>
-  fechaHoraLegible(fecha, { anio: true })
-
-export default function Mensajes({ usuario }) {
-  const [mensajes, setMensajes] = useState([])
+// Soporte: el usuario encuentra ayuda antes de escribir (Ayuda); si escribe, su consulta tiene número, módulo, urgencia y estado, y se conversa hasta
+// resolverla (Mis consultas); y lee los anuncios del soporte (Avisos del sistema). "Nueva consulta" es la acción principal de la cabecera.
+export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = "otro", abrirConsultaId = null, onAbrirConsultaConsumida }) {
+  const puedeVer = puede(usuario, "mensajes", "ver")
+  // Quien entra a una óptica como superadmin mira, pero no escribe en nombre del administrador.
+  const puedeEscribir = puede(usuario, "mensajes", "crear") && !usuario.impersonadoPor
+  const [tab, setTab] = useParamUrl("tab", "ayuda", TABS)
+  const [consultas, setConsultas] = useState([])
+  const [avisos, setAvisos] = useState([])
   const [cargando, setCargando] = useState(true)
-  const [filtro, setFiltro] = useState("todas")
-
-  const [asunto, setAsunto] = useState("")
-  const [cuerpo, setCuerpo] = useState("")
   const [error, setError] = useState("")
-  const [enviando, setEnviando] = useState(false)
-  const [enviado, setEnviado] = useState(false)
+  const [ventana, setVentana] = useState(null) // "nueva" | { consultaId } | { nueva: true, modulo }
 
-  // ─── Suscripción y facturas (misma óptica, solo lectura desde acá) ───
-  const [optica, setOptica] = useState(null)
-  const [facturas, setFacturas] = useState([])
-  const [facturaImprimir, setFacturaImprimir] = useState(null)
-  // J7: sin esto, un fallo de red o RLS al cargar dejaba la pantalla igual
-  // que "no hay mensajes/facturas todavía" — indistinguible de un fallo real.
-  const [errorCarga, setErrorCarga] = useState(false)
-
-  const cargarMensajes = async () => {
-    if (!supabase) { setCargando(false); return }
-    setCargando(true)
-    const { data, error } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
-    setMensajes(data || [])
-    if (error) setErrorCarga(true)
+  const recargar = useCallback(async () => {
+    const [c, a] = await Promise.all([leerMisConsultas(usuario.opticaId), leerAvisos(usuario.id)])
+    setConsultas(c.datos)
+    setAvisos(a.datos)
+    setError(c.error || a.error || "")
     setCargando(false)
-  }
+  }, [usuario.id, usuario.opticaId])
 
-  const cargarSuscripcion = async () => {
-    if (!supabase || !usuario?.opticaId) return
-    const [{ data: opticaData, error: errorOptica }, { data: facturasData, error: errorFacturas }] = await Promise.all([
-      supabase.from("opticas").select("estado_pago, monto_mensual, proximo_vencimiento").eq("id", usuario.opticaId).single(),
-      supabase.from("facturas").select("*").eq("optica_id", usuario.opticaId).order("emitida_at", { ascending: false }),
-    ])
-    setOptica(opticaData || null)
-    setFacturas(facturasData || [])
-    if (errorOptica || errorFacturas) setErrorCarga(true)
-  }
-
+  useEffect(() => { recargar() }, [recargar])
+  // Una respuesta nueva aparece sin recargar la página: al volver a la pestaña del navegador, cuando algo cambia aquí y cada 45 segundos.
   useEffect(() => {
-    cargarMensajes()
-    cargarSuscripcion()
-  }, [])
+    const alVolver = () => { if (document.visibilityState === "visible") recargar() }
+    window.addEventListener(EVENTO_SOPORTE_CAMBIADO, recargar)
+    document.addEventListener("visibilitychange", alVolver)
+    const reloj = setInterval(alVolver, REFRESCO_MS)
+    return () => { window.removeEventListener(EVENTO_SOPORTE_CAMBIADO, recargar); document.removeEventListener("visibilitychange", alVolver); clearInterval(reloj) }
+  }, [recargar])
 
-  const enviarConsulta = async (e) => {
-    e.preventDefault()
-    setError("")
-    setEnviado(false)
-    if (!asunto.trim() || !cuerpo.trim()) { setError("Completa el asunto y el mensaje."); return }
-    if (!usuario?.opticaId) { setError("No se encontró tu óptica — recarga la página e inténtalo de nuevo."); return }
-    setEnviando(true)
-    const { data, error: errorInsert } = await supabase
-      .from("mensajes")
-      .insert({
-        tipo: "consulta",
-        optica_id: usuario.opticaId,
-        remitente_id: usuario.id,
-        remitente_nombre: usuario.nombre || "Administrador",
-        asunto: asunto.trim(),
-        cuerpo: cuerpo.trim(),
-      })
-      .select()
-      .single()
-    setEnviando(false)
-    if (errorInsert) { setError(errorInsert.message); return }
-    setMensajes((prev) => [data, ...prev])
-    setAsunto("")
-    setCuerpo("")
-    setEnviado(true)
-    setTimeout(() => setEnviado(false), 4000)
-  }
+  // Desde la campanita: abrir directo la consulta que respondieron.
+  useEffect(() => {
+    if (!abrirConsultaId) return
+    setTab("consultas")
+    setVentana({ consultaId: abrirConsultaId })
+    onAbrirConsultaConsumida?.()
+  }, [abrirConsultaId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const estadoPago = optica?.estado_pago || "al_dia"
-  const consultasAbiertas = mensajes.filter((m) => m.tipo === "consulta" && m.estado === "abierto").length
-  const totalAvisos = mensajes.filter((m) => m.tipo === "anuncio").length
-  const mensajesFiltrados = filtro === "todas" ? mensajes : mensajes.filter((m) => m.tipo === filtro)
+  const consultaAbierta = ventana?.consultaId ? consultas.find((c) => c.id === ventana.consultaId) : null
+  const avisosSinLeer = avisos.filter((a) => !a.leido).length
+  const respuestasNuevas = consultas.filter((c) => c.respuestaSinLeer && c.autorId === usuario.id).length
+
+  const marcarAviso = async (id) => { await marcarAvisosLeidos([id]); await recargar(); avisarCambioSoporte() }
+  const marcarTodos = async () => { await marcarAvisosLeidos(null); await recargar(); avisarCambioSoporte() }
+  const escribir = (modulo) => setVentana({ nueva: true, modulo: modulo || moduloOrigen })
+
+  const pestanas = useMemo(() => [
+    { id: "ayuda", etiqueta: "Ayuda", Icono: BookOpen },
+    { id: "consultas", etiqueta: "Mis consultas", cuenta: consultas.length, nuevas: respuestasNuevas, Icono: MessageSquare },
+    { id: "avisos", etiqueta: "Avisos del sistema", cuenta: avisos.length, nuevas: avisosSinLeer, Icono: Megaphone },
+  ], [consultas.length, respuestasNuevas, avisos.length, avisosSinLeer])
 
   return (
-    <div className="w-full space-y-6 text-left">
-      <div className="flex items-center gap-3.5">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-          <MessageSquare size={22} />
-        </div>
-        <div>
+    <div className="w-full space-y-5 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3.5">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl text-white" style={{ background: GRAD_MARCA, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}><MessageSquare size={24} aria-hidden="true" /></div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Soporte</h1>
-          <p className="text-sm text-slate-500">Escribe a {SOPORTE} y lee los avisos del sistema.</p>
         </div>
-      </div>
-
-      {errorCarga && (
-        <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-sm text-red-700">
-          <AlertCircle size={16} className="shrink-0" />
-          No se pudo cargar todo correctamente — puede que falten mensajes o facturas. Revisa tu conexión e intenta recargar.
-        </div>
-      )}
-
-      {/* ─── Panel de control: tarjetas filtran la lista de abajo, solo cuando ya hay mensajes: sin ninguno serían dos números en cero ─── */}
-      {mensajes.length > 0 && (
-      <div>
-        <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar tus mensajes</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setFiltro(filtro === "consulta" ? "todas" : "consulta")}
-            className="flex items-center justify-between rounded-2xl border bg-white p-5 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
-            style={{
-              borderColor: filtro === "consulta" ? "#2563EB" : "rgba(14,43,51,0.08)",
-              boxShadow: filtro === "consulta" ? "0 0 0 3px rgba(37,99,235,0.14)" : "0 1px 2px rgba(14,43,51,0.04)",
-            }}
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Consultas abiertas</p>
-              <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{consultasAbiertas}</p>
-              <p className="mt-1.5 text-[11px] font-semibold" style={{ color: consultasAbiertas > 0 ? "#B45309" : "#94A3B8" }}>{consultasAbiertas > 0 ? "esperando respuesta" : "todo al día"}</p>
-            </div>
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#E8F0FF", color: "#2563EB" }}>
-              <MessageSquare size={22} />
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFiltro(filtro === "anuncio" ? "todas" : "anuncio")}
-            className="flex items-center justify-between rounded-2xl border bg-white p-5 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
-            style={{
-              borderColor: filtro === "anuncio" ? "#D97706" : "rgba(14,43,51,0.08)",
-              boxShadow: filtro === "anuncio" ? "0 0 0 3px rgba(217,119,6,0.14)" : "0 1px 2px rgba(14,43,51,0.04)",
-            }}
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avisos del sistema</p>
-              <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{totalAvisos}</p>
-              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">para tu óptica</p>
-            </div>
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#FFF7E6", color: "#B45309" }}>
-              <Megaphone size={22} />
-            </div>
-          </button>
-        </div>
-      </div>
-      )}
-
-      {/* ─── Suscripción — solo ocupa espacio si hay algo que atender.
-          Oculta mientras MODO_SAAS_VISIBLE esté apagado (ver src/lib/config.js). ─── */}
-      {MODO_SAAS_VISIBLE && estadoPago !== "al_dia" && (
-        <div className="flex items-center justify-between gap-4 rounded-2xl border bg-white p-5" style={{ borderColor: estadoPago === "vencido" ? "#FECACA" : "#FDE68A", boxShadow: `0 0 0 3px ${estadoPago === "vencido" ? "rgba(225,29,72,0.08)" : "rgba(217,119,6,0.08)"}` }}>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Suscripción</p>
-            <p className="mt-1 text-lg font-serif font-semibold leading-tight" style={{ color: estadoPago === "vencido" ? "#BE123C" : "#B45309" }}>
-              {estadoPago === "vencido" ? "Pago vencido" : "Pago pendiente"}
-            </p>
-            <p className="mt-1 text-[13px] font-semibold text-slate-500">
-              {optica?.proximo_vencimiento ? <>Vencimiento: {formatearFecha(optica.proximo_vencimiento)}</> : "Escríbenos si ya lo hiciste para confirmarlo."}
-            </p>
-          </div>
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: estadoPago === "vencido" ? "#FEE2E2" : "#FFF7E6", color: estadoPago === "vencido" ? "#BE123C" : "#B45309" }}>
-            <Wallet size={22} />
-          </div>
-        </div>
-      )}
-
-      {MODO_SAAS_VISIBLE && facturas.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
-            <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Receipt size={18} /></span>
-            <div>
-              <h4 className="text-sm font-bold" style={{ color: INK }}>Tus facturas</h4>
-              <p className="text-[11px] text-slate-500">Historial de facturación de tu suscripción</p>
-            </div>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {facturas.map((f) => (
-              <div key={f.id} className="flex items-center justify-between gap-2 p-4">
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-xs font-semibold text-slate-700">{f.numero}</p>
-                  <p className="text-xs text-slate-500">{f.periodo} · {dinero(Number(f.monto))}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <span
-                    className="rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider"
-                    style={f.estado === "pagada" ? { backgroundColor: "#d1fae5", color: "#065f46", border: "1px solid #a7f3d0" } : { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}
-                  >
-                    {f.estado === "pagada" ? "Pagada" : "Pendiente"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => { setFacturaImprimir(f); setTimeout(() => imprimirDocumento("factura-imprimible-admin", "printing-factura-admin"), 50) }}
-                    title="Imprimir factura"
-                    aria-label="Imprimir factura"
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
-                  >
-                    <Printer size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ─── Nueva consulta ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
-          <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><MessageSquare size={18} /></span>
-          <div>
-            <h4 className="text-sm font-bold" style={{ color: INK }}>Escribir una consulta</h4>
-            <p className="text-[11px] text-slate-500">Le llega directo a {SOPORTE}</p>
-          </div>
-        </div>
-        <form onSubmit={enviarConsulta} className="space-y-3 p-4">
-          {error && (
-            <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-              <AlertCircle size={14} /> {error}
-            </div>
-          )}
-          {enviado && (
-            <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
-              <CheckCircle2 size={14} /> Mensaje enviado — te avisamos acá mismo cuando te respondan.
-            </div>
-          )}
-          <input
-            type="text" value={asunto} onChange={(e) => setAsunto(e.target.value)}
-            placeholder="Asunto — ej. Necesito cambiar el nombre de mi óptica"
-            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-          />
-          <textarea
-            rows={3} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)}
-            placeholder="Cuéntanos qué necesitas…"
-            className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-          />
-          <div className="flex justify-end">
-            <button type="submit" disabled={enviando} className="flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-              <Send size={15} /> {enviando ? "Enviando…" : "Enviar"}
+        <AccionesDeCabecera>
+          {puedeEscribir && (
+            <button type="button" onClick={() => escribir("")} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" style={{ background: GRAD_MARCA, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+              <MessageSquarePlus size={18} aria-hidden="true" /> Nueva consulta
             </button>
-          </div>
-        </form>
+          )}
+        </AccionesDeCabecera>
       </div>
 
-      {/* ─── Historial ─── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
-          <h4 className="text-sm font-bold" style={{ color: INK }}>{filtro === "consulta" ? "Tus consultas" : filtro === "anuncio" ? "Avisos del sistema" : "Tus mensajes"}</h4>
-          {!cargando && <span className="text-xs font-semibold text-slate-500">{mensajesFiltrados.length} {mensajesFiltrados.length === 1 ? "mensaje" : "mensajes"}</span>}
-        </div>
-        {cargando ? (
-          <div className="divide-y divide-slate-100 p-4">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="flex items-start gap-3.5 py-3.5 first:pt-0 last:pb-0">
-                <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-3.5 w-1/3 animate-pulse rounded bg-slate-200/70" />
-                  <div className="h-3 w-full animate-pulse rounded bg-slate-200/60" />
-                  <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200/60" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : mensajesFiltrados.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-14 text-center">
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><MessageSquare size={24} /></div>
-            <p className="text-sm font-medium text-slate-500">
-              {filtro === "consulta" ? "Todavía no escribiste ninguna consulta." : filtro === "anuncio" ? "Todavía no hay avisos." : "Todavía no hay mensajes."}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {mensajesFiltrados.map((m) => {
-              const esAnuncio = m.tipo === "anuncio"
-              return (
-                <div key={m.id} className="flex items-start gap-3.5 p-4">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: esAnuncio ? "linear-gradient(135deg,#e0b64e,#b45309)" : GRAD }}>
-                    {esAnuncio ? <Megaphone size={17} /> : <MessageSquare size={17} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-bold text-slate-800">{m.asunto}</p>
-                      {esAnuncio ? (
-                        <span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}>
-                          Aviso
-                        </span>
-                      ) : (
-                        <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider"
-                          style={m.estado === "abierto" ? { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" } : { backgroundColor: "#d1fae5", color: "#065f46", border: "1px solid #a7f3d0" }}
-                        >
-                          {m.estado === "abierto" ? "Esperando respuesta" : "Resuelto"}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-600">{m.cuerpo}</p>
-                    <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400"><Clock size={11} /> {formatearFechaHora(m.created_at)}</p>
+      {MODO_SAAS_VISIBLE && <BloqueSuscripcion usuario={usuario} />}
 
-                    {m.respuesta && (
-                      <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
-                        <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">Respuesta</p>
-                        <p className="whitespace-pre-wrap text-sm text-slate-700">{m.respuesta}</p>
-                        {m.respondido_at && <p className="mt-1.5 text-xs text-slate-400">{formatearFechaHora(m.respondido_at)}</p>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ─── Factura imprimible (oculta salvo al imprimir) ─── */}
-      {facturaImprimir && (
-        <div style={{ position: "fixed", left: "-9999px", top: 0 }}>
-          <style>{estilosImpresion("printing-factura-admin")}</style>
-          <div id="factura-imprimible-admin" className="w-[480px] bg-white p-8 text-sm text-slate-800">
-            <div className="mb-6 flex items-center justify-between border-b border-slate-200/60 pb-4">
-              <div>
-                <p className="text-lg font-bold" style={{ color: INK }}>Diego Óptica</p>
-                <p className="text-xs text-slate-500">Sistema multi-óptica</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Factura</p>
-                <p className="font-mono text-sm font-bold">{facturaImprimir.numero}</p>
-              </div>
-            </div>
-            <div className="mb-6 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Facturado a</p>
-                <p className="font-semibold">{usuario?.opticaNombre || "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Período</p>
-                <p className="font-semibold">{facturaImprimir.periodo}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Emitida</p>
-                <p className="font-semibold">{formatearFecha(facturaImprimir.emitida_at)}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado</p>
-                <p className="font-semibold">{facturaImprimir.estado === "pagada" ? "Pagada" : "Pendiente"}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
-              <p className="font-semibold">Suscripción mensual</p>
-              <p className="text-lg font-bold" style={{ color: INK }}>{dinero(Number(facturaImprimir.monto))}</p>
-            </div>
-            <button type="button" onClick={() => setFacturaImprimir(null)} className="no-print mt-6 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cerrar</button>
-          </div>
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {error}
+          <button type="button" onClick={recargar} className={CLASE_ACCION_SECUNDARIA}>Reintentar</button>
         </div>
       )}
+
+      <div role="tablist" aria-label="Secciones de Soporte" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+        {pestanas.map(({ id, etiqueta, cuenta, nuevas, Icono }) => {
+          const activo = tab === id
+          return (
+            <button key={id} type="button" role="tab" id={`soporte-tab-${id}`} aria-selected={activo} aria-controls="soporte-panel" onClick={() => setTab(id)}
+              className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+              style={activo ? { background: GRAD_MARCA } : undefined}>
+              <Icono size={14} aria-hidden="true" /> {etiqueta}
+              {cuenta !== undefined && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
+              {nuevas > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white text-blue-700" : "bg-blue-600 text-white")}>{nuevas === 1 ? "1 nueva" : `${nuevas} nuevas`}</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      <div id="soporte-panel" role="tabpanel" aria-labelledby={`soporte-tab-${tab}`}>
+        {tab === "ayuda" && <PestanaAyuda puedeEscribir={puedeEscribir} onEscribir={escribir} />}
+        {tab === "consultas" && (cargando ? <TablaSkeleton /> : puedeVer
+          ? <PestanaMisConsultas consultas={consultas} usuario={usuario} puedeEscribir={puedeEscribir} onAbrir={(id) => setVentana({ consultaId: id })} onNueva={() => escribir("")} />
+          : <p className="rounded-2xl border border-slate-200/60 bg-white p-5 text-sm text-slate-500">Tu rol no puede ver las consultas al soporte.</p>)}
+        {tab === "avisos" && (cargando ? <TablaSkeleton /> : <PestanaAvisos avisos={avisos} onMarcar={marcarAviso} onMarcarTodos={marcarTodos} onVerAyuda={() => setTab("ayuda")} />)}
+      </div>
+
+      {(ventana === "nueva" || ventana?.nueva) && (
+        <VentanaNuevaConsulta usuario={usuario} moduloInicial={ventana?.modulo || moduloOrigen} pantallaOrigen={pantallaOrigen}
+          onCerrar={(enviada) => { setVentana(null); if (enviada) recargar() }} onVerMisConsultas={() => setTab("consultas")} />
+      )}
+      {consultaAbierta && <VentanaConsulta consulta={consultaAbierta} usuario={usuario} puedeEscribir={puedeEscribir} onCambio={recargar} onCerrar={() => setVentana(null)} />}
     </div>
   )
 }

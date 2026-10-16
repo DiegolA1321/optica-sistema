@@ -80,6 +80,8 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { etiquetaCorreccion, AYUDA_CORRECCION } from "../utilidades/correccion"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import { puede } from "../utilidades/permisosUi"
+import { cambiarPermisosPaciente } from "../utilidades/permisosMensajes"
+import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import FilaComprobante from "../componentes/FilaComprobante"
@@ -195,6 +197,8 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
   const [correo, setCorreo] = useState("")
   const [fechaNacimiento, setFechaNacimiento] = useState("")
   const [referidoPor, setReferidoPor] = useState("")
+  // Los permisos para recibir mensajes con los que se registra un paciente nuevo (al editar se cambian desde sus datos).
+  const [permisosNuevo, setPermisosNuevo] = useState({ recordatorios: true, promociones: false })
   const [erroresForm, setErroresForm] = useState({})
   const [guardandoPaciente, setGuardandoPaciente] = useState(false)
 
@@ -205,6 +209,8 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
   // Qué puede hacer quien tiene la sesión (la base lo exige de todos modos; aquí solo se muestran u ocultan los botones).
   const puedeCrearPaciente = puede(usuario, "pacientes", "crear")
   const puedeEditarPaciente = puede(usuario, "pacientes", "editar")
+  // Los permisos para recibir mensajes los cambia quien administra el CRM (crear) o quien edita pacientes.
+  const puedeCambiarPermisos = puede(usuario, "crm", "crear") || puedeEditarPaciente
   const puedeEliminar = puede(usuario, "pacientes", "eliminar")
   const puedeAgendar = puede(usuario, "citas", "crear")
   // Atender = abrir la ficha clínica para registrar una consulta: exige consultas "crear".
@@ -581,6 +587,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
     setCorreo("")
     setFechaNacimiento("")
     setReferidoPor("")
+    setPermisosNuevo({ recordatorios: true, promociones: false })
     setIdEditando(null)
     setErroresForm({})
     setGuardandoPaciente(false)
@@ -724,6 +731,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       // hubo que corregir en ambas por separado antes de unificar).
       const { paciente: nuevoPaciente, error: errorInsert } = await crearRegistroPaciente(supabase, opticaId, {
         nombre, cedula, telefono, correo, fechaNacimiento, referidoPor, referidoPorId: referidoPorIdResuelto,
+        aceptaRecordatorios: permisosNuevo.recordatorios, aceptaPromociones: permisosNuevo.promociones,
       })
       if (errorInsert) {
         setGuardandoPaciente(false)
@@ -1599,6 +1607,10 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
               />
               <p className="mt-1 text-xs text-slate-500">Si vino recomendado por otro paciente, selecciónalo aquí para reconocerlo en el CRM.</p>
             </div>
+
+            {!idEditando && (
+              <PermisosAlRegistrar idBase="p-permisos" recordatorios={permisosNuevo.recordatorios} promociones={permisosNuevo.promociones} onCambiar={(c) => setPermisosNuevo((p) => ({ ...p, ...c }))} />
+            )}
             
           </div>
         </Cascaron>
@@ -2275,6 +2287,21 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
         <ModalDatosPaciente
           paciente={pacienteHistorial}
           onEditar={puedeEditarPaciente ? () => abrirEdicion(pacienteHistorial) : undefined}
+          permisos={{
+            recordatorios: pacienteHistorial.aceptaRecordatorios !== false, promociones: pacienteHistorial.aceptaPromociones === true,
+            actualizadoPor: pacienteHistorial.consentimientoActualizadoPor, actualizadoEn: pacienteHistorial.consentimientoActualizadoEn,
+            onCambiar: puedeCambiarPermisos ? async (cambios) => {
+              const r = await cambiarPermisosPaciente(pacienteHistorial.id, cambios)
+              if (r.ok) {
+                const nuevos = { consentimientoActualizadoEn: new Date().toISOString(), consentimientoActualizadoPor: usuario?.nombre || "" }
+                if (cambios.recordatorios != null) nuevos.aceptaRecordatorios = cambios.recordatorios
+                if (cambios.promociones != null) nuevos.aceptaPromociones = cambios.promociones
+                setPacientes((prev) => prev.map((p) => (p.id === pacienteHistorial.id ? { ...p, ...nuevos } : p)))
+                onAviso?.("Permiso actualizado.")
+              }
+              return r
+            } : null,
+          }}
           onCerrar={() => setVerDatosPaciente(false)}
         />
       )}

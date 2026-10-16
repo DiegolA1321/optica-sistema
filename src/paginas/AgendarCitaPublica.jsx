@@ -1,3 +1,4 @@
+import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useEffect } from "react"
 import {
@@ -69,6 +70,9 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     fechaNacimiento: "",
     telefono: "",
     correo: "",
+    // Los permisos para recibir mensajes (Recordatorios de salud sí, Promociones y saludos no, por defecto).
+    aceptaRecordatorios: true,
+    aceptaPromociones: false,
     motivo: motivosConsulta.includes("Consulta General") ? "Consulta General" : (motivosConsulta[0] || "Consulta General"),
     // Pre-triage remoto: solo se le pide al paciente cuando el motivo es una
     // molestia real (ver marco referencial del anteproyecto — la
@@ -192,6 +196,8 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       }
       nuevaCita.id = data[0].id
       codigoReal = data[0].codigo
+      // Los permisos que eligió: si falla no se pierde la cita (valen los de siempre y el paciente los cambia desde su portal).
+      await supabase.rpc("registrar_permisos_cita_publica", { p_cita_id: data[0].id, p_recordatorios: formData.aceptaRecordatorios, p_promociones: formData.aceptaPromociones }).catch(() => {})
     } else {
       nuevaCita.id = Date.now()
       codigoReal = `CIT-${new Date().getFullYear()}-DEMO`
@@ -382,6 +388,10 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                       value={formData.correo} onChange={(v) => setFormData({ ...formData, correo: v })} />
                   </div>
                   <p className="mt-1.5 text-[11px] text-slate-400">Teléfono y correo son opcionales — si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
+                  <div className="mt-4">
+                    <PermisosAlRegistrar persona="yo" idBase="reserva-permisos" recordatorios={formData.aceptaRecordatorios} promociones={formData.aceptaPromociones}
+                      onCambiar={(c) => setFormData((prev) => ({ ...prev, ...(c.recordatorios !== undefined ? { aceptaRecordatorios: c.recordatorios } : {}), ...(c.promociones !== undefined ? { aceptaPromociones: c.promociones } : {}) }))} />
+                  </div>
                 </div>
 
                 <div>

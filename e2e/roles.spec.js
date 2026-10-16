@@ -57,7 +57,7 @@ test.describe('Recepción', () => {
     await expect.soft(visible(page, 'Agregar producto'), 'Recepción solo ve el inventario').toHaveCount(0)
     await expect.soft(visible(page, 'Conteo físico')).toHaveCount(0)
     await abrir(page, 'CRM y fidelización')
-    await expect.soft(visible(page, 'Publicar aviso')).toBeVisible()
+    await expect.soft(visible(page, 'Nueva campaña')).toBeVisible() // Recepción puede crear campañas (CRM: crear)
   })
 
   test('sin permiso para fichas clínicas: no ve "Atender" ni "Ingresar"', async ({ page }) => {

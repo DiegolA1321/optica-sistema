@@ -138,11 +138,14 @@ const formatearFecha = (fecha) => fechaLegible(fecha)
 const formatearFechaHora = (fecha) =>
   fechaHoraLegible(fecha, { anio: true })
 
+import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
+import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
+
 const NAV = [
   { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
   { id: "opticas", nombre: "Ópticas", icono: Building2 },
   { id: "leads", nombre: "Leads", icono: Inbox },
-  { id: "mensajes", nombre: "CRM", icono: MessageSquare },
+  { id: "mensajes", nombre: "Soporte", icono: MessageSquare },
   { id: "actividad", nombre: "Actividad", icono: History },
   { id: "superadmins", nombre: "Superadmins", icono: ShieldCheck },
 ]
@@ -397,10 +400,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // ─── Mensajes (consultas de administradores + avisos generales) ───
   const [mensajes, setMensajes] = useState([])
-  const [mensajesFiltro, setMensajesFiltro] = useState("todas") // todas | consulta | anuncio
+  const [mensajesFiltro, setMensajesFiltro] = useState("anuncio") // anuncio | pago | cumpleanos
   const [mensajeAbierto, setMensajeAbierto] = useState(null)
-  const [respuestaTexto, setRespuestaTexto] = useState("")
-  const [enviandoRespuesta, setEnviandoRespuesta] = useState(false)
+  // Consultas de soporte (migración 0115): las lee el panel para que la insignia del menú y la bandeja cuenten lo mismo.
+  const [consultasSoporte, setConsultasSoporte] = useState([])
+  const [cargandoSoporte, setCargandoSoporte] = useState(true)
+  const [errorSoporte, setErrorSoporte] = useState("")
   const [modalAvisoAbierto, setModalAvisoAbierto] = useState(false)
   const [avisoAsunto, setAvisoAsunto] = useState("")
   const [avisoCuerpo, setAvisoCuerpo] = useState("")
@@ -701,6 +706,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     }
 
     cargarMensajes()
+    cargarSoporte()
     cargarLeads()
     cargarVisitas()
     cargarActividadResumen(rangoActividadResumen)
@@ -729,6 +735,21 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const { data } = await supabase.from("mensajes").select("*").order("created_at", { ascending: false })
     setMensajes(data || [])
   }
+
+  const cargarSoporte = async () => {
+    const r = await leerTodasLasConsultas()
+    setConsultasSoporte(r.datos)
+    setErrorSoporte(r.error || "")
+    setCargandoSoporte(false)
+  }
+
+  // Una consulta nueva (o la respuesta de la óptica) aparece sin recargar: al volver a la pestaña y cada 30 segundos mientras se mira.
+  useEffect(() => {
+    const alVolver = () => { if (document.visibilityState === "visible") cargarSoporte() }
+    document.addEventListener("visibilitychange", alVolver)
+    const reloj = setInterval(alVolver, 30_000)
+    return () => { document.removeEventListener("visibilitychange", alVolver); clearInterval(reloj) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cargarLeads = async () => {
     const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false })
@@ -784,22 +805,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setError("")
     setLeadEnCurso(lead.id)
     setModalAbierto(true)
-  }
-
-  const responderMensaje = async (marcarResuelto) => {
-    if (!mensajeAbierto) return
-    setEnviandoRespuesta(true)
-    const cambios = { respuesta: respuestaTexto.trim() || null, respondido_at: new Date().toISOString() }
-    if (marcarResuelto) cambios.estado = "resuelto"
-    const { error } = await supabase.from("mensajes").update(cambios).eq("id", mensajeAbierto.id)
-    if (!error) {
-      setMensajes((prev) => prev.map((m) => (m.id === mensajeAbierto.id ? { ...m, ...cambios } : m)))
-      setMensajeAbierto((prev) => (prev ? { ...prev, ...cambios } : prev))
-      await registrarAuditoria("responder_mensaje", { opticaId: mensajeAbierto.optica_id, opticaNombre: opticas.find((o) => o.id === mensajeAbierto.optica_id)?.nombre || "—" })
-      cargarAuditoria(true)
-      setRespuestaTexto("")
-    }
-    setEnviandoRespuesta(false)
   }
 
   const publicarAviso = async (e) => {
@@ -883,8 +888,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     pacientes: pacientesOpticaId.length,
   }), [admins, asistentesOpticaId, pacientesOpticaId])
 
-  const consultasAbiertas = useMemo(() => mensajes.filter((m) => m.tipo === "consulta" && m.estado === "abierto").length, [mensajes])
-  const mensajesFiltrados = useMemo(() => (mensajesFiltro === "todas" ? mensajes : mensajes.filter((m) => m.tipo === mensajesFiltro)), [mensajes, mensajesFiltro])
+  // Lo que espera al soporte: consultas abiertas cuyo último mensaje es de la óptica (la insignia del menú y la bandeja cuentan lo mismo).
+  const consultasAbiertas = useMemo(() => consultasSoporte.filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte])
+  const mensajesFiltrados = useMemo(() => mensajes.filter((m) => m.tipo === "anuncio"), [mensajes])
   const opticasConPagoProblema = useMemo(() => opticas.filter((o) => o.estado_pago && o.estado_pago !== "al_dia"), [opticas])
   const cumpleanosProximos = useMemo(() => {
     return admins
@@ -2238,57 +2244,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   )
 
   const MENSAJES_FILTROS = [
-    { key: "todas", label: "Todas" },
-    { key: "consulta", label: "Consultas" },
     { key: "anuncio", label: "Avisos" },
     { key: "pago", label: "Pagos" },
     { key: "cumpleanos", label: "Cumpleaños" },
   ]
 
-  const renderMensajes = () => (
-    <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3.5">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-            <MessageSquare size={22} />
-          </div>
-          <div>
-            <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>CRM</h1>
-            <p className="text-sm text-slate-500">Relación con tus administradores de óptica: mensajes, pagos y avisos.</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => { setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo(""); setAvisoDestino("todos"); setModalAvisoAbierto(true) }}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
-          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-        >
-          <Megaphone size={18} />
-          Nuevo aviso
-        </button>
-      </div>
-
+  // Los avisos del sistema, los pagos pendientes y los cumpleaños de los administradores: lo que ya existía, sin cambios, ahora en su pestaña de Soporte.
+  const renderAvisos = () => (
+    <div className="space-y-5">
       {/* ─── Panel de control: cada tarjeta es real y clickeable, mismo lenguaje visual que CRM.jsx (Dashboard) ─── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <button
-          type="button"
-          onClick={() => setMensajesFiltro(mensajesFiltro === "consulta" ? "todas" : "consulta")}
-          className="flex items-center justify-between rounded-2xl border bg-white p-5 text-left transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-          style={{
-            borderColor: mensajesFiltro === "consulta" ? "#2563EB" : "rgba(14,43,51,0.08)",
-            boxShadow: mensajesFiltro === "consulta" ? "0 0 0 3px rgba(37,99,235,0.14)" : "0 1px 2px rgba(14,43,51,0.04)",
-          }}
-        >
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Consultas abiertas</p>
-            <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{consultasAbiertas}</p>
-            <p className="mt-1.5 text-[11px] font-semibold" style={{ color: consultasAbiertas > 0 ? "#B45309" : "#94A3B8" }}>{consultasAbiertas > 0 ? "esperando tu respuesta" : "todo al día"}</p>
-          </div>
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#E8F0FF", color: "#2563EB" }}>
-            <MessageSquare size={22} />
-          </div>
-        </button>
-
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setMensajesFiltro(mensajesFiltro === "pago" ? "todas" : "pago")}
@@ -2435,7 +2400,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => { setMensajeAbierto(m); setRespuestaTexto(m.respuesta || "") }}
+                  onClick={() => setMensajeAbierto(m)}
                   className="flex w-full items-start gap-3.5 p-4 text-left transition hover:bg-slate-50/60 cursor-pointer"
                 >
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: esAnuncio ? "linear-gradient(135deg,#e0b64e,#b45309)" : GRAD }}>
@@ -2472,6 +2437,30 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           )}
         </div>
       </div>
+    </div>
+  )
+
+  const renderMensajes = () => (
+    <div className="space-y-5" style={{ animation: "rise-in 320ms ease-out both" }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3.5">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
+            <MessageSquare size={22} />
+          </div>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: INK }}>Soporte</h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo(""); setAvisoDestino("todos"); setModalAvisoAbierto(true) }}
+          className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2"
+          style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
+        >
+          <Megaphone size={18} />
+          Nuevo aviso
+        </button>
+      </div>
+      <SoporteSuperadmin consultas={consultasSoporte} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticas}
+        onAuditoria={async (accion, datos) => { await registrarAuditoria(accion, datos); cargarAuditoria(true) }} onToast={mostrarToast} avisos={renderAvisos()} />
     </div>
   )
 
@@ -3649,38 +3638,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
           }
           ancho="max-w-lg"
-          onCerrar={() => !enviandoRespuesta && setMensajeAbierto(null)}
-          pie={mensajeAbierto.tipo === "consulta" ? (<>
-            <span />
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                  <button type="button" onClick={() => responderMensaje(false)} disabled={enviandoRespuesta} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">
-                    {enviandoRespuesta ? "Guardando…" : "Guardar respuesta"}
-                  </button>
-                  {mensajeAbierto.estado === "abierto" && (
-                    <button type="button" onClick={() => responderMensaje(true)} disabled={enviandoRespuesta} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
-                      <CheckCircle2 size={16} /> Responder y marcar resuelto
-                    </button>
-                  )}
-            </div>
-          </>) : null}
+          onCerrar={() => setMensajeAbierto(null)}
         >
           <div className="space-y-4 p-5">
           <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-sm text-slate-700 whitespace-pre-wrap">{mensajeAbierto.cuerpo}</div>
           <p className="flex items-center gap-1.5 text-xs text-slate-400"><Clock size={11} /> {formatearFechaHora(mensajeAbierto.created_at)}</p>
 
-          {mensajeAbierto.tipo === "consulta" && (
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tu respuesta</label>
-              <textarea
-                rows={4} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value)}
-                placeholder="Escribe tu respuesta para el administrador…"
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-              />
-              {mensajeAbierto.respondido_at && (
-                <p className="mt-1.5 text-xs text-slate-400">Última respuesta: {formatearFechaHora(mensajeAbierto.respondido_at)}</p>
-              )}
-            </div>
-          )}
           </div>
         </Cascaron>
       )}
