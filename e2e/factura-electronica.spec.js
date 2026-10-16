@@ -105,11 +105,11 @@ test('3 · Se descarga, se envía por WhatsApp con un enlace que vence, y queda 
   await expect(page.getByText(/abierta en WhatsApp\. Los enlaces vencen en 7 días/)).toBeVisible({ timeout: 15_000 })
 })
 
-test('4 · Quien solo puede ver Ventas descarga, pero no registra ni envía', async ({ page }) => {
+// Desde el 16 oct. 2026 el Optómetra predefinido no tiene Ventas: ya no ve el módulo y el servidor no le entrega comprobantes ni archivos de
+// factura electrónica (migración 0118). Que quien solo ve Ventas descarga y no registra ni envía lo cubren las pruebas de BloqueFacturaElectronica.
+test('4 · El Optómetra no ve el módulo Ventas ni los comprobantes', async ({ page }) => {
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
-  await page.getByRole('button', { name: /^Ventas/ }).first().click()
-  const detalle = await abrirComprobante(page)
-  await expect(detalle.getByRole('button', { name: /Descargar PDF \(RIDE\)/ })).toBeVisible({ timeout: 15_000 })
-  await expect(detalle.getByRole('button', { name: /Enviar al paciente/ })).toHaveCount(0)
-  await expect(detalle.getByRole('button', { name: /Corregir o reemplazar/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Ventas/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
+  await expect(page.getByRole('button', { name: 'Nueva venta' })).toHaveCount(0)
 })

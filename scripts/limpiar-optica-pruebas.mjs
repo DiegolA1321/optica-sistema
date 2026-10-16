@@ -45,7 +45,22 @@ try {
   if (hayActas) await c.query("alter table public.conteos_inventario disable trigger conteos_inventario_inmutables")
 
   const borrados = {}
-  const borrar = async (t) => { const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) borrados[t] = r.rowCount }
+  // Paciente fijo del portal (16 oct. 2026): "E Dos E Portal Auditoria", con su cuenta de acceso, su compra con abono y su factura electrónica, que Diego pidió
+  // dejar en la óptica de pruebas para las pruebas del portal. No se borra a él ni lo suyo (citas, fichas, comprobantes, abonos y facturas electrónicas).
+  const fijo = (await q("select id from public.pacientes_base where optica_id = $1 and nombre = $2", [OPTICA_ID, "E Dos E Portal Auditoria"]))[0]?.id || null
+  const colsDe = async (t) => (await q("select column_name from information_schema.columns where table_schema = 'public' and table_name = $1", [t])).map((r) => r.column_name)
+  const borrar = async (t) => {
+    let cond = "optica_id = $1"
+    const params = [OPTICA_ID]
+    if (fijo) {
+      const cols = await colsDe(t)
+      if (t === "pacientes_base") { cond += " and id <> $2"; params.push(fijo) }
+      else if (cols.includes("paciente_id")) { cond += " and paciente_id is distinct from $2"; params.push(fijo) }
+      else if (cols.includes("factura_id")) { cond += " and factura_id not in (select id from public.facturas_venta where paciente_id = $2)"; params.push(fijo) }
+    }
+    const r = await c.query(`delete from public.${t} where ${cond}`, params)
+    if (r.rowCount) borrados[t] = r.rowCount
+  }
   for (const t of ORDEN) if (tablas.includes(t)) await borrar(t)
   for (const t of tablas) if (!ORDEN.includes(t) && !CONSERVAR.has(t) && !t.startsWith("contador_")) await borrar(t)
   // Los catálogos (motivos, diagnósticos, categorías) viven en la fila de la óptica: lo que una prueba agregó con el prefijo "E2E " y no alcanzó a quitar,
@@ -71,7 +86,8 @@ try {
   }
   if (quitadas.length) borrados["excepciones de horario"] = quitadas.join(", ")
   const contadores = []
-  for (const t of tablas.filter((x) => x.startsWith("contador_"))) {
+  // Con el paciente fijo, los contadores de comprobantes y órdenes NO se reinician: la numeración sigue donde iba (su CV-0006 no se repite).
+  for (const t of fijo ? [] : tablas.filter((x) => x.startsWith("contador_"))) {
     const r = await c.query(`delete from public.${t} where optica_id = $1`, [OPTICA_ID]); if (r.rowCount) contadores.push(`${t} reiniciado`)
   }
 

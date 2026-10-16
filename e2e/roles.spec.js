@@ -112,7 +112,8 @@ test.describe('Optómetra', () => {
   test('menú, Inicio y alcance propio', async ({ page }) => {
     await iniciarSesion(page, 'OPTOMETRA')
     await expect(page.getByRole('region', { name: /^Mi (agenda de hoy|próxima jornada)/ })).toBeVisible({ timeout: 15_000 })
-    expect.soft(await menuVisible(page)).toEqual([...TODOS, 'Soporte'])
+    // Decisión del 16 oct. 2026: el Optómetra predefinido ya no tiene el módulo Ventas (los saldos y comprobantes de toda la óptica no son suyos).
+    expect.soft(await menuVisible(page)).toEqual([...TODOS.filter((n) => n !== 'Ventas'), 'Soporte'])
     await expect.soft(page.getByRole('heading', { name: /Mi (agenda de hoy|próxima jornada)/i })).toBeVisible()
 
     const propias = await totalAgendadas(page)
@@ -140,9 +141,7 @@ test.describe('Optómetra', () => {
     await expect.soft(page.getByRole('button', { name: 'Atender ahora' }), 'el optómetra puede atender sin cita desde el perfil').toBeVisible()
     await page.getByRole('button', { name: 'Cancelar' }).click()
     await page.keyboard.press('Escape')
-    await abrir(page, 'Ventas')
-    await expect.soft(visible(page, 'Nueva venta'), 'Optómetra solo ve ventas').toHaveCount(0)
-    await expect.soft(visible(page, 'Tomar datos del diagnóstico')).toHaveCount(0)
+    await expect.soft(modulo(page, 'Ventas'), 'el Optómetra no tiene el módulo Ventas').toHaveCount(0)
     await abrir(page, 'Inventario')
     await expect.soft(visible(page, 'Agregar producto')).toHaveCount(0)
     await expect.soft(visible(page, 'Conteo físico')).toHaveCount(0)
