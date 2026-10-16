@@ -52,6 +52,15 @@ describe("modo de la tesis (capa comercial oculta)", () => {
     expect(screen.queryByText("Uso del sistema", { selector: "h2" })).toBeNull()
   })
 
+  it("con una sola óptica los siete módulos son tarjetas con su estado, no una tabla", () => {
+    montar()
+    const lista = screen.getByRole("list", { name: "Qué módulos se usan" })
+    expect(lista.querySelectorAll("li")).toHaveLength(7)
+    expect(screen.queryByRole("table", { name: "Qué módulos se usan" })).toBeNull()
+    expect(lista.textContent).toMatch(/Citas médicas.*En uso · última vez/)
+    expect(lista.textContent).toContain("Sin uso en 30 días")
+  })
+
   it("el nombre es siempre \"entornos de prueba\" (nunca \"ópticas de prueba\")", () => {
     montar()
     expect(document.body.textContent).not.toMatch(/ópticas de prueba/i)

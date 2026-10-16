@@ -7,7 +7,8 @@ import {
   History, Glasses, UserX, UserCheck, Lock,
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
-import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, generarClaveTemporal } from "../utilidades/validaciones"
+import CampoClaveTemporal from "../componentes/CampoClaveTemporal"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, resolverClaveTemporal } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
@@ -66,6 +67,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
   const [correo, setCorreo] = useState("")
+  const [escribirClave, setEscribirClave] = useState(false)
+  const [claveEscrita, setClaveEscrita] = useState("")
   const [claveCreada, setClaveCreada] = useState(null) // { nombre, correo, clave }: la contraseña temporal, que se ve una sola vez
   const [copiada, setCopiada] = useState(false)
   const [rolesElegidos, setRolesElegidos] = useState([])
@@ -80,7 +83,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const rolesDe = (perfilId) => roles.filter((r) => asignaciones.some((a) => a.perfil_id === perfilId && a.rol_id === r.id))
   const permisosDeRoles = (lista) => unirPermisos(lista.map((r) => r.permisos))
 
-  const abrirCrear = () => { setModal({ id: null }); setNombre(""); setCedula(""); setCorreo(""); setRolesElegidos([]); setError("") }
+  const abrirCrear = () => { setModal({ id: null }); setNombre(""); setCedula(""); setCorreo(""); setEscribirClave(false); setClaveEscrita(""); setRolesElegidos([]); setError("") }
   const abrirEditar = (a) => { setModal({ id: a.id }); setNombre(a.nombre); setCedula(a.cedula || ""); setCorreo(a.correo); setRolesElegidos(rolesDe(a.id).map((r) => r.id)); setError("") }
   const cerrarModal = () => { if (!guardando) setModal(null) }
   const alternarRol = (id) => setRolesElegidos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -147,9 +150,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     const cedulaCrear = cedula.trim()
     if (!cedulaCrear) { setError("Completa la cédula."); return }
     if (!esCedulaValida(cedulaCrear)) { setError("La cédula ingresada no es válida."); return }
+    const { clave: claveTemporal, error: errorClave } = resolverClaveTemporal(escribirClave, claveEscrita) // por defecto la genera el sistema; la persona la cambia al entrar
+    if (errorClave) { setError(errorClave); return }
     setGuardando(true)
     const temp = crearClienteTemporal()
-    const claveTemporal = generarClaveTemporal() // la genera el sistema; la persona la cambia al entrar
     const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: correo.trim(), password: claveTemporal, options: { data: { clave_temporal: true } } })
     if (errorAlta || !alta?.user) {
       setGuardando(false)
@@ -383,7 +387,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
               <div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="off" className={CAMPO + " pl-9"} /></div>
             </label>
-            <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><p className="text-xs leading-relaxed">La contraseña la genera el sistema: la verás una sola vez al crear al usuario, y la persona elige la suya al entrar.</p></div>
+            <CampoClaveTemporal escribir={escribirClave} onEscribir={setEscribirClave} valor={claveEscrita} onValor={setClaveEscrita} id="usuario-clave-temporal" />
+
           </div>
         )}
 

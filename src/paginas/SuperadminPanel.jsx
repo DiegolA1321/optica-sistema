@@ -67,7 +67,7 @@ import { sumarDiasISO } from "../utilidades/controles"
 import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { Cascaron } from "../componentes/AtencionPaciente"
-import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva, generarClaveTemporal } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva, resolverClaveTemporal } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
@@ -144,6 +144,7 @@ import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
 import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
 import { SinResultados } from "../componentes/reportes/bloques"
 import { ESTADOS_LEAD_LISTA } from "../componentes/superadmin/ResumenNegocio"
+import CampoClaveTemporal from "../componentes/CampoClaveTemporal"
 import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba, NOMBRE_PRUEBA_PLURAL } from "../componentes/superadmin/piezas"
 import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
@@ -334,6 +335,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [modalSuperadminAbierto, setModalSuperadminAbierto] = useState(false)
   const [camposSuperadmin, setCamposSuperadmin] = useState(camposCuentaIniciales)
   const [claveSuperadminCreada, setClaveSuperadminCreada] = useState(null) // { nombre, correo, clave }: la contraseña temporal, que se ve una sola vez
+  const [escribirClaveSuperadmin, setEscribirClaveSuperadmin] = useState(false)
+  const [claveEscritaSuperadmin, setClaveEscritaSuperadmin] = useState("")
   const [claveSuperadminCopiada, setClaveSuperadminCopiada] = useState(false)
   const [errorSuperadmin, setErrorSuperadmin] = useState("")
   const [guardandoSuperadmin, setGuardandoSuperadmin] = useState(false)
@@ -1372,6 +1375,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   const abrirCrearSuperadmin = () => {
     setCamposSuperadmin(camposCuentaIniciales)
+    setEscribirClaveSuperadmin(false)
+    setClaveEscritaSuperadmin("")
     setErrorSuperadmin("")
     setModalSuperadminAbierto(true)
   }
@@ -1382,10 +1387,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const { nombre, email } = camposSuperadmin
     if (!esNombreValido(nombre)) { setErrorSuperadmin("Ingresa un nombre válido (solo letras)."); return }
     if (!esEmailValido(email, false)) { setErrorSuperadmin("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
+    // Temporal: la genera el sistema (o la escribe quien crea la cuenta, con la regla de contraseñas) y la persona la cambia en su primer ingreso (GuardiaClaveTemporal).
+    const { clave: claveTemporal, error: errorClave } = resolverClaveTemporal(escribirClaveSuperadmin, claveEscritaSuperadmin)
+    if (errorClave) { setErrorSuperadmin(errorClave); return }
     setGuardandoSuperadmin(true)
     const temp = crearClienteTemporal()
-    // La contraseña la genera el sistema: temporal, se muestra una sola vez y la persona la cambia en su primer ingreso (GuardiaClaveTemporal).
-    const claveTemporal = generarClaveTemporal()
     const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: email.trim(), password: claveTemporal, options: { data: { clave_temporal: true } } })
     await temp.auth.signOut()
     if (errorAlta || !alta?.user) {
@@ -3093,7 +3099,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {modalSuperadminAbierto && (
         <Cascaron
           titulo="Agregar superadmin"
-          subtitulo="Tendrá el mismo acceso total que tú. El sistema genera su contraseña temporal."
+          subtitulo="Tendrá el mismo acceso total que tú. Su contraseña temporal la genera el sistema o la escribes tú."
           Icono={ShieldCheck}
           ancho="max-w-md"
           onCerrar={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
@@ -3139,7 +3145,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 />
               </div>
             </div>
-            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600">Al agregarlo verás una contraseña temporal, una sola vez. Al entrar, el sistema le pedirá que elija la suya.</p>
+            <CampoClaveTemporal escribir={escribirClaveSuperadmin} onEscribir={setEscribirClaveSuperadmin} valor={claveEscritaSuperadmin} onValor={setClaveEscritaSuperadmin} id="superadmin-clave-temporal" />
           </div>
         </Cascaron>
       )}

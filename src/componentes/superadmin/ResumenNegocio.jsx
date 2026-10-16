@@ -251,7 +251,23 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
               <Caja titulo="Qué módulos se usan · últimos 30 días" ayuda="Para cada módulo y cada óptica: si se usó y cuándo fue la última vez. No se muestra cuánto." exportar={bloque("Uso por módulo",
                 () => ({ columnas: [col("Módulo", (m) => m.nombre), col("Estado", (m) => textoUsoModulo(m.ultima, hoyClave))], filas: uso.porModulo }),
                 () => ({ columnas: [col("Óptica", (x) => nombreOptica(x.optica)), col("Módulo", (x) => x.modulo), col("Estado", (x) => x.estado)], filas: uso.filas.flatMap((u) => MODULOS_USO.map((m) => ({ optica: u.optica_id, modulo: m.nombre, estado: textoUsoModulo(u.modulos?.[m.id], hoyClave) }))) }))}>
-                {uso.filas.length === 0 ? <SinResultados texto="Todavía no hay ópticas activas que mostrar." /> : (
+                {uso.filas.length === 0 ? <SinResultados texto="Todavía no hay ópticas activas que mostrar." /> : uso.filas.length === 1 ? (
+                  // Con una sola óptica una tabla de dos columnas deja media pantalla vacía: cada módulo es una tarjeta y la cuadrícula ocupa todo el ancho.
+                  <ul role="list" aria-label="Qué módulos se usan" className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+                    {MODULOS_USO.map((m) => {
+                      const ultima = uso.filas[0].modulos?.[m.id]
+                      return (
+                        <li key={m.id} className="rounded-xl border border-slate-200/60 bg-slate-50 p-3">
+                          <p className="text-sm font-semibold" style={{ color: INK }}>{m.nombre}</p>
+                          <p className={"mt-1 flex items-start gap-1.5 text-xs " + (ultima ? "text-emerald-700" : "text-slate-500")}>
+                            <span aria-hidden="true" className={"mt-1 h-1.5 w-1.5 shrink-0 rounded-full " + (ultima ? "bg-emerald-500" : "bg-slate-300")} />
+                            <span>{textoUsoModulo(ultima, hoyClave)}</span>
+                          </p>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
                   <table className="w-full table-fixed text-sm" aria-label="Qué módulos se usan">
                     <colgroup><col style={{ width: 180 }} />{uso.filas.map((u) => <col key={u.optica_id} />)}</colgroup>
                     <thead><tr className="text-xs font-bold uppercase tracking-wider text-slate-500"><th scope="col" className="py-2 pr-2 text-left">Módulo</th>{uso.filas.map((u) => <th key={u.optica_id} scope="col" className="px-2 py-2 text-left"><span className="block truncate" title={nombreOptica(u.optica_id)}>{nombreOptica(u.optica_id)}</span></th>)}</tr></thead>

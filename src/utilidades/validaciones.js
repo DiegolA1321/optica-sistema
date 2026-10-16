@@ -83,6 +83,14 @@ export function validarClaveNueva(valor) {
   return esClaveSegura(valor) ? "" : MENSAJE_CLAVE_SEGURA
 }
 
+// La clave temporal de una cuenta nueva: la que escribió quien la crea (debe cumplir la regla de contraseñas) o, por defecto, una generada.
+export function resolverClaveTemporal(escribir, valor) {
+  if (!escribir) return { clave: generarClaveTemporal() }
+  if (!valor) return { error: "Escribe la contraseña temporal o desmarca la opción para que la genere el sistema." }
+  const error = validarClaveNueva(valor)
+  return error ? { error } : { clave: valor }
+}
+
 // Clave temporal para la cuenta del portal del paciente: cumple la misma regla (8 o más, con letra y número).
 export function generarClaveTemporal() {
   const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ"
