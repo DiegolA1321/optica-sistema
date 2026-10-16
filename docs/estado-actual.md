@@ -17,7 +17,8 @@ Detalle del rediseño, datos que faltan y comparación con los criterios del ing
 - **Superadmins:** la "última acción" y el conteo de acciones excluyen los entornos de prueba (misma regla que Actividad, con el interruptor); el conteo se recalcula al cambiarlo.
 - **Un solo nombre:** "entornos de prueba" en todo el panel en modo tesis (`NOMBRE_PRUEBA_PLURAL` en `piezas.jsx`; la Actividad, el Resumen, el Soporte y la frase de la marca ya no dicen "ópticas de prueba").
 - **Soporte y Actividad (tesis):** sin el filtro "Todas las ópticas" cuando hay una sola óptica; el subtítulo habla de "la óptica"; la pregunta de Actividad no menciona "qué óptica".
-- **Pruebas:** 1143 pasan (ModoTesis actualizada y con dos pruebas nuevas).
+- **Pruebas:** 1143 pasaban en esa primera ronda (ModoTesis actualizada y con dos pruebas nuevas).
+- **Segunda ronda (16 oct., PUBLICADA: commit `06eed87` en `main`; el CI "build-and-test" y el despliegue de Vercel (Production) terminaron con éxito, confirmados con la API de GitHub):** (1) en el Resumen, con una sola óptica los siete módulos son tarjetas pequeñas en una cuadrícula a todo el ancho ("En uso · última vez hace N días" o "Sin uso en 30 días"); con varias ópticas sigue la tabla. (2) Contraseña temporal en Usuarios y en Agregar superadmin: la genera el sistema por defecto, y la casilla "Escribir la contraseña temporal" deja ponerla (misma regla de contraseñas, `resolverClaveTemporal` en `validaciones.js`; componente `CampoClaveTemporal`). En ambos casos sigue el cambio obligatorio en el primer ingreso y el campo no se autocompleta. Pruebas: 1148 pasan.
 <!-- AJU-FIN -->
 
 <!-- COR-INICIO -->
