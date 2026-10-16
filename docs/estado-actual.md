@@ -9,6 +9,17 @@ Detalle del rediseño, datos que faltan y comparación con los criterios del ing
 - **Limitación conocida:** la clave de servicio del servidor (Edge Functions, scripts) no pasa por estas políticas; la regla vale para el superadmin y la API con su sesión.
 <!-- SA2-FIN -->
 
+<!-- AJU-INICIO -->
+## Ajustes del panel del superadmin tras revisarlo en Vercel (16 oct. 2026, PUBLICADO: commit `4bf6749` en `main`; el CI "build-and-test" y el despliegue de Vercel (Production) terminaron con éxito, confirmados con la API de GitHub)
+- **Resumen (tesis):** una sola sección "Estado y uso del sistema" con las cuatro tarjetas en una fila (base de datos, tiempo de respuesta, personas activas, módulos en uso) y debajo la tabla de módulos. Con la capa SaaS visible se queda como antes (Estado y Uso separados).
+- **Ópticas:** sin el contador "N ópticas" bajo la tabla (la pestaña "Todas" ya lo dice) y sin el hueco antes de "Entornos de prueba".
+- **Agregar superadmin:** ya no pide contraseña. La genera el sistema (temporal, `generarClaveTemporal`), se muestra una sola vez con botón de copiar, y el panel del superadmin queda dentro de `GuardiaClaveTemporal`, que obliga a cambiarla en el primer ingreso. Los formularios de alta (superadmin, óptica nueva, administrador extra, Usuarios, paciente) llevan `autoComplete` apagado (`off`, y `new-password` en las claves); `Cascaron` acepta `formulario.autoComplete`.
+- **Superadmins:** la "última acción" y el conteo de acciones excluyen los entornos de prueba (misma regla que Actividad, con el interruptor); el conteo se recalcula al cambiarlo.
+- **Un solo nombre:** "entornos de prueba" en todo el panel en modo tesis (`NOMBRE_PRUEBA_PLURAL` en `piezas.jsx`; la Actividad, el Resumen, el Soporte y la frase de la marca ya no dicen "ópticas de prueba").
+- **Soporte y Actividad (tesis):** sin el filtro "Todas las ópticas" cuando hay una sola óptica; el subtítulo habla de "la óptica"; la pregunta de Actividad no menciona "qué óptica".
+- **Pruebas:** 1143 pasan (ModoTesis actualizada y con dos pruebas nuevas).
+<!-- AJU-FIN -->
+
 <!-- COR-INICIO -->
 ## Correcciones de la auditoría transversal (16 oct. 2026, PUBLICADO: `a125343` en `main`; el CI "build-and-test" y el despliegue de Vercel (Production) terminaron con éxito, confirmados con la API de GitHub; migraciones 0117 y 0118 aplicadas)
 Diego pidió: rol propio y portal revisados de verdad, quitar Ventas del Optómetra predefinido y corregir todos los hallazgos de mayor a menor. Reglas: un commit por paso, SQL a la vista antes de aplicar, al final la suite completa de Playwright (`--workers=1`, versión compilada), sin publicar.
