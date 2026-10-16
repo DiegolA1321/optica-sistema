@@ -65,6 +65,11 @@ test.describe('Ventas v2 (Demo, solo lectura)', () => {
   })
 
   test('los números de las pestañas son los de sus listas', async ({ page }) => {
+    // Los datos de Ventas cargan despues de pintar las pestañas: se lee el conteo solo cuando ya no hay esqueletos de carga y los numeros dejaron de cambiar.
+    await expect(page.getByRole('heading', { level: 1, name: 'Ventas' })).toBeVisible()
+    await expect(page.locator('.animate-pulse')).toHaveCount(0, { timeout: 20_000 })
+    let previo = ''
+    await expect.poll(async () => { const t = (await page.getByRole('tab').allTextContents()).join('|'); const igual = t === previo; previo = t; return igual }, { timeout: 20_000, intervals: [500] }).toBe(true)
     const cuenta = async (nombre) => Number((await page.getByRole('tab', { name: nombre }).textContent()).match(/(\d+)$/)[1])
     // Por vender
     const porVender = await cuenta(/Por vender/)
