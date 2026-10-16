@@ -25,7 +25,7 @@ import {
   CalendarOff,
 } from "lucide-react"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import { diasDesdeUltimaVisita, esInactivo } from "../utilidades/fidelizacion"
+import { diasDesdeUltimaVisita, diasCumpleEnVentana, esInactivo } from "../utilidades/fidelizacion"
 import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
 import { fechaAISO, hoyISO, esHoy } from "../utilidades/disponibilidad"
 import { citasPorReasignar } from "../utilidades/reasignacion"
@@ -147,19 +147,8 @@ export default function Inicio({
         .map((paciente) => {
           const fn = paciente.fecha_nacimiento || paciente.fechaNacimiento
           if (!fn) return null
-          const partes = String(fn).split(/[-/T]/)
-          if (partes.length < 3) return null
-          const mesPac = Number.parseInt(partes[1], 10)
-          const diaPac = Number.parseInt(partes[2], 10)
-          if (!mesPac || !diaPac) return null
-
-          let dias = null
-          for (const yr of [hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1]) {
-            const candidato = new Date(yr, mesPac - 1, diaPac)
-            candidato.setHours(0, 0, 0, 0)
-            const diff = Math.round((candidato - hoy) / 86400000)
-            if (diff >= -5 && diff <= 7 && (dias === null || Math.abs(diff) < Math.abs(dias))) dias = diff
-          }
+          // La misma ventana que usa el CRM (fidelizacion.js): los dos cuentan los mismos cumpleaños.
+          const dias = diasCumpleEnVentana(fn, hoy)
           if (dias === null) return null
 
           const nacimiento = new Date(fn)

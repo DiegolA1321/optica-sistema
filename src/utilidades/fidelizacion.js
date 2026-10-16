@@ -147,3 +147,26 @@ export function diasParaCumpleanos(fechaNacimiento, hoy = ahoraEcuador()) {
   if (objetivo < inicioHoy) objetivo = proximo(hoy.getFullYear() + 1)
   return Math.round((objetivo - inicioHoy) / 86400000)
 }
+
+// Cumpleaños dentro de la ventana del sistema (de 5 días atrás a 7 adelante): los días de diferencia (0 = hoy, negativo = ya pasó),
+// o null si no cae en ella o no hay fecha válida. Es la única definición: el Inicio y el CRM cuentan los mismos cumpleaños.
+export function diasCumpleEnVentana(fechaNacimiento, hoy = ahoraEcuador()) {
+  if (!fechaNacimiento) return null
+  const partes = String(fechaNacimiento).split(/[-/T]/)
+  const mes = Number.parseInt(partes[1], 10)
+  const dia = Number.parseInt(partes[2], 10)
+  if (!mes || !dia) return null
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+  let mejor = null
+  for (const anio of [inicio.getFullYear() - 1, inicio.getFullYear(), inicio.getFullYear() + 1]) {
+    const diff = Math.round((new Date(anio, mes - 1, dia) - inicio) / 86400000)
+    if (diff >= -5 && diff <= 7 && (mejor === null || Math.abs(diff) < Math.abs(mejor))) mejor = diff
+  }
+  return mejor
+}
+
+// Puntos de fidelidad: 10 por cada consulta registrada y 15 por cada paciente que refirió (los mismos del perfil del paciente).
+export const PUNTOS_POR_CONSULTA = 10
+export const PUNTOS_POR_REFERIDO = 15
+export const puntajeFidelidad = (paciente, consultas = [], pacientes = []) =>
+  contarConsultas(paciente, consultas) * PUNTOS_POR_CONSULTA + contarReferidos(paciente, pacientes) * PUNTOS_POR_REFERIDO
