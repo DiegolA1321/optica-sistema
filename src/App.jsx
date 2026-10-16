@@ -1,4 +1,5 @@
 import { cargarProductos } from './utilidades/cargarProductos'
+import { PARAMS_DE_SECCION } from './utilidades/urlEstado'
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { puede } from './utilidades/permisosUi';
 import Login from './paginas/Login';
@@ -995,8 +996,19 @@ function App() {
     setUsuario(null);
     setPantallaActual('login');
     guardarSesion(null);
+    // Cerrar sesión siempre devuelve al inicio: sin sección ni pestaña en la URL ni guardadas, para que el próximo
+    // login (o la landing) no herede la pantalla donde se estaba.
+    try {
+      localStorage.setItem('optica_seccion_activa', 'inicio');
+      const params = new URLSearchParams(window.location.search);
+      ['seccion', ...PARAMS_DE_SECCION].forEach((p) => params.delete(p));
+      const query = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    } catch { /* sin almacenamiento/historial: no pasa nada */ }
     Promise.resolve(salida).finally(() => supabase?.auth.signOut());
-    if (mensaje) setAvisoSesion({ texto: mensaje, id: Date.now() });
+    // Se usa como onClick en varios botones: solo un texto es un aviso (si no, llega el evento del clic y abría el modal de login).
+    if (typeof mensaje === 'string' && mensaje) setAvisoSesion({ texto: mensaje, id: Date.now() });
+    else setAvisoSesion(null);
   };
 
   // Entrar y salir de una óptica como administrador queda en dos lugares: la actividad del superadmin (panel "Actividad": quién,
