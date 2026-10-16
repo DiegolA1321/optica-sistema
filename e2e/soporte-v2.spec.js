@@ -4,8 +4,13 @@
 // Necesita la migración 0115 aplicada y SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD en el entorno (o en .env.test); sin ellas, se omite.
 import { test, expect } from '@playwright/test'
 import { iniciarSesion, escribirSecreto } from './ayudas.js'
+import { limpiarSoporteDePruebas } from './limpiar-soporte.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
+
+// Las consultas de la prueba se borran al terminar, también si falla (y antes, por si una corrida anterior se cortó).
+test.beforeAll(limpiarSoporteDePruebas)
+test.afterAll(limpiarSoporteDePruebas)
 
 // Un PNG de 1×1 píxel: la captura de prueba.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
@@ -45,10 +50,11 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
     await v.getByLabel('Descripción').fill('Al cobrar un abono la pantalla se queda cargando y no puedo entregar los lentes.')
     if (conCaptura) await v.locator('input[type=file]').setInputFiles({ name: 'captura.png', mimeType: 'image/png', buffer: PNG })
     await v.getByRole('button', { name: 'Enviar consulta' }).click()
-    await expect(v.getByText(/^SOP-\d{4}$/)).toBeVisible({ timeout: 30_000 })
-    await expect(v.getByText(urgente ? /el mismo día hábil/ : /1 día hábil/)).toBeVisible()
-    const codigo = (await v.getByText(/^SOP-\d{4}$/).textContent()).trim()
-    await v.getByRole('button', { name: 'Cerrar', exact: true }).click()
+    const c = optica.getByRole('dialog', { name: 'Consulta enviada' })
+    await expect(c.getByText(/^SOP-\d{4}$/)).toBeVisible({ timeout: 30_000 })
+    await expect(c.getByText(urgente ? /el mismo día hábil/ : /1 día hábil/)).toBeVisible()
+    const codigo = (await c.getByText(/^SOP-\d{4}$/).textContent()).trim()
+    await c.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
     return codigo
   }
   await escribir(asuntoNormal, false, false)
@@ -82,8 +88,8 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await ventanaSuper.getByLabel('Tu respuesta').fill('E2E respuesta del soporte: recarga la página e intenta de nuevo.')
   await ventanaSuper.getByRole('button', { name: 'Enviar respuesta' }).click()
   await expect(ventanaSuper.getByText('E2E respuesta del soporte: recarga la página e intenta de nuevo.')).toBeVisible({ timeout: 20_000 })
-  await expect(ventanaSuper.getByLabel('Estado', { exact: true })).toHaveValue('respondida')
-  await ventanaSuper.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await expect(ventanaSuper.getByRole('combobox', { name: /^Estado/ })).toHaveValue('respondida')
+  await ventanaSuper.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
 
   // ── 3. La óptica la ve en la campanita y en Mis consultas, sin la nota interna; responde
   await optica.reload()
@@ -98,7 +104,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await conversacion.getByRole('button', { name: 'Enviar', exact: true }).click()
   await expect(conversacion.getByText('E2E: ya probé y sigue igual')).toBeVisible({ timeout: 20_000 })
   await expect(conversacion.getByText('En revisión').first()).toBeVisible()
-  await conversacion.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await conversacion.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
   await optica.getByRole('button', { name: 'Notificaciones' }).click()
   await expect(optica.getByText(`Respondieron tu consulta ${codigo}`)).toHaveCount(0) // ya la leyó: la campanita bajó
   await optica.keyboard.press('Escape')
@@ -108,9 +114,9 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await superadmin.getByRole('button', { name: 'Soporte', exact: true }).first().click()
   await superadmin.getByRole('list', { name: 'Consultas de soporte' }).getByRole('button', { name: asunto }).click()
   const v2 = superadmin.getByRole('dialog')
-  await v2.getByLabel('Estado', { exact: true }).selectOption('resuelta')
+  await v2.getByRole('combobox', { name: /^Estado/ }).selectOption('resuelta')
   await expect(v2.getByText('Resuelta').first()).toBeVisible({ timeout: 20_000 })
-  await v2.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await v2.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
 
   await optica.getByRole('tab', { name: /Mis consultas/ }).click()
   await optica.reload()
@@ -124,7 +130,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await expect(fin.getByText(/Calificaste la atención con 5 de 5/)).toBeVisible({ timeout: 20_000 })
 
   // Sin desplazamiento horizontal a 1366×768
-  await fin.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await fin.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
   expect(await optica.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await contextoOptica.close()
   await contextoSuper.close()
