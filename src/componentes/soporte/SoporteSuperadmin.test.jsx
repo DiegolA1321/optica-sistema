@@ -2,6 +2,7 @@ import React from "react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react"
 
+vi.mock("@/lib/config", () => ({ MODO_SAAS_VISIBLE: true }))
 vi.mock("../../lib/supabaseClient", () => ({ supabase: null }))
 vi.mock("../../utilidades/soporteDatos", () => ({
   EVENTO_SOPORTE_CAMBIADO: "soporte:cambiado",

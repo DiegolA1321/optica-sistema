@@ -1,5 +1,7 @@
 # Panel del superadmin v2 (16 oct. 2026, rama `superadmin-v2`, SIN publicar)
 
+> **Alcance (corregido el 16 oct.):** lo comercial descrito abajo (Ingresos, Clientes, Leads, Pago, Salud de clientes, Crear óptica, suscripción y facturación) solo se ve con `VITE_MOSTRAR_SAAS=true` (`MODO_SAAS_VISIBLE`). Con el modo de la tesis el panel es la administración técnica de una sola óptica; ver `docs/estado-actual.md`. La migración 0119 ya está aplicada.
+
 Pedido: que el panel del superadmin quede al nivel del resto del sistema. Responde "¿cómo va mi negocio y qué óptica necesita atención?" y se ve y se comporta como Reportes.
 
 ## Qué cambió

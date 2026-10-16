@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ArrowRight, Building2, ChevronDown, Download, History, Search } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient"
 import { INK, GRAD_MARCA } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { Cascaron } from "../AtencionPaciente"
 import SelectorPeriodo from "../reportes/SelectorPeriodo"
 import { SinResultados } from "../reportes/bloques"
@@ -14,7 +15,7 @@ import { fechaHoraLegible, formatoFecha, hora, tituloSemana } from "../../utilid
 import { rangoDePeriodo, diaDe } from "../../utilidades/reportesPeriodo"
 import { modeloDeLista, descargarModelo } from "../../utilidades/reportesExcel"
 import {
-  TIPOS_ACTIVIDAD, tipoDeAccion, frasesDeAccion, textoDeAccion, cambioDeAccion, filtrarActividad, contarPorTipo, idsDePrueba, instanteInicio, instanteFin,
+  TIPOS_ACTIVIDAD, tiposVisibles, tipoDeAccion, frasesDeAccion, textoDeAccion, cambioDeAccion, filtrarActividad, contarPorTipo, idsDePrueba, instanteInicio, instanteFin,
 } from "../../utilidades/superadminNegocio"
 
 const TOPE = 1000
@@ -152,7 +153,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
     return () => { vigente = false }
   }, [rango.inicio, rango.fin, opticaId, actorId, version, recarga])
 
-  const filtros = { rango, opticaId, actorId, busqueda, incluirPrueba, opticas }
+  const filtros = { rango, opticaId, actorId, busqueda, incluirPrueba, opticas, saas: MODO_SAAS_VISIBLE }
   const visibles = useMemo(() => filtrarActividad(filas, { ...filtros, tipo }), [filas, tipo, busqueda, incluirPrueba, opticas]) // eslint-disable-line react-hooks/exhaustive-deps
   const conteo = useMemo(() => contarPorTipo(filas, filtros), [filas, busqueda, incluirPrueba, opticas]) // eslint-disable-line react-hooks/exhaustive-deps
   const ocultasPorPrueba = useMemo(() => (incluirPrueba ? 0 : filas.filter((a) => a.optica_id && pruebas.has(a.optica_id)).length), [filas, incluirPrueba, pruebas])
@@ -172,7 +173,6 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
     busqueda.trim() && { id: "busqueda", texto: `Texto: «${busqueda.trim()}»`, quitar: () => setBusqueda("") },
     incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => onIncluirPrueba(false) },
   ].filter(Boolean)
-  const hayFiltros = etiquetas.some((e) => e.quitar)
   const limpiar = () => { setTipo("todas"); setOpticaId(""); setActorId(""); setBusqueda(""); onIncluirPrueba(false) }
 
   const exportar = async () => {
@@ -227,7 +227,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
       </div>
 
       <div role="tablist" aria-label="Tipos de actividad" className="flex flex-wrap gap-x-0.5 border-b border-slate-200/70">
-        {TIPOS_ACTIVIDAD.map((t) => (
+        {tiposVisibles(MODO_SAAS_VISIBLE).map((t) => (
           <button key={t.id} type="button" role="tab" id={`act-tab-${t.id}`} aria-selected={tipo === t.id} aria-controls="act-panel" onClick={() => setTipo(t.id)} className={"-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors cursor-pointer " + (tipo === t.id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700")}>
             {t.nombre}
             <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums " + (tipo === t.id ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>{conteo[t.id]}</span>

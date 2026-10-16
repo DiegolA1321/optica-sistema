@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Building2, CircleAlert, DollarSign, Handshake, Headset, Inbox, LifeBuoy, Plus, Users, Wallet } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient"
 import { INK, GRAD_MARCA } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import TarjetaReporte from "../reportes/TarjetaReporte"
 import VentanaDetalle from "../reportes/VentanaDetalle"
 import SelectorPeriodo from "../reportes/SelectorPeriodo"
@@ -14,7 +15,7 @@ import SinDatosAun from "../SinDatosAun"
 import DetalleOptica from "./DetalleOptica"
 import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba } from "./piezas"
 import { dinero } from "../../utilidades/formatoMoneda"
-import { formatoFecha, fechaLegible, tituloSemana } from "../../utilidades/formatoFecha"
+import { formatoFecha, fechaLegible, fechaHoraLegible, tituloSemana } from "../../utilidades/formatoFecha"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { fechaAISO } from "../../utilidades/disponibilidad"
 import { modeloDeLista, descargarModelo } from "../../utilidades/reportesExcel"
@@ -22,7 +23,7 @@ import { rangoDePeriodo, rangoAnterior, etiquetaComparacion, variacion, diaDe } 
 import { codigoConsulta, duracionLegible, indicadoresSoporte, esAbierta } from "../../utilidades/soporte"
 import {
   opticasDelNegocio, idsDePrueba, ingresosDelPeriodo, porCobrarAl, serieIngresos, clientesDelPeriodo, serieClientes, saludDeLaRed, contarSalud,
-  AYUDA_SALUD, SALUD, usoDeLaRed, MODULOS_USO, embudoLeads, consultasAbiertasAl, instanteInicio, instanteFin,
+  AYUDA_SALUD, SALUD, usoDeLaRed, frasesDeAccion, sinPruebas, tiposVisibles, MODULOS_USO, embudoLeads, consultasAbiertasAl, instanteInicio, instanteFin,
 } from "../../utilidades/superadminNegocio"
 
 const DINERO = { baseMinima: 100, formato: dinero }
@@ -35,7 +36,9 @@ const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 // El Resumen del superadmin: las cuentas de un negocio de software por suscripción. Responde "¿cómo va mi negocio y qué óptica necesita atención?".
 // Es el mismo molde que Reportes: tarjetas con su comparación y su ⓘ, gráficas con su valor, cada número abre su lista en la ventana estándar
 // con "Abrir en …" y "Exportar", y el mismo selector de período.
-export default function ResumenNegocio({ datos, opticas, leads, consultas, cargandoSoporte, estadoServidor, incluirPrueba, onIncluirPrueba, usuario, onAbrir, onEntrarComo, onAviso, onCrearOptica }) {
+export default function ResumenNegocio({ datos, opticas, leads, consultas, cargandoSoporte, estadoServidor, incluirPrueba, onIncluirPrueba, usuario, onAbrir, onEntrarComo, onAviso, onCrearOptica, actividad = [] }) {
+  // Con el modo de la tesis (una sola óptica) el panel es la administración técnica del sistema: sin ingresos, clientes, leads ni salud de clientes.
+  const saas = MODO_SAAS_VISIBLE
   const [periodo, setPeriodo] = useState("mes")
   const [personalizado, setPersonalizado] = useState({ inicio: "", fin: "" })
   const [detalle, setDetalle] = useState(null)
@@ -170,24 +173,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
   const salirHaciaSoporte = (params, etiqueta = "Abrir en Soporte") => ({ modulo: "soporte", etiqueta, params: { ...params, ...(incluirPrueba ? { incluirPrueba: true } : {}) } })
   const rangoLeads = { desde: rango.inicio, hasta: rango.fin }
 
-  return (
-    <div className="space-y-3" data-resumen-negocio>
-      <CabeceraSeccion titulo="Resumen" pregunta="¿Cómo va el negocio y qué óptica necesita atención?">
-        <button type="button" onClick={onCrearOptica} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>
-      </CabeceraSeccion>
-
-      {sinNada && <SinDatosAun titulo="Todavía no hay ópticas" texto="El resumen se llena con las ópticas que se creen y con lo que hagan en el sistema." accion={onCrearOptica ? { etiqueta: "Crear la primera óptica", onClick: onCrearOptica } : null} />}
-
-      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
-        <div className="flex flex-wrap items-center gap-2">
-          <SelectorPeriodo periodo={periodo} onPeriodo={setPeriodo} personalizado={personalizado} onPersonalizado={setPersonalizado} rango={rango} prefijo="sa" />
-          <InterruptorPrueba activo={incluirPrueba} onCambiar={onIncluirPrueba} cuantas={nPrueba} />
-          <EtiquetasFiltros etiquetas={etiquetas} />
-        </div>
-      </div>
-
-      <div className="space-y-4 pb-6">
-        {/* 1. Ingresos */}
+  const secIngresos = (
         <Seccion titulo="Ingresos" ayuda="Lo que la suscripción de las ópticas le deja al negocio. Facturado = facturas emitidas en el período. Cobrado = facturas pagadas en el período. Pendientes y vencidas se miran al cierre del período; una factura por cobrar pasa a vencida a los 30 días de emitida.">
           <div className={REJILLA_TARJETAS_4}>
             {tarjeta({ titulo: "Facturado", valor: dinero(ing.act.facturado), ayuda: "Suma de las facturas de suscripción emitidas en el período.", onClick: () => abrir({ titulo: `Facturado: ${plural(ing.act.facturadas.length, "factura", "facturas")}`, valor: dinero(ing.act.facturado), icono: DollarSign, columnas: colsFactura, filas: ing.act.facturadas, abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } }) }, ing.act.facturado, ing.ant.facturado, DINERO)}
@@ -205,8 +191,9 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             )}
           </Caja>
         </Seccion>
+  )
 
-        {/* 2. Clientes */}
+  const secClientes = (
         <Seccion titulo="Clientes" ayuda="Las ópticas que pagan el sistema. Activas y suspendidas se miran al cierre del período. Nuevas = creadas en el período. Dadas de baja = suspendidas durante el período y que siguen suspendidas al cierre.">
           <div className={REJILLA_TARJETAS_4}>
             {tarjeta({ titulo: "Ópticas activas", valor: cli.act.activas.length, ayuda: "Ópticas que podían usar el sistema al cierre del período.", onClick: () => abrir({ titulo: `Ópticas activas: ${cli.act.activas.length}`, valor: cli.act.activas.length, icono: Building2, columnas: colsOptica, filas: cli.act.activas, abrirEn: abrirOpticas("Activas") }) }, cli.act.activas.length, cli.ant.activas.length)}
@@ -222,8 +209,9 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             )}
           </Caja>
         </Seccion>
+  )
 
-        {/* 3. Ópticas que necesitan atención */}
+  const secSalud = (
         <Seccion titulo="Ópticas que necesitan atención" aHoy ayuda={AYUDA_SALUD}>
           <Caja titulo={`${plural(salud.length, "óptica activa", "ópticas activas")}`} exportar={bloque("Salud de las ópticas",
             () => ({ columnas: [col("Salud", (x) => x.nombre), col("Ópticas", (x) => x.n, "entero")], filas: ["riesgo", "atencion", "saludable"].map((k) => ({ nombre: SALUD[k].nombre, n: conteoSalud[k] })) }),
@@ -255,8 +243,9 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             )}
           </Caja>
         </Seccion>
+  )
 
-        {/* 4. Uso del sistema */}
+  const secUso = (
         <Seccion titulo="Uso del sistema" ayuda="Lo que hizo el personal de las ópticas activas en los últimos 30 días, sin importar el período elegido arriba. Se compara con los 30 días anteriores. Personas activas = quienes anotaron al menos una acción. Los módulos se cuentan por las acciones que el personal anotó en la actividad de cada óptica.">
           {datos.sinServidor ? (
             <SinResultados texto="Todavía no se puede leer el uso de las ópticas. Vuelve a intentarlo en un momento." acciones={[{ etiqueta: "Reintentar", onClick: datos.recargar }]} />
@@ -275,14 +264,14 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
                 () => ({ columnas: [col("Óptica", (u) => nombreOptica(u.optica_id)), ...MODULOS_USO.map((m) => col(m.nombre, (u) => u.modulos?.[m.id] || 0, "entero"))], filas: uso.filas }))}>
                 {uso.filas.length === 0 ? <SinResultados texto="Todavía no hay ópticas activas que mostrar." /> : (
                   <table className="w-full table-fixed text-sm" aria-label="Módulos que usa cada óptica">
-                    <colgroup><col />{MODULOS_USO.map((m) => <col key={m.id} style={{ width: 84 }} />)}</colgroup>
+                    <colgroup><col />{MODULOS_USO.map((m) => <col key={m.id} style={{ width: 96 }} />)}</colgroup>
                     <thead><tr className="text-xs font-bold uppercase tracking-wider text-slate-500"><th scope="col" className="py-2 pr-2 text-left">Óptica</th>{MODULOS_USO.map((m) => <th key={m.id} scope="col" className="px-1 py-2 text-right" title={m.nombre}><span className="block truncate">{m.corto || m.nombre}</span></th>)}</tr></thead>
                     <tbody className="divide-y divide-slate-100">
                       {uso.filas.map((u) => {
                         const fila = salud.find((s) => s.optica.id === u.optica_id)
                         return (
                           <tr key={u.optica_id} className="hover:bg-slate-50/60">
-                            <td className="truncate py-1.5 pr-2">{fila ? <button type="button" data-lista onClick={() => setOpticaAbierta(u.optica_id)} aria-label={`${nombreOptica(u.optica_id)}: ver el detalle`} className="block max-w-full truncate rounded-md px-1.5 py-0.5 text-left font-semibold transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{nombreOptica(u.optica_id)}</button> : nombreOptica(u.optica_id)}</td>
+                            <td className="truncate py-1.5 pr-2">{fila && saas ? <button type="button" data-lista onClick={() => setOpticaAbierta(u.optica_id)} aria-label={`${nombreOptica(u.optica_id)}: ver el detalle`} className="block max-w-full truncate rounded-md px-1.5 py-0.5 text-left font-semibold transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{nombreOptica(u.optica_id)}</button> : nombreOptica(u.optica_id)}</td>
                             {MODULOS_USO.map((m) => <td key={m.id} className="px-1 py-1.5 text-right tabular-nums">{u.modulos?.[m.id] ? <span className="font-semibold" style={{ color: INK }}>{u.modulos[m.id]}</span> : <span className="text-slate-400">—</span>}</td>)}
                           </tr>
                         )
@@ -300,8 +289,9 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             </>
           )}
         </Seccion>
+  )
 
-        {/* 5. Soporte */}
+  const secSoporte = (
         <Seccion titulo="Soporte" ayuda="Los mismos números que la bandeja de Soporte. Abiertas y urgentes son las de hoy, comparadas con el cierre del período anterior; el tiempo de primera respuesta (mediana) y la satisfacción son de las consultas del período.">
           {cargandoSoporte ? <div className="h-24 animate-pulse rounded-2xl bg-slate-200/70" /> : (
             <div className={REJILLA_TARJETAS_4}>
@@ -312,8 +302,9 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             </div>
           )}
         </Seccion>
+  )
 
-        {/* 6. Leads */}
+  const secLeads = (
         <Seccion titulo="Leads" ayuda="Los interesados que escribieron desde la página de venta. Los mismos números que la sección Leads: cada interesado está en un solo estado.">
           <div className={REJILLA_TARJETAS_4}>
             {tarjeta({ titulo: "Visitas a la página de venta", valor: visitas.actual ?? "—", ayuda: "Personas que abrieron la página de venta en el período." }, visitas.actual ?? undefined, visitas.previo)}
@@ -334,14 +325,55 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             )}
           </Caja>
         </Seccion>
+  )
 
-        {/* 7. Estado del sistema */}
+  const secEstado = (
         <Seccion titulo="Estado del sistema" aHoy ayuda="Se mide con la última carga de datos de este panel: menos de 1,2 segundos es normal, hasta 3,5 es lento y más es crítico.">
           <div className={REJILLA_TARJETAS_4}>
             {tarjeta({ titulo: "Base de datos", valor: ESTADO_SERVIDOR[estadoServidor.estado] || "Sin conexión", sub: estadoServidor.estado === "operativo" ? "Responde con normalidad" : estadoServidor.estado === "verificando" ? "Comprobando…" : "Revisa la conexión", ayuda: "Si la base de datos responde con normalidad." })}
             {tarjeta({ titulo: "Tiempo de respuesta", valor: estadoServidor.latenciaMs != null ? `${new Intl.NumberFormat("en-US").format(estadoServidor.latenciaMs)} ms` : "—", sub: "Última carga de datos", ayuda: "Lo que tardó la última carga de datos de este panel." })}
           </div>
         </Seccion>
+  )
+
+  const recientes = sinPruebas(actividad, opticas, incluirPrueba).filter((a) => tiposVisibles(false).some((t) => t.acciones?.includes(a.accion))).slice(0, 8)
+  const secActividad = (
+        <Seccion titulo="Actividad reciente" ayuda="Lo último que hicieron los superadmins en el sistema. Es un registro: no se borra ni se edita.">
+          <Caja titulo="Últimas acciones" derecha={<button type="button" onClick={() => onAbrir("actividad", {})} className="rounded-lg px-2 py-1 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Ver toda la actividad</button>}>
+            {recientes.length === 0 ? (
+              <SinResultados texto="Todavía no hay acciones registradas." />
+            ) : (
+              <ul role="list" className="divide-y divide-slate-100">
+                {recientes.map((a) => (
+                  <li key={a.id} className="flex items-center gap-3 py-2 text-sm text-slate-700">
+                    <span className="min-w-0 flex-1 truncate"><span className="font-semibold" style={{ color: INK }}>{a.actor_nombre}</span> {frasesDeAccion(a).map((x) => x.t).join("")}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-slate-500">{fechaHoraLegible(a.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Caja>
+        </Seccion>
+  )
+
+  return (
+    <div className="space-y-3" data-resumen-negocio>
+      <CabeceraSeccion titulo="Resumen" pregunta={saas ? "¿Cómo va el negocio y qué óptica necesita atención?" : "¿Funciona bien el sistema y lo están usando?"}>
+        {saas && <button type="button" onClick={onCrearOptica} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
+      </CabeceraSeccion>
+
+      {sinNada && <SinDatosAun titulo="Todavía no hay ópticas" texto="El resumen se llena con las ópticas que se creen y con lo que hagan en el sistema." accion={saas && onCrearOptica ? { etiqueta: "Crear la primera óptica", onClick: onCrearOptica } : null} />}
+
+      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+        <div className="flex flex-wrap items-center gap-2">
+          <SelectorPeriodo periodo={periodo} onPeriodo={setPeriodo} personalizado={personalizado} onPersonalizado={setPersonalizado} rango={rango} prefijo="sa" />
+          <InterruptorPrueba activo={incluirPrueba} onCambiar={onIncluirPrueba} cuantas={nPrueba} />
+          <EtiquetasFiltros etiquetas={etiquetas} />
+        </div>
+      </div>
+
+      <div className="space-y-4 pb-6">
+        {saas ? <>{secIngresos}{secClientes}{secSalud}{secUso}{secSoporte}{secLeads}{secEstado}</> : <>{secEstado}{secUso}{secSoporte}{secActividad}</>}
       </div>
 
       {detalle && <VentanaDetalle d={detalle} onCerrar={() => setDetalle(null)} />}

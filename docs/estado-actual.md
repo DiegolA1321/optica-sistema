@@ -1,14 +1,13 @@
 <!-- SA2-INICIO -->
-## Panel del superadmin v2 (16 oct. 2026, rama `superadmin-v2`, SIN publicar; migración 0119 ESCRITA y ensayada, SIN APLICAR)
-Pedido: rediseñar el panel del superadmin al nivel del resto del sistema (Resumen como Reportes, detalle en la ventana estándar, Actividad como registro de auditoría por tipo y con filtros, ópticas de prueba fuera de las métricas). Detalle, datos que faltan y comparación con los criterios del ingeniero: `docs/revision-superadmin-v2.md`.
-**Dónde voy:**
-- [x] Paso 1 — Migración `0119_superadmin_v2.sql` + `scripts/ensayo-0119.mjs` (revierte: pasa completo). Respaldo `pre-superadmin-v2-2026-10-16.dump`. **Falta: que Diego revise el SQL y autorice aplicarla**, y `scripts/verificar-0119.mjs` con sesiones reales.
-- [x] Paso 2 — Cálculos con pruebas (`superadminNegocio.js`: salud, ingresos, clientes, uso, leads, actividad).
-- [x] Paso 3 — Resumen nuevo (siete secciones, mismos componentes que Reportes; `SelectorPeriodo` extraído de Reportes) y Actividad nueva.
-- [x] Paso 4 — Detalle de óptica (prueba, uso, roles, suscripción con Guardar, suspender con motivo y aviso) y Ópticas, Leads, Soporte y Superadmins con el mismo molde; S1–S3 y S5–S11 de `revision-portal-y-superadmin.md`.
-- [x] Paso 5 — Pruebas del Resumen y de la Actividad (números = listas = Soporte y Leads). Vitest de lo nuevo, de Reportes y de Soporte en verde; sin correr la suite completa.
-- [ ] Aplicar 0119, revisar en localhost con datos reales, suite completa de Playwright y publicar (lo pide Diego).
-**Dato que falta:** `opticas.monto_mensual` está vacío en las 5 ópticas (no hay precio de suscripción por óptica); no se calculó ingreso mensual recurrente.
+## Panel del superadmin v2 (16 oct. 2026, rama `superadmin-v2`, SIN publicar; migración 0119 APLICADA el 16 oct. con aprobación de Diego)
+Alcance corregido por Diego: el sistema de la tesis es para UNA óptica (Óptica Solna Vision); la capa SaaS (vender el sistema a otras ópticas) queda oculta con el modo que ya existía: `MODO_SAAS_VISIBLE` (`src/lib/config.js`), que lee `VITE_MOSTRAR_SAAS`; apagado por defecto, `VITE_MOSTRAR_SAAS=true` (ver `.env.local.example`) la muestra. Antes solo ocultaba widgets del Resumen, la página de venta/Login y el bloque de suscripción de Mensajes.
+- **Modo de la tesis (apagado):** el panel es la administración técnica del sistema. Resumen = Estado del sistema, Uso (personas activas y módulos usados), Soporte y Actividad reciente. Soporte, Actividad y Superadmins como quedaron (Actividad sin las pestañas Pagos y Leads). Ópticas de prueba (Demo, QA Test Claude y la vacía) = "Entornos de prueba": lista aparte, sin Pago ni Salud ni "Crear óptica". Ocultos: Ingresos, Clientes, Leads (también en el menú), columnas Pago y Salud, "Crear óptica", el conteo de ópticas del menú, Suscripción y Facturación del detalle, la tarjeta y pestaña de pagos de los avisos, y el escalado automático del pago con su aviso al administrador.
+- **Modo comercial (`VITE_MOSTRAR_SAAS=true`):** todo lo construido vuelve a aparecer como estaba (verificado en el navegador y con pruebas).
+- **Ancho:** el panel usa el mismo ancho y márgenes que el panel de las ópticas (sin `max-w-6xl`).
+- **Base de datos:** 0119 aplicada (respaldo `pre-superadmin-v2-aplicar-2026-10-16.dump`); `scripts/verificar-0119.mjs` con sesiones reales: todo pasó (la actividad no se puede borrar, por eso queda 1 registro de la verificación en QA Test Claude).
+- **Para cuando se active la capa SaaS (decisiones pendientes, no se tomaron):** (1) precio de la suscripción: `opticas.monto_mensual` está vacío en todas; (2) cuándo una factura está vencida (hoy: 30 días desde que se emitió, no hay fecha de vencimiento en `facturas`); (3) qué es una óptica "dada de baja" (hoy: suspendida en el período y que sigue suspendida; el sistema solo suspende).
+- **Dato a revisar:** además de Óptica Solna Vision existe una óptica real, "Optica Karla V" (karla-vision); en el modo de la tesis cuenta como óptica, no como entorno de prueba.
+- **Falta:** que Diego revise en localhost, y luego la suite completa de Playwright y publicar (lo pide Diego). Detalle: `docs/revision-superadmin-v2.md`.
 <!-- SA2-FIN -->
 
 <!-- COR-INICIO -->

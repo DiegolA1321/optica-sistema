@@ -135,6 +135,7 @@ const formatearFechaHora = (fecha) =>
   fechaHoraLegible(fecha, { anio: true })
 
 import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
 import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
 import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
@@ -155,6 +156,9 @@ const NAV = [
   { id: "actividad", nombre: "Actividad", icono: History },
   { id: "superadmins", nombre: "Superadmins", icono: ShieldCheck },
 ]
+
+// Con el modo de la tesis (una sola óptica) la capa comercial queda oculta: sin Leads en el menú. Nada se borra; con VITE_MOSTRAR_SAAS=true vuelve todo.
+const NAV_VISIBLE = NAV.filter((o) => MODO_SAAS_VISIBLE || o.id !== "leads")
 
 export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario, alEntrarComo }) {
   const [seccion, setSeccion] = useState("resumen")
@@ -479,7 +483,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setCargando(false)
     setCargaInicial(false)
     cargarAuditoria(true)
-    if (opticasData?.length) verificarVencimientosPago(opticasData)
+    if (MODO_SAAS_VISIBLE && opticasData?.length) verificarVencimientosPago(opticasData)
 
     // Conteo real de acciones por superadmin — un COUNT liviano por cuenta
     // (son pocas) en vez de traer toda la auditoría al cliente para sumarla.
@@ -673,9 +677,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   }, [opticasVisibles, datosNegocio.personas, datosNegocio.uso, datosNegocio.facturas, consultasVisibles])
   const usoPorOptica = useMemo(() => new Map(datosNegocio.uso.map((u) => [u.optica_id, u])), [datosNegocio.uso])
 
+  // El listado de Ópticas: con el modo de la tesis las de prueba van aparte, como "Entornos de prueba".
+  const opticasListado = useMemo(() => (MODO_SAAS_VISIBLE ? opticasVisibles : opticas.filter((o) => !esDePrueba(o))), [opticasVisibles, opticas])
   const opticasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    return opticasVisibles.filter((o) => {
+    return opticasListado.filter((o) => {
       const listaAdmins = adminsPorOptica.get(o.id) || []
       if (filtroEstado === "Activas" && !o.activa) return false
       if (filtroEstado === "Suspendidas" && o.activa) return false
@@ -689,14 +695,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         listaAdmins.some((a) => a.nombre.toLowerCase().includes(q) || (a.email || "").toLowerCase().includes(q))
       )
     })
-  }, [opticasVisibles, adminsPorOptica, busqueda, filtroEstado, filtrosOpticas])
+  }, [opticasListado, adminsPorOptica, busqueda, filtroEstado, filtrosOpticas])
 
-  const totalActivas = opticasVisibles.filter((o) => o.activa).length
-  const totalSuspendidas = opticasVisibles.length - totalActivas
+  const totalActivas = opticasListado.filter((o) => o.activa).length
+  const totalSuspendidas = opticasListado.length - totalActivas
   const nPrueba = opticas.filter(esDePrueba).length
 
   const tarjetas = [
-    { key: "Todas", label: "Todas", valor: opticasVisibles.length, fg: "#2563EB" },
+    { key: "Todas", label: "Todas", valor: opticasListado.length, fg: "#2563EB" },
     { key: "Activas", label: "Activas", valor: totalActivas, fg: "#059669" },
     { key: "Suspendidas", label: "Suspendidas", valor: totalSuspendidas, fg: "#E11D48" },
   ]
@@ -1450,13 +1456,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <ResumenNegocio
       datos={datosNegocio} opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
       incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} usuario={usuario}
-      onAbrir={irA} onEntrarComo={(o) => alEntrarComo?.(o)} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
+      actividad={auditoria} onAbrir={irA} onEntrarComo={(o) => alEntrarComo?.(o)} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
     />
   )
 
   const MENSAJES_FILTROS = [
     { key: "anuncio", label: "Avisos" },
-    { key: "pago", label: "Pagos" },
+    ...(MODO_SAAS_VISIBLE ? [{ key: "pago", label: "Pagos" }] : []),
     { key: "cumpleanos", label: "Cumpleaños" },
   ]
 
@@ -1465,6 +1471,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-5">
       {/* ─── Panel de control: cada tarjeta es real y clickeable, mismo lenguaje visual que CRM.jsx (Dashboard) ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {MODO_SAAS_VISIBLE && (
         <button
           type="button"
           onClick={() => setMensajesFiltro(mensajesFiltro === "pago" ? "todas" : "pago")}
@@ -1483,6 +1490,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <Wallet size={22} />
           </div>
         </button>
+        )}
 
         <button
           type="button"
@@ -1675,76 +1683,54 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     filtrosOpticas.pago && { id: "pago", texto: `Pago: ${PAGO_ETIQUETA[filtrosOpticas.pago]}`, quitar: () => setFiltrosOpticas((f) => ({ ...f, pago: "" })) },
     (filtrosOpticas.desde || filtrosOpticas.hasta) && { id: "creada", texto: `Creadas: ${filtrosOpticas.desde ? fechaLegible(filtrosOpticas.desde) : "…"} – ${filtrosOpticas.hasta ? fechaLegible(filtrosOpticas.hasta) : "…"}`, quitar: () => setFiltrosOpticas((f) => ({ ...f, desde: "", hasta: "" })) },
     busqueda.trim() && { id: "busqueda", texto: `Texto: «${busqueda.trim()}»`, quitar: () => setBusqueda("") },
-    incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => setIncluirPrueba(false) },
+    MODO_SAAS_VISIBLE && incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => setIncluirPrueba(false) },
   ].filter(Boolean)
   const limpiarOpticas = () => { setFiltroEstado("Todas"); setBusqueda(""); setFiltrosOpticas({ desde: "", hasta: "", pago: "" }); setIncluirPrueba(false) }
   const celdaTitulo = "px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500"
 
-  const renderOpticas = () => (
-    <div className="space-y-3" data-opticas>
-      <CabeceraSeccion titulo="Ópticas" pregunta="¿Qué ópticas tengo, cómo van y cuál necesita atención?">
-        <button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>
-      </CabeceraSeccion>
+  const entornosPrueba = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    return opticas.filter(esDePrueba).filter((o) => !q || o.nombre.toLowerCase().includes(q) || o.slug.toLowerCase().includes(q))
+  }, [opticas, busqueda])
 
-      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Estado" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
-            {tarjetas.map((t) => (
-              <button key={t.key} type="button" aria-pressed={filtroEstado === t.key} onClick={() => setFiltroEstado(t.key)} className={"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (filtroEstado === t.key ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={filtroEstado === t.key ? { background: GRAD } : undefined}>
-                {t.label} <span className={filtroEstado === t.key ? "text-white/85" : "text-slate-500"}>{t.valor}</span>
-              </button>
-            ))}
-          </div>
-          <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
-            <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
-            <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre, dirección de la página o administrador" aria-label="Buscar ópticas" className="mt-0.5 block h-9 w-full rounded-lg border border-slate-200/60 bg-white pl-8 pr-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500 [&::-webkit-search-cancel-button]:hidden" />
-          </label>
-          <label className="text-xs font-semibold text-slate-500">Pago
-            <select aria-label="Pago" value={filtrosOpticas.pago} onChange={(e) => setFiltrosOpticas((f) => ({ ...f, pago: e.target.value }))} className="mt-0.5 block h-9 w-40 rounded-lg border border-slate-200/60 bg-white px-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500">
-              <option value="">Todos</option>
-              {Object.entries(PAGO_ETIQUETA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </label>
-          <EtiquetasFiltros etiquetas={etiquetasOpticas} onLimpiar={limpiarOpticas} />
-        </div>
-      </div>
-
+  // La tabla de ópticas. Con el modo de la tesis (una sola óptica) no lleva Pago ni Salud, que son de cliente.
+  const tablaOpticas = (lista, entorno) => {
+    const saas = MODO_SAAS_VISIBLE
+    const cols = saas ? 8 : 6
+    return (
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-        <table className="w-full table-fixed text-left text-sm" aria-label="Ópticas">
+        <table className="w-full table-fixed text-left text-sm" aria-label={entorno ? "Entornos de prueba" : "Ópticas"}>
           <thead>
             <tr className="border-b border-slate-200/60 bg-slate-50/70">
-              <th scope="col" className={celdaTitulo + " w-[25%]"}>Óptica</th>
-              <th scope="col" className={celdaTitulo + " w-[19%]"}>Administrador</th>
-              <th scope="col" className={celdaTitulo + " w-[10%]"}>Estado</th>
-              <th scope="col" className={celdaTitulo + " w-[10%]"}>Salud</th>
-              <th scope="col" className={celdaTitulo + " w-[10%]"}>Pago</th>
-              <th scope="col" className={celdaTitulo + " w-[10%] text-right"}>Uso 30 d</th>
-              <th scope="col" className={celdaTitulo + " w-[11%]"}>Creada</th>
-              <th scope="col" className={celdaTitulo + " w-[5%] text-center"}><span className="sr-only">Acciones</span></th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[25%]" : " w-[30%]")}>{entorno ? "Entorno" : "Óptica"}</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[19%]" : " w-[24%]")}>Administrador</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[13%]")}>Estado</th>
+              {saas && <th scope="col" className={celdaTitulo + " w-[10%]"}>Salud</th>}
+              {saas && <th scope="col" className={celdaTitulo + " w-[10%]"}>Pago</th>}
+              <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[12%]") + " text-right"}>Uso 30 d</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[11%]" : " w-[15%]")}>Creada</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[5%]" : " w-[6%]") + " text-center"}><span className="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {cargando ? (
-              [0, 1, 2, 3].map((i) => <tr key={i}><td colSpan={8} className="px-4 py-3"><div className="h-9 animate-pulse rounded-lg bg-slate-200/70" /></td></tr>)
-            ) : opticasFiltradas.length === 0 ? (
+              [0, 1, 2, 3].map((i) => <tr key={i}><td colSpan={cols} className="px-4 py-3"><div className="h-9 animate-pulse rounded-lg bg-slate-200/70" /></td></tr>)
+            ) : lista.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12">
+                <td colSpan={cols} className="px-4 py-12">
                   <div role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 text-center">
                     <Building2 size={22} className="text-slate-400" aria-hidden="true" />
                     <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : "Todas las ópticas son de prueba y no se muestran por defecto."}</p>
-                    {opticas.length === 0 ? (
+                    {opticas.length === 0 && saas ? (
                       <button type="button" onClick={abrirCrear} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Crear la primera óptica</button>
-                    ) : etiquetasOpticas.length > 0 ? null : (
+                    ) : etiquetasOpticas.length > 0 || !saas ? null : (
                       <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir ópticas de prueba</button>
                     )}
                   </div>
                 </td>
               </tr>
             ) : (
-              opticasFiltradas.map((o) => {
+              lista.map((o) => {
                 const listaAdmins = adminsPorOptica.get(o.id) || []
                 const procesando = procesandoId === o.id
                 const salud = saludPorOptica.get(o.id)
@@ -1756,7 +1742,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white" style={{ background: GRAD }}>{o.nombre.charAt(0).toUpperCase()}</div>
                         <div className="min-w-0">
                           <button type="button" onClick={(e) => { e.stopPropagation(); abrirDetalleOptica(o) }} aria-label={`Ver el detalle de ${o.nombre}`} className="block max-w-full truncate text-left font-semibold text-slate-800 transition-colors group-hover:text-blue-600 focus-visible:outline-none focus-visible:underline cursor-pointer" title={o.nombre}>{o.nombre}</button>
-                          <p className="flex items-center gap-1.5 text-xs text-slate-500"><span className="truncate font-mono">{o.slug}</span>{esDePrueba(o) && <EtiquetaPrueba />}</p>
+                          <p className="flex items-center gap-1.5 text-xs text-slate-500"><span className="truncate font-mono">{o.slug}</span>{saas && esDePrueba(o) && <EtiquetaPrueba />}</p>
                         </div>
                       </div>
                     </td>
@@ -1773,8 +1759,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <td className="px-4 py-3">
                       <span className={"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold " + (o.activa ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700")}>{o.activa ? "Activa" : "Suspendida"}</span>
                     </td>
-                    <td className="px-4 py-3">{o.activa && salud ? <InsigniaSalud estado={salud.estado} /> : <span className="text-slate-400">—</span>}</td>
-                    <td className="px-4 py-3 text-slate-600">{PAGO_ETIQUETA[o.estado_pago || "al_dia"]}</td>
+                    {saas && <td className="px-4 py-3">{o.activa && salud ? <InsigniaSalud estado={salud.estado} /> : <span className="text-slate-400">—</span>}</td>}
+                    {saas && <td className="px-4 py-3 text-slate-600">{PAGO_ETIQUETA[o.estado_pago || "al_dia"]}</td>}
                     <td className="px-4 py-3 text-right tabular-nums text-slate-700" title={u ? `${u.citas} citas · ${u.consultas} consultas · ${u.ventas} ventas` : undefined}>{u ? u.citas + u.consultas + u.ventas : <span className="text-slate-400">—</span>}</td>
                     <td className="px-4 py-3 text-slate-600">{fechaLegible(diaDe(o.created_at))}</td>
                     <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1796,7 +1782,50 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </tbody>
         </table>
       </div>
+    )
+  }
+
+  const renderOpticas = () => (
+    <div className="space-y-3" data-opticas>
+      <CabeceraSeccion titulo="Ópticas" pregunta={MODO_SAAS_VISIBLE ? "¿Qué ópticas tengo, cómo van y cuál necesita atención?" : "¿Qué óptica usa el sistema y qué entornos de prueba hay?"}>
+        {MODO_SAAS_VISIBLE && <button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
+      </CabeceraSeccion>
+
+      <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Estado" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
+            {tarjetas.map((t) => (
+              <button key={t.key} type="button" aria-pressed={filtroEstado === t.key} onClick={() => setFiltroEstado(t.key)} className={"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (filtroEstado === t.key ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={filtroEstado === t.key ? { background: GRAD } : undefined}>
+                {t.label} <span className={filtroEstado === t.key ? "text-white/85" : "text-slate-500"}>{t.valor}</span>
+              </button>
+            ))}
+          </div>
+          {MODO_SAAS_VISIBLE && <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />}
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
+            <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
+            <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre, dirección de la página o administrador" aria-label="Buscar ópticas" className="mt-0.5 block h-9 w-full rounded-lg border border-slate-200/60 bg-white pl-8 pr-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500 [&::-webkit-search-cancel-button]:hidden" />
+          </label>
+          {MODO_SAAS_VISIBLE && <label className="text-xs font-semibold text-slate-500">Pago
+            <select aria-label="Pago" value={filtrosOpticas.pago} onChange={(e) => setFiltrosOpticas((f) => ({ ...f, pago: e.target.value }))} className="mt-0.5 block h-9 w-40 rounded-lg border border-slate-200/60 bg-white px-2 text-sm font-normal text-slate-700 outline-none focus-visible:border-blue-500">
+              <option value="">Todos</option>
+              {Object.entries(PAGO_ETIQUETA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>}
+          <EtiquetasFiltros etiquetas={etiquetasOpticas} onLimpiar={limpiarOpticas} />
+        </div>
+      </div>
+
+      {tablaOpticas(opticasFiltradas, false)}
       <p role="status" className="px-1 text-sm font-semibold text-slate-600">{opticasFiltradas.length} {opticasFiltradas.length === 1 ? "óptica" : "ópticas"}</p>
+      {!MODO_SAAS_VISIBLE && entornosPrueba.length > 0 && (
+        <section aria-label="Entornos de prueba" className="space-y-2 pt-2">
+          <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Entornos de prueba</h2>
+          <p className="text-sm text-slate-500">Datos de demostración y de las pruebas automáticas. No cuentan en el uso ni en la actividad.</p>
+          {tablaOpticas(entornosPrueba, true)}
+        </section>
+      )}
     </div>
   )
 
@@ -2064,7 +2093,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
           <nav className="space-y-1.5 px-4 py-6">
             <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
-            {NAV.map((opcion) => {
+            {NAV_VISIBLE.map((opcion) => {
               const Icono = opcion.icono
               const activo = seccion === opcion.id
               return (
@@ -2096,7 +2125,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           {!colapsado && (
             <div className="hidden rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm lg:block">
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                <TrendingUp size={12} /> {opticas.length} óptica{opticas.length === 1 ? "" : "s"} · {superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
+                <TrendingUp size={12} /> {MODO_SAAS_VISIBLE ? `${opticas.length} óptica${opticas.length === 1 ? "" : "s"} · ` : ""}{superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
               </p>
             </div>
           )}
@@ -2205,8 +2234,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
-          <div className="mx-auto w-full max-w-6xl">
+        <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-8 pt-3 sm:pt-3 lg:pt-4">
+          <div className="w-full">
             {seccion === "resumen" && renderResumen()}
             {seccion === "opticas" && renderOpticas()}
             {seccion === "leads" && renderLeads()}
@@ -2325,8 +2354,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           {/* ─── Óptica de prueba ─── */}
           <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200/60 p-3.5">
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-slate-800">Óptica de prueba</span>
-              <span className="block text-xs text-slate-500">No cuenta en las métricas del negocio ni en la actividad, salvo que se pida verla. No se borra nada.</span>
+              <span className="block text-sm font-semibold text-slate-800">{MODO_SAAS_VISIBLE ? "Óptica de prueba" : "Entorno de prueba"}</span>
+              <span className="block text-xs text-slate-500">{MODO_SAAS_VISIBLE ? "No cuenta en las métricas del negocio ni en la actividad, salvo que se pida verla. No se borra nada." : "No cuenta en el uso ni en la actividad, salvo que se pida verlo. No se borra nada."}</span>
             </span>
             <input type="checkbox" checked={!!detalle.es_de_prueba} onChange={(e) => marcarPrueba(e.target.checked)} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500" />
           </label>
@@ -2488,6 +2517,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             )}
           </div>
 
+          {MODO_SAAS_VISIBLE && (<>
           {/* ─── Suscripción ─── */}
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Suscripción</p>
@@ -2544,6 +2574,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
           </div>
 
+          </>)}
+
           {/* ─── Roles de la óptica (solo lectura) ─── */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
@@ -2580,6 +2612,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             )}
           </div>
 
+          {MODO_SAAS_VISIBLE && (<>
           {/* ─── Facturación ─── */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
@@ -2623,6 +2656,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               </div>
             )}
           </div>
+
+          </>)}
 
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Dirección de la página</p>

@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react"
+import { render, screen, within, fireEvent } from "@testing-library/react"
 
 const ins = (d, h = "15:00:00") => `${d}T${h}Z`
 const filas = [
@@ -9,6 +9,7 @@ const filas = [
   { id: "3", accion: "actualizar_pago", actor_id: "s2", actor_nombre: "Ana", optica_id: "o2", optica_nombre: "Óptica Real Dos", detalle: null, antes: "pendiente", despues: "vencido", created_at: ins("2026-10-14") },
   { id: "4", accion: "publicar_anuncio", actor_id: "s2", actor_nombre: "Ana", optica_id: null, optica_nombre: "Todas las ópticas", detalle: "Mantenimiento", antes: null, despues: null, created_at: ins("2026-10-14", "18:00:00") },
 ]
+vi.mock("@/lib/config", () => ({ MODO_SAAS_VISIBLE: true }))
 vi.mock("../../lib/supabaseClient", () => {
   const q = { select: () => q, gte: () => q, lte: () => q, order: () => q, limit: () => q, eq: () => q, then: (ok) => Promise.resolve({ data: filas, error: null }).then(ok) }
   return { supabase: { from: () => q } }

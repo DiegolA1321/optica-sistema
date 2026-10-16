@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BarChart3, Clock, Timer, Inbox, MessageSquareText, Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
+import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { ContenedorLista, EncabezadoLista, Vacio } from "../ventas/Lista"
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
@@ -234,7 +235,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" aria-label="Secciones de Soporte" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-          {[...TABS, { id: "avisos", etiqueta: "Avisos, pagos y cumpleaños", Icono: Clock }].map(({ id, etiqueta, Icono }) => {
+          {[...TABS, { id: "avisos", etiqueta: MODO_SAAS_VISIBLE ? "Avisos, pagos y cumpleaños" : "Avisos y cumpleaños", Icono: Clock }].map(({ id, etiqueta, Icono }) => {
             const activo = tab === id
             return (
               <button key={id} type="button" role="tab" id={`sa-tab-${id}`} aria-selected={activo} aria-controls="sa-panel" onClick={() => setTab(id)}

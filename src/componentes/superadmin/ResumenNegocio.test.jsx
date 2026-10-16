@@ -1,8 +1,9 @@
 import React, { useState } from "react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react"
+import { render, screen, within, fireEvent } from "@testing-library/react"
 
 // Las visitas se cuentan en el servidor: aquí devuelven 7 en el período y 4 en el anterior.
+vi.mock("@/lib/config", () => ({ MODO_SAAS_VISIBLE: true }))
 vi.mock("../../lib/supabaseClient", () => {
   let llamada = 0
   const consulta = () => {

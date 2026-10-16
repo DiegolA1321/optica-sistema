@@ -212,6 +212,10 @@ export const TIPOS_ACTIVIDAD = [
   { id: "superadmins", nombre: "Superadmins", acciones: ["crear_superadmin", "eliminar_superadmin"] },
   { id: "leads", nombre: "Leads", acciones: ["cambiar_estado_lead"] },
 ]
+// La capa comercial (vender el sistema a otras ópticas) queda oculta con el modo de la tesis: sus tipos y sus acciones no se muestran.
+export const TIPOS_COMERCIALES = ["pagos", "leads"]
+export const tiposVisibles = (saas = true) => TIPOS_ACTIVIDAD.filter((t) => saas || !TIPOS_COMERCIALES.includes(t.id))
+const accionesComerciales = TIPOS_ACTIVIDAD.filter((t) => TIPOS_COMERCIALES.includes(t.id)).flatMap((t) => t.acciones)
 export const tipoDeAccion = (accion) => TIPOS_ACTIVIDAD.find((t) => t.acciones?.includes(accion))?.id || "otros"
 
 const ETIQUETA_PAGO = { al_dia: "Al día", pendiente: "Pendiente", vencido: "Vencido" }
@@ -263,12 +267,13 @@ export function cambioDeAccion(a) {
 }
 
 // Aplica los filtros de la pantalla. `opticas` sirve para excluir las de prueba; el período es { inicio, fin } o null.
-export function filtrarActividad(items, { tipo = "todas", rango = null, opticaId = "", actorId = "", busqueda = "", incluirPrueba = false, opticas = [] } = {}) {
+export function filtrarActividad(items, { tipo = "todas", rango = null, opticaId = "", actorId = "", busqueda = "", incluirPrueba = false, opticas = [], saas = true } = {}) {
   const pruebas = incluirPrueba ? new Set() : idsDePrueba(opticas)
   const q = String(busqueda || "").trim().toLowerCase()
   const acciones = TIPOS_ACTIVIDAD.find((x) => x.id === tipo)?.acciones || null
   return items.filter((a) => {
     if (a.optica_id && pruebas.has(a.optica_id)) return false
+    if (!saas && accionesComerciales.includes(a.accion)) return false
     if (rango && !enRango(a.created_at, rango)) return false
     if (opticaId && a.optica_id !== opticaId) return false
     if (actorId && a.actor_id !== actorId) return false
@@ -280,5 +285,5 @@ export function filtrarActividad(items, { tipo = "todas", rango = null, opticaId
 // Cuántas hay de cada tipo (con todos los filtros menos el tipo), para el número de cada pestaña.
 export function contarPorTipo(items, filtros) {
   const sinTipo = filtrarActividad(items, { ...filtros, tipo: "todas" })
-  return Object.fromEntries(TIPOS_ACTIVIDAD.map((t) => [t.id, t.acciones ? sinTipo.filter((a) => t.acciones.includes(a.accion)).length : sinTipo.length]))
+  return Object.fromEntries(tiposVisibles(filtros?.saas).map((t) => [t.id, t.acciones ? sinTipo.filter((a) => t.acciones.includes(a.accion)).length : sinTipo.length]))
 }
