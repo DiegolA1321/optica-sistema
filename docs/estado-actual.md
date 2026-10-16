@@ -1,3 +1,17 @@
+<!-- CRM2-INICIO -->
+## CRM v2 (15 oct. 2026, rama `crm-v2`, SIN publicar; la migración 0114 NO está aplicada: espera la aprobación de Diego)
+Pedido: rediseñar "CRM y fidelización" para responder "¿a quién contacto hoy, por qué y qué pasó la última vez?". Cuatro pestañas: **Para contactar**, **Seguimiento**, **Campañas** (reemplaza "Avisos") y **Fidelización**; consentimiento en dos permisos (Recordatorios de salud y Promociones).
+**Dónde voy:**
+- [x] Paso 1 — Lógica pura con pruebas: `src/utilidades/crmContactos.js` (grupos, resultados, descansos, consentimiento, plantillas, campañas, rankings) y `diasCumpleEnVentana` en `fidelizacion.js` (el Inicio y el CRM comparten la ventana de cumpleaños).
+- [x] Paso 2 — Migración `0114_crm_v2.sql` + `scripts/ensayo-0114.mjs` (ensayo en transacción que revierte: pasa completo). Respaldo: `pre-crm-v2-2026-10-15.dump`. **Falta: que Diego revise el SQL y autorice aplicarla.**
+- [ ] Paso 3 — Datos del CRM en pantalla (carga, mapeo `mapPaciente` con los permisos, contactos, plantillas, campañas).
+- [ ] Paso 4 — Estructura y pestaña "Para contactar" (+ "Requieren atención" y cabecera).
+- [ ] Paso 5 — Seguimiento · Campañas · Fidelización.
+- [ ] Paso 6 — Permisos del paciente en su perfil y en "Mis datos" del portal.
+- [ ] Paso 7 — Playwright del recorrido y suite completa; comparación con los criterios del ingeniero.
+**Decisiones de diseño (para que Diego las confirme o corrija):** una fila por paciente con todos sus motivos (un paciente con control vencido y cumpleaños cuenta en los dos filtros; el total cuenta cada paciente una vez); "no respondió" descansa 3 días, "agendó" 30, "no le interesa" 180; una cita agendada después del contacto lo resuelve sola; cumpleaños y seguimiento de compra se tratan como recordatorios de salud (sin oferta); promociones solo a quien las aceptó (el servidor lo impide); recordatorios sí por defecto, promociones no.
+<!-- CRM2-FIN -->
+
 <!-- INV2-INICIO -->
 ## Inventario v2 (14 oct. 2026, PUBLICADO: merge `dec9032` en `main`; el CI "build-and-test" y el despliegue de Vercel terminaron con éxito, confirmados con la API de GitHub; migraciones 0111, 0112 y 0113 aplicadas)
 Se publicó por pedido de Diego sin repetir las pruebas después del último ajuste (las pruebas previas están al final de esta sección).
