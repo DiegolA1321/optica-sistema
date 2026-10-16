@@ -1,5 +1,5 @@
 <!-- COR-INICIO -->
-## Correcciones de la auditoría transversal (16 oct. 2026, SIN publicar; SQL pendiente de tu aprobación)
+## Correcciones de la auditoría transversal (16 oct. 2026, PUBLICADO: `a125343` en `main`; el CI "build-and-test" y el despliegue de Vercel (Production) terminaron con éxito, confirmados con la API de GitHub; migraciones 0117 y 0118 aplicadas)
 Diego pidió: rol propio y portal revisados de verdad, quitar Ventas del Optómetra predefinido y corregir todos los hallazgos de mayor a menor. Reglas: un commit por paso, SQL a la vista antes de aplicar, al final la suite completa de Playwright (`--workers=1`, versión compilada), sin publicar.
 **Dónde voy:**
 - [x] Revisión real del rol propio (rol temporal, ya borrado, Vera restaurada) y del portal (paciente `E Dos E Portal Auditoria` con cuenta, venta con abono y factura electrónica en la óptica de pruebas).
@@ -8,7 +8,7 @@ Diego pidió: rol propio y portal revisados de verdad, quitar Ventas del Optóme
 - [x] 0117 APLICADA (16 oct. 2026, con aprobación de Diego). Además `0118_compras_por_paciente_y_ventas_en_el_servidor.sql` APLICADA (respaldo `pre-compras-por-paciente-2026-10-16.dump`, ensayo `scripts/ensayo-0118.mjs`): función `compras_de_paciente` (solo producto y fecha) y lectura de comprobantes, líneas, abonos y ventas solo con Ventas "ver" (antes también Pacientes, Fichas, Inventario y Reportes). Verificado con sesiones reales: `scripts/verificar-0117-0118.mjs` (todo pasó). El Optómetra ya no recibe montos ni comprobantes por la API; el perfil del paciente le muestra lo que compró sin montos (`ComprasBasicas.jsx`), sin "Sin venderse", sin cobros pendientes inventados y sin pedir `abonos_anulados`.
 - **Paciente fijo del portal en la óptica de pruebas:** `E Dos E Portal Auditoria` (cédula 0914760947, cuenta de portal activa, CV-0006 de $60 con abono de $20 y factura electrónica 001-001-000000006 con PDF y XML). Diego pidió dejarlo para las pruebas del portal: `scripts/limpiar-optica-pruebas.mjs` ya NO lo borra ni reinicia los contadores de comprobantes; la clave temporal está en `.env.test` (`E2E_PORTAL_CEDULA`, `E2E_PORTAL_CLAVE`). Pruebas en `e2e/auditoria-correcciones.spec.js`.
 - [x] Suite completa de Playwright contra la versión compilada (`E2E_PREVIEW=1 E2E_PUERTO=5175 --workers=1`, 16 oct. 2026): 141 pasaron, 1 falló (la prueba del contador de Ventas del menú daba por hecho que el Optómetra veía el módulo; corregida y pasa) y 3 omitidas: `crear-cuentas` (siempre) y las dos de Soporte que piden `SUPERADMIN_EMAIL/PASSWORD`, que corrí aparte y pasaron (3 de 3). Vitest: 1086+ pasaron. El paciente fijo del portal sobrevivió a la limpieza.
-- [ ] **Falta: revisión de Diego en localhost. Nada publicado.**
+- [x] Diego revisó en localhost y aprobó publicar. Vitest completo antes de publicar: 104 archivos, 1092 de 1092.
 - [ ] Pruebas de Playwright nuevas y suite completa.
 <!-- COR-FIN -->
 
