@@ -1,3 +1,10 @@
+<!-- COR-INICIO -->
+## Correcciones de la auditoría transversal (16 oct. 2026, SIN publicar; SQL pendiente de tu aprobación)
+Diego pidió: rol propio y portal revisados de verdad, quitar Ventas del Optómetra predefinido y corregir todos los hallazgos de mayor a menor. Reglas: un commit por paso, SQL a la vista antes de aplicar, al final la suite completa de Playwright (`--workers=1`, versión compilada), sin publicar.
+**Dónde voy:**
+- [x] Revisión real del rol propio (rol temporal, ya borrado, Vera restaurada) y del portal (paciente `E Dos E Portal Auditoria` con cuenta, venta con abono y factura electrónica en la óptica de pruebas).
+<!-- COR-FIN -->
+
 <!-- AUD-INICIO -->
 ## Auditoría transversal por perfil (16 oct. 2026, solo revisar: no se corrige nada)
 Pedido: revisar, solo leyendo, todo el sistema con cada perfil (administrador, optómetra, Recepción, Ventas, rol propio, portal, superadmin, páginas públicas y óptica nueva vacía) contra `docs/principios-diseno.md`. Resultado en `docs/auditoria-transversal.md`.
