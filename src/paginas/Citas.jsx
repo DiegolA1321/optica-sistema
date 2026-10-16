@@ -195,7 +195,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
               <Receipt size={12} aria-hidden="true" /> Cobro pendiente
             </span>
           )}
-          {cobroPendiente ? (
+          {cobroPendiente && onCobrar ? (
             // La ficha ya se guardó: "Atender" abriría otra consulta. Lo que falta es cobrar.
             <button
               type="button"
@@ -204,7 +204,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
             >
               <Receipt size={14} /> Cobrar
             </button>
-          ) : puedeAtender && (
+          ) : !cobroPendiente && puedeAtender && (
             <button
               type="button"
               onClick={() => onAtender(cita)}
@@ -1331,7 +1331,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
                       marcandoEstadoId={marcandoEstadoId}
                       cobroPendiente={pendientesPorCita.has(cita.id)}
                       onAbrirDetalle={abrirDetalle}
-                      onCobrar={cobrarCita}
+                      onCobrar={puede(usuario, "ventas", "crear") ? cobrarCita : undefined}
                       onAtender={puedeAtenderPacientes ? atenderCita : undefined}
                     />
                   ))}
@@ -2069,15 +2069,15 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             onCerrar={() => { setDetalleCitaId(null); setDetalleSinAnimar(false) }}
             onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); ingresarAFicha(c) } : undefined}
             preguntarOtroDia={preguntarOtroDia}
-            onAgendarOtra={(c) => { setDetalleCitaId(null); agendarOtraCita(c) }}
-            onCobrar={(c) => { setDetalleCitaId(null); cobrarCita(c) }}
-            onEditar={(c) => { setDetalleCitaId(null); abrirReagendar(c) }}
-            onCancelar={(c) => { setDetalleCitaId(null); setPorCancelar(c.id) }}
-            onDejarDeAtender={(c) => { setDetalleCitaId(null); setDejarCita(c) }}
+            onAgendarOtra={puede(usuario, "citas", "crear") ? (c) => { setDetalleCitaId(null); agendarOtraCita(c) } : undefined}
+            onCobrar={puede(usuario, "ventas", "crear") ? (c) => { setDetalleCitaId(null); cobrarCita(c) } : undefined}
+            onEditar={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); abrirReagendar(c) } : undefined}
+            onCancelar={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); setPorCancelar(c.id) } : undefined}
+            onDejarDeAtender={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); setDejarCita(c) } : undefined}
             marcandoEstado={marcandoEstadoId === cita.id}
             onLlego={puede(usuario, "citas", "editar") ? marcarLlego : undefined}
             onNoLlego={puede(usuario, "citas", "editar") ? marcarNoLlego : undefined}
-            onNoAsistio={marcarNoAsistio}
+            onNoAsistio={puede(usuario, "citas", "editar") ? marcarNoAsistio : undefined}
             onConfirmar={puede(usuario, "citas", "editar") ? (c) => marcarConfirmada(c.id) : undefined}
             personasAsignables={personasAsignables}
             ausenteEnLaHora={(id, c) => ausenteEnHorario(disponibilidad, id, c.fecha, c.hora)}

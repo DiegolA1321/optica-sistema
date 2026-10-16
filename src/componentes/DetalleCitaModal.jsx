@@ -202,11 +202,11 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
                 <CalendarPlus size={14} aria-hidden="true" /> Agendar otra cita
               </button>
             )}
-            {cobroPendiente ? (
+            {cobroPendiente && onCobrar ? (
               <button type="button" onClick={() => onCobrar(cita)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 cursor-pointer">
                 <Receipt size={14} aria-hidden="true" /> Cobrar
               </button>
-            ) : puedeIngresar && (
+            ) : !cobroPendiente && puedeIngresar && (
               <button type="button" onClick={alAtender} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
                 <Stethoscope size={14} aria-hidden="true" /> {cita.estado === "En Atención" ? "Retomar" : "Atender"}
               </button>
