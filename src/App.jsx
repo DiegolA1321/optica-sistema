@@ -163,6 +163,10 @@ function mapPaciente(p) {
     confirmadoRecepcion: p.confirmado_recepcion,
     // medidas_solicitadas_en (migración 0080) — mismo hallazgo, otra vez.
     medidasSolicitadasEn: p.medidas_solicitadas_en,
+    // Permisos para recibir mensajes (migración 0114). Mismo hallazgo de siempre: sin estar aquí se guardan bien pero no vuelven al recargar.
+    // Si la base todavía no tiene las columnas llegan como undefined y valen lo de siempre (recordatorios sí, promociones no).
+    aceptaRecordatorios: p.acepta_recordatorios, aceptaPromociones: p.acepta_promociones,
+    consentimientoActualizadoEn: p.consentimiento_actualizado_en, consentimientoActualizadoPor: p.consentimiento_actualizado_por,
   }
 }
 function mapCita(c) {

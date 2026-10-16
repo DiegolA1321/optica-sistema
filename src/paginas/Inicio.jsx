@@ -60,6 +60,7 @@ export default function Inicio({
   setPacientes,
   umbralStock = UMBRAL_STOCK_BAJO,
   setVista,
+  onVerCrm, // abre el CRM con un motivo: { filtro, todos }
   setCitas,
   onAviso,
   onAtenderCita,
@@ -569,6 +570,8 @@ export default function Inicio({
     const uno = (n, singular, varios) => (n === 1 ? singular : varios)
     const nombreDe = (id, respaldo = "Paciente") => pacientes.find((p) => p.id === id)?.nombre || respaldo
     const enCitas = (estado, periodo, fecha) => () => (onVerCitas ? onVerCitas(estado, periodo, fecha) : setVista?.("citas"))
+    // Al CRM con el motivo y con todos incluidos (los mismos que cuenta este aviso), así el número que se leyó es el que se ve.
+    const abrirCrm = (params) => () => (onVerCrm ? onVerCrm({ ...params, todos: true }) : setVista?.("crm"))
     const enPacientes = (filtro) => () => (onVerPacientes ? onVerPacientes(filtro) : setVista?.("pacientes"))
     const puedeAgendar = puedeV("citas", "crear")
     const puedeAtenderAqui = puedeV("consultas", "crear")
@@ -650,10 +653,11 @@ export default function Inicio({
       id: "controles", cantidad: inactivos.length,
       texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
       nombres: nombresResumidos(inactivos.map(({ paciente }) => paciente.nombre)),
+      enlace: puedeV("crm", "ver") ? { texto: `Abrir en CRM · Control vencido (${inactivos.length})`, onClick: abrirCrm({ filtro: "control_vencido" }) } : undefined,
       casos: inactivos.map(({ paciente, dias }) => ({
         id: paciente.id, nombre: paciente.nombre,
         detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
-        accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: () => setVista?.("crm") } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
+        accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
       })),
     })
     if (incSinConsulta && sinAtender > 0) poner("pacientes", {
@@ -675,7 +679,7 @@ export default function Inicio({
         casos: cumpleaneros.map((c) => ({
           id: c.id, nombre: c.nombre,
           detalle: c.esHoy ? "Cumple años hoy" : c.diasCumple > 0 ? `Cumple años en ${c.diasCumple} ${c.diasCumple === 1 ? "día" : "días"}` : `Cumplió años hace ${-c.diasCumple} ${c.diasCumple === -1 ? "día" : "días"}`,
-          accion: puedeV("crm", "crear") ? { etiqueta: "Saludar", navega: true, onClick: () => setVista?.("crm") } : null,
+          accion: puedeV("crm", "crear") ? { etiqueta: "Saludar", navega: true, onClick: abrirCrm({ filtro: "cumpleanos" }) } : null,
         })),
       })
     }

@@ -1,707 +1,233 @@
 "use client"
 
-import { ahoraEcuador } from "../utilidades/horaEcuador"
-
-import { fechaLegible } from "../utilidades/formatoFecha"
-import React, { useState, useMemo, useEffect } from "react"
-import {
-  HeartHandshake,
-  MessageSquare,
-  Cake,
-  UserPlus,
-  Clock,
-  Star,
-  Megaphone,
-  Copy,
-  Check,
-  Send,
-  Trash2,
-  Zap,
-  CheckCircle2,
-  ChevronUp,
-  ChevronDown,
-  ArrowUpDown,
-  Loader2,
-} from "lucide-react"
-import { diasDesdeUltimaVisita, esInactivo, esClienteFrecuente, contarConsultas, contarReferidos } from "../utilidades/fidelizacion"
-import { Cascaron } from "../componentes/AtencionPaciente"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import { Contact, Gift, HeartHandshake, Megaphone, Send, Zap } from "lucide-react"
+import { GRAD_MARCA, INK } from "@/lib/tema"
+import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
+import { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
 import SinDatosAun from "../componentes/SinDatosAun"
-import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
-import { supabase } from "../lib/supabaseClient"
-import { leerContactadosHoy, marcarContactadoHoy as marcarContactadoHoyGuardado } from "../utilidades/contactosCrm"
+import TablaSkeleton from "../componentes/TablaSkeleton"
+import PestanaParaContactar from "../componentes/crm/PestanaParaContactar"
+import PestanaSeguimiento from "../componentes/crm/PestanaSeguimiento"
+import PestanaCampanas from "../componentes/crm/PestanaCampanas"
+import PestanaFidelizacion from "../componentes/crm/PestanaFidelizacion"
+import VentanaResultado from "../componentes/crm/VentanaResultado"
+import { VentanaCampana, VentanaNuevaCampana, VentanaPlantillas } from "../componentes/crm/VentanasCampana"
+import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
+import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
-import { INK } from "@/lib/tema"
+import { useCrmDatos, motivoDeCampana } from "../utilidades/crmDatos"
+import { armarMensaje, avisosDelCrm, contarPorMotivo, listaParaContactar, plantillaDe, rankingPuntaje, MOTIVOS } from "../utilidades/crmContactos"
+import { abrirWhatsApp } from "../utilidades/whatsapp"
+import { fechaLegible } from "../utilidades/formatoFecha"
+import { diaDeRegistro, enPeriodo } from "../utilidades/periodoLista"
+import { hoyISO } from "../utilidades/disponibilidad"
 
-// ─── Paleta de firma (consistente con el resto del sistema) ───
-const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
+const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion"]
+const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 
-// Ventana de cumpleaños: devuelve la diferencia en días si cae entre -5 y +7 (si no, null)
-const diffCumpleEnVentana = (mes, dia) => {
-  if (!mes || !dia) return null
-  const hoy0 = ahoraEcuador()
-  hoy0.setHours(0, 0, 0, 0)
-  const y = hoy0.getFullYear()
-  const candidatos = [new Date(y - 1, mes - 1, dia), new Date(y, mes - 1, dia), new Date(y + 1, mes - 1, dia)]
-  let mejor = null
-  for (const c of candidatos) {
-    c.setHours(0, 0, 0, 0)
-    const d = Math.round((c - hoy0) / 86400000)
-    if (d >= -5 && d <= 7) {
-      if (mejor === null || Math.abs(d) < Math.abs(mejor)) mejor = d
-    }
-  }
-  return mejor
-}
+// CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
+// Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (los rankings). El análisis va en Reportes.
+export default function CRM({
+  usuario, pacientes = [], consultas = [], citas = [], ordenesLab = [], parametrizacion, setParametrizacion, cargaInicial = false,
+  onVerPerfil, onRegistrarPaciente, onAviso, onPacienteActualizado, accionInicial, onAccionInicialConsumida,
+}) {
+  const puedeContactar = puede(usuario, "crm", "crear")
+  const puedeEditar = puede(usuario, "crm", "editar")
+  const [tab, setTab] = useParamUrl("tab", "contactar", TABS)
+  const [filtro, setFiltro] = useState("todos")
+  const [incluirTodos, setIncluirTodos] = useState(false)
+  const [resultadoDe, setResultadoDe] = useState(null) // { paciente, motivo, contacto }
+  const [ventana, setVentana] = useState(null) // "nueva" | "plantillas" | { campanaId }
+  const notificar = useCallback((msg) => onAviso?.(msg), [onAviso])
+  const crm = useCrmDatos({ usuario, alCambiarPermisos: onPacienteActualizado })
+  const { contactos, campanas, plantillas } = crm
+  const opticaNombre = usuario?.opticaNombre || "tu óptica"
+  const hoy = hoyISO()
 
-export default function CRM({ usuario, pacientes = [], consultas = [], parametrizacion, setParametrizacion, onVerPerfil, onRegistrarPaciente }) {
-  // Procesamiento conectado y en tiempo real
-  const prospectosDinamicos = useMemo(() => {
-    return pacientes.map((p) => {
-      let estado = "Paciente activo"
-      let motivo = "Mantener contacto postventa."
-      let tipo = "Seguimiento"
-      let dias = "Activo"
-
-      const fn = p.fechaNacimiento || p.fecha_nacimiento
-      let esCumple = false
-      let diaCumple = 0
-      if (fn) {
-        const partes = fn.split(/[-/T]/)
-        const mes = Number(partes[1])
-        const dia = Number(partes[2])
-        const d = diffCumpleEnVentana(mes, dia)
-        if (d !== null) {
-          esCumple = true
-          diaCumple = d
-          tipo = "Felicitar"
-          if (d === 0) {
-            estado = "Cumpleaños hoy"
-            dias = "Hoy"
-            motivo = "¡Hoy es su cumpleaños! Salúdalo y ofrécele una promoción especial."
-          } else if (d > 0) {
-            estado = `Cumple en ${d} día${d > 1 ? "s" : ""}`
-            dias = `En ${d} día${d > 1 ? "s" : ""}`
-            motivo = `Su cumpleaños es en ${d} día${d > 1 ? "s" : ""}. Buen momento para un detalle.`
-          } else {
-            const abs = Math.abs(d)
-            estado = `Cumplió hace ${abs} día${abs > 1 ? "s" : ""}`
-            dias = `Hace ${abs} día${abs > 1 ? "s" : ""}`
-            motivo = `Cumplió años hace ${abs} día${abs > 1 ? "s" : ""}. Un saludo tardío también fideliza.`
-          }
-        }
-      }
-
-      const diasInactivo = diasDesdeUltimaVisita(p, consultas)
-      const numConsultas = contarConsultas(p, consultas)
-      // Valor numérico para ordenar en "Ver detalles" — depende del tipo:
-      // cercanía de cumpleaños (0 = hoy), meses de inactividad, o frecuencia
-      // de atención (caso de la reunión con el ing).
-      let ordenValor = esCumple ? diaCumple : 0
-
-      if (!esCumple && esInactivo(p, consultas)) {
-        tipo = "Inactivo"
-        estado = `Última visita hace ${diasInactivo} días`
-        dias = `Hace ${diasInactivo} días`
-        motivo = "Ya se venció su control visual recomendado. Ofrécele agendar una revisión."
-        ordenValor = diasInactivo ?? 0
-      } else if (!esCumple && esClienteFrecuente(p, consultas)) {
-        tipo = "Fiel"
-        estado = `Paciente frecuente · ${numConsultas} consultas`
-        dias = "Fiel"
-        motivo = "Te ha visitado varias veces. Un buen momento para agradecerle su confianza."
-        ordenValor = numConsultas
-      }
-
-      return {
-        id: p.id,
-        paciente: p.nombre,
-        estado,
-        motivo,
-        telefono: p.telefono || p.contacto || p.celular || "",
-        tipo,
-        dias,
-        numConsultas,
-        cumpleHoy: esCumple && dias === "Hoy",
-        saludoEnviadoEsteAnio: p.ultimoSaludoCumpleAnio === ahoraEcuador().getFullYear(),
-        ordenValor,
-      }
-    })
-  }, [pacientes, consultas])
-
-  // Cuatro bloques curados (top 5 cada uno) en vez de una sola lista con los
-  // 100+ pacientes de la óptica — caso de la reunión con el ing. Cada uno
-  // ordenado por lo más relevante de esa categoría; "Ver detalles" reordena
-  // sobre la lista completa, no solo el top 5.
-  const listaFieles = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Fiel").sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos])
-  const listaCumpleanos = useMemo(() => prospectosDinamicos.filter((p) => p.tipo === "Felicitar").sort((a, b) => Math.abs(a.ordenValor) - Math.abs(b.ordenValor)), [prospectosDinamicos])
-  // Control vencido: TODOS los que cuentan el Inicio y Reportes (misma función, esInactivo), aunque también cumplan años (la lista de cumpleaños los trae igual).
-  const listaInactivos = useMemo(() => prospectosDinamicos
-    .filter((p) => esInactivo(pacientes.find((x) => x.id === p.id) || {}, consultas))
-    .map((p) => {
-      const dias = diasDesdeUltimaVisita(pacientes.find((x) => x.id === p.id), consultas)
-      return { ...p, tipo: "Inactivo", estado: `Última visita hace ${dias} días`, dias: `Hace ${dias} días`, motivo: "Ya se venció su control visual recomendado. Ofrécele agendar una revisión.", ordenValor: dias ?? 0 }
-    })
-    .sort((a, b) => b.ordenValor - a.ordenValor), [prospectosDinamicos, pacientes, consultas])
-
-  // Referidos: a diferencia de los otros tres bloques, no viene de
-  // prospectosDinamicos (esa lista le asigna a cada paciente un solo "tipo"
-  // exclusivo) — un paciente fiel también puede ser quien más ha referido,
-  // así que se calcula aparte a partir del campo "referidoPor" que ya se
-  // captura al registrar un paciente. Solo entran quienes refirieron a
-  // alguien (0 referidos no aporta a este bloque).
-  const listaReferidos = useMemo(() => {
-    return pacientes
-      .map((p) => {
-        const num = contarReferidos(p, pacientes)
-        return {
-          id: p.id,
-          paciente: p.nombre,
-          estado: `${num} paciente${num === 1 ? "" : "s"} referido${num === 1 ? "" : "s"}`,
-          motivo: "Te ha ayudado a traer pacientes nuevos. Un buen momento para agradecerle o premiar su recomendación.",
-          telefono: p.telefono || p.contacto || p.celular || "",
-          tipo: "Referidor",
-          dias: `${num} referido${num === 1 ? "" : "s"}`,
-          cumpleHoy: false,
-          saludoEnviadoEsteAnio: false,
-          ordenValor: num,
-        }
-      })
-      .filter((p) => p.ordenValor > 0)
-      .sort((a, b) => b.ordenValor - a.ordenValor)
-  }, [pacientes])
-
-  const [detalleAbierto, setDetalleAbierto] = useState(null) // "fieles" | "cumpleanos" | "inactivos" | "referidos" | null
-
-  // F3: sin límite de frecuencia, nada impedía mandarle el mismo recordatorio
-  // de WhatsApp al mismo paciente varias veces el mismo día. Es un límite
-  // "de buena fe" en localStorage (por navegador, no por servidor) — coherente
-  // con que enviarRecordatorio() ya solo abre wa.me, sin backend real de
-  // mensajería que pudiera imponerlo del lado del servidor.
-  const [contactadosHoy, setContactadosHoy] = useState(leerContactadosHoy)
-  const marcarContactadoHoy = (id) => setContactadosHoy(marcarContactadoHoyGuardado(id))
-
-  // Avisos globales (anuncios para todos los pacientes: cierres, promociones,
-  // etc.) — antes vivían solo en localStorage (CRM.jsx no llamaba nunca a
-  // Supabase): un aviso publicado por un admin era invisible para un
-  // asistente en otra máquina, y se perdía si se limpiaba el navegador.
-  const [avisos, setAvisos] = useState([])
-  const [nuevoAviso, setNuevoAviso] = useState("")
-  const [avisoDestinoId, setAvisoDestinoId] = useState("")
-  const [avisoError, setAvisoError] = useState("")
-  const [publicandoAviso, setPublicandoAviso] = useState(false)
-  const [eliminandoAvisoId, setEliminandoAvisoId] = useState(null)
-  const [copiadoAviso, setCopiadoAviso] = useState(null)
-  // Confirmación antes de eliminar (audit UX, Lote 2, punto 2a)
-  const [porEliminarAvisoId, setPorEliminarAvisoId] = useState(null)
-
+  // Lo que pidió otro módulo (el Inicio): la pestaña y el motivo, con todos incluidos para que el número sea el mismo que leyó.
   useEffect(() => {
-    if (!supabase || !usuario?.opticaId) return
-    supabase.from("avisos").select("*").eq("optica_id", usuario.opticaId).order("created_at", { ascending: false }).then(({ data, error }) => {
-      if (!data) {
-        // J7: antes se descartaba en silencio — la lista de avisos quedaba
-        // vacía igual que "nadie publicó nada todavía", sin ningún aviso.
-        if (error) setAvisoError("No se pudieron cargar los avisos. Revisa tu conexión e intenta recargar.")
-        return
-      }
-      setAvisos(data.map((a) => ({
-        id: a.id, texto: a.texto, fecha: fechaLegible(a.created_at),
-        destinatarioId: a.destinatario_id, destinatarioNombre: a.destinatario_nombre, destinatarioTelefono: a.destinatario_telefono,
-      })))
-    })
-  }, [usuario?.opticaId])
+    if (!accionInicial) return
+    if (accionInicial.tab && TABS.includes(accionInicial.tab)) setTab(accionInicial.tab)
+    setFiltro(accionInicial.filtro || "todos")
+    setIncluirTodos(Boolean(accionInicial.todos))
+    onAccionInicialConsumida?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accionInicial])
 
-  // Saludo automático de cumpleaños: preferencia on/off del administrador,
-  // parte de la parametrización de la óptica (mismo mecanismo ya usado para
-  // "mostrar medidas", etc.) — así es la misma preferencia sin importar
-  // quién ni desde dónde entre. El envío en sí ya no es un mockup: lo manda
-  // de verdad un cron diario por correo (enviar_saludos_cumpleanos, ver
-  // migración 0033) a quien tenga cumpleAuto activo y el paciente tenga
-  // correo real; "saludoEnviadoEsteAnio" (arriba, en prospectosDinamicos)
-  // refleja si ese envío ya ocurrió este año, no un candado local.
+  const { filas, todas, sinPermiso } = useMemo(() => listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos, hoy }), [pacientes, consultas, ordenesLab, citas, contactos, hoy])
+  const avisos = useMemo(() => avisosDelCrm(filas, contactos, hoy), [filas, contactos, hoy])
+  const pacienteDe = useMemo(() => new Map(pacientes.map((p) => [p.id, p])), [pacientes])
+
+  // ── Contactar: abre WhatsApp con el mensaje del motivo ya escrito (primero la ventana, dentro del clic) y anota el contacto ──
+  const contactar = async (fila, motivo) => {
+    const mensaje = armarMensaje(plantillaDe(motivo, plantillas), { paciente: fila.paciente, opticaNombre, consultas })
+    abrirWhatsApp(fila.telefono, mensaje)
+    const r = await crm.contactar({ paciente: fila.paciente, motivo, canal: "whatsapp", mensaje })
+    notificar(r.ok ? `Contacto con ${fila.paciente.nombre} registrado. Cuando responda, anota qué pasó.` : r.error)
+  }
+  const contactoPendiente = (pacienteId, motivo) => contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId && c.motivo === motivo)
+    || contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId) || null
+  const abrirResultado = (fila, motivo) => setResultadoDe({ paciente: fila.paciente, motivo, contacto: contactoPendiente(fila.id, motivo) })
+  const abrirResultadoDeContacto = (c) => { const paciente = pacienteDe.get(c.pacienteId); if (paciente) setResultadoDe({ paciente, motivo: c.motivo, contacto: c }) }
+
+  const guardarResultado = async ({ canal, resultado, volverEl }) => {
+    const { paciente, motivo, contacto } = resultadoDe
+    const r = contacto ? await crm.anotarResultado(contacto, resultado, volverEl) : await crm.contactar({ paciente, motivo, canal, mensaje: "", resultado, volverEl })
+    if (!r.ok) return r
+    setResultadoDe(null)
+    notificar(
+      resultado === "volver_a_contactar" ? `Listo: ${paciente.nombre} reaparecerá en la lista el ${fechaLegible(volverEl)}.`
+        : resultado === "agendo" ? `Anotado: ${paciente.nombre} agendó cita.`
+        : resultado === "no_desea_mensajes" ? `Anotado: no se le volverá a escribir a ${paciente.nombre}.`
+        : "Resultado guardado.",
+    )
+    return r
+  }
+
+  // ── Requieren atención: lo que no puede esperar (mismo botón y misma ventana de los demás módulos) ──
+  const irA = (t, f = "todos") => { setFiltro(f); setTab(t) }
+  const nombreDe = (id) => pacienteDe.get(id)?.nombre || "Paciente"
+  const bloque = useMemo(() => {
+    const casoContactar = (f, detalle) => ({ id: f.id, nombre: f.paciente.nombre, detalle, accion: puedeContactar && f.telefono ? { etiqueta: "Contactar", onClick: () => contactar(f, f.principal) } : null })
+    const filasAv = []
+    if (avisos.vuelven.length > 0) filasAv.push({
+      id: "vuelven", cantidad: avisos.vuelven.length, texto: uno(avisos.vuelven.length, "paciente que toca volver a contactar hoy", "pacientes que toca volver a contactar hoy"),
+      enlace: { texto: `Abrir en Para contactar (${filas.length})`, onClick: () => irA("contactar") },
+      casos: avisos.vuelven.map((f) => casoContactar(f, `Pediste volver a contactarlo hoy · ${f.motivos[0].detalle}`)),
+    })
+    const cumple = avisos.cumpleHoy.filter((f) => !f.sinResultado)
+    if (cumple.length > 0) filasAv.push({
+      id: "cumple-hoy", cantidad: cumple.length, texto: uno(cumple.length, "cumpleaños hoy sin saludar", "cumpleaños hoy sin saludar"),
+      enlace: { texto: `Abrir en Para contactar · Cumpleaños (${contarPorMotivo(filas).por.cumpleanos})`, onClick: () => irA("contactar", "cumpleanos") },
+      casos: cumple.map((f) => casoContactar(f, "Cumple años hoy")),
+    })
+    if (avisos.sinResultado.length > 0) filasAv.push({
+      id: "sin-resultado", cantidad: avisos.sinResultado.length, texto: uno(avisos.sinResultado.length, "contacto de días anteriores sin resultado anotado", "contactos de días anteriores sin resultado anotado"),
+      casos: avisos.sinResultado.map((c) => ({
+        id: c.id, nombre: nombreDe(c.pacienteId), detalle: `Contactado el ${fechaLegible(diaDeRegistro(c.creadoEn))} · ${MOTIVOS[c.motivo]?.corta || c.motivo}`,
+        accion: puedeContactar ? { etiqueta: "Registrar resultado", navega: true, onClick: () => abrirResultadoDeContacto(c) } : null,
+      })),
+    })
+    return { id: "crm", titulo: "CRM y fidelización", icono: HeartHandshake, filas: filasAv }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avisos, filas, puedeContactar, plantillas, pacientes, contactos])
+
+  // ── Campañas ──
+  const crearCampana = async (datos) => {
+    const r = await crm.crearCampana(datos)
+    if (!r.ok) return r
+    setVentana({ campanaId: r.id })
+    notificar(`Campaña “${datos.nombre.trim()}” creada. Envía cada mensaje por WhatsApp.`)
+    return r
+  }
+  const campanaAbierta = ventana?.campanaId ? campanas.find((k) => k.id === ventana.campanaId) : null
+  const enviarDeCampana = (campana) => (paciente, mensaje) => crm.contactar({ paciente, motivo: motivoDeCampana(campana.grupo), canal: "whatsapp", mensaje, campanaId: campana.id })
   const cumpleAuto = parametrizacion?.cumpleAuto === true
-  const setCumpleAuto = (valorOFn) => setParametrizacion?.((prev) => ({
-    ...prev,
-    cumpleAuto: typeof valorOFn === "function" ? valorOFn(prev?.cumpleAuto === true) : valorOFn,
-  }))
+  const setCumpleAuto = (v) => setParametrizacion?.((prev) => ({ ...prev, cumpleAuto: v }))
 
-  const publicarAviso = async () => {
-    if (!nuevoAviso.trim()) return
-    setPublicandoAviso(true)
-    try {
-      const destinatario = avisoDestinoId ? pacientes.find((p) => p.id === avisoDestinoId) : null
-      const aviso = {
-        texto: nuevoAviso.trim(),
-        fecha: fechaLegible(ahoraEcuador()),
-        destinatarioId: destinatario?.id || null,
-        destinatarioNombre: destinatario?.nombre || null,
-        destinatarioTelefono: destinatario?.telefono || destinatario?.contacto || destinatario?.celular || "",
-      }
-      if (supabase && usuario?.opticaId) {
-        const { data, error } = await supabase.from("avisos").insert({
-          optica_id: usuario.opticaId, texto: aviso.texto,
-          destinatario_id: typeof aviso.destinatarioId === "string" ? aviso.destinatarioId : null,
-          destinatario_nombre: aviso.destinatarioNombre, destinatario_telefono: aviso.destinatarioTelefono,
-        }).select().single()
-        if (error) {
-          setAvisoError("No se pudo publicar el aviso. Revisa tu conexión e intenta de nuevo.")
-          return
-        }
-        if (data) aviso.id = data.id
-      }
-      if (aviso.id == null) aviso.id = Date.now()
-      setAvisoError("")
-      setAvisos([aviso, ...avisos])
-      setNuevoAviso("")
-      setAvisoDestinoId("")
-    } finally {
-      setPublicandoAviso(false)
-    }
-  }
+  const contactosDelMes = useMemo(() => contactos.filter((c) => enPeriodo(c.creadoEn, { filtro: "mes", ref: "", desde: "", hasta: "" }, hoy)).length, [contactos, hoy])
+  const conPuntaje = useMemo(() => rankingPuntaje(pacientes, consultas).length, [pacientes, consultas])
+  const pestanas = [
+    { id: "contactar", etiqueta: "Para contactar", cuenta: filas.length, Icono: Contact },
+    { id: "seguimiento", etiqueta: "Seguimiento", cuenta: contactosDelMes, Icono: Send, ayuda: "Contactos de este mes" },
+    { id: "campanas", etiqueta: "Campañas", cuenta: campanas.length, Icono: Megaphone },
+    { id: "fidelizacion", etiqueta: "Fidelización", cuenta: conPuntaje, Icono: Gift, ayuda: "Pacientes con puntaje" },
+  ]
 
-  const copiarAviso = (aviso) => {
-    navigator.clipboard.writeText(aviso.texto)
-    setCopiadoAviso(aviso.id)
-    setTimeout(() => setCopiadoAviso(null), 2000)
-  }
-
-  const eliminarAviso = async (id) => {
-    setEliminandoAvisoId(id)
-    try {
-      if (supabase && usuario?.opticaId) {
-        const { error } = await supabase.from("avisos").delete().eq("id", id)
-        if (error) {
-          setAvisoError("No se pudo eliminar el aviso. Revisa tu conexión e intenta de nuevo.")
-          return
-        }
-      }
-      setAvisoError("")
-      setAvisos(avisos.filter((a) => a.id !== id))
-    } finally {
-      setEliminandoAvisoId(null)
-    }
-  }
-  const confirmarEliminarAviso = async () => {
-    await eliminarAviso(porEliminarAvisoId)
-    setPorEliminarAvisoId(null)
-  }
-
-  // Envío por WhatsApp con prefijo internacional (Ecuador)
-  const enviarRecordatorio = (nombre, motivo, telefono, id) => {
-    let numeroLimpio = (telefono || "").replace(/\D/g, "")
-    if (numeroLimpio.startsWith("0")) {
-      numeroLimpio = "593" + numeroLimpio.substring(1)
-    }
-    if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) {
-      numeroLimpio = "593" + numeroLimpio
-    }
-    const texto = `Hola${nombre ? `, ${nombre}` : ""}, te saludamos de ${usuario?.opticaNombre || "tu óptica"}. Queremos recordarte: ${motivo} ¡Escríbenos para agendar tu cita!`
-    const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
-    window.open(url, "_blank")
-    marcarContactadoHoy(id)
-  }
-
+  const cargando = cargaInicial || crm.cargando
   return (
-    <div className="w-full space-y-6 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
-      {/* ─── HEADER ─── */}
-      <div className="flex items-start gap-3.5">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-          <HeartHandshake size={24} />
-        </div>
-        <div>
+    <div className="w-full space-y-5 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3.5">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl text-white" style={{ background: GRAD_MARCA, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}><HeartHandshake size={24} aria-hidden="true" /></div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>CRM y fidelización</h1>
-          <p className="text-sm text-slate-500">Cumpleaños, control vencido, pacientes más atendidos y comunicación con tus pacientes.</p>
         </div>
+        <AccionesDeCabecera avisos={cargando ? null : <BotonRequierenAtencion bloque={bloque} />}>
+          {puedeContactar && (
+            <button type="button" onClick={() => { setTab("campanas"); setVentana("nueva") }} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" style={{ background: GRAD_MARCA, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+              <Megaphone size={18} aria-hidden="true" /> Nueva campaña
+            </button>
+          )}
+        </AccionesDeCabecera>
       </div>
 
-      {pacientes.length === 0 && (
-        <SinDatosAun titulo="Todavía no hay pacientes a quienes escribir" texto="Aquí aparecen los cumpleaños, el control vencido y quienes más te visitan o te refieren, en cuanto registres pacientes." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />
-      )}
-
-      {/* ─── SALUDO AUTOMÁTICO DE CUMPLEAÑOS (configurable por el administrador) ─── */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-2.5 shadow-sm">
-        <div className="flex min-w-0 items-center gap-3" title={cumpleAuto ? "El día del cumpleaños se manda un correo de saludo a quien tenga correo registrado, sin que tengas que hacerlo." : "Tú decides a quién saludar con el botón WhatsApp de la lista de cumpleaños."}>
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#e0b64e,#b45309)" }}>
-            <Zap size={15} />
-          </span>
-          <h4 className="truncate text-sm font-bold" style={{ color: INK }}>Saludo automático de cumpleaños <span className={"ml-1.5 text-xs font-semibold " + (cumpleAuto ? "text-emerald-700" : "text-slate-500")}>{cumpleAuto ? "· Activo" : "· Apagado"}</span></h4>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={cumpleAuto}
-          aria-label="Saludo automático de cumpleaños"
-          onClick={() => setCumpleAuto((v) => !v)}
-          className={"relative h-7 w-12 shrink-0 self-start rounded-full transition-colors cursor-pointer sm:self-auto " + (cumpleAuto ? "" : "bg-slate-200")}
-          style={cumpleAuto ? { background: GRAD } : undefined}
-        >
-          <span className={"absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (cumpleAuto ? "translate-x-5" : "translate-x-0")} />
-        </button>
-      </div>
-
-      {/* ─── CUATRO BLOQUES CURADOS (top 5 cada uno) ─── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <BloqueContacto
-          titulo="Pacientes que más refieren"
-          conContacto={false}
-          icono={UserPlus}
-          bgIcono="linear-gradient(135deg,#818cf8,#4f46e5)"
-          lista={listaReferidos}
-          cumpleAuto={cumpleAuto}
-          contactadosHoy={contactadosHoy}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
-          onVerDetalles={() => setDetalleAbierto("referidos")}
-          onVerPerfil={onVerPerfil}
-          vacioTexto="Todavía ningún paciente aparece como quien refirió a otro."
-        />
-        <BloqueContacto
-          titulo="Pacientes más atendidos"
-          conContacto={false}
-          icono={Star}
-          bgIcono="linear-gradient(135deg,#34d399,#059669)"
-          lista={listaFieles}
-          cumpleAuto={cumpleAuto}
-          contactadosHoy={contactadosHoy}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
-          onVerDetalles={() => setDetalleAbierto("fieles")}
-          onVerPerfil={onVerPerfil}
-          vacioTexto="Todavía nadie cruza el mínimo de consultas para ser paciente frecuente."
-        />
-        <BloqueContacto
-          titulo="Cumpleaños próximos"
-          icono={Cake}
-          bgIcono="linear-gradient(135deg,#e0b64e,#b45309)"
-          lista={listaCumpleanos}
-          cumpleAuto={cumpleAuto}
-          contactadosHoy={contactadosHoy}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
-          onVerDetalles={() => setDetalleAbierto("cumpleanos")}
-          onVerPerfil={onVerPerfil}
-          vacioTexto="Ningún paciente cumple años en los próximos días."
-        />
-        <BloqueContacto
-          titulo="Control vencido"
-          icono={Clock}
-          bgIcono="linear-gradient(135deg,#f87171,#dc2626)"
-          lista={listaInactivos}
-          cumpleAuto={cumpleAuto}
-          contactadosHoy={contactadosHoy}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
-          onVerDetalles={() => setDetalleAbierto("inactivos")}
-          onVerPerfil={onVerPerfil}
-          vacioTexto="No hay pacientes con el control vencido por ahora."
-        />
-      </div>
-
-      {detalleAbierto && (
-        <ModalDetalleCRM
-          config={
-            detalleAbierto === "referidos"
-              ? { titulo: "Pacientes que más refieren", conContacto: false, icono: UserPlus, bgIcono: "linear-gradient(135deg,#818cf8,#4f46e5)", lista: listaReferidos, columnaLabel: "Referidos", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
-              : detalleAbierto === "fieles"
-              ? { titulo: "Pacientes más atendidos", conContacto: false, icono: Star, bgIcono: "linear-gradient(135deg,#34d399,#059669)", lista: listaFieles, columnaLabel: "Consultas", columnaValor: (p) => p.numConsultas, dirDefecto: "desc" }
-              : detalleAbierto === "cumpleanos"
-              ? { titulo: "Cumpleaños próximos", icono: Cake, bgIcono: "linear-gradient(135deg,#e0b64e,#b45309)", lista: listaCumpleanos, columnaLabel: "Cuándo", columnaValor: (p) => p.dias, dirDefecto: "asc", ordenAbsoluto: true }
-              : { titulo: "Control vencido", icono: Clock, bgIcono: "linear-gradient(135deg,#f87171,#dc2626)", lista: listaInactivos, columnaLabel: "Días sin visitar", columnaValor: (p) => p.ordenValor, dirDefecto: "desc" }
-          }
-          cumpleAuto={cumpleAuto}
-          contactadosHoy={contactadosHoy}
-          onEnviar={(p) => enviarRecordatorio(p.paciente, p.motivo, p.telefono, p.id)}
-          onVerPerfil={onVerPerfil}
-          onCerrar={() => setDetalleAbierto(null)}
-        />
-      )}
-
-      {/* ─── AVISOS ─── */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-slate-200/60 bg-slate-50/70 p-4">
-            <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Megaphone size={18} /></span>
-            <div>
-              <h4 className="text-sm font-bold" style={{ color: INK }}>Avisos</h4>
-              <p className="text-[11px] text-slate-500">Cierres, promociones o un mensaje puntual para un paciente</p>
-            </div>
-          </div>
-
-          <div className="space-y-3 p-4">
-            <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
-              <button
-                type="button"
-                onClick={() => setAvisoDestinoId("")}
-                className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (!avisoDestinoId ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                style={!avisoDestinoId ? { color: INK } : undefined}
-              >
-                Todos los pacientes
-              </button>
-              <button
-                type="button"
-                onClick={() => setAvisoDestinoId(pacientes[0]?.id || "")}
-                className={"flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer " + (avisoDestinoId ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                style={avisoDestinoId ? { color: INK } : undefined}
-              >
-                Un paciente puntual
-              </button>
-            </div>
-            {avisoDestinoId && (
-              <select
-                value={avisoDestinoId}
-                onChange={(e) => setAvisoDestinoId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-              >
-                {pacientes.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-              </select>
-            )}
-            <textarea
-              value={nuevoAviso}
-              onChange={(e) => setNuevoAviso(e.target.value)}
-              rows={2}
-              placeholder={avisoDestinoId ? "Ej. Tu montura ya llegó, puedes pasar a retirarla cuando quieras." : "Ej. Cerraremos el sábado 22 por mantenimiento. Reprogramaremos tu cita sin costo."}
-              className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-            />
-            {puede(usuario, "crm", "crear") && <button
-              type="button"
-              onClick={publicarAviso}
-              disabled={!nuevoAviso.trim() || publicandoAviso}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-              style={{ background: GRAD }}
-            >
-              {publicandoAviso ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              {publicandoAviso ? "Publicando..." : avisoDestinoId ? "Publicar aviso puntual" : "Publicar aviso"}
-            </button>}
-            <p className="text-[11px] text-slate-500">
-              El sistema aún no envía mensajes automáticos: copia el aviso y pégalo en tu difusión de WhatsApp, o envíaselo directo al paciente si elegiste uno puntual.
-            </p>
-            {avisoError && <p role="alert" className="text-[11px] font-semibold text-red-600">{avisoError}</p>}
-
-            {avisos.length > 0 && (
-              <div className="max-h-52 space-y-2 overflow-y-auto border-t border-slate-100 pt-3">
-                {avisos.map((a) => (
-                  <div key={a.id} className="flex items-start justify-between gap-2 rounded-lg bg-slate-50 p-2.5">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {a.destinatarioNombre ? (
-                          <span className="rounded-full px-1.5 py-0.5 text-xs font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #dbeafe" }}>
-                            Para: {a.destinatarioNombre}
-                          </span>
-                        ) : (
-                          <span className="rounded-full px-1.5 py-0.5 text-xs font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}>
-                            General
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-xs text-slate-700">{a.texto}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{a.fecha}</p>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      {a.destinatarioNombre && (
-                        <button
-                          type="button"
-                          onClick={() => enviarRecordatorio(a.destinatarioNombre, a.texto, a.destinatarioTelefono)}
-                          disabled={!a.destinatarioTelefono}
-                          title={a.destinatarioTelefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-                          aria-label={a.destinatarioTelefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-                          className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                        >
-                          <MessageSquare size={13} />
-                        </button>
-                      )}
-                      <button type="button" onClick={() => copiarAviso(a)} title="Copiar mensaje" aria-label="Copiar mensaje" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-600 cursor-pointer">
-                        {copiadoAviso === a.id ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                      </button>
-                      {puede(usuario, "crm", "eliminar") && <button type="button" onClick={() => setPorEliminarAvisoId(a.id)} disabled={eliminandoAvisoId === a.id} title="Eliminar" aria-label="Eliminar aviso" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
-                        {eliminandoAvisoId === a.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                      </button>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      {porEliminarAvisoId != null && (
-        <ConfirmarEliminarModal
-          titulo="¿Eliminar este aviso?"
-          mensaje="Esta acción no se puede deshacer."
-          eliminando={eliminandoAvisoId === porEliminarAvisoId}
-          onCancelar={() => setPorEliminarAvisoId(null)}
-          onConfirmar={confirmarEliminarAviso}
-        />
-      )}
-    </div>
-  )
-}
-
-// ─── Bloque curado (top 5) — pacientes más atendidos / cumpleaños / inactivos ───
-// Mismo componente para los tres: la fila de contacto (nombre, estado,
-// WhatsApp) es idéntica, solo cambian los datos que recibe.
-function BloqueContacto({ titulo, icono: Icono, bgIcono, lista, cumpleAuto, contactadosHoy = {}, onEnviar, onVerDetalles, onVerPerfil, vacioTexto, conContacto = true }) {
-  const top5 = lista.slice(0, 5)
-  return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200/60 bg-slate-50/70 p-4">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ background: bgIcono }}><Icono size={18} /></span>
-          <div>
-            <h4 className="text-sm font-bold" style={{ color: INK }}>{titulo}</h4>
-            <p className="text-[11px] text-slate-500">{lista.length} en total</p>
-          </div>
-        </div>
-        {lista.length > 5 && (
-          <button type="button" onClick={onVerDetalles} className="shrink-0 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-            Ver detalles
-          </button>
-        )}
-      </div>
-      <div className="flex-1 divide-y divide-slate-100">
-        {top5.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-300"><Icono size={18} /></div>
-            <p className="text-xs font-medium text-slate-500">{vacioTexto}</p>
-          </div>
-        ) : (
-          top5.map((p) => <FilaContacto key={p.id} prospecto={p} cumpleAuto={cumpleAuto} yaContactadoHoy={!!contactadosHoy[p.id]} onEnviar={conContacto ? onEnviar : null} onVerPerfil={onVerPerfil} />)
-        )}
-      </div>
-    </div>
-  )
-}
-
-// onEnviar null: la lista no es para escribirle a nadie (los que más refieren y los más atendidos): solo el paciente y su dato.
-function FilaContacto({ prospecto: p, cumpleAuto, yaContactadoHoy = false, onEnviar, onVerPerfil }) {
-  return (
-    <div className="flex items-center justify-between gap-2 p-3">
-      {/* El nombre ocupa lo que sobra y se parte en dos líneas si hace falta: en las columnas angostas del
-          CRM el botón de WhatsApp lo tapaba. */}
-      <div className="min-w-0 flex-1">
-        {onVerPerfil ? (
-          <button type="button" onClick={() => onVerPerfil(p.id)} className="block max-w-full text-left text-sm font-bold leading-tight text-slate-800 underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer [overflow-wrap:anywhere]">
-            {p.paciente}
-          </button>
-        ) : (
-          <p className="text-sm font-bold leading-tight text-slate-800 [overflow-wrap:anywhere]">{p.paciente}</p>
-        )}
-        <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{p.estado}</p>
-      </div>
-      {!onEnviar ? null : p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-        <span className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700" title="El correo de saludo automático ya se envió este año">
-          <CheckCircle2 size={11} /> Enviado
-        </span>
-      ) : yaContactadoHoy ? (
-        // F3: sin límite de frecuencia, nada impedía mandar el mismo
-        // recordatorio de WhatsApp al mismo paciente varias veces el mismo
-        // día — se puede reenviar igual (no es un bloqueo duro), solo avisa.
-        <button
-          type="button"
-          onClick={() => onEnviar(p)}
-          disabled={!p.telefono}
-          title="Ya le escribiste hoy — clic para enviar de nuevo igual"
-          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-        >
-          <CheckCircle2 size={11} /> Ya contactado hoy
-        </button>
+      {!cargando && pacientes.length === 0 ? (
+        <SinDatosAun titulo="Todavía no hay pacientes a quienes escribir" texto="Aquí aparecen los controles por vencer, los cumpleaños y quienes llevan tiempo sin venir, en cuanto registres pacientes." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />
+      ) : cargando ? (
+        <TablaSkeleton />
       ) : (
-        <button
-          type="button"
-          onClick={() => onEnviar(p)}
-          disabled={!p.telefono}
-          title={p.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-        >
-          <MessageSquare size={11} /> WhatsApp
-        </button>
-      )}
-    </div>
-  )
-}
+        <>
+          {crm.error && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {crm.error}
+              <button type="button" onClick={crm.recargar} className={CLASE_ACCION_SECUNDARIA}>Reintentar</button>
+            </div>
+          )}
+          <div role="tablist" aria-label="Secciones del CRM" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+            {pestanas.map(({ id, etiqueta, cuenta, Icono, ayuda }) => {
+              const activo = tab === id
+              return (
+                <button key={id} type="button" role="tab" id={`crm-tab-${id}`} aria-selected={activo} aria-controls="crm-panel" title={ayuda} onClick={() => setTab(id)}
+                  className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                  style={activo ? { background: GRAD_MARCA } : undefined}>
+                  <Icono size={14} aria-hidden="true" /> {etiqueta}
+                  <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>
+                </button>
+              )
+            })}
+          </div>
 
-// ─── Modal "Ver detalles" — tabla completa, ordenable ───
-// Caso de la reunión con el ing: cada bloque tiene su botón "Ver detalles"
-// con la tabla completa, ordenable (cercanía de cumpleaños, frecuencia de
-// atención, meses de inactividad).
-function ModalDetalleCRM({ config, cumpleAuto, onEnviar, onVerPerfil, onCerrar }) {
-  const { titulo, icono: Icono, lista, columnaLabel, columnaValor, dirDefecto, ordenAbsoluto, conContacto = true } = config
-  const [orden, setOrden] = useState({ campo: "metrica", dir: dirDefecto })
-
-  const ordenadas = useMemo(() => {
-    const valorMetrica = (p) => (ordenAbsoluto ? Math.abs(p.ordenValor) : p.ordenValor)
-    const arr = [...lista]
-    arr.sort((a, b) => {
-      const va = orden.campo === "paciente" ? a.paciente.toLowerCase() : valorMetrica(a)
-      const vb = orden.campo === "paciente" ? b.paciente.toLowerCase() : valorMetrica(b)
-      if (va < vb) return orden.dir === "asc" ? -1 : 1
-      if (va > vb) return orden.dir === "asc" ? 1 : -1
-      return 0
-    })
-    return arr
-  }, [lista, orden, ordenAbsoluto])
-
-  const cambiarOrden = (campo) => {
-    setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: campo === "paciente" ? "asc" : dirDefecto }))
-  }
-
-  const IconoOrden = ({ campo }) => {
-    if (orden.campo !== campo) return <ArrowUpDown size={11} className="text-slate-300" />
-    return orden.dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
-  }
-
-  // La ventana estándar del sistema (regla 43): misma cabecera, cierre y pie que las demás.
-  return (
-    <Cascaron
-      titulo={titulo}
-      subtitulo={`${lista.length} paciente${lista.length === 1 ? "" : "s"}`}
-      Icono={Icono}
-      onCerrar={onCerrar}
-      pie={<>
-        <span className="text-xs text-slate-500">Toca un encabezado para ordenar.</span>
-        <button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
-      </>}
-    >
-      <table className="w-full border-collapse text-left text-sm">
-        <thead className="sticky top-0 bg-slate-50">
-          <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-            <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("paciente")}>
-              <span className="flex items-center gap-1">Paciente <IconoOrden campo="paciente" /></span>
-            </th>
-            <th className="cursor-pointer select-none px-4 py-3" onClick={() => cambiarOrden("metrica")}>
-              <span className="flex items-center gap-1">{columnaLabel} <IconoOrden campo="metrica" /></span>
-            </th>
-            {conContacto && <th className="px-4 py-3 text-right">Acción</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {ordenadas.map((p) => (
-            <tr key={p.id} className="hover:bg-slate-50/70">
-              <td className="px-4 py-2.5 font-semibold text-slate-800">
-                {onVerPerfil ? (
-                  <button type="button" onClick={() => onVerPerfil(p.id)} className="underline-offset-2 hover:text-blue-600 hover:underline cursor-pointer">
-                    {p.paciente}
-                  </button>
-                ) : p.paciente}
-              </td>
-              <td className="px-4 py-2.5 font-mono text-slate-600">{columnaValor(p)}</td>
-              {conContacto && (
-                <td className="px-4 py-2.5 text-right">
-                  {p.cumpleHoy && cumpleAuto && p.saludoEnviadoEsteAnio ? (
-                    <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                      <CheckCircle2 size={11} /> Enviado
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onEnviar(p)}
-                      disabled={!p.telefono}
-                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      title={p.telefono ? "Enviar por WhatsApp" : "Sin número registrado"}
-                    >
-                      <MessageSquare size={11} /> WhatsApp
+          <div id="crm-panel" role="tabpanel" aria-labelledby={`crm-tab-${tab}`}>
+            {tab === "contactar" && (
+              <PestanaParaContactar
+                filas={filas} todas={todas} sinPermiso={sinPermiso} incluirTodos={incluirTodos} onIncluirTodos={setIncluirTodos} filtro={filtro} onFiltro={setFiltro}
+                puedeContactar={puedeContactar} puedeCampana={puedeContactar} onContactar={contactar} onResultado={abrirResultado} onVerPerfil={onVerPerfil} onIrACampanas={() => setTab("campanas")}
+              />
+            )}
+            {tab === "seguimiento" && (
+              <PestanaSeguimiento
+                contactos={contactos} citas={citas} pacientes={pacientes} campanas={campanas} puedeContactar={puedeContactar}
+                onResultado={abrirResultadoDeContacto} onVerPerfil={onVerPerfil} onIrAContactar={() => setTab("contactar")}
+              />
+            )}
+            {tab === "campanas" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white px-4 py-2.5 shadow-sm">
+                  <div className="flex min-w-0 items-center gap-3" title={cumpleAuto ? "El día del cumpleaños se manda un correo de saludo a quien tenga correo y no haya dicho que no quiere mensajes." : "Tú decides a quién saludar desde Para contactar."}>
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><Zap size={15} aria-hidden="true" /></span>
+                    <p className="truncate text-sm font-bold" style={{ color: INK }}>Saludo automático de cumpleaños <span className={"ml-1.5 text-xs font-semibold " + (cumpleAuto ? "text-emerald-700" : "text-slate-500")}>{cumpleAuto ? "· Activo" : "· Apagado"}</span></p>
+                  </div>
+                  {puedeEditar && (
+                    <button type="button" role="switch" aria-checked={cumpleAuto} aria-label="Saludo automático de cumpleaños" onClick={() => setCumpleAuto(!cumpleAuto)}
+                      className={"relative h-7 w-12 shrink-0 rounded-full transition-colors cursor-pointer " + (cumpleAuto ? "" : "bg-slate-200")} style={cumpleAuto ? { background: GRAD_MARCA } : undefined}>
+                      <span className={"absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (cumpleAuto ? "translate-x-5" : "translate-x-0")} />
                     </button>
                   )}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Cascaron>
+                </div>
+                <PestanaCampanas
+                  campanas={campanas} contactos={contactos} pacientes={pacientes} consultas={consultas} puedeCrear={puedeContactar} puedeVerPlantillas
+                  onNueva={() => setVentana("nueva")} onAbrir={(id) => setVentana({ campanaId: id })} onPlantillas={() => setVentana("plantillas")}
+                />
+              </div>
+            )}
+            {tab === "fidelizacion" && <PestanaFidelizacion pacientes={pacientes} consultas={consultas} onVerPerfil={onVerPerfil} />}
+          </div>
+        </>
+      )}
+
+      {resultadoDe && <VentanaResultado paciente={resultadoDe.paciente} motivo={resultadoDe.motivo} contacto={resultadoDe.contacto} onGuardar={guardarResultado} onCerrar={() => setResultadoDe(null)} />}
+      {ventana === "nueva" && <VentanaNuevaCampana pacientes={pacientes} consultas={consultas} plantillas={plantillas} opticaNombre={opticaNombre} onCrear={crearCampana} onCerrar={() => setVentana(null)} />}
+      {campanaAbierta && (
+        <VentanaCampana
+          campana={campanaAbierta} pacientes={pacientes} consultas={consultas} contactos={contactos} opticaNombre={opticaNombre} usuario={usuario} puedeEnviar={puedeContactar}
+          onEnviar={enviarDeCampana(campanaAbierta)} onVerPerfil={onVerPerfil ? (id) => { setVentana(null); onVerPerfil(id) } : null} onAviso={notificar} onCerrar={() => setVentana(null)}
+        />
+      )}
+      {ventana === "plantillas" && (
+        <VentanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} puedeEditar={puedeEditar} onGuardar={crm.guardarPlantilla}
+          onCerrar={(guardado) => { setVentana(null); if (guardado) notificar("Plantillas guardadas.") }} />
+      )}
+    </div>
   )
 }

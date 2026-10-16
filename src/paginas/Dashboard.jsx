@@ -235,6 +235,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   })
   // Destino pedido al módulo de Ventas: { tab: "porvender" | "comprobantes" | "ordenes" | "cobros", filtro?, texto? }
   const [accionVentasInicio, setAccionVentasInicio] = useState(null)
+  // Lo que pide otro módulo al CRM (el Inicio): { filtro, todos }.
+  const [accionCrmInicio, setAccionCrmInicio] = useState(null)
   const [abrirAgendarAlEntrar, setAbrirAgendarAlEntrar] = useState(false)
   // Atajos de Inicio (Registrar paciente, Agendar cita, Agregar producto): el formulario se abre encima del Inicio.
   const [atajoInicio, setAtajoInicio] = useState(null)
@@ -633,7 +635,16 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "horario":
         return <Horario usuario={usuario} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} reemplazarExcepcionLocal={reemplazarExcepcionLocal} horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} citas={citas} equipo={equipo} />
       case "crm":
-        return <CRM usuario={usuario} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} pacientes={pacientes} consultas={consultas} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }} />
+        return (
+          <CRM
+            usuario={usuario} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ordenesLab={ordenesLab}
+            parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onAviso={mostrarAviso}
+            onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined}
+            onPacienteActualizado={(id, cambios) => setPacientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...cambios } : p)))}
+            onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
+            accionInicial={accionCrmInicio} onAccionInicialConsumida={() => setAccionCrmInicio(null)}
+          />
+        )
       case "reportes":
         return <Reportes usuario={usuario} inventario={inventario} equipo={equipo} onAviso={mostrarAviso} onAbrirModulo={abrirDesdeReportes} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
@@ -673,6 +684,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               else navegar("citas")
             }}
             setVista={navegar}
+            onVerCrm={(params) => { setAccionCrmInicio({ tab: "contactar", ...params }); navegar("crm") }}
             usuario={usuario}
             opticaActiva={opticaActiva}
             cargaInicial={cargaInicialStaff}

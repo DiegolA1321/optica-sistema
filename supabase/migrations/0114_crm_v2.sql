@@ -641,3 +641,140 @@ end;
 $function$;
 revoke all on function public.guardar_plantilla_crm(text, text) from public, anon;
 grant execute on function public.guardar_plantilla_crm(text, text) to authenticated;
+
+-- ════════════════════════════════════════════════════════════════
+-- 4. Los envíos automáticos respetan "Recordatorios de salud"
+-- ════════════════════════════════════════════════════════════════
+-- El saludo de cumpleaños y el recordatorio de la cita de mañana (los dos por correo, todos los días) ya no salen para quien dijo que no
+-- quiere mensajes. Son las mismas funciones de hoy (misma firma), tomadas en vivo de la base, con una sola condición más.
+create or replace function public.enviar_saludos_cumpleanos()
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_api_key text;
+  v_hoy date := (now() at time zone 'America/Guayaquil')::date;
+  v_anio int := extract(year from v_hoy)::int;
+  v_paciente record;
+  v_html text;
+  v_request_id bigint;
+begin
+  select decrypted_secret into v_api_key from vault.decrypted_secrets where name = 'resend_api_key' limit 1;
+  if v_api_key is null then
+    return;
+  end if;
+
+  for v_paciente in
+    select p.id, p.optica_id, p.nombre, p.correo, o.nombre as optica_nombre
+    from pacientes p
+    join opticas o on o.id = p.optica_id
+    where p.fecha_nacimiento is not null
+      and extract(month from p.fecha_nacimiento) = extract(month from v_hoy)
+      and extract(day from p.fecha_nacimiento) = extract(day from v_hoy)
+      and coalesce((o.settings->>'cumpleAuto')::boolean, false) = true
+      and coalesce(p.ultimo_saludo_cumple_anio, 0) < v_anio
+      and p.acepta_recordatorios
+      and p.correo is not null and p.correo <> '' and p.correo <> 'Sin Correo'
+      and p.correo ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+  loop
+    v_html :=
+      '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#0f172a">'
+      || '<h2 style="color:#0E2B33">¡Feliz cumpleaños, ' || v_paciente.nombre || '!</h2>'
+      || '<p>Todo el equipo de <strong>' || v_paciente.optica_nombre || '</strong> te desea un año lleno de buena salud visual y buenos momentos. 🎉</p>'
+      || '<p>Como agradecimiento por tu confianza, ¡pásate a vernos pronto, tenemos algo especial para ti!</p>'
+      || '</div>';
+
+    select net.http_post(
+      url := 'https://api.resend.com/emails',
+      headers := jsonb_build_object('Authorization', 'Bearer ' || v_api_key, 'Content-Type', 'application/json'),
+      body := jsonb_build_object(
+        'from', 'Recordatorios <onboarding@resend.dev>',
+        'to', jsonb_build_array(v_paciente.correo),
+        'subject', '¡Feliz cumpleaños de parte de ' || v_paciente.optica_nombre || '!',
+        'html', v_html
+      )
+    ) into v_request_id;
+
+    insert into notificaciones_enviadas (optica_id, tipo, destinatario, referencia_id, request_id)
+    values (v_paciente.optica_id, 'cumpleanos', v_paciente.correo, v_paciente.id, v_request_id);
+
+    update pacientes set ultimo_saludo_cumple_anio = v_anio where id = v_paciente.id;
+  end loop;
+end;
+$function$;
+
+create or replace function public.enviar_recordatorios_citas()
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_api_key text;
+  v_base_url text;
+  v_cita record;
+  v_correo text;
+  v_link text;
+  v_html text;
+  v_request_id bigint;
+begin
+  select decrypted_secret into v_api_key from vault.decrypted_secrets where name = 'resend_api_key' limit 1;
+  select decrypted_secret into v_base_url from vault.decrypted_secrets where name = 'app_base_url' limit 1;
+  if v_api_key is null or v_base_url is null then
+    return;
+  end if;
+
+  for v_cita in
+    select
+      c.id, c.optica_id, c.paciente, c.fecha, c.hora, c.motivo_publico, c.motivo,
+      coalesce(nullif(c.correo, ''), nullif(p.correo, ''), nullif(p.correo, 'Sin Correo')) as correo_resuelto,
+      o.nombre as optica_nombre
+    from citas c
+    join opticas o on o.id = c.optica_id
+    left join pacientes p on p.id = c.paciente_id
+    where c.estado = 'Pendiente'
+      and c.recordatorio_enviado_at is null
+      and c.fecha = ((now() at time zone 'America/Guayaquil')::date + 1)
+      and coalesce((o.settings->>'recordatoriosCitaActivo')::boolean, true)
+      and coalesce(p.acepta_recordatorios, true)
+  loop
+    v_correo := v_cita.correo_resuelto;
+
+    if v_correo is null or v_correo !~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
+      update citas set recordatorio_enviado_at = now() where id = v_cita.id;
+      continue;
+    end if;
+
+    v_link := v_base_url || '/?confirmar_cita=' || v_cita.id;
+    v_html :=
+      '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#0f172a">'
+      || '<h2 style="color:#0E2B33">Recordatorio de tu cita</h2>'
+      || '<p>Hola ' || v_cita.paciente || ', te recordamos tu cita en <strong>' || v_cita.optica_nombre || '</strong>:</p>'
+      || '<p style="font-size:18px"><strong>' || to_char(v_cita.fecha, 'DD/MM/YYYY') || ' a las ' || v_cita.hora || '</strong></p>'
+      || case when coalesce(v_cita.motivo_publico, v_cita.motivo) is not null
+           then '<p>Motivo: ' || coalesce(v_cita.motivo_publico, v_cita.motivo) || '</p>'
+           else '' end
+      || '<p><a href="' || v_link || '" style="display:inline-block;padding:10px 20px;background:#2563EB;color:#fff;text-decoration:none;border-radius:8px">Confirmar mi asistencia</a></p>'
+      || '<p style="color:#64748b;font-size:12px">Si no puedes asistir, comunícate con la óptica para reagendar.</p>'
+      || '</div>';
+
+    select net.http_post(
+      url := 'https://api.resend.com/emails',
+      headers := jsonb_build_object('Authorization', 'Bearer ' || v_api_key, 'Content-Type', 'application/json'),
+      body := jsonb_build_object(
+        'from', 'Recordatorios <onboarding@resend.dev>',
+        'to', jsonb_build_array(v_correo),
+        'subject', 'Recordatorio: tu cita mañana en ' || v_cita.optica_nombre,
+        'html', v_html
+      )
+    ) into v_request_id;
+
+    insert into notificaciones_enviadas (optica_id, tipo, destinatario, referencia_id, request_id)
+    values (v_cita.optica_id, 'recordatorio_cita', v_correo, v_cita.id, v_request_id);
+
+    update citas set recordatorio_enviado_at = now() where id = v_cita.id;
+  end loop;
+end;
+$function$;

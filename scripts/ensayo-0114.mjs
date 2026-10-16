@@ -242,7 +242,13 @@ try {
     ok(/no existe/.test(x.e || ""), "…ni anota un resultado en un contacto de esta óptica: " + x.e)
   }
 
-  // ── 10. Anonimizar y borrar un paciente se llevan su historial sin tropezar con la protección
+  // ── 10. Los correos automáticos respetan el permiso (no se ejecutan: enviarían de verdad; se comprueba su definición y que sigan siendo una sola)
+  for (const n of ["enviar_saludos_cumpleanos", "enviar_recordatorios_citas"]) {
+    const def = (await c.query("select pg_get_functiondef(oid) d from pg_proc where pronamespace = 'public'::regnamespace and proname = $1", [n])).rows
+    ok(def.length === 1 && /acepta_recordatorios/.test(def[0].d), `${n}: una sola versión y ahora respeta 'recordatorios de salud'`)
+  }
+
+  // ── 11. Anonimizar y borrar un paciente se llevan su historial sin tropezar con la protección
   x = await directo(() => c.query("delete from pacientes_base where id = $1", [pac2]))
   ok(!x.e, "borrar un paciente (como lo hace 'Eliminar paciente') borra también su historial de contactos y de permisos" + (x.e ? " — " + x.e : ""))
   ok((await c.query("select count(*)::int n from crm_contactos where paciente_id = $1", [pac2])).rows[0].n === 0, "…no queda nada suelto")

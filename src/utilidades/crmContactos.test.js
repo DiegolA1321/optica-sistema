@@ -285,3 +285,42 @@ describe("seguimiento y fidelización", () => {
     expect(rankingPuntaje(todos, consultas)[0]).toMatchObject({ valor: 11 * 15 + 3 * 10 })
   })
 })
+
+describe("la lista completa cuenta lo mismo que el Inicio, Pacientes y Reportes", () => {
+  const pacientes = [
+    paciente("a", { fechaRegistro: dia(-200) }),
+    paciente("b", { fechaRegistro: dia(-200) }),
+    paciente("c", { fechaRegistro: dia(-200), aceptaRecordatorios: false }),
+    paciente("d", { fechaRegistro: dia(-200), fechaNacimiento: nacer(1) }),
+    paciente("e", { fechaRegistro: dia(-20) }),
+  ]
+  const contactos = [contacto("a", "control_vencido", { resultado: "no_respondio", creadoEn: marca(-1) })] // a descansa
+  const r = listaParaContactar({ pacientes, contactos, hoy })
+
+  it("con todos incluidos, control vencido da el mismo número que esInactivo, aunque algunos descansen o no acepten mensajes", () => {
+    const esperado = pacientes.filter((p) => esInactivo(p, [])).length
+    expect(contarPorMotivo(r.todas).por.control_vencido).toBe(esperado)
+    expect(esperado).toBe(4)
+  })
+  it("lo de hoy deja fuera al que descansa y al que no acepta mensajes", () => {
+    expect(idsDe(r.filas)).toEqual(["b", "d"])
+    expect(contarPorMotivo(r.filas).por.control_vencido).toBe(2)
+  })
+  it("cada fila dice por qué no está en lo de hoy, y cuándo vuelve", () => {
+    const por = Object.fromEntries(r.todas.map((f) => [f.id, f]))
+    expect(por.a.estado).toBe("descansa")
+    expect(por.a.descansaHasta).toBe(dia(2)) // contactado ayer + 3 días
+    expect(por.a.motivos[0].descansa).toBe(true)
+    expect(por.b.estado).toBe("activo")
+    expect(por.c.estado).toBe("sin_permiso")
+  })
+  it("los que descansan van al final de la lista completa", () => {
+    expect(r.todas.map((f) => f.estado).join(",").replace(/(activo,?)+/, "A,")).toMatch(/^A,(descansa|sin_permiso)/)
+  })
+  it("un paciente cuyo control vencido descansa pero cumple años mañana sigue en lo de hoy por el cumpleaños", () => {
+    const rr = listaParaContactar({ pacientes: [pacientes[3]], contactos: [contacto("d", "control_vencido", { resultado: "agendo", creadoEn: marca(0) })], hoy })
+    expect(rr.filas).toHaveLength(1)
+    expect(rr.filas[0].motivos.map((m) => m.id)).toEqual(["cumpleanos"])
+    expect(rr.todas[0].motivos.map((m) => [m.id, m.descansa])).toEqual([["control_vencido", true], ["cumpleanos", false]])
+  })
+})

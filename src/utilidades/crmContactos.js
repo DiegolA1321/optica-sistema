@@ -108,23 +108,29 @@ export function resultadoEfectivo(contacto, citas = []) {
 
 const masReciente = (lista) => lista.reduce((a, b) => (msDe(b.creadoEn) > msDe(a.creadoEn) ? b : a), lista[0])
 
-// ¿Este paciente descansa de este motivo por lo que pasó en su último contacto? { oculto, reaparece, sinResultado }
+// ¿Este paciente descansa de este motivo por lo que pasó en su último contacto? { oculto, hasta (el día en que vuelve), reaparece, sinResultado }
 export function estadoDelMotivo(contactosDelMotivo, citas, hoy = hoyISO()) {
   if (contactosDelMotivo.length === 0) return { oculto: false }
   const ultimo = masReciente(contactosDelMotivo)
   const efectivo = resultadoEfectivo(ultimo, citas)
-  const desdeContacto = diasEntre(diaDeRegistro(ultimo.creadoEn) || hoy, hoy)
+  const diaContacto = diaDeRegistro(ultimo.creadoEn) || hoy
+  const desdeContacto = diasEntre(diaContacto, hoy)
+  const descanso = (dias) => ({ oculto: desdeContacto < dias, hasta: sumarDias(diaContacto, dias), ultimo })
   if (efectivo === null) return { oculto: false, sinResultado: true, ultimo }
-  if (efectivo === "agendo") return { oculto: ultimo.resultado === "agendo" ? desdeContacto < DESCANSO_AGENDO : desdeContacto < DESCANSO_CITA_POSTERIOR, ultimo }
-  if (efectivo === "no_respondio") return { oculto: desdeContacto < REINTENTO_NO_RESPONDIO, ultimo }
-  if (efectivo === "volver_a_contactar") return ultimo.volverEl && ultimo.volverEl > hoy ? { oculto: true, ultimo } : { oculto: false, reaparece: true, ultimo }
-  if (efectivo === "no_le_interesa") return { oculto: desdeContacto < DESCANSO_NO_LE_INTERESA, ultimo }
-  return { oculto: true, ultimo } // no_desea_mensajes
+  if (efectivo === "agendo") return descanso(ultimo.resultado === "agendo" ? DESCANSO_AGENDO : DESCANSO_CITA_POSTERIOR)
+  if (efectivo === "no_respondio") return descanso(REINTENTO_NO_RESPONDIO)
+  if (efectivo === "volver_a_contactar") return ultimo.volverEl && ultimo.volverEl > hoy ? { oculto: true, hasta: ultimo.volverEl, ultimo } : { oculto: false, reaparece: true, ultimo }
+  if (efectivo === "no_le_interesa") return descanso(DESCANSO_NO_LE_INTERESA)
+  return { oculto: true, hasta: null, ultimo } // no_desea_mensajes
 }
 
 // ─── La lista de trabajo: "Para contactar" ───
-// Una fila por paciente, con todos sus motivos. Quien no acepta recordatorios no aparece; el motivo que descansa por un contacto reciente tampoco.
-// Devuelve { filas, sinPermiso }: sinPermiso es cuántos pacientes se dejaron fuera porque no aceptan recordatorios (para decirlo, no esconderlo).
+// Una fila por paciente, con todos sus motivos. Devuelve dos listas hechas con el mismo cálculo:
+//   · filas: lo que hay que trabajar hoy (quien no acepta recordatorios no está, y el motivo que descansa por un contacto reciente tampoco);
+//   · todas: TODOS los que tienen algún motivo, como los cuentan el Inicio, Pacientes y Reportes. Cada motivo trae `descansa` (y `hasta` cuándo vuelve)
+//     y cada fila su `estado`: "activo", "descansa" (ya se le contactó) o "sin_permiso" (no desea recibir mensajes). Así el número de un motivo
+//     con "todos" es el mismo que el de las otras pantallas.
+// sinPermiso es cuántos pacientes se dejaron fuera de `filas` por no aceptar recordatorios (para decirlo, no esconderlo).
 export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [], citas = [], contactos = [], hoy = hoyISO() } = {}) {
   const contactosDe = new Map()
   for (const c of contactos) {
@@ -132,36 +138,45 @@ export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [
     contactosDe.get(c.pacienteId).push(c)
   }
   const filas = []
+  const todas = []
   let sinPermiso = 0
   for (const paciente of pacientes) {
     const motivos = motivosDe(paciente, { consultas, ordenes, hoy })
     if (motivos.length === 0) continue
-    if (!aceptaRecordatorios(paciente)) { sinPermiso++; continue }
     const suyos = contactosDe.get(paciente.id) || []
-    const visibles = []
+    const acepta = aceptaRecordatorios(paciente)
     let reaparece = false
     let sinResultado = null
-    for (const m of motivos) {
+    const evaluados = motivos.map((m) => {
+      if (!acepta) return { ...m, descansa: true, hasta: null }
       const estado = estadoDelMotivo(suyos.filter((c) => c.motivo === m.id), citas, hoy)
-      if (estado.oculto) continue
-      visibles.push(m)
       if (estado.reaparece) reaparece = true
       if (estado.sinResultado) sinResultado = estado.ultimo
-    }
-    if (visibles.length === 0) continue
-    visibles.sort((a, b) => ORDEN_MOTIVOS.indexOf(a.id) - ORDEN_MOTIVOS.indexOf(b.id))
+      return { ...m, descansa: Boolean(estado.oculto), hasta: estado.hasta ?? null }
+    })
+    evaluados.sort((a, b) => ORDEN_MOTIVOS.indexOf(a.id) - ORDEN_MOTIVOS.indexOf(b.id))
+    const activos = evaluados.filter((m) => !m.descansa)
     const ultimoContacto = suyos.length ? masReciente(suyos) : null
     const proxima = citas.filter((c) => c.pacienteId === paciente.id && ["Pendiente", "En Espera"].includes(c.estado) && c.fecha >= hoy).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0] || null
-    filas.push({
-      id: paciente.id, paciente, telefono: telefonoDe(paciente), motivos: visibles, principal: visibles[0].id,
+    const estado = !acepta ? "sin_permiso" : activos.length > 0 ? "activo" : "descansa"
+    const principal = (activos[0] || evaluados[0]).id
+    const base = {
+      id: paciente.id, paciente, telefono: telefonoDe(paciente), principal, estado,
       ultimoContacto, resultadoUltimo: ultimoContacto ? resultadoEfectivo(ultimoContacto, citas) : null,
       reaparece, sinResultado, citaProxima: proxima,
-      // Orden de trabajo: primero lo que hay que retomar hoy, luego lo más urgente.
-      prioridad: (reaparece ? 0 : sinResultado ? 1 : 2) * 10 + ORDEN_MOTIVOS.indexOf(visibles[0].id),
-    })
+      // Cuándo vuelve a aparecer (el más próximo de sus motivos que descansan).
+      descansaHasta: estado === "descansa" ? evaluados.map((m) => m.hasta).filter(Boolean).sort()[0] || null : null,
+      // Orden de trabajo: primero lo que hay que retomar hoy, luego lo que quedó sin resultado, luego lo más urgente; lo que descansa al final.
+      prioridad: (estado === "activo" ? (reaparece ? 0 : sinResultado ? 1 : 2) : 3) * 10 + ORDEN_MOTIVOS.indexOf(principal),
+    }
+    todas.push({ ...base, motivos: evaluados })
+    if (!acepta) sinPermiso++
+    else if (activos.length > 0) filas.push({ ...base, motivos: activos })
   }
-  filas.sort((a, b) => a.prioridad - b.prioridad || (b.motivos[0].dias ?? 0) - (a.motivos[0].dias ?? 0) || a.paciente.nombre.localeCompare(b.paciente.nombre))
-  return { filas, sinPermiso }
+  const orden = (a, b) => a.prioridad - b.prioridad || (b.motivos[0].dias ?? 0) - (a.motivos[0].dias ?? 0) || a.paciente.nombre.localeCompare(b.paciente.nombre)
+  filas.sort(orden)
+  todas.sort(orden)
+  return { filas, todas, sinPermiso }
 }
 
 // Cuántos pacientes hay por motivo (un paciente con dos motivos cuenta en los dos) y en total (cada paciente una sola vez).
@@ -279,3 +294,17 @@ export function rankingPuntaje(pacientes = [], consultas = []) {
 
 // La fecha de hoy más N días ("volver a contactar en 3 días").
 export const fechaEnDias = (n, hoy = hoyISO()) => sumarDias(hoy, n)
+
+// ─── Exportar la lista de una campaña (el mismo formato de los demás Excel de la Reportes) ───
+export function modeloListaCampana({ campana, filas }) {
+  return {
+    archivo: `campana-${String(campana.nombre).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "lista"}`,
+    hoja: "Campaña", titulo: `Campaña: ${campana.nombre} (${GRUPOS_CAMPANA[campana.grupo]?.etiqueta || campana.grupo})`,
+    nota: "Estado de hoy: los pacientes del grupo que aceptaron este tipo de mensaje, y cuáles ya recibieron el envío por WhatsApp.",
+    columnas: [
+      { titulo: "Paciente", tipo: "texto" }, { titulo: "Teléfono", tipo: "texto" }, { titulo: "Correo", tipo: "texto" }, { titulo: "Mensaje", tipo: "texto" }, { titulo: "Enviado", tipo: "texto" },
+    ],
+    filas: filas.map((f) => ({ celdas: [f.nombre, f.telefono || "", f.correo || "", f.mensaje, f.enviado ? "Sí" : "No"] })),
+    bloques: [], personal: true, sinPeriodo: true, sinFiltros: true, cuenta: "pacientes",
+  }
+}
