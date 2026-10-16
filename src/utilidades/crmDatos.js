@@ -109,18 +109,5 @@ export function useCrmDatos({ usuario, alCambiarPermisos }) {
     return { ok: true }
   }, [conBase])
 
-  // Cambia uno o los dos permisos de un paciente (null = no tocar). origen: "personal" (perfil) o "crm".
-  const cambiarPermisos = useCallback(async (pacienteId, { recordatorios = null, promociones = null }, origen = "personal") => {
-    if (conBase) {
-      const { error: e } = await supabase.rpc("cambiar_consentimiento_paciente", { p_paciente_id: pacienteId, p_recordatorios: recordatorios, p_promociones: promociones, p_origen: origen })
-      if (e) return { ok: false, error: textoDeError(e) }
-    }
-    const cambios = {}
-    if (recordatorios !== null) cambios.aceptaRecordatorios = recordatorios
-    if (promociones !== null) cambios.aceptaPromociones = promociones
-    alCambiarPermisos?.(pacienteId, { ...cambios, consentimientoActualizadoEn: new Date().toISOString(), consentimientoActualizadoPor: usuario?.nombre || "" })
-    return { ok: true }
-  }, [conBase, usuario?.nombre, alCambiarPermisos])
-
-  return { ...datos, cargando, error, recargar: cargar, contactar, anotarResultado, crearCampana, guardarPlantilla, cambiarPermisos }
+  return { ...datos, cargando, error, recargar: cargar, contactar, anotarResultado, crearCampana, guardarPlantilla }
 }

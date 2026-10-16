@@ -9,6 +9,7 @@ import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { edadEnAnios } from "../utilidades/edad"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
+import PermisosMensajes from "./PermisosMensajes"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -142,7 +143,8 @@ export function ModalHistoriaClinica({ paciente, consultas, onCerrar }) {
 }
 
 // ─── Datos del paciente: lo que se registró al darlo de alta, con acceso a editarlo ───
-export function ModalDatosPaciente({ paciente, onEditar, onCerrar }) {
+// permisos: { recordatorios, promociones, actualizadoPor, actualizadoEn, onCambiar } (sin onCambiar solo se muestran); sin `permisos` no hay sección.
+export function ModalDatosPaciente({ paciente, onEditar, permisos = null, onCerrar }) {
   const fn = paciente.fecha_nacimiento || paciente.fechaNacimiento
   const edad = edadEnAnios(fn)
   const real = (t) => (t && !/^sin /i.test(t) ? t : null)
@@ -174,6 +176,12 @@ export function ModalDatosPaciente({ paciente, onEditar, onCerrar }) {
           <Dato etiqueta="Cuenta del portal">{paciente.tieneCuenta ? "Activa" : "Sin cuenta"}</Dato>
         </Columna>
       </div>
+      {permisos && (
+        <section aria-label="Permisos para recibir mensajes" className="border-t border-slate-100 px-5 py-4">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">Permisos para recibir mensajes</h3>
+          <PermisosMensajes {...permisos} />
+        </section>
+      )}
     </Cascaron>
   )
 }
