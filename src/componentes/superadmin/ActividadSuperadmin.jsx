@@ -248,7 +248,6 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
             texto={ocultasPorPrueba > 0 && filas.length === ocultasPorPrueba ? `Toda la actividad de este período es de ópticas de prueba (${ocultasPorPrueba}). No se muestra por defecto.` : filas.length === 0 ? "No hay actividad en este período. Prueba con un período más largo." : "Ninguna acción coincide con estos filtros."}
             acciones={[
               ...(ocultasPorPrueba > 0 ? [{ etiqueta: "Incluir ópticas de prueba", onClick: () => onIncluirPrueba(true) }] : []),
-              ...(hayFiltros ? [{ etiqueta: "Limpiar filtros", onClick: limpiar }] : []),
               ...(periodo !== "anio" ? [{ etiqueta: "Ver este año", onClick: () => setPeriodo("anio") }] : []),
             ]}
           />

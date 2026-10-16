@@ -1737,9 +1737,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : "Todas las ópticas son de prueba y no se muestran por defecto."}</p>
                     {opticas.length === 0 ? (
                       <button type="button" onClick={abrirCrear} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Crear la primera óptica</button>
-                    ) : etiquetasOpticas.length > 0 ? (
-                      <button type="button" onClick={limpiarOpticas} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Limpiar filtros</button>
-                    ) : (
+                    ) : etiquetasOpticas.length > 0 ? null : (
                       <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir ópticas de prueba</button>
                     )}
                   </div>
@@ -1861,7 +1859,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
           <p role="status" className="px-1 text-sm font-semibold text-slate-600">{leadsFiltrados.length} {leadsFiltrados.length === 1 ? "lead" : "leads"}</p>
           {leadsFiltrados.length === 0 ? (
-            <SinResultados texto="Ningún lead coincide con estos filtros." acciones={[{ etiqueta: "Limpiar filtros", onClick: limpiarLeads }]} />
+            <SinResultados texto="Ningún lead coincide con estos filtros. Quita alguno con su «x» o con «Limpiar filtros»." />
           ) : (
             <ul role="list" className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
               {leadsFiltrados.map((l) => {
