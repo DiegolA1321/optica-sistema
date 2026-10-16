@@ -324,7 +324,7 @@ function CostosPorMotivo({ motivos, parametrizacion, setParametrizacion, onExito
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold" style={{ color: INK }}>Costo base de la consulta por motivo</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Al guardar una ficha, el panel de cobro trae este valor ya puesto (se puede cambiar en el momento, incluso a $0). Un motivo sin costo cuenta como $0.
+            Al guardar una ficha, el panel de cobro trae este valor ya puesto (se puede cambiar en el momento, incluso a $0.00). Un motivo sin costo cuenta como $0.00.
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {motivos.map((m) => (

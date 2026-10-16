@@ -136,7 +136,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <div className="min-w-0">
           <h1 className="text-xl font-bold" style={{ color: INK }}>Reportes</h1>
-          <p className="text-sm text-slate-500">{actual.pregunta}</p>
+          <p className="text-sm text-slate-500">{propio && actual.id === "resumen" ? "¿Cómo te fue en este período?" : actual.pregunta}</p>
         </div>
         <button type="button" onClick={() => setExportando(true)} className="ml-auto flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Download size={15} aria-hidden="true" /> Exportar</button>
       </div>

@@ -81,6 +81,8 @@ export function resumenPermisos(permisos) {
   return MODULOS_PERMISO.map((m) => {
     const niveles = permisos?.[m.id]
     if (!Array.isArray(niveles) || niveles.length === 0) return null
+    // "Mi horario" solo tiene el nivel ver, pero quien lo tiene también edita su propio horario y sus ausencias: no se resume como "solo ver".
+    if (m.id === "horario") return { modulo: m.nombre, texto: "su agenda y su propio horario" }
     const mas = niveles.filter((n) => n !== "ver").map((n) => NIVELES.find((x) => x.id === n)?.etiqueta.toLowerCase())
     return { modulo: m.nombre, texto: mas.length === 0 ? "solo ver" : `ver, ${mas.join(", ")}` }
   }).filter(Boolean)

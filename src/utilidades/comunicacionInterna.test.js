@@ -10,6 +10,7 @@ const consulta = (extra = {}) => ({ id: "c", autorId: "r1", destino: "admin", es
 describe("pestañas de Soporte por nivel", () => {
   it("el administrador: Consultas del personal, Soporte del sistema, Avisos y Ayuda al final", () => {
     expect(pestanasDeSoporte(admin)).toEqual(["personal", "sistema", "avisos", "ayuda"])
+    expect(pestanasDeSoporte({ ...admin, impersonadoPor: { id: "s1" } })).toEqual(["personal", "avisos", "ayuda"])
   })
   it("el resto del personal: Mis consultas, Avisos y Ayuda al final", () => {
     expect(pestanasDeSoporte(rosa)).toEqual(["consultas", "avisos", "ayuda"])

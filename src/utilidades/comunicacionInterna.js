@@ -10,6 +10,8 @@ export const esAdministrador = (usuario) => usuario?.rol === "admin"
 
 // Las pestañas de Soporte de cada persona, en el orden en que se ven. "Ayuda" va al final.
 export function pestanasDeSoporte(usuario) {
+  // El superadmin que entra a una óptica como administrador no se escribe a sí mismo: sin "Soporte del sistema".
+  if (esAdministrador(usuario) && usuario.impersonadoPor) return ["personal", "avisos", "ayuda"]
   if (esAdministrador(usuario)) return ["personal", "sistema", "avisos", "ayuda"]
   return ["consultas", "avisos", "ayuda"]
 }

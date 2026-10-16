@@ -661,7 +661,7 @@ export default function Inicio({
       casos: esperanMucho.map(({ pase }) => ({
         id: pase.id, nombre: nombreDe(pase.pacienteId),
         detalle: `Espera hace ${diasEnEspera(pase)} días`,
-        accion: { etiqueta: "Contactar", navega: true, onClick: () => onVerCola?.("mas30") },
+        accion: { etiqueta: "Ver la cola", navega: true, onClick: () => onVerCola?.("mas30") },
       })),
     })
     if (incOrdenes && listasSinAvisar.length > 0) {

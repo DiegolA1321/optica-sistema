@@ -35,6 +35,8 @@ import {
   Lock,
 } from "lucide-react"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
+import { formatoFecha } from "../utilidades/formatoFecha"
+import { hoyISO } from "../utilidades/disponibilidad"
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Cómo funciona", icon: Compass },
@@ -456,7 +458,7 @@ export default function PaginaVenta() {
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <p className="text-sm font-bold" style={{ color: INK }}>Agenda de hoy</p>
-                  <p className="text-xs text-slate-400">Miércoles 26 de agosto</p>
+                  <p className="text-xs text-slate-500">{formatoFecha(hoyISO(), "largoSinDia")}</p>
                 </div>
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600">4 citas</span>
               </div>
