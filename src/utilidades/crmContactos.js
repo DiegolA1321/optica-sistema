@@ -7,11 +7,12 @@ import { diaDeRegistro } from "./periodoLista"
 import { formatoFecha } from "./formatoFecha"
 
 // ─── Motivos ───
-// consentimiento: qué permiso del paciente hace falta para escribirle por ese motivo ("salud" = recordatorios de salud, "promocion" = promociones).
+// consentimiento: qué permiso del paciente hace falta para escribirle por ese motivo: "salud" = Recordatorios de salud (control y seguimiento de la compra),
+// "promocion" = Promociones y saludos (cumpleaños y campañas).
 export const MOTIVOS = {
   sin_visitar: { id: "sin_visitar", etiqueta: "Sin visitar hace más de 12 meses", corta: "Sin visitar +12 meses", consentimiento: "salud" },
   control_vencido: { id: "control_vencido", etiqueta: "Control vencido", corta: "Control vencido", consentimiento: "salud" },
-  cumpleanos: { id: "cumpleanos", etiqueta: "Cumpleaños", corta: "Cumpleaños", consentimiento: "salud" },
+  cumpleanos: { id: "cumpleanos", etiqueta: "Cumpleaños", corta: "Cumpleaños", consentimiento: "promocion" },
   postventa: { id: "postventa", etiqueta: "Seguimiento después de la compra", corta: "Después de la compra", consentimiento: "salud" },
   control_proximo: { id: "control_proximo", etiqueta: "Control que vence pronto", corta: "Control próximo", consentimiento: "salud" },
 }
@@ -47,7 +48,10 @@ const ESTADOS_CITA_VIVA = ["Pendiente", "En Espera", "En Atención", "Atendida"]
 // Recordatorios de salud: sí hasta que diga que no. Promociones: no hasta que diga que sí.
 export const aceptaRecordatorios = (p) => p?.aceptaRecordatorios !== false
 export const aceptaPromociones = (p) => p?.aceptaPromociones === true
-export const puedeContactarPor = (paciente, motivo) => (motivo === MOTIVO_PROMOCION ? aceptaPromociones(paciente) : aceptaRecordatorios(paciente))
+// Qué permiso hace falta para escribirle a un paciente por un motivo: los cumpleaños y las promociones son "Promociones y saludos"; el control y el
+// seguimiento de la compra son "Recordatorios de salud".
+export const permisoDeMotivo = (motivo) => (motivo === MOTIVO_PROMOCION || MOTIVOS[motivo]?.consentimiento === "promocion" ? "promociones" : "recordatorios")
+export const puedeContactarPor = (paciente, motivo) => (permisoDeMotivo(motivo) === "promociones" ? aceptaPromociones(paciente) : aceptaRecordatorios(paciente))
 
 const telefonoDe = (p) => p.telefono || p.contacto || p.celular || ""
 const nacimientoDe = (p) => p.fechaNacimiento || p.fecha_nacimiento || ""
@@ -125,12 +129,9 @@ export function estadoDelMotivo(contactosDelMotivo, citas, hoy = hoyISO()) {
 }
 
 // ─── La lista de trabajo: "Para contactar" ───
-// Una fila por paciente, con todos sus motivos. Devuelve dos listas hechas con el mismo cálculo:
-//   · filas: lo que hay que trabajar hoy (quien no acepta recordatorios no está, y el motivo que descansa por un contacto reciente tampoco);
-//   · todas: TODOS los que tienen algún motivo, como los cuentan el Inicio, Pacientes y Reportes. Cada motivo trae `descansa` (y `hasta` cuándo vuelve)
-//     y cada fila su `estado`: "activo", "descansa" (ya se le contactó) o "sin_permiso" (no desea recibir mensajes). Así el número de un motivo
-//     con "todos" es el mismo que el de las otras pantallas.
-// sinPermiso es cuántos pacientes se dejaron fuera de `filas` por no aceptar recordatorios (para decirlo, no esconderlo).
+// Una fila por paciente, con los motivos por los que hoy hay que escribirle. Quedan fuera el motivo que el paciente no permitió (cada motivo pide su permiso)
+// y el que descansa por un contacto reciente. Es la ÚNICA definición de "por contactar hoy": el CRM y los avisos del Inicio cuentan con ella.
+// sinPermiso es cuántos pacientes tienen algún motivo que se dejó fuera por falta de permiso (para decirlo, no esconderlo).
 export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [], citas = [], contactos = [], hoy = hoyISO() } = {}) {
   const contactosDe = new Map()
   for (const c of contactos) {
@@ -138,45 +139,37 @@ export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [
     contactosDe.get(c.pacienteId).push(c)
   }
   const filas = []
-  const todas = []
   let sinPermiso = 0
   for (const paciente of pacientes) {
     const motivos = motivosDe(paciente, { consultas, ordenes, hoy })
     if (motivos.length === 0) continue
     const suyos = contactosDe.get(paciente.id) || []
-    const acepta = aceptaRecordatorios(paciente)
+    const permitidos = motivos.filter((m) => puedeContactarPor(paciente, m.id))
+    if (permitidos.length < motivos.length) sinPermiso++
     let reaparece = false
     let sinResultado = null
-    const evaluados = motivos.map((m) => {
-      if (!acepta) return { ...m, descansa: true, hasta: null }
+    const activos = []
+    for (const m of permitidos) {
       const estado = estadoDelMotivo(suyos.filter((c) => c.motivo === m.id), citas, hoy)
+      if (estado.oculto) continue
+      activos.push(m)
       if (estado.reaparece) reaparece = true
       if (estado.sinResultado) sinResultado = estado.ultimo
-      return { ...m, descansa: Boolean(estado.oculto), hasta: estado.hasta ?? null }
-    })
-    evaluados.sort((a, b) => ORDEN_MOTIVOS.indexOf(a.id) - ORDEN_MOTIVOS.indexOf(b.id))
-    const activos = evaluados.filter((m) => !m.descansa)
+    }
+    if (activos.length === 0) continue
+    activos.sort((a, b) => ORDEN_MOTIVOS.indexOf(a.id) - ORDEN_MOTIVOS.indexOf(b.id))
     const ultimoContacto = suyos.length ? masReciente(suyos) : null
     const proxima = citas.filter((c) => c.pacienteId === paciente.id && ["Pendiente", "En Espera"].includes(c.estado) && c.fecha >= hoy).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0] || null
-    const estado = !acepta ? "sin_permiso" : activos.length > 0 ? "activo" : "descansa"
-    const principal = (activos[0] || evaluados[0]).id
-    const base = {
-      id: paciente.id, paciente, telefono: telefonoDe(paciente), principal, estado,
+    filas.push({
+      id: paciente.id, paciente, telefono: telefonoDe(paciente), motivos: activos, principal: activos[0].id,
       ultimoContacto, resultadoUltimo: ultimoContacto ? resultadoEfectivo(ultimoContacto, citas) : null,
       reaparece, sinResultado, citaProxima: proxima,
-      // Cuándo vuelve a aparecer (el más próximo de sus motivos que descansan).
-      descansaHasta: estado === "descansa" ? evaluados.map((m) => m.hasta).filter(Boolean).sort()[0] || null : null,
-      // Orden de trabajo: primero lo que hay que retomar hoy, luego lo que quedó sin resultado, luego lo más urgente; lo que descansa al final.
-      prioridad: (estado === "activo" ? (reaparece ? 0 : sinResultado ? 1 : 2) : 3) * 10 + ORDEN_MOTIVOS.indexOf(principal),
-    }
-    todas.push({ ...base, motivos: evaluados })
-    if (!acepta) sinPermiso++
-    else if (activos.length > 0) filas.push({ ...base, motivos: activos })
+      // Orden de trabajo: primero lo que hay que retomar hoy, luego lo que quedó sin resultado, luego lo más urgente.
+      prioridad: (reaparece ? 0 : sinResultado ? 1 : 2) * 10 + ORDEN_MOTIVOS.indexOf(activos[0].id),
+    })
   }
-  const orden = (a, b) => a.prioridad - b.prioridad || (b.motivos[0].dias ?? 0) - (a.motivos[0].dias ?? 0) || a.paciente.nombre.localeCompare(b.paciente.nombre)
-  filas.sort(orden)
-  todas.sort(orden)
-  return { filas, todas, sinPermiso }
+  filas.sort((a, b) => a.prioridad - b.prioridad || (b.motivos[0].dias ?? 0) - (a.motivos[0].dias ?? 0) || a.paciente.nombre.localeCompare(b.paciente.nombre))
+  return { filas, sinPermiso }
 }
 
 // Cuántos pacientes hay por motivo (un paciente con dos motivos cuenta en los dos) y en total (cada paciente una sola vez).
@@ -236,8 +229,8 @@ export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = []
 export const GRUPOS_CAMPANA = {
   control_vencido: { id: "control_vencido", etiqueta: "Control vencido", motivo: "control_vencido", consentimiento: "salud", ayuda: "Pacientes con el control vencido (los mismos del Inicio y de Reportes)." },
   sin_visitar: { id: "sin_visitar", etiqueta: "Sin visitar hace más de 12 meses", motivo: "sin_visitar", consentimiento: "salud", ayuda: "Para recuperar a los que dejaron de venir." },
-  cumpleanos_mes: { id: "cumpleanos_mes", etiqueta: "Cumpleaños del mes", motivo: "cumpleanos", consentimiento: "salud", ayuda: "Quienes cumplen años en este mes." },
-  promociones: { id: "promociones", etiqueta: "Quienes aceptan promociones", motivo: MOTIVO_PROMOCION, consentimiento: "promocion", ayuda: "Solo pacientes que aceptaron recibir promociones." },
+  cumpleanos_mes: { id: "cumpleanos_mes", etiqueta: "Cumpleaños del mes", motivo: "cumpleanos", consentimiento: "promocion", ayuda: "Quienes cumplen años en este mes y aceptaron promociones y saludos." },
+  promociones: { id: "promociones", etiqueta: "Quienes aceptan promociones y saludos", motivo: MOTIVO_PROMOCION, consentimiento: "promocion", ayuda: "Solo pacientes que aceptaron recibir promociones y saludos." },
 }
 export const ORDEN_GRUPOS = ["control_vencido", "sin_visitar", "cumpleanos_mes", "promociones"]
 

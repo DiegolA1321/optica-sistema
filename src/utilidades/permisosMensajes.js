@@ -6,8 +6,8 @@ const TEXTO_RED = "No se pudo guardar. Revisa tu conexión e intenta de nuevo."
 const textoDeError = (e) => (e?.message && !/fetch|network|JWT|permission denied|violates|relation/i.test(e.message) ? e.message : TEXTO_RED)
 
 export const ETIQUETA_PERMISO = {
-  recordatorios: { titulo: "Recordatorios de salud", ayuda: "Avisos de su control, de sus citas y de sus lentes." },
-  promociones: { titulo: "Promociones", ayuda: "Ofertas y novedades de la óptica. Solo si el paciente lo acepta." },
+  recordatorios: { titulo: "Recordatorios de salud", ayuda: "Avisos de su control y de sus citas, y cómo le fue con sus lentes." },
+  promociones: { titulo: "Promociones y saludos", ayuda: "Ofertas, novedades y saludos de la óptica, como el de cumpleaños." },
 }
 
 // Personal: cambia uno o los dos permisos de un paciente (null = no tocar). origen: "personal" (el perfil) o "crm".

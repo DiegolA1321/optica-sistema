@@ -22,16 +22,13 @@ const sinTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, ""
 
 // Pestaña "Para contactar": la lista de trabajo. Una fila por paciente con su motivo; dos acciones por fila (Contactar y Registrar resultado).
 // Lo que se calcula (quién entra, quién descansa) viene hecho de crmContactos.listaParaContactar: aquí solo se muestra y se actúa.
-export default function PestanaParaContactar({ filas: filasHoy, todas, sinPermiso, incluirTodos, onIncluirTodos, filtro, onFiltro, puedeContactar, puedeCampana, onContactar, onResultado, onVerPerfil, onIrACampanas }) {
+export default function PestanaParaContactar({ filas, sinPermiso, filtro, onFiltro, puedeContactar, puedeCampana, onContactar, onResultado, onVerPerfil, onIrACampanas }) {
   const [texto, setTexto] = useState("")
   const [visibles, setVisibles] = useState(POR_PAGINA)
   const hoy = hoyISO()
   const buscando = texto.trim() !== ""
 
-  // Lo de hoy, o todos los que tienen un motivo (como los cuentan el Inicio, Pacientes y Reportes): el mismo cálculo, dos vistas.
-  const filas = incluirTodos ? todas : filasHoy
   const conteo = useMemo(() => contarPorMotivo(filas), [filas])
-  const fuera = todas.length - filasHoy.length
   const lista = useMemo(() => {
     const porMotivo = filtrarPorMotivo(filas, filtro)
     const q = sinTildes(texto.trim())
@@ -52,12 +49,6 @@ export default function PestanaParaContactar({ filas: filasHoy, todas, sinPermis
             {MOTIVOS[id].corta} <span className="tabular-nums opacity-80">({conteo.por[id]})</span>
           </button>
         ))}
-        {(fuera > 0 || incluirTodos) && (
-          <button type="button" onClick={() => { onIncluirTodos(!incluirTodos); setVisibles(POR_PAGINA) }} aria-pressed={incluirTodos} title="Suma a la lista a quienes ya se contactó hace poco o no desean recibir mensajes: así los números son los mismos del Inicio, Pacientes y Reportes"
-            className={"ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (incluirTodos ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}>
-            {incluirTodos ? "Mostrando también a quienes no hay que contactar hoy" : `Incluir a quienes no hay que contactar hoy (${fuera})`}
-          </button>
-        )}
       </div>
 
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3 px-1">
@@ -116,11 +107,9 @@ export default function PestanaParaContactar({ filas: filasHoy, todas, sinPermis
                         </div>
                       </>
                     ) : <p className="text-slate-500">Sin contactar</p>}
-                    {f.estado === "descansa" && <p className="text-xs font-semibold text-slate-500">{f.descansaHasta ? `Vuelve a aparecer el ${formatoFecha(f.descansaHasta, "medioSinAnio")}` : "Descansa"}</p>}
-                    {f.estado === "sin_permiso" && <p className="text-xs font-semibold text-red-700">No desea recibir mensajes</p>}
                   </div>
                   <div className="flex flex-wrap items-center justify-start gap-2 lg:flex-nowrap lg:justify-end">
-                    {puedeContactar && f.estado !== "sin_permiso" && (
+                    {puedeContactar && (
                       <>
                         <button type="button" onClick={() => onContactar(f, motivoActivo)} disabled={!f.telefono} title={f.telefono ? "Abre WhatsApp con el mensaje ya escrito" : "Sin número registrado"}
                           className={(pendiente ? CLASE_ACCION_SECUNDARIA : CLASE_ACCION_PRINCIPAL).replace("px-3.5", "px-3")} style={pendiente ? undefined : { background: GRAD_MARCA }} aria-label={`Contactar a ${f.paciente.nombre}`}>
@@ -140,7 +129,7 @@ export default function PestanaParaContactar({ filas: filasHoy, todas, sinPermis
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500">
             <span>
               El mensaje sale de las plantillas (Campañas → Plantillas). Cuando se le escribe, el contacto queda en Seguimiento.
-              {!incluirTodos && sinPermiso > 0 && <> No aparecen {plural(sinPermiso, "paciente", "pacientes")} que no desean recibir mensajes.</>}
+              {sinPermiso > 0 && <> {plural(sinPermiso, "paciente tiene", "pacientes tienen")} un motivo que no se muestra porque no aceptó ese tipo de mensaje.</>}
             </span>
             {visibles < n && <button type="button" onClick={() => setVisibles((x) => x + POR_PAGINA)} className="text-sm font-semibold text-blue-700 hover:text-blue-800 cursor-pointer">Ver {Math.min(POR_PAGINA, n - visibles)} más · quedan {n - visibles}</button>}
           </div>

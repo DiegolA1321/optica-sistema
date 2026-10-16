@@ -46,7 +46,7 @@ export default function PermisosMensajes({ recordatorios, promociones, actualiza
       <p className="text-xs text-slate-500">
         {actualizadoEn
           ? `Último cambio${actualizadoPor ? ` de ${actualizadoPor}` : ""}: ${fechaHoraLegible(actualizadoEn, { anio: true })}.`
-          : `${quien === "yo" ? "Aún no has cambiado tus permisos" : "Aún no se han cambiado sus permisos"}: los recordatorios de salud están activos y las promociones, no.`}
+          : `${quien === "yo" ? "Aún no has cambiado tus permisos" : "Aún no se han cambiado sus permisos"}: los recordatorios de salud están activos y las promociones y saludos, no.`}
       </p>
       {error && <p role="alert" className="text-xs font-semibold text-red-600">{error}</p>}
     </div>

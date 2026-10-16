@@ -66,6 +66,8 @@ import { PARAMS_DE_SECCION, escribirParam, leerParam } from "../utilidades/urlEs
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { contarAvisosVentas } from "../utilidades/ventasModulo"
+import { useCrmDatos } from "../utilidades/crmDatos"
+import { listaParaContactar } from "../utilidades/crmContactos"
 
 // Modo anteproyecto: "el equipo de Diego Óptica" revela un proveedor
 // atendiendo a varios clientes — con MODO_SAAS_VISIBLE apagado se muestra un
@@ -128,6 +130,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // El contador del menú es de quien vende (ventas: crear), no de quien solo puede mirar Ventas: aparece sobre "Ventas".
   const vendeAqui = puede(usuario, "ventas", "crear")
   const avisosVentas = vendeAqui ? avisosDeVentas : 0
+  // Los contactos del CRM se cargan aquí para que el CRM y el Inicio cuenten con la MISMA lista "Para contactar" (mismos pacientes, mismo número).
+  const crm = useCrmDatos({
+    usuario, habilitado: puede(usuario, "crm", "ver"),
+    alCambiarPermisos: (id, cambios) => setPacientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...cambios } : p))),
+  })
+  const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, citas])
   const textoAvisosVentas = `${avisosVentas} ${avisosVentas === 1 ? "aviso" : "avisos"} en Ventas`
   // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
   // menú de usuario con qué vista trabajar. La vista enfoca el menú y el Inicio; la base sigue aplicando
@@ -637,10 +645,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return (
           <CRM
-            usuario={usuario} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ordenesLab={ordenesLab}
+            usuario={usuario} crm={crm} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ordenesLab={ordenesLab}
             parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onAviso={mostrarAviso}
             onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined}
-            onPacienteActualizado={(id, cambios) => setPacientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...cambios } : p)))}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
             accionInicial={accionCrmInicio} onAccionInicialConsumida={() => setAccionCrmInicio(null)}
           />
@@ -685,6 +692,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             }}
             setVista={navegar}
             onVerCrm={(params) => { setAccionCrmInicio({ tab: "contactar", ...params }); navegar("crm") }}
+            paraContactar={paraContactar}
             usuario={usuario}
             opticaActiva={opticaActiva}
             cargaInicial={cargaInicialStaff}

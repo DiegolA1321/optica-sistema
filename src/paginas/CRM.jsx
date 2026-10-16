@@ -16,7 +16,7 @@ import { VentanaCampana, VentanaNuevaCampana, VentanaPlantillas } from "../compo
 import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
-import { useCrmDatos, motivoDeCampana } from "../utilidades/crmDatos"
+import { motivoDeCampana } from "../utilidades/crmDatos"
 import { armarMensaje, avisosDelCrm, contarPorMotivo, listaParaContactar, plantillaDe, rankingPuntaje, MOTIVOS } from "../utilidades/crmContactos"
 import { abrirWhatsApp } from "../utilidades/whatsapp"
 import { fechaLegible } from "../utilidades/formatoFecha"
@@ -29,33 +29,30 @@ const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 // CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
 // Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (los rankings). El análisis va en Reportes.
 export default function CRM({
-  usuario, pacientes = [], consultas = [], citas = [], ordenesLab = [], parametrizacion, setParametrizacion, cargaInicial = false,
-  onVerPerfil, onRegistrarPaciente, onAviso, onPacienteActualizado, accionInicial, onAccionInicialConsumida,
+  usuario, crm, pacientes = [], consultas = [], citas = [], ordenesLab = [], parametrizacion, setParametrizacion, cargaInicial = false,
+  onVerPerfil, onRegistrarPaciente, onAviso, accionInicial, onAccionInicialConsumida,
 }) {
   const puedeContactar = puede(usuario, "crm", "crear")
   const puedeEditar = puede(usuario, "crm", "editar")
   const [tab, setTab] = useParamUrl("tab", "contactar", TABS)
   const [filtro, setFiltro] = useState("todos")
-  const [incluirTodos, setIncluirTodos] = useState(false)
   const [resultadoDe, setResultadoDe] = useState(null) // { paciente, motivo, contacto }
   const [ventana, setVentana] = useState(null) // "nueva" | "plantillas" | { campanaId }
   const notificar = useCallback((msg) => onAviso?.(msg), [onAviso])
-  const crm = useCrmDatos({ usuario, alCambiarPermisos: onPacienteActualizado })
   const { contactos, campanas, plantillas } = crm
   const opticaNombre = usuario?.opticaNombre || "tu óptica"
   const hoy = hoyISO()
 
-  // Lo que pidió otro módulo (el Inicio): la pestaña y el motivo, con todos incluidos para que el número sea el mismo que leyó.
+  // Lo que pidió otro módulo (el Inicio): la pestaña y el motivo (el Inicio cuenta con la misma lista, así que el número es el mismo).
   useEffect(() => {
     if (!accionInicial) return
     if (accionInicial.tab && TABS.includes(accionInicial.tab)) setTab(accionInicial.tab)
     setFiltro(accionInicial.filtro || "todos")
-    setIncluirTodos(Boolean(accionInicial.todos))
     onAccionInicialConsumida?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accionInicial])
 
-  const { filas, todas, sinPermiso } = useMemo(() => listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos, hoy }), [pacientes, consultas, ordenesLab, citas, contactos, hoy])
+  const { filas, sinPermiso } = useMemo(() => listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos, hoy }), [pacientes, consultas, ordenesLab, citas, contactos, hoy])
   const avisos = useMemo(() => avisosDelCrm(filas, contactos, hoy), [filas, contactos, hoy])
   const pacienteDe = useMemo(() => new Map(pacientes.map((p) => [p.id, p])), [pacientes])
 
@@ -181,7 +178,7 @@ export default function CRM({
           <div id="crm-panel" role="tabpanel" aria-labelledby={`crm-tab-${tab}`}>
             {tab === "contactar" && (
               <PestanaParaContactar
-                filas={filas} todas={todas} sinPermiso={sinPermiso} incluirTodos={incluirTodos} onIncluirTodos={setIncluirTodos} filtro={filtro} onFiltro={setFiltro}
+                filas={filas} sinPermiso={sinPermiso} filtro={filtro} onFiltro={setFiltro}
                 puedeContactar={puedeContactar} puedeCampana={puedeContactar} onContactar={contactar} onResultado={abrirResultado} onVerPerfil={onVerPerfil} onIrACampanas={() => setTab("campanas")}
               />
             )}

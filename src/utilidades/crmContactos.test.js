@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   motivosDe, listaParaContactar, contarPorMotivo, filtrarPorMotivo, avisosDelCrm, estadoDelMotivo, resultadoEfectivo, citaPosterior,
-  aceptaRecordatorios, aceptaPromociones, puedeContactarPor, armarMensaje, plantillaDe, PLANTILLAS_BASE,
+  aceptaRecordatorios, aceptaPromociones, puedeContactarPor, permisoDeMotivo, armarMensaje, plantillaDe, PLANTILLAS_BASE,
   destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION,
 } from "./crmContactos"
 import { diasCumpleEnVentana, esInactivo } from "./fidelizacion"
@@ -76,8 +76,8 @@ describe("la lista Para contactar", () => {
   const pacientes = [
     paciente("venc", { fechaRegistro: dia(-200) }),
     paciente("prox", { fechaRegistro: dia(-160) }),
-    paciente("cumple", { fechaNacimiento: nacer(0) }),
-    paciente("dos", { fechaRegistro: dia(-200), fechaNacimiento: nacer(2) }),
+    paciente("cumple", { fechaNacimiento: nacer(0), aceptaPromociones: true }),
+    paciente("dos", { fechaRegistro: dia(-200), fechaNacimiento: nacer(2), aceptaPromociones: true }),
     paciente("alDia"),
   ]
   const lista = (extra = {}) => listaParaContactar({ pacientes, hoy, ...extra })
@@ -178,7 +178,7 @@ describe("qué pasa después de contactar", () => {
 
 describe("requieren atención", () => {
   it("cumpleaños de hoy, los que toca retomar hoy y los contactos sin resultado de días anteriores", () => {
-    const pacientes = [paciente("cumple", { fechaNacimiento: nacer(0) }), paciente("vuelve", { fechaRegistro: dia(-200) }), paciente("viejo", { fechaRegistro: dia(-200) })]
+    const pacientes = [paciente("cumple", { fechaNacimiento: nacer(0), aceptaPromociones: true }), paciente("vuelve", { fechaRegistro: dia(-200) }), paciente("viejo", { fechaRegistro: dia(-200) })]
     const contactos = [
       contacto("vuelve", "control_vencido", { resultado: "volver_a_contactar", volverEl: dia(0), creadoEn: marca(-3) }),
       contacto("viejo", "control_vencido", { creadoEn: marca(-2) }),
@@ -207,8 +207,10 @@ describe("consentimiento", () => {
     const soloSalud = { aceptaRecordatorios: true, aceptaPromociones: false }
     const soloPromo = { aceptaRecordatorios: false, aceptaPromociones: true }
     expect(puedeContactarPor(soloSalud, "control_vencido")).toBe(true)
+    expect(puedeContactarPor(soloSalud, "cumpleanos")).toBe(false)
     expect(puedeContactarPor(soloSalud, MOTIVO_PROMOCION)).toBe(false)
     expect(puedeContactarPor(soloPromo, "control_vencido")).toBe(false)
+    expect(puedeContactarPor(soloPromo, "cumpleanos")).toBe(true)
     expect(puedeContactarPor(soloPromo, MOTIVO_PROMOCION)).toBe(true)
   })
   it("la campaña de promociones solo trae a quien aceptó, y dice cuántos quedaron fuera", () => {
@@ -227,7 +229,7 @@ describe("consentimiento", () => {
 
 describe("campañas: los grupos", () => {
   it("sin visitar y cumpleaños del mes", () => {
-    const pacientes = [paciente("a", { fechaRegistro: dia(-400) }), paciente("b", { fechaRegistro: dia(-300) }), paciente("c", { fechaNacimiento: `1980-${hoy.slice(5, 7)}-15` }), paciente("d", { fechaNacimiento: "1980-01-15" })]
+    const pacientes = [paciente("a", { fechaRegistro: dia(-400) }), paciente("b", { fechaRegistro: dia(-300) }), paciente("c", { fechaNacimiento: `1980-${hoy.slice(5, 7)}-15`, aceptaPromociones: true }), paciente("d", { fechaNacimiento: "1980-01-15" })]
     expect(destinatariosCampana("sin_visitar", { pacientes, hoy }).pacientes.map((p) => p.id)).toEqual(["a"])
     const mes = destinatariosCampana("cumpleanos_mes", { pacientes, hoy }).pacientes.map((p) => p.id)
     expect(mes).toContain("c")
@@ -286,41 +288,43 @@ describe("seguimiento y fidelización", () => {
   })
 })
 
-describe("la lista completa cuenta lo mismo que el Inicio, Pacientes y Reportes", () => {
+describe("cada motivo pide su permiso", () => {
   const pacientes = [
-    paciente("a", { fechaRegistro: dia(-200) }),
-    paciente("b", { fechaRegistro: dia(-200) }),
-    paciente("c", { fechaRegistro: dia(-200), aceptaRecordatorios: false }),
-    paciente("d", { fechaRegistro: dia(-200), fechaNacimiento: nacer(1) }),
-    paciente("e", { fechaRegistro: dia(-20) }),
+    paciente("a", { fechaRegistro: dia(-200), fechaNacimiento: nacer(1) }), // control vencido + cumpleaños, con los permisos de siempre
+    paciente("b", { fechaRegistro: dia(-200), fechaNacimiento: nacer(1), aceptaPromociones: true }),
+    paciente("c", { fechaRegistro: dia(-200), fechaNacimiento: nacer(1), aceptaPromociones: true, aceptaRecordatorios: false }),
   ]
-  const contactos = [contacto("a", "control_vencido", { resultado: "no_respondio", creadoEn: marca(-1) })] // a descansa
-  const r = listaParaContactar({ pacientes, contactos, hoy })
+  const r = listaParaContactar({ pacientes, hoy })
+  const motivosDeFila = (id) => (r.filas.find((f) => f.id === id)?.motivos || []).map((m) => m.id)
 
-  it("con todos incluidos, control vencido da el mismo número que esInactivo, aunque algunos descansen o no acepten mensajes", () => {
-    const esperado = pacientes.filter((p) => esInactivo(p, [])).length
-    expect(contarPorMotivo(r.todas).por.control_vencido).toBe(esperado)
-    expect(esperado).toBe(4)
+  it("el cumpleaños es de 'Promociones y saludos' y el control, de 'Recordatorios de salud'", () => {
+    expect(permisoDeMotivo("cumpleanos")).toBe("promociones")
+    expect(permisoDeMotivo("promocion")).toBe("promociones")
+    for (const m of ["control_vencido", "control_proximo", "sin_visitar", "postventa"]) expect(permisoDeMotivo(m)).toBe("recordatorios")
   })
-  it("lo de hoy deja fuera al que descansa y al que no acepta mensajes", () => {
-    expect(idsDe(r.filas)).toEqual(["b", "d"])
-    expect(contarPorMotivo(r.filas).por.control_vencido).toBe(2)
+  it("sin promociones y saludos no se le ofrece el cumpleaños, pero sí su control", () => {
+    expect(motivosDeFila("a")).toEqual(["control_vencido"])
   })
-  it("cada fila dice por qué no está en lo de hoy, y cuándo vuelve", () => {
-    const por = Object.fromEntries(r.todas.map((f) => [f.id, f]))
-    expect(por.a.estado).toBe("descansa")
-    expect(por.a.descansaHasta).toBe(dia(2)) // contactado ayer + 3 días
-    expect(por.a.motivos[0].descansa).toBe(true)
-    expect(por.b.estado).toBe("activo")
-    expect(por.c.estado).toBe("sin_permiso")
+  it("con los dos permisos aparecen los dos motivos", () => {
+    expect(motivosDeFila("b")).toEqual(["control_vencido", "cumpleanos"])
   })
-  it("los que descansan van al final de la lista completa", () => {
-    expect(r.todas.map((f) => f.estado).join(",").replace(/(activo,?)+/, "A,")).toMatch(/^A,(descansa|sin_permiso)/)
+  it("sin recordatorios de salud queda solo el saludo", () => {
+    expect(motivosDeFila("c")).toEqual(["cumpleanos"])
   })
-  it("un paciente cuyo control vencido descansa pero cumple años mañana sigue en lo de hoy por el cumpleaños", () => {
-    const rr = listaParaContactar({ pacientes: [pacientes[3]], contactos: [contacto("d", "control_vencido", { resultado: "agendo", creadoEn: marca(0) })], hoy })
-    expect(rr.filas).toHaveLength(1)
+  it("dice cuántos pacientes tienen algún motivo que no se les puede ofrecer", () => {
+    expect(r.sinPermiso).toBe(2) // a (sin saludos) y c (sin recordatorios)
+  })
+  it("quien apagó los dos permisos no aparece", () => {
+    const r2 = listaParaContactar({ pacientes: [paciente("d", { fechaRegistro: dia(-200), fechaNacimiento: nacer(0), aceptaRecordatorios: false, aceptaPromociones: false })], hoy })
+    expect(r2.filas).toEqual([])
+    expect(r2.sinPermiso).toBe(1)
+  })
+  it("el control vencido de la lista es el de esInactivo salvo quien no aceptó recordatorios o ya se contactó", () => {
+    const esperado = pacientes.filter((p) => esInactivo(p, []) && p.aceptaRecordatorios !== false).length
+    expect(contarPorMotivo(r.filas).por.control_vencido).toBe(esperado)
+  })
+  it("un control vencido que descansa por un contacto no está, pero el cumpleaños sí", () => {
+    const rr = listaParaContactar({ pacientes: [pacientes[1]], contactos: [contacto("b", "control_vencido", { resultado: "agendo", creadoEn: marca(0) })], hoy })
     expect(rr.filas[0].motivos.map((m) => m.id)).toEqual(["cumpleanos"])
-    expect(rr.todas[0].motivos.map((m) => [m.id, m.descansa])).toEqual([["control_vencido", true], ["cumpleanos", false]])
   })
 })

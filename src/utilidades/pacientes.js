@@ -11,7 +11,7 @@ import { esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from 
 // `referidoPor`/`referidoPorId` son opcionales: Citas.jsx no pide ese dato en
 // sus formularios rápidos, así que quedan null/"" y el registro se guarda
 // igual que antes de unificar (la columna no se tocaba en absoluto).
-export async function crearRegistroPaciente(supabase, opticaId, { nombre, cedula, telefono, correo, fechaNacimiento, referidoPor = "", referidoPorId = null }) {
+export async function crearRegistroPaciente(supabase, opticaId, { nombre, cedula, telefono, correo, fechaNacimiento, referidoPor = "", referidoPorId = null, aceptaRecordatorios = true, aceptaPromociones = false }) {
   const nuevoPaciente = {
     nombre,
     cedula,
@@ -27,6 +27,8 @@ export async function crearRegistroPaciente(supabase, opticaId, { nombre, cedula
     // SIGUIENTE. hoyISO() arma la fecha con los componentes locales del Date.
     fechaRegistro: hoyISO(),
     estadoClinico: "Activo",
+    // Los permisos con los que nace (Recordatorios de salud sí y Promociones y saludos no, salvo que quien lo registra elija otra cosa).
+    aceptaRecordatorios, aceptaPromociones,
   }
   if (supabase && opticaId) {
     const { data, error } = await supabase
@@ -44,6 +46,8 @@ export async function crearRegistroPaciente(supabase, opticaId, { nombre, cedula
         ultima_consulta: nuevoPaciente.ultimaConsulta,
         fecha_registro: nuevoPaciente.fechaRegistro,
         estado_clinico: nuevoPaciente.estadoClinico,
+        acepta_recordatorios: aceptaRecordatorios,
+        acepta_promociones: aceptaPromociones,
       })
       .select()
       .single()

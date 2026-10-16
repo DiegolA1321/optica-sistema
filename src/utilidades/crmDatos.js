@@ -25,9 +25,10 @@ const textoDeError = (error) => (error?.message && !/fetch|network|JWT|permissio
 let contadorLocal = 0
 const idLocal = () => `local-${Date.now()}-${++contadorLocal}`
 
-export function useCrmDatos({ usuario, alCambiarPermisos }) {
+// habilitado: quien no puede ver el CRM no trae nada (la base tampoco le devolvería filas).
+export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
   const opticaId = usuario?.opticaId
-  const conBase = Boolean(supabase && opticaId)
+  const conBase = Boolean(supabase && opticaId && habilitado)
   const [datos, setDatos] = useState({ contactos: [], campanas: [], plantillas: {} })
   const [cargando, setCargando] = useState(conBase)
   const [error, setError] = useState("")

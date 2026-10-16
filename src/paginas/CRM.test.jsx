@@ -12,6 +12,7 @@ vi.mock("../lib/supabaseClient", () => ({
 }))
 
 import CRM from "./CRM"
+import { useCrmDatos } from "../utilidades/crmDatos"
 import { hoyISO } from "../utilidades/disponibilidad"
 import { fechaEnDias } from "../utilidades/crmContactos"
 
@@ -23,7 +24,7 @@ const soloVer = { id: "u2", rol: "asistente", nombre: "Vera", opticaId: "o1", op
 const paciente = (id, nombre, extra = {}) => ({ id, nombre, telefono: "0990000000", fechaRegistro: dia(-10), fechaNacimiento: "1990-02-02", ...extra })
 const pacientes = [
   paciente("p1", "Ana Vencida", { fechaRegistro: dia(-200) }),
-  paciente("p2", "Beto Cumpleañero", { fechaNacimiento: `1985${dia(0).slice(4)}` }),
+  paciente("p2", "Beto Cumpleañero", { fechaNacimiento: `1985${dia(0).slice(4)}`, aceptaPromociones: true }),
   paciente("p3", "Carla Próxima", { fechaRegistro: dia(-160) }),
   paciente("p4", "Dani Al Día"),
   paciente("p5", "Eva Sin Mensajes", { fechaRegistro: dia(-200), aceptaRecordatorios: false }),
@@ -31,7 +32,12 @@ const pacientes = [
 let n = 0
 const aviso = vi.fn()
 const cambioPermisos = vi.fn()
-const montar = (extra = {}) => render(<CRM usuario={admin} pacientes={pacientes} consultas={[]} citas={[]} ordenesLab={[]} onAviso={aviso} onPacienteActualizado={cambioPermisos} {...extra} />)
+// Como en Dashboard: los datos del CRM se cargan arriba y se le pasan al módulo.
+function Montaje(props) {
+  const crm = useCrmDatos({ usuario: props.usuario, alCambiarPermisos: props.onPacienteActualizado })
+  return <CRM {...props} crm={crm} />
+}
+const montar = (extra = {}) => render(<Montaje usuario={admin} pacientes={pacientes} consultas={[]} citas={[]} ordenesLab={[]} onAviso={aviso} onPacienteActualizado={cambioPermisos} {...extra} />)
 const tab = (nombre) => screen.getByRole("tab", { name: new RegExp(nombre) })
 const fila = (nombre) => screen.getByText(nombre).closest("li")
 
@@ -68,16 +74,19 @@ describe("CRM: Para contactar", () => {
     expect(screen.getByText("1 paciente · control que vence pronto")).toBeInTheDocument()
   })
 
-  it("quien no desea mensajes no aparece, y 'incluir' los suma para que el número sea el del Inicio, con el motivo de por qué no se les escribe", async () => {
+  it("quien no aceptó recordatorios no aparece y se dice; ya no hay botón para incluir a los que no se contactan", async () => {
     montar()
     await screen.findByText("Ana Vencida")
     expect(screen.queryByText("Eva Sin Mensajes")).not.toBeInTheDocument()
-    expect(screen.getByText(/No aparecen 1 paciente que no desean recibir mensajes/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: /Incluir a quienes no hay que contactar hoy \(1\)/ }))
-    const eva = fila("Eva Sin Mensajes")
-    expect(within(eva).getByText("No desea recibir mensajes")).toBeInTheDocument()
-    expect(within(eva).queryByRole("button", { name: /Contactar/ })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Control vencido \(2\)/ })).toBeInTheDocument() // Ana y Eva: los mismos 2 que cuenta el Inicio
+    expect(screen.getByText(/1 paciente tiene un motivo que no se muestra porque no aceptó ese tipo de mensaje/)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Incluir a quienes/ })).not.toBeInTheDocument()
+  })
+
+  it("Beto cumple años pero no aceptó 'Promociones y saludos': su cumpleaños no se ofrece", async () => {
+    montar({ pacientes: pacientes.map((p) => (p.id === "p2" ? { ...p, aceptaPromociones: false } : p)) })
+    await screen.findByText("Ana Vencida")
+    expect(screen.queryByText("Beto Cumpleañero")).not.toBeInTheDocument()
+    expect(tab("Para contactar")).toHaveTextContent("2")
   })
 
   it("Contactar abre WhatsApp con el mensaje del motivo ya escrito y anota el contacto, que queda en Seguimiento", async () => {
@@ -118,9 +127,6 @@ describe("CRM: Para contactar", () => {
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("registrar_contacto_crm", expect.objectContaining({ p_paciente_id: "p1", p_resultado: "volver_a_contactar", p_volver_el: dia(3) })))
     await waitFor(() => expect(screen.queryByText("Ana Vencida")).not.toBeInTheDocument())
     expect(aviso).toHaveBeenCalledWith(expect.stringMatching(/Ana Vencida reaparecerá en la lista el/))
-    // incluyéndola se ve cuándo vuelve
-    fireEvent.click(screen.getByRole("button", { name: /Incluir a quienes no hay que contactar hoy/ }))
-    expect(within(fila("Ana Vencida")).getByText(/Vuelve a aparecer el/)).toBeInTheDocument()
   })
 
   it("un contacto que pidió volver hoy reaparece solo, primero en la lista", async () => {
@@ -249,8 +255,8 @@ describe("CRM: Campañas", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Nueva campaña/ }))
     const v = await screen.findByRole("dialog", { name: "Nueva campaña" })
     expect(within(v).getByLabelText(/Control vencido \(1\)/)).toBeChecked()
-    expect(within(v).getByLabelText(/Quienes aceptan promociones \(0\)/)).toBeInTheDocument()
-    expect(within(v).getByText(/1 paciente no se incluye: no desea recibir mensajes/)).toBeInTheDocument() // Eva
+    expect(within(v).getByLabelText(/Quienes aceptan promociones y saludos \(1\)/)).toBeInTheDocument()
+    expect(within(v).getByText(/1 paciente no se incluye: no aceptó recordatorios de salud/)).toBeInTheDocument() // Eva
     expect(within(v).getByLabelText("Mensaje").value).toContain("{nombre}")
     fireEvent.click(within(v).getByRole("button", { name: "Crear campaña" }))
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("crear_campana_crm", expect.objectContaining({ p_grupo: "control_vencido" })))
@@ -265,7 +271,7 @@ describe("CRM: Campañas", () => {
     montar({ pacientes: [paciente("p1", "Ana Acepta", { aceptaPromociones: true }), paciente("p2", "Beto No")] })
     fireEvent.click(await screen.findByRole("button", { name: /Nueva campaña/ }))
     const v = await screen.findByRole("dialog", { name: "Nueva campaña" })
-    fireEvent.click(within(v).getByLabelText(/Quienes aceptan promociones \(1\)/))
+    fireEvent.click(within(v).getByLabelText(/Quienes aceptan promociones y saludos \(1\)/))
     expect(within(v).getByText(/Así lo recibirá Ana Acepta/)).toBeInTheDocument()
   })
   it("sin campañas lo dice y ofrece crear la primera", async () => {

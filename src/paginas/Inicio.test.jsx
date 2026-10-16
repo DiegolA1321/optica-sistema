@@ -2,6 +2,7 @@ import React from "react"
 import { describe, it, expect } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import Inicio from "./Inicio"
+import { listaParaContactar, fechaEnDias } from "../utilidades/crmContactos"
 import { hoyISO } from "../utilidades/disponibilidad"
 
 const hoy = hoyISO()
@@ -83,13 +84,34 @@ describe("Inicio del administrador", () => {
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
   })
 
+  const hace200 = fechaEnDias(-200) // control vencido, pero con visita dentro del último año
+  it("el aviso de control vencido cuenta exactamente lo mismo que 'Para contactar' del CRM: sin los que ya se contactaron ni los que no aceptaron recordatorios", () => {
+    const pacientes = [
+      { id: "a", nombre: "Ana Vencida", fechaRegistro: hace200 },
+      { id: "b", nombre: "Beto Contactado", fechaRegistro: hace200 },
+      { id: "c", nombre: "Carla Sin Permiso", fechaRegistro: hace200, aceptaRecordatorios: false },
+    ]
+    const contactos = [{ id: "k", pacienteId: "b", motivo: "control_vencido", resultado: "no_respondio", creadoEn: new Date().toISOString() }]
+    const lista = listaParaContactar({ pacientes, consultas: [], ordenes: [], citas: [], contactos })
+    expect(lista.filas.map((f) => f.id)).toEqual(["a"])
+    render(<Inicio {...base} pacientes={pacientes} consultas={[]} citas={[]} pases={[]} paraContactar={lista} />)
+    expect(area("Pacientes")).toHaveTextContent("1 paciente con el control vencido · Ana Vencida")
+    expect(area("Pacientes")).not.toHaveTextContent("Beto Contactado")
+    expect(area("Pacientes")).not.toHaveTextContent("Carla Sin Permiso")
+  })
+
+  it("mientras el CRM carga no se avisa de controles ni de cumpleaños (no se cuenta algo que luego bajaría)", () => {
+    render(<Inicio {...base} pacientes={[{ id: "a", nombre: "Ana Vencida", fechaRegistro: hace200 }]} consultas={[]} citas={[]} pases={[]} paraContactar={null} />)
+    expect(screen.queryByText(/con el control vencido/)).not.toBeInTheDocument()
+  })
+
   it("cada tarjeta muestra como máximo tres avisos y dice cuántos elementos más hay; su número es la suma de todos sus avisos", () => {
     const mmdd = hoy.slice(5)
     const pacientes = [
       { id: "p1", nombre: "Control Vencido", fechaRegistro: hoy },
       { id: "p2", nombre: "Sin Consulta Dos", fechaRegistro: hoy },
       { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
-      { id: "p4", nombre: "Cumple Hoy", fechaRegistro: hoy, fechaNacimiento: "1990-" + mmdd },
+      { id: "p4", nombre: "Cumple Hoy", fechaRegistro: hoy, fechaNacimiento: "1990-" + mmdd, aceptaPromociones: true },
     ]
     const consultas = [{ id: "k1", pacienteId: "p1", paciente: "Control Vencido", fecha: "2020-01-01", motivo: "Control", proximoControlDias: 30 }]
     render(<Inicio {...base} pacientes={pacientes} consultas={consultas} citas={[]} pases={[]} />)

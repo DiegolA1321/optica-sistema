@@ -25,7 +25,7 @@ import {
   CalendarOff,
 } from "lucide-react"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import { diasDesdeUltimaVisita, diasCumpleEnVentana, esInactivo } from "../utilidades/fidelizacion"
+import { listaParaContactar } from "../utilidades/crmContactos"
 import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
 import { fechaAISO, hoyISO, esHoy } from "../utilidades/disponibilidad"
 import { citasPorReasignar } from "../utilidades/reasignacion"
@@ -60,7 +60,8 @@ export default function Inicio({
   setPacientes,
   umbralStock = UMBRAL_STOCK_BAJO,
   setVista,
-  onVerCrm, // abre el CRM con un motivo: { filtro, todos }
+  onVerCrm, // abre el CRM con un motivo: { filtro }
+  paraContactar, // la lista "Para contactar" del CRM ({ filas }), o null mientras carga; sin ella (pruebas) se calcula sin contactos
   setCitas,
   onAviso,
   onAtenderCita,
@@ -98,7 +99,6 @@ export default function Inicio({
   puedeReasignarCitas = false,
   soloAvisosDe = null, // "citas" | "pacientes" | "ventas" | "inventario": en vez del Inicio, solo el botón "Requieren atención" de ese módulo
 }) {
-  const [cumpleaneros, setCumpleaneros] = useState([])
   // En una vista de rol manda el permiso de ese rol (igual que el menú); si no, el del usuario.
   const puedeV = (modulo, nivel = "ver") => (vista?.tipo === "rol" ? puedeNivel(vista.permisos, modulo, nivel) : puede(usuario, modulo, nivel))
   // Período del "Desenlace de las citas" y de la lista de abajo: hoy, esta semana, este mes o todas.
@@ -135,51 +135,17 @@ export default function Inicio({
       .then(({ data }) => setActividadReciente(data || []))
   }, [esAdmin, usuario?.opticaId])
 
-  // Ventana de cumpleaños: -5 a +7 días, igual que CRM.jsx y el centro de
-  // notificaciones de Dashboard.jsx (antes esta lista solo miraba 5 días
-  // hacia atrás, así que un cumpleaños de HOY dejaba de listarse aquí en
-  // cuanto pasaba la medianoche del día siguiente).
-  useEffect(() => {
-    const obtenerCumpleaneros = () => {
-      const hoy = ahoraEcuador()
-      hoy.setHours(0, 0, 0, 0)
-
-      return pacientes
-        .map((paciente) => {
-          const fn = paciente.fecha_nacimiento || paciente.fechaNacimiento
-          if (!fn) return null
-          // La misma ventana que usa el CRM (fidelizacion.js): los dos cuentan los mismos cumpleaños.
-          const dias = diasCumpleEnVentana(fn, hoy)
-          if (dias === null) return null
-
-          const nacimiento = new Date(fn)
-          let edad = "N/A"
-          if (!isNaN(nacimiento.getTime())) {
-            let calc = hoy.getFullYear() - nacimiento.getFullYear()
-            const m = hoy.getMonth() - nacimiento.getMonth()
-            if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) calc--
-            edad = calc
-          }
-          return { ...paciente, edad, diasCumple: dias, esHoy: dias === 0 }
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.diasCumple - b.diasCumple)
-    }
-
-    setCumpleaneros(obtenerCumpleaneros())
-  }, [pacientes])
+  // Control vencido y cumpleaños salen de la lista "Para contactar" del CRM: el aviso cuenta EXACTAMENTE lo mismo que esa lista (solo los que hoy
+  // hay que contactar: sin los que ya se contactaron y descansan, ni los que no aceptaron ese tipo de mensaje).
+  const listaCrm = useMemo(() => (paraContactar !== undefined ? paraContactar : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: [] })), [paraContactar, pacientes, consultas, ordenesLab, citas])
+  const cumpleaneros = useMemo(() => (listaCrm?.filas || []).flatMap((f) => { const m = f.motivos.find((x) => x.id === "cumpleanos"); return m ? [{ id: f.id, nombre: f.paciente.nombre, diasCumple: m.dias, esHoy: m.dias === 0 }] : [] }).sort((x, y) => x.diasCumple - y.diasCumple), [listaCrm])
 
   // Controles que el optómetra dejó "para agendar después" (o cuya cita se canceló) y siguen sin cita.
   const sinAgendar = useMemo(() => controlesSinAgendar(pacientes, consultas, citas), [pacientes, consultas, citas])
   const paraReagendar = useMemo(() => citasParaReagendar(citas), [citas])
 
-  // Pacientes que no visitan hace tiempo (adherencia a controles visuales)
-  const inactivos = useMemo(() => {
-    return pacientes
-      .filter((p) => esInactivo(p, consultas))
-      .map((p) => ({ paciente: p, dias: diasDesdeUltimaVisita(p, consultas) }))
-      .sort((a, b) => (b.dias ?? 0) - (a.dias ?? 0))
-  }, [pacientes, consultas])
+  // Pacientes con el control vencido por contactar hoy, el más atrasado primero.
+  const inactivos = useMemo(() => (listaCrm?.filas || []).flatMap((f) => { const m = f.motivos.find((x) => x.id === "control_vencido"); return m ? [{ paciente: f.paciente, dias: m.dias }] : [] }).sort((a, b) => (b.dias ?? 0) - (a.dias ?? 0)), [listaCrm])
 
   // Productos con stock bajo (por debajo de su mínimo), el más crítico primero. Se muestran una sola vez en
   // todo el Inicio, como una fila de "Requiere tu atención", con el reabastecimiento a un clic.
@@ -570,8 +536,8 @@ export default function Inicio({
     const uno = (n, singular, varios) => (n === 1 ? singular : varios)
     const nombreDe = (id, respaldo = "Paciente") => pacientes.find((p) => p.id === id)?.nombre || respaldo
     const enCitas = (estado, periodo, fecha) => () => (onVerCitas ? onVerCitas(estado, periodo, fecha) : setVista?.("citas"))
-    // Al CRM con el motivo y con todos incluidos (los mismos que cuenta este aviso), así el número que se leyó es el que se ve.
-    const abrirCrm = (params) => () => (onVerCrm ? onVerCrm({ ...params, todos: true }) : setVista?.("crm"))
+    // Al CRM con el motivo: la lista de allá es la misma que cuenta este aviso, así que el número que se leyó es el que se ve.
+    const abrirCrm = (params) => () => (onVerCrm ? onVerCrm(params) : setVista?.("crm"))
     const enPacientes = (filtro) => () => (onVerPacientes ? onVerPacientes(filtro) : setVista?.("pacientes"))
     const puedeAgendar = puedeV("citas", "crear")
     const puedeAtenderAqui = puedeV("consultas", "crear")

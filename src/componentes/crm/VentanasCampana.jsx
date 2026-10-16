@@ -78,7 +78,7 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
                   <span className="min-w-0">
                     <span className="block text-sm font-bold" style={{ color: INK }}>{def.etiqueta} <span className="font-semibold text-slate-500">({ps.length})</span></span>
                     <span className="block text-xs text-slate-500">{def.ayuda}</span>
-                    {sinPermiso > 0 && <span className="mt-0.5 block text-xs font-semibold text-amber-700">{plural(sinPermiso, "paciente no se incluye", "pacientes no se incluyen")}: {def.consentimiento === "promocion" ? "no aceptó promociones" : "no desea recibir mensajes"}.</span>}
+                    {sinPermiso > 0 && <span className="mt-0.5 block text-xs font-semibold text-amber-700">{plural(sinPermiso, "paciente no se incluye", "pacientes no se incluyen")}: {def.consentimiento === "promocion" ? "no aceptó promociones y saludos" : "no aceptó recordatorios de salud"}.</span>}
                   </span>
                 </label>
               )
@@ -194,7 +194,7 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
         )}
         <p className="text-xs text-slate-500">
           {plural(pendientes, "paciente pendiente", "pacientes pendientes")}. Cada envío queda en Seguimiento.
-          {sinPermiso > 0 && ` No se incluyen ${plural(sinPermiso, "paciente", "pacientes")} del grupo que ${grupo?.consentimiento === "promocion" ? "no aceptaron promociones" : "no desean recibir mensajes"}.`}
+          {sinPermiso > 0 && ` No se incluyen ${plural(sinPermiso, "paciente", "pacientes")} del grupo que ${grupo?.consentimiento === "promocion" ? "no aceptaron promociones y saludos" : "no aceptaron recordatorios de salud"}.`}
         </p>
       </div>
     </Cascaron>

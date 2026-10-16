@@ -1,24 +1,28 @@
 -- CRM v2 (rama crm-v2): historial de contactos, consentimiento del paciente, campañas y plantillas.
 --
 -- QUÉ HACE
---   1. Consentimiento: cada paciente tiene dos permisos separados, `acepta_recordatorios` (salud: control y citas; sí por defecto) y
---      `acepta_promociones` (no por defecto), con quién y cuándo los cambió. Cada cambio queda en `consentimientos_historial` (inmutable),
+--   1. Consentimiento: cada paciente tiene dos permisos separados, con quién y cuándo los cambió:
+--        · `acepta_recordatorios` = "Recordatorios de salud" (control vencido, control próximo, citas y seguimiento después de la compra; sí por defecto);
+--        · `acepta_promociones` = "Promociones y saludos" (cumpleaños y campañas; no por defecto).
+--      También queda anotado el permiso con el que nace cada paciente (lo elige quien lo registra, o él mismo en la reserva web). Cada cambio queda en `consentimientos_historial` (inmutable),
 --      lo escriba quien lo escriba (el personal desde el perfil o el CRM, o el propio paciente desde su portal): un disparador lo anota.
 --   2. `crm_contactos`: el historial de contactos (qué paciente, por qué motivo, por qué canal, qué mensaje, qué pasó, cuándo volver a
 --      intentar, quién lo hizo). Lo escriben solo las funciones de abajo, que ponen ellas mismas quién y cuándo.
 --   3. `crm_campanas`: un mensaje preparado para un grupo; cada envío por WhatsApp es un contacto con el id de la campaña.
 --   4. `crm_plantillas`: los mensajes editables por motivo (si no hay fila, vale el texto base de la pantalla).
---   5. Los dos correos automáticos de hoy (saludo de cumpleaños y recordatorio de la cita de mañana) dejan de salir para quien no acepta
---      'Recordatorios de salud' (mismas funciones, misma firma, una condición más).
+--   5. Los dos correos automáticos de hoy dejan de salir para quien no dio su permiso (mismas funciones, misma firma, una condición más):
+--      el saludo de cumpleaños pide "Promociones y saludos" y el recordatorio de la cita de mañana, "Recordatorios de salud".
 --   6. Funciones: registrar_contacto_crm, registrar_resultado_contacto_crm, crear_campana_crm, guardar_plantilla_crm,
---      cambiar_consentimiento_paciente (personal) y actualizar_consentimiento_paciente / mis_permisos_mensajes (portal del paciente).
+--      cambiar_consentimiento_paciente (personal), actualizar_consentimiento_paciente / mis_permisos_mensajes (portal del paciente) y
+--      registrar_permisos_cita_publica (los permisos que el paciente elige al reservar por la web).
 --
 -- CÓMO NO ROMPE LO PUBLICADO
 --   · Las columnas nuevas de `pacientes_base` tienen valor por defecto y se agregan al FINAL de la vista `pacientes`; la pantalla publicada
 --     no las conoce y las ignora. Los dos disparadores de la vista (insertar y actualizar) conservan todo lo que hacen hoy: se tomaron en vivo
 --     de la base y solo se les suman las dos columnas, que un cliente que no las envía deja como estaban.
 --   · No cambia la firma de ninguna función existente.
---   · Lo que el servidor impide: escribirle por promociones a quien no las aceptó, o por salud a quien dijo que no quiere mensajes.
+--   · Lo que el servidor impide: escribirle por cumpleaños o promociones a quien no aceptó "Promociones y saludos", o por control a quien no aceptó
+--     "Recordatorios de salud".
 --
 -- Ensayo: scripts/ensayo-0114.mjs (dentro de una transacción que se revierte).
 
@@ -381,7 +385,7 @@ begin
   perform set_config('app.origen_consentimiento', '', true);
   v_texto := concat_ws(' · ',
     case when p_recordatorios is not null and p_recordatorios <> v_p.acepta_recordatorios then 'Recordatorios de salud: ' || case when p_recordatorios then 'sí' else 'no' end end,
-    case when p_promociones is not null and p_promociones <> v_p.acepta_promociones then 'Promociones: ' || case when p_promociones then 'sí' else 'no' end end);
+    case when p_promociones is not null and p_promociones <> v_p.acepta_promociones then 'Promociones y saludos: ' || case when p_promociones then 'sí' else 'no' end end);
   insert into logs_optica (optica_id, usuario_id, usuario_nombre, modulo, accion, detalle)
   values (v_p.optica_id, case when p_origen = 'paciente' then null else auth.uid() end,
           case when p_origen = 'paciente' then v_p.nombre else _nombre_de_quien_llama() end,
@@ -521,10 +525,12 @@ begin
   end if;
   -- El servidor no deja escribirle a quien no dio ese permiso (salvo para anotar que ya no quiere mensajes).
   if p_resultado is distinct from 'no_desea_mensajes' then
-    if v_motivo = 'promocion' and not v_p.acepta_promociones then
-      raise exception 'Este paciente no aceptó recibir promociones.';
-    elsif v_motivo <> 'promocion' and not v_p.acepta_recordatorios then
-      raise exception 'Este paciente no desea recibir mensajes.';
+    -- Cada motivo pide su permiso: el cumpleaños y las promociones, "Promociones y saludos"; el control y el seguimiento de la compra, "Recordatorios de salud".
+    if (case when v_motivo in ('promocion', 'cumpleanos') then not v_p.acepta_promociones else not v_p.acepta_recordatorios end) then
+      raise exception '%', case
+        when not v_p.acepta_recordatorios and not v_p.acepta_promociones then 'Este paciente no desea recibir mensajes.'
+        when v_motivo in ('promocion', 'cumpleanos') then 'Este paciente no aceptó recibir promociones y saludos.'
+        else 'Este paciente no aceptó recibir recordatorios de salud.' end;
     end if;
   end if;
 
@@ -677,7 +683,7 @@ begin
       and extract(day from p.fecha_nacimiento) = extract(day from v_hoy)
       and coalesce((o.settings->>'cumpleAuto')::boolean, false) = true
       and coalesce(p.ultimo_saludo_cumple_anio, 0) < v_anio
-      and p.acepta_recordatorios
+      and p.acepta_promociones
       and p.correo is not null and p.correo <> '' and p.correo <> 'Sin Correo'
       and p.correo ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
   loop
@@ -780,3 +786,74 @@ begin
   end loop;
 end;
 $function$;
+
+-- ════════════════════════════════════════════════════════════════
+-- 5. El permiso con el que nace cada paciente
+-- ════════════════════════════════════════════════════════════════
+-- Al registrar a un paciente (el personal, la reserva web o la pantalla publicada) queda anotado qué permisos tiene y quién los puso: dos líneas en el
+-- historial. Quien lo registra es el personal con sesión; la reserva web no tiene sesión (el origen lo dice `app.origen_consentimiento`).
+create function public._registrar_consentimiento_inicial()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_origen text := coalesce(nullif(current_setting('app.origen_consentimiento', true), ''), 'personal');
+  v_uid uuid := auth.uid();
+  v_quien text;
+begin
+  if v_origen = 'paciente' then
+    v_quien := new.nombre;
+    v_uid := null;
+  else
+    select p.nombre into v_quien from perfiles p where p.id = v_uid;
+    if v_quien is null then
+      v_origen := 'sistema';
+      v_quien := 'Sistema';
+    end if;
+  end if;
+  insert into consentimientos_historial (optica_id, paciente_id, permiso, valor, origen, cambiado_por, cambiado_por_nombre)
+  values (new.optica_id, new.id, 'recordatorios', new.acepta_recordatorios, v_origen, v_uid, v_quien),
+         (new.optica_id, new.id, 'promociones', new.acepta_promociones, v_origen, v_uid, v_quien);
+  update pacientes_base set consentimiento_actualizado_en = now(), consentimiento_actualizado_por = v_quien where id = new.id;
+  return null;
+end;
+$function$;
+revoke all on function public._registrar_consentimiento_inicial() from public, anon, authenticated;
+create trigger registrar_consentimiento_inicial
+  after insert on public.pacientes_base
+  for each row execute function public._registrar_consentimiento_inicial();
+
+-- La reserva por la web: el paciente elige sus dos permisos en el formulario y se guardan justo después de crear la cita. Solo vale para un
+-- paciente que ESTA reserva acaba de crear (registrado hace menos de 15 minutos y con una sola cita, la que se está confirmando): quien reserva por
+-- la web con la cédula de otra persona no puede cambiar los permisos de un paciente que ya existía.
+create function public.registrar_permisos_cita_publica(p_cita_id uuid, p_recordatorios boolean, p_promociones boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_paciente uuid;
+begin
+  if p_recordatorios is null or p_promociones is null then
+    return false;
+  end if;
+  select c.paciente_id into v_paciente
+    from citas_base c
+    join pacientes_base p on p.id = c.paciente_id
+   where c.id = p_cita_id
+     and c.created_at > now() - interval '15 minutes'
+     and p.created_at > now() - interval '15 minutes'
+     and p.anonimizado_en is null
+     and (select count(*) from citas_base x where x.paciente_id = c.paciente_id) = 1;
+  if v_paciente is null then
+    return false;
+  end if;
+  perform _poner_consentimiento(v_paciente, p_recordatorios, p_promociones, 'paciente');
+  return true;
+end;
+$function$;
+revoke all on function public.registrar_permisos_cita_publica(uuid, boolean, boolean) from public;
+grant execute on function public.registrar_permisos_cita_publica(uuid, boolean, boolean) to anon, authenticated;

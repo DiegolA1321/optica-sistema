@@ -81,6 +81,7 @@ import { etiquetaCorreccion, AYUDA_CORRECCION } from "../utilidades/correccion"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import { puede } from "../utilidades/permisosUi"
 import { cambiarPermisosPaciente } from "../utilidades/permisosMensajes"
+import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"
 import EliminarPacienteModal from "../componentes/EliminarPacienteModal"
 import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import FilaComprobante from "../componentes/FilaComprobante"
@@ -196,6 +197,8 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
   const [correo, setCorreo] = useState("")
   const [fechaNacimiento, setFechaNacimiento] = useState("")
   const [referidoPor, setReferidoPor] = useState("")
+  // Los permisos para recibir mensajes con los que se registra un paciente nuevo (al editar se cambian desde sus datos).
+  const [permisosNuevo, setPermisosNuevo] = useState({ recordatorios: true, promociones: false })
   const [erroresForm, setErroresForm] = useState({})
   const [guardandoPaciente, setGuardandoPaciente] = useState(false)
 
@@ -584,6 +587,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
     setCorreo("")
     setFechaNacimiento("")
     setReferidoPor("")
+    setPermisosNuevo({ recordatorios: true, promociones: false })
     setIdEditando(null)
     setErroresForm({})
     setGuardandoPaciente(false)
@@ -727,6 +731,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       // hubo que corregir en ambas por separado antes de unificar).
       const { paciente: nuevoPaciente, error: errorInsert } = await crearRegistroPaciente(supabase, opticaId, {
         nombre, cedula, telefono, correo, fechaNacimiento, referidoPor, referidoPorId: referidoPorIdResuelto,
+        aceptaRecordatorios: permisosNuevo.recordatorios, aceptaPromociones: permisosNuevo.promociones,
       })
       if (errorInsert) {
         setGuardandoPaciente(false)
@@ -1602,6 +1607,10 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
               />
               <p className="mt-1 text-xs text-slate-500">Si vino recomendado por otro paciente, selecciónalo aquí para reconocerlo en el CRM.</p>
             </div>
+
+            {!idEditando && (
+              <PermisosAlRegistrar idBase="p-permisos" recordatorios={permisosNuevo.recordatorios} promociones={permisosNuevo.promociones} onCambiar={(c) => setPermisosNuevo((p) => ({ ...p, ...c }))} />
+            )}
             
           </div>
         </Cascaron>
