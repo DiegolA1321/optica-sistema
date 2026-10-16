@@ -283,6 +283,17 @@ try {
   ok(x.r === 0, "…sin que eso le abra las consultas de Soporte")
   x = await intenta(paula, () => comoSigue(paula, () => c.query("select * from crear_consulta_soporte($1,'citas','problema','normal','abc','x','{}'::jsonb,'[]'::jsonb)", [randomUUID()])))
   ok(/No tienes permiso/.test(x.e || ""), "…ni le deja escribir consultas: " + x.e)
+  // Sin verificación en dos pasos: el segundo factor solo se exige a quien ya lo tiene activado (la regla de `mfa_satisfecho`, como el resto del sistema)
+  const conFactor = async (uid) => (await c.query("select exists (select 1 from auth.mfa_factors where user_id = $1 and status = 'verified') f", [uid])).rows[0].f
+  ok(!(await conFactor(paula)), "(Paula no tiene verificación en dos pasos activada)")
+  await c.query("savepoint aal1")
+  await c.query("set local role authenticated")
+  await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.jwt.claim.sub', $2, true)", [JSON.stringify({ sub: paula, role: "authenticated", aal: "aal1" }), paula])
+  let lecturaAal1 = null
+  try { lecturaAal1 = (await c.query("select (select count(*)::int from avisos_internos where id = $1) vistos", [aSinPermiso])).rows[0]; await c.query("select marcar_avisos_internos_leidos($1::uuid[])", [[aSinPermiso]]) } catch (e) { lecturaAal1 = { e: e.message } }
+  await c.query("rollback to savepoint aal1")
+  await c.query("reset role")
+  ok(lecturaAal1 && !lecturaAal1.e && lecturaAal1.vistos === 1, "una persona sin verificación en dos pasos (sesión aal1) lee y marca sus avisos" + (lecturaAal1?.e ? " — " + lecturaAal1.e : ""))
   x = await lecturas(admin)
   ok((x.r || []).some((f) => f.aviso_id === aSinPermiso && f.perfil_id === paula && f.leido_en), "el administrador ve que lo leyó")
 

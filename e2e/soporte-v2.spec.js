@@ -45,7 +45,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await optica.getByRole('tab', { name: /Soporte del sistema/ }).click()
 
   const escribir = async (texto, urgente, conCaptura) => {
-    await optica.getByRole('button', { name: /Nueva consulta/ }).click()
+    await optica.getByRole('button', { name: /Nueva consulta/ }).first().click()
     const v = optica.getByRole('dialog', { name: 'Nueva consulta' })
     await v.getByLabel('¿De qué módulo es?').selectOption('ventas')
     if (urgente) await v.getByLabel(/^Urgente/).check({ force: true })

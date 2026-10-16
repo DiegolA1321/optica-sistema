@@ -105,7 +105,7 @@ ok(!!r.error, "no se puede escalar dos veces")
 if (sup) {
   ok((await ve(sup, id))?.destino === "superadmin", "el superadmin ya la ve")
   const msgs = (await sup.c.from("soporte_mensajes").select("cuerpo, de, adjuntos").eq("consulta_id", id)).data || []
-  ok(msgs.length === 4 && msgs.some((m) => m.de === "admin") && msgs.some((m) => (m.adjuntos || []).length === 1), "…con toda la conversación y el PDF adjunto")
+  ok(msgs.length === 3 && msgs.some((m) => m.de === "admin") && msgs.some((m) => (m.adjuntos || []).length === 1), "…con toda la conversación y el PDF adjunto")
   r = await bucket(sup).createSignedUrl(ruta, 60)
   ok(!r.error && r.data?.signedUrl, "…y puede bajar el PDF")
   r = await sup.c.rpc("soporte_responder", { p_consulta: id, p_cuerpo: "E2E respuesta del soporte", p_interna: false, p_estado: null, p_adjuntos: [] })

@@ -1,11 +1,11 @@
 <!-- COM-INICIO -->
-## Comunicación interna por niveles (16 oct. 2026, rama `comunicacion-interna`, SIN publicar; migración 0116 NO aplicada todavía)
+## Comunicación interna por niveles (16 oct. 2026, rama `comunicacion-interna`, SIN publicar; migración 0116 APLICADA)
 Pedido: avisos del administrador a su personal, consultas del personal a su administrador (que responde, resuelve o escala al superadmin), soporte del sistema solo para el administrador, avisos del sistema como hoy, y adjuntos PDF/Word/Excel.
 **Dónde voy:**
 - [x] Paso 1 — `supabase/migrations/0116_comunicacion_interna.sql` + `scripts/ensayo-0116.mjs` (transacción que revierte: pasa completo). **Falta: que Diego revise el SQL, el respaldo y la autorización para aplicarla.**
 - [x] Paso 2 — Lógica pura con pruebas: `comunicacionInterna.js` (pestañas por nivel, a quién le toca, escalar, avisos internos y lecturas) y adjuntos PDF/Word/Excel de 10 MB en `soporte.js`.
 - [x] Paso 3 — Datos y pantallas (probadas con datos simulados; la base aún sin la 0116): Mis consultas / Consultas del personal / Soporte del sistema, Avisos con "Nuevo aviso", escalar con una nota, campanita a cada uno lo suyo, adjuntos (imágenes se ven, documentos solo se descargan). Orden de pestañas (decisión de Diego): Mis consultas · Avisos · Ayuda; administrador: Consultas del personal · Soporte del sistema · Avisos · Ayuda.
-- [x] Paso 4 — Escrito, SIN correr (necesita la migración aplicada): `e2e/comunicacion-interna.spec.js` (Recepción reporta con un PDF → el administrador lo escala → el superadmin responde → Recepción ve la respuesta; y aviso para el rol Optómetra con "Leído por 1 de N"), `scripts/verificar-0116.mjs` (sesiones reales) y las pruebas viejas de Soporte ajustadas a las pestañas nuevas. Falta: aplicar 0116 tras tu visto bueno (respaldo, aplicar, verificar, correr Playwright de Soporte) y revisar en localhost.
+- [x] Paso 4 — Migración 0116 APLICADA el 16 oct. 2026 con aprobación de Diego (respaldo `pre-comunicacion-interna-2026-10-16.dump`; ensayo con la regla de dos pasos solo para quien la tiene activada, como `mfa_satisfecho`; `scripts/verificar-0116.mjs` con sesiones reales: todo pasó). Playwright: `e2e/comunicacion-interna.spec.js` 2 de 2, `soporte-v2` y la prueba de Soporte de `escrituras-directas` pasan. Avisos internos para todo el personal destinatario, sin depender del permiso de Soporte. SIN publicar; falta que Diego revise en localhost.
 **Decisión para Diego:** los permisos y roles predefinidos NO cambian: Optómetra, Recepción y Ventas conservan Soporte ver y crear, que ahora significa escribir a su administrador; el servidor ya no los deja escribir al superadmin (destino 'admin' / 'superadmin'). Solo cambia el texto de ayuda del permiso.
 <!-- COM-FIN -->
 
