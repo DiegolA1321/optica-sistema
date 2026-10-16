@@ -210,7 +210,7 @@ describe("actividad: tipos, filtros y exclusión de las ópticas de prueba", () 
   it("la frase y el cambio de una acción", () => {
     expect(textoDeAccion(act[0])).toBe("creó la óptica Óptica Real Uno")
     expect(textoDeAccion(act[3])).toBe("marcó el pago de Óptica Real Dos como vencido")
-    expect(cambioDeAccion(act[3])).toEqual({ campo: "Estado del pago", antes: "pendiente", despues: "vencido" })
+    expect(cambioDeAccion(act[3])).toEqual({ campo: "Estado del pago", antes: "Pendiente", despues: "Vencido" })
     expect(cambioDeAccion({ accion: "suspender_optica" })).toEqual({ campo: "Estado", antes: "Activa", despues: "Suspendida" })
     expect(cambioDeAccion(act[0])).toBeNull()
   })

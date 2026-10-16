@@ -225,9 +225,9 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
         </div>
       </div>
 
-      <div role="tablist" aria-label="Tipos de actividad" className="flex gap-1 overflow-x-auto border-b border-slate-200/70">
+      <div role="tablist" aria-label="Tipos de actividad" className="flex flex-wrap gap-x-0.5 border-b border-slate-200/70">
         {TIPOS_ACTIVIDAD.map((t) => (
-          <button key={t.id} type="button" role="tab" id={`act-tab-${t.id}`} aria-selected={tipo === t.id} aria-controls="act-panel" onClick={() => setTipo(t.id)} className={"-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2 text-sm font-semibold transition-colors cursor-pointer " + (tipo === t.id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700")}>
+          <button key={t.id} type="button" role="tab" id={`act-tab-${t.id}`} aria-selected={tipo === t.id} aria-controls="act-panel" onClick={() => setTipo(t.id)} className={"-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors cursor-pointer " + (tipo === t.id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700")}>
             {t.nombre}
             <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums " + (tipo === t.id ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>{conteo[t.id]}</span>
           </button>

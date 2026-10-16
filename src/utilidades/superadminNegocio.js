@@ -214,7 +214,7 @@ export const TIPOS_ACTIVIDAD = [
 ]
 export const tipoDeAccion = (accion) => TIPOS_ACTIVIDAD.find((t) => t.acciones?.includes(accion))?.id || "otros"
 
-const ETIQUETA_PAGO = { al_dia: "al día", pendiente: "pendiente", vencido: "vencido" }
+const ETIQUETA_PAGO = { al_dia: "Al día", pendiente: "Pendiente", vencido: "Vencido" }
 const ETIQUETA_LEAD = { nuevo: "Nuevo", contactado: "Contactado", convertido: "Convertido", descartado: "Descartado" }
 const ETIQUETA_SOPORTE = { recibida: "Recibida", en_revision: "En revisión", respondida: "Respondida", resuelta: "Resuelta" }
 const etiquetaDe = (mapa, v) => mapa[v] || v
@@ -236,10 +236,10 @@ export function frasesDeAccion(a) {
     case "salir_de_optica": return [t("salió de la óptica "), b(o)]
     case "responder_mensaje": return [t("respondió una consulta de "), b(o), ...(a.detalle ? [t(" ("), b(a.detalle), t(")")] : [])]
     case "cambiar_estado_soporte": return [t("cambió la consulta "), b(a.detalle || ""), t(" de "), b(o), t(" a "), b(etiquetaDe(ETIQUETA_SOPORTE, a.despues))]
-    case "actualizar_pago": return [t("marcó el pago de "), b(o), t(" como "), b(etiquetaDe(ETIQUETA_PAGO, a.despues || a.detalle))]
+    case "actualizar_pago": return [t("marcó el pago de "), b(o), t(" como "), b(etiquetaDe(ETIQUETA_PAGO, a.despues || a.detalle).toLowerCase())]
     case "cambiar_suscripcion": return [t("cambió la suscripción de "), b(o)]
     case "generar_factura": return [t("generó la factura "), b(a.detalle), t(" para "), b(o)]
-    case "pagar_factura": return [t("marcó como pagada la factura "), b(a.detalle), t(" de "), b(o)]
+    case "pagar_factura": return a.despues === "Pendiente" ? [t("devolvió a pendiente la factura "), b(a.detalle), t(" de "), b(o)] : [t("marcó como pagada la factura "), b(a.detalle), t(" de "), b(o)]
     case "publicar_anuncio": return [t("publicó un aviso para "), b(o), ...(a.detalle ? [t(": "), b(a.detalle)] : [])]
     case "crear_superadmin": return [t("agregó a "), b(o), t(" como superadministrador")]
     case "eliminar_superadmin": return [t("quitó a "), b(o), t(" como superadministrador")]
@@ -254,7 +254,8 @@ export function cambioDeAccion(a) {
   if (a.accion === "renombrar_optica") return { campo: "Nombre", antes: a.antes || a.detalle || "", despues: a.despues || a.optica_nombre || "" }
   if (a.antes || a.despues) {
     const campo = { actualizar_pago: "Estado del pago", cambiar_suscripcion: "Suscripción", cambiar_estado_soporte: "Estado de la consulta", cambiar_estado_lead: "Estado del lead", marcar_optica_prueba: "Óptica de prueba", suspender_optica: "Estado", reactivar_optica: "Estado" }[a.accion] || "Valor"
-    return { campo, antes: a.antes || "", despues: a.despues || "" }
+    const nombres = { actualizar_pago: ETIQUETA_PAGO, cambiar_estado_lead: ETIQUETA_LEAD, cambiar_estado_soporte: ETIQUETA_SOPORTE }[a.accion] || {}
+    return { campo, antes: etiquetaDe(nombres, a.antes) || "", despues: etiquetaDe(nombres, a.despues) || "" }
   }
   if (a.accion === "suspender_optica") return { campo: "Estado", antes: "Activa", despues: "Suspendida" }
   if (a.accion === "reactivar_optica") return { campo: "Estado", antes: "Suspendida", despues: "Activa" }

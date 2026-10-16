@@ -136,6 +136,8 @@ const formatearFechaHora = (fecha) =>
 
 import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
+import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
+import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
 import { textoDeAccion } from "../utilidades/superadminNegocio"
 import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
@@ -185,6 +187,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [seccion, setSeccion] = useState("resumen")
   // Las ópticas de prueba y de demostración no cuentan en las métricas del negocio ni en la actividad salvo que se pida verlas.
   const [incluirPrueba, setIncluirPrueba] = useState(false)
+  const datosNegocio = useDatosNegocio()
+  const [rolesOptica, setRolesOptica] = useState(null)
+  const [restaurandoRoles, setRestaurandoRoles] = useState(false)
+  const [confirmarRestaurarRoles, setConfirmarRestaurarRoles] = useState(false)
+  const [motivoSuspension, setMotivoSuspension] = useState("")
   // A dónde llevó el último "Abrir en …" del Resumen: cada sección parte de ahí con el mismo período y los mismos filtros.
   const [destinoSoporte, setDestinoSoporte] = useState(null)
   const [destinoActividad, setDestinoActividad] = useState(null)
@@ -616,7 +623,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // Best-effort: si la tabla auditoria aún no existe (falta correr las
   // migraciones) esto no debe tumbar el resto de los flujos.
-  const registrarAuditoria = async (accion, { opticaId = null, opticaNombre, detalle: detalleTexto = null }) => {
+  const registrarAuditoria = async (accion, { opticaId = null, opticaNombre, detalle: detalleTexto = null, antes = null, despues = null }) => {
     const { error: errorAuditoria } = await supabase.from("auditoria").insert({
       actor_id: usuario?.id || null,
       actor_nombre: usuario?.nombre || "Superadmin",
@@ -624,6 +631,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       optica_id: opticaId,
       optica_nombre: opticaNombre,
       detalle: detalleTexto,
+      antes,
+      despues,
     })
     if (errorAuditoria) console.warn("[auditoria] no se pudo registrar:", errorAuditoria.message)
   }
@@ -731,6 +740,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   const abrirDetalleOptica = (o) => {
     setDetalle(o)
+    setConfirmarRestaurarRoles(false)
+    cargarRolesOptica(o.id)
     setCampoMonto(o.monto_mensual != null ? String(o.monto_mensual) : "")
     setCampoVencimiento(o.proximo_vencimiento || "")
     setFacturasOptica([])
@@ -977,15 +988,26 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setTimeout(() => document.getElementById("personalizacion-login")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100)
   }
 
-  const alternarActiva = async (optica) => {
+  const alternarActiva = async (optica, motivo = "") => {
     setProcesandoId(optica.id)
     const { error: errorUpdate } = await supabase.from("opticas").update({ activa: !optica.activa }).eq("id", optica.id)
     if (!errorUpdate) {
       setOpticas((prev) => prev.map((o) => (o.id === optica.id ? { ...o, activa: !o.activa } : o)))
       setDetalle((prev) => (prev && prev.id === optica.id ? { ...prev, activa: !prev.activa } : prev))
-      await registrarAuditoria(optica.activa ? "suspender_optica" : "reactivar_optica", { opticaId: optica.id, opticaNombre: optica.nombre })
+      await registrarAuditoria(optica.activa ? "suspender_optica" : "reactivar_optica", { opticaId: optica.id, opticaNombre: optica.nombre, detalle: motivo.trim() || null, antes: optica.activa ? "Activa" : "Suspendida", despues: optica.activa ? "Suspendida" : "Activa" })
+      // El administrador se entera por el canal de Mensajes (avisos del sistema), no solo porque de golpe no puede entrar.
+      await supabase.from("mensajes").insert({
+        tipo: "anuncio", optica_id: optica.id, remitente_id: usuario?.id || null, remitente_nombre: usuario?.nombre || "Superadmin",
+        asunto: optica.activa ? "Tu óptica fue suspendida" : "Tu óptica fue reactivada",
+        cuerpo: optica.activa ? `Se suspendió el acceso al sistema.${motivo.trim() ? ` Motivo: ${motivo.trim()}.` : ""} Escríbenos desde aquí para resolverlo.` : "Ya puedes volver a usar el sistema con normalidad.",
+        estado: "resuelto",
+      })
+      cargarMensajes()
       cargarAuditoria(true)
+      datosNegocio.recargar()
+      mostrarToast("exito", optica.activa ? `${optica.nombre} quedó suspendida.` : `${optica.nombre} quedó activa.`)
     }
+    else mostrarToast("error", "No se pudo cambiar el estado de la óptica. Vuelve a intentarlo.")
     setProcesandoId(null)
   }
 
@@ -1021,7 +1043,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       const anterior = detalle.nombre
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
-      await registrarAuditoria("renombrar_optica", { opticaId: detalle.id, opticaNombre: nuevo, detalle: anterior })
+      await registrarAuditoria("renombrar_optica", { opticaId: detalle.id, opticaNombre: nuevo, detalle: anterior, antes: anterior, despues: nuevo })
       cargarAuditoria(true)
       setRenombrando(false)
     }
@@ -1087,7 +1109,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         cuerpo: `El pago de tu suscripción ${textoEstado}. Si ya lo hiciste, escríbenos desde aquí para confirmarlo.`,
         estado: "resuelto",
       })
-      await registrarAuditoria("actualizar_pago", { opticaId: o.id, opticaNombre: o.nombre, detalle: `${nuevoEstado} (automático)` })
+      await registrarAuditoria("actualizar_pago", { opticaId: o.id, opticaNombre: o.nombre, detalle: "Automático por la fecha de vencimiento", antes: o.estado_pago || "al_dia", despues: nuevoEstado })
     }
 
     setOpticas((prev) => prev.map((o) => {
@@ -1121,26 +1143,68 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         })
         cargarMensajes()
       }
-      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: nuevoEstado })
+      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: detalle.estado_pago || "al_dia", despues: nuevoEstado })
+      datosNegocio.recargar()
       cargarAuditoria(true)
     }
     setActualizandoPago(false)
   }
 
-  const guardarSuscripcion = async (vencimiento = campoVencimiento) => { // al elegir la fecha llega ya la nueva; al salir del monto, la guardada
-    if (!detalle) return
+  const textoSuscripcion = (monto, vence) => `${monto != null && monto !== "" ? `${dinero(Number(monto))} al mes` : "Sin precio"} · ${vence ? `vence el ${fechaLegible(vence)}` : "sin vencimiento"}`
+  const suscripcionCambio = !!detalle && (campoMonto !== (detalle.monto_mensual != null ? String(detalle.monto_mensual) : "") || campoVencimiento !== (detalle.proximo_vencimiento || ""))
+  const guardarSuscripcion = async () => {
+    if (!detalle || !suscripcionCambio) return
     setGuardandoSuscripcion(true)
-    const cambios = { monto_mensual: campoMonto ? Number(campoMonto) : null, proximo_vencimiento: (typeof vencimiento === "string" ? vencimiento : campoVencimiento) || null }
+    const cambios = { monto_mensual: campoMonto ? Number(campoMonto) : null, proximo_vencimiento: campoVencimiento || null }
+    const antes = textoSuscripcion(detalle.monto_mensual, detalle.proximo_vencimiento)
     const { error } = await supabase.from("opticas").update(cambios).eq("id", detalle.id)
     if (!error) {
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
-    }
+      await registrarAuditoria("cambiar_suscripcion", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes, despues: textoSuscripcion(cambios.monto_mensual, cambios.proximo_vencimiento) })
+      cargarAuditoria(true)
+      mostrarToast("exito", "Suscripción guardada.")
+    } else mostrarToast("error", "No se pudo guardar la suscripción. Vuelve a intentarlo.")
     setGuardandoSuscripcion(false)
+  }
+
+  // Marcar una óptica como de prueba o de demostración: deja de contar en las métricas del negocio y en la actividad, salvo que se pida verlas.
+  const marcarPrueba = async (valor) => {
+    if (!detalle) return
+    const { error } = await supabase.from("opticas").update({ es_de_prueba: valor }).eq("id", detalle.id)
+    if (error) { mostrarToast("error", "No se pudo cambiar la marca de prueba. Vuelve a intentarlo."); return }
+    setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, es_de_prueba: valor } : o)))
+    setDetalle((prev) => ({ ...prev, es_de_prueba: valor }))
+    await registrarAuditoria("marcar_optica_prueba", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: valor ? "Óptica real" : "Óptica de prueba", despues: valor ? "Óptica de prueba" : "Óptica real" })
+    cargarAuditoria(true)
+    mostrarToast("exito", valor ? `${detalle.nombre} ahora es una óptica de prueba.` : `${detalle.nombre} ahora cuenta en las métricas del negocio.`)
+  }
+
+  // Roles de la óptica (solo lectura) y su restauración a los predefinidos (Optómetra, Recepción y Ventas).
+  const cargarRolesOptica = async (opticaId) => {
+    setRolesOptica(null)
+    const [{ data: roles }, { data: asignados }] = await Promise.all([
+      supabase.from("roles").select("id, clave, nombre, es_predefinido, permisos").eq("optica_id", opticaId).order("es_predefinido", { ascending: false }).order("nombre"),
+      supabase.from("perfil_roles").select("rol_id"),
+    ])
+    const porRol = new Map()
+    for (const a of asignados || []) porRol.set(a.rol_id, (porRol.get(a.rol_id) || 0) + 1)
+    setRolesOptica((roles || []).map((r) => ({ ...r, personas: porRol.get(r.id) || 0 })))
+  }
+  const restaurarRoles = async () => {
+    if (!detalle) return
+    setRestaurandoRoles(true)
+    const { error } = await supabase.rpc("restaurar_roles_predefinidos", { p_optica_id: detalle.id })
+    setRestaurandoRoles(false)
+    setConfirmarRestaurarRoles(false)
+    if (error) { mostrarToast("error", /rol propio/.test(error.message || "") ? error.message : "No se pudieron restaurar los roles. Vuelve a intentarlo."); return }
+    mostrarToast("exito", "Los roles predefinidos volvieron a como los crea el sistema.")
+    cargarRolesOptica(detalle.id)
   }
 
   const registrarPago = async () => {
     if (!detalle) return
+    const estadoAntes = detalle.estado_pago || "al_dia"
     setActualizandoPago(true)
     const hoy = ahoraEcuador()
     // fechaAISO() arma la fecha con los componentes locales, no vía
@@ -1156,7 +1220,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       setOpticas((prev) => prev.map((o) => (o.id === detalle.id ? { ...o, ...cambios } : o)))
       setDetalle((prev) => ({ ...prev, ...cambios }))
       setCampoVencimiento(siguienteVencimiento)
-      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: "al_dia" })
+      await registrarAuditoria("actualizar_pago", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: estadoAntes, despues: "al_dia" })
+      datosNegocio.recargar()
+      mostrarToast("exito", "Pago registrado: la óptica quedó al día.")
       cargarAuditoria(true)
     }
     setActualizandoPago(false)
@@ -1176,6 +1242,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     if (!error) {
       setFacturasOptica((prev) => [data, ...prev])
       await registrarAuditoria("generar_factura", { opticaId: detalle.id, opticaNombre: detalle.nombre, detalle: numero })
+      datosNegocio.recargar()
+      mostrarToast("exito", `Factura ${numero} generada.`)
       cargarAuditoria(true)
     }
     setGenerandoFactura(false)
@@ -1185,7 +1253,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const nuevoEstado = factura.estado === "pagada" ? "pendiente" : "pagada"
     const cambios = { estado: nuevoEstado, pagada_at: nuevoEstado === "pagada" ? new Date().toISOString() : null }
     const { error } = await supabase.from("facturas").update(cambios).eq("id", factura.id)
-    if (!error) setFacturasOptica((prev) => prev.map((f) => (f.id === factura.id ? { ...f, ...cambios } : f)))
+    if (!error) {
+      setFacturasOptica((prev) => prev.map((f) => (f.id === factura.id ? { ...f, ...cambios } : f)))
+      await registrarAuditoria("pagar_factura", { opticaId: factura.optica_id, opticaNombre: opticas.find((o) => o.id === factura.optica_id)?.nombre || detalle?.nombre || "Óptica", detalle: factura.numero, antes: factura.estado === "pagada" ? "Pagada" : "Pendiente", despues: nuevoEstado === "pagada" ? "Pagada" : "Pendiente" })
+      cargarAuditoria(true)
+      datosNegocio.recargar()
+      mostrarToast("exito", nuevoEstado === "pagada" ? `Factura ${factura.numero} marcada como pagada.` : `Factura ${factura.numero} devuelta a pendiente.`)
+    } else mostrarToast("error", "No se pudo cambiar la factura. Vuelve a intentarlo.")
   }
 
   const guardarCumpleanos = async (adminId, fecha) => {
@@ -1385,7 +1459,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <div className="space-y-4" aria-busy="true" aria-label="Cargando el resumen">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" />)}</div>
   ) : (
     <ResumenNegocio
-      opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
+      datos={datosNegocio} opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
       incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} usuario={usuario}
       onAbrir={irA} onEntrarComo={(o) => alEntrarComo?.(o)} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
     />
@@ -1636,7 +1710,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="Nombre de la óptica, slug o administrador..."
+              placeholder="Nombre, dirección de la página o administrador..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
@@ -2237,7 +2311,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               disabled={!o.activa}
               title={o.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
               onClick={() => { setMenuAccionesId(null); alEntrarComo?.(o) }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
             >
               <LogIn size={15} /> Entrar como administrador
             </button>
@@ -2254,7 +2328,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               onClick={() => { setMenuAccionesId(null); copiarSlug(o.slug) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
             >
-              <Copy size={15} /> Copiar slug
+              <Copy size={15} /> Copiar dirección
             </button>
           </div>,
           document.body,
@@ -2284,7 +2358,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               <button type="button" onClick={iniciarRenombrar} title="Renombrar" aria-label="Renombrar" className="shrink-0 rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"><Pencil size={13} /></button>
             </span>
           )}
-          subtitulo={<span className="font-mono">{detalle.slug}</span>}
+          subtitulo={<span className="flex items-center gap-2"><span className="font-mono">{detalle.slug}</span>{detalle.es_de_prueba && <EtiquetaPrueba />}</span>}
           marca={<div className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{detalle.nombre.charAt(0).toUpperCase()}</div>}
           ancho="max-w-lg"
           onCerrar={cerrarDetalle}
@@ -2319,20 +2393,45 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             title={detalle.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
             onClick={() => alEntrarComo?.(detalle)}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer"
-            style={{ background: "linear-gradient(135deg,#a78bfa,#6d28d9)", boxShadow: "0 12px 24px -14px rgba(109,40,217,0.6)" }}
+            style={{ background: GRAD }}
           >
             <LogIn size={16} /> Entrar como administrador
           </button>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Users size={13} /> Asistentes</p>
-              <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{asistentesPorOptica.get(detalle.id) || 0}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Stethoscope size={13} /> Pacientes</p>
-              <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{pacientesPorOptica.get(detalle.id) || 0}</p>
-            </div>
+          {/* ─── Óptica de prueba ─── */}
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200/60 p-3.5">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-800">Óptica de prueba</span>
+              <span className="block text-xs text-slate-500">No cuenta en las métricas del negocio ni en la actividad, salvo que se pida verla. No se borra nada.</span>
+            </span>
+            <input type="checkbox" checked={!!detalle.es_de_prueba} onChange={(e) => marcarPrueba(e.target.checked)} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500" />
+          </label>
+
+          {/* ─── Uso: lo registrado y lo de los últimos 30 días ─── */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Uso del sistema</p>
+            {(() => {
+              const u = datosNegocio.uso.find((x) => x.optica_id === detalle.id)
+              const celdas = [
+                { t: "Pacientes", v: u?.pacientes ?? pacientesPorOptica.get(detalle.id) ?? 0, i: Stethoscope, nota: "registrados" },
+                { t: "Asistentes", v: u?.asistentes ?? asistentesPorOptica.get(detalle.id) ?? 0, i: Users, nota: "activos" },
+                { t: "Personas activas", v: u ? u.personas_activas : "—", i: Users, nota: "en 30 días" },
+                { t: "Citas", v: u ? u.citas : "—", i: Calendar, nota: "en 30 días" },
+                { t: "Consultas", v: u ? u.consultas : "—", i: Stethoscope, nota: "en 30 días" },
+                { t: "Ventas", v: u ? u.ventas : "—", i: Receipt, nota: "en 30 días" },
+              ]
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  {celdas.map((c) => (
+                    <div key={c.t} className="rounded-xl border border-slate-200/60 bg-slate-50 p-3">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><c.i size={12} aria-hidden="true" /> {c.t}</p>
+                      <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{c.v}</p>
+                      <p className="text-xs text-slate-500">{c.nota}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
 
           <div>
@@ -2494,22 +2593,67 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   </button>
                 )}
               </div>
+              {detalle.estado_pago === "vencido" && detalle.activa && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                  El pago está vencido y la óptica sigue activa.
+                  <button type="button" onClick={() => setOpticaAConfirmar(detalle)} className="rounded-lg border border-rose-200/60 bg-white px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer">Suspender ahora</button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
+                  <label htmlFor="suscripcion-monto" className="mb-1 block text-xs text-slate-500">Monto mensual (USD)</label>
                   <input
-                    type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)} onBlur={() => guardarSuscripcion()}
+                    id="suscripcion-monto" type="number" min="0" step="0.01" value={campoMonto} onChange={(e) => setCampoMonto(e.target.value)}
                     placeholder="0.00"
                     className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-slate-500">Próximo vencimiento</label>
-                  <CampoFecha id="suscripcion-vencimiento" etiqueta="Próximo vencimiento" valor={campoVencimiento} onCambiar={(v) => { setCampoVencimiento(v); guardarSuscripcion(v) }} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
+                  <CampoFecha id="suscripcion-vencimiento" etiqueta="Próximo vencimiento" valor={campoVencimiento} onCambiar={(v) => setCampoVencimiento(v)} max={sumarDiasISO(hoyISO(), 3650)} min={sumarDiasISO(hoyISO(), -3650)} placeholder="Elige la fecha" />
                 </div>
               </div>
-              {guardandoSuscripcion && <p className="text-xs text-slate-400">Guardando…</p>}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500">{detalle.monto_mensual == null ? "Esta óptica todavía no tiene precio de suscripción." : suscripcionCambio ? "Hay cambios sin guardar." : "Guardado."}</span>
+                <button type="button" onClick={guardarSuscripcion} disabled={!suscripcionCambio || guardandoSuscripcion} className="rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer" style={{ background: GRAD }}>{guardandoSuscripcion ? "Guardando…" : "Guardar suscripción"}</button>
+              </div>
             </div>
+          </div>
+
+          {/* ─── Roles de la óptica (solo lectura) ─── */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Roles</p>
+              {confirmarRestaurarRoles ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-600">¿Devolver Optómetra, Recepción y Ventas a como los crea el sistema?</span>
+                  <button type="button" onClick={() => setConfirmarRestaurarRoles(false)} className="rounded-lg px-2 py-1 font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
+                  <button type="button" onClick={restaurarRoles} disabled={restaurandoRoles} className="rounded-lg bg-blue-600 px-2.5 py-1 font-semibold text-white hover:bg-blue-700 cursor-pointer disabled:opacity-60">{restaurandoRoles ? "Restaurando…" : "Restaurar"}</button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmarRestaurarRoles(true)} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"><RefreshCw size={13} /> Restaurar los predefinidos</button>
+              )}
+            </div>
+            {rolesOptica === null ? (
+              <p className="py-3 text-center text-xs text-slate-500">Cargando…</p>
+            ) : rolesOptica.length === 0 ? (
+              <p className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 text-xs font-semibold text-amber-800">Esta óptica no tiene roles. Pulsa «Restaurar los predefinidos» para crearlos.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/60 text-sm">
+                {rolesOptica.map((r) => {
+                  const modulos = Object.keys(r.permisos || {}).map((m) => NOMBRE_MODULO[m] || m)
+                  return (
+                    <li key={r.id} className="px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate font-semibold text-slate-800">{r.nombre}</span>
+                        <span className="shrink-0 text-xs text-slate-500">{r.es_predefinido ? "Predefinido" : "Propio"} · {r.personas} {r.personas === 1 ? "persona" : "personas"}</span>
+                      </div>
+                      <p className="truncate text-xs text-slate-500" title={modulos.join(", ")}>{modulos.length ? modulos.join(", ") : "Sin permisos"}</p>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </div>
 
           {/* ─── Facturación ─── */}
@@ -2557,7 +2701,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Slug</p>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Dirección de la página</p>
             <div className="flex items-center justify-between rounded-xl border border-slate-200/60 p-3.5">
               <span className="font-mono text-sm text-slate-700">{detalle.slug}</span>
               <button type="button" onClick={() => copiarSlug(detalle.slug)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
@@ -2855,7 +2999,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Slug (código interno)</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Dirección de la página (código interno)</label>
                   <div className="relative">
                     <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
@@ -3264,14 +3408,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           subtitulo={opticaAConfirmar.nombre}
           Icono={opticaAConfirmar.activa ? Ban : CheckCircle2}
           ancho="max-w-md"
-          onCerrar={() => setOpticaAConfirmar(null)}
+          onCerrar={() => { setOpticaAConfirmar(null); setMotivoSuspension("") }}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
-              <button type="button" onClick={() => setOpticaAConfirmar(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={() => { setOpticaAConfirmar(null); setMotivoSuspension("") }} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
               <button
                 type="button"
-                onClick={async () => { const o = opticaAConfirmar; setOpticaAConfirmar(null); await alternarActiva(o) }}
+                onClick={async () => { const o = opticaAConfirmar; const motivo = motivoSuspension; setOpticaAConfirmar(null); setMotivoSuspension(""); await alternarActiva(o, motivo) }}
                 className={"rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors cursor-pointer " + (opticaAConfirmar.activa ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700")}
               >
                 {opticaAConfirmar.activa ? "Suspender" : "Reactivar"}
@@ -3279,13 +3423,21 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
           </>}
         >
-          <p className="p-6 text-sm text-slate-600">
+          <div className="space-y-3 p-6">
+          <p className="text-sm text-slate-600">
             {opticaAConfirmar.activa ? (
               <>¿Seguro que deseas suspender <span className="font-semibold text-slate-800">{opticaAConfirmar.nombre}</span>? Su administrador y todo su equipo pierden acceso al sistema de inmediato.</>
             ) : (
               <>¿Reactivar <span className="font-semibold text-slate-800">{opticaAConfirmar.nombre}</span>? Recupera el acceso al sistema de inmediato.</>
             )}
           </p>
+          {opticaAConfirmar.activa && (
+            <label className="block text-sm font-semibold text-slate-700">Motivo (opcional)
+              <textarea rows={2} value={motivoSuspension} onChange={(e) => setMotivoSuspension(e.target.value)} placeholder="Ej. Pago vencido hace 40 días" className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm font-normal outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+              <span className="mt-1 block text-xs font-normal text-slate-500">Queda en la actividad y se le avisa al administrador por Mensajes.</span>
+            </label>
+          )}
+          </div>
         </Cascaron>
       )}
     </div>

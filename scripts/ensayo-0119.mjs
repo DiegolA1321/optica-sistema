@@ -66,6 +66,19 @@ try {
   ok(!!(await falla(null, "select datos_negocio_superadmin()")), "sin sesión NO puede llamarla")
   ok(!/clave|password|token/i.test(JSON.stringify(d)), "no entrega claves ni tokens")
 
+  ok(d.opticas.every((o) => "pacientes" in o && "asistentes" in o), "cada óptica trae su número de pacientes y de asistentes")
+
+  // 2b. Restaurar roles
+  await c.query("update roles set permisos = '{}'::jsonb, nombre = 'Otro nombre' where optica_id = $1 and clave = 'recepcion'", [optica])
+  const n = await como(sup, async () => (await uno("select restaurar_roles_predefinidos($1) n", [optica])).n)
+  const rec = await uno("select nombre, permisos from roles where optica_id = $1 and clave = 'recepcion'", [optica])
+  ok(n === 3 && rec.nombre === "Recepción" && Object.keys(rec.permisos).length > 3, "restaurar devuelve Recepción a como la crea el sistema")
+  ok((await uno("select count(*)::int n from roles where optica_id = $1 and es_predefinido", [optica])).n === 3, "siguen siendo tres roles predefinidos (sin duplicados)")
+  ok(/solo el superadministrador/i.test(await falla(admin, "select restaurar_roles_predefinidos($1)", [optica]) || ""), "el administrador NO puede restaurar los roles")
+  ok(!!(await falla(null, "select restaurar_roles_predefinidos($1)", [optica])), "sin sesión NO puede")
+  await c.query("update roles set clave = null, es_predefinido = false, nombre = 'Recepción' where optica_id = $1 and clave = 'recepcion'", [optica])
+  ok(/rol propio/i.test(await falla(sup, "select restaurar_roles_predefinidos($1)", [optica]) || ""), "si hay un rol propio con el mismo nombre, lo dice y no lo pisa")
+
   // 3. Auditoría
   for (const a of ["marcar_optica_prueba", "cambiar_estado_lead", "cambiar_estado_soporte", "pagar_factura", "cambiar_suscripcion"]) {
     ok(!(await falla(sup, "insert into auditoria (actor_id, actor_nombre, accion, optica_id, optica_nombre, detalle, antes, despues) values ($1, 'Ensayo', $2, $3, 'QA', 'x', 'a', 'b')", [sup, a, optica])), `acepta la acción ${a}`)

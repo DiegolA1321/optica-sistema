@@ -7,6 +7,7 @@
 --   2. `datos_negocio_superadmin()`: SOLO para el superadmin. Entrega por persona del personal su último ingreso (auth.users) y por
 --      óptica lo que hizo en los últimos 30 días: citas, consultas y ventas registradas, y cuántas acciones de cada módulo anotó el
 --      personal en la actividad de la óptica. Sin esto el navegador no puede leer el último ingreso (auth.users no es legible).
+--   2b. `restaurar_roles_predefinidos(óptica)`: devuelve Optómetra, Recepción y Ventas a como los crea el sistema (solo superadmin).
 --   3. `auditoria`: dos columnas nuevas (`antes`, `despues`) para mostrar qué cambió, más acciones permitidas (marcar óptica de prueba,
 --      cambiar el estado de un lead, cambiar el estado de una consulta de soporte, marcar una factura como pagada, cambiar la
 --      suscripción) y un disparador que impide borrar o editar un registro. Lo único que puede cambiar es que `optica_id` o
@@ -84,6 +85,8 @@ begin
            'consultas', (select count(*) from consultas_base c where c.optica_id = o.id and c.created_at >= v_desde),
            'ventas', (select count(*) from facturas_venta f where f.optica_id = o.id and f.created_at >= v_desde and f.estado <> 'anulada'),
            'personas_activas', (select count(distinct l.usuario_id) from logs_optica l where l.optica_id = o.id and l.created_at >= v_desde),
+           'pacientes', (select count(*) from pacientes_base p where p.optica_id = o.id),
+           'asistentes', (select count(*) from perfiles p where p.optica_id = o.id and p.rol = 'asistente' and coalesce(p.activo, true)),
            -- Los 30 días anteriores a esos 30, para comparar.
            'previo', jsonb_build_object(
              'citas', (select count(*) from citas_base c where c.optica_id = o.id and c.created_at >= v_antes and c.created_at < v_desde),
@@ -102,6 +105,43 @@ end;
 $$;
 revoke all on function datos_negocio_superadmin() from public, anon;
 grant execute on function datos_negocio_superadmin() to authenticated;
+
+-- 2b. Restaurar los roles predefinidos de una óptica (Optómetra, Recepción y Ventas) a como los crea el sistema. Los roles propios no se tocan.
+create or replace function restaurar_roles_predefinidos(p_optica_id uuid)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_clave text;
+  v_p jsonb;
+  v_n int := 0;
+begin
+  if not es_superadmin() then
+    raise exception 'Solo el superadministrador puede restaurar los roles predefinidos.';
+  end if;
+  if not exists (select 1 from opticas where id = p_optica_id) then
+    raise exception 'La óptica no existe.';
+  end if;
+  foreach v_clave in array array['optometra', 'recepcion', 'ventas'] loop
+    v_p := _plantilla_rol(v_clave);
+    begin
+      insert into roles (optica_id, clave, nombre, descripcion, es_predefinido, atiende_pacientes, permisos, alcance, inicio)
+      values (p_optica_id, v_clave, v_p ->> 'nombre', v_p ->> 'descripcion', true, (v_p ->> 'atiende')::boolean, v_p -> 'permisos', v_p -> 'alcance', v_p ->> 'inicio')
+      on conflict (optica_id, clave) where clave is not null do update
+        set nombre = excluded.nombre, descripcion = excluded.descripcion, atiende_pacientes = excluded.atiende_pacientes,
+            permisos = excluded.permisos, alcance = excluded.alcance, inicio = excluded.inicio, updated_at = now();
+      v_n := v_n + 1;
+    exception when unique_violation then
+      raise exception 'Ya existe un rol propio llamado "%". Cámbiale el nombre y vuelve a intentarlo.', v_p ->> 'nombre';
+    end;
+  end loop;
+  return v_n;
+end;
+$$;
+revoke all on function restaurar_roles_predefinidos(uuid) from public, anon;
+grant execute on function restaurar_roles_predefinidos(uuid) to authenticated;
 
 -- 3. Registro de auditoría: qué cambió, más acciones y sin borrar ni editar ----------------------------------------------
 alter table public.auditoria add column if not exists antes text;
