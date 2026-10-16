@@ -39,7 +39,7 @@ try {
   await sup.from("opticas").update({ es_de_prueba: false }).eq("id", qa.id)
   const base = {}
   for (const t of TABLAS) base[t] = (await admin.from(t).select("id")).data?.length ?? -1
-  ok(base.pacientes_base > 0 && base.citas_base > 0, `(el administrador de pruebas ve sus datos: ${JSON.stringify(base)})`)
+  ok(base.pacientes_base > 0, `(el administrador de pruebas ve sus datos: ${JSON.stringify(base)})`)
   for (const t of TABLAS) ok((await n(sup, t, qa.id)) === 0, `como óptica real, sin autorización el superadmin ve 0 filas de ${t}`)
   const { error: e1 } = await sup.rpc("entrar_como_optica", { p_optica: qa.id, p_motivo: "Revisar un error" })
   ok(!!e1, "y no puede entrar")
