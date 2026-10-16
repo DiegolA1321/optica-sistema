@@ -9,6 +9,7 @@ import { GRAD_MARCA } from "@/lib/tema"
 import { CampoCapturas } from "./piezas"
 import { MODULOS_SOPORTE, TIPOS_CONSULTA, URGENCIAS, codigoConsulta, contextoDeConsulta, tiempoEstimado } from "../../utilidades/soporte"
 import { crearConsulta, leerAjustesSoporte } from "../../utilidades/soporteDatos"
+import { esAdministrador, textoDeEnvio } from "../../utilidades/comunicacionInterna"
 
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 const ETIQUETA = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500"
@@ -28,6 +29,8 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
   const [ajustes, setAjustes] = useState({})
   useEffect(() => { leerAjustesSoporte().then((r) => setAjustes(r.datos || {})) }, [])
 
+  const esAdmin = esAdministrador(usuario)
+  const textos = textoDeEnvio(usuario)
   const contexto = contextoDeConsulta({ usuario, pantalla: pantallaOrigen })
   const falta = asunto.trim().length < 3 || descripcion.trim().length < 5
 
@@ -44,7 +47,7 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
 
   if (enviada) {
     return (
-      <Cascaron titulo="Consulta enviada" subtitulo="Ya la tiene el soporte" Icono={CheckCircle2} onCerrar={() => onCerrar(true)} ancho="max-w-md"
+      <Cascaron titulo="Consulta enviada" subtitulo={textos.enviada} Icono={CheckCircle2} onCerrar={() => onCerrar(true)} ancho="max-w-md"
         pie={<>
           <span />
           <div className="ml-auto flex items-center gap-2">
@@ -55,14 +58,16 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
         <div role="status" className="space-y-3 px-5 py-6 text-center">
           <p className="text-sm text-slate-500">Número de tu consulta</p>
           <p className="font-mono text-3xl font-bold tracking-wide" style={{ color: INK }}>{codigoConsulta(enviada.numero)}</p>
-          <p className="text-sm text-slate-600">Te respondemos <strong>{tiempoEstimado(enviada.urgencia, ajustes)}</strong>. Cuando respondan, te avisamos en la campanita y verás la respuesta en «Mis consultas».</p>
+          {esAdmin
+            ? <p className="text-sm text-slate-600">Te respondemos <strong>{tiempoEstimado(enviada.urgencia, ajustes)}</strong>. Cuando respondan, te avisamos en la campanita y verás la respuesta en «Soporte del sistema».</p>
+            : <p className="text-sm text-slate-600">Tu administrador la verá y te responderá. Cuando responda, te avisamos en la campanita y verás la respuesta en «Mis consultas».</p>}
         </div>
       </Cascaron>
     )
   }
 
   return (
-    <Cascaron titulo="Nueva consulta" subtitulo="Cuéntanos qué pasa y te respondemos por aquí" Icono={MessageSquarePlus} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
+    <Cascaron titulo="Nueva consulta" subtitulo={textos.subtitulo} Icono={MessageSquarePlus} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
       pie={<PieFormulario onCancelar={() => onCerrar(false)} etiquetaGuardar="Enviar consulta" guardando={enviando} deshabilitado={falta} nota="Se envía con tu nombre, tu rol, la pantalla y el navegador." />}>
       <div className="space-y-5 px-5 py-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -108,7 +113,7 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
           <textarea id="soporte-descripcion" rows={5} value={descripcion} maxLength={4000} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué intentabas hacer, qué pasó y qué esperabas que pasara?" className={CAMPO + " resize-none"} />
         </div>
         <div>
-          <p className={ETIQUETA}>Capturas de pantalla <span className="font-normal normal-case text-slate-500">(opcional)</span></p>
+          <p className={ETIQUETA}>Archivos adjuntos <span className="font-normal normal-case text-slate-500">(opcional)</span></p>
           <CampoCapturas archivos={archivos} onCambiar={setArchivos} deshabilitado={enviando} />
         </div>
 

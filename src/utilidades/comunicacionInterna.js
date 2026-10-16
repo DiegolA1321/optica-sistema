@@ -18,6 +18,9 @@ export const pestanaInicial = (usuario) => pestanasDeSoporte(usuario)[0]
 // Una dirección guardada (?tab=consultas) que esta persona no tiene (el administrador no tiene "Mis consultas") cae en su primera pestaña.
 export const pestanaValida = (usuario, tab) => (pestanasDeSoporte(usuario).includes(tab) ? tab : pestanaInicial(usuario))
 
+// La pestaña donde vive una consulta para esta persona (para abrirla desde la campanita).
+export const pestanaDeConsulta = (c, usuario) => (esAdministrador(usuario) ? (c?.autorId === usuario.id ? "sistema" : "personal") : "consultas")
+
 // Cómo se llama cada pestaña de consultas.
 export const NOMBRE_PESTANA_CONSULTAS = { consultas: "Mis consultas", personal: "Consultas del personal", sistema: "Soporte del sistema" }
 
@@ -30,9 +33,9 @@ export function consultasDePestana(consultas, usuario, pestana) {
 }
 
 // A quién le toca la consulta ahora (lo que se muestra junto al estado).
-export function dondeEsta(c) {
+export function dondeEsta(c, usuario = null) {
   if (c.destino === "superadmin" && c.escaladaEn) return "Escalada al soporte del sistema"
-  if (c.destino === "admin") return "Con tu administrador"
+  if (c.destino === "admin") return usuario && c.autorId !== usuario.id ? "La atiendes tú" : "Con tu administrador"
   return "Con el soporte del sistema"
 }
 export const estaEscalada = (c) => c?.destino === "superadmin" && !!c?.escaladaEn

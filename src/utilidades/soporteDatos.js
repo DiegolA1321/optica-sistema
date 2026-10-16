@@ -2,7 +2,8 @@
 // Cada función devuelve { error } con un texto que se puede mostrar tal cual, o { datos }.
 import { supabase } from "../lib/supabaseClient"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "./permisos"
-import { avisosConLeido, mapConsulta, mapMensajeSoporte, nombreSeguro } from "./soporte"
+import { avisosConLeido, mapConsulta, mapMensajeSoporte, nombreSeguro, tipoDeArchivo } from "./soporte"
+import { mapAvisoInterno } from "./comunicacionInterna"
 
 export const BUCKET_SOPORTE = "soporte-adjuntos"
 // Algo cambió en Soporte (consulta creada, respuesta leída, avisos leídos): la campanita y las listas se vuelven a leer.
@@ -38,7 +39,7 @@ export async function subirCapturas({ opticaId, consultaId, archivos, interno = 
   const subidos = []
   for (const archivo of archivos) {
     const ruta = `${opticaId}/${consultaId}/${interno ? "interno/" : ""}${nuevoId().slice(0, 8)}-${nombreSeguro(archivo.name)}`
-    const { error } = await supabase.storage.from(BUCKET_SOPORTE).upload(ruta, archivo, { contentType: archivo.type, upsert: false })
+    const { error } = await supabase.storage.from(BUCKET_SOPORTE).upload(ruta, archivo, { contentType: tipoDeArchivo(archivo), upsert: false })
     if (error) return { error: esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : `No se pudo subir «${archivo.name}». Revisa tu conexión e intenta de nuevo.` }
     subidos.push({ ruta, nombre: archivo.name })
   }
@@ -94,20 +95,64 @@ export async function leerAvisos(perfilId) {
 export const marcarAvisosLeidos = (ids = null) => llamar("marcar_avisos_leidos", { p_mensajes: ids }, "No se pudieron marcar los avisos.")
 
 // Una dirección temporal (5 min) para ver una captura: el almacenamiento es privado.
-export async function urlDeCaptura(ruta) {
+// Con `descargar` (el nombre del archivo) la dirección obliga a bajarlo en vez de abrirlo dentro del sistema: los documentos solo se descargan.
+export async function urlDeCaptura(ruta, descargar = null) {
   if (!supabase) return ""
-  const { data } = await supabase.storage.from(BUCKET_SOPORTE).createSignedUrl(ruta, 300)
+  const { data } = await supabase.storage.from(BUCKET_SOPORTE).createSignedUrl(ruta, 300, descargar ? { download: descargar } : undefined)
   return data?.signedUrl || ""
 }
 
+// El administrador pasa una consulta de su personal al soporte del sistema, con su conversación y sus archivos.
+export const escalarConsulta = (consultaId, nota) => llamar("escalar_consulta_soporte", { p_consulta: consultaId, p_nota: nota || null }, "No se pudo escalar la consulta.")
+
+// ── Avisos internos (administrador → personal)
+// Los que le tocan a esta persona (la base ya filtra: el administrador ve todos los de su óptica) y cuáles ya leyó. El administrador recibe además
+// las lecturas de cada aviso ("Leído por 3 de 5").
+export async function leerAvisosInternos(perfilId, esAdmin = false) {
+  if (!supabase) return { ...SIN_BASE, datos: [], leidos: [], lecturas: [] }
+  const [a, l, lec] = await Promise.all([
+    supabase.from("avisos_internos").select("*").order("creado_en", { ascending: false }).limit(100),
+    supabase.from("avisos_internos_leidos").select("aviso_id").eq("perfil_id", perfilId),
+    esAdmin ? supabase.rpc("lecturas_avisos_internos") : Promise.resolve({ data: [] }),
+  ])
+  if (a.error) return { error: texto(a.error, "No se pudieron cargar los avisos del personal."), datos: [], leidos: [], lecturas: [] }
+  return { datos: (a.data || []).map(mapAvisoInterno), leidos: (l.data || []).map((x) => x.aviso_id), lecturas: lec.data || [] }
+}
+export const publicarAvisoInterno = ({ titulo, cuerpo, para, rolId = null, perfilId = null, venceEl = null }) =>
+  llamar("publicar_aviso_interno", { p_titulo: titulo, p_cuerpo: cuerpo, p_para: para, p_rol: rolId, p_perfil: perfilId, p_vence: venceEl || null }, "No se pudo publicar el aviso.")
+export const retirarAvisoInterno = (avisoId) => llamar("retirar_aviso_interno", { p_aviso: avisoId }, "No se pudo retirar el aviso.")
+export const marcarAvisosInternosLeidos = (ids = null) => llamar("marcar_avisos_internos_leidos", { p_avisos: ids }, "No se pudieron marcar los avisos.")
+
+// A quién se le puede dirigir un aviso: los roles de la óptica y las personas activas de su personal.
+export async function leerDestinatariosDeAvisos(opticaId) {
+  if (!supabase) return { roles: [], personas: [] }
+  const [r, p] = await Promise.all([
+    supabase.from("roles").select("id, nombre").eq("optica_id", opticaId).order("nombre"),
+    supabase.from("perfiles").select("id, nombre, rol").eq("optica_id", opticaId).eq("activo", true).eq("rol", "asistente").order("nombre"),
+  ])
+  return { roles: r.data || [], personas: p.data || [] }
+}
+
 // Lo de la campanita: respuestas sin leer (de sus consultas) y avisos nuevos.
-export async function leerResumenSoporte(perfilId) {
-  if (!supabase || !perfilId) return { respuestas: [], avisosSinLeer: 0 }
-  const [r, a] = await Promise.all([
+// A cada uno lo suyo: respuestas sin leer, avisos del sistema y avisos internos nuevos, y (administrador) las consultas del personal que esperan respuesta.
+export async function leerResumenSoporte(perfilId, esAdmin = false) {
+  if (!supabase || !perfilId) return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [] }
+  const [r, a, i, p] = await Promise.all([
     supabase.from("soporte_consultas").select("id, numero, asunto, estado").eq("autor_id", perfilId).eq("respuesta_sin_leer", true).order("actualizada_en", { ascending: false }).limit(20),
     leerAvisos(perfilId),
+    leerAvisosInternos(perfilId, false),
+    esAdmin
+      ? supabase.from("soporte_consultas").select("id, numero, asunto, autor_nombre").eq("destino", "admin").eq("ultimo_mensaje_de", "optica").neq("estado", "resuelta").neq("autor_id", perfilId).order("actualizada_en", { ascending: false }).limit(20)
+      : Promise.resolve({ data: [] }),
   ])
-  return { respuestas: r.data || [], avisosSinLeer: (a.datos || []).filter((x) => !x.leido).length }
+  const ajenos = (i.datos || []).filter((x) => x.autorId !== perfilId)
+  const vistos = new Set(i.leidos || [])
+  return {
+    respuestas: r.data || [],
+    avisosSinLeer: (a.datos || []).filter((x) => !x.leido).length,
+    avisosInternosSinLeer: ajenos.filter((x) => !vistos.has(x.id)).length,
+    porResponder: p.data || [],
+  }
 }
 
 // ── Superadmin ──

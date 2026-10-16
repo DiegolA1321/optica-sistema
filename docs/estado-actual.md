@@ -4,7 +4,7 @@ Pedido: avisos del administrador a su personal, consultas del personal a su admi
 **Dónde voy:**
 - [x] Paso 1 — `supabase/migrations/0116_comunicacion_interna.sql` + `scripts/ensayo-0116.mjs` (transacción que revierte: pasa completo). **Falta: que Diego revise el SQL, el respaldo y la autorización para aplicarla.**
 - [x] Paso 2 — Lógica pura con pruebas: `comunicacionInterna.js` (pestañas por nivel, a quién le toca, escalar, avisos internos y lecturas) y adjuntos PDF/Word/Excel de 10 MB en `soporte.js`.
-- [ ] Paso 3 — Datos y pantallas: Mis consultas / Consultas del personal / Soporte del sistema, Avisos con "Nuevo aviso", campanita.
+- [x] Paso 3 — Datos y pantallas (probadas con datos simulados; la base aún sin la 0116): Mis consultas / Consultas del personal / Soporte del sistema, Avisos con "Nuevo aviso", escalar con una nota, campanita a cada uno lo suyo, adjuntos (imágenes se ven, documentos solo se descargan). Orden de pestañas (decisión de Diego): Mis consultas · Avisos · Ayuda; administrador: Consultas del personal · Soporte del sistema · Avisos · Ayuda.
 - [ ] Paso 4 — Prueba de Playwright del recorrido (necesita la migración aplicada).
 **Decisión para Diego:** los permisos y roles predefinidos NO cambian: Optómetra, Recepción y Ventas conservan Soporte ver y crear, que ahora significa escribir a su administrador; el servidor ya no los deja escribir al superadmin (destino 'admin' / 'superadmin'). Solo cambia el texto de ayuda del permiso.
 <!-- COM-FIN -->

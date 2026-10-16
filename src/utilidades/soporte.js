@@ -197,7 +197,7 @@ export const mapConsulta = (r) => ({
   destino: r.destino || "superadmin", escaladaEn: r.escalada_en || null, escaladaPor: r.escalada_por || "",
 })
 export const mapMensajeSoporte = (r) => ({
-  id: r.id, consultaId: r.consulta_id, autorNombre: r.autor_nombre, de: r.de, interna: !!r.interna, cuerpo: r.cuerpo, adjuntos: Array.isArray(r.adjuntos) ? r.adjuntos : [], creadoEn: r.creado_en,
+  id: r.id, consultaId: r.consulta_id, autorId: r.autor_id || null, autorNombre: r.autor_nombre, de: r.de, interna: !!r.interna, cuerpo: r.cuerpo, adjuntos: Array.isArray(r.adjuntos) ? r.adjuntos : [], creadoEn: r.creado_en,
 })
 
 // Los avisos del sistema (tabla `mensajes`, tipo "anuncio") con su "leído".

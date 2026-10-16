@@ -35,6 +35,8 @@ describe("consultas de cada pestaña", () => {
 describe("a quién le toca y quién puede escalar", () => {
   it("dónde está la consulta", () => {
     expect(dondeEsta(consulta())).toBe("Con tu administrador")
+    expect(dondeEsta(consulta(), rosa)).toBe("Con tu administrador")
+    expect(dondeEsta(consulta(), admin)).toBe("La atiendes tú")
     expect(dondeEsta(consulta({ destino: "superadmin", escaladaEn: "2026-10-16T10:00:00Z" }))).toBe("Escalada al soporte del sistema")
     expect(dondeEsta(consulta({ destino: "superadmin", autorId: "a1" }))).toBe("Con el soporte del sistema")
     expect(estaEscalada(consulta({ destino: "superadmin", escaladaEn: "x" }))).toBe(true)

@@ -20,7 +20,8 @@ function Pregunta({ q, abierta }) {
 }
 
 // Pestaña "Ayuda": las preguntas frecuentes por módulo, con buscador. Es lo primero que se ve, porque lo mejor es encontrar la respuesta antes de escribir.
-export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
+export default function PestanaAyuda({ puedeEscribir, onEscribir, esAdmin = true }) {
+  const escribirA = esAdmin ? "Escribir al soporte" : "Escribir a mi administrador"
   const [busqueda, setBusqueda] = useState("")
   const [modulo, setModulo] = useState("")
   const buscando = busqueda.trim().length > 0
@@ -32,9 +33,9 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
     <div className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-bold" style={{ color: INK }}>¿No encontraste lo que buscabas?</p>
-        <p className="mt-0.5 text-sm text-slate-500">Cuéntanos qué pasa y te respondemos por aquí.</p>
+        <p className="mt-0.5 text-sm text-slate-500">{esAdmin ? "Cuéntanos qué pasa y te respondemos por aquí." : "Cuéntale a tu administrador qué pasa y te responde por aquí."}</p>
       </div>
-      {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Escribir al soporte</button>}
+      {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{escribirA}</button>}
     </div>
   )
 
@@ -54,8 +55,8 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
       </div>
 
       {buscando && encontradas.length === 0 ? (
-        <Vacio Icono={Search} titulo={`No encontramos preguntas con «${busqueda.trim()}»`} texto="Prueba con otra palabra o quita el filtro de módulo. Si no está, escríbenos y lo resolvemos.">
-          {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Escribir al soporte</button>}
+        <Vacio Icono={Search} titulo={`No encontramos preguntas con «${busqueda.trim()}»`} texto={`Prueba con otra palabra o quita el filtro de módulo. ${esAdmin ? "Si no está, escríbenos y lo resolvemos." : "Si no está, escríbele a tu administrador."}`}>
+          {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{escribirA}</button>}
         </Vacio>
       ) : (
         <div className="space-y-3">
