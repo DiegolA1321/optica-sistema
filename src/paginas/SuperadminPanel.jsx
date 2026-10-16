@@ -1664,7 +1664,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <Megaphone size={15} aria-hidden="true" /> Nuevo aviso
         </button>
       </CabeceraSeccion>
-      <SoporteSuperadmin inicial={destinoSoporte} consultas={consultasVisibles} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticasVisibles}
+      <SoporteSuperadmin ocultas={consultasSoporte.length - consultasVisibles.length} inicial={destinoSoporte} consultas={consultasVisibles} cargando={cargandoSoporte} error={errorSoporte} onRecargar={cargarSoporte} opticas={opticasVisibles}
         onAuditoria={async (accion, datos) => { await registrarAuditoria(accion, datos); cargarAuditoria(true) }} onToast={mostrarToast} avisos={renderAvisos()} />
     </div>
   )

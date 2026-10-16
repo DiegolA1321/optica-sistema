@@ -192,7 +192,7 @@ function PestanaIndicadores({ consultas, ventana, onVerConsultas }) {
 // El soporte del superadmin: la bandeja de consultas, sus indicadores y las respuestas guardadas. `consultas` viene del panel (la insignia del menú
 // usa los mismos datos). `avisos` es el contenido de los avisos del sistema, que sigue como hoy.
 // `inicial`: a dónde llegó desde otra sección ("Abrir en Soporte" del Resumen): { tab, estado, urgencia, rango: { inicio, fin }, clave }.
-export default function SoporteSuperadmin({ consultas, cargando, error, onRecargar, opticas, onAuditoria, onToast, avisos, inicial = null }) {
+export default function SoporteSuperadmin({ consultas, cargando, error, onRecargar, opticas, onAuditoria, onToast, avisos, inicial = null, ocultas = 0 }) {
   const [tab, setTab] = useState(inicial?.tab || "consultas")
   const [filtros, setFiltros] = useState(FILTROS_INICIALES)
   const [periodo, setPeriodo] = useState("todo")
@@ -278,7 +278,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
             </div>
             <p role="status" className="px-1 text-sm font-semibold text-slate-600">{plural(filtradas.length, "consulta", "consultas")}{filtros.estado === "abiertas" && " abiertas"}</p>
             {cargando ? <div className="h-40 animate-pulse rounded-2xl bg-slate-100" /> : filtradas.length === 0 ? (
-              <Vacio Icono={Inbox} titulo={consultas.length === 0 ? "Todavía no hay consultas" : "Ninguna consulta coincide"} texto={consultas.length === 0 ? "Cuando una óptica escriba al soporte, su consulta aparecerá aquí, con las urgentes primero." : "Prueba con otros filtros."}>
+              <Vacio Icono={Inbox} titulo={consultas.length === 0 ? (ocultas > 0 ? "No hay consultas de ópticas reales" : "Todavía no hay consultas") : "Ninguna consulta coincide"} texto={consultas.length === 0 ? (ocultas > 0 ? `Hay ${ocultas} de ópticas de prueba que no se muestran por defecto: usa «Incluir ópticas de prueba» para verlas.` : "Cuando una óptica escriba al soporte, su consulta aparecerá aquí, con las urgentes primero.") : "Prueba con otros filtros."}>
                 {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Limpiar los filtros</button>}
               </Vacio>
             ) : (
