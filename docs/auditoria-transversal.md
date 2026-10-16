@@ -50,9 +50,10 @@ Menú: Inicio, Citas, Pacientes, Ventas, Inventario, CRM, Mi horario, Reportes (
 | O1 | CRM y Pacientes | Con "consultas: propio", el CRM calcula con sus consultas: "Para contactar 7" (admin y Recepción 9), "Control próximo (1)" vs (3), "Fidelización 34" vs 35. En Pacientes: "Visitas recientes (15)" vs 16 y "Control sin agendar (0)" vs (1), pero "Total 41 · Bien corregidos 25 · Requieren ajuste 6 · Sin consulta 7" son idénticos a los del administrador. Nada en pantalla dice qué cifras son "las suyas" (el Inicio sí dice "de tus pacientes"). | R2, R5, R7 | Media |
 | O2 | Citas (código) | **"Cobrar"** (tarjeta y detalle de una cita con cobro pendiente) no pregunta por "ventas: crear" (`Citas.jsx:198-204`, `DetalleCitaModal.jsx:206`); el optómetra solo tiene Ventas "ver". Hoy no hay cobros pendientes en la Demo, así que no se vio en pantalla. | R7, R22 | Media |
 | O3 | Ventas | Ve todos los comprobantes y los saldos de todos los pacientes y el botón "Exportar a Excel" de Cobros y saldos (tiene Ventas "ver"). No es un fallo del código sino una decisión de rol: confirmar que un optómetra debe ver los saldos de toda la óptica. | R7 | Baja |
-| O4 | Citas › detalle | Ve "Llegó", "Marcar como confirmada", "Editar cita", "Cancelar cita", "Atender": todo coincide con sus permisos (Citas: ver, crear, editar). Sin hallazgo. | — | — |
-| O5 | Inicio | Con avisos de Citas en 0 la tarjeta dice "Todo en orden" y aun así ofrece "Ver todo →" (lleva a Citas). | R26 | Baja |
-| O6 | Reportes | Subtítulo "¿Cómo le fue a la óptica en este período?" con la etiqueta "Solo tus consultas y tus citas": el título habla de la óptica y los números son suyos. | R2 | Baja |
+| O4 | Ventas › comprobante | Abre el detalle completo (venta, pagos, factura electrónica) con solo "Imprimir comprobante": sin acciones de escritura. Correcto para "solo ver". | R7 | — |
+| O5 | Citas › detalle | Ve "Llegó", "Marcar como confirmada", "Editar cita", "Cancelar cita", "Atender": todo coincide con sus permisos (Citas: ver, crear, editar). Sin hallazgo. | — | — |
+| O6 | Inicio | Con avisos de Citas en 0 la tarjeta dice "Todo en orden" y aun así ofrece "Ver todo →" (lleva a Citas). | R26 | Baja |
+| O7 | Reportes | Subtítulo "¿Cómo le fue a la óptica en este período?" con la etiqueta "Solo tus consultas y tus citas": el título habla de la óptica y los números son suyos. | R2 | Baja |
 
 ## 3. Recepción
 
@@ -60,7 +61,7 @@ Menú sin Reportes, Usuarios ni Configuración; con Soporte. Ve "Gestionar cita"
 
 | Id | Módulo | Qué pasa | Regla | Imp. |
 |---|---|---|---|---|
-| R1 | Inicio / módulos | Los avisos coinciden con las cabeceras: Citas 19 (1+1+17), Pacientes 14 (2+5+7), Ventas 9 (1+8), Inventario 7. Sin hallazgo. | — | — |
+| R1 | Inicio / módulos | Los avisos coinciden con las cabeceras: Citas 19 (1+1+17), Pacientes 14 (2+5+7), Ventas 9 (1+8), Inventario 7. Los 4 "Ver todo" y los 9 enlaces "Abrir en …" de sus ventanas llevan a pantallas que Recepción puede abrir; en Inventario la ventana no ofrece "Reabastecer" (correcto: solo ve). Perfil del paciente: "Agendar cita", "Enviar mensaje", "Crear acceso", "Tomar datos" acordes a sus permisos. Sin hallazgo. | — | — |
 | R2 | Ventas | "Tomar datos del diagnóstico" visible con Fichas clínicas "solo ver" (`roles.spec` lo da por válido). Confirmar si es la intención. | R22 | Baja |
 | R3 | Inventario | Costos ocultos y sin acciones de escritura: correcto. El kárdex (pestaña Movimientos) se muestra solo lectura. | — | — |
 | R4 | Mi horario | Los textos de 10 px de A3 se repiten. | R41 | Baja |
@@ -73,7 +74,8 @@ Menú sin Reportes, Usuarios ni Configuración. Ve "Nueva venta", "Agregar produ
 |---|---|---|---|---|
 | V1 | Citas › detalle de la cita | **Ve "Editar cita" y "Cancelar cita"** teniendo Citas "solo ver" (comprobado en pantalla con Vera Ventas Demo). El código (`Citas.jsx:2070-2088`) condiciona Llegó, Confirmar, Tomar y Reasignar, pero pasa sin condición Editar, Cancelar, Agendar otra cita, Dejar de atender, No asistió y Cobrar. Lo más probable es que el servidor rechace el cambio, pero la persona ve un botón que no puede usar. Afecta a cualquier rol propio con Citas "ver". | R7, R22 | **Alta** |
 | V2 | Inicio | La tarjeta dice "Contactar" y el botón solo abre la cola "Más de 30 días" de Ventas (`Inicio.jsx:662`); no contacta a nadie. El texto no dice adónde lleva. | R42 | Baja |
-| V3 | Inicio · enlaces | "Abrir en Ventas · Más de 30 días (1) / Listas sin avisar (3) / Órdenes atrasadas (4) / Saldos por cobrar (6 pacientes)" y "Abrir en Inventario · Stock bajo (7)" llevan a pantallas que puede abrir y a los mismos números (1+3+4+8 ventas = 16). Sin hallazgo. | R42 | — |
+| V3 | Perfil y comprobante | En el perfil del paciente Ventas ve solo "Historia clínica", "Datos" y "Tomar datos" (no "Agendar cita", "Crear acceso" ni "Enviar mensaje"): bien. En el comprobante ve "Abonar", "Corregir" y "Otra orden" (Ventas: editar); el optómetra y los roles de solo ver solo ven "Imprimir comprobante". Sin hallazgo. | R7 | — |
+| V4 | Inicio · enlaces | "Abrir en Ventas · Más de 30 días (1) / Listas sin avisar (3) / Órdenes atrasadas (4) / Saldos por cobrar (6 pacientes)" y "Abrir en Inventario · Stock bajo (7)" llevan a pantallas que puede abrir y a los mismos números (1+3+4+8 ventas = 16). Sin hallazgo. | R42 | — |
 
 ## 5. Rol propio con permisos parciales
 
@@ -92,7 +94,7 @@ Solo por código (no hay cuenta con compras). Pestañas: Resumen, Mis citas, Mi 
 | Id | Módulo | Qué pasa | Regla | Imp. |
 |---|---|---|---|---|
 | W1 | Portal | 16 usos de texto de 10–11 px en `PortalPaciente.jsx`. | R41 | Media |
-| W2 | Resumen | "No tienes citas pendientes" aparece en tres puntos del mismo archivo (líneas 607, 623 y 661) y la receta vacía con dos textos distintos ("Aún no tienes…" / "Todavía no tienes…"). Verificar en pantalla si se ven juntos. | R3, R26 | Baja |
+| W2 | Resumen y Mis citas (código) | Un paciente sin citas lee lo mismo tres veces en la pestaña Resumen: el saludo ("No tienes citas pendientes. ¿Quieres agendar una?"), la tarjeta "Próxima visita · Sin citas" y el cuadro "Próximas citas · No tienes citas pendientes" (`PortalPaciente.jsx:607, 612, 623`); en Mis citas se repite otra vez (línea 661). La receta vacía usa dos redacciones ("Aún no tienes…" en Resumen, "Todavía no tienes…" en Mi receta). | R3, R26, R2 | Baja |
 | W3 | Pendiente | Mis compras con facturas (descarga, saldo, abonos) y factura electrónica: **sin ver**. Falta la cuenta. | — | — |
 
 ## 7. Superadmin (y entrada a una óptica como administrador)

@@ -4,7 +4,7 @@ Pedido: revisar, solo leyendo, todo el sistema con cada perfil (administrador, o
 **Dónde voy:**
 - [x] Paso 1 — Preparación: servidor local, recorrido automático de solo lectura (bloquea cualquier escritura a tablas) y datos de prueba. Hallazgo de partida: en la Demo y en la óptica de pruebas NO hay ningún rol propio ni un paciente del portal con compras (la cuenta de portal guardada ya no existe); se simulan o se revisan por código y se dice en el informe.
 - [x] Paso 2 — Recorrido de solo lectura de Administrador, Optómetra, Recepción, Ventas, óptica vacía, superadmin (con entrada a una óptica) y páginas públicas; informe escrito en `docs/auditoria-transversal.md` (8 hallazgos transversales, el más grave: Ventas ve "Editar cita" y "Cancelar cita" sin permiso).
-- [ ] Paso 3 — Completar con los perfiles y detalles que faltaban (perfil del paciente de Recepción y Ventas, comprobantes, enlaces de Recepción) y dar el resumen.
+- [x] Paso 3 — Completados los perfiles del paciente, los comprobantes y los enlaces del Inicio de Recepción y Ventas. **Auditoría cerrada; no se corrigió nada.** Queda por decidir con Diego: cuenta de portal con compras, rol propio real y las dudas de rol al final del informe.
 <!-- AUD-FIN -->
 
 <!-- COM-INICIO -->
