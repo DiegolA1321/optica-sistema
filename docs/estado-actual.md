@@ -1,3 +1,14 @@
+<!-- COM-INICIO -->
+## Comunicación interna por niveles (16 oct. 2026, rama `comunicacion-interna`, SIN publicar; migración 0116 NO aplicada todavía)
+Pedido: avisos del administrador a su personal, consultas del personal a su administrador (que responde, resuelve o escala al superadmin), soporte del sistema solo para el administrador, avisos del sistema como hoy, y adjuntos PDF/Word/Excel.
+**Dónde voy:**
+- [x] Paso 1 — `supabase/migrations/0116_comunicacion_interna.sql` + `scripts/ensayo-0116.mjs` (transacción que revierte: pasa completo). **Falta: que Diego revise el SQL, el respaldo y la autorización para aplicarla.**
+- [ ] Paso 2 — Lógica pura con pruebas (adjuntos, destino, avisos internos).
+- [ ] Paso 3 — Datos y pantallas: Mis consultas / Consultas del personal / Soporte del sistema, Avisos con "Nuevo aviso", campanita.
+- [ ] Paso 4 — Prueba de Playwright del recorrido (necesita la migración aplicada).
+**Decisión para Diego:** los permisos y roles predefinidos NO cambian: Optómetra, Recepción y Ventas conservan Soporte ver y crear, que ahora significa escribir a su administrador; el servidor ya no los deja escribir al superadmin (destino 'admin' / 'superadmin'). Solo cambia el texto de ayuda del permiso.
+<!-- COM-FIN -->
+
 <!-- SOP2-INICIO -->
 ## Soporte v2 (15 oct. 2026, PUBLICADO en `main` junto con los ajustes del CRM v2; migraciones 0114 y 0115 aplicadas)
 Pedido: rediseñar Soporte en sus dos mitades. Principio: el usuario encuentra ayuda antes de escribir; si escribe, su consulta se ordena por módulo y urgencia, sabe en qué estado está y conversa hasta resolverla; el superadmin atiende primero lo urgente y mide su atención.
