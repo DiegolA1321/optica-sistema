@@ -16,7 +16,7 @@ import { hoyISO } from "../../utilidades/disponibilidad"
 const POR_PAGINA = 30
 // El orden de los filtros es el del pedido: primero lo vencido, luego lo que viene.
 const FILTROS = ["control_vencido", "control_proximo", "cumpleanos", "sin_visitar", "postventa"]
-const COLUMNAS = "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1.3fr)_16rem]"
+const COLUMNAS = "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_19.5rem]"
 const ENCABEZADO = [{ texto: "Paciente" }, { texto: "Motivo" }, { texto: "Último contacto" }, { texto: "" }]
 const sinTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
@@ -119,7 +119,7 @@ export default function PestanaParaContactar({ filas: filasHoy, todas, sinPermis
                     {f.estado === "descansa" && <p className="text-xs font-semibold text-slate-500">{f.descansaHasta ? `Vuelve a aparecer el ${formatoFecha(f.descansaHasta, "medioSinAnio")}` : "Descansa"}</p>}
                     {f.estado === "sin_permiso" && <p className="text-xs font-semibold text-red-700">No desea recibir mensajes</p>}
                   </div>
-                  <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+                  <div className="flex flex-wrap items-center justify-start gap-2 lg:flex-nowrap lg:justify-end">
                     {puedeContactar && f.estado !== "sin_permiso" && (
                       <>
                         <button type="button" onClick={() => onContactar(f, motivoActivo)} disabled={!f.telefono} title={f.telefono ? "Abre WhatsApp con el mensaje ya escrito" : "Sin número registrado"}

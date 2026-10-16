@@ -70,7 +70,7 @@ export default function VentanaResultado({ paciente, motivo, contacto = null, on
           <div className="space-y-2">
             {ORDEN_RESULTADOS.map((id) => (
               <label key={id} className={"flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors " + (resultado === id ? "border-blue-500 bg-blue-50/60" : "border-slate-200/60 hover:bg-slate-50")}>
-                <input type="radio" name="resultado" value={id} checked={resultado === id} onChange={() => setResultado(id)} className="mt-1 h-4 w-4 accent-blue-600" />
+                <input type="radio" name="resultado" value={id} checked={resultado === id} onChange={() => setResultado(id)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" />
                 <span className="min-w-0">
                   <span className="block text-sm font-bold" style={{ color: INK }}>{RESULTADOS[id].etiqueta}</span>
                   <span className="block text-sm text-slate-500">{AYUDA[id]}</span>

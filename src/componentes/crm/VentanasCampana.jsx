@@ -74,7 +74,7 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
               const { pacientes: ps, sinPermiso } = grupos[g]
               return (
                 <label key={g} className={"flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors " + (grupo === g ? "border-blue-500 bg-blue-50/60" : "border-slate-200/60 hover:bg-slate-50")}>
-                  <input type="radio" name="grupo" value={g} checked={grupo === g} onChange={() => elegir(g)} className="mt-1 h-4 w-4 accent-blue-600" />
+                  <input type="radio" name="grupo" value={g} checked={grupo === g} onChange={() => elegir(g)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" />
                   <span className="min-w-0">
                     <span className="block text-sm font-bold" style={{ color: INK }}>{def.etiqueta} <span className="font-semibold text-slate-500">({ps.length})</span></span>
                     <span className="block text-xs text-slate-500">{def.ayuda}</span>
