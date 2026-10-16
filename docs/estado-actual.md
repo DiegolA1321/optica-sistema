@@ -3,6 +3,9 @@
 Diego pidió: rol propio y portal revisados de verdad, quitar Ventas del Optómetra predefinido y corregir todos los hallazgos de mayor a menor. Reglas: un commit por paso, SQL a la vista antes de aplicar, al final la suite completa de Playwright (`--workers=1`, versión compilada), sin publicar.
 **Dónde voy:**
 - [x] Revisión real del rol propio (rol temporal, ya borrado, Vera restaurada) y del portal (paciente `E Dos E Portal Auditoria` con cuenta, venta con abono y factura electrónica en la óptica de pruebas).
+- [x] Sin base de datos, hecho y con pruebas unitarias (vitest completo: 1086 pasaron antes de los últimos cambios): T1 acciones del detalle de la cita y Cobrar por permiso; T2 aviso de administración delegada; T5 nota de alcance propio (Pacientes y CRM); T6 texto mínimo de 12 px con guarda (`textoMinimo12px.test.js`); T7/T8 superadmin; óptica nueva con Para empezar y pantallas vacías sin controles de más; Pacientes sin menú vacío ni datos clínicos sin permiso de fichas ni Pagos pendientes sin Ventas; portal (saldo en Resumen, textos); pulidos bajos.
+- [ ] Con base de datos (SQL a tu aprobación): T3 catálogos con tildes, T4 actividad de la óptica nueva, Optómetra sin Ventas.
+- [ ] Pruebas de Playwright nuevas y suite completa.
 <!-- COR-FIN -->
 
 <!-- AUD-INICIO -->
