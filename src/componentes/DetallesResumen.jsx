@@ -7,6 +7,7 @@ import { INK } from "@/lib/tema"
 import { fechaLegible, fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { profesionalDeCita } from "../utilidades/profesionalCita"
 import { DetalleAtencion, SinInformacion } from "./AtencionPaciente"
+import { CORREO_AUTOMATICO_ACTIVO } from "../utilidades/crmContactos"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -176,6 +177,7 @@ export function PanelCumple({ fechaNacimiento, diasCumple, edad, saludoAnio, ani
   const saludado = saludoAnio === anioActual
   let saludo
   if (saludado) saludo = `Sí: ya se le envió el saludo automático de ${anioActual}.`
+  else if (!CORREO_AUTOMATICO_ACTIVO) saludo = "No: el saludo automático requiere el correo configurado. Puedes saludarlo tú desde CRM."
   else if (!cumpleAuto) saludo = "No: los saludos automáticos están desactivados. Puedes saludarlo tú desde CRM."
   else if (!tieneCorreo) saludo = "No: no tiene correo registrado, así que el saludo automático no le llega."
   else saludo = diasCumple === 0 ? "Se le enviará hoy el saludo automático." : "Todavía no. El saludo automático se envía el día de su cumpleaños."
