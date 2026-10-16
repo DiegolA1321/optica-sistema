@@ -3,6 +3,8 @@
 Pedido: revisar, solo leyendo, todo el sistema con cada perfil (administrador, optómetra, Recepción, Ventas, rol propio, portal, superadmin, páginas públicas y óptica nueva vacía) contra `docs/principios-diseno.md`. Resultado en `docs/auditoria-transversal.md`.
 **Dónde voy:**
 - [x] Paso 1 — Preparación: servidor local, recorrido automático de solo lectura (bloquea cualquier escritura a tablas) y datos de prueba. Hallazgo de partida: en la Demo y en la óptica de pruebas NO hay ningún rol propio ni un paciente del portal con compras (la cuenta de portal guardada ya no existe); se simulan o se revisan por código y se dice en el informe.
+- [x] Paso 2 — Recorrido de solo lectura de Administrador, Optómetra, Recepción, Ventas, óptica vacía, superadmin (con entrada a una óptica) y páginas públicas; informe escrito en `docs/auditoria-transversal.md` (8 hallazgos transversales, el más grave: Ventas ve "Editar cita" y "Cancelar cita" sin permiso).
+- [ ] Paso 3 — Completar con los perfiles y detalles que faltaban (perfil del paciente de Recepción y Ventas, comprobantes, enlaces de Recepción) y dar el resumen.
 <!-- AUD-FIN -->
 
 <!-- COM-INICIO -->
