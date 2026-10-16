@@ -76,6 +76,8 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   const superadmin = await contextoSuper.newPage()
   await entrarComoSuperadmin(superadmin)
   await superadmin.getByRole('button', { name: 'Soporte', exact: true }).first().click()
+  // QA Test Claude es un entorno de prueba: el Soporte del superadmin lo oculta por defecto.
+  await superadmin.getByRole('checkbox', { name: /Incluir entornos de prueba/ }).check({ force: true })
   const lista = superadmin.getByRole('list', { name: 'Consultas de soporte' })
   await expect(lista.getByRole('listitem').first()).toContainText(asunto, { timeout: 30_000 })
   await expect(lista.getByRole('listitem').first()).toContainText('Urgente')
@@ -115,6 +117,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   // ── 4. El superadmin la resuelve; la óptica la califica
   await superadmin.reload()
   await superadmin.getByRole('button', { name: 'Soporte', exact: true }).first().click()
+  await superadmin.getByRole('checkbox', { name: /Incluir entornos de prueba/ }).check({ force: true })
   await superadmin.getByRole('list', { name: 'Consultas de soporte' }).getByRole('button', { name: asunto }).click()
   const v2 = superadmin.getByRole('dialog')
   await v2.getByRole('combobox', { name: /^Estado/ }).selectOption('resuelta')

@@ -1,11 +1,11 @@
 // La Óptica Demo es de SOLO LECTURA para las pruebas (regla 40): todo lo que crea o cambia datos corre en la óptica de pruebas.
 // Esta guardia lo hace cumplir: en una sesión de la Demo, cualquier escritura a la API de datos se cancela y se anota; al terminar
 // la corrida, verificar-demo.js falla si quedó alguna anotación. Se permiten solo las llamadas que el sistema hace al entrar y que
-// no escriben datos de la óptica (permisos y sus niveles, quién es el administrador principal, equipo, el contador de visitas de la página pública y el inicio de sesión).
+// no escriben datos de la óptica (permisos y sus niveles, quién es el administrador principal, equipo, el contador de visitas de la página pública y el inicio de sesión y las compras de un paciente (producto y fecha), que se pide por POST pero solo lee).
 import fs from 'node:fs'
 
 export const ARCHIVO_ESCRITURAS_DEMO = 'test-results/escrituras-demo.log'
-const PERMITIDAS = /\/rest\/v1\/rpc\/(mis_permisos|equipo_optica|verificar_login_paciente|registrar_visita|permisos_por_nivel_vigentes|soy_administrador_principal|abonos_anulados)$/
+const PERMITIDAS = /\/rest\/v1\/rpc\/(mis_permisos|equipo_optica|verificar_login_paciente|registrar_visita|permisos_por_nivel_vigentes|soy_administrador_principal|abonos_anulados|compras_de_paciente)$/
 
 export async function protegerDemo(page) {
   await page.route(/\/rest\/v1\//, async (route) => {
