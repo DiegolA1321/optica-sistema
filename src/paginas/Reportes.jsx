@@ -141,7 +141,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         <button type="button" onClick={() => setExportando(true)} className="ml-auto flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Download size={15} aria-hidden="true" /> Exportar</button>
       </div>
 
-      {sinNada && <SinDatosAun titulo="Todavía no hay datos para mostrar" texto="Los reportes se llenan con los pacientes, las consultas y las ventas que se registren." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />}
+      {sinNada && actual.id === "resumen" && <SinDatosAun titulo="Todavía no hay datos para mostrar" texto="Los reportes se llenan con los pacientes, las consultas y las ventas que se registren." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />}
 
       {/* Filtros: arriba, iguales y en el mismo lugar en todas las pestañas */}
       <div className="space-y-2 rounded-2xl border border-slate-200/60 bg-white px-3 py-2.5 shadow-sm" role="group" aria-label="Filtros">
@@ -159,6 +159,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
           )}
         </div>
         <div className="flex flex-wrap items-end gap-3">
+          {!sinNada && <>
           <label className="text-xs font-semibold text-slate-500">Motivo de consulta
             <select aria-label="Motivo de consulta" value={filtros.motivo} onChange={(e) => cambiarFiltro("motivo", e.target.value)} className={selector + " w-52"}>
               <option value="">Todos</option>
@@ -183,6 +184,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
               </select>
             </label>
           )}
+          </>}
           <ul className="ml-auto flex min-w-[160px] flex-1 flex-wrap items-center justify-end gap-1.5 self-center" aria-label="Filtros activos">
             {etiquetas.map((e) => (
               <li key={e.id} className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">

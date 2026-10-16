@@ -23,6 +23,7 @@ import {
   Ban,
   UserCheck,
   CalendarOff,
+  UserPlus,
 } from "lucide-react"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { listaParaContactar } from "../utilidades/crmContactos"
@@ -40,6 +41,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea, { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
 import VentanaTotal from "../componentes/VentanaTotal"
+import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
@@ -423,7 +425,7 @@ export default function Inicio({
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="divide-y divide-slate-100 px-5 py-4">
           {citasLista.length === 0 ? (
-            <EstadoVacio compacto icon={Calendar} texto={tarjeta ? "Ninguna cita con ese resultado en el período." : periodo === "hoy" ? (esVistaOptometra ? "Hoy no tienes citas." : "Hoy no hay citas.") : "No hay citas en el período."} />
+            <EstadoVacio compacto icon={Calendar} texto={tarjeta ? "Ninguna cita con ese resultado en el período." : periodo === "hoy" ? (esVistaOptometra ? "Hoy no tienes citas." : "Hoy no hay citas.") : "No hay citas en el período."} accion={!tarjeta && periodo === "hoy" && puedeV("citas", "crear") && onAgendarRapido ? { etiqueta: "Agendar cita", onClick: onAgendarRapido } : null} />
           ) : (
             citasLista.slice(0, LIMITE_LISTA).map((cita, idx) => renderFilaCita(cita, idx, periodo !== "hoy", accionFila(cita)))
           )}
@@ -726,6 +728,14 @@ export default function Inicio({
     veInventario && plantilla !== "optometra" && { id: "inventario", titulo: "Inventario", modulo: "Inventario", icono: Package, filas: filasDe("inventario"), onVerTodo: () => setVista?.("inventario") },
   ].filter(Boolean)
   const bRequiereAreas = <RequiereAtencionPorArea bloques={bloquesAtencion} />
+  // Óptica recién creada: el administrador ve por dónde empezar en vez de cuatro "Todo en orden" (R17).
+  const opticaSinDatos = !cargaInicial && pacientes.length === 0 && citas.length === 0 && inventario.length === 0
+  const bParaEmpezar = <ParaEmpezar pasos={[
+    { id: "horario", titulo: "Revisa tu horario", texto: "Los pacientes solo reservan en los espacios que abras.", icono: Clock, onClick: () => setVista?.("horario") },
+    { id: "equipo", titulo: "Suma a tu equipo", texto: "Crea los usuarios y asígnales su rol.", icono: Users, onClick: () => setVista?.("usuarios") },
+    { id: "paciente", titulo: "Registra al primer paciente", texto: "Con su cédula y teléfono basta.", icono: UserPlus, onClick: () => setVista?.("pacientes") },
+    { id: "productos", titulo: "Agrega tus productos", texto: "Monturas y accesorios, con su existencia y precio.", icono: Package, onClick: () => setVista?.("inventario") },
+  ]} />
 
   // Ningún Inicio lleva línea de resumen (repetía lo de más abajo); solo queda el aviso de óptica suspendida.
   const bSuspendida = !opticaActiva && (
@@ -821,6 +831,7 @@ export default function Inicio({
       {plantilla === "administrador" && (
         <>
           {filaTotales}
+          {opticaSinDatos && bParaEmpezar}
           {bRequiereAreas}
           <div className="space-y-3">
             {filaDesenlace}
@@ -913,10 +924,13 @@ function InicioSkeleton() {
   )
 }
 
-function EstadoVacio({ icon: Icon, texto, compacto = false }) {
+function EstadoVacio({ icon: Icon, texto, compacto = false, accion = null }) {
   if (compacto) {
     return (
-      <p className="flex items-center gap-2.5 px-5 py-4 text-sm font-medium text-slate-500"><Icon size={16} className="shrink-0 text-slate-400" aria-hidden="true" /> {texto}</p>
+      <div className="flex flex-wrap items-center gap-2.5 px-5 py-4 text-sm font-medium text-slate-500">
+        <Icon size={16} className="shrink-0 text-slate-400" aria-hidden="true" /> <span>{texto}</span>
+        {accion && <button type="button" onClick={accion.onClick} className="ml-auto rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">{accion.etiqueta}</button>}
+      </div>
     )
   }
   return (

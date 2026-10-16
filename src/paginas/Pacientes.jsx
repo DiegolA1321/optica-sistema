@@ -216,6 +216,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   const puedeAgendar = puede(usuario, "citas", "crear")
   // Atender = abrir la ficha clínica para registrar una consulta: exige consultas "crear".
   const puedeAtender = puede(usuario, "consultas", "crear")
+  const sinPacientes = !cargaInicial && pacientes.length === 0
+  const puedeVerFichas = puede(usuario, "consultas", "ver") // sin ficha clínica no hay estados de corrección ni historia clínica que mostrar
   const puedeVender = puede(usuario, "ventas", "crear")
   const puedeEditarCita = puede(usuario, "citas", "editar")
   // Enviar un mensaje al paciente es una acción del CRM: pide "CRM: crear".
@@ -1102,7 +1104,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   const badgesRapidos = [
     { key: "Todos", label: "Todos" },
     { key: "Recientes", label: `Visitas recientes (${cuentaRapida.Recientes})` },
-    { key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` },
+    // Los saldos de los pacientes son de Ventas: quien no puede ver Ventas no tiene este filtro.
+    ...(puedeVerVentas ? [{ key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` }] : []),
     { key: "NoCompraron", label: `Consultaron y no compraron (${cuentaRapida.NoCompraron})` },
     { key: "ControlSinAgendar", label: `Control sin agendar (${cuentaRapida.ControlSinAgendar})` },
     // Aparece solo mientras está activo (se llega desde Reportes): un filtro activo siempre se ve y se puede quitar.
@@ -1163,12 +1166,14 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
         </AccionesDeCabecera>
       </div>
 
+      {/* Sin ningún paciente no hay nada que filtrar ni contar: solo el mensaje y "Crear el primero" (R25, R34). */}
+      {!sinPacientes && (<>
       {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar la lista</p>
         <NotaAlcance alcancePropio={alcancePropio} className="mb-2" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {tarjetasCorreccion.map((t) => {
+          {tarjetasCorreccion.filter((t) => puedeVerFichas || t.key === "Todos").map((t) => {
             const Icono = t.icon
             const activo = filtroCorreccion === t.key
             const pct = pacientes.length ? Math.round((t.valor / pacientes.length) * 100) : 0
@@ -1238,6 +1243,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       </div>
 
       <p role="status" className="-mt-2 text-sm font-semibold text-slate-600">{textoConteo}</p>
+      </>)}
 
       {/* ─── TABLA (o la cola de ventas cuando está activo "Listos para venta" / "No compraron") ─── */}
       {(
@@ -1447,7 +1453,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                               <ShoppingCart size={16} />
                             </button>}
                           </div>
-                          <div className="relative">
+                          {((puedeAtender && puedeAgendar) || puedeVender || puedeEditarPaciente || puedeEliminar) && <div className="relative">
                             <button
                               type="button"
                               onClick={(e) => abrirMenuAcciones(paciente.id, e)}
@@ -1457,7 +1463,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                             >
                               <MoreVertical size={16} />
                             </button>
-                          </div>
+                          </div>}
                         </div>
                       </td>
                     </tr>
@@ -1870,14 +1876,14 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-                  <button
+                  {puedeVerFichas && <button
                     type="button"
                     onClick={() => setVerHistoriaClinica(true)}
                     aria-haspopup="dialog"
                     className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer"
                   >
                     <ClipboardList size={15} /> Historia clínica
-                  </button>
+                  </button>}
                   {puedeAgendar && <button
                     type="button"
                     onClick={() => abrirAgendar(pacienteHistorial)}

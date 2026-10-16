@@ -69,6 +69,7 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "
 import { moverCitaAHoy as moverCitaAHoyCompartido } from "../utilidades/moverCitaAHoy"
 import { estadosCorregibles, estadoCorregibleEs, etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { Cascaron } from "../componentes/AtencionPaciente"
+import SinDatosAun from "../componentes/SinDatosAun"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -1529,6 +1530,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           onAbrirDetalle={abrirDetalle}
           onAgendar={() => abrirModal()}
         />
+      ) : citas.length === 0 && !cargaInicial && !diaCerradoEnLista ? (
+        <SinDatosAun titulo="Todavía no hay citas" texto="Las citas se crean desde aquí o cuando un paciente reserva en línea." accion={puede(usuario, "citas", "crear") ? { etiqueta: "Gestionar cita", onClick: () => abrirModal() } : undefined} />
       ) : grupos.length === 0 && totalAnteriores === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-slate-50 text-slate-300">

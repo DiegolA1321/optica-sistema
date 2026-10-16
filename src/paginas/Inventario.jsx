@@ -374,7 +374,7 @@ export default function Inventario({
         </div>
 
         <AccionesDeCabecera avisos={avisosDelModulo}>
-          {puedeNivel("editar") && (
+          {puedeNivel("editar") && resumen.total > 0 && (
             <button type="button" onClick={() => setConteo(true)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
               <ClipboardCheck size={18} aria-hidden="true" /> Conteo físico
             </button>
@@ -403,7 +403,7 @@ export default function Inventario({
         <TarjetaInventario icono={DollarSign} titulo="Valor del inventario" valor={dinero(resumen.valor.aPrecio)}
           sub={valorConCosto ? `a precio de venta · ${dinero(resumen.valor.aCosto)} a costo` : "a precio de venta"} onClick={() => setResumenAbierto("valor")}
           ayuda={"A precio de venta: existencia × precio de cada producto activo." + (verCosto ? " Con el costo registrado también se muestra a costo (existencia × costo) y la ganancia posible." : "")} />
-        <TarjetaInventario icono={Archive} titulo="Sin venderse en 90 días" valor={sinVender.length} sub={sinVender.length > 0 ? `${dinero(dineroParado)} parados` : "Todo se está moviendo"} alerta={sinVender.length > 0} onClick={() => setResumenAbierto("sinvender")}
+        <TarjetaInventario icono={Archive} titulo="Sin venderse en 90 días" valor={sinVender.length} sub={sinVender.length > 0 ? `${dinero(dineroParado)} parados` : resumen.total === 0 ? "Sin productos todavía" : "Todo se está moviendo"} alerta={sinVender.length > 0} onClick={() => setResumenAbierto("sinvender")}
           ayuda="Monturas activas con existencia que no se venden desde hace 90 días o más, o que nunca se vendieron (las registradas hace menos de 90 días no cuentan). Un clic lista esas monturas y lo que representan en dinero." />
       </div>
 
