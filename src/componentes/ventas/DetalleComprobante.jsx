@@ -21,6 +21,7 @@ import { textoFormaDePago, armarHtmlComprobante } from "../../utilidades/imprimi
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { imprimirHtml, datosOpticaProforma } from "../../utilidades/proforma"
 import { registrarLog } from "../../utilidades/logs"
+import { puede } from "../../utilidades/permisosUi"
 import { numeroOrden, diasDeAtraso, estadoVisible } from "../../utilidades/ordenesLaboratorio"
 import { textoEstadoOrden } from "../../utilidades/ventasModulo"
 
@@ -135,7 +136,8 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
           </dl>
         </Bloque>
 
-        <BloqueFacturaElectronica factura={f} paciente={paciente} usuario={usuario} equipo={equipo} fe={fe} puedeEditar={puedeEditar} onRegistrar={() => v.setFacturaElectronicaPara({ factura: f, paciente })} onAviso={onAviso} />
+        {/* Los archivos y los envíos de la factura electrónica son de quien ve Ventas; quien llega desde el perfil del paciente solo ve su número. */}
+        {!puede(usuario, "ventas", "ver") ? (f.facturaElectronica ? <Bloque titulo="Factura electrónica"><p className="font-mono text-sm text-slate-700">{f.facturaElectronica}</p></Bloque> : null) : <BloqueFacturaElectronica factura={f} paciente={paciente} usuario={usuario} equipo={equipo} fe={fe} puedeEditar={puedeEditar} onRegistrar={() => v.setFacturaElectronicaPara({ factura: f, paciente })} onAviso={onAviso} />}
 
         {(propios.length > 0 || anuladosDeVenta.length > 0 || restoAlContado > 0 || cambios.length > 0 || estado.id === "saldo") && (
           <Bloque titulo="Pagos">
