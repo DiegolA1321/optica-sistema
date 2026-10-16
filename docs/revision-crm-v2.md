@@ -1,7 +1,7 @@
 # Revisión del CRM v2 (15 oct. 2026, rama `crm-v2`)
 
 Comparación del módulo con lo que se pidió, con los criterios del ingeniero (`docs/feedback-ing/criterios-ingeniero.md`) y con `docs/principios-diseno.md`.
-Estado: construido y probado con la base de mentira (Vitest) y visto en pantalla con la Óptica Demo; **la migración 0114 todavía no está aplicada**, así que lo que escribe en la base y la prueba de Playwright del recorrido esperan esa aprobación.
+Estado (15 oct. 2026, noche): construido, **migración 0114 aplicada** (respaldo `pre-crm-v2-aplicar-2026-10-15.dump`; ensayo `scripts/ensayo-0114.mjs`; verificación con sesiones reales `scripts/verificar-0114.mjs`), `e2e/crm-v2.spec.js` 9 de 9. Sin publicar.
 
 ## 1. Los seis problemas del pedido
 
@@ -20,7 +20,7 @@ Estado: construido y probado con la base de mentira (Vitest) y visto en pantalla
 - **Seguimiento** ✔ fecha, paciente, motivo, canal, resultado y quién; período y filtros; contactados, agendaron y tasa de respuesta de lo que se ve.
 - **Campañas** ✔ cuatro grupos, plantillas editables, variables, envío uno por uno marcando cada envío (queda en Seguimiento), exportar la lista (Excel). **Correo: no se hizo** (espera el dominio propio, como se dijo).
 - **Fidelización** ✔ rankings de puntaje, más frecuentes y más refieren, con todos los nombres.
-- **Consentimiento** ✔ "Recordatorios de salud" (sí por defecto) y "Promociones" (no por defecto); en el perfil (Datos del paciente) y en "Mis datos" del portal; "No desea recibir mensajes" apaga los dos; historial inmutable de quién y cuándo. Además, el saludo de cumpleaños y el recordatorio de cita por correo ya no salen para quien no acepta recordatorios.
+- **Consentimiento** ✔ dos permisos: **"Recordatorios de salud"** (control vencido, control próximo, citas y seguimiento después de la compra; sí por defecto) y **"Promociones y saludos"** (cumpleaños y campañas; no por defecto). Se eligen al registrar al paciente (formulario del personal y reserva web), se cambian en el perfil (Datos del paciente) y en "Mis datos" del portal; "No desea recibir mensajes" apaga los dos; historial inmutable de quién y cuándo (incluido el permiso con el que nace). El servidor lo exige, y el saludo de cumpleaños por correo pide "Promociones y saludos" y el recordatorio de cita, "Recordatorios de salud".
 - **Plantillas** ✔ seis (control vencido, control próximo, cumpleaños, reactivación, después de la compra, promoción), cortas y con el nombre de la óptica.
 
 ## 3. Criterios del ingeniero
@@ -38,24 +38,24 @@ Estado: construido y probado con la base de mentira (Vitest) y visto en pantalla
 ## 4. Principios de diseño (lista de revisión)
 
 - Posiciones estables ✔ pestañas, filtros y botones no se mueven; lo que descansa se ve con un interruptor, no con un cambio de pantalla.
-- Un número, un nombre ✔ "Control vencido" usa `esInactivo` (el mismo del Inicio, Pacientes y Reportes); el cumpleaños usa la misma ventana que el Inicio (`diasCumpleEnVentana`). Con "Incluir a quienes no hay que contactar hoy" el número es **exactamente** el del Inicio; sin él, es lo que queda por hacer hoy (y el interruptor dice cuántos faltan).
-- Cada número lleva a lo que promete ✔ el aviso del Inicio abre el CRM en ese motivo con todos incluidos; las tarjetas de Seguimiento filtran lo que cuentan.
+- Un número, un nombre ✔ "Control vencido" usa `esInactivo` (el mismo del Inicio, Pacientes y Reportes); el cumpleaños usa la misma ventana que el Inicio (`diasCumpleEnVentana`). El aviso de control vencido y el de cumpleaños del Inicio cuentan **con la misma lista** "Para contactar" (una sola función, `listaParaContactar`): solo los que hoy hay que contactar, sin los que ya se contactaron y descansan ni los que no aceptaron ese tipo de mensaje. Lo vigilan `e2e/crm-v2.spec.js` (pruebas 7 y 8) y una prueba de Inicio. (Pacientes y Reportes siguen contando todos los controles vencidos: son otra pregunta.)
+- Cada número lleva a lo que promete ✔ el aviso del Inicio abre el CRM en ese motivo y los dos números son el mismo; las tarjetas de Seguimiento filtran lo que cuentan.
 - Cabecera igual a las demás ✔ "Requieren atención" (la misma ventana) y la acción principal "Nueva campaña".
 - Ventana estándar ✔ `Cascaron` en el resultado, la campaña, las plantillas, el detalle del contacto y los avisos.
 - Fechas y "hoy" desde las funciones únicas ✔ (`hoyISO`, `formatoFecha`, `diaDeRegistro`, `CampoFecha`).
 - Sin lista nativa ✔. Azul de la marca ✔. A 1366×768 sin desplazamiento horizontal ✔ (visto en la Demo; la prueba de Playwright lo vigila).
 - Los permisos ocultan ✔ por permiso, no por nombre de rol.
 
-## 5. Lo que no se verificó todavía
+## 5. Verificación
 
-- Escritura real contra la base (la migración no está aplicada): contactar, resultados, campañas, permisos y el recorrido de Playwright (`e2e/crm-v2.spec.js`, 7 pruebas escritas, sin correr).
-- Otros roles en pantalla (se probaron con la base de mentira), la óptica vacía y otras zonas horarias.
-- El portal con un paciente real (`mis_permisos_mensajes` / `actualizar_consentimiento_paciente`): se verifica con la migración aplicada.
+- Vitest 980 de 980; build bien; Playwright contra la versión compilada con `--workers=1`: ver `docs/estado-actual.md`.
+- Con sesiones reales (`scripts/verificar-0114.mjs`): el administrador de la óptica de pruebas, el de la Demo (no ve ni toca nada ajeno), los otros roles (Recepción registra contactos; Optómetra y Ventas solo leen) y sin sesión (nada).
+- Sin verificar: otras zonas horarias del CRM, la óptica vacía y el portal con un paciente real con sesión (la función rechaza tokens falsos; el flujo feliz del portal lo prueba el ensayo, no una sesión de paciente).
 
-## 6. Decisiones que conviene que Diego confirme
+## 6. Decisiones tomadas por Diego (15 oct.)
 
-1. **Cumpleaños y seguimiento de compra se tratan como "recordatorios de salud"** (no llevan oferta); solo la campaña de promociones exige el permiso de promociones.
-2. **Recordatorios de salud: sí por defecto** (es parte del servicio); **promociones: no** hasta que el paciente lo acepte. Los pacientes que ya existen quedan así.
-3. **Descansos tras un contacto:** "no respondió" 3 días, "agendó" 30, "no le interesa" 180 (constantes en `crmContactos.js`).
-4. **Una fila por paciente con todos sus motivos:** quien tiene control vencido y cumple años cuenta en los dos filtros; "Todos" lo cuenta una vez.
-5. **El formulario de registro por la web no pregunta todavía por los permisos** (hoy nacen con el valor por defecto y el paciente los cambia en el portal).
+1. Los cumpleaños son comunicación de relación: pertenecen a **"Promociones y saludos"**; el control y el seguimiento de la compra, a **"Recordatorios de salud"**.
+2. Recordatorios sí y promociones y saludos no por defecto (los pacientes que ya existían quedan así).
+3. Descansos tras un contacto: "no respondió" 3 días, "agendó" 30, "no le interesa" 180.
+4. Sin botón para "incluir" a los que no se contactan hoy: el Inicio y el CRM cuentan la misma lista.
+5. Pendiente de otra ronda: el alta rápida de pacientes dentro de Citas y la reserva desde el portal de un paciente que ya existe no preguntan por los permisos (nacen con el valor por defecto).

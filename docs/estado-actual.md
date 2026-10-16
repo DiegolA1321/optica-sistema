@@ -1,5 +1,5 @@
 <!-- CRM2-INICIO -->
-## CRM v2 (15 oct. 2026, rama `crm-v2`, SIN publicar; la migración 0114 NO está aplicada: espera la aprobación de Diego)
+## CRM v2 (15 oct. 2026, rama `crm-v2`, SIN publicar; migración 0114 APLICADA el 15 oct. 2026 con aprobación de Diego)
 Pedido: rediseñar "CRM y fidelización" para responder "¿a quién contacto hoy, por qué y qué pasó la última vez?". Cuatro pestañas: **Para contactar**, **Seguimiento**, **Campañas** (reemplaza "Avisos") y **Fidelización**; consentimiento en dos permisos (Recordatorios de salud y Promociones).
 **Dónde voy:**
 - [x] Paso 1 — Lógica pura con pruebas: `src/utilidades/crmContactos.js` (grupos, resultados, descansos, consentimiento, plantillas, campañas, rankings) y `diasCumpleEnVentana` en `fidelizacion.js` (el Inicio y el CRM comparten la ventana de cumpleaños).
@@ -8,7 +8,8 @@ Pedido: rediseñar "CRM y fidelización" para responder "¿a quién contacto hoy
 - [x] Paso 4 — Estructura y "Para contactar" (+ "Requieren atención", cabecera y enlaces del Inicio con el mismo número).
 - [x] Paso 5 — Seguimiento, Campañas (con plantillas) y Fidelización.
 - [x] Paso 6 — Permisos en "Datos del paciente" (perfil) y en "Mis datos" del portal (`PermisosMensajes.jsx`).
-- [~] Paso 7 — `e2e/crm-v2.spec.js` escrito (7 pruebas); **falta correrlo y la suite completa de Playwright: necesitan la migración aplicada.** Revisión contra el pedido y los criterios del ingeniero: `docs/revision-crm-v2.md`. Vitest 970 de 970; build bien.
+- [x] Paso 7 — Migración aplicada tras el respaldo `pre-crm-v2-aplicar-2026-10-15.dump`, el ensayo y la verificación con sesiones reales (`scripts/verificar-0114.mjs`). `e2e/crm-v2.spec.js`: 9 de 9. Vitest 980 de 980. Revisión contra el pedido y los criterios del ingeniero: `docs/revision-crm-v2.md`.
+- **Ajustes del 15 oct. (noche):** cumpleaños = "Promociones y saludos"; se quitó el botón "Incluir a quienes no hay que contactar hoy" (el Inicio y el CRM cuentan la misma lista); los permisos se eligen al registrar (formulario del personal y reserva web, `registrar_permisos_cita_publica`).
 **Decisiones de diseño (para que Diego las confirme o corrija):** una fila por paciente con todos sus motivos (un paciente con control vencido y cumpleaños cuenta en los dos filtros; el total cuenta cada paciente una vez); "no respondió" descansa 3 días, "agendó" 30, "no le interesa" 180; una cita agendada después del contacto lo resuelve sola; cumpleaños y seguimiento de compra se tratan como recordatorios de salud (sin oferta); promociones solo a quien las aceptó (el servidor lo impide); recordatorios sí por defecto, promociones no.
 <!-- CRM2-FIN -->
 

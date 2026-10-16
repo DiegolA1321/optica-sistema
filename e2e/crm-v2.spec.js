@@ -4,7 +4,7 @@
 // Los saltos de tiempo se hacen en la base (volver_el = hoy), porque esperar 3 días no es una prueba.
 import { test, expect } from '@playwright/test'
 import pg from 'pg'
-import { iniciarSesion, credencial, nombrePrueba, cedulaValida, telefonoPrueba } from './ayudas.js'
+import { iniciarSesion, credencial, nombrePrueba, cedulaValida, telefonoPrueba, elegirFecha } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 test.describe.configure({ mode: 'serial' })
@@ -115,7 +115,7 @@ test('3 · Si el paciente agenda una cita después del contacto, el contacto que
   await expect(page.getByRole('button', { name: `Ver el contacto con ${B}` })).toContainText('Agendó cita (automático)')
 })
 
-test('4 · "No desea recibir mensajes" lo saca de la lista, no se le vuelve a ofrecer y se dice por qué', async ({ page }) => {
+test('4 · "No desea recibir mensajes" lo saca de la lista y apaga sus dos permisos', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await abrirCrm(page)
   await filaDe(page, C).getByRole('button', { name: `Registrar resultado de ${C}` }).click()
@@ -125,10 +125,7 @@ test('4 · "No desea recibir mensajes" lo saca de la lista, no se le vuelve a of
   await ventana.getByRole('button', { name: 'Guardar resultado' }).click()
   await expect(ventana).toHaveCount(0)
   await expect(filaDe(page, C)).toHaveCount(0)
-  // Con "incluir" se ve, marcado, y sin botones para escribirle.
-  await page.getByRole('button', { name: /Incluir a quienes no hay que contactar hoy/ }).click()
-  await expect(filaDe(page, C)).toContainText('No desea recibir mensajes')
-  await expect(filaDe(page, C).getByRole('button', { name: /Contactar a/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Incluir a quienes/ })).toHaveCount(0) // ya no hay un botón para verlo: la lista es solo lo que hay que contactar hoy
   // Y el permiso quedó apagado en su perfil.
   const permisos = await enLaBase((c) => c.query('select acepta_recordatorios, acepta_promociones from public.pacientes_base where nombre = $1', [C]))
   expect(permisos.rows[0]).toEqual({ acepta_recordatorios: false, acepta_promociones: false })
@@ -146,7 +143,7 @@ test('5 · Campaña: se prepara para un grupo y cada envío queda marcado', asyn
   await expect(lista).toBeVisible()
   await lista.getByRole('button', { name: new RegExp(`Enviar por WhatsApp a ${A}`) }).click()
   await expect(lista.getByRole('listitem').filter({ hasText: A })).toContainText('Enviado')
-  await lista.getByRole('button', { name: 'Cerrar' }).click()
+  await lista.getByRole('button', { name: 'Cerrar' }).last().click()
   await expect(page.getByText(/\d+ de \d+ enviados/)).toBeVisible()
 })
 
@@ -161,14 +158,58 @@ test('6 · Ninguna pestaña tiene desplazamiento horizontal a 1366×768', async 
   }
 })
 
-test('7 · Demo (solo lectura): "control vencido" da el mismo número en el Inicio y en el CRM, con todos incluidos', async ({ page }) => {
-  await iniciarSesion(page, 'ADMIN', 'DEMO')
-  const textoInicio = await page.getByRole('main').innerText()
+// Lo que dice el Inicio y lo que muestra el CRM es lo mismo: el aviso de control vencido cuenta exactamente la lista "Para contactar".
+async function numerosDelInicioYDelCrm(page) {
+  // El aviso puede quedar tras "Ver todo" (la tarjeta muestra tres): se lee en la ventana de avisos de Pacientes, que los trae todos.
+  let textoInicio = ''
+  await expect(page.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 }) // el Inicio ya cargó (y con él, los contactos del CRM)
+  await page.waitForTimeout(1500)
+  const abrirAvisos = page.getByRole('button', { name: 'Abrir los avisos de Pacientes' })
+  if (await abrirAvisos.count()) {
+    await abrirAvisos.click()
+    textoInicio = await page.getByRole('dialog').innerText()
+    await page.keyboard.press('Escape')
+  }
   const delInicio = textoInicio.match(/(\d+)\s+pacientes?\s+con el control vencido/)
   await abrirCrm(page)
-  const incluir = page.getByRole('button', { name: /Incluir a quienes no hay que contactar hoy/ })
-  if (await incluir.count()) await incluir.click()
   const pildora = page.getByRole('button', { name: /^Control vencido \(\d+\)/ })
   await expect(pildora).toBeVisible()
-  if (delInicio) await expect(pildora).toContainText(`(${delInicio[1]})`)
+  const delCrm = Number((await pildora.innerText()).match(/\((\d+)\)/)[1])
+  expect(delInicio ? Number(delInicio[1]) : 0, 'el aviso del Inicio y el filtro del CRM cuentan lo mismo').toBe(delCrm)
+  return delCrm
+}
+
+test('7 · Óptica de pruebas: el aviso del Inicio cuenta lo mismo que "Para contactar", sin el que está en descanso ni el que no desea mensajes', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN', 'E2E')
+  const n = await numerosDelInicioYDelCrm(page)
+  expect(n).toBeGreaterThanOrEqual(1) // quedan: los de las pruebas anteriores que siguen por contactar (A descansa o vuelve, B resuelto, C no desea)
+  for (const [nombre, aparece] of [[A, true], [B, false], [C, false]]) {
+    await expect(filaDe(page, nombre)).toHaveCount(aparece ? 1 : 0)
+  }
+})
+
+test('8 · Demo (solo lectura): control vencido da el mismo número en el Inicio y en el CRM', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN', 'DEMO')
+  await numerosDelInicioYDelCrm(page)
+})
+
+test('9 · Crear un paciente pregunta por los dos permisos: recordatorios marcado, promociones y saludos desmarcado', async ({ page }) => {
+  const nombre = nombrePrueba()
+  await iniciarSesion(page, 'ADMIN', 'E2E')
+  await page.getByRole('button', { name: /^Pacientes/ }).first().click()
+  await page.getByRole('button', { name: 'Crear paciente' }).first().click()
+  const registro = page.getByRole('dialog', { name: 'Crear paciente' })
+  await expect(registro.getByRole('checkbox', { name: /Recordatorios de salud/ })).toBeChecked()
+  await expect(registro.getByRole('checkbox', { name: /Promociones y saludos/ })).not.toBeChecked()
+  await registro.locator('#p-nombre').fill(nombre)
+  await registro.locator('#p-cedula').fill(cedulaValida())
+  await registro.locator('#p-telefono').fill(telefonoPrueba())
+  await elegirFecha(registro, 'p-nacimiento', '1990-05-15')
+  await registro.getByRole('checkbox', { name: /Promociones y saludos/ }).check()
+  await registro.getByRole('button', { name: 'Registrar paciente' }).click()
+  await expect(page.getByRole('dialog', { name: 'Paciente registrado' })).toBeVisible({ timeout: 15_000 })
+  const fila = await enLaBase((c) => c.query('select acepta_recordatorios, acepta_promociones, consentimiento_actualizado_por from public.pacientes_base where nombre = $1', [nombre]))
+  expect(fila.rows[0].acepta_recordatorios).toBe(true)
+  expect(fila.rows[0].acepta_promociones).toBe(true)
+  expect(fila.rows[0].consentimiento_actualizado_por).toBeTruthy() // quedó anotado quién lo registró
 })
