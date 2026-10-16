@@ -253,7 +253,7 @@ export function frasesDeAccion(a, saas = true) {
     case "renombrar_optica": return [t("renombró "), b(a.antes || a.detalle || "la óptica"), t(" a "), b(o)]
     case "agregar_administrador": return [t("agregó a "), b(a.detalle), t(" como administrador de "), b(o)]
     case "eliminar_administrador": return [t("quitó a "), b(a.detalle), t(" como administrador de "), b(o)]
-    case "marcar_optica_prueba": return [t(a.despues === "Óptica de prueba" ? "marcó como óptica de prueba a " : "quitó la marca de prueba a "), b(o)]
+    case "marcar_optica_prueba": return [t(a.despues === "Óptica de prueba" ? (saas ? "marcó como óptica de prueba a " : "marcó como entorno de prueba a ") : "quitó la marca de prueba a "), b(o)]
     case "entrar_como_optica": return [t("entró como administrador a la óptica "), b(o)]
     case "salir_de_optica": return [t("salió de la óptica "), b(o)]
     case "responder_mensaje": return [t("respondió una consulta de "), b(o), ...(a.detalle ? [t(" ("), b(a.detalle), t(")")] : [])]
@@ -275,7 +275,7 @@ export const textoDeAccion = (a, saas = true) => frasesDeAccion(a, saas).map((x)
 export function cambioDeAccion(a) {
   if (a.accion === "renombrar_optica") return { campo: "Nombre", antes: a.antes || a.detalle || "", despues: a.despues || a.optica_nombre || "" }
   if (a.antes || a.despues) {
-    const campo = { actualizar_pago: "Estado del pago", cambiar_suscripcion: "Suscripción", cambiar_estado_soporte: "Estado de la consulta", cambiar_estado_lead: "Estado del lead", marcar_optica_prueba: "Óptica de prueba", suspender_optica: "Estado", reactivar_optica: "Estado" }[a.accion] || "Valor"
+    const campo = { actualizar_pago: "Estado del pago", cambiar_suscripcion: "Suscripción", cambiar_estado_soporte: "Estado de la consulta", cambiar_estado_lead: "Estado del lead", marcar_optica_prueba: "Marca de prueba", suspender_optica: "Estado", reactivar_optica: "Estado" }[a.accion] || "Valor"
     const nombres = { actualizar_pago: ETIQUETA_PAGO, cambiar_estado_lead: ETIQUETA_LEAD, cambiar_estado_soporte: ETIQUETA_SOPORTE }[a.accion] || {}
     return { campo, antes: etiquetaDe(nombres, a.antes) || "", despues: etiquetaDe(nombres, a.despues) || "" }
   }

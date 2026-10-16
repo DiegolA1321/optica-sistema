@@ -1551,7 +1551,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 Apellidos y nombres <span className="text-red-500">*</span>
               </label>
               <input
-                id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego" autoComplete="name"
+                id="p-nombre" type="text" required placeholder="Ej. Cevallos Macías Diego" autoComplete="off"
                 value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))}
                 className={"w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.nombre ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
               />
@@ -1587,7 +1587,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                   <input
-                    id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10} autoComplete="tel"
+                    id="p-telefono" type="text" placeholder="0999999999" inputMode="numeric" maxLength={10} autoComplete="off"
                     value={telefono} onChange={(e) => setTelefono(filtrarSoloNumeros(e.target.value, 10))}
                     className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.telefono ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                   />
@@ -1600,7 +1600,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
                   <input
-                    id="p-correo" type="email" placeholder="correo@ejemplo.com" autoComplete="email"
+                    id="p-correo" type="email" placeholder="correo@ejemplo.com" autoComplete="off"
                     value={correo} onChange={(e) => setCorreo(e.target.value)}
                     className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.correo ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
                   />

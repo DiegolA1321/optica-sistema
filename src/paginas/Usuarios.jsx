@@ -368,7 +368,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
         {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertTriangle size={16} /> {error}</div>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre completo <span className="text-red-500">*</span></span>
-            <input type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))} placeholder="Ej. Ana Torres" autoComplete="name" className={CAMPO} autoFocus />
+            <input type="text" value={nombre} onChange={(e) => setNombre(filtrarSoloLetras(e.target.value))} placeholder="Ej. Ana Torres" autoComplete="off" className={CAMPO} autoFocus />
           </label>
           <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula {modal.id == null && <span className="text-red-500">*</span>}</span>
             <div className="relative"><IdCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
@@ -381,7 +381,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Correo electrónico <span className="text-red-500">*</span></span>
               <div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-                <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="email" className={CAMPO + " pl-9"} /></div>
+                <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="ana.torres@correo.com" autoComplete="off" className={CAMPO + " pl-9"} /></div>
             </label>
             <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><p className="text-xs leading-relaxed">La contraseña la genera el sistema: la verás una sola vez al crear al usuario, y la persona elige la suya al entrar.</p></div>
           </div>

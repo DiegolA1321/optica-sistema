@@ -1267,12 +1267,14 @@ function App() {
 
       {/* 5. PANEL SUPERADMIN (CREA/ADMINISTRA ÓPTICAS) */}
       {pantallaActual === 'panel_superadmin' && (
+        <GuardiaClaveTemporal alSalir={cerrarSesion}>
         <SuperadminPanel
           usuario={usuario}
           alSalir={cerrarSesion}
           alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
           alEntrarComo={entrarComoOptica}
         />
+        </GuardiaClaveTemporal>
       )}
     </Suspense>
     );

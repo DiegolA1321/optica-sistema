@@ -8,6 +8,7 @@ import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { ContenedorLista, EncabezadoLista, Vacio } from "../ventas/Lista"
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
 import { InsigniaEstado, InsigniaUrgencia } from "./piezas"
+import { NOMBRE_PRUEBA_PLURAL } from "../superadmin/piezas"
 import VentanaConsultaSoporte from "./VentanaConsultaSoporte"
 import {
   TIEMPO_ESTIMADO, ESTADOS_CONSULTA, MODULOS_SOPORTE, PERIODOS_SOPORTE, URGENCIAS, codigoConsulta, desdeDePeriodo, duracionLegible, filtrarBandeja, indicadoresSoporte, nombreModulo, ordenarBandeja,
@@ -266,7 +267,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative min-w-[14rem] flex-1">
                 <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-                <input type="search" value={filtros.busqueda} onChange={ponerFiltro("busqueda")} placeholder="Buscar: número, asunto, persona u óptica" aria-label="Buscar consultas" className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50 [&::-webkit-search-cancel-button]:hidden" />
+                <input type="search" value={filtros.busqueda} onChange={ponerFiltro("busqueda")} placeholder={MODO_SAAS_VISIBLE ? "Buscar: número, asunto, persona u óptica" : "Buscar: número, asunto o persona"} aria-label="Buscar consultas" className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50 [&::-webkit-search-cancel-button]:hidden" />
               </div>
               <select value={filtros.estado} onChange={ponerFiltro("estado")} aria-label="Filtrar por estado" className={SELECT}>
                 <option value="abiertas">Abiertas</option><option value="todas">Todos los estados</option>
@@ -274,12 +275,12 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
               </select>
               <select value={filtros.urgencia} onChange={ponerFiltro("urgencia")} aria-label="Filtrar por urgencia" className={SELECT}><option value="">Toda urgencia</option>{URGENCIAS.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select>
               <select value={filtros.modulo} onChange={ponerFiltro("modulo")} aria-label="Filtrar por módulo" className={SELECT}><option value="">Todos los módulos</option>{MODULOS_SOPORTE.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select>
-              <select value={filtros.opticaId} onChange={ponerFiltro("opticaId")} aria-label="Filtrar por óptica" className={SELECT + " max-w-[14rem]"}><option value="">Todas las ópticas</option>{opticas.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select>
+              {(MODO_SAAS_VISIBLE || opticas.length > 1) && <select value={filtros.opticaId} onChange={ponerFiltro("opticaId")} aria-label="Filtrar por óptica" className={SELECT + " max-w-[14rem]"}><option value="">Todas las ópticas</option>{opticas.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select>}
               {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_SECUNDARIA}><X size={14} aria-hidden="true" /> Limpiar</button>}
             </div>
             <p role="status" className="px-1 text-sm font-semibold text-slate-600">{plural(filtradas.length, "consulta", "consultas")}{filtros.estado === "abiertas" && " abiertas"}</p>
             {cargando ? <div className="h-40 animate-pulse rounded-2xl bg-slate-100" /> : filtradas.length === 0 ? (
-              <Vacio Icono={Inbox} titulo={consultas.length === 0 ? (ocultas > 0 ? "No hay consultas de ópticas reales" : "Todavía no hay consultas") : "Ninguna consulta coincide"} texto={consultas.length === 0 ? (ocultas > 0 ? `Hay ${ocultas} de ópticas de prueba que no se muestran por defecto: usa «Incluir ópticas de prueba» para verlas.` : "Cuando una óptica escriba al soporte, su consulta aparecerá aquí, con las urgentes primero.") : "Prueba con otros filtros."}>
+              <Vacio Icono={Inbox} titulo={consultas.length === 0 ? (ocultas > 0 ? (MODO_SAAS_VISIBLE ? "No hay consultas de ópticas reales" : "No hay consultas de la óptica") : "Todavía no hay consultas") : "Ninguna consulta coincide"} texto={consultas.length === 0 ? (ocultas > 0 ? `Hay ${ocultas} de ${NOMBRE_PRUEBA_PLURAL} que no se muestran por defecto: usa «Incluir ${NOMBRE_PRUEBA_PLURAL}» para verlas.` : "Cuando una óptica escriba al soporte, su consulta aparecerá aquí, con las urgentes primero.") : "Prueba con otros filtros."}>
                 {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Limpiar los filtros</button>}
               </Vacio>
             ) : (

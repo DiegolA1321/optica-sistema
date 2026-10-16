@@ -16,6 +16,7 @@ import {
   AlertCircle,
   LogOut,
   ShieldCheck,
+  KeyRound,
   Search,
   CheckCircle2,
   Ban,
@@ -66,7 +67,7 @@ import { sumarDiasISO } from "../utilidades/controles"
 import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { Cascaron } from "../componentes/AtencionPaciente"
-import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
+import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva, generarClaveTemporal } from "../utilidades/validaciones"
 import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
@@ -138,12 +139,12 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
 import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
 import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
-import { textoDeAccion, ACCIONES_COMERCIALES, MODULOS_USO, ultimaActividadDe, haceDias, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
+import { textoDeAccion, ACCIONES_COMERCIALES, MODULOS_USO, ultimaActividadDe, haceDias, opticasDelNegocio, sinPruebas, idsDePrueba, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
 import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
 import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
 import { SinResultados } from "../componentes/reportes/bloques"
 import { ESTADOS_LEAD_LISTA } from "../componentes/superadmin/ResumenNegocio"
-import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba } from "../componentes/superadmin/piezas"
+import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba, NOMBRE_PRUEBA_PLURAL } from "../componentes/superadmin/piezas"
 import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
 
@@ -332,7 +333,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // ─── Superadmins ───
   const [modalSuperadminAbierto, setModalSuperadminAbierto] = useState(false)
   const [camposSuperadmin, setCamposSuperadmin] = useState(camposCuentaIniciales)
-  const [verClaveSuperadmin, setVerClaveSuperadmin] = useState(false)
+  const [claveSuperadminCreada, setClaveSuperadminCreada] = useState(null) // { nombre, correo, clave }: la contraseña temporal, que se ve una sola vez
+  const [claveSuperadminCopiada, setClaveSuperadminCopiada] = useState(false)
   const [errorSuperadmin, setErrorSuperadmin] = useState("")
   const [guardandoSuperadmin, setGuardandoSuperadmin] = useState(false)
   const [superadminAEliminar, setSuperadminAEliminar] = useState(null)
@@ -488,22 +490,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setCargaInicial(false)
     cargarAuditoria(true)
     if (MODO_SAAS_VISIBLE && opticasData?.length) verificarVencimientosPago(opticasData)
-
-    // Conteo real de acciones por superadmin — un COUNT liviano por cuenta
-    // (son pocas) en vez de traer toda la auditoría al cliente para sumarla.
-    if (superadminsData?.length) {
-      const conteos = await Promise.all(
-        superadminsData.map(async (s) => {
-          let consultaConteo = supabase.from("auditoria").select("id", { count: "exact", head: true }).eq("actor_id", s.id)
-          if (!MODO_SAAS_VISIBLE) consultaConteo = consultaConteo.not("accion", "in", `(${ACCIONES_COMERCIALES.join(",")})`)
-          const { count } = await consultaConteo
-          return [s.id, count || 0]
-        }),
-      )
-      setAccionesPorSuperadmin(Object.fromEntries(conteos))
-    } else {
-      setAccionesPorSuperadmin({})
-    }
 
     cargarMensajes()
     cargarSoporte()
@@ -772,15 +758,38 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // `auditoria`, que viene ordenada desc) — para que la lista de Superadmins
   // no sea solo nombre+correo, sino que cuente algo de lo que esa cuenta
   // efectivamente hizo.
+  // Misma regla que la Actividad: las acciones dentro de entornos de prueba no cuentan salvo que se pida verlas.
   const ultimaAccionPorSuperadmin = useMemo(() => {
     const mapa = new Map()
-    for (const a of auditoria) {
+    for (const a of sinPruebas(auditoria, opticas, incluirPrueba)) {
       if (!a.actor_id || mapa.has(a.actor_id)) continue
       if (!MODO_SAAS_VISIBLE && ACCIONES_COMERCIALES.includes(a.accion)) continue
       mapa.set(a.actor_id, a)
     }
     return mapa
-  }, [auditoria])
+  }, [auditoria, opticas, incluirPrueba])
+
+  // Conteo real de acciones por superadmin — un COUNT liviano por cuenta (son pocas) en vez de traer toda la auditoría al cliente.
+  // Sin las de los entornos de prueba (las que no son de una óptica sí cuentan), igual que la Actividad.
+  useEffect(() => {
+    if (!supabase) return
+    if (!superadmins.length) { setAccionesPorSuperadmin({}); return }
+    let vigente = true
+    const idsPrueba = incluirPrueba ? [] : [...idsDePrueba(opticas)]
+    ;(async () => {
+      const conteos = await Promise.all(
+        superadmins.map(async (s) => {
+          let consultaConteo = supabase.from("auditoria").select("id", { count: "exact", head: true }).eq("actor_id", s.id)
+          if (!MODO_SAAS_VISIBLE) consultaConteo = consultaConteo.not("accion", "in", `(${ACCIONES_COMERCIALES.join(",")})`)
+          if (idsPrueba.length) consultaConteo = consultaConteo.or(`optica_id.is.null,optica_id.not.in.(${idsPrueba.join(",")})`)
+          const { count } = await consultaConteo
+          return [s.id, count || 0]
+        }),
+      )
+      if (vigente) setAccionesPorSuperadmin(Object.fromEntries(conteos))
+    })()
+    return () => { vigente = false }
+  }, [superadmins, opticas, incluirPrueba, auditoria])
 
   // Sexta Mirada (Panel superadministrador, punto 10): el nombre de la óptica
   // sí debe validarse como único (a diferencia del slug, que ya no depende
@@ -1152,7 +1161,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setDetalle((prev) => ({ ...prev, es_de_prueba: valor }))
     await registrarAuditoria("marcar_optica_prueba", { opticaId: detalle.id, opticaNombre: detalle.nombre, antes: valor ? "Óptica real" : "Óptica de prueba", despues: valor ? "Óptica de prueba" : "Óptica real" })
     cargarAuditoria(true)
-    mostrarToast("exito", valor ? `${detalle.nombre} ahora es una óptica de prueba.` : `${detalle.nombre} ahora cuenta en las métricas del negocio.`)
+    mostrarToast("exito", valor ? `${detalle.nombre} ahora es ${MODO_SAAS_VISIBLE ? "una óptica de prueba" : "un entorno de prueba"}.` : `${detalle.nombre} ahora cuenta en las métricas del negocio.`)
   }
 
   // Roles de la óptica (solo lectura) y su restauración a los predefinidos (Optómetra, Recepción y Ventas).
@@ -1363,7 +1372,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   const abrirCrearSuperadmin = () => {
     setCamposSuperadmin(camposCuentaIniciales)
-    setVerClaveSuperadmin(false)
     setErrorSuperadmin("")
     setModalSuperadminAbierto(true)
   }
@@ -1371,15 +1379,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const guardarSuperadmin = async (e) => {
     e.preventDefault()
     setErrorSuperadmin("")
-    const { nombre, email, clave, confirmarClave } = camposSuperadmin
+    const { nombre, email } = camposSuperadmin
     if (!esNombreValido(nombre)) { setErrorSuperadmin("Ingresa un nombre válido (solo letras)."); return }
     if (!esEmailValido(email, false)) { setErrorSuperadmin("Ingresa un correo válido (ej. nombre@dominio.com)."); return }
-    if (!clave) { setErrorSuperadmin("Completa la contraseña."); return }
-    if (validarClaveNueva(clave)) { setErrorSuperadmin(validarClaveNueva(clave)); return }
-    if (clave !== confirmarClave) { setErrorSuperadmin("Las contraseñas no coinciden."); return }
     setGuardandoSuperadmin(true)
     const temp = crearClienteTemporal()
-    const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: email.trim(), password: clave })
+    // La contraseña la genera el sistema: temporal, se muestra una sola vez y la persona la cambia en su primer ingreso (GuardiaClaveTemporal).
+    const claveTemporal = generarClaveTemporal()
+    const { data: alta, error: errorAlta } = await temp.auth.signUp({ email: email.trim(), password: claveTemporal, options: { data: { clave_temporal: true } } })
     await temp.auth.signOut()
     if (errorAlta || !alta?.user) {
       const yaRegistrado = /already registered|already exists|already in use/i.test(errorAlta?.message || "")
@@ -1403,6 +1410,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setGuardandoSuperadmin(false)
     setModalSuperadminAbierto(false)
     mostrarToast("exito", `Superadmin ${nombre.trim()} creado correctamente.`)
+    setClaveSuperadminCopiada(false)
+    setClaveSuperadminCreada({ nombre: nombre.trim(), correo: email.trim(), clave: claveTemporal })
     cargarDatos()
   }
   const confirmarEliminarSuperadmin = async () => {
@@ -1641,7 +1650,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   const renderMensajes = () => (
     <div className="space-y-3" data-soporte>
-      <CabeceraSeccion titulo="Soporte" pregunta="¿Qué óptica necesita ayuda y qué tan rápido la estamos atendiendo?">
+      <CabeceraSeccion titulo="Soporte" pregunta={MODO_SAAS_VISIBLE ? "¿Qué óptica necesita ayuda y qué tan rápido la estamos atendiendo?" : "¿La óptica necesita ayuda y qué tan rápido la estamos atendiendo?"}>
         <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />
         <button
           type="button"
@@ -1700,11 +1709,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <td colSpan={cols} className="px-4 py-12">
                   <div role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 text-center">
                     <Building2 size={22} className="text-slate-400" aria-hidden="true" />
-                    <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : "Todas las ópticas son de prueba y no se muestran por defecto."}</p>
+                    <p className="text-sm text-slate-600">{opticas.length === 0 ? "Aún no hay ópticas registradas." : etiquetasOpticas.length > 0 ? "Ninguna óptica coincide con estos filtros." : (MODO_SAAS_VISIBLE ? "Todas las ópticas son de prueba y no se muestran por defecto." : "Todas son entornos de prueba y se muestran aparte.")}</p>
                     {opticas.length === 0 ? (
                       <button type="button" onClick={abrirCrear} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Crear la primera óptica</button>
                     ) : etiquetasOpticas.length > 0 || !saas ? null : (
-                      <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir ópticas de prueba</button>
+                      <button type="button" onClick={() => setIncluirPrueba(true)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 cursor-pointer">Incluir {NOMBRE_PRUEBA_PLURAL}</button>
                     )}
                   </div>
                 </td>
@@ -1798,9 +1807,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       </div>
 
       {tablaOpticas(opticasFiltradas, false)}
-      <p role="status" className="px-1 text-sm font-semibold text-slate-600">{opticasFiltradas.length} {opticasFiltradas.length === 1 ? "óptica" : "ópticas"}</p>
       {!MODO_SAAS_VISIBLE && entornosPrueba.length > 0 && (
-        <section aria-label="Entornos de prueba" className="space-y-2 pt-2">
+        <section aria-label="Entornos de prueba" className="space-y-2">
           <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Entornos de prueba</h2>
           <p className="text-sm text-slate-500">Datos de demostración y de las pruebas automáticas. No cuentan en el uso ni en la actividad.</p>
           {tablaOpticas(entornosPrueba, true)}
@@ -2452,7 +2460,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   </div>
                 )}
                 <input
-                  type="text" placeholder="Nombre completo" value={camposAdminExtra.nombre} onChange={(e) => actualizarCampoAdminExtra("nombre", filtrarSoloLetras(e.target.value))}
+                  type="text" placeholder="Nombre completo" autoComplete="off" value={camposAdminExtra.nombre} onChange={(e) => actualizarCampoAdminExtra("nombre", filtrarSoloLetras(e.target.value))}
                   className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
                 <input
@@ -2461,19 +2469,19 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
                 <input
-                  type="email" placeholder="Correo electrónico" value={camposAdminExtra.email} onChange={(e) => actualizarCampoAdminExtra("email", e.target.value)}
+                  type="email" placeholder="Correo electrónico" autoComplete="off" value={camposAdminExtra.email} onChange={(e) => actualizarCampoAdminExtra("email", e.target.value)}
                   className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
                     <input
-                      type={verClaveExtra ? "text" : "password"} placeholder="Contraseña" value={camposAdminExtra.clave} onChange={(e) => actualizarCampoAdminExtra("clave", e.target.value)}
+                      type={verClaveExtra ? "text" : "password"} placeholder="Contraseña" autoComplete="new-password" value={camposAdminExtra.clave} onChange={(e) => actualizarCampoAdminExtra("clave", e.target.value)}
                       className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 pr-8 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                     />
                     <button type="button" onClick={() => setVerClaveExtra((v) => !v)} aria-label={verClaveExtra ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer">{verClaveExtra ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                   </div>
                   <input
-                    type={verClaveExtra ? "text" : "password"} placeholder="Confirmar" value={camposAdminExtra.confirmarClave} onChange={(e) => actualizarCampoAdminExtra("confirmarClave", e.target.value)}
+                    type={verClaveExtra ? "text" : "password"} placeholder="Confirmar" autoComplete="new-password" value={camposAdminExtra.confirmarClave} onChange={(e) => actualizarCampoAdminExtra("confirmarClave", e.target.value)}
                     className="w-full rounded-lg border border-slate-200/60 bg-white px-3 py-2 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                   />
                 </div>
@@ -2991,7 +2999,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
                         type="text" value={campos.nombreAdmin} onChange={(e) => actualizarCampo("nombreAdmin", filtrarSoloLetras(e.target.value))}
-                        placeholder="Ej. Ana Torres" autoComplete="name"
+                        placeholder="Ej. Ana Torres" autoComplete="off"
                         className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                     </div>
@@ -3002,7 +3010,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
                         type="email" value={campos.emailAdmin} onChange={(e) => actualizarCampo("emailAdmin", e.target.value)}
-                        placeholder="admin@vision-clara.com" autoComplete="email"
+                        placeholder="admin@vision-clara.com" autoComplete="off"
                         className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                     </div>
@@ -3033,7 +3041,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
-                        type={verClave ? "text" : "password"} value={campos.clave} onChange={(e) => actualizarCampo("clave", e.target.value)}
+                        type={verClave ? "text" : "password"} autoComplete="new-password" value={campos.clave} onChange={(e) => actualizarCampo("clave", e.target.value)}
                         placeholder="8 o más, con letra y número"
                         className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
@@ -3047,7 +3055,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input
-                        type={verClave ? "text" : "password"} value={campos.confirmarClave} onChange={(e) => actualizarCampo("confirmarClave", e.target.value)}
+                        type={verClave ? "text" : "password"} autoComplete="new-password" value={campos.confirmarClave} onChange={(e) => actualizarCampo("confirmarClave", e.target.value)}
                         placeholder="Repetir contraseña"
                         className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
@@ -3085,11 +3093,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {modalSuperadminAbierto && (
         <Cascaron
           titulo="Agregar superadmin"
-          subtitulo="Tendrá el mismo acceso total que tú."
+          subtitulo="Tendrá el mismo acceso total que tú. El sistema genera su contraseña temporal."
           Icono={ShieldCheck}
           ancho="max-w-md"
           onCerrar={() => !guardandoSuperadmin && setModalSuperadminAbierto(false)}
-          formulario={{ onSubmit: guardarSuperadmin }}
+          formulario={{ onSubmit: guardarSuperadmin, autoComplete: "off" }}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
@@ -3114,7 +3122,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
-                  type="text" value={camposSuperadmin.nombre} onChange={(e) => actualizarCampoSuperadmin("nombre", filtrarSoloLetras(e.target.value))}
+                  type="text" autoComplete="off" value={camposSuperadmin.nombre} onChange={(e) => actualizarCampoSuperadmin("nombre", filtrarSoloLetras(e.target.value))}
                   placeholder="Ej. María Fernanda Loor"
                   className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
@@ -3125,36 +3133,33 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
-                  type="email" value={camposSuperadmin.email} onChange={(e) => actualizarCampoSuperadmin("email", e.target.value)}
+                  type="email" autoComplete="off" value={camposSuperadmin.email} onChange={(e) => actualizarCampoSuperadmin("email", e.target.value)}
                   placeholder="correo@ejemplo.com"
                   className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Contraseña</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.clave} onChange={(e) => actualizarCampoSuperadmin("clave", e.target.value)}
-                    placeholder="8 o más, con letra y número"
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-9 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  />
-                  <button type="button" onClick={() => setVerClaveSuperadmin((v) => !v)} aria-label={verClaveSuperadmin ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">{verClaveSuperadmin ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirmar</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type={verClaveSuperadmin ? "text" : "password"} value={camposSuperadmin.confirmarClave} onChange={(e) => actualizarCampoSuperadmin("confirmarClave", e.target.value)}
-                    placeholder="Repetir contraseña"
-                    className="w-full rounded-xl border border-slate-200/60 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
-                  />
-                </div>
-              </div>
+            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600">Al agregarlo verás una contraseña temporal, una sola vez. Al entrar, el sistema le pedirá que elija la suya.</p>
+          </div>
+        </Cascaron>
+      )}
+
+      {/* ─── CONTRASEÑA TEMPORAL DEL SUPERADMIN NUEVO (se ve una sola vez) ─── */}
+      {claveSuperadminCreada && (
+        <Cascaron titulo="Contraseña temporal" subtitulo={`Para ${claveSuperadminCreada.nombre}`} Icono={KeyRound} ancho="max-w-md" onCerrar={() => setClaveSuperadminCreada(null)}
+          pie={<>
+            <span className="text-xs text-slate-500">No se vuelve a mostrar.</span>
+            <button type="button" onClick={() => setClaveSuperadminCreada(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
+        >
+          <div className="space-y-4 px-5 py-5">
+            <p className="text-sm text-slate-600">Entrega esta contraseña a <span className="font-semibold text-slate-800">{claveSuperadminCreada.nombre}</span> ({claveSuperadminCreada.correo}). Al entrar, el sistema le pedirá que elija la suya.</p>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
+              <code className="select-all font-mono text-lg font-bold tracking-wide" style={{ color: INK }}>{claveSuperadminCreada.clave}</code>
+              <button type="button" onClick={() => { navigator.clipboard?.writeText(claveSuperadminCreada.clave).then(() => setClaveSuperadminCopiada(true)).catch(() => {}) }}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                {claveSuperadminCopiada ? <><CheckCircle2 size={13} aria-hidden="true" /> Copiada</> : <><Copy size={13} aria-hidden="true" /> Copiar</>}
+              </button>
             </div>
           </div>
         </Cascaron>

@@ -8,7 +8,7 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { Cascaron } from "../AtencionPaciente"
 import SelectorPeriodo from "../reportes/SelectorPeriodo"
 import { SinResultados } from "../reportes/bloques"
-import { CabeceraSeccion, EtiquetasFiltros, EtiquetaPrueba, InterruptorPrueba } from "./piezas"
+import { CabeceraSeccion, EtiquetasFiltros, EtiquetaPrueba, InterruptorPrueba, NOMBRE_PRUEBA_PLURAL } from "./piezas"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { etiquetaFecha, fechaAISO } from "../../utilidades/disponibilidad"
 import { fechaHoraLegible, formatoFecha, hora, tituloSemana } from "../../utilidades/formatoFecha"
@@ -171,7 +171,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
     opticaId && { id: "optica", texto: `Óptica: ${nombreOptica || "—"}`, quitar: () => setOpticaId("") },
     actorId && { id: "persona", texto: `Persona: ${nombreActor || "—"}`, quitar: () => setActorId("") },
     busqueda.trim() && { id: "busqueda", texto: `Texto: «${busqueda.trim()}»`, quitar: () => setBusqueda("") },
-    incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => onIncluirPrueba(false) },
+    incluirPrueba && { id: "prueba", texto: "Con " + NOMBRE_PRUEBA_PLURAL, quitar: () => onIncluirPrueba(false) },
   ].filter(Boolean)
   const limpiar = () => { setTipo("todas"); setOpticaId(""); setActorId(""); setBusqueda(""); onIncluirPrueba(false) }
 
@@ -196,7 +196,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
 
   return (
     <div className="space-y-3" data-actividad>
-      <CabeceraSeccion titulo="Actividad" pregunta="¿Quién hizo qué, sobre qué óptica y cuándo? Es un registro: nada se borra ni se edita.">
+      <CabeceraSeccion titulo="Actividad" pregunta={(MODO_SAAS_VISIBLE ? "¿Quién hizo qué, sobre qué óptica y cuándo?" : "¿Quién hizo qué y cuándo?") + " Es un registro: nada se borra ni se edita."}>
         <button type="button" onClick={exportar} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD_MARCA }}><Download size={15} aria-hidden="true" /> Exportar</button>
       </CabeceraSeccion>
 
@@ -245,9 +245,9 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
           <div className="space-y-2" aria-busy="true" aria-label="Cargando la actividad">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-200/70" />)}</div>
         ) : visibles.length === 0 ? (
           <SinResultados
-            texto={ocultasPorPrueba > 0 && filas.length === ocultasPorPrueba ? `Toda la actividad de este período es de ópticas de prueba (${ocultasPorPrueba}). No se muestra por defecto.` : filas.length === 0 ? "No hay actividad en este período. Prueba con un período más largo." : "Ninguna acción coincide con estos filtros."}
+            texto={ocultasPorPrueba > 0 && filas.length === ocultasPorPrueba ? `Toda la actividad de este período es de ${NOMBRE_PRUEBA_PLURAL} (${ocultasPorPrueba}). No se muestra por defecto.` : filas.length === 0 ? "No hay actividad en este período. Prueba con un período más largo." : "Ninguna acción coincide con estos filtros."}
             acciones={[
-              ...(ocultasPorPrueba > 0 ? [{ etiqueta: "Incluir ópticas de prueba", onClick: () => onIncluirPrueba(true) }] : []),
+              ...(ocultasPorPrueba > 0 ? [{ etiqueta: "Incluir " + NOMBRE_PRUEBA_PLURAL, onClick: () => onIncluirPrueba(true) }] : []),
               ...(periodo !== "anio" ? [{ etiqueta: "Ver este año", onClick: () => setPeriodo("anio") }] : []),
             ]}
           />

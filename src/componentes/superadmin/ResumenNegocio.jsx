@@ -13,7 +13,7 @@ import { BarrasMes, BarraRepartida } from "../reportes/Graficas"
 import { col } from "../reportes/listas"
 import SinDatosAun from "../SinDatosAun"
 import DetalleOptica from "./DetalleOptica"
-import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba } from "./piezas"
+import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba, NOMBRE_PRUEBA_PLURAL } from "./piezas"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { formatoFecha, fechaLegible, fechaHoraLegible, tituloSemana } from "../../utilidades/formatoFecha"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
@@ -95,7 +95,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
   }, [rango, previo])
 
   // ── Exportar y abrir
-  const filtrosTexto = [`Período: ${tituloSemana(rango.inicio, rango.fin)}`, incluirPrueba ? "con ópticas de prueba" : "sin ópticas de prueba"].join(" · ")
+  const filtrosTexto = [`Período: ${tituloSemana(rango.inicio, rango.fin)}`, incluirPrueba ? "con " + NOMBRE_PRUEBA_PLURAL : "sin " + NOMBRE_PRUEBA_PLURAL].join(" · ")
   const exportarLista = async ({ titulo, valor, columnas, filas }) => {
     if (filas.length === 0) { onAviso?.(`No hay datos para «${titulo}» con estos filtros: no se descargó nada.`); return }
     try {
@@ -150,7 +150,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
   const sinNada = !datos.cargando && opticas.length === 0
   const etiquetas = [
     { id: "periodo", texto: `Período: ${tituloSemana(rango.inicio, rango.fin)}` },
-    incluirPrueba && { id: "prueba", texto: "Con ópticas de prueba", quitar: () => onIncluirPrueba(false) },
+    incluirPrueba && { id: "prueba", texto: "Con " + NOMBRE_PRUEBA_PLURAL, quitar: () => onIncluirPrueba(false) },
   ].filter(Boolean)
 
   if (datos.cargando && opticas.length === 0) {
@@ -241,16 +241,13 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
         </Seccion>
   )
 
-  const secUso = (
-        <Seccion titulo="Uso del sistema" ayuda="Si el sistema se usa, sin mirar el negocio de las ópticas: el superadmin no ve cuántas citas, consultas, ventas ni pacientes tiene una óptica (privacidad). Se mira lo que hizo el personal en los últimos 30 días, sin importar el período de arriba, y se compara con los 30 días anteriores. Personas activas = quienes hicieron algo. Un módulo está en uso si alguien hizo algo en él.">
-          {datos.sinServidor ? (
-            <SinResultados texto="Todavía no se puede leer el uso de las ópticas. Vuelve a intentarlo en un momento." acciones={[{ etiqueta: "Reintentar", onClick: datos.recargar }]} />
-          ) : (
-            <>
-              <div className={REJILLA_TARJETAS_4}>
+  const tarjetasUso = (
+    <>
                 {tarjeta({ titulo: "Personas activas", valor: uso.personas, comparacion: "vs. los 30 días anteriores", ayuda: "Personas del personal que hicieron algo en el sistema en los últimos 30 días.", onClick: () => abrir({ titulo: `Personas activas en 30 días: ${uso.personas}`, valor: uso.personas, icono: Users, columnas: [columna("Óptica", (u) => nombreOptica(u.optica_id)), { titulo: "Personas activas", ancho: 150, derecha: true, valor: (u) => u.personas_activas, tipo: "entero", crudo: (u) => u.personas_activas }], filas: uso.filas.filter((u) => u.personas_activas > 0), abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } }) }, uso.personas, uso.personasPrevio)}
                 {tarjeta({ titulo: "Módulos en uso", valor: `${uso.modulosEnUso} de ${MODULOS_USO.length}`, comparacion: "vs. los 30 días anteriores", ayuda: "Módulos en los que alguien hizo algo en los últimos 30 días.", onClick: () => abrir({ titulo: `Módulos en uso: ${uso.modulosEnUso} de ${MODULOS_USO.length}`, valor: uso.modulosEnUso, icono: Building2, columnas: [columna("Módulo", (m) => m.nombre), columna("Estado", (m) => textoUsoModulo(m.ultima, hoyClave), 300)], filas: uso.porModulo }) }, uso.modulosEnUso, uso.modulosPrevio)}
-              </div>
+    </>
+  )
+  const cajaModulos = (
               <Caja titulo="Qué módulos se usan · últimos 30 días" ayuda="Para cada módulo y cada óptica: si se usó y cuándo fue la última vez. No se muestra cuánto." exportar={bloque("Uso por módulo",
                 () => ({ columnas: [col("Módulo", (m) => m.nombre), col("Estado", (m) => textoUsoModulo(m.ultima, hoyClave))], filas: uso.porModulo }),
                 () => ({ columnas: [col("Óptica", (x) => nombreOptica(x.optica)), col("Módulo", (x) => x.modulo), col("Estado", (x) => x.estado)], filas: uso.filas.flatMap((u) => MODULOS_USO.map((m) => ({ optica: u.optica_id, modulo: m.nombre, estado: textoUsoModulo(u.modulos?.[m.id], hoyClave) }))) }))}>
@@ -269,6 +266,14 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
                   </table>
                 )}
               </Caja>
+  )
+  const sinUso = <SinResultados texto="Todavía no se puede leer el uso de las ópticas. Vuelve a intentarlo en un momento." acciones={[{ etiqueta: "Reintentar", onClick: datos.recargar }]} />
+  const secUso = (
+        <Seccion titulo="Uso del sistema" ayuda="Si el sistema se usa, sin mirar el negocio de las ópticas: el superadmin no ve cuántas citas, consultas, ventas ni pacientes tiene una óptica (privacidad). Se mira lo que hizo el personal en los últimos 30 días, sin importar el período de arriba, y se compara con los 30 días anteriores. Personas activas = quienes hicieron algo. Un módulo está en uso si alguien hizo algo en él.">
+          {datos.sinServidor ? sinUso : (
+            <>
+              <div className={REJILLA_TARJETAS_4}>{tarjetasUso}</div>
+              {cajaModulos}
             </>
           )}
         </Seccion>
@@ -310,12 +315,22 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
         </Seccion>
   )
 
-  const secEstado = (
-        <Seccion titulo="Estado del sistema" aHoy ayuda="Se mide con la última carga de datos de este panel: menos de 1,2 segundos es normal, hasta 3,5 es lento y más es crítico.">
-          <div className={REJILLA_TARJETAS_4}>
+  const tarjetasEstado = (
+    <>
             {tarjeta({ titulo: "Base de datos", valor: ESTADO_SERVIDOR[estadoServidor.estado] || "Sin conexión", sub: estadoServidor.estado === "operativo" ? "Responde con normalidad" : estadoServidor.estado === "verificando" ? "Comprobando…" : "Revisa la conexión", ayuda: "Si la base de datos responde con normalidad." })}
             {tarjeta({ titulo: "Tiempo de respuesta", valor: estadoServidor.latenciaMs != null ? `${new Intl.NumberFormat("en-US").format(estadoServidor.latenciaMs)} ms` : "—", sub: "Última carga de datos", ayuda: "Lo que tardó la última carga de datos de este panel." })}
-          </div>
+    </>
+  )
+  const secEstado = (
+        <Seccion titulo="Estado del sistema" aHoy ayuda="Se mide con la última carga de datos de este panel: menos de 1,2 segundos es normal, hasta 3,5 es lento y más es crítico.">
+          <div className={REJILLA_TARJETAS_4}>{tarjetasEstado}</div>
+        </Seccion>
+  )
+  // Modo de la tesis: base de datos, tiempo de respuesta, personas activas y módulos en uso van en una sola fila.
+  const secEstadoYUso = (
+        <Seccion titulo="Estado y uso del sistema" ayuda="Si el sistema responde (según la última carga de datos de este panel: menos de 1,2 segundos es normal, hasta 3,5 es lento y más es crítico) y si se usa, sin mirar el negocio de las ópticas (privacidad): lo que hizo el personal en los últimos 30 días, comparado con los 30 días anteriores.">
+          <div className={REJILLA_TARJETAS_4}>{tarjetasEstado}{!datos.sinServidor && tarjetasUso}</div>
+          {datos.sinServidor ? sinUso : cajaModulos}
         </Seccion>
   )
 
@@ -356,7 +371,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
       </div>
 
       <div className="space-y-4 pb-6">
-        {saas ? <>{secIngresos}{secClientes}{secSalud}{secUso}{secSoporte}{secLeads}{secEstado}</> : <>{secEstado}{secUso}{secSoporte}{secActividad}</>}
+        {saas ? <>{secIngresos}{secClientes}{secSalud}{secUso}{secSoporte}{secLeads}{secEstado}</> : <>{secEstadoYUso}{secSoporte}{secActividad}</>}
       </div>
 
       {detalle && <VentanaDetalle d={detalle} onCerrar={() => setDetalle(null)} />}

@@ -7,6 +7,8 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 
 // Con el modo de la tesis (una sola óptica) las de prueba son "entornos de prueba": no son clientes.
 export const NOMBRE_PRUEBA = MODO_SAAS_VISIBLE ? "Óptica de prueba" : "Entorno de prueba"
+// El mismo nombre en frases: "ópticas de prueba" (con clientes) o "entornos de prueba" (modo de la tesis).
+export const NOMBRE_PRUEBA_PLURAL = MODO_SAAS_VISIBLE ? "ópticas de prueba" : "entornos de prueba"
 
 // Piezas pequeñas que comparten las secciones del panel del superadmin.
 

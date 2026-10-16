@@ -41,7 +41,21 @@ describe("modo de la tesis (capa comercial oculta)", () => {
   it("el Resumen es la administración técnica: estado, uso, soporte y actividad reciente", () => {
     montar()
     const titulos = [...document.querySelectorAll("section[aria-label] h2")].map((h) => h.textContent)
-    expect(titulos).toEqual(["Estado del sistema", "Uso del sistema", "Soporte", "Actividad reciente"])
+    expect(titulos).toEqual(["Estado y uso del sistema", "Soporte", "Actividad reciente"])
+  })
+
+  it("base de datos, tiempo de respuesta, personas activas y módulos en uso van en una sola fila de cuatro tarjetas", () => {
+    montar()
+    const seccion = document.querySelector("section[aria-label=\"Estado y uso del sistema\"]")
+    const fila = seccion.querySelector("div[class*=\"grid\"]")
+    for (const t of ["Base de datos", "Tiempo de respuesta", "Personas activas", "Módulos en uso"]) expect(fila.textContent).toContain(t)
+    expect(screen.queryByText("Uso del sistema", { selector: "h2" })).toBeNull()
+  })
+
+  it("el nombre es siempre \"entornos de prueba\" (nunca \"ópticas de prueba\")", () => {
+    montar()
+    expect(document.body.textContent).not.toMatch(/ópticas de prueba/i)
+    expect(textoDeAccion({ accion: "marcar_optica_prueba", despues: "Óptica de prueba", optica_nombre: "Demo" }, false)).toBe("marcó como entorno de prueba a Demo")
   })
 
   it("no muestra ingresos, clientes, leads, pagos, salud ni 'Crear óptica'", () => {
