@@ -87,6 +87,7 @@ export default function Inventario({
 }) {
   const opticaId = usuario?.opticaId
   const puedeNivel = (nivel) => puede(usuario, "inventario", nivel)
+  const veVentas = puede(usuario, "ventas", "ver") // lo vendido es de Ventas: sin ese permiso no hay "Sin venderse" ni pestaña Ventas en el producto
   // Catálogo de categorías editable desde Configuración.
   const CATEGORIAS = categorias.length > 0 ? categorias : CATEGORIAS_FALLBACK
   const [busqueda, setBusqueda] = useState("")
@@ -403,8 +404,8 @@ export default function Inventario({
         <TarjetaInventario icono={DollarSign} titulo="Valor del inventario" valor={dinero(resumen.valor.aPrecio)}
           sub={valorConCosto ? `a precio de venta · ${dinero(resumen.valor.aCosto)} a costo` : "a precio de venta"} onClick={() => setResumenAbierto("valor")}
           ayuda={"A precio de venta: existencia × precio de cada producto activo." + (verCosto ? " Con el costo registrado también se muestra a costo (existencia × costo) y la ganancia posible." : "")} />
-        <TarjetaInventario icono={Archive} titulo="Sin venderse en 90 días" valor={sinVender.length} sub={sinVender.length > 0 ? `${dinero(dineroParado)} parados` : resumen.total === 0 ? "Sin productos todavía" : "Todo se está moviendo"} alerta={sinVender.length > 0} onClick={() => setResumenAbierto("sinvender")}
-          ayuda="Monturas activas con existencia que no se venden desde hace 90 días o más, o que nunca se vendieron (las registradas hace menos de 90 días no cuentan). Un clic lista esas monturas y lo que representan en dinero." />
+        {veVentas && <TarjetaInventario icono={Archive} titulo="Sin venderse en 90 días" valor={sinVender.length} sub={sinVender.length > 0 ? `${dinero(dineroParado)} parados` : resumen.total === 0 ? "Sin productos todavía" : "Todo se está moviendo"} alerta={sinVender.length > 0} onClick={() => setResumenAbierto("sinvender")}
+          ayuda="Monturas activas con existencia que no se venden desde hace 90 días o más, o que nunca se vendieron (las registradas hace menos de 90 días no cuentan). Un clic lista esas monturas y lo que representan en dinero." />}
       </div>
 
       {/* ─── TABLA ─── */}
@@ -544,7 +545,7 @@ export default function Inventario({
       {/* ─── VENTANAS ─── */}
       {detalle && !hayVentanaSobreElDetalle && (
         <DetalleProducto
-          producto={detalle} umbralStock={umbralStock} usuarioPuede={puedeNivel} ventas={ventas} facturasVenta={facturasVenta} pacientes={pacientes}
+          producto={detalle} umbralStock={umbralStock} usuarioPuede={puedeNivel} veVentas={veVentas} ventas={ventas} facturasVenta={facturasVenta} pacientes={pacientes}
           versionMovimientos={versionMovimientos} pestana={pestanaDetalle} onPestana={setPestanaDetalle} sinAnimarFondo={detalleReaparece}
           onIngreso={() => abrirSobreDetalle(() => setMovimiento({ modo: "ingreso", productoId: detalle.id }))}
           onAjustar={() => abrirSobreDetalle(() => setMovimiento({ modo: "ajuste", productoId: detalle.id }))}

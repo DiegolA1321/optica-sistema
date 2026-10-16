@@ -7,7 +7,9 @@ vi.mock("../lib/supabaseClient", () => ({ supabase: null }))
 import Inventario from "./Inventario"
 
 const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1" }
-const soloVer = { id: "u2", rol: "asistente", nombre: "Vera", opticaId: "o1", permisosNivel: { inventario: ["ver"] } }
+const soloVer = { id: "u2", rol: "asistente", nombre: "Vera", opticaId: "o1", permisosNivel: { inventario: ["ver"], ventas: ["ver"] } }
+// Quien ve el inventario pero no Ventas (el Optómetra): el servidor no le entrega comprobantes, así que no hay "Sin venderse" ni pestaña Ventas.
+const sinVentas = { id: "u3", rol: "asistente", nombre: "Paula", opticaId: "o1", permisosNivel: { inventario: ["ver"] } }
 const ahora = new Date().toISOString()
 const producto = (id, nombre, stock, extra = {}) => ({ id, nombre, categoria: "Monturas", stock, precio: 10, creadoEn: ahora, activo: true, ...extra })
 
@@ -161,6 +163,12 @@ describe("Inventario: las tarjetas de arriba se comportan igual", () => {
   it("sin ningún costo solo dice 'a precio de venta'", () => {
     render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
     expect(tarjeta("Valor del inventario")).toHaveAccessibleName(/a precio de venta$/)
+  })
+
+  it("quien no tiene Ventas no ve la tarjeta Sin venderse (no tiene con qué calcularla)", () => {
+    render(<Con inicial={datos} usuario={sinVentas} umbralStock={10} />)
+    expect(screen.queryByRole("button", { name: /^Sin venderse en 90 días/ })).not.toBeInTheDocument()
+    expect(tarjeta("Valor del inventario")).toBeInTheDocument()
   })
 
   it("quien solo puede ver no ve el costo en ninguna parte", () => {

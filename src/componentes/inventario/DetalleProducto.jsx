@@ -37,7 +37,7 @@ const Columna = ({ titulo, children }) => (
 // El detalle de un producto, en la ventana estándar: todo lo que se sabe de él y todas sus acciones (la fila de la tabla solo resume).
 // Tres pestañas: Resumen (sus datos, su existencia y su precio), Movimientos (el kárdex) y Ventas (lo que se ha vendido).
 export default function DetalleProducto({
-  producto, umbralStock, usuarioPuede, ventas = [], facturasVenta = [], pacientes = [], versionMovimientos = 0, pestana, onPestana, sinAnimarFondo = false,
+  producto, umbralStock, usuarioPuede, veVentas = true, ventas = [], facturasVenta = [], pacientes = [], versionMovimientos = 0, pestana, onPestana, sinAnimarFondo = false,
   onIngreso, onAjustar, onEditar, onDescontinuar, onReactivar, onVerPerfil, onCerrar,
 }) {
   const { movimientos, cargando, error, hayMas, recargar } = useMovimientos(producto.id, versionMovimientos)
@@ -54,7 +54,7 @@ export default function DetalleProducto({
   const pestanas = [
     { id: "resumen", etiqueta: "Resumen" },
     { id: "movimientos", etiqueta: "Movimientos" },
-    { id: "ventas", etiqueta: `Ventas (${reporte.ventas.length})` },
+    ...(veVentas ? [{ id: "ventas", etiqueta: `Ventas (${reporte.ventas.length})` }] : []),
   ]
   const boton = "flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
 

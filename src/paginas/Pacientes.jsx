@@ -107,6 +107,7 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 import NotaAlcance from "../componentes/NotaAlcance"
+import ComprasBasicas from "../componentes/ComprasBasicas"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -919,6 +920,15 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   const sinAgendarPorPaciente = useMemo(() => new Map(controlesSinAgendar(pacientes, consultas, citas).map((x) => [x.paciente.id, x])), [pacientes, consultas, citas])
   const idsListosParaVenta = useMemo(() => new Set(pases.filter((p) => p.estado === "listo" && p.pacienteId).map((p) => p.pacienteId)), [pases])
   const puedeVerVentas = puede(usuario, "ventas", "ver")
+  // Sin Ventas "ver" el servidor no entrega comprobantes: el perfil recibe solo lo que compró el paciente (producto y fecha), por compras_de_paciente.
+  const [comprasBasicas, setComprasBasicas] = useState({ id: null, lista: [] })
+  useEffect(() => {
+    const id = pacienteHistorial?.id
+    if (!id || puedeVerVentas || !supabase) return undefined
+    let vivo = true
+    supabase.rpc("compras_de_paciente", { p_paciente_id: id }).then(({ data }) => { if (vivo) setComprasBasicas({ id, lista: Array.isArray(data) ? data : [] }) })
+    return () => { vivo = false }
+  }, [pacienteHistorial?.id, puedeVerVentas])
   const tendenciaPorPaciente = useMemo(() => {
     const porPaciente = new Map()
     consultas.forEach((c) => { if (c.pacienteId) porPaciente.set(c.pacienteId, [...(porPaciente.get(c.pacienteId) || []), c]) })
@@ -1105,8 +1115,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     { key: "Todos", label: "Todos" },
     { key: "Recientes", label: `Visitas recientes (${cuentaRapida.Recientes})` },
     // Los saldos de los pacientes son de Ventas: quien no puede ver Ventas no tiene este filtro.
-    ...(puedeVerVentas ? [{ key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` }] : []),
-    { key: "NoCompraron", label: `Consultaron y no compraron (${cuentaRapida.NoCompraron})` },
+    ...(puedeVerVentas ? [{ key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` }, { key: "NoCompraron", label: `Consultaron y no compraron (${cuentaRapida.NoCompraron})` }] : []),
     { key: "ControlSinAgendar", label: `Control sin agendar (${cuentaRapida.ControlSinAgendar})` },
     // Aparece solo mientras está activo (se llega desde Reportes): un filtro activo siempre se ve y se puede quitar.
     ...(filtroRapido === "ControlVencido" ? [{ key: "ControlVencido", label: `Control vencido (${pacientesSinRapido.filter((p) => cumpleRapido(p, "ControlVencido")).length})` }] : []),
@@ -1961,7 +1970,9 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               // Compras totales (Lentes/Productos): cuenta + monto de ambos
               // caminos de venta (facturas_venta multi-línea y el mecanismo
               // viejo de un producto), excluyendo facturas anuladas.
-              const totalComprasCount = facturasPaciente.filter((f) => f.estado !== "anulada").length + ventasPaciente.length
+              const sinMontos = !puedeVerVentas
+              const basicas = sinMontos && comprasBasicas.id === pacienteHistorial.id ? comprasBasicas.lista : []
+              const totalComprasCount = sinMontos ? basicas.length : facturasPaciente.filter((f) => f.estado !== "anulada").length + ventasPaciente.length
               const totalComprasMonto = facturasPaciente.filter((f) => f.estado !== "anulada").reduce((a, f) => a + Number(f.montoTotal), 0)
                 + ventasPaciente.reduce((a, v) => a + Number(v.montoTotal), 0)
               // Puntaje de fidelidad: fórmula simple y transparente (no una
@@ -2121,7 +2132,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         proximoControl={proximoControl}
                         diasControl={diasControl}
                         diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
-                        compras={{ cantidad: totalComprasCount, monto: totalComprasMonto }}
+                        compras={{ cantidad: totalComprasCount, monto: sinMontos ? null : totalComprasMonto }}
                         equipo={equipo}
                         comprobantes={comprobantesPaciente}
                         referidosLista={listarReferidos(pacienteHistorial, pacientes)}
@@ -2142,7 +2153,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         onDejarDeAtender={puedeEditarCita ? setDejarCita : undefined}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
-                        cobros={cobrosPendientes(consultasPaciente, facturasVenta, citas)}
+                        cobros={sinMontos ? [] : cobrosPendientes(consultasPaciente, facturasVenta, citas)}
                         onCobrar={puedeVender ? setCobrandoPendiente : undefined}
                         paciente={pacienteHistorial}
                         usuario={usuario}
@@ -2168,7 +2179,9 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                             <Receipt size={14} aria-hidden="true" /> Nueva venta
                           </button>
                         </div>}
-                        {comprobantesPaciente.length === 0 ? (
+                        {sinMontos ? (
+                          <ComprasBasicas lista={basicas} cargando={comprasBasicas.id !== pacienteHistorial.id} />
+                        ) : comprobantesPaciente.length === 0 ? (
                           <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
@@ -2817,7 +2830,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <Cuadro abierto={abierto} alternar={alternar} clave="compras" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
             <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
-            <p className="text-xs text-slate-500">{dinero(compras.monto)} en total</p>
+            {compras.monto != null && <p className="text-xs text-slate-500">{dinero(compras.monto)} en total</p>}
           </Cuadro>
         </div>
         {abierto === "ultima" && (

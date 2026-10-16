@@ -1,5 +1,6 @@
 import { cargarProductos } from './utilidades/cargarProductos'
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { puede } from './utilidades/permisosUi';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
 import { hoyISO, fechaAISO } from './utilidades/disponibilidad';
@@ -312,6 +313,9 @@ function App() {
 
   // Estado para conservar los datos del usuario logueado (sea admin o paciente)
   const [usuario, setUsuario] = useState(() => cargarSesion(pacientes).usuario);
+  // Los abonos anulados son de Ventas: quien no tiene Ventas "ver" no los pide (el servidor se los negaría con un 400 en cada vuelta).
+  const veVentasRef = useRef(true);
+  veVentasRef.current = puede(usuario, 'ventas', 'ver');
   // Ciberseguridad: mensaje para el login cuando la sesión se cerró sola por
   // inactividad (ver el useEffect junto a cerrarSesion, más abajo).
   const [avisoSesion, setAvisoSesion] = useState(null);
@@ -578,8 +582,10 @@ function App() {
         if (ordenesData) setOrdenesLab(ordenesData.map(mapOrden))
         const { data: abonosData } = await supabase.from('abonos_factura').select('*').eq('optica_id', usuario.opticaId)
         if (abonosData) setAbonos(abonosData.map(mapAbono))
-        const { data: anuladosData } = await supabase.rpc('abonos_anulados')
-        if (anuladosData) setAbonosAnulados(anuladosData.map(mapAbono))
+        if (veVentasRef.current) {
+          const { data: anuladosData } = await supabase.rpc('abonos_anulados')
+          if (anuladosData) setAbonosAnulados(anuladosData.map(mapAbono))
+        }
         // El inventario también se refresca: si el administrador cambia un precio o una cantidad, los demás roles lo ven sin cerrar sesión.
         const { data: nuevos } = await cargarProductos(supabase, usuario.opticaId)
         if (nuevos) {
@@ -676,7 +682,7 @@ function App() {
           else if (error) registrarErrorCarga('abonos')
         }),
         // Los anulados se leen aparte; si la base todavía no tiene la función, simplemente no hay anulados que mostrar.
-        supabase.rpc('abonos_anulados').then(({ data }) => { if (data) setAbonosAnulados(data.map(mapAbono)) }),
+        veVentasRef.current ? supabase.rpc('abonos_anulados').then(({ data }) => { if (data) setAbonosAnulados(data.map(mapAbono)) }) : null,
       ]).then(() => setCargaInicialStaff(false))
 
       supabase.from('ventas').select('*').eq('optica_id', opticaId).order('created_at', { ascending: false }).then(({ data, error }) => {

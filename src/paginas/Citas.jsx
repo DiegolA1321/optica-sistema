@@ -370,9 +370,11 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // mismo panel único que usa la ficha clínica. ──
   const pendientesPorCita = useMemo(() => {
     const m = new Map()
+    // Sin Ventas "ver" el servidor no entrega comprobantes: no se puede saber qué falta cobrar, y no se inventa (todo parecería sin cobrar).
+    if (!puede(usuario, "ventas", "ver")) return m
     for (const p of cobrosPendientes(consultas, facturasVenta, citas)) if (p.cita) m.set(p.cita.id, p.consulta)
     return m
-  }, [consultas, facturasVenta, citas])
+  }, [consultas, facturasVenta, citas, usuario])
   const [cobrandoCita, setCobrandoCita] = useState(null) // la cita, o null
   const cobrarCita = (cita) => setCobrandoCita(cita)
 
