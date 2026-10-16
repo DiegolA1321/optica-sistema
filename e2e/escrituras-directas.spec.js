@@ -4,7 +4,7 @@
 // que la base la acepte (2xx), así que si faltara un permiso fallaría con 401/403.
 // Todo lo que crean lleva el prefijo "E2E " y se borra o se restaura al terminar la prueba (también si la prueba falla).
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, PREFIJO, crearCitaDeHoyParaPaula, cedulaValida, escribirSecreto, elegirFecha } from './ayudas.js'
+import { iniciarSesion, PREFIJO, PREFIJO_NOMBRE, crearCitaDeHoyParaPaula, cedulaValida, escribirSecreto, elegirFecha } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -73,21 +73,27 @@ test('Inventario: crear, editar y descontinuar un producto (inventario: insert y
   await expect(page.locator('tr').filter({ hasText: nombre2 })).toHaveCount(0, { timeout: 20_000 })
 })
 
-test('CRM: publicar y eliminar un aviso (avisos: insert y delete)', async ({ page }) => {
-  const texto = `${PREFIJO}aviso de prueba ${sufijo()}`
+test('CRM: crear una campaña (función crear_campana_crm) y que siga ahí al recargar', async ({ page }) => {
+  const nombre = `${PREFIJO}campaña ${sufijo()}`
+  // Una campaña necesita a quién enviarle: un paciente con el control vencido (se crea aparte; la limpieza lo borra).
+  const { default: pg } = await import('pg')
+  const c = new pg.Client()
+  await c.connect()
+  await c.query("insert into public.pacientes_base (optica_id, nombre, telefono, fecha_registro) select id, $1, '0991234567', current_date - 200 from public.opticas where slug = 'v8twzq'", [`${PREFIJO_NOMBRE}Campana ${sufijo()}`])
+  await c.end()
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'CRM y fidelización')
-  await page.getByPlaceholder(/Cerraremos el sábado/).fill(texto)
-  await conEscritura(page, 'avisos', 'publicar aviso', () => page.getByRole('button', { name: 'Publicar aviso', exact: true }).click())
-  await expect(page.getByText(texto)).toBeVisible({ timeout: 20_000 })
-
+  await page.getByRole('button', { name: 'Nueva campaña' }).first().click()
+  const ventana = page.getByRole('dialog', { name: 'Nueva campaña' })
+  await ventana.getByLabel('Nombre de la campaña').fill(nombre)
+  await ventana.getByLabel(/^Control vencido/).check()
+  const respuesta = page.waitForResponse((r) => r.url().includes('/rpc/crear_campana_crm'))
+  await ventana.getByRole('button', { name: 'Crear campaña' }).click()
+  expect((await respuesta).ok(), 'la campaña se guardó en la base').toBeTruthy()
   await page.reload()
   await irA(page, 'CRM y fidelización')
-  await expect(page.getByText(texto)).toBeVisible({ timeout: 25_000 })
-
-  await page.getByText(texto).locator('xpath=ancestor::*[.//button[@aria-label="Eliminar aviso"]][1]').getByRole('button', { name: 'Eliminar aviso' }).click()
-  await conEscritura(page, 'avisos', 'eliminar aviso', () => confirmarEliminar(page).click())
-  await expect(page.getByText(texto)).toHaveCount(0, { timeout: 20_000 })
+  await page.getByRole('tab', { name: /Campañas/ }).click()
+  await expect(page.getByText(nombre)).toBeVisible({ timeout: 25_000 })
 })
 
 test('Horario general: cambiar y restaurar la duración de cada cita (disponibilidad: upsert)', async ({ page }) => {
