@@ -11,6 +11,7 @@ export async function limpiarSoporteDePruebas() {
     if (!o) return
     const a = await c.query("delete from soporte_consultas where optica_id = $1 and asunto like 'E2E %'", [o])
     const b = await c.query("delete from mensajes where optica_id = $1 and tipo = 'consulta' and asunto like 'E2E %'", [o])
-    console.log(`[soporte] limpiadas ${a.rowCount} consultas y ${b.rowCount} mensajes de prueba`)
+    const c2 = await c.query("delete from avisos_internos where optica_id = $1 and titulo like 'E2E %'", [o]).catch(() => ({ rowCount: 0 })) // la tabla existe desde la migración 0116
+    console.log(`[soporte] limpiadas ${a.rowCount} consultas, ${b.rowCount} mensajes y ${c2.rowCount} avisos internos de prueba`)
   } finally { await c.end() }
 }

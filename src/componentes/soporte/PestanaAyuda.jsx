@@ -20,8 +20,9 @@ function Pregunta({ q, abierta }) {
 }
 
 // Pestaña "Ayuda": las preguntas frecuentes por módulo, con buscador. Es lo primero que se ve, porque lo mejor es encontrar la respuesta antes de escribir.
-export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
-  const [busqueda, setBusqueda] = useState("")
+export default function PestanaAyuda({ puedeEscribir, onEscribir, esAdmin = true, busquedaInicial = "", enfocar = false }) {
+  const escribirA = esAdmin ? "Escribir al soporte" : "Escribir a mi administrador"
+  const [busqueda, setBusqueda] = useState(busquedaInicial)
   const [modulo, setModulo] = useState("")
   const buscando = busqueda.trim().length > 0
   const encontradas = useMemo(() => (buscando ? buscarAyuda(busqueda, modulo) : []), [busqueda, modulo, buscando])
@@ -32,9 +33,9 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
     <div className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-bold" style={{ color: INK }}>¿No encontraste lo que buscabas?</p>
-        <p className="mt-0.5 text-sm text-slate-500">Cuéntanos qué pasa y te respondemos por aquí.</p>
+        <p className="mt-0.5 text-sm text-slate-500">{esAdmin ? "Cuéntanos qué pasa y te respondemos por aquí." : "Cuéntale a tu administrador qué pasa y te responde por aquí."}</p>
       </div>
-      {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Escribir al soporte</button>}
+      {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{escribirA}</button>}
     </div>
   )
 
@@ -43,7 +44,7 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[16rem] flex-1">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-          <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar en la ayuda: agendar, abono, permisos…" aria-label="Buscar en la ayuda"
+          <input type="search" autoFocus={enfocar} value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar en la ayuda: agendar, abono, permisos…" aria-label="Buscar en la ayuda"
             className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50 [&::-webkit-search-cancel-button]:hidden" />
           {buscando && <button type="button" onClick={() => setBusqueda("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-500 hover:bg-slate-100 cursor-pointer"><X size={14} aria-hidden="true" /></button>}
         </div>
@@ -54,8 +55,8 @@ export default function PestanaAyuda({ puedeEscribir, onEscribir }) {
       </div>
 
       {buscando && encontradas.length === 0 ? (
-        <Vacio Icono={Search} titulo={`No encontramos preguntas con «${busqueda.trim()}»`} texto="Prueba con otra palabra o quita el filtro de módulo. Si no está, escríbenos y lo resolvemos.">
-          {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Escribir al soporte</button>}
+        <Vacio Icono={Search} titulo={`No encontramos preguntas con «${busqueda.trim()}»`} texto={`Prueba con otra palabra o quita el filtro de módulo. ${esAdmin ? "Si no está, escríbenos y lo resolvemos." : "Si no está, escríbele a tu administrador."}`}>
+          {puedeEscribir && <button type="button" onClick={() => onEscribir(modulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{escribirA}</button>}
         </Vacio>
       ) : (
         <div className="space-y-3">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCircle2, MessageSquarePlus } from "lucide-react"
+import { BookOpen, CheckCircle2, MessageSquarePlus } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL } from "../ventas/estilos"
@@ -9,13 +9,14 @@ import { GRAD_MARCA } from "@/lib/tema"
 import { CampoCapturas } from "./piezas"
 import { MODULOS_SOPORTE, TIPOS_CONSULTA, URGENCIAS, codigoConsulta, contextoDeConsulta, tiempoEstimado } from "../../utilidades/soporte"
 import { crearConsulta, leerAjustesSoporte } from "../../utilidades/soporteDatos"
+import { esAdministrador, textoDeEnvio } from "../../utilidades/comunicacionInterna"
 
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 const ETIQUETA = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500"
 
 // "Nueva consulta": módulo, tipo, urgencia, asunto, descripción y capturas. El sistema agrega solo quién escribe, su rol, la pantalla y el navegador.
 // Al enviar, la misma ventana confirma con el número de la consulta y el tiempo estimado de respuesta.
-export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", pantallaOrigen = "", onCerrar, onVerMisConsultas }) {
+export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", pantallaOrigen = "", onCerrar, onVerMisConsultas, onAbrirAyuda }) {
   const [modulo, setModulo] = useState(MODULOS_SOPORTE.some((m) => m.id === moduloInicial) ? moduloInicial : "otro")
   const [tipo, setTipo] = useState("problema")
   const [urgencia, setUrgencia] = useState("normal")
@@ -28,6 +29,8 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
   const [ajustes, setAjustes] = useState({})
   useEffect(() => { leerAjustesSoporte().then((r) => setAjustes(r.datos || {})) }, [])
 
+  const esAdmin = esAdministrador(usuario)
+  const textos = textoDeEnvio(usuario)
   const contexto = contextoDeConsulta({ usuario, pantalla: pantallaOrigen })
   const falta = asunto.trim().length < 3 || descripcion.trim().length < 5
 
@@ -44,7 +47,7 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
 
   if (enviada) {
     return (
-      <Cascaron titulo="Consulta enviada" subtitulo="Ya la tiene el soporte" Icono={CheckCircle2} onCerrar={() => onCerrar(true)} ancho="max-w-md"
+      <Cascaron titulo="Consulta enviada" subtitulo={textos.enviada} Icono={CheckCircle2} onCerrar={() => onCerrar(true)} ancho="max-w-md"
         pie={<>
           <span />
           <div className="ml-auto flex items-center gap-2">
@@ -55,16 +58,25 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
         <div role="status" className="space-y-3 px-5 py-6 text-center">
           <p className="text-sm text-slate-500">Número de tu consulta</p>
           <p className="font-mono text-3xl font-bold tracking-wide" style={{ color: INK }}>{codigoConsulta(enviada.numero)}</p>
-          <p className="text-sm text-slate-600">Te respondemos <strong>{tiempoEstimado(enviada.urgencia, ajustes)}</strong>. Cuando respondan, te avisamos en la campanita y verás la respuesta en «Mis consultas».</p>
+          {esAdmin
+            ? <p className="text-sm text-slate-600">Te respondemos <strong>{tiempoEstimado(enviada.urgencia, ajustes)}</strong>. Cuando respondan, te avisamos en la campanita y verás la respuesta en «Soporte del sistema».</p>
+            : <p className="text-sm text-slate-600">Tu administrador la verá y te responderá. Cuando responda, te avisamos en la campanita y verás la respuesta en «Mis consultas».</p>}
         </div>
       </Cascaron>
     )
   }
 
   return (
-    <Cascaron titulo="Nueva consulta" subtitulo="Cuéntanos qué pasa y te respondemos por aquí" Icono={MessageSquarePlus} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
+    <Cascaron titulo="Nueva consulta" subtitulo={textos.subtitulo} Icono={MessageSquarePlus} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
       pie={<PieFormulario onCancelar={() => onCerrar(false)} etiquetaGuardar="Enviar consulta" guardando={enviando} deshabilitado={falta} nota="Se envía con tu nombre, tu rol, la pantalla y el navegador." />}>
       <div className="space-y-5 px-5 py-4">
+        {onAbrirAyuda && (
+          <p className="flex flex-wrap items-center gap-x-2 rounded-xl bg-blue-50/60 px-3.5 py-2.5 text-sm text-slate-600">
+            <BookOpen size={15} className="text-blue-700" aria-hidden="true" />
+            <span>¿Ya buscaste en la ayuda?</span>
+            <button type="button" onClick={() => onAbrirAyuda(asunto.trim())} className="font-semibold text-blue-700 underline-offset-2 hover:underline cursor-pointer">Buscar en la ayuda</button>
+          </p>
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="soporte-modulo" className={ETIQUETA}>¿De qué módulo es?</label>
@@ -108,7 +120,7 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
           <textarea id="soporte-descripcion" rows={5} value={descripcion} maxLength={4000} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué intentabas hacer, qué pasó y qué esperabas que pasara?" className={CAMPO + " resize-none"} />
         </div>
         <div>
-          <p className={ETIQUETA}>Capturas de pantalla <span className="font-normal normal-case text-slate-500">(opcional)</span></p>
+          <p className={ETIQUETA}>Archivos adjuntos <span className="font-normal normal-case text-slate-500">(opcional)</span></p>
           <CampoCapturas archivos={archivos} onCambiar={setArchivos} deshabilitado={enviando} />
         </div>
 

@@ -45,19 +45,34 @@ export const TIEMPO_ESTIMADO = { normal: "en un máximo de 1 día hábil", urgen
 export const tiempoEstimado = (urgencia, ajustes = {}) => (urgencia === "urgente" ? ajustes.tiempo_urgente || TIEMPO_ESTIMADO.urgente : ajustes.tiempo_normal || TIEMPO_ESTIMADO.normal)
 
 export const MAX_ADJUNTOS = 3
-export const MAX_BYTES_ADJUNTO = 5 * 1024 * 1024
-export const TIPOS_ADJUNTO = ["image/png", "image/jpeg", "image/webp", "image/gif"]
+export const MAX_BYTES_ADJUNTO = 10 * 1024 * 1024
+// Lo que se acepta como adjunto (la base lo vuelve a validar, por tipo y por extensión). Sin macros: .docm y .xlsm no están.
+export const TIPOS_ADJUNTO_POR_EXTENSION = {
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+export const TIPOS_ADJUNTO = [...new Set(Object.values(TIPOS_ADJUNTO_POR_EXTENSION))]
+export const ACEPTAR_ADJUNTOS = ".png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx"
+export const extensionDe = (nombre) => (String(nombre || "").toLowerCase().match(/\.([a-z0-9]+)$/) || [])[1] || ""
+export const esImagenAdjunto = (a) => String(a?.tipo || a?.type || TIPOS_ADJUNTO_POR_EXTENSION[extensionDe(a?.nombre || a?.name)] || "").startsWith("image/")
+// El tipo con el que se sube un archivo: el de su extensión (algunos equipos no informan el tipo de un .docx o .xlsx).
+export const tipoDeArchivo = (archivo) => TIPOS_ADJUNTO_POR_EXTENSION[extensionDe(archivo?.name)] || archivo?.type || "application/octet-stream"
 
 // SOP-0007
 export const codigoConsulta = (numero) => `SOP-${String(Number(numero) || 0).padStart(4, "0")}`
 
-// Valida una captura antes de subirla. Devuelve el texto del problema, o "" si está bien.
-export function problemaDeCaptura(archivo) {
+// Valida un archivo antes de subirlo. Devuelve el texto del problema, o "" si está bien.
+export function problemaDeArchivo(archivo) {
   if (!archivo) return "No se pudo leer el archivo."
-  if (!TIPOS_ADJUNTO.includes(archivo.type)) return `«${archivo.name}» no es una imagen (PNG, JPG, WebP o GIF).`
-  if (archivo.size > MAX_BYTES_ADJUNTO) return `«${archivo.name}» pesa más de 5 MB.`
+  const ext = extensionDe(archivo.name)
+  if (ext === "docm" || ext === "xlsm") return `«${archivo.name}» tiene macros y no se acepta. Guárdalo como .docx o .xlsx sin macros.`
+  const esperado = TIPOS_ADJUNTO_POR_EXTENSION[ext]
+  if (!esperado || (archivo.type && archivo.type !== esperado)) return `«${archivo.name}» no se acepta: solo imágenes (PNG, JPG, WebP, GIF), PDF, Word (.docx) y Excel (.xlsx).`
+  if (archivo.size > MAX_BYTES_ADJUNTO) return `«${archivo.name}» pesa más de 10 MB.`
   return ""
 }
+export const problemaDeCaptura = problemaDeArchivo
 
 export const tamanoLegible = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`)
 
@@ -140,8 +155,8 @@ const mediana = (xs) => {
 
 export function indicadoresSoporte(consultas, { desde = null, hasta = null } = {}) {
   const dentro = consultas.filter((c) => (!desde || c2ms(c.creadaEn) >= c2ms(desde)) && (!hasta || c2ms(c.creadaEn) <= c2ms(hasta)))
-  const primeras = dentro.filter((c) => c.primeraRespuestaEn).map((c) => minutos(c.creadaEn, c.primeraRespuestaEn))
-  const resoluciones = dentro.filter((c) => c.resueltaEn && c.estado === "resuelta").map((c) => minutos(c.creadaEn, c.resueltaEn))
+  const primeras = dentro.filter((c) => c.primeraRespuestaEn).map((c) => minutos(c.escaladaEn || c.creadaEn, c.primeraRespuestaEn))
+  const resoluciones = dentro.filter((c) => c.resueltaEn && c.estado === "resuelta").map((c) => minutos(c.escaladaEn || c.creadaEn, c.resueltaEn))
   const notas = dentro.filter((c) => c.calificacion).map((c) => c.calificacion)
   const porModulo = {}
   for (const c of dentro) porModulo[c.modulo] = (porModulo[c.modulo] || 0) + 1
@@ -179,9 +194,10 @@ export const mapConsulta = (r) => ({
   calificacion: r.calificacion, calificacionComentario: r.calificacion_comentario || "", calificadaEn: r.calificada_en,
   primeraRespuestaEn: r.primera_respuesta_en, resueltaEn: r.resuelta_en, reabiertaVeces: r.reabierta_veces || 0,
   creadaEn: r.creada_en, actualizadaEn: r.actualizada_en,
+  destino: r.destino || "superadmin", escaladaEn: r.escalada_en || null, escaladaPor: r.escalada_por || "",
 })
 export const mapMensajeSoporte = (r) => ({
-  id: r.id, consultaId: r.consulta_id, autorNombre: r.autor_nombre, de: r.de, interna: !!r.interna, cuerpo: r.cuerpo, adjuntos: Array.isArray(r.adjuntos) ? r.adjuntos : [], creadoEn: r.creado_en,
+  id: r.id, consultaId: r.consulta_id, autorId: r.autor_id || null, autorNombre: r.autor_nombre, de: r.de, interna: !!r.interna, cuerpo: r.cuerpo, adjuntos: Array.isArray(r.adjuntos) ? r.adjuntos : [], creadoEn: r.creado_en,
 })
 
 // Los avisos del sistema (tabla `mensajes`, tipo "anuncio") con su "leído".

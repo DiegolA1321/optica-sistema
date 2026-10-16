@@ -281,7 +281,8 @@ test('Soporte: el administrador envía una consulta al soporte (rpc crear_consul
   const asunto = `${PREFIJO}consulta de prueba ${sufijo()}`
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Soporte')
-  await page.getByRole('button', { name: /Nueva consulta/ }).click()
+  await page.getByRole('tab', { name: /Soporte del sistema/ }).click() // el administrador escribe al soporte desde su pestaña
+  await page.getByRole('button', { name: /Nueva consulta/ }).first().click()
   const v = page.getByRole('dialog', { name: 'Nueva consulta' })
   await v.getByLabel('Asunto').fill(asunto)
   await v.getByLabel('Descripción').fill(`${PREFIJO}mensaje de prueba, no requiere respuesta`)

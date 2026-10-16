@@ -68,6 +68,7 @@ import { contarAvisosVentas } from "../utilidades/ventasModulo"
 import { useCrmDatos } from "../utilidades/crmDatos"
 import { EVENTO_SOPORTE_CAMBIADO, leerResumenSoporte } from "../utilidades/soporteDatos"
 import { codigoConsulta } from "../utilidades/soporte"
+import VentanaAvisosInternos from "../componentes/soporte/VentanaAvisosInternos"
 import { listaParaContactar } from "../utilidades/crmContactos"
 
 
@@ -427,13 +428,14 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Resumen de Mensajes para la campanita — única llamada a Supabase de este
   // archivo (el resto del Dashboard es local/localStorage). Consultas propias
   // sin responder + avisos generales publicados en los últimos 14 días.
-  const [mensajesResumen, setMensajesResumen] = useState({ respuestas: [], avisosSinLeer: 0 })
+  const [mensajesResumen, setMensajesResumen] = useState({ respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [] })
+  const [verAvisosInternos, setVerAvisosInternos] = useState(false)
   const puedeVerSoporte = puede(usuario, "mensajes", "ver") && !usuario?.impersonadoPor // el superadmin dentro de una óptica no recibe sus avisos
   useEffect(() => {
-    if (!supabase || !puedeVerSoporte || !usuario?.id) return
+    if (!supabase || usuario?.impersonadoPor || !usuario?.id) return
     let vigente = true
     const cargar = async () => {
-      const r = await leerResumenSoporte(usuario.id)
+      const r = await leerResumenSoporte(usuario.id, usuario.rol === "admin", puedeVerSoporte)
       if (vigente) setMensajesResumen(r)
     }
     cargar()
@@ -456,7 +458,15 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const arr = []
     if (puedeVerSoporte) {
       for (const r of mensajesResumen.respuestas.slice(0, 5)) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `Respondieron tu consulta ${codigoConsulta(r.numero)}`, sub: r.asunto, destino: "mensajes", alAbrir: () => abrirConsultaDeSoporte(r.id) })
+      // Al administrador: lo que su personal le escribió y espera su respuesta. A cada uno lo suyo: nadie más recibe estos avisos.
+      for (const p of (mensajesResumen.porResponder || []).slice(0, 5)) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${p.autor_nombre} te escribió: ${codigoConsulta(p.numero)}`, sub: p.asunto, destino: "mensajes", alAbrir: () => abrirConsultaDeSoporte(p.id) })
       if (mensajesResumen.avisosSinLeer > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosSinLeer} aviso${mensajesResumen.avisosSinLeer > 1 ? "s" : ""} del sistema sin leer`, sub: "Mira qué cambió o qué viene", destino: "mensajes", alAbrir: () => { escribirParam("tab", "avisos"); navegar("mensajes") } })
+    }
+    // Avisos de la óptica (del administrador): le llegan a todo el personal destinatario, tenga o no el permiso de Soporte. Con Soporte se leen en su pestaña
+    // Avisos; sin él, en una ventana de avisos.
+    if (mensajesResumen.avisosInternosSinLeer > 0) {
+      arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${mensajesResumen.avisosInternosSinLeer} aviso${mensajesResumen.avisosInternosSinLeer > 1 ? "s" : ""} de tu administrador sin leer`, sub: "Mira qué te avisaron", destino: puedeVerSoporte ? "mensajes" : undefined,
+        alAbrir: () => { if (puedeVerSoporte) { escribirParam("tab", "avisos"); navegar("mensajes") } else setVerAvisosInternos(true) } })
     }
     // Solicitud de medidas completas desde el portal (migración 0080): el paciente pide ver esfera/cilindro/eje.
     if (puede(usuario, "pacientes", "ver")) {
@@ -761,6 +771,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
+      {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
       {/* Backdrop móvil */}
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 

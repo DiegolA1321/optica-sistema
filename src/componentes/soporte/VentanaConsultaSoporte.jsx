@@ -87,6 +87,8 @@ export default function VentanaConsultaSoporte({ consulta, opticaNombre, respues
           </label>
         </div>
 
+        {consulta.escaladaEn && <p className="rounded-xl bg-blue-50 px-3.5 py-2 text-sm text-blue-800">La escaló el administrador {consulta.escaladaPor ? `(${consulta.escaladaPor}) ` : ""}el {fechaHoraLegible(consulta.escaladaEn, { anio: true })}: escribió {consulta.autorNombre} · {consulta.autorRol}. Abajo está toda la conversación.</p>}
+
         <details className="group rounded-xl border border-slate-200/60 bg-slate-50/70">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2.5 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
             Contexto que envió el sistema
