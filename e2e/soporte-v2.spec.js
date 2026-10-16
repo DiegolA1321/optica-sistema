@@ -35,11 +35,14 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await iniciarSesion(optica, 'ADMIN', 'E2E')
   await optica.getByRole('button', { name: 'Soporte', exact: true }).first().click()
   await expect(optica.getByRole('heading', { level: 1, name: 'Soporte' })).toBeVisible()
-  // Ayuda primero: las preguntas por módulo, con buscador
+  // La ayuda: las preguntas por módulo, con buscador (es la última pestaña; el administrador abre en "Consultas del personal")
+  await optica.getByRole('tab', { name: 'Ayuda' }).click()
   await expect(optica.getByRole('group', { name: 'Ayuda de Citas' })).toBeVisible()
   await optica.getByLabel('Buscar en la ayuda').fill('abono')
   await expect(optica.getByText('¿Cómo registro, corrijo o anulo un abono?')).toBeVisible()
   await optica.getByLabel('Buscar en la ayuda').fill('')
+  // El administrador escribe al soporte del sistema desde su pestaña
+  await optica.getByRole('tab', { name: /Soporte del sistema/ }).click()
 
   const escribir = async (texto, urgente, conCaptura) => {
     await optica.getByRole('button', { name: /Nueva consulta/ }).click()
@@ -61,7 +64,7 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   const codigo = await escribir(asunto, true, true)
 
   // Mis consultas: número, módulo, urgencia y estado
-  await optica.getByRole('tab', { name: /Mis consultas/ }).click()
+  await optica.getByRole('tab', { name: /Soporte del sistema/ }).click()
   const fila = optica.getByRole('listitem').filter({ hasText: asunto })
   await expect(fila).toContainText(codigo)
   await expect(fila).toContainText('Ventas')
@@ -118,9 +121,9 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await expect(v2.getByText('Resuelta').first()).toBeVisible({ timeout: 20_000 })
   await v2.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
 
-  await optica.getByRole('tab', { name: /Mis consultas/ }).click()
+  await optica.getByRole('tab', { name: /Soporte del sistema/ }).click()
   await optica.reload()
-  await optica.getByRole('tab', { name: /Mis consultas/ }).click()
+  await optica.getByRole('tab', { name: /Soporte del sistema/ }).click()
   await optica.getByRole('button', { name: asunto }).click()
   const fin = optica.getByRole('dialog')
   await expect(fin.getByText(/Consulta resuelta/)).toBeVisible({ timeout: 20_000 })
