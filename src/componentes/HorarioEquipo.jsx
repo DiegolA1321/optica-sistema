@@ -114,7 +114,7 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
                 <li key={d.fecha} className={"flex items-center gap-3 py-2 " + (d.fecha === hoy ? "rounded-lg bg-blue-50/50 px-2" : "")}>
                   <div className="w-16 shrink-0">
                     <p className="text-sm font-semibold text-slate-700">{diaDe(d.fecha).slice(0, 3)} {diaNumero(d.fecha)}</p>
-                    {d.fecha === hoy && <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">Hoy</p>}
+                    {d.fecha === hoy && <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Hoy</p>}
                   </div>
                   {d.cerrado ? (
                     <p className="text-xs text-slate-400">{d.segunGeneral ? "Cerrado · según el horario general" : "Sin horario"}</p>
@@ -125,14 +125,14 @@ export default function HorarioEquipo({ usuario, equipo = [], citas = [], duraci
                       </div>
                       <p className="w-44 shrink-0 text-right text-xs text-slate-600">
                         <span className="font-bold">{d.ocupados}</span> ocupados · <span className="font-bold">{d.libres}</span> turnos libres
-                        {d.segunGeneral && <span className="block text-[10px] text-slate-400">Según el horario general</span>}
+                        {d.segunGeneral && <span className="block text-xs text-slate-400">Según el horario general</span>}
                       </p>
                     </>
                   )}
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Lo ocupado son las citas asignadas a esta persona. Una cita sin asignar no cuenta en ningún horario.</p>
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">Lo ocupado son las citas asignadas a esta persona. Una cita sin asignar no cuenta en ningún horario.</p>
           </>
         )}
       </section>

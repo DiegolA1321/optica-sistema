@@ -26,7 +26,7 @@ const TITULO_FRANJA = { cerrado: "Fuera del horario de atención", almuerzo: "Al
 
 export function LeyendaEstados() {
   return (
-    <ul className="hidden items-center gap-3 text-[11px] font-medium text-slate-500 xl:flex" aria-label="Leyenda de estados">
+    <ul className="hidden items-center gap-3 text-xs font-medium text-slate-500 xl:flex" aria-label="Leyenda de estados">
       {LEYENDA_ESTADOS.map((e) => (
         <li key={e.etiqueta} className="flex items-center gap-1.5">
           <span className="h-3 w-3.5 rounded-[3px] border-l-[3px]" style={{ backgroundColor: e.fondo, borderLeftColor: e.linea }} aria-hidden="true" />
@@ -197,7 +197,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     style={{ top: (hover.min - rango.inicio) * PX_POR_MIN + 1, height: PASO_MINUTOS * PX_POR_MIN - 2 }}
                     aria-hidden="true"
                   >
-                    <Plus size={14} /> <span className="ml-1 text-[11px] font-semibold">{horaA12(minutosAHHMM(hover.min))}</span>
+                    <Plus size={14} /> <span className="ml-1 text-xs font-semibold">{horaA12(minutosAHHMM(hover.min))}</span>
                   </div>
                 )}
                 {franjas.map((f, i) => (
@@ -210,7 +210,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     {/* Por qué está bloqueado: etiqueta discreta que se queda
                         pegada bajo el encabezado mientras la franja está a la vista. */}
                     {(f.fin - f.inicio) * PX_POR_MIN >= 18 && (
-                      <span className={"pointer-events-none sticky ml-1.5 inline-block max-w-[calc(100%-12px)] rounded px-1 text-[10px] font-semibold leading-4 " + (f.etiqueta ? "whitespace-normal break-words text-slate-500" : "truncate uppercase tracking-wide text-slate-400")} style={{ top: ALTO_ENCABEZADO + 4 }}>
+                      <span className={"pointer-events-none sticky ml-1.5 inline-block max-w-[calc(100%-12px)] rounded px-1 text-xs font-semibold leading-4 " + (f.etiqueta ? "whitespace-normal break-words text-slate-500" : "truncate uppercase tracking-wide text-slate-400")} style={{ top: ALTO_ENCABEZADO + 4 }}>
                         {f.etiqueta || ETIQUETA_FRANJA[f.tipo]}{f.tipo === "ausencia" && f.motivo ? ` · ${f.motivo}` : ""}
                       </span>
                     )}
@@ -219,7 +219,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
 
                 {arrastre && destino && destino.iso === iso && (
                   <div
-                    className={"pointer-events-none absolute inset-x-0.5 z-[4] rounded-md border-2 border-dashed px-2 py-1 text-[11px] font-semibold " + (destino.ok ? "border-blue-400 bg-blue-100/60 text-blue-700" : "border-red-300 bg-red-100/60 text-red-700")}
+                    className={"pointer-events-none absolute inset-x-0.5 z-[4] rounded-md border-2 border-dashed px-2 py-1 text-xs font-semibold " + (destino.ok ? "border-blue-400 bg-blue-100/60 text-blue-700" : "border-red-300 bg-red-100/60 text-red-700")}
                     style={{ top: (destino.min - rango.inicio) * PX_POR_MIN, height: Math.max(22, arrastre.dur * PX_POR_MIN) }}
                     aria-hidden="true"
                   >
@@ -272,7 +272,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         {cobro && <Receipt size={12} className="mt-px shrink-0 text-amber-600" aria-label="Cobro pendiente" />}
                       </div>
                       {altoBloque >= 38 && (
-                        <p className="truncate text-[11px] font-medium" style={{ color: color.texto, opacity: 0.8 }}>{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
+                        <p className="truncate text-xs font-medium" style={{ color: color.texto, opacity: 0.8 }}>{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
                       )}
                     </button>
                   )

@@ -164,7 +164,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
                 <CheckCircle2 size={12} /> Atendida
               </span>
               {fechaRealDistinta && (
-                <span className="text-[11px] font-medium text-slate-400">Atendida el {etiquetaFecha(fechaReal)}</span>
+                <span className="text-xs font-medium text-slate-400">Atendida el {etiquetaFecha(fechaReal)}</span>
               )}
             </div>
           ) : cita.estado === "No Asistió" ? (

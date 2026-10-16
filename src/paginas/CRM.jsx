@@ -22,6 +22,7 @@ import { abrirWhatsApp } from "../utilidades/whatsapp"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { diaDeRegistro, enPeriodo } from "../utilidades/periodoLista"
 import { hoyISO } from "../utilidades/disponibilidad"
+import NotaAlcance from "../componentes/NotaAlcance"
 
 const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion"]
 const uno = (n, singular, plural) => (n === 1 ? singular : plural)
@@ -29,7 +30,7 @@ const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 // CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
 // Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (los rankings). El análisis va en Reportes.
 export default function CRM({
-  usuario, crm, pacientes = [], consultas = [], citas = [], ordenesLab = [], parametrizacion, setParametrizacion, cargaInicial = false,
+  usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], parametrizacion, setParametrizacion, cargaInicial = false,
   onVerPerfil, onRegistrarPaciente, onAviso, accionInicial, onAccionInicialConsumida,
 }) {
   const puedeContactar = puede(usuario, "crm", "crear")
@@ -148,6 +149,7 @@ export default function CRM({
           )}
         </AccionesDeCabecera>
       </div>
+      <NotaAlcance alcancePropio={alcancePropio} />
 
       {!cargando && pacientes.length === 0 ? (
         <SinDatosAun titulo="Todavía no hay pacientes a quienes escribir" texto="Aquí aparecen los controles por vencer, los cumpleaños y quienes llevan tiempo sin venir, en cuanto registres pacientes." accion={onRegistrarPaciente ? { etiqueta: "Registrar el primer paciente", onClick: onRegistrarPaciente } : null} />

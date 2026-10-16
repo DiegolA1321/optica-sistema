@@ -82,7 +82,7 @@ const BotonCerrar = ({ onCerrar }) => (
 function Dato({ etiqueta, children, vacio }) {
   return (
     <div className="mt-3 first:mt-0">
-      <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
+      <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">{etiqueta}</dt>
       <dd className={"mt-0.5 text-sm break-words " + (vacio ? "text-slate-400" : "font-semibold")} style={vacio ? undefined : { color: INK }}>{children}</dd>
     </div>
   )
@@ -91,7 +91,7 @@ function Dato({ etiqueta, children, vacio }) {
 function Columna({ titulo, children }) {
   return (
     <section>
-      <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-500">{titulo}</h3>
+      <h3 className="mb-2 border-b border-slate-200/60 pb-1.5 text-xs font-bold uppercase tracking-widest text-slate-500">{titulo}</h3>
       <dl>{children}</dl>
     </section>
   )
@@ -178,7 +178,7 @@ export function ModalDatosPaciente({ paciente, onEditar, permisos = null, onCerr
       </div>
       {permisos && (
         <section aria-label="Permisos para recibir mensajes" className="border-t border-slate-100 px-5 py-4">
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">Permisos para recibir mensajes</h3>
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">Permisos para recibir mensajes</h3>
           <PermisosMensajes {...permisos} />
         </section>
       )}
@@ -192,7 +192,7 @@ const textoMedida = (o) => (o?.esfera || o?.cilindro || o?.eje ? `${o?.esfera ||
 function Seccion({ titulo, children }) {
   return (
     <section className="border-b border-slate-100 px-5 py-4 last:border-b-0">
-      <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">{titulo}</h3>
+      <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">{titulo}</h3>
       {children}
     </section>
   )
@@ -219,7 +219,7 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
       <Seccion titulo="Refracción y agudeza visual">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] border-collapse font-mono text-sm">
-            <thead><tr className="text-left text-[10px] uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Esfera</th><th className="px-2 py-1">Cilindro</th><th className="px-2 py-1">Eje</th><th className="px-2 py-1">AV s/c</th><th className="px-2 py-1">AV c/c</th></tr></thead>
+            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Esfera</th><th className="px-2 py-1">Cilindro</th><th className="px-2 py-1">Eje</th><th className="px-2 py-1">AV s/c</th><th className="px-2 py-1">AV c/c</th></tr></thead>
             <tbody>{ojo("OD", "#1d4ed8", consulta.od)}{ojo("OI", "#0891b2", consulta.oi)}</tbody>
           </table>
         </div>

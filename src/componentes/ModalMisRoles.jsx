@@ -52,8 +52,8 @@ export default function ModalMisRoles({ roles, elegidosIniciales, onGuardar, onC
                   <span className="min-w-0 text-sm">
                     <span className="flex flex-wrap items-center gap-2 font-semibold text-slate-700">
                       {r.nombre}
-                      {r.es_predefinido && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">Predefinido</span>}
-                      {r.atiende_pacientes && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
+                      {r.es_predefinido && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-bold text-blue-700">Predefinido</span>}
+                      {r.atiende_pacientes && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-bold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
                     </span>
                     {r.descripcion && <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{r.descripcion}</span>}
                   </span>
@@ -67,8 +67,8 @@ export default function ModalMisRoles({ roles, elegidosIniciales, onGuardar, onC
         <section aria-label="Vista previa de lo que verás" className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lo que verás con esos roles</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">Inicio</span>
-            {vista.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">{m}</span>)}
+            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">Inicio</span>
+            {vista.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">{m}</span>)}
           </div>
           <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">{vista.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
         </section>

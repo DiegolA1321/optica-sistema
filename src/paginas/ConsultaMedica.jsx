@@ -1234,7 +1234,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   <p className="truncate text-sm font-bold" style={{ color: INK }}>
                     {pacienteSeleccionado}{edadPaciente != null ? ` · ${edadPaciente} años` : ""}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     {citaDeLaVisita
                       ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
                       : "Sin cita · consulta directa"}
@@ -1242,7 +1242,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   </p>
                 </div>
               </div>
-              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <Calendar size={13} aria-hidden="true" /> Fecha de la consulta
                 <span className="w-44"><CampoFecha id="consulta-fecha" etiqueta="Fecha de la consulta" valor={fechaConsulta} onCambiar={setFechaConsulta} min={sumarDiasISO(hoyISO(), -365 * 3)} max={hoyISO()} /></span>
               </label>
@@ -1262,7 +1262,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   </span>
                 )}
                 {ultimaGraduacion && (
-                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200/60 bg-slate-50 px-2.5 py-1 font-mono text-[11px] text-slate-600">
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200/60 bg-slate-50 px-2.5 py-1 font-mono text-xs text-slate-600">
                     <Glasses size={12} className="shrink-0 text-slate-500" aria-hidden="true" />
                     <span className="truncate">Últ. graduación ({fechaCorta(ultimaGraduacion.fecha)}): OD {ultimaGraduacion.od} · OI {ultimaGraduacion.oi}</span>
                   </span>
@@ -1369,7 +1369,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   </span>
                   <span className="flex items-center gap-2">
                     {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
-                      <span className="hidden items-center gap-1 text-[11px] font-normal normal-case text-slate-500 sm:flex">
+                      <span className="hidden items-center gap-1 text-xs font-normal normal-case text-slate-500 sm:flex">
                         <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaLegible(fechaPrecarga)}` : ""} · toca para ver o editar
                       </span>
                     )}
@@ -1386,9 +1386,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     editar sin repetir el formulario completo cada visita. */}
                 {!seccionesAbiertas.antecedentesPaciente && (
                   <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/60 bg-white p-3 text-xs leading-relaxed text-slate-700 sm:grid-cols-3">
-                    <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Alergias</span>{alergias || "Ninguna registrada"}</p>
-                    <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
-                    <p><span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
+                    <p><span className="block text-xs font-bold uppercase tracking-wide text-slate-400">Alergias</span>{alergias || "Ninguna registrada"}</p>
+                    <p><span className="block text-xs font-bold uppercase tracking-wide text-slate-400">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
+                    <p><span className="block text-xs font-bold uppercase tracking-wide text-slate-400">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
                   </div>
                 )}
 
@@ -1558,7 +1558,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     {citaEnAtencionId && motivo && motivo !== "Otros" && !editandoMotivo ? (
                       <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3">
                         <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Motivo de la consulta</p>
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Motivo de la consulta</p>
                           <p className="text-sm font-semibold" style={{ color: INK }}>{motivo} <span className="text-xs font-normal text-slate-400">(de la cita)</span></p>
                         </div>
                         <button type="button" onClick={() => setEditandoMotivo(true)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cambiar</button>
@@ -1626,7 +1626,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
-                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
                       Opcional · punto de partida antes de refinar
                       <EtiquetaRegistro registrado={registradoRetinoscopia} />
                     </span>
@@ -1660,7 +1660,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("refraccionSubjetiva")} aria-expanded={!!seccionesAbiertas.refraccionSubjetiva} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <Eye size={16} className="text-blue-600" /> Refracción subjetiva final
-                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
                       Todo opcional · vacío significa "no medido"
                       <EtiquetaRegistro registrado={registradoRefraccion} />
                     </span>
@@ -1687,7 +1687,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("visionCercana")} aria-expanded={!!seccionesAbiertas.visionCercana} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <Ruler size={16} className="text-blue-600" /> Visión cercana y centrado
-                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
                       Opcional
                       <EtiquetaRegistro registrado={registradoCercana} />
                     </span>
@@ -1706,7 +1706,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("examenFisico")} aria-expanded={!!seccionesAbiertas.examenFisico} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <ScanEye size={16} className="text-blue-600" /> Examen físico complementario
-                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
                       Opcional
                       <EtiquetaRegistro registrado={registradoExamenFisico} />
                     </span>
@@ -1805,7 +1805,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
                   <button type="button" onClick={() => alternarSeccion("biomicroscopia")} aria-expanded={!!seccionesAbiertas.biomicroscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
                     <Eye size={16} className="text-blue-600" /> Biomicroscopía (segmento anterior)
-                    <span className="ml-auto flex items-center gap-2 text-[10px] font-normal normal-case text-slate-500">
+                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
                       Opcional · lámpara de hendidura
                       <EtiquetaRegistro registrado={registradoBiomicroscopia} />
                     </span>
@@ -1892,16 +1892,16 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                           <h2 className="font-serif text-2xl font-bold leading-none tracking-tight">{usuario?.opticaNombre || "Tu óptica"}</h2>
                           <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Salud visual &amp; optometría</p>
                           {(usuario?.opticaMarca?.direccion || usuario?.opticaMarca?.telefono || usuario?.opticaMarca?.correo) && (
-                            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                               {[usuario?.opticaMarca?.direccion, usuario?.opticaMarca?.telefono, usuario?.opticaMarca?.correo].filter(Boolean).join(" · ")}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Receta óptica</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Receta óptica</p>
                         <p className="mt-1 font-mono text-xs font-semibold text-slate-700">N.º {recetaNum}</p>
-                        <p className="text-[11px] text-slate-500">{fechaLarga}</p>
+                        <p className="text-xs text-slate-500">{fechaLarga}</p>
                       </div>
                     </div>
                   </div>
@@ -1930,7 +1930,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
                   <div className="space-y-3.5 px-8 pt-5">
                     <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                      <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      <label className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                         <Stethoscope size={12} /> Diagnóstico
                       </label>
                       {fichaGuardada ? (
@@ -1975,7 +1975,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                               hallazgo completo, no solo una aclaración. */}
                           {diagnosticoCategorias.includes("Otro") ? (
                             <>
-                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                                 Detalle del diagnóstico personalizado
                               </label>
                               <textarea
@@ -1995,7 +1995,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                             </>
                           ) : (
                             <>
-                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                                 Detalle <span className="font-normal normal-case text-slate-400">(opcional)</span>
                               </label>
                               <input
@@ -2038,7 +2038,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       <div className="print-force-color flex items-start gap-3 rounded-xl border p-4" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
                         <Glasses size={18} style={{ color: GOLD }} className="mt-0.5 shrink-0" />
                         <div className="flex-1 space-y-2">
-                          <label htmlFor="lenteRecomendado" className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "#7c5e14" }}>Lente a recomendar</label>
+                          <label htmlFor="lenteRecomendado" className="mb-1 block text-xs font-bold uppercase tracking-[0.14em]" style={{ color: "#7c5e14" }}>Lente a recomendar</label>
                           <input
                             id="lenteRecomendado"
                             type="text"
@@ -2049,7 +2049,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                             className="w-full bg-transparent text-sm font-semibold outline-none focus-visible:underline"
                             style={{ color: INK }}
                           />
-                          <p className="no-print text-[11px] text-slate-500">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
+                          <p className="no-print text-xs text-slate-500">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
                         </div>
                       </div>
                     )}
@@ -2103,7 +2103,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
                     {!fichaGuardada && (
                       <div className="no-print rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
-                        <label className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                        <label className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                           <ImageIcon size={12} /> Adjuntar imágenes <span className="font-normal normal-case text-slate-500">(opcional — hasta 6)</span>
                         </label>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -2127,7 +2127,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
                     {(indicaciones || !fichaGuardada) && (
                       <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                        <label htmlFor="indicaciones" className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                        <label htmlFor="indicaciones" className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                           <ClipboardList size={12} /> Indicaciones y cuidados
                         </label>
                         <textarea
@@ -2144,7 +2144,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     )}
 
                     <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
+                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
@@ -2178,7 +2178,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       <CalendarClock size={18} className="no-print shrink-0 text-blue-600" />
                       <div className="flex-1">
                         <label htmlFor="proximoControl" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Próximo control recomendado</label>
-                        <p className="no-print text-[11px] text-slate-500">
+                        <p className="no-print text-xs text-slate-500">
                           {tratamientoFinalizado ? "No aplica — el tratamiento quedó finalizado." : "Define cuándo el CRM debe avisar si el paciente no ha vuelto."}
                         </p>
                       </div>
@@ -2251,13 +2251,13 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   {/* Pie: validez + firma */}
                   <div className="mt-8 border-t border-slate-100 px-8 pb-8 pt-6">
                     <div className="flex items-end justify-between gap-6">
-                      <p className="max-w-[16rem] text-[10px] leading-relaxed text-slate-500">
+                      <p className="max-w-[16rem] text-xs leading-relaxed text-slate-500">
                         Presente esta receta para la elaboración de sus lentes. Validez de 12 meses desde la fecha de emisión.
                       </p>
                       <div className="w-52 text-center">
                         <div className="mb-2.5 border-t border-slate-400" />
                         <p className="text-sm font-bold" style={{ color: INK }}>{usuario?.nombre || "Optómetra"}</p>
-                        <p className="text-[11px] text-slate-500">{usuario?.registroProfesional ? `Reg. Prof. ${usuario.registroProfesional}` : "Reg. Prof. ____________"}</p>
+                        <p className="text-xs text-slate-500">{usuario?.registroProfesional ? `Reg. Prof. ${usuario.registroProfesional}` : "Reg. Prof. ____________"}</p>
                       </div>
                     </div>
                   </div>
@@ -2498,7 +2498,7 @@ function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLeng
         placeholder={placeholder}
         className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
       />
-      {error && <p className="mt-0.5 text-[10px] font-medium text-red-600">{error}</p>}
+      {error && <p className="mt-0.5 text-xs font-medium text-red-600">{error}</p>}
     </div>
   )
 }
@@ -2536,15 +2536,15 @@ function TarjetaVisita({ consulta: c }) {
     <div className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-bold" style={{ color: INK }}>{c.fecha}</span>
-        <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">{c.motivo || "Consulta general"}</span>
+        <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600 shadow-sm">{c.motivo || "Consulta general"}</span>
       </div>
       {c.detalleConsulta && <p className="mt-1 text-xs italic text-slate-500">"{c.detalleConsulta}"</p>}
       <p className="mt-1.5 text-sm text-slate-700">{c.diagnostico || "Sin diagnóstico registrado"}</p>
-      <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-500">
+      <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-xs text-slate-500">
         <span>OD: {textoOjo(c.od)} · AV {c.od?.avCc || "—"}</span>
         <span>OI: {textoOjo(c.oi)} · AV {c.oi?.avCc || "—"}</span>
       </div>
-      {c.lenteRecomendado && <p className="mt-1.5 text-[11px] text-slate-500">Lente recomendado: <span className="font-semibold text-slate-600">{c.lenteRecomendado}</span></p>}
+      {c.lenteRecomendado && <p className="mt-1.5 text-xs text-slate-500">Lente recomendado: <span className="font-semibold text-slate-600">{c.lenteRecomendado}</span></p>}
     </div>
   )
 }
@@ -2568,7 +2568,7 @@ function textoOjo(o) {
 function RecetaDato({ label, valor }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
       <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{valor}</p>
     </div>
   )

@@ -36,7 +36,7 @@ function fechaHoraAgendada(iso) {
 function Dato({ etiqueta, children }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{etiqueta}</dt>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{etiqueta}</dt>
       <dd className="mt-0.5 break-words text-sm font-semibold" style={{ color: INK }}>{children}</dd>
     </div>
   )

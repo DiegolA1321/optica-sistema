@@ -203,8 +203,8 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
                 />
               </label>
             </div>
-            {errorLogo && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogo}</p>}
-            <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. Va en la barra superior, el pie de página y el login — todos con fondo oscuro. También puedes pegar una URL:</p>
+            {errorLogo && <p className="mt-1 text-xs font-medium text-red-600">{errorLogo}</p>}
+            <p className="mt-1 text-xs text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. Va en la barra superior, el pie de página y el login — todos con fondo oscuro. También puedes pegar una URL:</p>
             <input
               type="text" value={campo.logoUrl} onChange={(e) => setCampo((p) => ({ ...p, logoUrl: e.target.value }))}              placeholder="https://…"
               className="mt-1 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
@@ -226,7 +226,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
               />
             </label>
           </div>
-          <p className="mt-1 text-[10px] text-slate-400">Para la imagen grande del hero (fondo claro). Si no lo subes, se usa el logo de arriba ahí también. También puedes pegar una URL:</p>
+          <p className="mt-1 text-xs text-slate-400">Para la imagen grande del hero (fondo claro). Si no lo subes, se usa el logo de arriba ahí también. También puedes pegar una URL:</p>
           <input
             type="text" value={campo.logoUrlClaro} onChange={(e) => setCampo((p) => ({ ...p, logoUrlClaro: e.target.value }))}            placeholder="https://…"
             className="mt-1 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-sm outline-none focus:border-blue-500 focus:bg-white"
@@ -244,7 +244,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
                 className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white"
               />
             </div>
-            <p className="mt-1 text-[10px] text-slate-400">Se mezcla con el color de acento en la barra superior del login.</p>
+            <p className="mt-1 text-xs text-slate-400">Se mezcla con el color de acento en la barra superior del login.</p>
           </div>
           <div>
             <label className="mb-1 block text-xs text-slate-500">Tarjetas de servicios</label>
@@ -256,7 +256,7 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
               />
               Mostrar bloque de servicios
             </label>
-            <p className="mt-1 text-[10px] text-slate-400">Si se desactiva, se oculta en el login y va directo a agendar cita.</p>
+            <p className="mt-1 text-xs text-slate-400">Si se desactiva, se oculta en el login y va directo a agendar cita.</p>
           </div>
         </div>
         <div>
@@ -289,8 +289,8 @@ export default function PersonalizacionLogin({ opticaId, marca, logoUrl, onGuard
                   />
                 </label>
               </div>
-              {errorImagenServicio && <p className="text-[11px] font-medium text-red-600">{errorImagenServicio}</p>}
-              <p className="text-[10px] text-slate-400">Si se sube, reemplaza el ícono automático en el login.</p>
+              {errorImagenServicio && <p className="text-xs font-medium text-red-600">{errorImagenServicio}</p>}
+              <p className="text-xs text-slate-400">Si se sube, reemplaza el ícono automático en el login.</p>
               <input
                 type="text" value={s.titulo}
                 onChange={(e) => setCampo((p) => ({ ...p, servicios: p.servicios.map((sv, j) => j === i ? { ...sv, titulo: e.target.value } : sv) }))}

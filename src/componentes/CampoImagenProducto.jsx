@@ -59,7 +59,7 @@ export default function CampoImagenProducto({ opticaId, valor, onCambio, label =
               </button>
             )}
           </div>
-          {error && <p className="text-[11px] font-medium text-red-600">{error}</p>}
+          {error && <p className="text-xs font-medium text-red-600">{error}</p>}
         </div>
         <input
           ref={inputRef}

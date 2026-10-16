@@ -50,15 +50,15 @@ function MockHistorial() {
     <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold" style={{ color: INK }}>Historial · María G.</span>
-        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">↓ Mejoró</span>
+        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-600">↓ Mejoró</span>
       </div>
       <div className="mt-2.5 grid grid-cols-2 gap-2 text-center">
         <div className="rounded-lg bg-white py-1.5">
-          <p className="text-[10px] font-semibold text-slate-400">OD</p>
+          <p className="text-xs font-semibold text-slate-400">OD</p>
           <p className="text-sm font-bold" style={{ color: INK }}>-2.00</p>
         </div>
         <div className="rounded-lg bg-white py-1.5">
-          <p className="text-[10px] font-semibold text-slate-400">OI</p>
+          <p className="text-xs font-semibold text-slate-400">OI</p>
           <p className="text-sm font-bold" style={{ color: INK }}>-1.75</p>
         </div>
       </div>
@@ -75,7 +75,7 @@ function MockInventario() {
     <div className="mt-5 space-y-2.5 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
       {items.map((it) => (
         <div key={it.nombre}>
-          <div className="flex items-center justify-between text-[11px] font-semibold" style={{ color: INK }}>
+          <div className="flex items-center justify-between text-xs font-semibold" style={{ color: INK }}>
             <span>{it.nombre}</span>
             <span style={{ color: it.color }}>{it.estado}</span>
           </div>
@@ -94,7 +94,7 @@ function MockCRM() {
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-50 text-base">🎂</span>
       <div>
         <p className="text-xs font-bold" style={{ color: INK }}>3 cumpleaños esta semana</p>
-        <p className="text-[11px] text-slate-500">Recordatorio listo para enviar</p>
+        <p className="text-xs text-slate-500">Recordatorio listo para enviar</p>
       </div>
     </div>
   )
@@ -255,7 +255,7 @@ function PanelVistaPrevia({ etiqueta, children }) {
         <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
         <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-        <span className="ml-2 truncate text-[11px] font-medium text-slate-400">{etiqueta}</span>
+        <span className="ml-2 truncate text-xs font-medium text-slate-400">{etiqueta}</span>
       </div>
       <div className="p-5 [&>div]:mt-0">{children}</div>
     </div>
@@ -458,7 +458,7 @@ export default function PaginaVenta() {
                   <p className="text-sm font-bold" style={{ color: INK }}>Agenda de hoy</p>
                   <p className="text-xs text-slate-400">Miércoles 26 de agosto</p>
                 </div>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-600">4 citas</span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600">4 citas</span>
               </div>
               <ul className="mt-3 space-y-2.5">
                 {AGENDA_DEMO.map((c) => (
@@ -469,14 +469,14 @@ export default function PaginaVenta() {
                   >
                     <span className="text-xs font-bold tabular-nums text-slate-500">{c.hora}</span>
                     <span className="flex-1 truncate text-sm font-semibold" style={{ color: INK }}>{c.paciente}</span>
-                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: c.color }}>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: c.color }}>
                       {c.motivo}
                     </span>
                   </li>
                 ))}
               </ul>
               <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-2.5">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Tu link</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Tu link</span>
                 <span className="text-xs font-bold" style={{ color: INK }}>tuoptica.tudominio.com</span>
               </div>
             </div>
@@ -485,8 +485,8 @@ export default function PaginaVenta() {
                 <Check size={14} strokeWidth={3} />
               </span>
               <div className="leading-tight">
-                <p className="text-[11px] font-bold" style={{ color: INK }}>Recordatorio enviado</p>
-                <p className="text-[10px] text-slate-400">a Luis R.</p>
+                <p className="text-xs font-bold" style={{ color: INK }}>Recordatorio enviado</p>
+                <p className="text-xs text-slate-400">a Luis R.</p>
               </div>
             </div>
           </div>

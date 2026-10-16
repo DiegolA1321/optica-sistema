@@ -532,7 +532,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
               <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Sun size={16} /></span>
               Horario semanal habitual
               {hayCambiosSinGuardar && (
-                <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>
+                <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>
               )}
             </h4>
             <p className="-mt-2 mb-3 text-xs text-slate-500" title={"Si apagas \"Lunes\" aquí, cierras todos los lunes. Para cerrar solo un día puntual (por ejemplo, un lunes feriado) sin tocar el resto, usa \"Excepciones puntuales\" en el calendario de al lado."}>
@@ -669,7 +669,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
                 <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><CalendarDays size={16} /></span>
                 Excepciones puntuales
               </h4>
-              <span className="flex items-center gap-1 text-[11px] text-slate-500"><Info size={12} /> Toca un día para cerrarlo o abrirlo</span>
+              <span className="flex items-center gap-1 text-xs text-slate-500"><Info size={12} /> Toca un día para cerrarlo o abrirlo</span>
             </div>
 
             <div className="mb-3 flex items-center justify-between px-1">
@@ -680,7 +680,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
               </div>
             </div>
 
-            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
+            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500">
               {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
             </div>
 
@@ -725,7 +725,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
               })}
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-slate-200/70 pt-3 text-[10px] text-slate-500">
+            <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-slate-200/70 pt-3 text-xs text-slate-500">
               <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" />Abierto</span>
               <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-300" />Cerrado</span>
               <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600" />Excepción: abre extra</span>
@@ -745,7 +745,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: abierta ? "#059669" : "#dc2626" }} />
                         <span className="text-sm font-semibold text-slate-700">{fechaFormato(iso)}</span>
                         <span className="text-xs text-slate-500">{abierta ? `Abre ${resumenHorario(exc)}` : exc.nombre ? `Cerrado · ${exc.nombre}` : "Cerrado todo el día"}</span>
-                        {textoAbiertoPor(exc) && <span className="hidden text-[11px] text-slate-500 lg:inline">· {textoAbiertoPor(exc)}</span>}
+                        {textoAbiertoPor(exc) && <span className="hidden text-xs text-slate-500 lg:inline">· {textoAbiertoPor(exc)}</span>}
                       </div>
                       <button type="button" onClick={() => setFechaEditando(iso)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Editar</button>
                     </div>
@@ -915,7 +915,7 @@ function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrden
         <h4 className="mb-1 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold" style={{ color: INK }}>
           <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><UserCog size={16} /></span>
           Mi horario habitual
-          {hayCambios && <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>}
+          {hayCambios && <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>}
         </h4>
         <p className="-mt-1 mb-3 mt-2 text-xs text-slate-500">Es solo tuyo — no afecta el horario general de la óptica ni lo que ve un paciente.</p>
 
@@ -1083,7 +1083,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
                     <p className="truncate text-sm font-semibold text-slate-700">{c.paciente}</p>
                     <p className="text-xs text-slate-500">{c.hora}</p>
                   </div>
-                  <span className={"shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
+                  <span className={"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
                     {etiquetaEstadoCita(c.estado)}
                   </span>
                 </div>
@@ -1106,7 +1106,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {slotsLibres.map((s) => (
-                    <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">{s.hora}</span>
+                    <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{s.hora}</span>
                   ))}
                 </div>
               )}

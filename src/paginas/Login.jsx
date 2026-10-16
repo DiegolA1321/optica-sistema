@@ -1115,8 +1115,8 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  <span className="ml-2 truncate text-[11px] font-medium text-slate-500">agenda · {nombreMarca}</span>
-                  <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ backgroundColor: "rgba(14,43,51,0.06)", color: "#64748b" }}>
+                  <span className="ml-2 truncate text-xs font-medium text-slate-500">agenda · {nombreMarca}</span>
+                  <span className="ml-auto rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wide" style={{ backgroundColor: "rgba(14,43,51,0.06)", color: "#64748b" }}>
                     Vista previa
                   </span>
                 </div>
@@ -1141,7 +1141,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                       const lleno = dia.estado === "lleno"
                       return (
                         <div key={dia.d} className="flex flex-col items-center gap-1.5">
-                          <span className="text-[11px] font-medium text-slate-500">{dia.d}</span>
+                          <span className="text-xs font-medium text-slate-500">{dia.d}</span>
                           <div
                             className={"grid h-11 w-full place-items-center rounded-xl text-sm font-bold " + (dia.sel ? "text-white" : lleno ? "text-slate-300 line-through" : "text-slate-700")}
                             style={{ backgroundColor: dia.sel ? "#2563EB" : lleno ? "#f1f0ec" : "#eef2ff" }}
@@ -1152,7 +1152,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                       )
                     })}
                   </div>
-                  <div className="mt-3 flex items-center gap-4 text-[11px] text-slate-500">
+                  <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
                     <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#c7d2fe" }} />Disponible</span>
                     <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#dcdad3" }} />Lleno</span>
                   </div>
@@ -1214,7 +1214,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
               </div>
               <div className="relative mt-4 flex flex-wrap gap-1.5">
                 {["Pacientes", "Optómetras", "Administración"].map((r) => (
-                  <span key={r} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/80">{r}</span>
+                  <span key={r} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/80">{r}</span>
                 ))}
               </div>
             </div>
@@ -1291,7 +1291,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                 </div>
                 <div className="min-w-0 leading-tight">
                   <p className="truncate text-lg font-bold tracking-tight text-white">{nombreMarca}</p>
-                  <p className="text-[11px] font-medium tracking-wide text-white/40">SALUD VISUAL &amp; OPTOMETRÍA</p>
+                  <p className="text-xs font-medium tracking-wide text-white/40">SALUD VISUAL &amp; OPTOMETRÍA</p>
                 </div>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-white/50">

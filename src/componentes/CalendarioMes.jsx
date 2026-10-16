@@ -84,10 +84,10 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
                       {numero}
                     </span>
                     {resto > 0 && (
-                      <span className="rounded px-1 text-[11px] font-bold leading-4 text-blue-700">+{resto} más</span>
+                      <span className="rounded px-1 text-xs font-bold leading-4 text-blue-700">+{resto} más</span>
                     )}
                   </div>
-                  {nombreDia && <span title={nombreDia} className="mb-0.5 block truncate rounded bg-slate-100 px-1 text-[10px] font-semibold leading-4 text-slate-600">{nombreDia}</span>}
+                  {nombreDia && <span title={nombreDia} className="mb-0.5 block truncate rounded bg-slate-100 px-1 text-xs font-semibold leading-4 text-slate-600">{nombreDia}</span>}
                   <div className="space-y-0.5">
                     {ordenadas.slice(0, caben).map((c) => {
                       const color = colorDe(c.estado)
@@ -102,7 +102,7 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
                             onAbrirDetalle?.(c)
                           }}
                           title={`${c.paciente} · ${c.hora}${c.estado ? ` · ${etiquetaEstadoCita(c.estado)}` : ""}`}
-                          className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-[10.5px] leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
+                          className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-xs leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
                           style={{ height: ALTO_ETIQUETA, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
                         >
                           <span className="shrink-0 font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>

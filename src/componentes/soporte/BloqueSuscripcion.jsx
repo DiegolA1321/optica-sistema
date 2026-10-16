@@ -34,7 +34,7 @@ export default function BloqueSuscripcion({ usuario }) {
       {estadoPago !== "al_dia" && (
         <div className="flex items-center justify-between gap-4 rounded-2xl border bg-white p-5" style={{ borderColor: estadoPago === "vencido" ? "#FECACA" : "#FDE68A", boxShadow: `0 0 0 3px ${estadoPago === "vencido" ? "rgba(225,29,72,0.08)" : "rgba(217,119,6,0.08)"}` }}>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Suscripción</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Suscripción</p>
             <p className="mt-1 text-lg font-serif font-semibold leading-tight" style={{ color: estadoPago === "vencido" ? "#BE123C" : "#B45309" }}>
               {estadoPago === "vencido" ? "Pago vencido" : "Pago pendiente"}
             </p>
@@ -54,7 +54,7 @@ export default function BloqueSuscripcion({ usuario }) {
             <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Receipt size={18} /></span>
             <div>
               <h4 className="text-sm font-bold" style={{ color: INK }}>Tus facturas</h4>
-              <p className="text-[11px] text-slate-500">Historial de facturación de tu suscripción</p>
+              <p className="text-xs text-slate-500">Historial de facturación de tu suscripción</p>
             </div>
           </div>
           <div className="divide-y divide-slate-100">
@@ -66,7 +66,7 @@ export default function BloqueSuscripcion({ usuario }) {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <span
-                    className="rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider"
+                    className="rounded-full px-2.5 py-1 text-xs font-extrabold uppercase tracking-wider"
                     style={f.estado === "pagada" ? { backgroundColor: "#d1fae5", color: "#065f46", border: "1px solid #a7f3d0" } : { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}
                   >
                     {f.estado === "pagada" ? "Pagada" : "Pendiente"}

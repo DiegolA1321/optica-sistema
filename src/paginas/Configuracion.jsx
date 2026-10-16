@@ -42,7 +42,7 @@ function FilaParametro({ icon: Icon, titulo, descripcion, activo, onClick, etiqu
         <div>
           <p className="text-sm font-bold" style={{ color: INK }}>{titulo}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{descripcion}</p>
-          <p className="mt-1.5 text-[11px] font-semibold" style={{ color: activo ? "#059669" : "#94a3b8" }}>
+          <p className="mt-1.5 text-xs font-semibold" style={{ color: activo ? "#059669" : "#94a3b8" }}>
             {activo ? etiquetaOn : etiquetaOff}
           </p>
         </div>
@@ -497,7 +497,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
               <div>
                 <p className="text-sm font-bold" style={{ color: INK }}>El paciente puede reagendar o cancelar su propia cita</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Solo aplica a citas hechas por un paciente con cuenta desde su portal. Si la desactivas, tiene que escribirte para cambiar o cancelar su cita.</p>
-                <p className="mt-1.5 text-[11px] font-semibold" style={{ color: parametrizacion.permitirReagendarPaciente ? "#059669" : "#94a3b8" }}>
+                <p className="mt-1.5 text-xs font-semibold" style={{ color: parametrizacion.permitirReagendarPaciente ? "#059669" : "#94a3b8" }}>
                   {parametrizacion.permitirReagendarPaciente ? "Permitido" : "No permitido"}
                 </p>
                 {parametrizacion.permitirReagendarPaciente && (

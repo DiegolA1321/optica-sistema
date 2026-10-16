@@ -297,12 +297,12 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                     {usuario.correo && <p className="truncate font-mono text-xs text-slate-500">{usuario.correo}</p>}
                   </div>
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{esPrincipal ? "Administrador principal" : "Solo lectura"}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{esPrincipal ? "Administrador principal" : "Solo lectura"}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">Administrador</span>
-                {rolesDe(usuario.id).map((r) => <span key={r.id} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">{r.nombre}</span>)}
-                {usuario.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">Administrador</span>
+                {rolesDe(usuario.id).map((r) => <span key={r.id} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">{r.nombre}</span>)}
+                {usuario.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
               </div>
               <p className="mt-3 text-xs text-slate-500">Ve y administra todos los módulos; no se desactiva desde aquí.{esPrincipal ? " Puedes sumarte roles para trabajar con su vista (por ejemplo, la de Optómetra)." : " Solo el administrador principal cambia sus propios roles."}</p>
               {esPrincipal && nivelesVigentes && (
@@ -339,16 +339,16 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {a.activo === false && <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600"><Lock size={10} aria-hidden="true" /> Desactivado</span>}
-                    {susRoles.length === 0 ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">Sin rol: no puede hacer nada</span> : susRoles.map((r) => (
-                      <span key={r.id} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">{r.nombre}</span>
+                    {a.activo === false && <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600"><Lock size={10} aria-hidden="true" /> Desactivado</span>}
+                    {susRoles.length === 0 ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">Sin rol: no puede hacer nada</span> : susRoles.map((r) => (
+                      <span key={r.id} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{r.nombre}</span>
                     ))}
-                    {a.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
+                    {a.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
                   </div>
                   {a.activo === false && a.motivoDesactivacion && <p className="mt-2 text-xs text-slate-500">Motivo: {a.motivoDesactivacion}</p>}
-                  {administracion && <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Tiene administración delegada (Configuración)</p>}
+                  {administracion && <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Tiene administración delegada (Configuración)</p>}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {resumen.length === 0 ? <span className="text-xs text-slate-400">Solo ve el Inicio</span> : resumen.map((r) => <span key={r.modulo} className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600" title={r.texto}>{r.modulo} <span className="font-normal text-slate-400">· {r.texto}</span></span>)}
+                    {resumen.length === 0 ? <span className="text-xs text-slate-400">Solo ve el Inicio</span> : resumen.map((r) => <span key={r.modulo} className="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600" title={r.texto}>{r.modulo} <span className="font-normal text-slate-400">· {r.texto}</span></span>)}
                   </div>
                 </div>
               </li>
@@ -396,7 +396,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                 <label key={r.id} className={"flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors " + (marcado ? "border-blue-300 bg-blue-50/50" : "border-slate-200/60 bg-slate-50 hover:border-blue-200")}>
                   <input type="checkbox" checked={marcado} onChange={() => alternarRol(r.id)} className="mt-0.5 h-4 w-4 accent-blue-600" />
                   <span className="min-w-0 text-sm">
-                    <span className="flex flex-wrap items-center gap-2 font-semibold text-slate-700">{r.nombre}{r.es_predefinido && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">Predefinido</span>}</span>
+                    <span className="flex flex-wrap items-center gap-2 font-semibold text-slate-700">{r.nombre}{r.es_predefinido && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-bold text-blue-700">Predefinido</span>}</span>
                     {r.descripcion && <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{r.descripcion}</span>}
                   </span>
                 </label>
@@ -410,8 +410,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
           <section aria-label="Vista previa de lo que verá" className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lo que verá y podrá hacer</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">Inicio</span>
-              {vistaPrevia.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">{m}</span>)}
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">Inicio</span>
+              {vistaPrevia.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">{m}</span>)}
             </div>
             <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">{vistaPrevia.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
           </section>

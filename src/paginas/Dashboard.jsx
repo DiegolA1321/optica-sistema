@@ -497,6 +497,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "pacientes":
         return (
           <Pacientes
+            alcancePropio={alcanceDeVista("citas") === "propio" || alcanceDeVista("consultas") === "propio"}
             avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "pacientes" })}
             usuario={usuario}
             setVista={navegar}
@@ -665,6 +666,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "crm":
         return (
           <CRM
+            alcancePropio={alcanceDeVista("citas") === "propio" || alcanceDeVista("consultas") === "propio"}
             usuario={usuario} crm={crm} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ordenesLab={ordenesLab}
             parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onAviso={mostrarAviso}
             onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined}
@@ -798,7 +800,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 <p className="truncate text-lg font-bold tracking-tight text-slate-900">
                   {usuario?.opticaNombre || "Mi Óptica"}
                 </p>
-                <p className="text-[11px] font-medium tracking-wide text-slate-500">PANEL DE CONTROL</p>
+                <p className="text-xs font-medium tracking-wide text-slate-500">PANEL DE CONTROL</p>
               </div>
             </div>
             <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden cursor-pointer">
@@ -807,7 +809,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
+            <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú principal</p>
             {opcionesVisibles.filter((o) => !o.oculto).map((opcion) => {
               const Icono = opcion.icono
               const activo = seccionActiva === opcion.id
@@ -828,7 +830,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                     <span
                       title={textoAvisosVentas}
                       aria-label={textoAvisosVentas}
-                      className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]" : "")}
+                      className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-xs font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-xs" : "")}
                     >
                       {avisosVentas}
                     </span>
@@ -857,13 +859,13 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: GRAD }}>{inicialUsuario}</div>
             <div className={"min-w-0 flex-1 " + (colapsado ? "lg:hidden" : "")}>
               <p className="truncate text-sm font-bold text-slate-800">{nombreUsuario}</p>
-              <p className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
+              <p className="flex items-center gap-1.5 truncate text-xs font-medium text-slate-500">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> {rolUsuario}
               </p>
             </div>
           </button>
 
-          <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-slate-400 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+          <div className={"flex items-center gap-2 px-2 text-xs font-medium text-slate-400 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span className={colapsado ? "lg:hidden" : ""}>Sistema en línea · v1.0</span>
           </div>
@@ -927,7 +929,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               >
                 <Bell size={18} />
                 {alertas.length > 0 && (
-                  <span className="absolute -right-1 -top-1 grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "linear-gradient(135deg,#f59e0b,#dc2626)" }}>
+                  <span className="absolute -right-1 -top-1 grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f59e0b,#dc2626)" }}>
                     {alertas.length > 9 ? "9+" : alertas.length}
                   </span>
                 )}
@@ -973,7 +975,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: GRAD }}>{inicialUsuario}</div>
                 <div className="hidden text-left leading-tight sm:block">
                   <p className="text-sm font-semibold" style={{ color: INK }}>{nombreUsuario}</p>
-                  <p className="text-[10px] text-slate-500">{rolUsuario}</p>
+                  <p className="text-xs text-slate-500">{rolUsuario}</p>
                 </div>
                 <ChevronDown size={16} className={"text-slate-500 transition-transform " + (userMenuAbierto ? "rotate-180" : "")} />
               </button>
@@ -991,7 +993,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                   </div>
                   {vistas.length > 1 && (
                     <div className="border-b border-slate-100 p-2" role="group" aria-label="Vista">
-                      <p className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Vista</p>
+                      <p className="px-3 pb-1 pt-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">Vista</p>
                       {vistas.map((v) => (
                         <button
                           key={v.id}

@@ -77,7 +77,7 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
               <button type="button" onClick={() => moverMes(1)} disabled={!alcanzable(1)} aria-label="Mes siguiente" className={"rounded-md p-0.5 transition-colors " + (alcanzable(1) ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}><ChevronRight size={14} /></button>
             </div>
           </div>
-          <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-slate-500">
+          <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500">
             {DIAS_CORTOS.map((d, i) => <span key={i}>{d}</span>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -87,7 +87,7 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
               return (
                 <button
                   key={dia.iso} type="button" disabled={dia.bloqueado} onClick={() => elegir(dia.iso)} aria-pressed={sel}
-                  className={"grid h-7 w-full place-items-center rounded-lg border text-[11px] font-bold transition-colors " + (dia.bloqueado ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300" : sel ? "border-transparent text-white shadow-md" : "border-slate-200/60 bg-white text-slate-700 hover:border-blue-400 cursor-pointer")}
+                  className={"grid h-7 w-full place-items-center rounded-lg border text-xs font-bold transition-colors " + (dia.bloqueado ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300" : sel ? "border-transparent text-white shadow-md" : "border-slate-200/60 bg-white text-slate-700 hover:border-blue-400 cursor-pointer")}
                   style={sel ? { background: GRAD } : undefined}
                 >
                   {dia.numero}

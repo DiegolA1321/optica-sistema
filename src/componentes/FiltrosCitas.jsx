@@ -45,7 +45,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
           className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (abierto ? "border-slate-400 bg-slate-50 text-slate-800" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
         >
           <SlidersHorizontal size={14} aria-hidden="true" /> Filtrar
-          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-[11px] font-bold text-white" style={ESTILO_ACTIVO}>{etiquetas.length}</span>}
+          {etiquetas.length > 0 && <span className="rounded-full px-1.5 text-xs font-bold text-white" style={ESTILO_ACTIVO}>{etiquetas.length}</span>}
           <ChevronDown size={13} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
         </button>
         {etiquetas.map((e) => (
@@ -106,7 +106,7 @@ export function BarraBusquedaFiltros({ texto, onTexto, secciones, etiquetas, onL
                         style={activo ? ESTILO_ACTIVO : undefined}
                       >
                         {o.etiqueta}
-                        {o.conteo != null && <span className={"rounded-full px-1.5 text-[11px] font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
+                        {o.conteo != null && <span className={"rounded-full px-1.5 text-xs font-bold tabular-nums " + (activo ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600")}>{o.conteo}</span>}
                       </button>
                     )
                   })}
@@ -151,7 +151,7 @@ function CalendarioRango({ rango }) {
             <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} aria-label="Mes siguiente" className={flecha}><ChevronRight size={14} /></button>
           </div>
         </div>
-        <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-bold text-slate-500">{DIAS_CORTOS.map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="mb-1 grid grid-cols-7 text-center text-xs font-bold text-slate-500">{DIAS_CORTOS.map((d) => <span key={d}>{d}</span>)}</div>
         <div className="grid grid-cols-7 gap-y-0.5">
           {celdas.map((iso, i) => {
             if (!iso) return <span key={"v" + i} />
@@ -280,7 +280,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
             </div>
           ) : (
             <>
-              <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-bold text-slate-500">{DIAS_CORTOS.map((d, i) => <span key={i}>{d}</span>)}</div>
+              <div className="mb-1 grid grid-cols-7 text-center text-xs font-bold text-slate-500">{DIAS_CORTOS.map((d, i) => <span key={i}>{d}</span>)}</div>
               <div className="space-y-0.5" onMouseLeave={() => setPasoPor(null)}>
                 {semanas.map((fila, f) => {
                   const dentro = fila.some((iso) => iso && enVisible(iso))

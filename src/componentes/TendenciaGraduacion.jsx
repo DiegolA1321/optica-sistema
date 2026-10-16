@@ -96,11 +96,11 @@ function GraficoPequeno({ puntos }) {
           {marcasY.map((v, i) => (
             <g key={i}>
               <line x1={MARGEN.izq} x2={ancho - MARGEN.der} y1={y(v)} y2={y(v)} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 4" />
-              <text x={MARGEN.izq - 6} y={y(v) + 3.5} textAnchor="end" className="fill-slate-400" style={{ fontSize: 11, fontFamily: "inherit" }}>{textoDioptrias(v).replace(" D", "")}</text>
+              <text x={MARGEN.izq - 6} y={y(v) + 3.5} textAnchor="end" className="fill-slate-400" style={{ fontSize: 12, fontFamily: "inherit" }}>{textoDioptrias(v).replace(" D", "")}</text>
             </g>
           ))}
           {puntos.map((q, i) => (
-            <text key={i} x={i === puntos.length - 1 && puntos.length > 1 ? x(i) + 6 : x(i)} y={ALTO - 6} textAnchor={i === puntos.length - 1 && puntos.length > 1 ? "end" : "middle"} className="fill-slate-400" style={{ fontSize: 11, fontFamily: "inherit" }}>{etiquetaX(q.fecha)}</text>
+            <text key={i} x={i === puntos.length - 1 && puntos.length > 1 ? x(i) + 6 : x(i)} y={ALTO - 6} textAnchor={i === puntos.length - 1 && puntos.length > 1 ? "end" : "middle"} className="fill-slate-400" style={{ fontSize: 12, fontFamily: "inherit" }}>{etiquetaX(q.fecha)}</text>
           ))}
           {activo !== null && <line x1={x(activo)} x2={x(activo)} y1={MARGEN.arriba} y2={ALTO - MARGEN.abajo} stroke="#94a3b8" strokeWidth="1" />}
           <path d={trazo("od")} fill="none" stroke={OD_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

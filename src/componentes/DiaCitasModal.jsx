@@ -167,7 +167,7 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
         <>
           <div className="flex flex-wrap gap-1.5 border-b border-slate-100 px-5 py-2.5">
             {Object.entries(porEstado).map(([etiqueta, { n, color }]) => (
-              <span key={etiqueta} className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: color.fondo, color: color.texto }}>{n} {etiqueta}</span>
+              <span key={etiqueta} className="rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ backgroundColor: color.fondo, color: color.texto }}>{n} {etiqueta}</span>
             ))}
           </div>
           <ul>
@@ -184,12 +184,12 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
                     className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer"
                   >
                     <span className="w-[4.25rem] shrink-0 text-xs font-bold tabular-nums text-slate-700">{c.hora}</span>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: GRAD_MARCA }} aria-hidden="true">{c.iniciales || "·"}</span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: GRAD_MARCA }} aria-hidden="true">{c.iniciales || "·"}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold" style={{ color: INK }}>{c.paciente}</span>
                       <span className="block truncate text-xs text-slate-500">{[c.motivo, nombreProf].filter(Boolean).join(" · ") || "Sin motivo"}</span>
                     </span>
-                    <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: color.fondo, color: color.texto }}>{color.etiqueta}</span>
+                    <span className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ backgroundColor: color.fondo, color: color.texto }}>{color.etiqueta}</span>
                   </button>
                 </li>
               )

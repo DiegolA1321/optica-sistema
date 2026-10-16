@@ -136,7 +136,7 @@ export default function SeccionMfa() {
             </div>
           )}
           {secreto && (
-            <p className="break-all text-center font-mono text-[11px] text-slate-500">O ingresa este código manualmente: {secreto}</p>
+            <p className="break-all text-center font-mono text-xs text-slate-500">O ingresa este código manualmente: {secreto}</p>
           )}
           <input
             type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456"

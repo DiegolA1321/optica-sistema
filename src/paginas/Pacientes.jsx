@@ -106,6 +106,7 @@ import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/anteced
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
+import NotaAlcance from "../componentes/NotaAlcance"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -188,7 +189,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1165,6 +1166,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
       {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar la lista</p>
+        <NotaAlcance alcancePropio={alcancePropio} className="mb-2" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {tarjetasCorreccion.map((t) => {
             const Icono = t.icon
@@ -1410,7 +1412,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
                             {correccion.label}
                           </span>
                           {tendencia && (
-                            <p className="flex items-center gap-1 text-[11px] text-slate-500">
+                            <p className="flex items-center gap-1 text-xs text-slate-500">
                               <tendencia.icon size={11} style={{ color: tendencia.fg }} />
                               Graduación: <span style={{ color: tendencia.fg }}>{tendencia.label.toLowerCase()}</span>
                             </p>
@@ -1791,7 +1793,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
                   <div>
                     <p className="text-sm font-semibold text-amber-800">Este paciente solicitó eliminar su cuenta y sus datos.</p>
                     {solicitudEliminacion.motivo && <p className="text-xs text-amber-700">Motivo: {solicitudEliminacion.motivo}</p>}
-                    <p className="text-[11px] text-amber-600">Usa "Eliminar paciente" en el menú de acciones para completarlo, y marca esta solicitud como atendida.</p>
+                    <p className="text-xs text-amber-600">Usa "Eliminar paciente" en el menú de acciones para completarlo, y marca esta solicitud como atendida.</p>
                   </div>
                 </div>
                 <button
@@ -1811,7 +1813,7 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
                 <Eye size={18} className="mt-0.5 shrink-0 text-blue-600" />
                 <div>
                   <p className="text-sm font-semibold text-blue-800">Este paciente pidió su distancia pupilar y sus medidas de montaje desde el portal.</p>
-                  <p className="text-[11px] text-blue-600">Entrégaselas por el canal que prefieras y marca esta solicitud como atendida.</p>
+                  <p className="text-xs text-blue-600">Entrégaselas por el canal que prefieras y marca esta solicitud como atendida.</p>
                 </div>
               </div>
               <button
@@ -2191,27 +2193,27 @@ export default function Pacientes({ avisosDelModulo = null, usuario, onAviso, pa
                                   <li key={c.clave} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                       <p className="text-sm font-semibold text-slate-800">{v.productoNombre}</p>
-                                      <p className="text-[11px] text-slate-500">
+                                      <p className="text-xs text-slate-500">
                                         {v.cantidad} u. · {dinero(Number(v.montoTotal))} · {METODOS_PAGO[v.metodoPago] || v.metodoPago}
                                         {v.metodoPago === "cuotas" && v.cuotasTotales ? ` (${v.cuotasPagadas || 0}/${v.cuotasTotales})` : ""}
                                         {" · "}{fechaLegible(v.creadoEn)}
                                       </p>
                                     </div>
                                     {v.estado === "completado" ? (
-                                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
                                         <CheckCircle size={12} /> Pagada
                                       </span>
                                     ) : (
                                       <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
                                           <CreditCard size={12} /> Saldo {dinero(saldo)}
                                         </span>
                                         {v.metodoPago === "cuotas" && v.cuotasTotales ? (
-                                          <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200/60 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                                          <button type="button" onClick={() => registrarCuotaPagada(v)} className="rounded-lg border border-slate-200/60 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
                                             Registrar cuota
                                           </button>
                                         ) : null}
-                                        <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
+                                        <button type="button" onClick={() => marcarVentaPagada(v)} className="rounded-lg border border-emerald-200/60 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer">
                                           Marcar pagada
                                         </button>
                                       </div>
@@ -2605,8 +2607,8 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
             <section aria-label="Próxima cita" className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 px-3.5 py-2.5">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Calendar size={16} aria-hidden="true" /></div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
-                {diasAtencionAbierta(proxima) !== null && <p className="text-[11px] font-bold text-amber-700">{textoAtencionAbierta(diasAtencionAbierta(proxima))}</p>}
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{proxima.estado === "En Atención" ? "Cita en atención" : "Próxima cita"}</p>
+                {diasAtencionAbierta(proxima) !== null && <p className="text-xs font-bold text-amber-700">{textoAtencionAbierta(diasAtencionAbierta(proxima))}</p>}
                 <p className="text-sm font-bold" style={{ color: INK }}>{fechaLegible(proxima.fecha) || "Sin fecha"} · {proxima.hora}</p>
                 <p className="truncate text-xs text-slate-600">{proxima.motivo || "Consulta general"}</p>
               </div>
@@ -2625,7 +2627,7 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
             <section key={consulta.id} role="status" aria-label="Cobro pendiente" className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200/60 bg-amber-50 px-3.5 py-2.5">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-600 text-white"><Receipt size={16} aria-hidden="true" /></div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Cobro pendiente</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Cobro pendiente</p>
                 <p className="text-sm font-bold text-amber-950">Consulta del {fechaLegible(consulta.fecha)}</p>
                 {consulta.motivo && <p className="truncate text-xs text-amber-900/80">{consulta.motivo}</p>}
               </div>
@@ -2772,28 +2774,28 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
             <Cuadro abierto={abierto} alternar={alternar} clave="correccion" className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={18} /></div>
               <div className="min-w-0 pr-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
                 <p className="text-base font-bold" style={{ color: colorEstado.fg }}>{etiquetaCorreccion(ultima.estadoCorreccion)}</p>
-                <p className="text-[11px] text-slate-500">Medido el {fechaLegible(ultima.fecha)}</p>
+                <p className="text-xs text-slate-500">Medido el {fechaLegible(ultima.fecha)}</p>
               </div>
             </Cuadro>
           ) : (
             <Cuadro abierto={abierto} alternar={alternar} clave="correccion" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Estado de corrección</p>
               <p className="mt-1 text-sm text-slate-500">Todavía sin consultas.</p>
             </Cuadro>
           )}
           <Cuadro abierto={abierto} alternar={alternar} clave="control" className={"rounded-xl border p-3.5 " + (inactivo && !citaPendiente ? "border-red-200/60 bg-red-50/60" : "border-slate-200/60 bg-white")}>
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> {citaPendiente ? "Próximo control" : "Control recomendado"}</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Calendar size={12} /> {citaPendiente ? "Próximo control" : "Control recomendado"}</p>
             {citaPendiente ? (
               <>
                 <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(citaPendiente.fecha)}</p>
-                <p className="text-[11px] text-slate-500">Cita agendada{proximoControl ? " · recomendado: " + fechaLegible(proximoControl) : ""}</p>
+                <p className="text-xs text-slate-500">Cita agendada{proximoControl ? " · recomendado: " + fechaLegible(proximoControl) : ""}</p>
               </>
             ) : proximoControl ? (
               <>
                 <p className={"mt-1 text-base font-bold " + (inactivo ? "text-red-700" : "")} style={!inactivo ? { color: INK } : undefined}>{fechaLegible(proximoControl)}</p>
-                <p className={"text-[11px] " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
+                <p className={"text-xs " + (inactivo ? "text-red-600/80" : "text-slate-500")}>
                   {inactivo ? `Vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : `Faltan ${Math.abs(diasControl)} día${Math.abs(diasControl) === 1 ? "" : "s"}`} · sin cita agendada
                 </p>
               </>
@@ -2802,14 +2804,14 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
             )}
           </Cuadro>
           <Cuadro abierto={abierto} alternar={alternar} clave="ultima" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Clock size={12} /> Última consulta</p>
             <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
-            {ultima && diasDesdeUltimaVisita !== null && <p className="text-[11px] text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
+            {ultima && diasDesdeUltimaVisita !== null && <p className="text-xs text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
           </Cuadro>
           <Cuadro abierto={abierto} alternar={alternar} clave="compras" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras / lentes</p>
             <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
-            <p className="text-[11px] text-slate-500">{dinero(compras.monto)} en total</p>
+            <p className="text-xs text-slate-500">{dinero(compras.monto)} en total</p>
           </Cuadro>
         </div>
         {abierto === "ultima" && (
@@ -2839,13 +2841,13 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
             {tendencia && (
-              <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
+              <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
                 <tendencia.icon size={12} /> {tendencia.label}
               </span>
             )}
           </div>
           <TendenciaGraduacion consultas={[...consultas].reverse()} />
-          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
+          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
         </section>
       )}
 
@@ -2881,9 +2883,9 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
           <div role="img" aria-label={"Citas por mes: " + meses.filter((m) => m.total > 0).map((m) => m.etiqueta + " " + m.anio + ": " + m.total).join(", ")} className="flex h-40 items-end gap-1.5 sm:gap-2">
             {meses.map((m) => (
               <div key={m.clave} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={m.etiqueta + " " + m.anio + ": " + m.total + (m.total === 1 ? " cita" : " citas")}>
-                <span className="text-[11px] font-semibold text-slate-600">{m.total > 0 ? m.total : ""}</span>
+                <span className="text-xs font-semibold text-slate-600">{m.total > 0 ? m.total : ""}</span>
                 <div className="w-full max-w-9 rounded-t-md" style={{ height: m.total > 0 ? Math.max(6, (m.total / maximo) * 100) + "px" : "2px", background: m.total > 0 ? GRAD : "#e2e8f0" }} />
-                <span className="text-[11px] text-slate-500">{m.etiqueta}</span>
+                <span className="text-xs text-slate-500">{m.etiqueta}</span>
               </div>
             ))}
           </div>

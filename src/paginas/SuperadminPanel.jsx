@@ -283,7 +283,7 @@ function ItemAuditoria({ a }) {
         <p className="text-[13.5px] leading-snug text-slate-700">
           <span className="font-semibold text-slate-900">{a.actor_nombre}</span> {textoAuditoria(a)}
         </p>
-        <p className="mt-1 flex items-center gap-1 text-[11.5px] text-slate-400">
+        <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
           <Clock size={11} />
           {formatearFechaHora(a.created_at)}
         </p>
@@ -396,6 +396,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // en toda la red de ópticas, y un estado de conexión honesto (basado en la
   // latencia real de la carga inicial, no un badge decorativo fijo). ───
   const [totalConsultasRed, setTotalConsultasRed] = useState(null)
+  const [pacientesAtendidosRed, setPacientesAtendidosRed] = useState(null)
   const [estadoServidor, setEstadoServidor] = useState({ estado: "verificando", latenciaMs: null })
 
   // ─── Mensajes (consultas de administradores + avisos generales) ───
@@ -660,12 +661,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         supabase.from("opticas").select("*").order("created_at", { ascending: false }),
         supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra, cedula, created_at").eq("rol", "admin"),
         supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
-        supabase.from("perfiles").select("optica_id, created_at").eq("rol", "asistente"),
+        supabase.from("perfiles").select("optica_id, created_at, activo").eq("rol", "asistente"),
         supabase.from("pacientes").select("optica_id, created_at"),
         // count-only (head: true) — no trae filas, solo el número. Métrica
         // SaaS de red pedida por Diego: volumen real de consultas generadas
         // en TODAS las ópticas, no solo la que se esté mirando.
         supabase.from("consultas").select("id", { count: "exact", head: true }),
+        // Pacientes que ya tuvieron al menos una consulta (su última consulta no es "Pendiente"): lo que dice "atendidos".
+        supabase.from("pacientes").select("id", { count: "exact", head: true }).neq("ultima_consulta", "Pendiente"),
       ])
       opticasData = resultados[0].data
       adminsData = resultados[1].data
@@ -678,13 +681,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       const latenciaMs = Math.round(performance.now() - t0)
       setEstadoServidor({ estado: latenciaMs < 1200 ? "operativo" : latenciaMs < 3500 ? "lento" : "critico", latenciaMs })
       setTotalConsultasRed(resultados[5].count ?? 0)
+      setPacientesAtendidosRed(resultados[6].count ?? 0)
     } catch {
       setEstadoServidor({ estado: "sin_conexion", latenciaMs: null })
     }
     setOpticas(opticasData || [])
     setAdmins(adminsData || [])
     setSuperadmins(superadminsData || [])
-    setAsistentesOpticaId(asistentesData || [])
+    // Solo cuentan quienes trabajan hoy: las desactivadas no son "asistentes en la red".
+    setAsistentesOpticaId((asistentesData || []).filter((a) => a.activo !== false))
     setPacientesOpticaId(pacientesData || [])
     setCargando(false)
     setCargaInicial(false)
@@ -1825,14 +1830,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               className={CARD + " group relative overflow-hidden p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
                   <Icono size={15} />
                 </div>
               </div>
               <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
               <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="text-[11.5px] font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
+                <p className="text-xs font-semibold" style={{ color: delta.tono }}>{delta.texto}</p>
                 {sparkline && <MiniSparkline valores={sparkline} color={t.fg} />}
               </div>
             </button>
@@ -1842,7 +1847,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
       {/* ─── Usuarios del sistema (feedback del ing: admins/asistentes/pacientes, total y por óptica) ─── */}
       <div>
-        <p className="mb-2 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Usuarios del sistema</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Usuarios del sistema</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             { label: "Administradores", valor: totalesUsuarios.admins, icon: ShieldCheck, bg: "#E8F0FF", fg: "#2563EB", sparkline: sparklineAdmins },
@@ -1851,14 +1856,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           ].map((t, i) => (
             <div key={t.label} className={CARD + " p-4"} style={{ animation: `rise-in 320ms ease-out both`, animationDelay: `${(i + 3) * 40}ms` }}>
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: t.bg, color: t.fg }}>
                   <t.icon size={15} />
                 </div>
               </div>
               <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{t.valor}</p>
               <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="text-[11.5px] font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
+                <p className="text-xs font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
                 <MiniSparkline valores={t.sparkline} color={t.fg} />
               </div>
             </div>
@@ -1871,31 +1876,31 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           la latencia real de la carga de datos de esta misma pantalla, no
           un badge fijo en verde. ─── */}
       <div>
-        <p className="mb-2 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">Métricas clave de la red</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Métricas clave de la red</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className={CARD + " p-4"}>
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">Pacientes atendidos en la red</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pacientes atendidos en la red</p>
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E7F7EF", color: "#059669" }}>
                 <Stethoscope size={15} />
               </div>
             </div>
-            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{totalesUsuarios.pacientes}</p>
-            <p className="mt-2 text-[11.5px] font-semibold text-slate-400">en {opticas.length} óptica{opticas.length === 1 ? "" : "s"}</p>
+            <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{pacientesAtendidosRed ?? "—"}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-400">con al menos una consulta, de {totalesUsuarios.pacientes} registrados</p>
           </div>
           <div className={CARD + " p-4"}>
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">Volumen de consultas generadas</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Volumen de consultas generadas</p>
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: "#E8F0FF", color: "#2563EB" }}>
                 <Stethoscope size={15} />
               </div>
             </div>
             <p className="mt-2 font-serif text-[28px] font-semibold leading-none tracking-tight" style={{ color: INK }}>{totalConsultasRed ?? "—"}</p>
-            <p className="mt-2 text-[11.5px] font-semibold text-slate-400">fichas clínicas registradas, toda la red</p>
+            <p className="mt-2 text-xs font-semibold text-slate-400">fichas clínicas registradas, toda la red</p>
           </div>
           <div className={CARD + " p-4"}>
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">Estado de Supabase</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Estado del servicio</p>
               <div
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
                 style={
@@ -1917,7 +1922,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               />
               {estadoServidor.estado === "operativo" ? "Operativo" : estadoServidor.estado === "lento" ? "Lento" : estadoServidor.estado === "verificando" ? "Verificando…" : "Sin conexión"}
             </p>
-            <p className="mt-2 text-[11.5px] font-semibold text-slate-400">
+            <p className="mt-2 text-xs font-semibold text-slate-400">
               {estadoServidor.latenciaMs != null ? `${estadoServidor.latenciaMs} ms · última carga de datos` : "esperando la próxima carga de datos"}
             </p>
           </div>
@@ -1945,7 +1950,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     className={CARD + " group relative overflow-hidden p-4 text-left transition-all " + (t.key === "leads" ? "hover:-translate-y-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50" : "cursor-default")}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
                       <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105" style={{ background: t.bg, color: t.fg }}>
                         <Icono size={15} />
                       </div>
@@ -1960,7 +1965,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <div className={CARD_PAD}>
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Visitas a la página de venta</h3>
-              <span className="text-[11px] font-semibold text-slate-400">Últimos 7 días</span>
+              <span className="text-xs font-semibold text-slate-400">Últimos 7 días</span>
             </div>
             {visitasVenta.length === 0 ? (
               <p className="py-14 text-center text-sm text-slate-400">Aún no hay visitas registradas.</p>
@@ -1990,7 +1995,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                           style={hoverVisitaIdx === i ? { transformBox: "fill-box", transformOrigin: "bottom", transform: "scaleY(1.06)" } : undefined}
                           shapeRendering="geometricPrecision"
                         />
-                        <text x={b.cx} y="94" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
+                        <text x={b.cx} y="94" textAnchor="middle" fontSize="12" fontWeight="700" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{b.etiqueta}</text>
                       </g>
                     )
                   })}
@@ -2022,7 +2027,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <div className={CARD_PAD + " lg:col-span-3"}>
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Ópticas creadas por mes</h3>
-              <span className="text-[11px] font-semibold text-slate-400">Últimos 6 meses</span>
+              <span className="text-xs font-semibold text-slate-400">Últimos 6 meses</span>
             </div>
             {opticas.length === 0 ? (
               <p className="py-14 text-center text-sm text-slate-400">Aún no hay ópticas registradas.</p>
@@ -2045,8 +2050,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         className={"transition-transform duration-150 " + (hoverMesIdx === i ? "scale-[1.6]" : "scale-100")}
                         style={{ transformBox: "fill-box", transformOrigin: "center" }}
                       />
-                      <text x={p[0]} y={p[1] - 8} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#334155">{opticasPorMes[i].valor}</text>
-                      <text x={p[0]} y="104" textAnchor="middle" fontSize="9.5" fontWeight="600" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{opticasPorMes[i].etiqueta}</text>
+                      <text x={p[0]} y={p[1] - 8} textAnchor="middle" fontSize="12" fontWeight="700" fill="#334155">{opticasPorMes[i].valor}</text>
+                      <text x={p[0]} y="104" textAnchor="middle" fontSize="12" fontWeight="600" fill="#94A3B8" style={{ textTransform: "uppercase" }}>{opticasPorMes[i].etiqueta}</text>
                     </g>
                   ))}
                 </svg>
@@ -2079,37 +2084,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 style={{ transition: "stroke-dasharray 900ms cubic-bezier(0.16,1,0.3,1)" }}
               />
               <text x="64" y="60" textAnchor="middle" fontSize="22" fontWeight="600" fontFamily="Newsreader, serif" fill={INK}>{pctActivas}%</text>
-              <text x="64" y="76" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94A3B8">activas</text>
+              <text x="64" y="76" textAnchor="middle" fontSize="12" fontWeight="600" fill="#94A3B8">activas</text>
             </svg>
-            <div className="flex flex-col gap-2 text-xs">
-              {/* Mini-badges interactivos — mismo destino que las stat cards de
-                  arriba (irAOpticasConFiltro), para no duplicar una segunda
-                  forma de "ir a ver cuáles". */}
-              <button
-                type="button"
-                onClick={() => irAOpticasConFiltro("Activas")}
-                className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer"
-              >
-                <span className="h-2 w-2 rounded-full bg-emerald-500" /> {totalActivas} activas
-              </button>
-              <button
-                type="button"
-                onClick={() => irAOpticasConFiltro("Suspendidas")}
-                className="flex items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1.5 font-semibold text-rose-700 transition-colors hover:bg-rose-100 cursor-pointer"
-              >
-                <span className="h-2 w-2 rounded-full bg-rose-300" /> {totalSuspendidas} suspendidas
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4">
-            <div className="rounded-xl border border-slate-100 p-2.5 text-center">
-              <p className="font-serif text-lg font-semibold" style={{ color: INK }}>{admins.length}</p>
-              <p className="text-[10.5px] font-medium text-slate-400">administradores</p>
-            </div>
-            <div className="rounded-xl border border-slate-100 p-2.5 text-center">
-              <p className="font-serif text-lg font-semibold" style={{ color: INK }}>{superadmins.length}</p>
-              <p className="text-[10.5px] font-medium text-slate-400">superadmins</p>
-            </div>
           </div>
           {/* Solo ocupa espacio si realmente hay algo que atender — Diego: la
               mayoría de las ópticas siempre van a tener admin (se crean juntos),
@@ -2135,8 +2111,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad por día</h3>
-            <p className="text-[11px] font-semibold text-slate-400">
-              {totalActividadResumen} acción{totalActividadResumen === 1 ? "" : "es"} · clic en un punto para ver el detalle
+            <p className="text-xs font-semibold text-slate-400">
+              {totalActividadResumen} {totalActividadResumen === 1 ? "acción" : "acciones"} · clic en un punto para ver el detalle
             </p>
           </div>
           <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
@@ -2145,7 +2121,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 key={r.key}
                 type="button"
                 onClick={() => setRangoActividadResumen(r.key)}
-                className={"rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (rangoActividadResumen === r.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                className={"rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (rangoActividadResumen === r.key ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                 style={rangoActividadResumen === r.key ? { color: INK } : undefined}
               >
                 {r.label}
@@ -2195,7 +2171,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       style={{ transformBox: "fill-box", transformOrigin: "center", transform: hoverBarClave === d.clave ? "scale(1.8)" : "scale(1)" }}
                     />
                     {mostrarEtiqueta && (
-                      <text x={p[0]} y="126" textAnchor="middle" fontSize="10" fontWeight="700" fill="#94A3B8">{d.etiqueta}</text>
+                      <text x={p[0]} y="126" textAnchor="middle" fontSize="12" fontWeight="700" fill="#94A3B8">{d.etiqueta}</text>
                     )}
                   </g>
                 )
@@ -2212,8 +2188,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(15,23,42,0.35)]"
                   style={{ left: `${(p[0] / anchoGraficoActividad) * 100}%`, top: p[1] - 12, background: INK }}
                 >
-                  <span className="block text-[10px] font-bold uppercase tracking-wide text-white/60">{fechaLinda}</span>
-                  {d.valor} acción{d.valor === 1 ? "" : "es"}{d.valor > 0 && <span className="text-white/60"> · clic para ver el detalle</span>}
+                  <span className="block text-xs font-bold uppercase tracking-wide text-white/60">{fechaLinda}</span>
+                  {d.valor} {d.valor === 1 ? "acción" : "acciones"}{d.valor > 0 && <span className="text-white/60"> · clic para ver el detalle</span>}
                 </div>
               )
             })()}
@@ -2228,7 +2204,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <History size={16} className="text-slate-400" />
             <h3 className="text-[13.5px] font-bold" style={{ color: INK }}>Actividad reciente</h3>
           </div>
-          <button type="button" onClick={() => setSeccion("actividad")} className="flex items-center gap-1 text-[11.5px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+          <button type="button" onClick={() => setSeccion("actividad")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
             Ver toda la actividad <ChevronRight size={13} />
           </button>
         </div>
@@ -2264,9 +2240,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           }}
         >
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pago pendiente/vencido</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Pago pendiente/vencido</p>
             <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{opticasConPagoProblema.length}</p>
-            <p className="mt-1.5 text-[11px] font-semibold" style={{ color: opticasConPagoProblema.length > 0 ? "#B45309" : "#94A3B8" }}>{opticasConPagoProblema.length > 0 ? "revisar suscripciones" : "ninguna"}</p>
+            <p className="mt-1.5 text-xs font-semibold" style={{ color: opticasConPagoProblema.length > 0 ? "#B45309" : "#94A3B8" }}>{opticasConPagoProblema.length > 0 ? "revisar suscripciones" : "ninguna"}</p>
           </div>
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#FFF7E6", color: "#B45309" }}>
             <Wallet size={22} />
@@ -2283,9 +2259,9 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           }}
         >
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cumpleaños próximos</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Cumpleaños próximos</p>
             <p className="mt-1 text-3xl font-serif font-semibold leading-none" style={{ color: INK }}>{cumpleanosProximos.length}</p>
-            <p className="mt-1.5 text-[11px] font-semibold" style={{ color: cumpleanosProximos.length > 0 ? "#7C3AED" : "#94A3B8" }}>{cumpleanosProximos.length > 0 ? "en los próximos días" : "ninguno"}</p>
+            <p className="mt-1.5 text-xs font-semibold" style={{ color: cumpleanosProximos.length > 0 ? "#7C3AED" : "#94A3B8" }}>{cumpleanosProximos.length > 0 ? "en los próximos días" : "ninguno"}</p>
           </div>
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: "#F1EAFE", color: "#7C3AED" }}>
             <Cake size={22} />
@@ -2340,7 +2316,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-bold text-slate-800">{o.nombre}</p>
                       <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider"
+                        className="rounded-full px-2 py-0.5 text-xs font-extrabold uppercase tracking-wider"
                         style={o.estado_pago === "vencido" ? { backgroundColor: "#fee2e2", color: "#be123c", border: "1px solid #fecaca" } : { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}
                       >
                         {o.estado_pago === "vencido" ? "Vencido" : "Pendiente"}
@@ -2375,7 +2351,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-bold text-slate-800">{admin.nombre}</p>
-                        <span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#f1eafe", color: "#7c3aed", border: "1px solid #ddd6fe" }}>
+                        <span className="rounded-full px-2 py-0.5 text-xs font-extrabold uppercase tracking-wider" style={{ backgroundColor: "#f1eafe", color: "#7c3aed", border: "1px solid #ddd6fe" }}>
                           {dias === 0 ? "Hoy" : dias > 0 ? `En ${dias}d` : `Hace ${Math.abs(dias)}d`}
                         </span>
                       </div>
@@ -2411,14 +2387,14 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <p className="font-bold text-slate-800">{m.asunto}</p>
                       {esAnuncio ? (
                         <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider"
+                          className="rounded-full px-2 py-0.5 text-xs font-extrabold uppercase tracking-wider"
                           style={m.optica_id ? { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #dbeafe" } : { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" }}
                         >
                           {m.optica_id ? "Puntual" : "General"}
                         </span>
                       ) : (
                         <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider"
+                          className="rounded-full px-2 py-0.5 text-xs font-extrabold uppercase tracking-wider"
                           style={m.estado === "abierto" ? { backgroundColor: "#fef3c7", color: "#92600f", border: "1px solid #fde68a" } : { backgroundColor: "#d1fae5", color: "#065f46", border: "1px solid #a7f3d0" }}
                         >
                           {m.estado === "abierto" ? "Abierto" : "Resuelto"}
@@ -2525,7 +2501,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200/60 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-slate-200/60 bg-slate-50/70 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 <th className="w-[30%] px-5 py-3.5">Óptica</th>
                 <th className="w-[26%] px-5 py-3.5">Administrador</th>
                 <th className="w-[14%] px-5 py-3.5">Estado</th>
@@ -2585,7 +2561,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                               <Mail size={12} />
                               <span className="max-w-[180px] truncate">{listaAdmins[0].email || "—"}</span>
                             </div>
-                            {listaAdmins.length > 1 && <p className="text-[11px] text-slate-400">+{listaAdmins.length - 1} más</p>}
+                            {listaAdmins.length > 1 && <p className="text-xs text-slate-400">+{listaAdmins.length - 1} más</p>}
                           </div>
                         )}
                       </td>
@@ -2683,8 +2659,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 >
                   <ChevronDown size={15} className={"shrink-0 text-slate-400 transition-transform " + (colapsado ? "-rotate-90" : "")} />
                   <h4 className="text-sm font-bold capitalize" style={{ color: INK }}>{etiquetaFecha(dia)}</h4>
-                  {hoyDia && <span className="rounded-full px-2 py-0.5 text-[10.5px] font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
-                  <span className="text-xs text-slate-400">· {items.length} acción{items.length === 1 ? "" : "es"}</span>
+                  {hoyDia && <span className="rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
+                  <span className="text-xs text-slate-400">· {items.length} {items.length === 1 ? "acción" : "acciones"}</span>
                 </button>
                 {!colapsado && (
                   <ul className="space-y-3 border-t border-slate-100 px-5 pb-5 pt-4">
@@ -2781,12 +2757,12 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-bold" style={{ color: INK }}>{l.nombre_optica}</h4>
-                      <span className={"rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + estado.bg + " " + estado.fg}>{estado.label}</span>
+                      <span className={"rounded-full px-2.5 py-0.5 text-xs font-semibold " + estado.bg + " " + estado.fg}>{estado.label}</span>
                       {l.slug_deseado && <span className="font-mono text-xs text-slate-400">{l.slug_deseado}</span>}
                     </div>
                     <p className="mt-1 text-sm text-slate-600">{l.nombre_admin} · {l.email_admin}{l.telefono ? ` · ${l.telefono}` : ""}</p>
                     {l.mensaje && <p className="mt-1.5 text-xs italic leading-relaxed text-slate-500">"{l.mensaje}"</p>}
-                    <p className="mt-1.5 text-[11px] text-slate-400">{formatearFechaHora(l.created_at)}</p>
+                    <p className="mt-1.5 text-xs text-slate-400">{formatearFechaHora(l.created_at)}</p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
@@ -2892,7 +2868,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 truncate text-[15px] font-bold text-slate-800 transition-colors group-hover:text-blue-600">
                     {s.nombre}
-                    {s.id === usuario?.id && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">TÚ</span>}
+                    {s.id === usuario?.id && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">TÚ</span>}
                   </p>
                   <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
                     <Mail size={12} /> {s.email || "—"}
@@ -2907,7 +2883,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 </div>
                 <div className="flex items-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
                   <History size={13} className="text-slate-400" />
-                  {accionesPorSuperadmin[s.id] ?? 0} acción{(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "" : "es"} registrada{(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "" : "s"}
+                  {accionesPorSuperadmin[s.id] ?? 0} {(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "acción" : "acciones"} registrada{(accionesPorSuperadmin[s.id] ?? 0) === 1 ? "" : "s"}
                 </div>
                 <button
                   type="button"
@@ -2987,7 +2963,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <p className="text-lg font-bold tracking-tight text-slate-900">
                   Diego <span className="text-blue-600">Óptica</span>
                 </p>
-                <p className="text-[11px] font-medium tracking-wide text-slate-500">SUPERADMIN</p>
+                <p className="text-xs font-medium tracking-wide text-slate-500">SUPERADMIN</p>
               </div>
             </div>
             <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden cursor-pointer">
@@ -2996,7 +2972,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
+            <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
             {NAV.map((opcion) => {
               const Icono = opcion.icono
               const activo = seccion === opcion.id
@@ -3013,7 +2989,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
                   {opcion.id === "mensajes" && consultasAbiertas > 0 ? (
-                    <span className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10.5px] font-bold " + (activo ? "bg-white/25 text-white" : "bg-amber-400 text-amber-950") + (colapsado ? " lg:hidden" : "")}>
+                    <span className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-amber-400 text-amber-950") + (colapsado ? " lg:hidden" : "")}>
                       {consultasAbiertas}
                     </span>
                   ) : (
@@ -3028,7 +3004,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <div className={"relative z-10 space-y-3 border-t border-slate-200/70 p-4 " + (colapsado ? "lg:px-2" : "")}>
           {!colapsado && (
             <div className="hidden rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm lg:block">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                 <TrendingUp size={12} /> {opticas.length} óptica{opticas.length === 1 ? "" : "s"} · {superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
               </p>
             </div>
@@ -3051,7 +3027,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </div>
             <div className={"min-w-0 flex-1 " + (colapsado ? "lg:hidden" : "")}>
               <p className="truncate text-sm font-bold text-slate-800">{usuario?.nombre || "Superadmin"}</p>
-              <p className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
+              <p className="flex items-center gap-1.5 truncate text-xs font-medium text-slate-500">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> Superadministrador
               </p>
             </div>
@@ -3097,7 +3073,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               </div>
               <div className="hidden text-left leading-tight sm:block">
                 <p className="text-sm font-semibold" style={{ color: INK }}>{usuario?.nombre || "Superadmin"}</p>
-                <p className="text-[10px] text-slate-500">Superadministrador</p>
+                <p className="text-xs text-slate-500">Superadministrador</p>
               </div>
               <ChevronDown size={16} className={"text-slate-500 transition-transform " + (userMenuAbierto ? "rotate-180" : "")} />
             </button>
@@ -3327,7 +3303,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         {guardandoCedula === a.id && <Loader2 size={12} className="animate-spin text-slate-400" />}
                       </div>
                       {errorCedulaAdmin?.id === a.id && (
-                        <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-600">{errorCedulaAdmin.mensaje}</p>
+                        <p role="alert" className="mt-1 text-xs font-semibold text-rose-600">{errorCedulaAdmin.mensaje}</p>
                       )}
                       <label className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
                         <input
@@ -3467,7 +3443,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                       <button
                         type="button"
                         onClick={() => alternarEstadoFactura(f)}
-                        className={"rounded-full px-2.5 py-1 text-[11px] font-semibold cursor-pointer " + (f.estado === "pagada" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-amber-50 text-amber-700 hover:bg-amber-100")}
+                        className={"rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer " + (f.estado === "pagada" ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-amber-50 text-amber-700 hover:bg-amber-100")}
                       >
                         {f.estado === "pagada" ? "Pagada" : "Pendiente"}
                       </button>
@@ -3539,7 +3515,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                                 <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
                                 {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
                               </p>
-                              <p className="mt-0.5 text-[10.5px] text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
+                              <p className="mt-0.5 text-xs text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
                             </div>
                           ))}
                         </div>
@@ -3865,8 +3841,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         />
                       </label>
                     </div>
-                    {errorLogoCreacion && <p className="mt-1 text-[11px] font-medium text-red-600">{errorLogoCreacion}</p>}
-                    <p className="mt-1 text-[10px] text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
+                    {errorLogoCreacion && <p className="mt-1 text-xs font-medium text-red-600">{errorLogoCreacion}</p>}
+                    <p className="mt-1 text-xs text-slate-400">PNG, JPG, WEBP o SVG · máx. 2 MB. También puedes pegar una URL ya alojada:</p>
                     <input
                       type="text" value={campos.logoUrl} onChange={(e) => actualizarCampo("logoUrl", e.target.value)}
                       placeholder="https://…"
@@ -3926,7 +3902,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                         className="w-full rounded-xl border border-slate-200/60 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
                       />
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-500">Única por óptica — evita que la misma persona tenga dos cuentas.</p>
+                    <p className="mt-1 text-xs text-slate-500">Única por óptica — evita que la misma persona tenga dos cuentas.</p>
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento <span className="font-normal text-slate-400">(opcional)</span></label>

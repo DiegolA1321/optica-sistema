@@ -83,7 +83,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
           </div>
         </div>
 
-        <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-slate-500">
+        <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500">
           {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
         </div>
 
@@ -99,7 +99,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
                 onClick={() => seleccionarDia(dia)}
                 title={dia.disponible ? "Disponible" : "Sin cupos"}
                 className={
-                  "grid h-7 w-full place-items-center rounded-lg border text-[11px] font-bold transition-all " +
+                  "grid h-7 w-full place-items-center rounded-lg border text-xs font-bold transition-all " +
                   (!dia.disponible
                     ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300"
                     : sel
@@ -114,7 +114,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
           })}
         </div>
 
-        <div className="mt-2.5 flex items-center gap-3 border-t border-slate-200/70 pt-2.5 text-[9px] text-slate-500">
+        <div className="mt-2.5 flex items-center gap-3 border-t border-slate-200/70 pt-2.5 text-xs text-slate-500">
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Disponible</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-slate-200" />No disponible</span>
         </div>
@@ -122,7 +122,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
 
       {/* Horarios */}
       <div>
-        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
           {fecha ? `Horarios para el ${formatoFecha(fecha, "numericoCorto")}` : "Horarios disponibles"}
         </label>
 
@@ -147,7 +147,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
                   disabled={!s.libre}
                   onClick={() => onCambiarHora(s.hora)}
                   className={
-                    "rounded-lg border py-2 text-[11px] font-bold transition-all " +
+                    "rounded-lg border py-2 text-xs font-bold transition-all " +
                     (!s.libre
                       ? "cursor-not-allowed border-transparent text-slate-300 line-through"
                       : sel

@@ -45,7 +45,7 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
                 {compacta ? (
                   // Compacta: el título ocupa todo el ancho (puede pasar a dos líneas) y debajo van el número y el ícono, para que ninguno tape al otro.
                   <span className="flex w-full flex-col gap-1">
-                    <span className="block text-[11px] font-bold uppercase leading-tight tracking-wider text-slate-500">{t.titulo}</span>
+                    <span className="block text-xs font-bold uppercase leading-tight tracking-wider text-slate-500">{t.titulo}</span>
                     <span className="flex items-end justify-between gap-2">
                       <span className="min-w-0">
                         <span className="block font-serif text-2xl font-semibold leading-none" style={{ color: INK }}>{t.valor}</span>
@@ -57,7 +57,7 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
                 ) : (
                   <>
                     <span className="min-w-0 space-y-0.5">
-                      <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
+                      <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
                       <span className="block font-serif text-3xl font-semibold leading-tight" style={{ color: INK }}>{t.valor}</span>
                       {t.desc && <span className="block text-xs text-slate-500">{t.desc}</span>}
                     </span>

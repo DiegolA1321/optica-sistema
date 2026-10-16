@@ -369,7 +369,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                       <Campo label="Cédula" icon={CreditCard} type="tel" placeholder="Ej. 1234567890" maxLength={10}
                         value={formData.cedula} onChange={(v) => setFormData({ ...formData, cedula: filtrarSoloNumeros(v, 10) })} />
                       {formData.cedula.length === 10 && !esCedulaValida(formData.cedula) && (
-                        <p className="mt-1 text-[11px] font-medium text-red-600">Esa cédula no parece válida — revisa los dígitos.</p>
+                        <p className="mt-1 text-xs font-medium text-red-600">Esa cédula no parece válida — revisa los dígitos.</p>
                       )}
                     </div>
                     <div>
@@ -377,7 +377,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                       <CampoFecha id="publica-nacimiento" etiqueta="Fecha de nacimiento" valor={formData.fechaNacimiento} onCambiar={(v) => setFormData({ ...formData, fechaNacimiento: v })} icono={Cake} placeholder="Elige tu fecha" />
                     </div>
                   </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">
+                  <p className="mt-1.5 text-xs text-slate-400">
                     Pedimos tu cédula y nacimiento para no duplicar tu historial si ya nos visitaste antes — nunca para crearte una cuenta.
                   </p>
 
@@ -387,7 +387,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                     <Campo label="Correo (opcional)" icon={Mail} type="email" placeholder="tucorreo@ejemplo.com"
                       value={formData.correo} onChange={(v) => setFormData({ ...formData, correo: v })} />
                   </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">Teléfono y correo son opcionales — si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
+                  <p className="mt-1.5 text-xs text-slate-400">Teléfono y correo son opcionales — si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
                   <div className="mt-4">
                     <PermisosAlRegistrar persona="yo" idBase="reserva-permisos" recordatorios={formData.aceptaRecordatorios} promociones={formData.aceptaPromociones}
                       onCambiar={(c) => setFormData((prev) => ({ ...prev, ...(c.recordatorios !== undefined ? { aceptaRecordatorios: c.recordatorios } : {}), ...(c.promociones !== undefined ? { aceptaPromociones: c.promociones } : {}) }))} />
@@ -424,7 +424,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                             <Icono size={18} />
                           </div>
                           <h4 className="text-sm font-bold leading-snug" style={{ color: INK }}>{item.titulo}</h4>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{item.descripcion}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.descripcion}</p>
                           {seleccionado && (
                             <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full text-white" style={{ background: GRAD }}>
                               <Check size={12} strokeWidth={3} />
@@ -447,7 +447,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
                   {conMolestia && (
                     <div className="ac-step mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                       <h4 className="text-sm font-bold" style={{ color: INK }}>Cuéntanos un poco más</h4>
-                      <p className="text-[11px] text-slate-500">Esto le llega al optómetra antes de tu cita para revisarlo con más contexto — es opcional.</p>
+                      <p className="text-xs text-slate-500">Esto le llega al optómetra antes de tu cita para revisarlo con más contexto — es opcional.</p>
 
                       <p className="mb-1.5 mt-3 text-xs font-semibold text-slate-600">¿Qué síntomas tienes?</p>
                       <div className="flex flex-wrap gap-2">
@@ -553,7 +553,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
 
                 {/* Código */}
                 <div className="mx-auto max-w-sm rounded-2xl border-2 border-dashed p-4" style={{ borderColor: "rgba(37,99,235,0.3)", backgroundColor: "#eff6ff" }}>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Tu código de cita</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Tu código de cita</span>
                   <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-white p-2.5 shadow-sm">
                     <span className="font-mono text-lg font-black" style={{ color: INK }}>{formData.codigoCita}</span>
                     <button type="button" onClick={copiarCodigo}
@@ -632,7 +632,7 @@ function ResumenFila({ icon: Icon, label, valor }) {
         <Icon size={16} className="text-white/70" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">{label}</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-white/40">{label}</p>
         <p className={"truncate text-sm font-semibold " + (puesto ? "text-white" : "text-white/35")}>
           {puesto ? valor : "Por completar"}
         </p>

@@ -29,7 +29,7 @@ const TABS = [
 function Tarjeta({ titulo, valor, nota, onClick, alerta = false }) {
   const Cuerpo = (
     <>
-      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{titulo}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{titulo}</p>
       <p className="mt-1 font-serif text-3xl font-semibold leading-none" style={{ color: INK }}>{valor}</p>
       <p className="mt-1.5 text-xs font-semibold" style={{ color: alerta ? "#B45309" : "#64748B" }}>{nota}</p>
     </>

@@ -466,14 +466,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </div>
               <div className={"leading-tight " + (colapsado ? "lg:hidden" : "")}>
                 <p className="text-lg font-bold tracking-tight text-white">{opticaPublica?.nombre || "Mi Óptica"}</p>
-                <p className="text-[11px] font-medium tracking-wide text-white/55">PORTAL DEL PACIENTE</p>
+                <p className="text-xs font-medium tracking-wide text-white/55">PORTAL DEL PACIENTE</p>
               </div>
             </div>
             <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer"><X size={20} /></button>
           </div>
 
           <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Mi cuenta</p>
+            <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Mi cuenta</p>
             {OPCIONES.map((o) => {
               const Icono = o.icono
               const activo = seccion === o.id
@@ -496,7 +496,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           {proximaCita ? (
             <div className={"rounded-xl bg-white/5 p-3 " + (colapsado ? "lg:flex lg:justify-center lg:bg-transparent lg:p-0" : "")}>
               <div className={"flex items-center gap-2 " + (colapsado ? "lg:hidden" : "")}>
-                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: GOLD }}>Próxima cita</span>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: GOLD }}>Próxima cita</span>
               </div>
               <p className={"mt-1 flex items-center gap-2 text-sm font-semibold text-white " + (colapsado ? "lg:hidden" : "")}>
                 <Calendar size={14} style={{ color: "#22D3EE" }} /> {etiquetaFecha(proximaCita.fecha)} · {proximaCita.hora}
@@ -505,7 +505,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               {colapsado && <Calendar size={18} className="hidden text-white/60 lg:block" />}
             </div>
           ) : (
-            <div className={"flex items-center gap-2 px-2 text-[11px] font-medium text-white/55 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+            <div className={"flex items-center gap-2 px-2 text-xs font-medium text-white/55 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className={colapsado ? "lg:hidden" : ""}>Portal seguro</span>
             </div>
@@ -544,7 +544,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: GRAD }}>{primerNombre[0]?.toUpperCase()}</div>
                 <div className="hidden text-left leading-tight sm:block">
                   <p className="text-sm font-semibold" style={{ color: INK }}>{primerNombre}</p>
-                  <p className="text-[10px] text-slate-500">Paciente</p>
+                  <p className="text-xs text-slate-500">Paciente</p>
                 </div>
                 <ChevronDown size={16} className={"text-slate-500 transition-transform " + (userMenu ? "rotate-180" : "")} />
               </button>
@@ -711,7 +711,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     </div>
                     {ultimaReceta.medidas?.adicion && (
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-center">
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Adición</p>
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Adición</p>
                         <p className="mt-0.5 font-mono text-sm font-bold" style={{ color: INK }}>{ultimaReceta.medidas.adicion}</p>
                       </div>
                     )}
@@ -738,16 +738,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                       <div className="flex items-center gap-3 rounded-xl border p-3" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
                         <Glasses size={18} style={{ color: GOLD }} className="shrink-0" />
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#7c5e14" }}>Lente recomendado</p>
+                          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#7c5e14" }}>Lente recomendado</p>
                           <p className="text-sm font-semibold text-slate-800">{ultimaReceta.lenteRecomendado}</p>
                         </div>
                       </div>
                     )}
                     {(ultimaReceta.diagnostico || ultimaReceta.indicaciones || ultimaReceta.usaLentes) && (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {ultimaReceta.diagnostico && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Diagnóstico</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.diagnostico}</p></div>)}
-                        {ultimaReceta.indicaciones && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Indicaciones</p><p className="mt-0.5 text-sm text-slate-600">{ultimaReceta.indicaciones}</p></div>)}
-                        {ultimaReceta.usaLentes && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">¿Usa lentes?</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.usaLentes === "si" ? "Sí" : "No"}</p></div>)}
+                        {ultimaReceta.diagnostico && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Diagnóstico</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.diagnostico}</p></div>)}
+                        {ultimaReceta.indicaciones && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Indicaciones</p><p className="mt-0.5 text-sm text-slate-600">{ultimaReceta.indicaciones}</p></div>)}
+                        {ultimaReceta.usaLentes && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">¿Usa lentes?</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.usaLentes === "si" ? "Sí" : "No"}</p></div>)}
                       </div>
                     )}
                     <p className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
@@ -1057,7 +1057,7 @@ function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar, onCan
             <span className="flex items-center gap-1"><Calendar size={13} className="text-slate-500" /> {etiquetaFecha(cita.fecha)}</span>
             <span className="flex items-center gap-1"><Clock size={13} className="text-slate-500" /> {cita.hora}</span>
           </div>
-          {avisoTiempo && <p className="text-[11px] font-normal text-slate-500">{avisoTiempo}</p>}
+          {avisoTiempo && <p className="text-xs font-normal text-slate-500">{avisoTiempo}</p>}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -1106,7 +1106,7 @@ function OjoReceta({ sigla, titulo, ojo = {}, color }) {
         <p className="font-mono text-sm font-bold" style={{ color: INK }}>{textoGraduacion(ojo)}</p>
         <p className="mt-0.5 text-xs text-slate-500">Esfera · Cilindro · Eje</p>
       </div>
-      <p className="mt-2 border-t border-slate-200 pt-2 text-center text-[11px] text-slate-500">Agudeza: <span className="font-semibold text-slate-600">{ojo.avCc || ojo.avSc || "—"}</span></p>
+      <p className="mt-2 border-t border-slate-200 pt-2 text-center text-xs text-slate-500">Agudeza: <span className="font-semibold text-slate-600">{ojo.avCc || ojo.avSc || "—"}</span></p>
     </div>
   )
 }
@@ -1122,7 +1122,7 @@ function MedidasMontaje({ medidas = {} }) {
     <div className="grid grid-cols-2 gap-3">
       {filas.map(([etiqueta, valor]) => (
         <div key={etiqueta} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{etiqueta}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{etiqueta}</p>
           <p className="mt-0.5 font-mono text-sm font-bold" style={{ color: INK }}>{valor}</p>
         </div>
       ))}
@@ -1216,20 +1216,20 @@ function MisDatosContacto({ usuario, onActualizado }) {
 
   const fijo = (icon, label, valor) => (
     <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
-      <p className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">{label} <Lock size={11} aria-label="Solo la óptica puede cambiarlo" /></p>
+      <p className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">{label} <Lock size={11} aria-label="Solo la óptica puede cambiarlo" /></p>
       <p className="mt-1 break-words text-sm font-semibold text-slate-700">{valor || "No registrado"}</p>
     </div>
   )
   const campo = (id, label, valor, setValor, error, props) => (
     <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-      <label htmlFor={id} className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</label>
+      <label htmlFor={id} className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">{label}</label>
       <input id={id} value={valor} onChange={(e) => setValor(e.target.value)} aria-invalid={!!error} aria-describedby={error ? id + "-error" : undefined} className={"mt-1 w-full rounded-lg border px-2.5 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 " + (error ? "border-red-300 focus-visible:ring-red-100" : "border-blue-300 focus-visible:ring-blue-100")} style={{ color: INK }} {...props} />
       {error && <p id={id + "-error"} role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={12} /> {error}</p>}
     </div>
   )
   const editable = (label, valor) => (
     <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-      <p className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}
+      <p className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">{label}
         <button type="button" onClick={empezar} className="text-xs font-bold normal-case tracking-normal text-blue-700 hover:underline cursor-pointer">Editar</button>
       </p>
       <p className={"mt-1 break-all text-sm " + (valor ? "font-semibold" : "text-slate-400")} style={valor ? { color: INK } : undefined}>{valor || "Sin registrar"}</p>
