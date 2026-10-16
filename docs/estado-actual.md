@@ -1,3 +1,16 @@
+<!-- SA2-INICIO -->
+## Panel del superadmin v2 (16 oct. 2026, rama `superadmin-v2`, SIN publicar; migración 0119 ESCRITA y ensayada, SIN APLICAR)
+Pedido: rediseñar el panel del superadmin al nivel del resto del sistema (Resumen como Reportes, detalle en la ventana estándar, Actividad como registro de auditoría por tipo y con filtros, ópticas de prueba fuera de las métricas). Detalle, datos que faltan y comparación con los criterios del ingeniero: `docs/revision-superadmin-v2.md`.
+**Dónde voy:**
+- [x] Paso 1 — Migración `0119_superadmin_v2.sql` + `scripts/ensayo-0119.mjs` (revierte: pasa completo). Respaldo `pre-superadmin-v2-2026-10-16.dump`. **Falta: que Diego revise el SQL y autorice aplicarla**, y `scripts/verificar-0119.mjs` con sesiones reales.
+- [x] Paso 2 — Cálculos con pruebas (`superadminNegocio.js`: salud, ingresos, clientes, uso, leads, actividad).
+- [x] Paso 3 — Resumen nuevo (siete secciones, mismos componentes que Reportes; `SelectorPeriodo` extraído de Reportes) y Actividad nueva.
+- [x] Paso 4 — Detalle de óptica (prueba, uso, roles, suscripción con Guardar, suspender con motivo y aviso) y Ópticas, Leads, Soporte y Superadmins con el mismo molde; S1–S3 y S5–S11 de `revision-portal-y-superadmin.md`.
+- [x] Paso 5 — Pruebas del Resumen y de la Actividad (números = listas = Soporte y Leads). Vitest de lo nuevo, de Reportes y de Soporte en verde; sin correr la suite completa.
+- [ ] Aplicar 0119, revisar en localhost con datos reales, suite completa de Playwright y publicar (lo pide Diego).
+**Dato que falta:** `opticas.monto_mensual` está vacío en las 5 ópticas (no hay precio de suscripción por óptica); no se calculó ingreso mensual recurrente.
+<!-- SA2-FIN -->
+
 <!-- COR-INICIO -->
 ## Correcciones de la auditoría transversal (16 oct. 2026, PUBLICADO: `a125343` en `main`; el CI "build-and-test" y el despliegue de Vercel (Production) terminaron con éxito, confirmados con la API de GitHub; migraciones 0117 y 0118 aplicadas)
 Diego pidió: rol propio y portal revisados de verdad, quitar Ventas del Optómetra predefinido y corregir todos los hallazgos de mayor a menor. Reglas: un commit por paso, SQL a la vista antes de aplicar, al final la suite completa de Playwright (`--workers=1`, versión compilada), sin publicar.
