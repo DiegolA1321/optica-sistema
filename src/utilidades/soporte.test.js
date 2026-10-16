@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
-  MODULOS_SOPORTE, TIPOS_CONSULTA, URGENCIAS, ESTADOS_CONSULTA, codigoConsulta, problemaDeCaptura, nombreSeguro, contextoDeConsulta, navegadorLegible,
+  MODULOS_SOPORTE, TIPOS_CONSULTA, tipoDeArchivo, esImagenAdjunto, URGENCIAS, ESTADOS_CONSULTA, codigoConsulta, problemaDeCaptura, nombreSeguro, contextoDeConsulta, navegadorLegible,
   ordenarBandeja, ordenarMisConsultas, filtrarBandeja, desdeDePeriodo, PERIODOS_SOPORTE, indicadoresSoporte, duracionLegible, avisosConLeido, tiempoEstimado, nombreModulo, mapConsulta,
 } from "./soporte"
 
@@ -36,11 +36,27 @@ describe("nombres y códigos", () => {
 })
 
 describe("capturas", () => {
-  it("acepta imágenes de hasta 5 MB y rechaza el resto con un texto claro", () => {
+  it("acepta imágenes, PDF, Word y Excel de hasta 10 MB y rechaza el resto con un texto claro", () => {
     expect(problemaDeCaptura({ name: "a.png", type: "image/png", size: 1000 })).toBe("")
-    expect(problemaDeCaptura({ name: "a.pdf", type: "application/pdf", size: 1000 })).toMatch(/no es una imagen/)
-    expect(problemaDeCaptura({ name: "g.png", type: "image/png", size: 6 * 1024 * 1024 })).toMatch(/más de 5 MB/)
+    expect(problemaDeCaptura({ name: "a.pdf", type: "application/pdf", size: 1000 })).toBe("")
+    expect(problemaDeCaptura({ name: "carta.docx", type: "", size: 1000 })).toBe("")
+    expect(problemaDeCaptura({ name: "datos.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", size: 1000 })).toBe("")
+    expect(problemaDeCaptura({ name: "g.png", type: "image/png", size: 11 * 1024 * 1024 })).toMatch(/más de 10 MB/)
+    expect(problemaDeCaptura({ name: "g.pdf", type: "application/pdf", size: 6 * 1024 * 1024 })).toBe("")
     expect(problemaDeCaptura(null)).toMatch(/No se pudo/)
+  })
+  it("bloquea los archivos con macros y cualquier otro tipo", () => {
+    expect(problemaDeCaptura({ name: "m.xlsm", type: "application/vnd.ms-excel.sheet.macroEnabled.12", size: 1000 })).toMatch(/macros/)
+    expect(problemaDeCaptura({ name: "m.DOCM", type: "", size: 1000 })).toMatch(/macros/)
+    expect(problemaDeCaptura({ name: "x.exe", type: "application/x-msdownload", size: 1000 })).toMatch(/no se acepta/)
+    expect(problemaDeCaptura({ name: "x", type: "", size: 1000 })).toMatch(/no se acepta/)
+    expect(problemaDeCaptura({ name: "falso.xlsx", type: "application/zip", size: 1000 })).toMatch(/no se acepta/)
+  })
+  it("el tipo con el que se sube sale de la extensión, y las imágenes se distinguen de los documentos", () => {
+    expect(tipoDeArchivo({ name: "carta.docx", type: "" })).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    expect(esImagenAdjunto({ nombre: "a.png", tipo: "image/png" })).toBe(true)
+    expect(esImagenAdjunto({ nombre: "a.pdf", tipo: "application/pdf" })).toBe(false)
+    expect(esImagenAdjunto({ nombre: "foto.JPG" })).toBe(true)
   })
   it("el nombre guardado no lleva tildes ni caracteres raros", () => {
     expect(nombreSeguro("Captura de pantalla (ñandú) 1.png")).toBe("Captura-de-pantalla-nandu-1.png")
