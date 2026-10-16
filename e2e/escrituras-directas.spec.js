@@ -276,13 +276,17 @@ test('Roles: crear, editar y eliminar un rol (roles: insert, update y delete)', 
   }
 })
 
-test('Soporte: el administrador envía una consulta al soporte (mensajes: insert)', async ({ page }) => {
+test('Soporte: el administrador envía una consulta al soporte (rpc crear_consulta_soporte)', async ({ page }) => {
   const asunto = `${PREFIJO}consulta de prueba ${sufijo()}`
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Soporte')
-  await page.getByPlaceholder(/Asunto/).fill(asunto)
-  await page.getByPlaceholder('Cuéntanos qué necesitas…').fill(`${PREFIJO}mensaje de prueba, no requiere respuesta`)
-  await conEscritura(page, 'mensajes', 'enviar consulta', () => page.locator('form').filter({ has: page.getByPlaceholder(/Asunto/) }).locator('button[type=submit]').click())
+  await page.getByRole('button', { name: /Nueva consulta/ }).click()
+  const v = page.getByRole('dialog', { name: 'Nueva consulta' })
+  await v.getByLabel('Asunto').fill(asunto)
+  await v.getByLabel('Descripción').fill(`${PREFIJO}mensaje de prueba, no requiere respuesta`)
+  await conEscritura(page, 'rpc/crear_consulta_soporte', 'enviar consulta', () => v.getByRole('button', { name: 'Enviar consulta' }).click())
+  await expect(v.getByText(/^SOP-d{4}$/)).toBeVisible({ timeout: 20_000 })
+  await v.getByRole('button', { name: 'Ver mis consultas' }).click()
   await expect(page.getByText(asunto).first()).toBeVisible({ timeout: 20_000 })
 })
 
