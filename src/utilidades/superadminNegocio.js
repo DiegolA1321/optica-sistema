@@ -88,7 +88,7 @@ export const SALUD = {
   atencion: { id: "atencion", nombre: "Atención", orden: 1, clase: "border-amber-200 bg-amber-50 text-amber-800" },
   saludable: { id: "saludable", nombre: "Saludable", orden: 2, clase: "border-emerald-200 bg-emerald-50 text-emerald-700" },
 }
-export const AYUDA_SALUD = "Se mira cada óptica activa en cuatro cosas. Último ingreso de su personal: más de 7 días sin ingresar es Atención y más de 30 (o nunca) es En riesgo. Uso en los últimos 30 días (citas, consultas y ventas): menos de 5 en total es Atención y ninguno es En riesgo. Pago: pendiente es Atención y vencido es En riesgo. Soporte: una consulta abierta es Atención; una urgente o tres o más abiertas es En riesgo. La óptica toma el peor de los cuatro."
+export const AYUDA_SALUD = "Se mira cada óptica activa en cuatro cosas. Último ingreso de su personal: más de 7 días sin ingresar es Atención y más de 30 (o nunca) es En riesgo. Uso en los últimos 30 días (módulos en los que su personal hizo algo): uno solo es Atención y ninguno es En riesgo. Pago: pendiente es Atención y vencido es En riesgo. Soporte: una consulta abierta es Atención; una urgente o tres o más abiertas es En riesgo. La óptica toma el peor de los cuatro."
 
 const diasEntre = (aISO, bISO) => Math.round((Date.UTC(...bISO.split("-").map((n, i) => (i === 1 ? n - 1 : +n))) - Date.UTC(...aISO.split("-").map((n, i) => (i === 1 ? n - 1 : +n)))) / 86400000)
 
@@ -105,7 +105,7 @@ export function ultimoIngresoDe(opticaId, personas = []) {
 
 const peor = (a, b) => (SALUD[a].orden <= SALUD[b].orden ? a : b)
 
-// Devuelve { estado, motivos: [{ nivel, texto, area }], ultimoIngreso, usoTotal, ... }. Sin datos del servidor (aún sin la migración) no inventa: dice "sin dato".
+// Devuelve { estado, motivos: [{ nivel, texto, area }], ultimoIngreso, modulosEnUso, ... }. Sin datos del servidor (aún sin la migración) no inventa: dice "sin dato".
 export function saludDeOptica({ optica, personas = [], uso = null, facturas = [], consultas = [], hoyISO }) {
   const motivos = []
   const sube = (nivel, texto, area) => motivos.push({ nivel, texto, area })
@@ -121,10 +121,11 @@ export function saludDeOptica({ optica, personas = [], uso = null, facturas = []
   }
 
   // 2. Uso de los últimos 30 días
-  const usoTotal = uso ? num(uso.citas) + num(uso.consultas) + num(uso.ventas) : null
+  // Solo se mira SI se usa, nunca cuánto: el superadmin no ve el volumen del negocio de la óptica (privacidad).
+  const modulosEnUso = uso ? modulosUsadosPor(uso).length : null
   if (uso && creada > 7) {
-    if (usoTotal === 0) sube("riesgo", "Sin citas, consultas ni ventas en 30 días", "uso")
-    else if (usoTotal < 5) sube("atencion", `Poco uso: ${usoTotal} registro${usoTotal === 1 ? "" : "s"} en 30 días`, "uso")
+    if (modulosEnUso === 0) sube("riesgo", "Sin uso en 30 días", "uso")
+    else if (modulosEnUso === 1) sube("atencion", "Usa un solo módulo", "uso")
   }
 
   // 3. Pago al día
@@ -140,7 +141,7 @@ export function saludDeOptica({ optica, personas = [], uso = null, facturas = []
 
   const estado = motivos.reduce((e, m) => peor(e, m.nivel), "saludable")
   const porCobrar = facturas.filter((f) => f.optica_id === optica.id && f.estado === "pendiente")
-  return { estado, motivos, ultimoIngreso: ultimo, diasSinIngresar: dias, usoTotal, abiertas: abiertas.length, urgentes, facturasPendientes: porCobrar.length }
+  return { estado, motivos, ultimoIngreso: ultimo, diasSinIngresar: dias, modulosEnUso, abiertas: abiertas.length, urgentes, facturasPendientes: porCobrar.length }
 }
 
 // Las ópticas activas con su salud: en riesgo primero, luego atención, luego saludables; dentro de cada grupo, las de más motivos primero.
@@ -175,22 +176,36 @@ export const MODULOS_USO = [
   { id: "crm", nombre: "CRM y fidelización", corto: "CRM" },
   { id: "reportes", nombre: "Reportes", corto: "Reportes" },
 ]
+// "hace 3 días": cuánto pasó desde un instante (día de Ecuador). hoyISO = el día de hoy.
+export function haceDias(instante, hoyISO) {
+  const n = diasEntre(diaDe(instante), hoyISO)
+  if (n <= 0) return "hoy"
+  return n === 1 ? "hace 1 día" : `hace ${n} días`
+}
+// Cómo se dice el uso de un módulo, sin volumen: cuándo fue la última vez o que no se usó.
+export const textoUsoModulo = (ultima, hoyISO) => (ultima ? `En uso · última vez ${haceDias(ultima, hoyISO)}` : "Sin uso en 30 días")
+
+// El uso de la red SIN volumen (privacidad): personas activas y, por módulo, la última vez que alguien lo usó en 30 días.
 // Personas que registraron alguna acción en 30 días y los 30 anteriores, sumando las ópticas dadas.
 export function usoDeLaRed(uso, opticaIds) {
   const filas = (uso || []).filter((u) => opticaIds.has(u.optica_id))
   const sum = (k, de = "") => filas.reduce((s, u) => s + num(de ? u[de]?.[k] : u[k]), 0)
-  const porModulo = MODULOS_USO.map((m) => ({ ...m, acciones: filas.reduce((s, u) => s + num(u.modulos?.[m.id]), 0), opticas: filas.filter((u) => num(u.modulos?.[m.id]) > 0) }))
+  const porModulo = MODULOS_USO.map((m) => {
+    const ultimas = filas.map((u) => u.modulos?.[m.id]).filter(Boolean)
+    return { ...m, ultima: ultimas.sort().slice(-1)[0] || "", opticas: filas.filter((u) => u.modulos?.[m.id]) }
+  })
   return {
     filas,
     personas: sum("personas_activas"), personasPrevio: sum("personas_activas", "previo"),
-    citas: sum("citas"), citasPrevio: sum("citas", "previo"),
-    consultas: sum("consultas"), consultasPrevio: sum("consultas", "previo"),
-    ventas: sum("ventas"), ventasPrevio: sum("ventas", "previo"),
+    modulosEnUso: porModulo.filter((m) => m.ultima).length,
+    modulosPrevio: filas.reduce((mx, u) => Math.max(mx, num(u.previo?.modulos_en_uso)), 0),
     porModulo,
   }
 }
-// Qué módulos usó una óptica en los 30 días (con al menos una acción).
-export const modulosUsadosPor = (u) => MODULOS_USO.filter((m) => num(u?.modulos?.[m.id]) > 0)
+// Qué módulos usó una óptica en los 30 días.
+export const modulosUsadosPor = (u) => MODULOS_USO.filter((m) => !!u?.modulos?.[m.id])
+// La última vez que se usó algo en la óptica (cualquier módulo), como instante o "".
+export const ultimaActividadDe = (u) => Object.values(u?.modulos || {}).sort().slice(-1)[0] || ""
 
 // ── Leads: el embudo de interesados (los mismos números que la sección Leads) ─────────────────────────────────────────
 export function embudoLeads(leads, rango) {

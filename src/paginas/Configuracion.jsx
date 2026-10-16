@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
+import AccesoSoporte from "../componentes/soporte/AccesoSoporte"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "../componentes/AtencionPaciente"
@@ -366,6 +367,7 @@ const PESTANAS = [
   { id: "politicas", label: "Políticas y servicios", icon: SlidersHorizontal },
   { id: "catalogos", label: "Catálogos", icon: ListChecks },
   { id: "login", label: "Página pública", icon: MonitorSmartphone },
+  { id: "privacidad", label: "Privacidad", icon: ShieldCheck },
 ]
 
 export default function Configuracion({ usuario, alActualizarUsuario, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
@@ -627,6 +629,13 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         <DatosProforma parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
       </div>
       </div>
+      )}
+
+      {tab === "privacidad" && (
+        <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-privacidad">
+          <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Privacidad</p>
+          <AccesoSoporte onExito={mostrarExito} onError={mostrarError} />
+        </div>
       )}
 
       {tab === "login" && (

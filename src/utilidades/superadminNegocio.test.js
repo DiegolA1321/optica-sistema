@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   esDePrueba, opticasDelNegocio, sinPruebas, ingresosDelPeriodo, porCobrarAl, serieIngresos, estadoAl, clientesDelPeriodo, serieClientes,
-  saludDeOptica, saludDeLaRed, contarSalud, ultimoIngresoDe, usoDeLaRed, modulosUsadosPor, embudoLeads, filtrarActividad, contarPorTipo, tipoDeAccion,
+  saludDeOptica, saludDeLaRed, contarSalud, ultimoIngresoDe, usoDeLaRed, modulosUsadosPor, ultimaActividadDe, haceDias, textoUsoModulo, embudoLeads, filtrarActividad, contarPorTipo, tipoDeAccion,
   textoDeAccion, cambioDeAccion,
 } from "./superadminNegocio"
 import { rangoDePeriodo, rangoAnterior, variacion } from "./reportesPeriodo"
@@ -101,7 +101,7 @@ describe("clientes: el estado de cada óptica en una fecha", () => {
 describe("salud de cada óptica", () => {
   const hoy = HOY_ISO
   const personas = [{ optica_id: "o1", activo: true, ultimo_ingreso: ins("2026-10-15") }, { optica_id: "o2", activo: true, ultimo_ingreso: ins("2026-09-01") }, { optica_id: "o1", activo: false, ultimo_ingreso: ins("2026-10-16") }]
-  const uso = [{ optica_id: "o1", citas: 10, consultas: 6, ventas: 4 }, { optica_id: "o2", citas: 0, consultas: 0, ventas: 0 }]
+  const uso = [{ optica_id: "o1", personas_activas: 3, modulos: { citas: ins("2026-10-15"), ventas: ins("2026-10-10"), pacientes: ins("2026-10-12") } }, { optica_id: "o2", personas_activas: 0, modulos: {} }]
   it("el último ingreso ignora a quien está desactivado", () => {
     expect(ultimoIngresoDe("o1", personas)).toBe("2026-10-15")
     expect(ultimoIngresoDe("o9", personas)).toBe("")
@@ -110,7 +110,7 @@ describe("salud de cada óptica", () => {
     const s = saludDeOptica({ optica: opticas[0], personas, uso: uso[0], facturas: [], consultas: [], hoyISO: hoy })
     expect(s.estado).toBe("saludable")
     expect(s.motivos).toEqual([])
-    expect(s.usoTotal).toBe(20)
+    expect(s.modulosEnUso).toBe(3)
   })
   it("el pago vencido, sin uso y sin ingresar la ponen en riesgo y dice cada motivo", () => {
     const s = saludDeOptica({ optica: opticas[1], personas, uso: uso[1], facturas: [], consultas: [], hoyISO: hoy })
@@ -137,10 +137,15 @@ describe("salud de cada óptica", () => {
     expect(saludDeOptica({ ...base, consultas: [c(1, "recibida", "urgente")] }).estado).toBe("riesgo")
     expect(saludDeOptica({ ...base, consultas: [c(1, "recibida"), c(2, "en_revision"), c(3, "respondida")] }).estado).toBe("riesgo")
   })
+  it("usar un solo módulo es atención y no usar ninguno es riesgo (solo se mira si se usa, nunca cuánto)", () => {
+    const base = { optica: opticas[0], personas, facturas: [], consultas: [], hoyISO: hoy }
+    expect(saludDeOptica({ ...base, uso: { optica_id: "o1", modulos: { citas: ins("2026-10-15") } } }).motivos.map((m) => m.texto)).toContain("Usa un solo módulo")
+    expect(saludDeOptica({ ...base, uso: { optica_id: "o1", modulos: {} } }).motivos.map((m) => m.texto)).toContain("Sin uso en 30 días")
+  })
   it("sin datos del servidor no inventa uso ni ingreso", () => {
     const s = saludDeOptica({ optica: opticas[0], personas: [], uso: null, facturas: [], consultas: [], hoyISO: hoy })
     expect(s.estado).toBe("saludable")
-    expect(s.usoTotal).toBeNull()
+    expect(s.modulosEnUso).toBeNull()
   })
   it("la red: solo ópticas activas, en riesgo primero, y los conteos suman", () => {
     const filas = saludDeLaRed({ opticas: opticasDelNegocio(opticas), personas, uso, facturas: [], consultas: [], hoyISO: hoy })
@@ -149,20 +154,33 @@ describe("salud de cada óptica", () => {
   })
 })
 
-describe("uso del sistema", () => {
+describe("uso del sistema (sin volumen del negocio)", () => {
   const uso = [
-    { optica_id: "o1", citas: 10, consultas: 6, ventas: 4, personas_activas: 3, previo: { citas: 8, consultas: 6, ventas: 5, personas_activas: 2 }, modulos: { citas: 9, ventas: 2 } },
-    { optica_id: "o3", citas: 99, consultas: 99, ventas: 99, personas_activas: 9, previo: {}, modulos: { citas: 50 } },
+    { optica_id: "o1", personas_activas: 3, previo: { personas_activas: 2, modulos_en_uso: 1 }, modulos: { citas: ins("2026-10-14"), ventas: ins("2026-10-10") } },
+    { optica_id: "o3", personas_activas: 9, previo: {}, modulos: { citas: ins("2026-10-16"), crm: ins("2026-10-01") } },
   ]
   it("suma solo las ópticas dadas (las de prueba quedan fuera) y compara con los 30 días anteriores", () => {
     const u = usoDeLaRed(uso, new Set(["o1", "o2"]))
-    expect([u.personas, u.personasPrevio, u.citas, u.citasPrevio, u.ventas, u.ventasPrevio]).toEqual([3, 2, 10, 8, 4, 5])
-    expect(u.porModulo.find((m) => m.id === "citas").acciones).toBe(9)
-    expect(u.porModulo.find((m) => m.id === "crm").acciones).toBe(0)
+    expect([u.personas, u.personasPrevio, u.modulosEnUso, u.modulosPrevio]).toEqual([3, 2, 2, 1])
+    expect(u.porModulo.find((m) => m.id === "citas").ultima).toBe(ins("2026-10-14"))
+    expect(u.porModulo.find((m) => m.id === "crm").ultima).toBe("")
   })
-  it("los módulos que usó una óptica", () => {
+  it("ningún resultado trae cifras de citas, consultas, ventas ni pacientes", () => {
+    const u = usoDeLaRed(uso, new Set(["o1", "o3"]))
+    expect(JSON.stringify(u)).not.toMatch(/"(citas|consultas|ventas|pacientes)":\s*\d/)
+  })
+  it("los módulos que usó una óptica y la última actividad", () => {
     expect(modulosUsadosPor(uso[0]).map((m) => m.id)).toEqual(["citas", "ventas"])
     expect(modulosUsadosPor(null)).toEqual([])
+    expect(ultimaActividadDe(uso[0])).toBe(ins("2026-10-14"))
+    expect(ultimaActividadDe(null)).toBe("")
+  })
+  it("se dice cuándo fue la última vez o que no se usó", () => {
+    expect(haceDias(ins("2026-10-16"), HOY_ISO)).toBe("hoy")
+    expect(haceDias(ins("2026-10-15"), HOY_ISO)).toBe("hace 1 día")
+    expect(haceDias(ins("2026-10-11"), HOY_ISO)).toBe("hace 5 días")
+    expect(textoUsoModulo(ins("2026-10-14"), HOY_ISO)).toBe("En uso · última vez hace 2 días")
+    expect(textoUsoModulo("", HOY_ISO)).toBe("Sin uso en 30 días")
   })
 })
 

@@ -9,7 +9,7 @@ import { dinero } from "../../utilidades/formatoMoneda"
 import { formatoFecha, fechaLegible } from "../../utilidades/formatoFecha"
 import { diaDe } from "../../utilidades/reportesPeriodo"
 import { codigoConsulta } from "../../utilidades/soporte"
-import { MODULOS_USO, modulosUsadosPor, porCobrarAl, esDePrueba } from "../../utilidades/superadminNegocio"
+import { MODULOS_USO, modulosUsadosPor, textoUsoModulo, porCobrarAl, esDePrueba } from "../../utilidades/superadminNegocio"
 
 const PAGO = { al_dia: "Al día", pendiente: "Pendiente", vencido: "Vencido" }
 const AREAS = { ingreso: "Último ingreso", uso: "Uso", pago: "Pago", soporte: "Soporte" }
@@ -76,11 +76,9 @@ export default function DetalleOptica({ fila, uso, facturas, consultasAbiertas, 
         <Bloque titulo="Uso · últimos 30 días">
           {uso ? (
             <dl>
-              <Dato etiqueta="Citas registradas">{uso.citas}</Dato>
-              <Dato etiqueta="Consultas">{uso.consultas}</Dato>
-              <Dato etiqueta="Ventas">{uso.ventas}</Dato>
               <Dato etiqueta="Personas activas">{uso.personas_activas}</Dato>
-              <Dato etiqueta="Módulos que usa">{usados.length === 0 ? <span className="font-normal text-slate-500">Ninguno en 30 días</span> : `${usados.length} de ${MODULOS_USO.length}: ${usados.map((m) => m.nombre).join(", ")}`}</Dato>
+              <Dato etiqueta="Módulos en uso">{usados.length === 0 ? <span className="font-normal text-slate-500">Ninguno en 30 días</span> : `${usados.length} de ${MODULOS_USO.length}`}</Dato>
+              {MODULOS_USO.map((m) => <Dato key={m.id} etiqueta={m.nombre}><span className={uso.modulos?.[m.id] ? "" : "font-normal text-slate-500"}>{textoUsoModulo(uso.modulos?.[m.id], hoyISO)}</span></Dato>)}
             </dl>
           ) : <p className="text-sm text-slate-500">Todavía no se puede leer el uso de esta óptica.</p>}
         </Bloque>

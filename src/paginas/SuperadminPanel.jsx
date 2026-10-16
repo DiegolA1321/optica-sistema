@@ -55,7 +55,6 @@ import {
   Inbox,
   PhoneCall,
   Users,
-  Stethoscope,
   Image as ImageIcon,
   LogIn,
 } from "lucide-react"
@@ -68,7 +67,7 @@ import CampoFecha from "../componentes/CampoFecha"
 import { imprimirDocumento, estilosImpresion } from "../utilidades/imprimir"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, esClaveSegura, validarClaveNueva } from "../utilidades/validaciones"
-import { NOMBRE_MODULO, moduloDeRegistro } from "../utilidades/logs"
+import { NOMBRE_MODULO } from "../utilidades/logs"
 import { mensajeErrorEdgeFunction } from "../utilidades/edgeFunctions"
 import { INK, ACCION_VER, ACCION_ELIMINAR } from "@/lib/tema"
 
@@ -139,7 +138,7 @@ import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
 import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
 import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
-import { textoDeAccion, ACCIONES_COMERCIALES, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
+import { textoDeAccion, ACCIONES_COMERCIALES, MODULOS_USO, ultimaActividadDe, haceDias, opticasDelNegocio, sinPruebas, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
 import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
 import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
 import { SinResultados } from "../componentes/reportes/bloques"
@@ -169,6 +168,23 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const [restaurandoRoles, setRestaurandoRoles] = useState(false)
   const [confirmarRestaurarRoles, setConfirmarRestaurarRoles] = useState(false)
   const [motivoSuspension, setMotivoSuspension] = useState("")
+  // Entrar como administrador: solo con la autorización de la óptica (o en un entorno de prueba) y con el motivo. Lo valida el servidor.
+  const [entrada, setEntrada] = useState(null) // { optica, motivo, error, enviando }
+  const pedirEntrada = (optica) => setEntrada({ optica, motivo: "", error: "", enviando: false })
+  const confirmarEntrada = async (e) => {
+    e?.preventDefault?.()
+    if (!entrada || entrada.enviando) return
+    const prueba = esDePrueba(entrada.optica)
+    const motivo = entrada.motivo.trim()
+    if (!prueba && motivo.length < 5) { setEntrada((x) => ({ ...x, error: "Indica el motivo de la entrada (al menos 5 letras)." })); return }
+    setEntrada((x) => ({ ...x, enviando: true, error: "" }))
+    const { error } = await supabase.rpc("entrar_como_optica", { p_optica: entrada.optica.id, p_motivo: motivo || null })
+    if (error) { setEntrada((x) => ({ ...x, enviando: false, error: error.message || "No se pudo entrar a la óptica." })); return }
+    const o = entrada.optica
+    setEntrada(null)
+    setDetalle(null)
+    alEntrarComo?.(o)
+  }
   // A dónde llevó el último "Abrir en …" del Resumen: cada sección parte de ahí con el mismo período y los mismos filtros.
   const [destinoSoporte, setDestinoSoporte] = useState(null)
   const [destinoActividad, setDestinoActividad] = useState(null)
@@ -195,8 +211,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // Solo optica_id: liviano, alcanza para contar por óptica y en total
   // (feedback del ing: reportes de usuarios administradores/asistentes/
   // pacientes, por óptica y del sistema completo).
-  const [asistentesOpticaId, setAsistentesOpticaId] = useState([])
-  const [pacientesOpticaId, setPacientesOpticaId] = useState([])
 
   // ─── Leads (formulario "Obtener sistema" de la página de venta) ───
   const [leads, setLeads] = useState([])
@@ -297,10 +311,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   // Sexta Mirada, separado a propósito de la sección "Actividad" general del
   // superadmin (esa solo registra acciones del propio superadmin, ver
   // renderActividad). RLS: logs_optica_superadmin_all. ───
-  const [mostrarActividadOptica, setMostrarActividadOptica] = useState(false)
-  const [logsOptica, setLogsOptica] = useState([])
-  const [cargandoLogsOptica, setCargandoLogsOptica] = useState(false)
-  const [filtroUsuarioLogOptica, setFiltroUsuarioLogOptica] = useState("todos")
   const [generandoFactura, setGenerandoFactura] = useState(false)
   const [facturaImprimir, setFacturaImprimir] = useState(null)
   const [guardandoCumple, setGuardandoCumple] = useState(null) // id del admin en guardado
@@ -452,20 +462,16 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
   const cargarDatos = async () => {
     setCargando(true)
     const t0 = performance.now()
-    let opticasData = null, adminsData = null, superadminsData = null, asistentesData = null, pacientesData = null
+    let opticasData = null, adminsData = null, superadminsData = null
     try {
       const resultados = await Promise.all([
         supabase.from("opticas").select("*").order("created_at", { ascending: false }),
         supabase.from("perfiles").select("id, optica_id, nombre, email, fecha_nacimiento, es_optometra, cedula, created_at").eq("rol", "admin"),
         supabase.from("perfiles").select("id, nombre, email, created_at").eq("rol", "superadmin").order("created_at", { ascending: true }),
-        supabase.from("perfiles").select("optica_id, created_at, activo").eq("rol", "asistente"),
-        supabase.from("pacientes").select("optica_id, created_at"),
       ])
       opticasData = resultados[0].data
       adminsData = resultados[1].data
       superadminsData = resultados[2].data
-      asistentesData = resultados[3].data
-      pacientesData = resultados[4].data
       // Estado de servidor honesto: basado en la latencia real de esta misma
       // carga, no un badge decorativo fijo en "operativo". Los umbrales son
       // orientativos (no un SLA), solo para distinguir "normal" de "lento".
@@ -478,8 +484,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setAdmins(adminsData || [])
     setSuperadmins(superadminsData || [])
     // Solo cuentan quienes trabajan hoy: las desactivadas no son "asistentes en la red".
-    setAsistentesOpticaId((asistentesData || []).filter((a) => a.activo !== false))
-    setPacientesOpticaId(pacientesData || [])
     setCargando(false)
     setCargaInicial(false)
     cargarAuditoria(true)
@@ -651,13 +655,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   // Conteo de asistentes/pacientes por óptica — feedback del ing: reportes
   // de usuarios (administradores/asistentes/pacientes) por óptica y en total.
-  const contarPorOptica = (filas) => {
-    const mapa = new Map()
-    for (const f of filas) mapa.set(f.optica_id, (mapa.get(f.optica_id) || 0) + 1)
-    return mapa
-  }
-  const asistentesPorOptica = useMemo(() => contarPorOptica(asistentesOpticaId), [asistentesOpticaId])
-  const pacientesPorOptica = useMemo(() => contarPorOptica(pacientesOpticaId), [pacientesOpticaId])
 
   // Lo que espera al soporte: consultas abiertas cuyo último mensaje es de la óptica (la insignia del menú y la bandeja cuentan lo mismo).
   const consultasAbiertas = useMemo(() => sinPruebas(consultasSoporte, opticas, incluirPrueba, "opticaId").filter((c) => c.estado !== "resuelta" && c.ultimoMensajeDe === "optica").length, [consultasSoporte, opticas, incluirPrueba])
@@ -744,9 +741,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setCampoVencimiento(o.proximo_vencimiento || "")
     setFacturasOptica([])
     cargarFacturasOptica(o.id)
-    setMostrarActividadOptica(false)
-    setLogsOptica([])
-    setFiltroUsuarioLogOptica("todos")
   }
 
   // Mismo botón de subir logo, pero para "Crear óptica" — acá todavía no
@@ -1054,24 +1048,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     const { data } = await supabase.from("facturas").select("*").eq("optica_id", opticaId).order("emitida_at", { ascending: false })
     setFacturasOptica(data || [])
     setCargandoFacturas(false)
-  }
-
-  const cargarActividadOptica = async (opticaId) => {
-    setCargandoLogsOptica(true)
-    const { data } = await supabase
-      .from("logs_optica")
-      .select("*")
-      .eq("optica_id", opticaId)
-      .order("created_at", { ascending: false })
-      .limit(100)
-    setLogsOptica(data || [])
-    setCargandoLogsOptica(false)
-  }
-
-  const alternarActividadOptica = () => {
-    const abrir = !mostrarActividadOptica
-    setMostrarActividadOptica(abrir)
-    if (abrir && logsOptica.length === 0 && detalle) cargarActividadOptica(detalle.id)
   }
 
   // Se corre después de cada cargarDatos() (o sea, cada vez que el superadmin
@@ -1460,7 +1436,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <ResumenNegocio
       datos={datosNegocio} opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
       incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} usuario={usuario}
-      actividad={auditoria} onAbrir={irA} onEntrarComo={(o) => alEntrarComo?.(o)} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
+      actividad={auditoria} onAbrir={irA} onEntrarComo={pedirEntrada} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
     />
   )
 
@@ -1711,7 +1687,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[13%]")}>Estado</th>
               {saas && <th scope="col" className={celdaTitulo + " w-[10%]"}>Salud</th>}
               {saas && <th scope="col" className={celdaTitulo + " w-[10%]"}>Pago</th>}
-              <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[12%]") + " text-right"}>Uso 30 d</th>
+              <th scope="col" className={celdaTitulo + (saas ? " w-[10%]" : " w-[12%]") + " text-right"}>Última actividad</th>
               <th scope="col" className={celdaTitulo + (saas ? " w-[11%]" : " w-[15%]")}>Creada</th>
               <th scope="col" className={celdaTitulo + (saas ? " w-[5%]" : " w-[6%]") + " text-center"}><span className="sr-only">Acciones</span></th>
             </tr>
@@ -1765,7 +1741,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     </td>
                     {saas && <td className="px-4 py-3">{o.activa && salud ? <InsigniaSalud estado={salud.estado} /> : <span className="text-slate-400">—</span>}</td>}
                     {saas && <td className="px-4 py-3 text-slate-600">{PAGO_ETIQUETA[o.estado_pago || "al_dia"]}</td>}
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-700" title={u ? `${u.citas} citas · ${u.consultas} consultas · ${u.ventas} ventas` : undefined}>{u ? u.citas + u.consultas + u.ventas : <span className="text-slate-400">—</span>}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{u && ultimaActividadDe(u) ? haceDias(ultimaActividadDe(u), hoyISO()) : <span className="text-slate-400">—</span>}</td>
                     <td className="px-4 py-3 text-slate-600">{fechaLegible(diaDe(o.created_at))}</td>
                     <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
                       <button
@@ -2267,7 +2243,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               type="button"
               disabled={!o.activa}
               title={o.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
-              onClick={() => { setMenuAccionesId(null); alEntrarComo?.(o) }}
+              onClick={() => { setMenuAccionesId(null); pedirEntrada(o) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
             >
               <LogIn size={15} /> Entrar como administrador
@@ -2348,7 +2324,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             type="button"
             disabled={!detalle.activa}
             title={detalle.activa ? "Entra al panel de esta óptica con tus propios permisos de superadmin" : "No puedes entrar a una óptica suspendida"}
-            onClick={() => alEntrarComo?.(detalle)}
+            onClick={() => pedirEntrada(detalle)}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer"
             style={{ background: GRAD }}
           >
@@ -2366,16 +2342,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
           {/* ─── Uso: lo registrado y lo de los últimos 30 días ─── */}
           <div>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Uso del sistema</p>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Uso del sistema · sin volumen del negocio</p>
             {(() => {
               const u = datosNegocio.uso.find((x) => x.optica_id === detalle.id)
+              const usados = u ? MODULOS_USO.filter((m) => u.modulos?.[m.id]) : []
+              const ultima = u ? ultimaActividadDe(u) : ""
               const celdas = [
-                { t: "Pacientes", v: u?.pacientes ?? pacientesPorOptica.get(detalle.id) ?? 0, i: Stethoscope, nota: "registrados" },
-                { t: "Asistentes", v: u?.asistentes ?? asistentesPorOptica.get(detalle.id) ?? 0, i: Users, nota: "activos" },
                 { t: "Personas activas", v: u ? u.personas_activas : "—", i: Users, nota: "en 30 días" },
-                { t: "Citas", v: u ? u.citas : "—", i: Calendar, nota: "en 30 días" },
-                { t: "Consultas", v: u ? u.consultas : "—", i: Stethoscope, nota: "en 30 días" },
-                { t: "Ventas", v: u ? u.ventas : "—", i: Receipt, nota: "en 30 días" },
+                { t: "Módulos en uso", v: u ? `${usados.length} de ${MODULOS_USO.length}` : "—", i: Building2, nota: "en 30 días" },
+                { t: "Última actividad", v: u ? (ultima ? haceDias(ultima, hoyISO()) : "Ninguna") : "—", i: History, nota: "del personal" },
               ]
               return (
                 <div className="grid grid-cols-3 gap-2">
@@ -2672,59 +2647,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 {slugCopiado ? "Copiado" : "Copiar"}
               </button>
             </div>
-          </div>
-
-          {/* ─── Ver actividades de esta óptica (logs_optica) — separado de
-              "Actividad" del panel general, que es solo del superadmin. ─── */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actividad de esta óptica</p>
-              <button type="button" onClick={alternarActividadOptica} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                <History size={13} /> {mostrarActividadOptica ? "Ocultar" : "Ver actividades"}
-              </button>
-            </div>
-
-            {mostrarActividadOptica && (
-              <div className="rounded-xl border border-slate-200/60 p-3.5">
-                {(() => {
-                  const usuariosEnLogsOptica = [...new Set(logsOptica.map((l) => l.usuario_nombre))]
-                  const logsFiltradosOptica = filtroUsuarioLogOptica === "todos" ? logsOptica : logsOptica.filter((l) => l.usuario_nombre === filtroUsuarioLogOptica)
-                  return (
-                    <>
-                      {usuariosEnLogsOptica.length > 0 && (
-                        <select
-                          value={filtroUsuarioLogOptica}
-                          onChange={(e) => setFiltroUsuarioLogOptica(e.target.value)}
-                          className="mb-2.5 w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-1.5 text-xs outline-none focus-visible:border-blue-500 focus-visible:bg-white"
-                        >
-                          <option value="todos">Todos los usuarios</option>
-                          {usuariosEnLogsOptica.map((n) => (<option key={n} value={n}>{n}</option>))}
-                        </select>
-                      )}
-                      {cargandoLogsOptica ? (
-                        <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
-                          <Loader2 size={14} className="animate-spin" /> Cargando actividad…
-                        </div>
-                      ) : logsFiltradosOptica.length === 0 ? (
-                        <p className="py-4 text-center text-xs text-slate-400">Sin actividad registrada para esta óptica.</p>
-                      ) : (
-                        <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto">
-                          {logsFiltradosOptica.map((l) => (
-                            <div key={l.id} className="py-2">
-                              <p className="text-xs text-slate-700">
-                                <span className="font-semibold text-slate-800">{l.usuario_nombre}</span> {l.accion.charAt(0).toLowerCase() + l.accion.slice(1)}
-                                {l.detalle && <span className="text-slate-500"> — {l.detalle}</span>}
-                              </p>
-                              <p className="mt-0.5 text-xs text-slate-400">{NOMBRE_MODULO[moduloDeRegistro(l)] || l.modulo} · {fechaHoraLegible(l.created_at, { anio: true })}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )
-                })()}
-              </div>
-            )}
           </div>
 
           {/* ─── Personalización del login (lo único que ve el cliente) — desde
@@ -3354,6 +3276,37 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           <div className="border-t border-slate-100 pt-5">
             <SeccionMfa />
           </div>
+          </div>
+        </Cascaron>
+      )}
+
+      {/* ─── ENTRAR COMO ADMINISTRADOR (con autorización de la óptica y motivo) ─── */}
+      {entrada && (
+        <Cascaron
+          titulo="Entrar como administrador"
+          subtitulo={entrada.optica.nombre}
+          Icono={LogIn}
+          ancho="max-w-md"
+          onCerrar={() => !entrada.enviando && setEntrada(null)}
+          formulario={{ onSubmit: confirmarEntrada }}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setEntrada(null)} disabled={entrada.enviando} className="rounded-lg border border-slate-200/60 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button type="submit" disabled={entrada.enviando} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:opacity-60" style={{ background: GRAD }}><LogIn size={15} aria-hidden="true" /> {entrada.enviando ? "Entrando…" : "Entrar"}</button>
+            </div>
+          </>}
+        >
+          <div className="space-y-3 p-5">
+            {esDePrueba(entrada.optica) ? (
+              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600">Es un entorno de prueba: no hace falta la autorización de su administrador.</p>
+            ) : (
+              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600">Los datos de la óptica son suyos. Solo puedes entrar si su administrador activó <span className="font-semibold">«Permitir acceso del soporte»</span>. Recibirá un aviso con la fecha y el motivo, y la entrada queda en su actividad.</p>
+            )}
+            <label className="block text-sm font-semibold text-slate-700">Motivo{esDePrueba(entrada.optica) ? " (opcional)" : ""}
+              <textarea rows={3} value={entrada.motivo} onChange={(e) => setEntrada((x) => ({ ...x, motivo: e.target.value }))} placeholder="Ej. Revisar el error de la consulta SOP-0042" autoFocus className="mt-1 w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm font-normal outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+            </label>
+            {entrada.error && <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" /> {entrada.error}</p>}
           </div>
         </Cascaron>
       )}

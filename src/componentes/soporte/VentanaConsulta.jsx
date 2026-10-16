@@ -7,6 +7,7 @@ import { Cascaron } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA } from "../ventas/estilos"
 import { BurbujaMensaje, CampoCapturas, InsigniaEstado, InsigniaUrgencia } from "./piezas"
 import { codigoConsulta, nombreModulo, nombreTipo } from "../../utilidades/soporte"
+import { supabase } from "../../lib/supabaseClient"
 import { calificarConsulta, cerrarConsulta, escalarConsulta, leerConversacion, marcarConsultaLeida, reabrirConsulta, responderConsulta } from "../../utilidades/soporteDatos"
 import { dondeEsta, puedeEscalar } from "../../utilidades/comunicacionInterna"
 import { fechaHoraLegible } from "../../utilidades/formatoFecha"
@@ -28,6 +29,7 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
   const [comentario, setComentario] = useState("")
   const [modoEscalar, setModoEscalar] = useState(false)
   const [notaEscalada, setNotaEscalada] = useState("")
+  const [permitirEntrada, setPermitirEntrada] = useState(false)
   const fin = useRef(null)
   const esAutor = consulta.autorId === usuario.id
   const resuelta = consulta.estado === "resuelta"
@@ -63,7 +65,11 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
   const escalar = async (e) => {
     e.preventDefault()
     setEnviando(true)
-    if (await despues(await escalarConsulta(consulta.id, notaEscalada.trim()))) { setModoEscalar(false); setNotaEscalada("") }
+    if (await despues(await escalarConsulta(consulta.id, notaEscalada.trim()))) {
+      // Opcional: dejar que el soporte entre a la óptica por 24 horas para resolverla (lo valida el servidor).
+      if (permitirEntrada) await supabase.rpc("permitir_acceso_soporte", { p_horas: 24, p_consulta: consulta.id })
+      setModoEscalar(false); setNotaEscalada(""); setPermitirEntrada(false)
+    }
     setEnviando(false)
   }
   const marcarResuelta = async () => { setEnviando(true); await despues(await cerrarConsulta(consulta.id)); setEnviando(false) }
@@ -156,6 +162,7 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
             <label htmlFor="soporte-escalar" className="block text-sm font-semibold text-slate-700">Escalar al soporte del sistema</label>
             <p className="text-xs text-slate-500">El soporte verá toda la conversación y los archivos. Puedes agregar una nota para explicar qué ya probaste.</p>
             <textarea id="soporte-escalar" rows={2} value={notaEscalada} maxLength={1000} onChange={(e) => setNotaEscalada(e.target.value)} placeholder="Nota para el soporte (opcional)" className={CAMPO + " bg-white"} />
+            <label className="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={permitirEntrada} onChange={(e) => setPermitirEntrada(e.target.checked)} className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600" /><span>Permitir que el soporte entre a mi óptica por 24 horas para resolverla. Recibirás un aviso con el motivo de cada entrada.</span></label>
             <div className="flex items-center gap-2">
               <button type="submit" disabled={enviando} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{enviando ? "Escalando…" : "Escalar consulta"}</button>
               <button type="button" onClick={() => { setModoEscalar(false); setNotaEscalada(""); setError("") }} className={CLASE_ACCION_SECUNDARIA}>Cancelar</button>

@@ -34,9 +34,9 @@ const facturas = [
 const eventos = [{ id: "e1", optica_id: "o4", accion: "suspender_optica", created_at: ins("2026-10-10") }]
 const personas = [{ optica_id: "o1", activo: true, ultimo_ingreso: ins("2026-10-15") }, { optica_id: "o2", activo: true, ultimo_ingreso: ins("2026-08-01") }]
 const uso = [
-  { optica_id: "o1", citas: 10, consultas: 6, ventas: 4, personas_activas: 3, previo: { citas: 8, consultas: 6, ventas: 5, personas_activas: 2 }, modulos: { citas: 9, ventas: 2 } },
-  { optica_id: "o2", citas: 0, consultas: 0, ventas: 0, personas_activas: 0, previo: {}, modulos: {} },
-  { optica_id: "o3", citas: 50, consultas: 50, ventas: 50, personas_activas: 9, previo: {}, modulos: { citas: 50 } },
+  { optica_id: "o1", personas_activas: 3, previo: { personas_activas: 2, modulos_en_uso: 1 }, modulos: { citas: ins("2026-10-14"), ventas: ins("2026-10-10") } },
+  { optica_id: "o2", personas_activas: 0, previo: {}, modulos: {} },
+  { optica_id: "o3", personas_activas: 9, previo: {}, modulos: { citas: ins("2026-10-16") } },
 ]
 const consultas = [
   { id: "c1", numero: 1, opticaId: "o1", asunto: "No carga", estado: "recibida", urgencia: "urgente", creadaEn: ins("2026-10-10"), primeraRespuestaEn: null, resueltaEn: null, calificacion: null },
@@ -95,6 +95,19 @@ describe("Resumen del superadmin", () => {
     ventana = screen.getByRole("dialog")
     expect(within(ventana).getAllByRole("row")).toHaveLength(1 + 1) // FACT-2
     expect(within(ventana).getByText("FACT-2")).toBeInTheDocument()
+  })
+
+  it("el uso no muestra volumen del negocio: personas activas y, por módulo, si se usa y cuándo fue la última vez", () => {
+    render(<Montado />)
+    expect(valorDe("Personas activas")).toContain("3")
+    expect(valorDe("Módulos en uso")).toContain("2 de 7")
+    for (const t of ["Citas registradas", "Consultas", "Ventas"]) expect(screen.queryByRole("button", { name: new RegExp(`^${t}: `) })).toBeNull()
+    const tabla = screen.getByRole("table", { name: "Qué módulos se usan" })
+    const fila = (m) => within(tabla).getByRole("row", { name: new RegExp(`^${m}`) })
+    expect(within(fila("Citas médicas")).getByText("En uso · última vez hace 2 días")).toBeInTheDocument()
+    expect(within(fila("Ventas")).getByText("En uso · última vez hace 6 días")).toBeInTheDocument()
+    expect(within(fila("Inventario")).getAllByText("Sin uso en 30 días").length).toBeGreaterThan(0)
+    expect(tabla.textContent).not.toMatch(/d+ (citas|consultas|ventas|pacientes)/i)
   })
 
   it("Soporte: las tarjetas coinciden con la bandeja (mismas funciones y mismo conteo)", () => {

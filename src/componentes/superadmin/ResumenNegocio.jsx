@@ -23,7 +23,7 @@ import { rangoDePeriodo, rangoAnterior, etiquetaComparacion, variacion, diaDe } 
 import { codigoConsulta, duracionLegible, indicadoresSoporte, esAbierta } from "../../utilidades/soporte"
 import {
   opticasDelNegocio, idsDePrueba, ingresosDelPeriodo, porCobrarAl, serieIngresos, clientesDelPeriodo, serieClientes, saludDeLaRed, contarSalud,
-  AYUDA_SALUD, SALUD, usoDeLaRed, frasesDeAccion, sinPruebas, tiposVisibles, MODULOS_USO, embudoLeads, consultasAbiertasAl, instanteInicio, instanteFin,
+  AYUDA_SALUD, SALUD, usoDeLaRed, textoUsoModulo, frasesDeAccion, sinPruebas, tiposVisibles, MODULOS_USO, embudoLeads, consultasAbiertasAl, instanteInicio, instanteFin,
 } from "../../utilidades/superadminNegocio"
 
 const DINERO = { baseMinima: 100, formato: dinero }
@@ -146,10 +146,6 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
     columna("Estado", (l) => ESTADOS_LEAD[l.estado]?.nombre || l.estado, 108),
     fecha("Recibido", (l) => l.created_at, 118),
   ]
-  const colsUsoPorOptica = (clave, titulo) => [
-    columna("Óptica", (u) => nombreOptica(u.optica_id)),
-    { titulo, ancho: 150, derecha: true, valor: (u) => clave(u), tipo: "entero", crudo: (u) => clave(u) },
-  ]
 
   const sinNada = !datos.cargando && opticas.length === 0
   const etiquetas = [
@@ -246,42 +242,29 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
   )
 
   const secUso = (
-        <Seccion titulo="Uso del sistema" ayuda="Lo que hizo el personal de las ópticas activas en los últimos 30 días, sin importar el período elegido arriba. Se compara con los 30 días anteriores. Personas activas = quienes anotaron al menos una acción. Los módulos se cuentan por las acciones que el personal anotó en la actividad de cada óptica.">
+        <Seccion titulo="Uso del sistema" ayuda="Si el sistema se usa, sin mirar el negocio de las ópticas: el superadmin no ve cuántas citas, consultas, ventas ni pacientes tiene una óptica (privacidad). Se mira lo que hizo el personal en los últimos 30 días, sin importar el período de arriba, y se compara con los 30 días anteriores. Personas activas = quienes hicieron algo. Un módulo está en uso si alguien hizo algo en él.">
           {datos.sinServidor ? (
             <SinResultados texto="Todavía no se puede leer el uso de las ópticas. Vuelve a intentarlo en un momento." acciones={[{ etiqueta: "Reintentar", onClick: datos.recargar }]} />
           ) : (
             <>
               <div className={REJILLA_TARJETAS_4}>
-                {[
-                  { titulo: "Personas activas", valor: uso.personas, previo: uso.personasPrevio, clave: (u) => u.personas_activas, icono: Users, nombre: "Personas activas", unidad: "Personas" },
-                  { titulo: "Citas registradas", valor: uso.citas, previo: uso.citasPrevio, clave: (u) => u.citas, icono: Inbox, nombre: "Citas registradas", unidad: "Citas" },
-                  { titulo: "Consultas", valor: uso.consultas, previo: uso.consultasPrevio, clave: (u) => u.consultas, icono: Headset, nombre: "Consultas", unidad: "Consultas" },
-                  { titulo: "Ventas", valor: uso.ventas, previo: uso.ventasPrevio, clave: (u) => u.ventas, icono: DollarSign, nombre: "Ventas", unidad: "Ventas" },
-                ].map((t) => tarjeta({ titulo: t.titulo, valor: t.valor, comparacion: "vs. los 30 días anteriores", ayuda: `${t.nombre} de las ópticas activas en los últimos 30 días.`, onClick: () => abrir({ titulo: `${t.titulo} en 30 días: ${t.valor}`, valor: t.valor, icono: t.icono, columnas: colsUsoPorOptica(t.clave, t.unidad), filas: uso.filas.filter((u) => t.clave(u) > 0), abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } }) }, t.valor, t.previo))}
+                {tarjeta({ titulo: "Personas activas", valor: uso.personas, comparacion: "vs. los 30 días anteriores", ayuda: "Personas del personal que hicieron algo en el sistema en los últimos 30 días.", onClick: () => abrir({ titulo: `Personas activas en 30 días: ${uso.personas}`, valor: uso.personas, icono: Users, columnas: [columna("Óptica", (u) => nombreOptica(u.optica_id)), { titulo: "Personas activas", ancho: 150, derecha: true, valor: (u) => u.personas_activas, tipo: "entero", crudo: (u) => u.personas_activas }], filas: uso.filas.filter((u) => u.personas_activas > 0), abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } }) }, uso.personas, uso.personasPrevio)}
+                {tarjeta({ titulo: "Módulos en uso", valor: `${uso.modulosEnUso} de ${MODULOS_USO.length}`, comparacion: "vs. los 30 días anteriores", ayuda: "Módulos en los que alguien hizo algo en los últimos 30 días.", onClick: () => abrir({ titulo: `Módulos en uso: ${uso.modulosEnUso} de ${MODULOS_USO.length}`, valor: uso.modulosEnUso, icono: Building2, columnas: [columna("Módulo", (m) => m.nombre), columna("Estado", (m) => textoUsoModulo(m.ultima, hoyClave), 300)], filas: uso.porModulo }) }, uso.modulosEnUso, uso.modulosPrevio)}
               </div>
-              <Caja titulo="Qué módulos usa cada óptica · últimos 30 días" ayuda="Cada número son las acciones que el personal anotó en ese módulo. Un guion es que no usó el módulo. Pulsa una óptica para ver su detalle." exportar={bloque("Uso por módulo",
-                () => ({ columnas: [col("Módulo", (m) => m.nombre), col("Acciones", (m) => m.acciones, "entero"), col("Ópticas que lo usan", (m) => m.opticas.length, "entero")], filas: uso.porModulo }),
-                () => ({ columnas: [col("Óptica", (u) => nombreOptica(u.optica_id)), ...MODULOS_USO.map((m) => col(m.nombre, (u) => u.modulos?.[m.id] || 0, "entero"))], filas: uso.filas }))}>
+              <Caja titulo="Qué módulos se usan · últimos 30 días" ayuda="Para cada módulo y cada óptica: si se usó y cuándo fue la última vez. No se muestra cuánto." exportar={bloque("Uso por módulo",
+                () => ({ columnas: [col("Módulo", (m) => m.nombre), col("Estado", (m) => textoUsoModulo(m.ultima, hoyClave))], filas: uso.porModulo }),
+                () => ({ columnas: [col("Óptica", (x) => nombreOptica(x.optica)), col("Módulo", (x) => x.modulo), col("Estado", (x) => x.estado)], filas: uso.filas.flatMap((u) => MODULOS_USO.map((m) => ({ optica: u.optica_id, modulo: m.nombre, estado: textoUsoModulo(u.modulos?.[m.id], hoyClave) }))) }))}>
                 {uso.filas.length === 0 ? <SinResultados texto="Todavía no hay ópticas activas que mostrar." /> : (
-                  <table className="w-full table-fixed text-sm" aria-label="Módulos que usa cada óptica">
-                    <colgroup><col />{MODULOS_USO.map((m) => <col key={m.id} style={{ width: 96 }} />)}</colgroup>
-                    <thead><tr className="text-xs font-bold uppercase tracking-wider text-slate-500"><th scope="col" className="py-2 pr-2 text-left">Óptica</th>{MODULOS_USO.map((m) => <th key={m.id} scope="col" className="px-1 py-2 text-right" title={m.nombre}><span className="block truncate">{m.corto || m.nombre}</span></th>)}</tr></thead>
+                  <table className="w-full table-fixed text-sm" aria-label="Qué módulos se usan">
+                    <colgroup><col style={{ width: 180 }} />{uso.filas.map((u) => <col key={u.optica_id} />)}</colgroup>
+                    <thead><tr className="text-xs font-bold uppercase tracking-wider text-slate-500"><th scope="col" className="py-2 pr-2 text-left">Módulo</th>{uso.filas.map((u) => <th key={u.optica_id} scope="col" className="px-2 py-2 text-left"><span className="block truncate" title={nombreOptica(u.optica_id)}>{nombreOptica(u.optica_id)}</span></th>)}</tr></thead>
                     <tbody className="divide-y divide-slate-100">
-                      {uso.filas.map((u) => {
-                        const fila = salud.find((s) => s.optica.id === u.optica_id)
-                        return (
-                          <tr key={u.optica_id} className="hover:bg-slate-50/60">
-                            <td className="truncate py-1.5 pr-2">{fila && saas ? <button type="button" data-lista onClick={() => setOpticaAbierta(u.optica_id)} aria-label={`${nombreOptica(u.optica_id)}: ver el detalle`} className="block max-w-full truncate rounded-md px-1.5 py-0.5 text-left font-semibold transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{nombreOptica(u.optica_id)}</button> : nombreOptica(u.optica_id)}</td>
-                            {MODULOS_USO.map((m) => <td key={m.id} className="px-1 py-1.5 text-right tabular-nums">{u.modulos?.[m.id] ? <span className="font-semibold" style={{ color: INK }}>{u.modulos[m.id]}</span> : <span className="text-slate-400">—</span>}</td>)}
-                          </tr>
-                        )
-                      })}
-                      <tr className="font-bold">
-                        <th scope="row" className="py-1.5 pr-2 text-left text-xs uppercase tracking-wider text-slate-500">Total</th>
-                        {uso.porModulo.map((m) => (
-                          <td key={m.id} className="px-1 py-1.5 text-right tabular-nums">{m.acciones ? <button type="button" data-lista onClick={() => abrir({ titulo: `${m.nombre}: ${m.acciones} acciones en 30 días`, valor: m.acciones, icono: Building2, columnas: colsUsoPorOptica((u) => Number(u.modulos?.[m.id]) || 0, "Acciones"), filas: m.opticas, abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } })} aria-label={`${m.nombre}: ${m.acciones} acciones. Ver las ópticas`} className="rounded-md px-1.5 py-0.5 font-bold transition-colors hover:bg-blue-50 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{m.acciones}</button> : <span className="text-slate-400">—</span>}</td>
-                        ))}
-                      </tr>
+                      {MODULOS_USO.map((m) => (
+                        <tr key={m.id}>
+                          <th scope="row" className="py-1.5 pr-2 text-left font-semibold" style={{ color: INK }}>{m.nombre}</th>
+                          {uso.filas.map((u) => { const ultima = u.modulos?.[m.id]; return <td key={u.optica_id} className={"px-2 py-1.5 " + (ultima ? "text-slate-700" : "text-slate-400")}>{textoUsoModulo(ultima, hoyClave)}</td> })}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 )}
