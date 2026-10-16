@@ -6,7 +6,7 @@ const TEXTO_RED = "No se pudo guardar. Revisa tu conexión e intenta de nuevo."
 const textoDeError = (e) => (e?.message && !/fetch|network|JWT|permission denied|violates|relation/i.test(e.message) ? e.message : TEXTO_RED)
 
 export const ETIQUETA_PERMISO = {
-  recordatorios: { titulo: "Recordatorios de salud", ayuda: "Avisos de su control y de sus citas, y cómo le fue con sus lentes." },
+  recordatorios: { titulo: "Recordatorios de salud", ayuda: "Avisos de su control y de sus citas, y cómo le fue con sus lentes.", ayudaYo: "Avisos de tu control y de tus citas, y cómo te fue con tus lentes." },
   promociones: { titulo: "Promociones y saludos", ayuda: "Ofertas, novedades y saludos de la óptica, como el de cumpleaños." },
 }
 

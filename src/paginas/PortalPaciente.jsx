@@ -41,6 +41,8 @@ import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import MisCompras from "../componentes/MisCompras"
+import { misCompras } from "../utilidades/facturaElectronicaApi"
+import { dinero } from "../utilidades/formatoMoneda"
 import PermisosMensajes from "../componentes/PermisosMensajes"
 import { cambiarMisPermisos, leerMisPermisos } from "../utilidades/permisosMensajes"
 import { supabase } from "../lib/supabaseClient"
@@ -318,6 +320,15 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     [misCitas],
   )
   const proximaCita = citasPendientes[0] || null
+  // Lo que el paciente debe se avisa también en el Resumen, no solo en Mis compras (R21).
+  const [saldoPortal, setSaldoPortal] = useState(0)
+  useEffect(() => {
+    let vivo = true
+    misCompras(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token).then(({ compras }) => {
+      if (vivo) setSaldoPortal((compras || []).filter((c) => c.estado === "pendiente_pago").reduce((s, c) => s + Math.max(0, (Number(c.total) || 0) - (Number(c.abonado) || 0)), 0))
+    })
+    return () => { vivo = false }
+  }, [usuario?.id, usuario?.token])
 
   const validarYPedirConfirmacion = (e) => {
     e.preventDefault()
@@ -608,9 +619,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className={"grid grid-cols-1 gap-4 sm:grid-cols-2 " + (saldoPortal > 0 ? "lg:grid-cols-3" : "")}>
                 <TarjetaResumen label="Próxima visita" valor={proximaCita ? etiquetaFecha(proximaCita.fecha) : "Sin citas"} sub={proximaCita ? proximaCita.hora : "Agenda una cita"} icon={Clock} tile={GRAD} tileText="#fff" />
                 <TarjetaResumen label="Total de citas" valor={String(misCitas.length)} sub={misCitas.length === 1 ? "cita" : "citas"} icon={CalendarDays} tile="#eef2ff" tileText="#2563eb" />
+                {saldoPortal > 0 && (
+                  <button type="button" onClick={() => setSeccion("compras")} className="text-left cursor-pointer" aria-label={`Tienes un saldo por pagar de ${dinero(saldoPortal)}. Ver mis compras`}>
+                    <TarjetaResumen label="Saldo por pagar" valor={dinero(saldoPortal)} sub="Ver mis compras" icon={Receipt} tile="#fef3c7" tileText="#b45309" />
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -620,7 +636,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <button onClick={() => setSeccion("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Ver todas <ChevronRight size={14} /></button>
                   </div>
                   {citasPendientes.length === 0 ? (
-                    <p className="py-6 text-center text-sm text-slate-500">No tienes citas pendientes.</p>
+                    <div className="py-6 text-center"><button type="button" onClick={() => setModalAgendar(true)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Pedir una cita</button></div>
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} avisoNoReagendable={textoNoReagendable} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}
@@ -634,7 +650,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                     <button onClick={() => setSeccion("receta")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Ver receta <ChevronRight size={14} /></button>
                   </div>
                   {!ultimaReceta ? (
-                    <p className="py-6 text-center text-sm text-slate-500">Aún no tienes una receta registrada.</p>
+                    <p className="py-6 text-center text-sm text-slate-500">Todavía no tienes una receta registrada.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} />
@@ -821,7 +837,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
                 <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
                   <div>
-                    <p className="text-sm font-semibold" style={{ color: INK }}>Descargar mis datos</p>
+                    <p className="text-sm font-semibold" style={{ color: INK }}>Una copia de tus datos</p>
                     <p className="text-xs text-slate-500">Un archivo con tus datos personales, tus citas y tu historial clínico, incluidos tus antecedentes y alergias.</p>
                   </div>
                   <button type="button" onClick={descargarMisDatos} disabled={descargando} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">

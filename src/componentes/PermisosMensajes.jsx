@@ -30,7 +30,7 @@ export default function PermisosMensajes({ recordatorios, promociones, actualiza
           <div key={id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white px-3.5 py-2.5">
             <div className="min-w-0">
               <p id={`permiso-${id}`} className="text-sm font-bold" style={{ color: INK }}>{ETIQUETA_PERMISO[id].titulo}</p>
-              <p className="text-xs text-slate-500">{ETIQUETA_PERMISO[id].ayuda}</p>
+              <p className="text-xs text-slate-500">{quien === "yo" ? (ETIQUETA_PERMISO[id].ayudaYo || ETIQUETA_PERMISO[id].ayuda) : ETIQUETA_PERMISO[id].ayuda}</p>
             </div>
             {onCambiar ? (
               <button type="button" role="switch" aria-checked={valor} aria-labelledby={`permiso-${id}`} disabled={Boolean(guardando)} onClick={() => cambiar(id, !valor)}

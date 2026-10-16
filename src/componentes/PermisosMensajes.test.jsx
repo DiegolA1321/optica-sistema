@@ -35,4 +35,10 @@ describe("PermisosMensajes: los dos permisos para recibir mensajes", () => {
     rerender(<PermisosMensajes recordatorios promociones={false} quien="yo" />)
     expect(screen.getByText(/Aún no has cambiado tus permisos/)).toBeInTheDocument()
   })
+  it("al paciente le habla de tu, al personal de su", () => {
+    const { rerender } = render(<PermisosMensajes recordatorios promociones quien="yo" />)
+    expect(screen.getByText(/Avisos de tu control y de tus citas, y cómo te fue con tus lentes/)).toBeInTheDocument()
+    rerender(<PermisosMensajes recordatorios promociones />)
+    expect(screen.getByText(/Avisos de su control y de sus citas, y cómo le fue con sus lentes/)).toBeInTheDocument()
+  })
 })
