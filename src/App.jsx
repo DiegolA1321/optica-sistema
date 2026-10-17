@@ -1285,7 +1285,9 @@ function App() {
     );
   }
 
-  return <ResolutionGuard>{contenido}</ResolutionGuard>;
+  // El personal y el superadmin (dashboard y panel) siguen con la guarda de tamaño y zoom; todo lo que ve un paciente o un visitante se adapta (regla 48).
+  const pantallaDelPersonal = pantallaActual === 'dashboard' || pantallaActual === 'panel_superadmin';
+  return <ResolutionGuard desactivado={!pantallaDelPersonal}>{contenido}</ResolutionGuard>;
 }
 
 export default App;

@@ -322,7 +322,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           <div className="flex min-w-0 items-center gap-3">
             <div className="lg:hidden">{marca()}</div>
             <div className="min-w-0">
-              <p className="truncate text-lg font-bold tracking-tight" style={{ color: INK }}>{saludo}, {primerNombre}</p>
+              <p className="truncate text-lg font-bold tracking-tight" style={{ color: INK }}>{saludo}, {usuario?.nombre || primerNombre}</p>
               <p className="truncate text-base text-slate-600">{hoyFecha}</p>
             </div>
           </div>

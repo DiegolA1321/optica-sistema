@@ -131,7 +131,7 @@ describe("Portal del paciente — Resumen", () => {
   it("«La óptica» muestra dirección, horario, teléfono y WhatsApp, solo si están cargados", async () => {
     const disponibilidad = { horarioSemanal: { lunes: { manana: { activo: true, inicio: "09:00", fin: "13:00" } } } }
     const { unmount } = render(<PortalPaciente {...base} disponibilidad={disponibilidad} parametrizacion={{ opticaDireccion: "Av. 9 de Octubre 123", opticaTelefono: "0991234567" }} />)
-    const bloque = await screen.findByRole("region", { name: "Óptica Prueba" })
+    const bloque = await screen.findByRole("region", { name: "La óptica" })
     expect(bloque).toHaveTextContent("Av. 9 de Octubre 123")
     expect(bloque).toHaveTextContent("Lunes · ")
     expect(bloque).toHaveTextContent("0991234567")
@@ -140,7 +140,7 @@ describe("Portal del paciente — Resumen", () => {
     unmount()
     render(<PortalPaciente {...base} />)
     await resumen()
-    expect(screen.queryByRole("region", { name: "Óptica Prueba" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "La óptica" })).not.toBeInTheDocument()
   })
 })
 

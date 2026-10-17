@@ -90,7 +90,7 @@ export default function ResumenPortal({ cargando, esNuevo, proximaCita, ordenesA
       )}
 
       {hayContacto && (
-        <Bloque id="optica" titulo={nombreOptica} Icono={MapPin}>
+        <Bloque id="optica" titulo="La óptica" Icono={MapPin}>
           <div className="grid gap-5 md:grid-cols-2">
             <dl className="space-y-3 text-lg text-slate-700">
               {contacto.direccion && <div><dt className="text-base font-semibold text-slate-600">Dirección</dt><dd>{contacto.direccion}</dd></div>}
