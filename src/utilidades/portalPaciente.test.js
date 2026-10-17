@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   citasProximas, citasHistorial, NOTA_ESTADO_CITA, mapOrdenPaciente, ordenesAbiertasDelPaciente, nombreDeLosLentes,
-  textoOrdenPaciente, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
+  textoOrdenPaciente, pasosDeLosLentes, resumenCambioGraduacion, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
 } from "./portalPaciente"
 
 // "Hoy" fijo: 17 de octubre de 2026, mediodía (hora de Ecuador ya convertida: la función recibe un Date local).
@@ -113,5 +113,58 @@ describe("la óptica", () => {
 describe("receta", () => {
   it("cada valor tiene su explicación sencilla", () => {
     expect(Object.keys(AYUDA_RECETA).sort()).toEqual(["adicion", "agudeza", "cilindro", "eje", "esfera"])
+  })
+})
+
+describe("línea de pasos de los lentes", () => {
+  const o = (estado, fechaPrometida = "2026-10-25") => ({ estado, fechaPrometida })
+  const nombres = (r) => r.pasos.map((p) => p.nombre + ":" + p.estado).join(" ")
+  it("enviada: Pedido hecho, En el laboratorio actual", () => {
+    const r = pasosDeLosLentes(o("enviada"), HOY)
+    expect(nombres(r)).toBe("Pedido:hecho En el laboratorio:actual Listos para retirar:pendiente Entregados:pendiente")
+    expect(r.tono).toBe("azul")
+  })
+  it("atrasada: sigue en el laboratorio, en rojo como en Ventas", () => {
+    const r = pasosDeLosLentes(o("enviada", "2026-10-10"), HOY)
+    expect(r.actual).toBe(1)
+    expect(r.tono).toBe("rojo")
+  })
+  it("lista y entregada avanzan el paso", () => {
+    expect(pasosDeLosLentes(o("lista"), HOY)).toMatchObject({ actual: 2, tono: "verde" })
+    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listos para retirar:hecho Entregados:actual")
+  })
+})
+
+describe("cómo cambió la graduación", () => {
+  const c = (fecha, odEsf, oiEsf) => ({ fecha, od: { esfera: odEsf, cilindro: "" }, oi: { esfera: oiEsf, cilindro: "" } })
+  it("dice lo mismo que la tendencia del perfil del personal (mismo veredicto y mismo umbral)", () => {
+    expect(resumenCambioGraduacion([c("2026-10-01", "-1.50", "-1.25"), c("2026-04-01", "-1.50", "-1.25")]).verdicto).toBe("Sin cambios")
+    expect(resumenCambioGraduacion([c("2026-10-01", "-2.00", "-1.75"), c("2026-04-01", "-1.50", "-1.25")]).verdicto).toBe("Aumentó")
+    expect(resumenCambioGraduacion([c("2026-10-01", "-1.00", "-1.00"), c("2026-04-01", "-1.50", "-1.50")]).verdicto).toBe("Disminuyó")
+  })
+  it("lo cuenta en palabras simples, con la fecha del examen anterior y cada ojo", () => {
+    const r = resumenCambioGraduacion([c("2026-10-01", "-2.00", "-1.25"), c("2026-04-01", "-1.50", "-1.25")])
+    expect(r.frase).toBe("Tu graduación aumentó un poco desde tu examen del 1 abr 2026: en promedio 0,25 D más.")
+    expect(r.porOjo).toEqual([{ nombre: "Ojo derecho", texto: "aumentó 0,50 D" }, { nombre: "Ojo izquierdo", texto: "sin cambios" }])
+    expect(resumenCambioGraduacion([c("2026-10-01", "-1.25", "-1.25"), c("2026-04-01", "-1.25", "-1.25")]).frase).toBe("Tu graduación se mantiene igual que en tu examen del 1 abr 2026.")
+  })
+  it("con una sola receta no hay nada que comparar", () => {
+    expect(resumenCambioGraduacion([c("2026-10-01", "-1.50", "-1.25")])).toBeNull()
+    expect(resumenCambioGraduacion([])).toBeNull()
+  })
+})
+
+describe("la óptica, hoy", () => {
+  it("«Cómo llegar» abre el mapa con la dirección y el nombre; sin dirección no hay enlace", () => {
+    const c = contactoDeLaOptica({ parametrizacion: { opticaDireccion: "Av. 9 de Octubre 123" }, nombre: "Óptica Solna" })
+    expect(decodeURIComponent(c.comoLlegarUrl)).toContain("Av. 9 de Octubre 123, Óptica Solna")
+    expect(contactoDeLaOptica({}).comoLlegarUrl).toBe("")
+  })
+  it("dice si está abierta hoy con la función de la página pública (con el horario cargado)", () => {
+    const horarioSemanal = Object.fromEntries(["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"].map((d) => [d, { manana: { activo: true, inicio: "00:00", fin: "23:59" } }]))
+    const c = contactoDeLaOptica({ disponibilidad: { horarioSemanal } })
+    expect(c.hoy.abierto).toBe(true)
+    expect(c.hoy.texto).toMatch(/Abierto hoy hasta las/)
+    expect(contactoDeLaOptica({}).hoy).toBeNull()
   })
 })

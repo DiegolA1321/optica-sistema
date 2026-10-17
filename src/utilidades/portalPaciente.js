@@ -1,7 +1,8 @@
 // Lógica pura del portal del paciente (portal v2, 17 oct. 2026): lo que el paciente ve de sus lentes, de su control y de la óptica, con las mismas
 // funciones y los mismos estados que el sistema del personal (regla 2 y 18). El texto está pensado para una persona mayor: frases cortas, sin términos técnicos.
 import { ahoraEcuador } from "./horaEcuador"
-import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche } from "./disponibilidad"
+import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche, estadoAtencionHoy } from "./disponibilidad"
+import { tendenciaEntreConsultas, variacionEntre, verdictoPorVariacion, textoDioptrias } from "./tendenciaGraduacion"
 import { fechaLegible } from "./formatoFecha"
 import { diaDeRegistro } from "./periodoLista"
 import { estadoVisible } from "./ordenesLaboratorio"
@@ -49,6 +50,16 @@ export function textoOrdenPaciente(orden, hoy = ahoraEcuador()) {
   return { clave: "enviada", tono: "azul", titulo: "En el laboratorio", detalle: orden.fechaPrometida ? `Fecha estimada: ${fechaLegible(orden.fechaPrometida)}.` : "Te avisaremos cuando estén listos." }
 }
 
+// La línea de pasos del seguimiento de unos lentes (como el de un envío): Pedido → En el laboratorio → Listos para retirar → Entregados. «Atrasada» es
+// la misma orden en el paso del laboratorio, con su aviso en rojo (igual que en Ventas).
+export const PASOS_LENTES = ["Pedido", "En el laboratorio", "Listos para retirar", "Entregados"]
+export function pasosDeLosLentes(orden, hoy = ahoraEcuador()) {
+  const visible = estadoVisible(orden, hoy)
+  const actual = { enviada: 1, atrasada: 1, lista: 2, entregada: 3 }[visible] ?? 1
+  const tono = visible === "atrasada" ? "rojo" : visible === "lista" ? "verde" : visible === "entregada" ? "gris" : "azul"
+  return { actual, tono, pasos: PASOS_LENTES.map((nombre, i) => ({ nombre, estado: i < actual ? "hecho" : i === actual ? "actual" : "pendiente" })) }
+}
+
 // ── Próximo control ──
 // Una sola cuenta con el personal: `fechaProximoControl`. El portal solo recibe lo mínimo (mi_control_paciente) y arma con eso lo que la función pide.
 export function proximoControlDelPaciente(control, hoy = ahoraEcuador()) {
@@ -85,9 +96,36 @@ export function contactoDeLaOptica({ parametrizacion, disponibilidad, nombre = "
     telefonoHref: numero ? `tel:+${numero}` : "",
     whatsappUrl: numero ? linkWhatsApp(telefono, `Hola, soy ${paciente || "paciente"}${nombre ? ` de ${nombre}` : ""}.`) : "",
     horario: resumenHorarioSemanal(disponibilidad?.horarioSemanal),
+    // «Abierto hoy hasta las 6:00 PM» / «Cerrado hoy»: la misma frase que la página pública de la óptica.
+    hoy: disponibilidad ? estadoAtencionHoy(disponibilidad) : null,
+    comoLlegarUrl: texto(parametrizacion?.opticaDireccion) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([texto(parametrizacion?.opticaDireccion), nombre].filter(Boolean).join(", "))}` : "",
   }
 }
 export const tieneContacto = (c) => Boolean(c.direccion || c.telefono || c.horario.length)
+
+// ── Historial de recetas ──
+// Cómo cambió la graduación desde el examen anterior, en palabras simples. Usa las MISMAS cuentas que la tendencia del perfil del paciente en el sistema del personal
+// (`tendenciaEntreConsultas`: promedio del equivalente esférico, y menos de 0,25 D es «sin cambios»), así que los dos lados dicen siempre lo mismo.
+// `consultasRecientePrimero`: las consultas del paciente de la más reciente a la más antigua.
+export function resumenCambioGraduacion(consultasRecientePrimero = []) {
+  const t = tendenciaEntreConsultas(consultasRecientePrimero)
+  if (!t) return null
+  const desde = fechaLegible(t.fechaPrevia)
+  const mide = textoDioptrias(Math.abs(t.variacion)).replace(/^[+−]/, "")
+  const frase = t.verdicto === "Sin cambios"
+    ? `Tu graduación se mantiene igual que en tu examen del ${desde}.`
+    : t.verdicto === "Aumentó"
+      ? `Tu graduación aumentó un poco desde tu examen del ${desde}: en promedio ${mide} más.`
+      : `Tu graduación disminuyó desde tu examen del ${desde}: en promedio ${mide} menos.`
+  // Por ojo, con la misma resta y el mismo umbral de la tendencia (|equivalente esférico| de ahora menos el de antes; el ojo sin medida en alguno de los dos no se compara).
+  const [reciente, previa] = consultasRecientePrimero
+  const ojo = (nombre, clave) => {
+    const v = variacionEntre({ od: reciente[clave] }, { od: previa[clave] })
+    const tam = v === null ? "" : textoDioptrias(Math.abs(v)).replace(/^[+−]/, "")
+    return { nombre, texto: v === null ? "—" : verdictoPorVariacion(v) === "Sin cambios" ? "sin cambios" : v > 0 ? `aumentó ${tam}` : `disminuyó ${tam}` }
+  }
+  return { verdicto: t.verdicto, frase, desde, porOjo: [ojo("Ojo derecho", "od"), ojo("Ojo izquierdo", "oi")] }
+}
 
 // ── Receta ──
 // Qué significa cada valor, en palabras de todos los días (se muestra al pasar el cursor o tocar el dato).
