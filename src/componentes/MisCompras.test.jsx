@@ -41,9 +41,9 @@ describe("Portal: Mis compras", () => {
     const filas = [...screen.getByRole("list", { name: "Mis compras" }).children]
     expect(filas[0]).toHaveTextContent("Lentes progresivos con la montura Ray-Ban")
     expect(filas[0]).toHaveTextContent("En el laboratorio")
-    expect(filas[0]).toHaveTextContent("Fecha estimada: 20 ene 2099.")
+    expect(filas[0]).toHaveTextContent("Fecha estimada: 20 ene 2099")
     expect(filas[1]).toHaveTextContent("Listos para retirar")
-    expect(filas[1]).toHaveTextContent("Están en la óptica desde el 16 oct 2026")
+    expect(filas[1]).toHaveTextContent("16 oct 2026")
   })
 
   it("una compra sin orden de laboratorio no muestra nada de lentes", () => {

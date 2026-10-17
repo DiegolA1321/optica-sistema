@@ -3,7 +3,7 @@
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { LayoutDashboard, Calendar, User, CheckCircle2, AlertCircle, LogOut, Stethoscope, ChevronDown, CalendarClock, Glasses, KeyRound, Lock, Receipt, X } from "lucide-react"
+import { LayoutDashboard, Calendar, User, CheckCircle2, AlertCircle, LogOut, Stethoscope, ChevronDown, CalendarClock, Glasses, KeyRound, Lock, Receipt, X, Bell, ChevronRight } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import SelectorLista from "../componentes/SelectorLista"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -17,7 +17,10 @@ import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
 import { usePortalDatos } from "../componentes/portal/usePortalDatos"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "../componentes/portal/estilos"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto } from "../utilidades/portalPaciente"
+import { avisosDelPaciente, descargarIcs } from "../utilidades/portalVistas"
+import { descargarPdfReceta } from "../utilidades/recetaPdf"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 import { validarClaveNueva } from "../utilidades/validaciones"
@@ -51,7 +54,6 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [seccion, setSeccion] = useState("resumen")
   const [userMenu, setUserMenu] = useState(false)
   const userRef = useRef(null)
-  const datos = usePortalDatos(usuario)
   const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
 
   // Aviso que confirma lo que acaba de hacer el paciente (agendar, cambiar, cancelar): se queda a la vista hasta que lo cierra o pasan 8 segundos.
@@ -68,9 +70,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [guardandoCita, setGuardandoCita] = useState(false)
   const [errorCita, setErrorCita] = useState("")
   // «Agendar mi control» abre la misma ventana con el motivo de control ya elegido.
+  const [compraRelacionada, setCompraRelacionada] = useState("")
   const abrirAgendar = (para) => {
     const control = motivosConsulta.find((m) => /control/i.test(m))
-    setMotivo(para === "control" && control ? control : motivosConsulta[0] || "")
+    const garantia = motivosConsulta.find((m) => /garant/i.test(m))
+    setCompraRelacionada("")
+    setMotivo(para === "control" && control ? control : para === "garantia" && garantia ? garantia : motivosConsulta[0] || "")
     setFecha(""); setHora(""); setError(""); setErrorCita("")
     setModalAgendar(true)
   }
@@ -205,13 +210,30 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     if (!usuario?.id && !usuario?.cedula) return citas
     return citas.filter((c) => c.pacienteId === usuario.id || c.cedula === usuario.cedula || c.paciente === usuario.nombre)
   }, [citas, usuario])
+  const datos = usePortalDatos(usuario, misCitas)
   const proximas = useMemo(() => citasProximas(misCitas), [misCitas])
   const historial = useMemo(() => citasHistorial(misCitas), [misCitas])
   const proximaCita = proximas[0] || null
+  const comprasConSaldo = datos.compras.filter((c) => c.estado === "pendiente_pago" && Number(c.saldo) > 0)
   const saldo = saldoDelPaciente(datos.compras)
+  const saldoInfo = saldo > 0 ? { saldo, total: comprasConSaldo.reduce((s, c) => s + Number(c.total), 0), abonado: comprasConSaldo.reduce((s, c) => s + Number(c.abonado), 0) } : null
   const control = useMemo(() => proximoControlDelPaciente(datos.control), [datos.control])
   const contacto = contactoDeLaOptica({ parametrizacion, disponibilidad, nombre: nombreOptica, paciente: usuario?.nombre })
   const esNuevo = misCitas.length === 0 && misConsultas.length === 0 && datos.compras.length === 0 && datos.ordenes.length === 0
+  const [recetaAbierta, setRecetaAbierta] = useState(null)
+  const verReceta = (id) => { setSeccion("receta"); setRecetaAbierta(id); setUserMenu(false) }
+  // «Solicitar ajuste o garantía»: abre «Agendar cita» con el motivo ya elegido y dice de qué compra viene (la más reciente).
+  const pedirGarantia = () => { abrirAgendar("garantia"); const c = datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
+  // La fecha del «Pedido» es la de la compra a la que pertenece la orden.
+  const ordenesConPedido = datos.ordenes.map((o) => ({ ...o, pedidoEl: datos.compras.find((c) => c.id === o.facturaId)?.fecha || o.creadaEn }))
+  const avisos = avisosDelPaciente({ ordenes: datos.ordenes, proximaCita, control })
+  const [campana, setCampana] = useState(false)
+  const campanaRef = useRef(null)
+  useEffect(() => {
+    const fuera = (e) => { if (campanaRef.current && !campanaRef.current.contains(e.target)) setCampana(false) }
+    document.addEventListener("mousedown", fuera)
+    return () => document.removeEventListener("mousedown", fuera)
+  }, [])
 
   const validarYPedirConfirmacion = (e) => {
     e.preventDefault()
@@ -290,10 +312,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const hora24 = ahoraEcuador().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
   const hoyFecha = formatoFecha(ahoraEcuador(), "calendario")
+  const alIcs = (cita) => descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
   const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando }
   const cargandoPortal = cargandoDatos || datos.cargando
   const marca = () => (
-    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl" style={{ background: logoUrl ? "#fff" : "var(--portal-grad)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : "0 10px 24px -8px rgba(15,23,42,0.35)" }}>
+    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl sm:h-11 sm:w-11" style={{ background: logoUrl ? "#fff" : "var(--portal-grad)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : "0 10px 24px -8px rgba(15,23,42,0.35)" }}>
       {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <Glasses size={22} aria-hidden="true" />}
     </div>
   )
@@ -301,12 +324,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   return (
     <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-slate-50 font-sans text-slate-800">
       {/* ─── MENÚ LATERAL (laptop): claro, igual que el del personal ─── */}
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200/70 bg-slate-50/80 lg:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200/70 bg-slate-50/80 lg:flex">
         <div className="flex min-w-0 items-center gap-3 border-b border-slate-200/70 px-6 py-5">
           {marca()}
           <div className="min-w-0 leading-tight">
             <p className="truncate text-lg font-bold tracking-tight text-slate-900">{opticaPublica?.nombre || "Mi Óptica"}</p>
-            <p className="text-sm font-medium tracking-wide text-slate-600">PORTAL DEL PACIENTE</p>
+            <p className="text-sm font-medium text-slate-600">Portal del paciente</p>
           </div>
         </div>
         <nav aria-label="Menú del portal" className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 py-6">
@@ -335,11 +358,28 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <p className="truncate text-base text-slate-600">{hoyFecha}</p>
             </div>
           </div>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="relative" ref={campanaRef}>
+            <button type="button" onClick={() => { setCampana((v) => !v); setUserMenu(false) }} aria-haspopup="menu" aria-expanded={campana} aria-label={avisos.length ? `Avisos: tienes ${avisos.length}` : "Avisos: no tienes avisos nuevos"} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 sm:h-12 sm:w-12 transition-colors hover:bg-slate-50 cursor-pointer">
+              <Bell size={22} aria-hidden="true" />
+              {avisos.length > 0 && <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-red-600 px-1 text-sm font-bold text-white">{avisos.length}</span>}
+            </button>
+            {campana && (
+              <div role="menu" aria-label="Avisos" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <p className="border-b border-slate-100 px-4 py-3 text-lg font-bold" style={{ color: INK }}>Tus avisos</p>
+                {avisos.length === 0 ? <p className="px-4 py-5 text-lg text-slate-600">No tienes avisos por ahora.</p> : (
+                  <ul className="p-2">{avisos.map((a) => (
+                    <li key={a.id}><button type="button" role="menuitem" onClick={() => { setCampana(false); navegar(a.va) }} className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-50 cursor-pointer"><span className="min-w-0 flex-1">{a.texto}</span><ChevronRight size={20} className="shrink-0 text-slate-400" aria-hidden="true" /></button></li>
+                  ))}</ul>
+                )}
+              </div>
+            )}
+          </div>
           <div className="relative shrink-0" ref={userRef}>
-            <button type="button" onClick={() => setUserMenu((v) => !v)} aria-haspopup="menu" aria-expanded={userMenu} aria-label="Mi cuenta" className="flex min-h-12 items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer">
+            <button type="button" onClick={() => { setUserMenu((v) => !v); setCampana(false) }} aria-haspopup="menu" aria-expanded={userMenu} aria-label="Mi cuenta" className="flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-2 sm:min-h-12 sm:gap-2.5 sm:py-1.5 sm:pl-1.5 sm:pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-bold" style={{ background: "var(--portal-grad)", color: identidad.textoBoton }}>{primerNombre[0]?.toUpperCase()}</span>
-              <span className="max-w-[4.5rem] truncate text-left text-base font-semibold sm:max-w-[16rem]" style={{ color: INK }}>{usuario?.nombre || primerNombre}</span>
-              <ChevronDown size={18} aria-hidden="true" className={"text-slate-500 transition-transform " + (userMenu ? "rotate-180" : "")} />
+              <span className="max-w-[3.75rem] truncate text-left text-base font-semibold sm:max-w-[16rem]" style={{ color: INK }}>{usuario?.nombre || primerNombre}</span>
+              <ChevronDown size={18} aria-hidden="true" className={"hidden text-slate-500 transition-transform sm:block " + (userMenu ? "rotate-180" : "")} />
             </button>
             {userMenu && (
               <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
@@ -354,10 +394,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               </div>
             )}
           </div>
+          </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-5 sm:px-8 lg:pb-10 lg:pt-8">
-          <div className="mx-auto w-full max-w-7xl">
+          <div className="pt-zona mx-auto max-w-[1200px]">
             {aviso && (
               <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
                 <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={22} aria-hidden="true" />
@@ -367,15 +408,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             )}
 
             {seccion === "resumen" && (
-              <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} ordenesAbiertas={ordenesAbiertasDelPaciente(datos.ordenes)} control={control} tieneCitaPendiente={proximas.length > 0}
-                saldo={saldo} contacto={contacto} hayContacto={tieneContacto(contacto)} nombreOptica={nombreOptica} citaProps={citaProps} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} />
+              <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)}
+                control={control} tieneCitaPendiente={proximas.length > 0} saldoInfo={saldoInfo} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} hayCompras={datos.compras.length > 0} nombreOptica={nombreOptica} direccion={contacto.direccion}
+                citaProps={citaProps} onConfirmar={datos.confirmar} onIcs={alIcs} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} onDescargarReceta={() => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: ultimaReceta, mostrarMedidas })} onGarantia={pedirGarantia} />
             )}
-            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} nombreOptica={nombreOptica} />}
+            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={datos.confirmar} onIcs={alIcs} onVerReceta={verReceta} onCalificar={datos.calificar} />}
             {seccion === "receta" && (
-              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas}
+              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} recetaAbierta={recetaAbierta} onAbrirReceta={setRecetaAbierta} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
-            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={datos.ordenes} cargando={datos.cargando} error={datos.errorCompras} onPedirCita={abrirAgendar} />}
+            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} onPedirCita={abrirAgendar} />}
             {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} />}
           </div>
         </div>
@@ -413,6 +455,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         >
           <div className="space-y-5 p-3 sm:p-5">
             {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {error}</div>}
+            {compraRelacionada && <p className="rounded-xl bg-violet-50 px-4 py-3 text-lg text-violet-900">Ajuste o garantía de tu compra <span className="font-bold">{compraRelacionada}</span>. Cuéntale a tu optómetra qué necesitas cuando llegues.</p>}
             <div>
               <label htmlFor="portal-motivo" className="mb-1.5 block text-base font-semibold text-slate-700">Motivo de la cita</label>
               <SelectorLista id="portal-motivo" etiqueta="Motivo de la cita" valor={motivo} onChange={setMotivo} options={motivosConsulta} placeholder="Elige el motivo" requerido />

@@ -1,9 +1,10 @@
 // Lógica pura del portal del paciente (portal v2, 17 oct. 2026): lo que el paciente ve de sus lentes, de su control y de la óptica, con las mismas
 // funciones y los mismos estados que el sistema del personal (regla 2 y 18). El texto está pensado para una persona mayor: frases cortas, sin términos técnicos.
 import { ahoraEcuador } from "./horaEcuador"
-import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche, estadoAtencionHoy } from "./disponibilidad"
+import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche } from "./disponibilidad"
+import { estadoDeLaOpticaHoy } from "./portalVistas"
 import { tendenciaEntreConsultas, variacionEntre, verdictoPorVariacion, textoDioptrias } from "./tendenciaGraduacion"
-import { fechaLegible } from "./formatoFecha"
+import { fechaLegible, nombreMes } from "./formatoFecha"
 import { diaDeRegistro } from "./periodoLista"
 import { estadoVisible } from "./ordenesLaboratorio"
 import { fechaProximoControl } from "./fidelizacion"
@@ -79,7 +80,8 @@ export function textoOrdenPaciente(orden, hoy = ahoraEcuador()) {
 export const PASOS_LENTES = ["Pedido", "En el laboratorio", "Listos para retirar", "Entregados"]
 export function pasosDeLosLentes(orden, hoy = ahoraEcuador()) {
   const visible = estadoVisible(orden, hoy)
-  const actual = { enviada: 1, atrasada: 1, lista: 2, entregada: 3 }[visible] ?? 1
+  // Entregados es el último paso: ya cumplido (todos los pasos quedan hechos).
+  const actual = { enviada: 1, atrasada: 1, lista: 2, entregada: 4 }[visible] ?? 1
   const tono = visible === "atrasada" ? "rojo" : visible === "lista" ? "verde" : visible === "entregada" ? "gris" : "azul"
   return { actual, tono, pasos: PASOS_LENTES.map((nombre, i) => ({ nombre, estado: i < actual ? "hecho" : i === actual ? "actual" : "pendiente" })) }
 }
@@ -96,7 +98,7 @@ export function proximoControlDelPaciente(control, hoy = ahoraEcuador()) {
   const iso = fechaAISO(objetivo)
   const hoyIso = fechaAISO(hoy)
   const dias = Math.round((new Date(`${iso}T00:00:00Z`) - new Date(`${hoyIso}T00:00:00Z`)) / 86400000)
-  return { iso, dias, vencido: dias < 0, pronto: dias >= 0 && dias <= 30 }
+  return { iso, dias, vencido: dias < 0, pronto: dias >= 0 && dias <= 30, ultima: control.ultima_consulta }
 }
 
 export function textoControl(control) {
@@ -121,7 +123,7 @@ export function contactoDeLaOptica({ parametrizacion, disponibilidad, nombre = "
     whatsappUrl: numero ? linkWhatsApp(telefono, `Hola, soy ${paciente || "paciente"}${nombre ? ` de ${nombre}` : ""}.`) : "",
     horario: resumenHorarioSemanal(disponibilidad?.horarioSemanal),
     // «Abierto hoy hasta las 6:00 PM» / «Cerrado hoy»: la misma frase que la página pública de la óptica.
-    hoy: disponibilidad ? estadoAtencionHoy(disponibilidad) : null,
+    hoy: estadoDeLaOpticaHoy(disponibilidad),
     comoLlegarUrl: texto(parametrizacion?.opticaDireccion) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([texto(parametrizacion?.opticaDireccion), nombre].filter(Boolean).join(", "))}` : "",
   }
 }
@@ -148,7 +150,15 @@ export function resumenCambioGraduacion(consultasRecientePrimero = []) {
     const tam = v === null ? "" : textoDioptrias(Math.abs(v)).replace(/^[+−]/, "")
     return { nombre, texto: v === null ? "—" : verdictoPorVariacion(v) === "Sin cambios" ? "sin cambios" : v > 0 ? `aumentó ${tam}` : `disminuyó ${tam}` }
   }
-  return { verdicto: t.verdicto, frase, desde, porOjo: [ojo("Ojo derecho", "od"), ojo("Ojo izquierdo", "oi")] }
+  // Una frase por ojo, en palabras de todos los días: «Tu ojo derecho necesita un poco más de corrección que en marzo».
+  const mes = nombreMes(Number(String(t.fechaPrevia).slice(5, 7)) - 1)
+  const frasePorOjo = (nombre, clave) => {
+    const v = variacionEntre({ od: reciente[clave] }, { od: previa[clave] })
+    if (v === null) return null
+    if (verdictoPorVariacion(v) === "Sin cambios") return `Tu ${nombre} se mantiene igual que en ${mes}.`
+    return v > 0 ? `Tu ${nombre} necesita un poco más de corrección que en ${mes}.` : `Tu ${nombre} necesita un poco menos de corrección que en ${mes}.`
+  }
+  return { verdicto: t.verdicto, frase, desde, porOjo: [ojo("Ojo derecho", "od"), ojo("Ojo izquierdo", "oi")], frases: [frasePorOjo("ojo derecho", "od"), frasePorOjo("ojo izquierdo", "oi")].filter(Boolean) }
 }
 
 // ── Receta ──

@@ -1,149 +1,162 @@
 "use client"
 
 import { useState } from "react"
-import { Glasses, Download, FileText, Stethoscope, CheckCircle2, Info, TrendingUp, History } from "lucide-react"
-import { INK, GOLD } from "@/lib/tema"
+import { Glasses, Download, FileText, CheckCircle2, Info, TrendingUp, History, ClipboardList, Stethoscope, ChevronRight, Ruler } from "lucide-react"
+import { INK } from "@/lib/tema"
 import { formatoFecha } from "../../utilidades/formatoFecha"
-import { textoGraduacionOjo } from "../../utilidades/recetaTexto"
 import { AYUDA_RECETA, resumenCambioGraduacion } from "../../utilidades/portalPaciente"
+import { serieDeGraduacion } from "../../utilidades/portalVistas"
+import { textoGraduacionOjo } from "../../utilidades/recetaTexto"
 import { descargarPdfReceta } from "../../utilidades/recetaPdf"
+import { Cascaron } from "../AtencionPaciente"
 import { Bloque, TituloPagina, Esqueleto } from "./piezas"
+import GraficaGraduacion from "./GraficaGraduacion"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
 
-// Un dato de la receta con su explicación: al pasar el cursor se ve como ayuda, y al tocar el botón «?» se lee debajo (en el celular no hay cursor).
-function Dato({ etiqueta, valor, ayuda, abierto, alAlternar }) {
+// La tabla grande de la receta: una fila por dato, con «Ojo derecho» y «Ojo izquierdo» en columnas. Tocar una fila explica el dato en palabras simples.
+function TablaReceta({ receta }) {
+  const [abierta, setAbierta] = useState("")
+  const filas = [
+    ["esfera", "Esfera", receta.od?.esfera, receta.oi?.esfera],
+    ["cilindro", "Cilindro", receta.od?.cilindro, receta.oi?.cilindro],
+    ["eje", "Eje", receta.od?.eje ? `${receta.od.eje}°` : "", receta.oi?.eje ? `${receta.oi.eje}°` : ""],
+    ["adicion", "Adición", receta.medidas?.adicion, null],
+    ["agudeza", "Agudeza visual", receta.od?.avCc || receta.od?.avSc, receta.oi?.avCc || receta.oi?.avSc],
+  ].filter(([clave, , od]) => clave !== "adicion" || od)
   return (
-    <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <dt className="flex items-center gap-1 text-lg text-slate-600">
-          {etiqueta}
-          <button type="button" onClick={alAlternar} aria-expanded={abierto} aria-label={`¿Qué es ${etiqueta.toLowerCase()}?`} title={ayuda} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><Info size={20} aria-hidden="true" /></button>
-        </dt>
-        <dd className="text-3xl font-bold tabular-nums" style={{ color: INK }}>{valor || "—"}</dd>
+    <div role="table" aria-label="Tu receta" className="overflow-hidden rounded-2xl border border-slate-200/70">
+      <div role="row" className="grid grid-cols-[minmax(6.5rem,1fr)_1fr_1fr] items-end gap-2 bg-slate-50 px-4 py-3 sm:px-5">
+        <span role="columnheader"><span className="sr-only">Dato</span></span>
+        <span role="columnheader" className="text-lg font-bold text-blue-700">Ojo derecho</span>
+        <span role="columnheader" className="text-lg font-bold text-cyan-800">Ojo izquierdo</span>
       </div>
-      {abierto && <p role="note" className="rounded-xl bg-slate-50 px-4 py-3 text-lg text-slate-700">{ayuda}</p>}
+      {filas.map(([clave, etiqueta, od, oi]) => (
+        <div key={clave} role="row" className="border-t border-slate-200/70">
+          <button type="button" onClick={() => setAbierta((a) => (a === clave ? "" : clave))} aria-expanded={abierta === clave} aria-label={`${etiqueta}: ${clave === "adicion" ? od : `ojo derecho ${od || "sin dato"}, ojo izquierdo ${oi || "sin dato"}`}. Toca para saber qué significa`}
+            title={AYUDA_RECETA[clave]} className="grid min-h-16 w-full grid-cols-[minmax(6.5rem,1fr)_1fr_1fr] items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer sm:px-5">
+            <span role="rowheader" className="flex items-center gap-1.5 text-lg text-slate-600">{etiqueta}<Info size={18} className="shrink-0 text-slate-400" aria-hidden="true" /></span>
+            {clave === "adicion"
+              ? <span role="cell" className="col-span-2 font-heading text-3xl font-bold tabular-nums" style={{ color: INK }}>{od}</span>
+              : <><span role="cell" className="font-heading text-3xl font-bold tabular-nums" style={{ color: INK }}>{od || "—"}</span><span role="cell" className="font-heading text-3xl font-bold tabular-nums" style={{ color: INK }}>{oi || "—"}</span></>}
+          </button>
+          {abierta === clave && <p role="note" className="bg-slate-50 px-4 py-3 text-lg text-slate-700 sm:px-5">{AYUDA_RECETA[clave]}</p>}
+        </div>
+      ))}
     </div>
   )
 }
 
-function TarjetaOjo({ titulo, ojo = {}, abierto, alternar }) {
-  const dato = (clave, etiqueta, valor) => <Dato etiqueta={etiqueta} valor={valor} ayuda={AYUDA_RECETA[clave]} abierto={abierto === `${titulo}-${clave}`} alAlternar={() => alternar(`${titulo}-${clave}`)} />
+const Dato = ({ titulo, children }) => <div><p className="text-base font-semibold text-slate-600">{titulo}</p><p className="text-lg text-slate-800">{children}</p></div>
+
+// El detalle de una receta anterior (o la de una cita), en la ventana estándar.
+function DetalleReceta({ receta, onCerrar, onDescargar }) {
   return (
-    <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-4 sm:p-5">
-      <h3 className="mb-1 text-2xl font-bold" style={{ color: INK }}>{titulo}</h3>
-      <dl className="divide-y divide-slate-200/70">
-        {dato("esfera", "Esfera", ojo.esfera)}
-        {dato("cilindro", "Cilindro", ojo.cilindro)}
-        {dato("eje", "Eje", ojo.eje ? `${ojo.eje}°` : "")}
-        {dato("agudeza", "Agudeza visual", ojo.avCc || ojo.avSc)}
-      </dl>
-    </div>
+    <Cascaron pantallaCompletaEnCelular titulo={`Receta del ${formatoFecha(receta.fecha, "medio")}`} subtitulo={receta.profesionalNombre ? `Emitida por ${receta.profesionalNombre}` : "Tu receta"} Icono={Glasses} ancho="max-w-xl" onCerrar={onCerrar}
+      pie={<><button type="button" onClick={onDescargar} className={BOTON_SECUNDARIO}><Download size={20} aria-hidden="true" /> Descargar receta</button><button type="button" onClick={onCerrar} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
+      <div className="space-y-4 p-5">
+        <TablaReceta receta={receta} />
+        {receta.lenteRecomendado && <Dato titulo="Lente recomendado">{receta.lenteRecomendado}</Dato>}
+        {receta.diagnostico && <Dato titulo="Diagnóstico">{receta.diagnostico}</Dato>}
+        {receta.indicaciones && <Dato titulo="Indicaciones de tu optómetra">{receta.indicaciones}</Dato>}
+      </div>
+    </Cascaron>
   )
 }
 
-// Mi receta: «Ojo derecho» y «Ojo izquierdo» (nunca OD y OI), cada valor con su explicación, y la receta para descargar en PDF.
-export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnteriores, todasLasRecetas = [], usuario, nombreOptica, mostrarMedidas, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
-  const [abierto, setAbierto] = useState("")
-  const alternar = (id) => setAbierto((a) => (a === id ? "" : id))
-
-  if (cargando) return <div className="space-y-5" aria-busy="true" aria-label="Cargando tu receta"><TituloPagina>Mi receta</TituloPagina><Esqueleto alto="h-72" /></div>
-
+// Mi receta: la receta vigente en una tarjeta principal con una tabla grande («Ojo derecho» y «Ojo izquierdo»), las indicaciones del optómetra, cómo cambió la graduación
+// (gráfica y frases) y las recetas anteriores, cada una con su detalle. «Descargar receta» baja el PDF.
+export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnteriores, todasLasRecetas = [], recetaAbierta, onAbrirReceta, usuario, nombreOptica, mostrarMedidas, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
+  if (cargando) return <div className="space-y-6" aria-busy="true" aria-label="Cargando tu receta"><TituloPagina>Mi receta</TituloPagina><Esqueleto alto="h-80" /></div>
+  const descargar = (r) => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: r, mostrarMedidas })
   const cambio = resumenCambioGraduacion(todasLasRecetas)
-  return (
-    <div className="space-y-5">
-      <TituloPagina subtitulo="Tu graduación actual y lo que indicó tu optómetra.">Mi receta</TituloPagina>
-      <div className="grid gap-5 lg:grid-cols-12 lg:items-start">
-      <div className={ultimaReceta && todasLasRecetas.length > 1 ? "lg:col-span-8" : "lg:col-span-12"}>
+  const puntos = serieDeGraduacion(todasLasRecetas)
+  const abierta = todasLasRecetas.find((r) => r.id === recetaAbierta)
 
-      {!ultimaReceta ? (
+  if (!ultimaReceta) {
+    return (
+      <div className="space-y-6">
+        <TituloPagina subtitulo="Tu graduación actual y lo que indicó tu optómetra.">Mi receta</TituloPagina>
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-full bg-slate-50 text-slate-400"><FileText size={26} aria-hidden="true" /></div>
           <p className="text-xl font-semibold text-slate-700">Todavía no tienes una receta</p>
           <p className="max-w-md text-lg text-slate-600">Aparece aquí después de tu primer examen visual.</p>
           <button type="button" onClick={() => onAgendar()} className={BOTON_PRINCIPAL + " mt-1"} style={ESTILO_PRINCIPAL}>Agendar cita</button>
         </div>
-      ) : (
-        <Bloque id="receta" titulo="Receta óptica" Icono={Glasses}>
-          <div className="-mt-2 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-lg text-slate-600">Última actualización: {formatoFecha(ultimaReceta.fecha, "medio")}</p>
-            <button type="button" onClick={() => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: ultimaReceta, mostrarMedidas })} className={BOTON_SECUNDARIO}><Download size={20} aria-hidden="true" /> Descargar receta</button>
+      </div>
+    )
+  }
+  const m = ultimaReceta.medidas || {}
+  return (
+    <div className="space-y-6">
+      <TituloPagina subtitulo="Tu graduación actual y lo que indicó tu optómetra.">Mi receta</TituloPagina>
+
+      <div className="pt-fila pt-fila--8-4">
+        <Bloque id="receta" titulo="Tu receta vigente" Icono={Glasses} tono="rosa">
+          <div className="mb-4 space-y-1 text-lg text-slate-700">
+            <p><span className="font-semibold text-slate-900">{formatoFecha(ultimaReceta.fecha, "medio")}</span>{ultimaReceta.profesionalNombre ? ` · ${ultimaReceta.profesionalNombre}` : ""}{ultimaReceta.profesionalRegistro ? ` · Reg. Prof. ${ultimaReceta.profesionalRegistro}` : ""}</p>
+            {ultimaReceta.lenteRecomendado && <p className="flex items-center gap-2"><Stethoscope size={20} className="shrink-0 text-slate-500" aria-hidden="true" /> Lente recomendado: <span className="font-semibold text-slate-900">{ultimaReceta.lenteRecomendado}</span></p>}
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <TarjetaOjo titulo="Ojo derecho" ojo={ultimaReceta.od} abierto={abierto} alternar={alternar} />
-            <TarjetaOjo titulo="Ojo izquierdo" ojo={ultimaReceta.oi} abierto={abierto} alternar={alternar} />
-          </div>
-
-          <div className="mt-4 space-y-4">
-            {ultimaReceta.medidas?.adicion && (
-              <dl className="rounded-2xl border border-slate-200/60 bg-slate-50/60 px-4 py-1 sm:px-5">
-                <Dato etiqueta="Adición" valor={ultimaReceta.medidas.adicion} ayuda={AYUDA_RECETA.adicion} abierto={abierto === "adicion"} alAlternar={() => alternar("adicion")} />
-              </dl>
-            )}
-            {mostrarMedidas ? (
-              (ultimaReceta.medidas?.dp || ultimaReceta.medidas?.alt) && (
-                <dl className="grid gap-x-6 rounded-2xl border border-slate-200/60 bg-slate-50/60 px-4 py-2 sm:grid-cols-2 sm:px-5">
-                  {ultimaReceta.medidas?.dp && <div className="py-2"><dt className="text-lg text-slate-600">Distancia pupilar</dt><dd className="text-xl font-bold tabular-nums" style={{ color: INK }}>{ultimaReceta.medidas.dp}</dd></div>}
-                  {ultimaReceta.medidas?.alt && <div className="py-2"><dt className="text-lg text-slate-600">Altura</dt><dd className="text-xl font-bold tabular-nums" style={{ color: INK }}>{ultimaReceta.medidas.alt}</dd></div>}
-                </dl>
-              )
-            ) : (
-              <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-4 sm:p-5">
-                <div className="flex-1">
-                  <p className="text-lg text-slate-700">La distancia pupilar y las medidas de montaje las toma la óptica al armar tus lentes. Puedes solicitarlas aquí.</p>
-                  {errorMedidas && <p role="alert" className="mt-2 text-lg font-semibold text-red-600">{errorMedidas}</p>}
-                </div>
-                {medidasSolicitadas ? (
-                  <span className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-emerald-50 px-4 text-lg font-semibold text-emerald-700"><CheckCircle2 size={20} aria-hidden="true" /> Solicitud enviada</span>
-                ) : (
-                  <button type="button" onClick={onSolicitarMedidas} disabled={enviandoMedidas} className={BOTON_SECUNDARIO}>{enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}</button>
-                )}
-              </div>
-            )}
-
-            {ultimaReceta.lenteRecomendado && (
-              <div className="flex items-center gap-3 rounded-2xl border p-4 sm:p-5" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
-                <Glasses size={24} style={{ color: GOLD }} className="shrink-0" aria-hidden="true" />
-                <div>
-                  <p className="text-lg font-semibold" style={{ color: "#7c5e14" }}>Lente recomendado</p>
-                  <p className="text-xl font-bold text-slate-800">{ultimaReceta.lenteRecomendado}</p>
-                </div>
-              </div>
-            )}
-
-            {(ultimaReceta.diagnostico || ultimaReceta.indicaciones || ultimaReceta.usaLentes) && (
-              <div className="grid gap-4 md:grid-cols-2">
-                {ultimaReceta.diagnostico && <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-4 sm:p-5"><p className="text-lg font-semibold text-slate-600">Diagnóstico</p><p className="mt-1 text-lg text-slate-800">{ultimaReceta.diagnostico}</p></div>}
-                {ultimaReceta.indicaciones && <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-4 sm:p-5"><p className="text-lg font-semibold text-slate-600">Indicaciones</p><p className="mt-1 text-lg text-slate-800">{ultimaReceta.indicaciones}</p></div>}
-                {ultimaReceta.usaLentes && <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-4 sm:p-5"><p className="text-lg font-semibold text-slate-600">¿Usa lentes?</p><p className="mt-1 text-lg text-slate-800">{ultimaReceta.usaLentes === "si" || ultimaReceta.usaLentes === true ? "Sí" : "No"}</p></div>}
-              </div>
-            )}
-
-            <p className="flex items-start gap-2 border-t border-slate-100 pt-4 text-base text-slate-600">
-              <Stethoscope size={20} className="mt-0.5 shrink-0" aria-hidden="true" /> Emitida por {ultimaReceta.profesionalNombre || "el equipo"}{ultimaReceta.profesionalRegistro ? ` · Reg. Prof. ${ultimaReceta.profesionalRegistro}` : ""} · {nombreOptica}
-            </p>
+          <TablaReceta receta={ultimaReceta} />
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-base text-slate-600">Toca cada fila para saber qué significa.</p>
+            <button type="button" onClick={() => descargar(ultimaReceta)} className={BOTON_SECUNDARIO}><Download size={20} aria-hidden="true" /> Descargar receta</button>
           </div>
         </Bloque>
-      )}
 
-      </div>
-      {todasLasRecetas.length > 1 && (
-        <div className="space-y-5 lg:col-span-4">
-          {cambio && (
-            <Bloque id="cambio" titulo="Cómo cambió tu graduación" Icono={TrendingUp}>
-              <p className="text-xl font-semibold leading-snug text-slate-800">{cambio.frase}</p>
-              <ul className="mt-3 space-y-1 text-lg text-slate-700">{cambio.porOjo.map((o) => <li key={o.nombre}><span className="font-semibold">{o.nombre}:</span> {o.texto}</li>)}</ul>
+        <div className="space-y-6">
+          {(ultimaReceta.indicaciones || ultimaReceta.diagnostico) && (
+            <Bloque id="indicaciones" titulo="Indicaciones de tu optómetra" Icono={ClipboardList} tono="verde">
+              {ultimaReceta.indicaciones && <p className="text-lg leading-relaxed text-slate-800">{ultimaReceta.indicaciones}</p>}
+              {ultimaReceta.diagnostico && <p className="mt-3 text-lg text-slate-700"><span className="font-semibold">Diagnóstico:</span> {ultimaReceta.diagnostico}</p>}
             </Bloque>
           )}
-          <Bloque id="anteriores" titulo="Tus recetas anteriores" Icono={History}>
+          {mostrarMedidas ? (
+            (m.dp || m.alt) && (
+              <Bloque id="medidas" titulo="Medidas para tus lentes" Icono={Ruler} tono="gris">
+                <dl className="grid grid-cols-2 gap-3">
+                  {m.dp && <div><dt className="text-base text-slate-600">Distancia pupilar</dt><dd className="font-heading text-2xl font-bold tabular-nums" style={{ color: INK }}>{m.dp}</dd></div>}
+                  {m.alt && <div><dt className="text-base text-slate-600">Altura</dt><dd className="font-heading text-2xl font-bold tabular-nums" style={{ color: INK }}>{m.alt}</dd></div>}
+                </dl>
+              </Bloque>
+            )
+          ) : (
+            <Bloque id="medidas" titulo="Medidas para tus lentes" Icono={Ruler} tono="gris">
+              <p className="text-lg text-slate-700">La distancia pupilar y las medidas de montaje las toma la óptica al armar tus lentes. Puedes solicitarlas aquí.</p>
+              {errorMedidas && <p role="alert" className="mt-2 text-lg font-semibold text-red-600">{errorMedidas}</p>}
+              {medidasSolicitadas
+                ? <span className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl bg-emerald-50 px-4 text-lg font-semibold text-emerald-700"><CheckCircle2 size={20} aria-hidden="true" /> Solicitud enviada</span>
+                : <button type="button" onClick={onSolicitarMedidas} disabled={enviandoMedidas} className={BOTON_SECUNDARIO + " mt-3 w-full"}>{enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}</button>}
+            </Bloque>
+          )}
+        </div>
+      </div>
+
+      {todasLasRecetas.length > 1 && (
+        <div className="pt-fila pt-fila--7-5 pt-fila--arriba">
+          <Bloque id="cambio" titulo="Cómo cambió tu graduación" Icono={TrendingUp} tono="azul">
+            {cambio && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xl font-semibold leading-snug" style={{ color: INK }}>{cambio.frase}</p>
+                <ul className="space-y-1 text-lg text-slate-700">{cambio.frases.map((f) => <li key={f}>{f}</li>)}</ul>
+              </div>
+            )}
+            <GraficaGraduacion puntos={puntos} />
+          </Bloque>
+          <Bloque id="anteriores" titulo="Tus recetas anteriores" Icono={History} tono="gris">
             <ul className="divide-y divide-slate-100">
               {recetasAnteriores.map((c, i) => {
                 const vs = resumenCambioGraduacion([c, todasLasRecetas[i + 2]].filter(Boolean))
                 return (
-                  <li key={c.id} className="py-3 first:pt-0 last:pb-0">
-                    <p className="text-lg font-semibold text-slate-800">{formatoFecha(c.fecha, "medio")} · {c.diagnostico || "Consulta registrada"}</p>
-                    <p className="text-lg text-slate-700">Ojo derecho {textoGraduacionOjo(c.od)}</p>
-                    <p className="text-lg text-slate-700">Ojo izquierdo {textoGraduacionOjo(c.oi)}</p>
-                    {vs && <p className="mt-1 text-base text-slate-600">{vs.verdicto === "Sin cambios" ? "Igual que en el examen anterior." : vs.verdicto === "Aumentó" ? "Aumentó respecto al examen anterior." : "Disminuyó respecto al examen anterior."}</p>}
+                  <li key={c.id}>
+                    <button type="button" onClick={() => onAbrirReceta(c.id)} aria-label={`Ver la receta del ${formatoFecha(c.fecha, "medio")}`} className="flex min-h-16 w-full items-center gap-3 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-lg font-semibold text-slate-800">{formatoFecha(c.fecha, "medio")} · {c.diagnostico || "Consulta registrada"}</span>
+                        <span className="block text-base text-slate-700">Ojo derecho {textoGraduacionOjo(c.od)}</span>
+                        <span className="block text-base text-slate-700">Ojo izquierdo {textoGraduacionOjo(c.oi)}</span>
+                        {vs && <span className="block text-base text-slate-600">{vs.verdicto === "Sin cambios" ? "Igual que en el examen anterior." : vs.verdicto === "Aumentó" ? "Aumentó respecto al examen anterior." : "Disminuyó respecto al examen anterior."}</span>}
+                      </span>
+                      <ChevronRight size={22} className="shrink-0 text-slate-400" aria-hidden="true" />
+                    </button>
                   </li>
                 )
               })}
@@ -151,7 +164,7 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnterior
           </Bloque>
         </div>
       )}
-      </div>
+      {abierta && <DetalleReceta receta={abierta} onCerrar={() => onAbrirReceta(null)} onDescargar={() => descargar(abierta)} />}
     </div>
   )
 }

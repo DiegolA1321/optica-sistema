@@ -1,19 +1,38 @@
 import { useCallback, useEffect, useState } from "react"
 import { misCompras } from "../../utilidades/facturaElectronicaApi"
-import { misOrdenes, miControl } from "../../utilidades/portalDatos"
+import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion } from "../../utilidades/portalDatos"
 
-// Compras (con su saldo), órdenes de laboratorio y control del paciente, pedidos una sola vez para todo el portal (Resumen y Mis compras leen lo mismo).
-export function usePortalDatos(usuario) {
+// Compras (con su saldo), órdenes de laboratorio, control y detalle de las citas del paciente, pedidos una sola vez para todo el portal (Resumen, Mis citas y Mis compras
+// leen lo mismo). `citas` son las citas del paciente: el detalle se pide cuando cambian. confirmar y calificar actualizan la pantalla al instante.
+export function usePortalDatos(usuario, citas = []) {
   const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
   const token = usuario?.token
   const [estado, setEstado] = useState({ cargando: true, compras: [], errorCompras: "", ordenes: [], control: null })
-  const cargar = useCallback(() => {
+  const [detalle, setDetalle] = useState({ disponible: false, porCita: {} })
+  useEffect(() => {
     let vivo = true
     Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token)]).then(([c, o, k]) => {
       if (vivo) setEstado({ cargando: false, compras: c.compras, errorCompras: c.error || "", ordenes: o.ordenes, control: k })
     })
     return () => { vivo = false }
   }, [pacienteId, token])
-  useEffect(() => cargar(), [cargar])
-  return estado
+  const clave = citas.map((c) => c.id + c.estado).join("|")
+  useEffect(() => {
+    let vivo = true
+    misCitasDetalle(pacienteId, token, citas).then((d) => { if (vivo) setDetalle(d) })
+    return () => { vivo = false }
+  }, [pacienteId, token, clave]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const confirmar = useCallback(async (citaId) => {
+    const r = await confirmarAsistencia(pacienteId, token, citaId)
+    if (r.ok) setDetalle((d) => ({ ...d, porCita: { ...d.porCita, [citaId]: { ...(d.porCita[citaId] || {}), confirmadaAt: new Date().toISOString() } } }))
+    return r
+  }, [pacienteId, token])
+  const calificar = useCallback(async (citaId, puntaje, comentario) => {
+    const r = await calificarAtencion(pacienteId, token, citaId, puntaje, comentario)
+    if (r.ok) setDetalle((d) => ({ ...d, porCita: { ...d.porCita, [citaId]: { ...(d.porCita[citaId] || {}), calificacion: { puntaje, comentario: comentario || null } } } }))
+    return r
+  }, [pacienteId, token])
+
+  return { ...estado, detalle, confirmar, calificar }
 }

@@ -131,7 +131,7 @@ describe("línea de pasos de los lentes", () => {
   })
   it("lista y entregada avanzan el paso", () => {
     expect(pasosDeLosLentes(o("lista"), HOY)).toMatchObject({ actual: 2, tono: "verde" })
-    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listos para retirar:hecho Entregados:actual")
+    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listos para retirar:hecho Entregados:hecho")
   })
 })
 
