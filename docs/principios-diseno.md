@@ -253,6 +253,13 @@ Un aviso es de una sola vía: sirve para informar («mañana hay mantenimiento»
 Con `MODO_SAAS_VISIBLE` apagado el sistema es para una sola óptica (Óptica Solna Vision). Todo se escribe en singular y habla de «la óptica»: sin selector ni filtro de óptica, sin comparar una óptica con otra, sin tablas ni columnas «por óptica», sin «todas las ópticas», sin «¿qué óptica…?». Los entornos de prueba no cuentan en nada salvo que se active «Incluir entornos de prueba», y se llaman siempre «entornos de prueba» (nunca «ópticas de prueba»). Lo que se construyó para varias ópticas (filtros, tablas, comparaciones) puede volver cuando se encienda el modo comercial: se condiciona a `MODO_SAAS_VISIBLE`, no se borra.
 - **Cómo aplicarlo:** al diseñar o revisar una pantalla del panel del superadmin, busca «óptica(s)» en los textos, los filtros y las columnas. Un filtro o una columna de óptica solo aparece si hay más de una que elegir (`MODO_SAAS_VISIBLE` o con los entornos de prueba incluidos). Un aviso va «al administrador de la óptica», sin elegir destinatario.
 
+## K. Todo el sistema en cualquier pantalla (17 oct. 2026)
+
+### 48. Todo el sistema funciona y se ve bien en celular (390 px), tablet (768 px) y laptop (1366×768)
+Vale para el personal, el superadmin, el portal del paciente y las páginas públicas, sin excepción. En los tres tamaños: **sin desplazamiento horizontal**, nada cortado ni fuera de la pantalla, **menús adaptados** (en el celular el menú lateral se abre con un botón o pasa a una barra inferior), las tarjetas se apilan, las tablas se convierten en listas legibles, las ventanas caben en la pantalla (en el celular ocupan todo el alto, con desplazamiento interno) y **todo lo que se toca mide al menos 44 px** de alto y de ancho. El portal lo usan pacientes mayores desde el celular: su texto es de 16 px como mínimo.
+- **Cómo aplicarlo:** al terminar una pantalla se mira en los tres tamaños; una prueba de Playwright comprueba que `document.documentElement.scrollWidth` no supera el ancho de la ventana a 390, 768 y 1366 px (`e2e/portal-adaptable.spec.js` es el modelo).
+- **Estado:** la revisión del resto del sistema en los tres tamaños está en `docs/revision-adaptable.md`.
+
 ---
 
 ## Lista de revisión antes de dar una pantalla por terminada
@@ -293,3 +300,4 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 32. ¿Con el modo de la tesis ninguna pantalla muestra selectores, filtros, comparaciones, tablas ni textos de varias ópticas, y los entornos de prueba solo cuentan si se activa «Incluir entornos de prueba»? (45)
 33. ¿Lo que espera una respuesta o una decisión es una conversación con su registro (no un anuncio), guarda lo que se abre como dato (sin direcciones escritas), tiene límite de repetición validado en el servidor y deja decir que no? (46)
 34. ¿Todo cuadro de mensaje usa el mismo límite de 2000 (con el contador solo desde 1800 y validado en el servidor), y toda vista previa es claramente una muestra con sus botones atenuados y sin efecto? (47)
+35. ¿Se ve y funciona en celular (390 px), tablet (768 px) y laptop (1366×768), sin desplazamiento horizontal, con el menú adaptado y todo lo que se toca de 44 px o más? (48)

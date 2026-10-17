@@ -1,3 +1,10 @@
+<!-- PV2-INICIO -->
+## Portal del paciente v2 (rama `portal-v2`, 17 oct. 2026, SIN publicar)
+Pedido: rediseñar el portal (menú claro, Resumen sin repetir con Lo próximo · Mis lentes · Mi próximo control · Mi saldo · La óptica, "Agendar cita" como único verbo, receta con "Ojo derecho/izquierdo" y PDF, estado de las órdenes en Mis compras, celular/tablet/laptop, 16 px) y dejar que cada acción del paciente se refleje en el sistema del personal. Regla nueva: la 48 de `docs/principios-diseno.md`.
+**Dónde voy:**
+- [x] Paso 1 — Regla 48 (todo el sistema en celular, tablet y laptop) y este registro.
+<!-- PV2-FIN -->
+
 <!-- AYU-INICIO -->
 ## «Ofrecer ayuda» como conversación de Soporte (17 oct. 2026, PUBLICADO: merge `42b19c2` en `main` junto con el Inicio del superadmin; migración 0122 APLICADA; el CI y Vercel (Production) terminaron con éxito)
 - **Verificación previa a publicar:** Playwright completo contra la versión compilada (`E2E_PREVIEW=1 --workers=1`): 145 pasaron y 1 se omitió (`crear-cuentas`, que solo corre con `E2E_CREAR_CUENTAS`); vitest: 1226 de 1226.
