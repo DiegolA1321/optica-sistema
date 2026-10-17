@@ -65,6 +65,7 @@ export default function Inicio({
   onVerCrm, // abre el CRM con un motivo: { filtro }
   paraContactar, // la lista "Para contactar" del CRM ({ filas }), o null mientras carga; sin ella (pruebas) se calcula sin contactos
   setCitas,
+  solicitudesEliminacion = [], // pacientes que pidieron eliminar su cuenta desde el portal (pendientes)
   onAviso,
   onAtenderCita,
   onAtenderEnCitas,
@@ -526,6 +527,8 @@ export default function Inicio({
   const incPorConfirmar = ["administrador", "recepcion"].includes(plantilla)
   // Pacientes que se registraron solos al agendar por la web (R15) y cuyos datos recepción todavía no confirma (R22).
   const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
+  // Un paciente que pide eliminar su cuenta desde el portal es una decisión del administrador de la óptica: tiene que verla sin entrar al perfil.
+  const incEliminacion = plantilla === "administrador" && puedeV("pacientes", "editar")
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const incSaldos = veVentas && plantilla !== "optometra"
   const incSinConsulta = puedeV("pacientes", "ver") && plantilla !== "ventas" && plantilla !== "optometra"
@@ -614,6 +617,21 @@ export default function Inicio({
           id: p.id, nombre: p.nombre,
           detalle: `Se registró por la web el ${fechaLegible(p.fechaRegistro) || "—"} · Cédula ${p.cedula || "—"}`,
           accion: puedeV("pacientes", "editar") ? { etiqueta: "Confirmar datos", onClick: () => setConfirmarPaciente(p) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
+        })),
+      })
+    }
+    if (incEliminacion && solicitudesEliminacion.length > 0) {
+      const n = solicitudesEliminacion.length
+      const nombreDe2 = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
+      poner("pacientes", {
+        id: "eliminacion", cantidad: n,
+        texto: uno(n, "paciente pidió eliminar su cuenta", "pacientes pidieron eliminar su cuenta"),
+        nombres: nombresResumidos(solicitudesEliminacion.map((x) => nombreDe2(x.pacienteId))),
+        casos: solicitudesEliminacion.map((x) => ({
+          id: x.id, nombre: nombreDe2(x.pacienteId),
+          insignia: { texto: "Pidió eliminar su cuenta", tono: "urgente" },
+          detalle: `Lo pidió el ${fechaLegible(String(x.creadoEn || "").slice(0, 10)) || "—"}${x.motivo ? ` · Motivo: ${x.motivo}` : ""}`,
+          accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(x.pacienteId) },
         })),
       })
     }
@@ -719,7 +737,7 @@ export default function Inicio({
   const filasDe = (area) => avisosPorArea.filter((f) => f.area === area)
   // Un bloque solo existe si el rol tiene avisos de esa área; el que existe y está vacío dice "todo en orden".
   const aplicaCitas = incAtenciones || incControlesPorAgendar || incCanceladas || puedeReasignarCitas
-  const aplicaPacientes = incPorConfirmar || incControles || incSinConsulta || incCumple
+  const aplicaPacientes = incPorConfirmar || incEliminacion || incControles || incSinConsulta || incCumple
   const aplicaVentas = incOrdenes || incSaldos
   const bloquesAtencion = [
     veCitas && aplicaCitas && { id: "citas", titulo: "Citas", modulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: () => setVista?.("citas") },

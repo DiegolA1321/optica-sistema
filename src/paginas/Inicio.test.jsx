@@ -224,6 +224,19 @@ describe("Inicio del administrador", () => {
     expect(screen.queryByText(/datos sin confirmar/)).not.toBeInTheDocument()
   })
 
+  it("un paciente que pidió eliminar su cuenta desde el portal aparece en «Requiere tu atención» del administrador, con su motivo; el optómetra no lo ve", () => {
+    const solicitudes = [{ id: "s1", pacienteId: "p2", motivo: "Ya no uso la óptica", estado: "pendiente", creadoEn: "2026-10-16T15:00:00Z" }]
+    const { unmount } = render(<Inicio {...base} solicitudesEliminacion={solicitudes} />)
+    const fila = area("Pacientes")
+    expect(fila).toHaveTextContent("1 paciente pidió eliminar su cuenta · Paciente Dos")
+    fireEvent.click(within(fila).getByRole("button", { name: /pidió eliminar su cuenta/ }))
+    const ventana = screen.getByRole("dialog", { name: /^Pacientes · / })
+    expect(ventana).toHaveTextContent("Lo pidió el 16 oct 2026 · Motivo: Ya no uso la óptica")
+    unmount()
+    render(<Inicio {...base} solicitudesEliminacion={solicitudes} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
+    expect(screen.queryByText(/pidió eliminar su cuenta/)).not.toBeInTheDocument()
+  })
+
   it("'N pacientes registrados sin ninguna consulta' abre sus casos y el enlace abre Pacientes ya filtrado con el mismo número", () => {
     const pedidos = []
     render(<Inicio {...base} onVerPacientes={(f) => pedidos.push(f)} />)

@@ -702,6 +702,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <Inicio
             soloAvisosDe={extra.soloAvisosDe}
+            solicitudesEliminacion={solicitudesEliminacion}
             disponibilidad={disponibilidad}
             puedeReasignarCitas={puedeReasignar(usuario, alcanceDeVista("citas"))}
             setPacientes={setPacientes}
