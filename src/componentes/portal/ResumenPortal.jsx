@@ -157,6 +157,7 @@ export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleC
     return (
       <div className="space-y-6">
         <TituloPagina>Resumen</TituloPagina>
+        <div className={"pt-fila " + (hayContacto ? "pt-fila--8-4" : "pt-fila--solo")}>
         <section aria-label="Bienvenida" className="relative overflow-hidden rounded-2xl p-6 text-white shadow-lg sm:p-9" style={{ background: "var(--portal-hero)" }}>
           <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
           <p className="flex items-center gap-2 text-lg font-semibold text-white/85"><Sparkles size={22} aria-hidden="true" /> Bienvenido</p>
@@ -164,6 +165,8 @@ export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleC
           <p className="mt-3 max-w-xl text-lg text-white/90">Este es tu portal: aquí vas a ver tus citas, tu receta, el estado de tus lentes y lo que debes. Empieza agendando tu primera cita.</p>
           <button type="button" onClick={() => onAgendar()} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-base font-semibold text-slate-900 transition-colors hover:bg-slate-100 cursor-pointer sm:w-auto"><CalendarPlus size={22} aria-hidden="true" /> Agendar mi primera cita</button>
         </section>
+        {hayContacto && <TarjetaOptica contacto={contacto} />}
+        </div>
         <ol aria-label="Cómo funciona" className="pt-fila pt-fila--auto">
           {PASOS_NUEVO.map(([Icono, tono, titulo, texto], i) => (
             <li key={titulo} className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
@@ -173,7 +176,6 @@ export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleC
             </li>
           ))}
         </ol>
-        {hayContacto && <div className="pt-fila pt-fila--dos"><TarjetaOptica contacto={contacto} /></div>}
       </div>
     )
   }

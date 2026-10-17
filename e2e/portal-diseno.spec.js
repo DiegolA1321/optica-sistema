@@ -48,6 +48,22 @@ const revisar = (page) => page.evaluate(() => {
     const r = e.getBoundingClientRect(), z = zona.getBoundingClientRect()
     if (r.right > z.right + 1 || r.left < z.left - 1) malos.push(`se sale de la zona de contenido: ${e.textContent.trim().slice(0, 30)}`)
   }
+  // 4b. Nada queda recortado dentro de un contenedor con overflow oculto (salvo los textos con puntos suspensivos a propósito).
+  for (const e of zona.querySelectorAll('*')) {
+    if (!visible(e)) continue
+    const cs = getComputedStyle(e)
+    if ((cs.overflowX === 'hidden' || cs.overflowX === 'clip') && cs.textOverflow !== 'ellipsis' && e.clientWidth > 2 && e.scrollWidth > e.clientWidth + 1) malos.push(`recortado dentro de su caja (${e.scrollWidth} > ${e.clientWidth}): ${e.textContent.trim().slice(0, 30)}`)
+  }
+  // 5. Texto de 16 px o más y todo lo que se toca de 44 px o más.
+  for (const e of zona.querySelectorAll('*')) {
+    if (!visible(e)) continue
+    if ([...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 16) malos.push('texto de ' + parseFloat(getComputedStyle(e).fontSize) + ' px: ' + e.textContent.trim().slice(0, 30))
+  }
+  for (const b of zona.querySelectorAll('button, a[href]')) {
+    if (!visible(b)) continue
+    const r = b.getBoundingClientRect()
+    if (r.height < 43.5 || r.width < 43.5) malos.push('toque de ' + Math.round(r.width) + '×' + Math.round(r.height) + ': ' + (b.getAttribute('aria-label') || b.textContent.trim()).slice(0, 30))
+  }
   return [...new Set(malos)]
 })
 

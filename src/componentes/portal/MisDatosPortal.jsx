@@ -63,7 +63,7 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
     <div className="space-y-5">
       <TituloPagina subtitulo="Tus datos personales y de contacto.">Mis datos</TituloPagina>
 
-      <div className="pt-fila pt-fila--7-5">
+      <div className="pt-fila pt-fila--7-5 pt-fila--arriba">
       <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
           <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: "var(--portal-grad)", color: "var(--portal-texto-boton)" }}>{primerNombre[0]?.toUpperCase()}</div>
@@ -95,22 +95,22 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
           </div>
         )}
 
-        <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col items-start gap-3 border-t border-slate-100 pt-5">
           <div>
             <p className="text-lg font-semibold" style={{ color: INK }}>Una copia de tus datos</p>
             <p className="text-base text-slate-600">Un archivo con tus datos personales, tus citas y tu historial clínico, incluidos tus antecedentes y alergias.</p>
           </div>
-          <button type="button" onClick={descargarMisDatos} disabled={descargando} className={BOTON_SECUNDARIO + " w-full shrink-0 sm:w-auto"}>
+          <button type="button" onClick={descargarMisDatos} disabled={descargando} className={BOTON_SECUNDARIO + " w-full"}>
             <Download size={20} aria-hidden="true" /> {descargando ? "Preparando…" : "Descargar mis datos"}
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col items-start gap-3 border-t border-slate-100 pt-5">
           <div>
             <p className="text-lg font-semibold text-red-600">Eliminar mi cuenta</p>
             <p className="text-base text-slate-600">Le pedimos a {nombreOptica} que elimine tu cuenta y tus datos.</p>
           </div>
-          <button type="button" onClick={() => { setMotivoEliminar(""); setSolicitudEliminarEnviada(false); setErrorPrivacidad(""); setModalEliminarAbierto(true) }} className={BOTON_PELIGRO + " w-full shrink-0 sm:w-auto"}>
+          <button type="button" onClick={() => { setMotivoEliminar(""); setSolicitudEliminarEnviada(false); setErrorPrivacidad(""); setModalEliminarAbierto(true) }} className={BOTON_PELIGRO + " w-full"}>
             <ShieldAlert size={20} aria-hidden="true" /> Solicitar eliminación
           </button>
         </div>

@@ -25,7 +25,7 @@ function TablaReceta({ receta }) {
   ].filter(([clave, , od]) => clave !== "adicion" || od)
   return (
     <div role="table" aria-label="Tu receta" className="overflow-hidden rounded-2xl border border-slate-200/70">
-      <div role="row" className="grid grid-cols-[minmax(6.5rem,1fr)_1fr_1fr] items-end gap-2 bg-slate-50 px-4 py-3 sm:px-5">
+      <div role="row" className="grid grid-cols-[minmax(5.5rem,0.9fr)_1fr_1fr] items-end gap-2 bg-slate-50 px-4 py-3 sm:px-5">
         <span role="columnheader"><span className="sr-only">Dato</span></span>
         <span role="columnheader" className="text-lg font-bold text-blue-700">Ojo derecho</span>
         <span role="columnheader" className="text-lg font-bold text-cyan-800">Ojo izquierdo</span>
@@ -33,11 +33,11 @@ function TablaReceta({ receta }) {
       {filas.map(([clave, etiqueta, od, oi]) => (
         <div key={clave} role="row" className="border-t border-slate-200/70">
           <button type="button" onClick={() => setAbierta((a) => (a === clave ? "" : clave))} aria-expanded={abierta === clave} aria-label={`${etiqueta}: ${clave === "adicion" ? od : `ojo derecho ${od || "sin dato"}, ojo izquierdo ${oi || "sin dato"}`}. Toca para saber qué significa`}
-            title={AYUDA_RECETA[clave]} className="grid min-h-16 w-full grid-cols-[minmax(6.5rem,1fr)_1fr_1fr] items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer sm:px-5">
+            title={AYUDA_RECETA[clave]} className="grid min-h-16 w-full grid-cols-[minmax(5.5rem,0.9fr)_1fr_1fr] items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer sm:px-5">
             <span role="rowheader" className="flex items-center gap-1.5 text-lg text-slate-600">{etiqueta}<Info size={18} className="shrink-0 text-slate-400" aria-hidden="true" /></span>
             {clave === "adicion"
-              ? <span role="cell" className="col-span-2 font-heading text-3xl font-bold tabular-nums" style={{ color: INK }}>{od}</span>
-              : <><span role="cell" className="font-heading text-3xl font-bold tabular-nums" style={{ color: INK }}>{od || "—"}</span><span role="cell" className="font-heading text-3xl font-bold tabular-nums" style={{ color: INK }}>{oi || "—"}</span></>}
+              ? <span role="cell" className="col-span-2 font-heading text-2xl font-bold tabular-nums sm:text-3xl" style={{ color: INK }}>{od}</span>
+              : <><span role="cell" className="font-heading text-2xl font-bold tabular-nums sm:text-3xl" style={{ color: INK }}>{od || "—"}</span><span role="cell" className="font-heading text-2xl font-bold tabular-nums sm:text-3xl" style={{ color: INK }}>{oi || "—"}</span></>}
           </button>
           {abierta === clave && <p role="note" className="bg-slate-50 px-4 py-3 text-lg text-slate-700 sm:px-5">{AYUDA_RECETA[clave]}</p>}
         </div>

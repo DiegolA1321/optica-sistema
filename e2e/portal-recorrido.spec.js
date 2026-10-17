@@ -64,7 +64,7 @@ for (const [nombre, ancho, alto] of TAMANOS) {
         await ventana.getByRole('button', { name: 'Continuar' }).click()
         await page.getByRole('dialog').last().getByRole('button', { name: /Confirmar/ }).click()
         await expect(page.getByRole('status').filter({ hasText: 'quedó agendada' })).toBeVisible({ timeout: 20_000 })
-        const proximas = page.getByRole('region', { name: 'Lo próximo' })
+        const proximas = page.getByRole('region', { name: 'Tu próxima cita' })
         await expect(proximas.getByRole('button', { name: 'Reagendar' })).toBeVisible()
         const cita = (await q("select id, codigo, fecha::text, hora, origen from citas where paciente_id = $1 and created_at >= $2 order by created_at desc limit 1", [paciente.id, inicio]))[0]
         expect(cita, 'la cita quedó guardada').toBeTruthy()

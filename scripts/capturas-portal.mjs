@@ -88,7 +88,7 @@ try {
       }
       // Ventanas
       await menu(page, "Mis citas").click(); await page.waitForTimeout(500)
-      const fila = page.getByRole("button", { name: /Ver el detalle de tu cita/ }).first()
+      const fila = page.getByRole("button", { name: /Ver el detalle de tu cita/ }).filter({ has: page.getByRole("status", { name: "Estado: Atendida" }) }).first()
       if (await fila.count()) { await fila.click(); await page.waitForTimeout(600); await foto("ventana-detalle-cita"); await page.keyboard.press("Escape"); await page.waitForTimeout(300) }
       await menu(page, "Mi receta").click(); await page.waitForTimeout(500)
       const receta = page.getByRole("button", { name: /Ver la receta del/ }).first()
