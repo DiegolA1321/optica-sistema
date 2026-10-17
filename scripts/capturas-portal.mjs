@@ -1,6 +1,6 @@
 // Capturas del portal del paciente (portal v2) en celular (390), tablet (768) y laptop (1366×768): de un paciente nuevo y de uno con citas, lentes en el
-// laboratorio y saldo. Trabaja SOLO en la óptica de pruebas: crea un paciente nuevo temporal y, para el paciente fijo del portal, una consulta y tres citas
-// que borra al terminar (aunque falle). Los lentes se ven con ?_muestra=lentes (datos de ejemplo, solo en desarrollo) mientras la migración 0123 no esté aplicada.
+// laboratorio y saldo. Trabaja SOLO en la óptica de pruebas: crea un paciente nuevo temporal y, para el paciente fijo del portal, dos recetas, tres citas y una orden
+// de laboratorio REAL (la migración 0123 ya está aplicada) que borra al terminar (aunque falle).
 //
 //   node --env-file=.env.local --env-file=.env.test scripts/capturas-portal.mjs [carpeta-de-salida]
 import { chromium } from "@playwright/test"
@@ -22,6 +22,7 @@ const sumar = async (dias) => (await q("select ($1::date + $2::int)::text d", [h
 const OPTICA = (await q("select id from opticas where slug = 'v8twzq'"))[0].id
 const fijo = (await q("select id, nombre from pacientes_base where optica_id = $1 and nombre = 'E Dos E Portal Auditoria'", [OPTICA]))[0]
 let nuevoId = null
+let ordenId = null
 const citasCreadas = []
 
 async function preparar() {
@@ -43,6 +44,16 @@ async function preparar() {
        '{"od":{"esfera":"-1.50","cilindro":"-0.50","eje":"90","avSc":"20/40","avCc":"20/20"},"oi":{"esfera":"-1.25","cilindro":"-0.75","eje":"80","avSc":"20/50","avCc":"20/25"},"medidas":{"adicion":"+1.00"}}'::jsonb)`,
     [OPTICA, fijo.id, fijo.nombre, await sumar(-150)],
   )
+  // Una receta anterior (con una graduación menor, para que el cambio se vea) y la orden de laboratorio de su compra.
+  await c.query(
+    `insert into consultas (optica_id, paciente_id, paciente, fecha, motivo, usa_lentes, diagnostico, indicaciones, proximo_control_dias, profesional_nombre, profesional_registro, datos_clinicos)
+     values ($1, $2, $3, $4::date, 'E2E captura', true, 'Miopía', 'Uso para ver de lejos.', 180, 'Dra. Prueba', 'REG-1',
+       '{"od":{"esfera":"-1.00","cilindro":"-0.25","eje":"90","avCc":"20/25"},"oi":{"esfera":"-1.00","cilindro":"-0.50","eje":"80","avCc":"20/25"}}'::jsonb)`,
+    [OPTICA, fijo.id, fijo.nombre, await sumar(-330)],
+  )
+  const fac = (await q("select id from facturas_venta where paciente_id = $1 and estado <> 'anulada' order by created_at limit 1", [fijo.id]))[0]
+  const numero = (await q("select coalesce(max(numero), 0) + 1 n from ordenes_laboratorio where optica_id = $1", [OPTICA]))[0].n + 2000
+  ordenId = (await q(`insert into ordenes_laboratorio (optica_id, numero, factura_id, paciente_id, tipo_lente, montura, laboratorio, fecha_prometida, estado) values ($1, $2, $3, $4, 'progresivo', 'Ray-Ban Aviator', 'Laboratorio', $5::date, 'enviada') returning id`, [OPTICA, numero, fac.id, fijo.id, await sumar(6)]))[0].id
   for (const [dias, hora, estado] of [[5, "11:20 AM", "Pendiente"], [-150, "11:20 AM", "Atendida"], [-60, "11:20 AM", "Cancelada"]]) {
     const r = await q(`insert into citas_base (optica_id, paciente_id, paciente, cedula, fecha, hora, motivo, estado) values ($1, $2, $3, '0914760947', $4::date, $5, 'Consulta General', $6) returning id`, [OPTICA, fijo.id, fijo.nombre, await sumar(dias), hora, estado])
     citasCreadas.push(r[0].id)
@@ -50,6 +61,7 @@ async function preparar() {
 }
 
 async function limpiar() {
+  if (ordenId) await c.query("delete from ordenes_laboratorio where id = $1", [ordenId])
   if (citasCreadas.length) await c.query("delete from citas_base where id = any($1)", [citasCreadas])
   await c.query("delete from consultas_base where optica_id = $1 and paciente_id = $2 and motivo = 'E2E captura'", [OPTICA, fijo.id])
   if (nuevoId) await c.query("delete from pacientes_base where id = $1", [nuevoId])
@@ -67,6 +79,21 @@ async function entrar(page, cedula, clave, extra = "") {
   await page.waitForFunction(() => !document.querySelector('[aria-label="Cargando tu resumen"]'), null, { timeout: 30_000 })
 }
 
+const problemas = []
+// Mide la pantalla que se está capturando: desplazamiento horizontal, texto de menos de 16 px y toques de menos de 44 px (ventana de agendar incluida).
+const medir = (page, etiqueta) => page.evaluate((et) => {
+  const malos = []
+  const visible = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 }
+  if (document.documentElement.scrollWidth > document.documentElement.clientWidth) malos.push(et + ": desplazamiento horizontal")
+  const raiz = document.querySelector('[role=dialog]') || document.querySelector('main > div.overflow-y-auto')
+  for (const e of raiz.querySelectorAll('*')) {
+    if (!visible(e)) continue
+    if ([...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 16) malos.push(et + ': texto ' + parseFloat(getComputedStyle(e).fontSize) + 'px «' + e.textContent.trim().slice(0, 30) + '»')
+  }
+  for (const b of raiz.querySelectorAll('button, a[href]')) { if (!visible(b)) continue; const r = b.getBoundingClientRect(); if (r.height < 44 || r.width < 44) malos.push(et + ': toque ' + Math.round(r.width) + '×' + Math.round(r.height) + ' ' + (b.getAttribute('aria-label') || b.textContent.trim().slice(0, 25))) }
+  return malos
+}, etiqueta)
+
 let fallo = null
 try {
   await preparar()
@@ -76,10 +103,11 @@ try {
       const ctx = await browser.newContext({ viewport: { width: ancho, height: alto }, locale: "es-EC", deviceScaleFactor: 1 })
       const page = await ctx.newPage()
       if (caso === "nuevo") await entrar(page, "0999999990", CLAVE_NUEVO)
-      else await entrar(page, process.env.E2E_PORTAL_CEDULA, process.env.E2E_PORTAL_CLAVE, "&_muestra=lentes")
+      else await entrar(page, process.env.E2E_PORTAL_CEDULA, process.env.E2E_PORTAL_CLAVE)
       await page.waitForTimeout(600)
       const foto = (n) => page.screenshot({ path: path.join(SALIDA, `${nombre}-${caso}-${n}.png`) })
       await foto("resumen")
+      if (caso === "completo") problemas.push(...(await medir(page, `${nombre} resumen`)))
       if (caso === "completo") {
         await page.setViewportSize({ width: ancho, height: nombre === "laptop" ? 1400 : 2000 })
         await page.waitForTimeout(300)
@@ -91,8 +119,16 @@ try {
           await page.setViewportSize({ width: ancho, height: nombre === "laptop" ? 1500 : 2200 })
           await page.waitForTimeout(300)
           await foto(n)
+          problemas.push(...(await medir(page, `${nombre} ${n}`)))
           await page.setViewportSize({ width: ancho, height: alto })
         }
+        await page.getByRole("navigation", { name: "Menú del portal" }).filter({ visible: true }).getByRole("button", { name: "Mis citas", exact: true }).click()
+        await page.getByRole("button", { name: "Agendar cita" }).first().click()
+        await page.waitForTimeout(800)
+        const dias = page.locator('button[title="Disponible"]')
+        if (await dias.count()) { await dias.nth(1).click(); await page.waitForTimeout(400) }
+        await foto("agendar")
+        problemas.push(...(await medir(page, `${nombre} agendar`)))
       }
       await ctx.close()
     }
@@ -105,4 +141,5 @@ try {
   await c.end()
 }
 if (fallo) { console.error("✘ " + fallo.message); process.exit(1) }
+if (problemas.length) { console.error("Medidas fuera de la regla 48:\n" + [...new Set(problemas)].join("\n")); process.exit(2) }
 console.log("Capturas en " + SALIDA + ": " + fs.readdirSync(SALIDA).length + " archivos. Datos de prueba borrados.")

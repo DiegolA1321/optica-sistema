@@ -331,14 +331,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           <div className="flex min-w-0 items-center gap-3">
             <div className="lg:hidden">{marca()}</div>
             <div className="min-w-0">
-              <p className="truncate text-lg font-bold tracking-tight" style={{ color: INK }}>{saludo}, {usuario?.nombre || primerNombre}</p>
+              <p className="truncate text-base font-bold tracking-tight sm:text-lg" style={{ color: INK }}>{saludo}<span className="hidden sm:inline">, {usuario?.nombre || primerNombre}</span></p>
               <p className="truncate text-base text-slate-600">{hoyFecha}</p>
             </div>
           </div>
           <div className="relative shrink-0" ref={userRef}>
             <button type="button" onClick={() => setUserMenu((v) => !v)} aria-haspopup="menu" aria-expanded={userMenu} aria-label="Mi cuenta" className="flex min-h-12 items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-bold" style={{ background: "var(--portal-grad)", color: identidad.textoBoton }}>{primerNombre[0]?.toUpperCase()}</span>
-              <span className="max-w-[7.5rem] truncate text-left text-base font-semibold sm:max-w-[16rem]" style={{ color: INK }}>{usuario?.nombre || primerNombre}</span>
+              <span className="max-w-[4.5rem] truncate text-left text-base font-semibold sm:max-w-[16rem]" style={{ color: INK }}>{usuario?.nombre || primerNombre}</span>
               <ChevronDown size={18} aria-hidden="true" className={"text-slate-500 transition-transform " + (userMenu ? "rotate-180" : "")} />
             </button>
             {userMenu && (
@@ -411,7 +411,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             </div>
           </>}
         >
-          <div className="space-y-5 p-5">
+          <div className="space-y-5 p-3 sm:p-5">
             {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {error}</div>}
             <div>
               <label htmlFor="portal-motivo" className="mb-1.5 block text-base font-semibold text-slate-700">Motivo de la cita</label>
@@ -433,7 +433,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             </div>
           </>}
         >
-          <div className="space-y-4 p-5">
+          <div className="space-y-4 p-3 sm:p-5">
             {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {errorReagenda}</div>}
             <SelectorFechaHora grande disponibilidad={disponibilidad} citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))} fecha={fechaReagenda} hora={horaReagenda} onCambiarFecha={setFechaReagenda} onCambiarHora={setHoraReagenda} />
           </div>

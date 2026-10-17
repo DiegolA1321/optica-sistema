@@ -55,9 +55,9 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+    <div className={"grid grid-cols-1 items-start gap-4 " + (grande ? "md:grid-cols-[26rem_1fr]" : "md:grid-cols-2")}>
       {/* Calendario */}
-      <div className={"rounded-xl border border-slate-200/60 bg-slate-50/40 " + (grande ? "p-3 sm:p-4" : "p-3")}>
+      <div className={"rounded-xl border border-slate-200/60 bg-slate-50/40 " + (grande ? "p-2.5 sm:p-4" : "p-3")}>
         <div className="mb-2.5 flex items-center justify-between px-0.5">
           <span className={(grande ? "text-xl" : "text-xs") + " font-bold capitalize"} style={{ color: INK }}>
             {formatoFecha(mesVista, "mesAnio")}
@@ -88,7 +88,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
           {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
         </div>
 
-        <div className={"grid grid-cols-7 " + (grande ? "gap-1.5" : "gap-1")}>
+        <div className={"grid grid-cols-7 " + (grande ? "gap-1 sm:gap-1.5" : "gap-1")}>
           {dias.map((dia, i) => {
             if (!dia) return <span key={`e${i}`} />
             const sel = fecha === dia.iso
@@ -100,7 +100,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
                 onClick={() => seleccionarDia(dia)}
                 title={dia.disponible ? "Disponible" : "Sin cupos"}
                 className={
-                  "grid w-full place-items-center rounded-lg border font-bold transition-colors " + (grande ? "h-12 text-xl " : "h-7 text-xs ") +  +
+                  "grid w-full place-items-center rounded-lg border font-bold transition-colors " + (grande ? "h-12 text-xl " : "h-7 text-xs ") +
                   (!dia.disponible
                     ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300"
                     : sel

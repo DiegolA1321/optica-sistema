@@ -39,7 +39,7 @@ describe("Portal del paciente — Resumen", () => {
     await resumen()
     expect(screen.getAllByText(/Rosa/).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toMatch(/¡Hola, Rosa!/)
-    expect(screen.getAllByText(/(Buenos días|Buenas tardes|Buenas noches), Rosa/)).toHaveLength(1)
+    expect(screen.getAllByText(/(Buenos días|Buenas tardes|Buenas noches)/)).toHaveLength(1)
   })
 
   it("con una próxima cita muestra fecha, hora, motivo y estado, y no vuelve a decir «Próxima cita» ni «Total de citas»", async () => {

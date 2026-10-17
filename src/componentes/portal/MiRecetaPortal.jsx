@@ -17,7 +17,7 @@ function Dato({ etiqueta, valor, ayuda, abierto, alAlternar }) {
       <div className="flex items-center justify-between gap-3">
         <dt className="flex items-center gap-1 text-lg text-slate-600">
           {etiqueta}
-          <button type="button" onClick={alAlternar} aria-expanded={abierto} aria-label={`¿Qué es ${etiqueta.toLowerCase()}?`} title={ayuda} className="grid h-11 w-11 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><Info size={20} aria-hidden="true" /></button>
+          <button type="button" onClick={alAlternar} aria-expanded={abierto} aria-label={`¿Qué es ${etiqueta.toLowerCase()}?`} title={ayuda} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><Info size={20} aria-hidden="true" /></button>
         </dt>
         <dd className="text-3xl font-bold tabular-nums" style={{ color: INK }}>{valor || "—"}</dd>
       </div>
@@ -87,7 +87,7 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnterior
                 </dl>
               )
             ) : (
-              <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:p-5">
+              <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-4 sm:p-5">
                 <div className="flex-1">
                   <p className="text-lg text-slate-700">La distancia pupilar y las medidas de montaje las toma la óptica al armar tus lentes. Puedes solicitarlas aquí.</p>
                   {errorMedidas && <p role="alert" className="mt-2 text-lg font-semibold text-red-600">{errorMedidas}</p>}

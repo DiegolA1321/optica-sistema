@@ -43,7 +43,7 @@ export default function HeroCita({ cita, nuevo = false, nombreOptica, citaProps 
     <section aria-label="Lo próximo" className={base} style={fondo}>
       {adorno}
       <p className="flex items-center gap-2 text-lg font-semibold text-white/85"><CalendarDays size={22} aria-hidden="true" /> Lo próximo · tu cita</p>
-      <h2 id="hero" className="mt-2 font-heading text-3xl font-bold capitalize leading-tight sm:text-4xl">{formatoFecha(cita.fecha, "largo")}</h2>
+      <h2 id="hero" className="mt-2 font-heading text-3xl font-bold leading-tight sm:text-4xl">{formatoFecha(cita.fecha, "largo")}</h2>
       <p className="mt-1 text-4xl font-bold tabular-nums sm:text-5xl">{cita.hora}</p>
       <p className="mt-3 text-xl text-white/95">{cita.motivo || "Consulta"}</p>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">

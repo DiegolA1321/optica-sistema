@@ -44,12 +44,12 @@ export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-
             {marca || <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>}
             <div className="min-w-0">
               <h2 className="text-lg font-bold leading-tight" style={{ color: INK }}>{titulo}</h2>
-              <p className="text-xs text-slate-500">{subtitulo}</p>
+              <p className={pantallaCompletaEnCelular ? "text-base text-slate-600" : "text-xs text-slate-500"}>{subtitulo}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {derecha}
-            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
+            <button type="button" onClick={onCerrar} aria-label="Cerrar" className={(pantallaCompletaEnCelular ? "grid h-12 w-12 place-items-center rounded-lg " : "rounded-lg p-1.5 ") + "text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"}><X size={pantallaCompletaEnCelular ? 24 : 20} /></button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>

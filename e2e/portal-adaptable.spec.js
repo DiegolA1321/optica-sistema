@@ -63,6 +63,7 @@ for (const [nombre, ancho, alto] of TAMANOS) {
     await page.getByRole('button', { name: 'Agendar cita' }).click()
     const ventana = page.getByRole('dialog', { name: 'Agendar cita' })
     await expect(ventana).toBeVisible()
+    await page.waitForTimeout(500) // termina la animación de entrada de la ventana
     const caja = await ventana.boundingBox()
     expect(caja.x).toBeGreaterThanOrEqual(0)
     expect(caja.x + caja.width).toBeLessThanOrEqual(ancho)
