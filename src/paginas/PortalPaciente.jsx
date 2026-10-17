@@ -17,9 +17,9 @@ import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
 import { usePortalDatos } from "../componentes/portal/usePortalDatos"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "../componentes/portal/estilos"
-import { citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto } from "../utilidades/portalPaciente"
+import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto } from "../utilidades/portalPaciente"
 import { supabase } from "../lib/supabaseClient"
-import { INK, GRAD_MARCA } from "@/lib/tema"
+import { INK } from "@/lib/tema"
 import { validarClaveNueva } from "../utilidades/validaciones"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 
@@ -36,7 +36,16 @@ const OPCIONES = [
 // una barra de navegación abajo (más cómoda al pulgar que un menú escondido). Lo que el paciente hace queda en el sistema del personal (Citas, Inicio, CRM).
 export default function PortalPaciente({ usuario, citas = [], setCitas, consultas = [], disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = [], cargandoDatos = false, onCerrarSesion, alActualizarUsuario }) {
   const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "tu óptica"
-  const logoUrl = opticaPublica?.logo_url || opticaPublica?.marca?.logoUrlClaro || ""
+  const identidad = identidadDeLaOptica(opticaPublica)
+  const logoUrl = identidad.logoUrl
+  // El color de la óptica llega a todo el portal por variables de CSS (el menú, los botones principales y la tarjeta destacada).
+  const estiloRaiz = { "--portal-acento": identidad.acento, "--portal-grad": identidad.grad, "--portal-hero": identidad.hero, "--portal-texto-boton": identidad.textoBoton }
+  // Las ventanas (Cascaron) se dibujan fuera de esta raíz, en el body: las variables también van en el documento mientras el portal está abierto.
+  useEffect(() => {
+    const raiz = document.documentElement
+    Object.entries(estiloRaiz).forEach(([k, v]) => raiz.style.setProperty(k, v))
+    return () => Object.keys(estiloRaiz).forEach((k) => raiz.style.removeProperty(k))
+  }, [identidad.acento, identidad.grad, identidad.hero, identidad.textoBoton]) // eslint-disable-line react-hooks/exhaustive-deps
   // Política de la óptica (configurable en Configuración > Políticas hacia el paciente)
   const mostrarMedidas = parametrizacion?.mostrarMedidasPaciente === true
   const [seccion, setSeccion] = useState("resumen")
@@ -284,13 +293,13 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando }
   const cargandoPortal = cargandoDatos || datos.cargando
   const marca = () => (
-    <div className={`grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl text-white`} style={{ background: logoUrl ? "#fff" : GRAD_MARCA, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
+    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl" style={{ background: logoUrl ? "#fff" : "var(--portal-grad)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : "0 10px 24px -8px rgba(15,23,42,0.35)" }}>
       {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <Glasses size={22} aria-hidden="true" />}
     </div>
   )
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-slate-50 font-sans text-slate-800">
+    <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-slate-50 font-sans text-slate-800">
       {/* ─── MENÚ LATERAL (laptop): claro, igual que el del personal ─── */}
       <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200/70 bg-slate-50/80 lg:flex">
         <div className="flex min-w-0 items-center gap-3 border-b border-slate-200/70 px-6 py-5">
@@ -306,9 +315,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             const activo = seccion === o.id
             return (
               <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}
-                className={"group flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900")}
-                style={activo ? { background: GRAD_MARCA, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}>
-                <Icono size={22} aria-hidden="true" className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
+                className={"group flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-colors cursor-pointer " + (activo ? "" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900")}
+                style={activo ? { background: "var(--portal-grad)", color: identidad.textoBoton, boxShadow: "0 12px 24px -12px rgba(15,23,42,0.35)" } : undefined}>
+                <Icono size={22} aria-hidden="true" className={activo ? "" : "text-slate-500 group-hover:text-slate-900"} />
                 <span>{o.nombre}</span>
               </button>
             )
@@ -318,7 +327,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
       {/* ─── CONTENIDO ─── */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/60 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
+        <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/60 border-t-4 bg-white/90 px-4 py-3 backdrop-blur-md sm:px-8" style={{ borderTopColor: "var(--portal-acento)" }}>
           <div className="flex min-w-0 items-center gap-3">
             <div className="lg:hidden">{marca()}</div>
             <div className="min-w-0">
@@ -328,8 +337,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           </div>
           <div className="relative shrink-0" ref={userRef}>
             <button type="button" onClick={() => setUserMenu((v) => !v)} aria-haspopup="menu" aria-expanded={userMenu} aria-label="Mi cuenta" className="flex min-h-12 items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer">
-              <span className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-white" style={{ background: GRAD_MARCA }}>{primerNombre[0]?.toUpperCase()}</span>
-              <span className="hidden text-left text-base font-semibold sm:block" style={{ color: INK }}>{primerNombre}</span>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-bold" style={{ background: "var(--portal-grad)", color: identidad.textoBoton }}>{primerNombre[0]?.toUpperCase()}</span>
+              <span className="max-w-[7.5rem] truncate text-left text-base font-semibold sm:max-w-[16rem]" style={{ color: INK }}>{usuario?.nombre || primerNombre}</span>
               <ChevronDown size={18} aria-hidden="true" className={"text-slate-500 transition-transform " + (userMenu ? "rotate-180" : "")} />
             </button>
             {userMenu && (
@@ -348,7 +357,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-5 sm:px-8 lg:pb-10 lg:pt-8">
-          <div className="mx-auto w-full max-w-5xl">
+          <div className="mx-auto w-full max-w-7xl">
             {aviso && (
               <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
                 <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={22} aria-hidden="true" />
@@ -361,9 +370,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} ordenesAbiertas={ordenesAbiertasDelPaciente(datos.ordenes)} control={control} tieneCitaPendiente={proximas.length > 0}
                 saldo={saldo} contacto={contacto} hayContacto={tieneContacto(contacto)} nombreOptica={nombreOptica} citaProps={citaProps} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} />
             )}
-            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} />}
+            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} nombreOptica={nombreOptica} />}
             {seccion === "receta" && (
-              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas}
+              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
             {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={datos.ordenes} cargando={datos.cargando} error={datos.errorCompras} onPedirCita={abrirAgendar} />}
@@ -381,8 +390,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             return (
               <li key={o.id}>
                 <button type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}
-                  className={"flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 py-2 text-sm font-semibold leading-tight transition-colors cursor-pointer " + (activo ? "text-blue-700" : "text-slate-600 hover:text-slate-900")}>
-                  <span className={"grid h-8 w-14 place-items-center rounded-full transition-colors " + (activo ? "bg-blue-100" : "")}><Icono size={22} aria-hidden="true" /></span>
+                  className={"flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 py-2 text-sm font-semibold leading-tight transition-colors cursor-pointer " + (activo ? "" : "text-slate-600 hover:text-slate-900")} style={activo ? { color: "var(--portal-acento)" } : undefined}>
+                  <span className="grid h-8 w-14 place-items-center rounded-full transition-colors" style={activo ? { background: "color-mix(in srgb, var(--portal-acento) 14%, white)" } : undefined}><Icono size={22} aria-hidden="true" /></span>
                   <span className="text-center">{o.nombre}</span>
                 </button>
               </li>
@@ -393,7 +402,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
       {/* ─── AGENDAR CITA ─── */}
       {modalAgendar && (
-        <Cascaron pantallaCompletaEnCelular titulo="Agendar cita" subtitulo="Elige el motivo y un horario disponible." Icono={Stethoscope} ancho="max-w-xl" onCerrar={() => setModalAgendar(false)} formulario={{ onSubmit: validarYPedirConfirmacion }}
+        <Cascaron pantallaCompletaEnCelular titulo="Agendar cita" subtitulo="Elige el motivo y un horario disponible." Icono={Stethoscope} ancho="max-w-3xl" onCerrar={() => setModalAgendar(false)} formulario={{ onSubmit: validarYPedirConfirmacion }}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
@@ -408,14 +417,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <label htmlFor="portal-motivo" className="mb-1.5 block text-base font-semibold text-slate-700">Motivo de la cita</label>
               <SelectorLista id="portal-motivo" etiqueta="Motivo de la cita" valor={motivo} onChange={setMotivo} options={motivosConsulta} placeholder="Elige el motivo" requerido />
             </div>
-            <SelectorFechaHora publico disponibilidad={disponibilidad} citas={horasOcupadas} fecha={fecha} hora={hora} onCambiarFecha={setFecha} onCambiarHora={setHora} />
+            <SelectorFechaHora publico grande disponibilidad={disponibilidad} citas={horasOcupadas} fecha={fecha} hora={hora} onCambiarFecha={setFecha} onCambiarHora={setHora} />
           </div>
         </Cascaron>
       )}
 
       {/* ─── REAGENDAR ─── */}
       {reagendando && (
-        <Cascaron pantallaCompletaEnCelular titulo="Reagendar cita" subtitulo={"Tenías: " + formatoFecha(reagendando.fecha, "medio") + " · " + reagendando.hora} Icono={CalendarClock} ancho="max-w-xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
+        <Cascaron pantallaCompletaEnCelular titulo="Reagendar cita" subtitulo={"Tenías: " + formatoFecha(reagendando.fecha, "medio") + " · " + reagendando.hora} Icono={CalendarClock} ancho="max-w-3xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
@@ -426,7 +435,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         >
           <div className="space-y-4 p-5">
             {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {errorReagenda}</div>}
-            <SelectorFechaHora disponibilidad={disponibilidad} citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))} fecha={fechaReagenda} hora={horaReagenda} onCambiarFecha={setFechaReagenda} onCambiarHora={setHoraReagenda} />
+            <SelectorFechaHora grande disponibilidad={disponibilidad} citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))} fecha={fechaReagenda} hora={horaReagenda} onCambiarFecha={setFechaReagenda} onCambiarHora={setHoraReagenda} />
           </div>
         </Cascaron>
       )}

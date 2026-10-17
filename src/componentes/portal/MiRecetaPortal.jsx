@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Glasses, Download, FileText, Stethoscope, CheckCircle2, Info } from "lucide-react"
+import { Glasses, Download, FileText, Stethoscope, CheckCircle2, Info, TrendingUp, History } from "lucide-react"
 import { INK, GOLD } from "@/lib/tema"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { textoGraduacionOjo } from "../../utilidades/recetaTexto"
-import { AYUDA_RECETA } from "../../utilidades/portalPaciente"
+import { AYUDA_RECETA, resumenCambioGraduacion } from "../../utilidades/portalPaciente"
 import { descargarPdfReceta } from "../../utilidades/recetaPdf"
 import { Bloque, TituloPagina, Esqueleto } from "./piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
@@ -19,7 +19,7 @@ function Dato({ etiqueta, valor, ayuda, abierto, alAlternar }) {
           {etiqueta}
           <button type="button" onClick={alAlternar} aria-expanded={abierto} aria-label={`¿Qué es ${etiqueta.toLowerCase()}?`} title={ayuda} className="grid h-11 w-11 place-items-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><Info size={20} aria-hidden="true" /></button>
         </dt>
-        <dd className="text-xl font-bold tabular-nums" style={{ color: INK }}>{valor || "—"}</dd>
+        <dd className="text-3xl font-bold tabular-nums" style={{ color: INK }}>{valor || "—"}</dd>
       </div>
       {abierto && <p role="note" className="rounded-xl bg-slate-50 px-4 py-3 text-lg text-slate-700">{ayuda}</p>}
     </div>
@@ -30,7 +30,7 @@ function TarjetaOjo({ titulo, ojo = {}, abierto, alternar }) {
   const dato = (clave, etiqueta, valor) => <Dato etiqueta={etiqueta} valor={valor} ayuda={AYUDA_RECETA[clave]} abierto={abierto === `${titulo}-${clave}`} alAlternar={() => alternar(`${titulo}-${clave}`)} />
   return (
     <div className="rounded-2xl border border-slate-200/60 bg-slate-50/60 p-4 sm:p-5">
-      <h3 className="mb-1 text-xl font-bold" style={{ color: INK }}>{titulo}</h3>
+      <h3 className="mb-1 text-2xl font-bold" style={{ color: INK }}>{titulo}</h3>
       <dl className="divide-y divide-slate-200/70">
         {dato("esfera", "Esfera", ojo.esfera)}
         {dato("cilindro", "Cilindro", ojo.cilindro)}
@@ -42,15 +42,18 @@ function TarjetaOjo({ titulo, ojo = {}, abierto, alternar }) {
 }
 
 // Mi receta: «Ojo derecho» y «Ojo izquierdo» (nunca OD y OI), cada valor con su explicación, y la receta para descargar en PDF.
-export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnteriores, usuario, nombreOptica, mostrarMedidas, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
+export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnteriores, todasLasRecetas = [], usuario, nombreOptica, mostrarMedidas, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
   const [abierto, setAbierto] = useState("")
   const alternar = (id) => setAbierto((a) => (a === id ? "" : id))
 
   if (cargando) return <div className="space-y-5" aria-busy="true" aria-label="Cargando tu receta"><TituloPagina>Mi receta</TituloPagina><Esqueleto alto="h-72" /></div>
 
+  const cambio = resumenCambioGraduacion(todasLasRecetas)
   return (
     <div className="space-y-5">
       <TituloPagina subtitulo="Tu graduación actual y lo que indicó tu optómetra.">Mi receta</TituloPagina>
+      <div className="grid gap-5 lg:grid-cols-12 lg:items-start">
+      <div className={ultimaReceta && todasLasRecetas.length > 1 ? "lg:col-span-8" : "lg:col-span-12"}>
 
       {!ultimaReceta ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
@@ -122,19 +125,33 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnterior
         </Bloque>
       )}
 
-      {recetasAnteriores.length > 0 && (
-        <Bloque id="anteriores" titulo="Recetas anteriores">
-          <ul className="divide-y divide-slate-100">
-            {recetasAnteriores.map((c) => (
-              <li key={c.id} className="py-3 first:pt-0 last:pb-0">
-                <p className="text-lg font-semibold text-slate-800">{formatoFecha(c.fecha, "medio")} · {c.diagnostico || "Consulta registrada"}</p>
-                <p className="text-lg text-slate-700">Ojo derecho {textoGraduacionOjo(c.od)}</p>
-                <p className="text-lg text-slate-700">Ojo izquierdo {textoGraduacionOjo(c.oi)}</p>
-              </li>
-            ))}
-          </ul>
-        </Bloque>
+      </div>
+      {todasLasRecetas.length > 1 && (
+        <div className="space-y-5 lg:col-span-4">
+          {cambio && (
+            <Bloque id="cambio" titulo="Cómo cambió tu graduación" Icono={TrendingUp}>
+              <p className="text-xl font-semibold leading-snug text-slate-800">{cambio.frase}</p>
+              <ul className="mt-3 space-y-1 text-lg text-slate-700">{cambio.porOjo.map((o) => <li key={o.nombre}><span className="font-semibold">{o.nombre}:</span> {o.texto}</li>)}</ul>
+            </Bloque>
+          )}
+          <Bloque id="anteriores" titulo="Tus recetas anteriores" Icono={History}>
+            <ul className="divide-y divide-slate-100">
+              {recetasAnteriores.map((c, i) => {
+                const vs = resumenCambioGraduacion([c, todasLasRecetas[i + 2]].filter(Boolean))
+                return (
+                  <li key={c.id} className="py-3 first:pt-0 last:pb-0">
+                    <p className="text-lg font-semibold text-slate-800">{formatoFecha(c.fecha, "medio")} · {c.diagnostico || "Consulta registrada"}</p>
+                    <p className="text-lg text-slate-700">Ojo derecho {textoGraduacionOjo(c.od)}</p>
+                    <p className="text-lg text-slate-700">Ojo izquierdo {textoGraduacionOjo(c.oi)}</p>
+                    {vs && <p className="mt-1 text-base text-slate-600">{vs.verdicto === "Sin cambios" ? "Igual que en el examen anterior." : vs.verdicto === "Aumentó" ? "Aumentó respecto al examen anterior." : "Disminuyó respecto al examen anterior."}</p>}
+                  </li>
+                )
+              })}
+            </ul>
+          </Bloque>
+        </div>
       )}
+      </div>
     </div>
   )
 }

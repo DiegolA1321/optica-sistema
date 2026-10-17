@@ -8,8 +8,8 @@ import { fechaLegible } from "../utilidades/formatoFecha"
 import { diaDeRegistro } from "../utilidades/periodoLista"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { urlDeDescargaPaciente } from "../utilidades/facturaElectronicaApi"
-import { textoOrdenPaciente, nombreDeLosLentes } from "../utilidades/portalPaciente"
-import { Insignia, TituloPagina, Esqueleto } from "./portal/piezas"
+import { nombreDeLosLentes } from "../utilidades/portalPaciente"
+import { Insignia, TituloPagina, Esqueleto, PasosLentes } from "./portal/piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./portal/estilos"
 
 const ETIQUETA = { pagada: "Pagada", pendiente_pago: "Con saldo" }
@@ -73,19 +73,12 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                     {!fe?.pdf && !fe?.xml && <p className="max-w-[18rem] text-base text-slate-600 sm:text-right">{fe ? "Tu óptica todavía no subió los archivos de tu factura electrónica." : "Tu óptica todavía no registró la factura electrónica de esta compra."}</p>}
                   </div>
                 </div>
-                {lentes.map((o) => {
-                  const t = textoOrdenPaciente(o)
-                  return (
-                    <div key={o.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-4">
-                      <Glasses size={22} className="mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-lg font-semibold text-slate-800">{nombreDeLosLentes(o)}</p>
-                        <Insignia tono={t.tono}>{t.titulo}</Insignia>
-                        <p className="text-lg text-slate-700">{t.detalle}</p>
-                      </div>
-                    </div>
-                  )
-                })}
+                {lentes.map((o) => (
+                  <div key={o.id} className="space-y-3 rounded-xl bg-slate-50 p-4">
+                    <p className="flex items-center gap-2 text-lg font-semibold text-slate-800"><Glasses size={22} className="shrink-0 text-slate-500" aria-hidden="true" /> {nombreDeLosLentes(o)}</p>
+                    <PasosLentes orden={o} />
+                  </div>
+                ))}
               </li>
             )
           })}

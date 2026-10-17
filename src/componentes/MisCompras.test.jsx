@@ -17,7 +17,7 @@ beforeEach(() => { vi.clearAllMocks(); window.HTMLAnchorElement.prototype.click 
 describe("Portal: Mis compras", () => {
   it("lista sus compras, y las que tienen saldo dicen lo abonado y lo que debe", () => {
     render(<MisCompras usuario={usuario} compras={[compra(), compra({ id: "f2", numero: 18, estado: "pendiente_pago", total: 200, abonado: 60, saldo: 140 })]} />)
-    const filas = within(screen.getByRole("list", { name: "Mis compras" })).getAllByRole("listitem")
+    const filas = [...screen.getByRole("list", { name: "Mis compras" }).children]
     expect(filas).toHaveLength(2)
     expect(filas[0]).toHaveTextContent("CV-0017")
     expect(filas[0]).toHaveTextContent("Pagada")
@@ -29,7 +29,7 @@ describe("Portal: Mis compras", () => {
 
   it("las compras con factura electrónica ofrecen el PDF y el XML; las demás explican por qué no", () => {
     render(<MisCompras usuario={usuario} compras={[compra({ factura_electronica: { numero: "001-001-000001216", pdf: true, xml: true } }), compra({ id: "f2", numero: 18 }), compra({ id: "f3", numero: 19, factura_electronica: { numero: "001-001-000001217", pdf: false, xml: false } })]} />)
-    const filas = within(screen.getByRole("list", { name: "Mis compras" })).getAllByRole("listitem")
+    const filas = [...screen.getByRole("list", { name: "Mis compras" }).children]
     expect(within(filas[0]).getByRole("button", { name: /Factura \(PDF\)/ })).toBeInTheDocument()
     expect(within(filas[0]).getByRole("button", { name: /XML/ })).toBeInTheDocument()
     expect(filas[1]).toHaveTextContent("todavía no registró la factura electrónica")
@@ -38,7 +38,7 @@ describe("Portal: Mis compras", () => {
 
   it("cada compra dice el estado de sus lentes, con el nombre que entiende el paciente", () => {
     render(<MisCompras usuario={usuario} compras={[compra(), compra({ id: "f2", numero: 18 })]} ordenes={[orden(), orden({ id: "o2", facturaId: "f2", estado: "lista", listaEl: "2026-10-16T14:00:00Z" })]} />)
-    const filas = within(screen.getByRole("list", { name: "Mis compras" })).getAllByRole("listitem")
+    const filas = [...screen.getByRole("list", { name: "Mis compras" }).children]
     expect(filas[0]).toHaveTextContent("Lentes progresivos con la montura Ray-Ban")
     expect(filas[0]).toHaveTextContent("En el laboratorio")
     expect(filas[0]).toHaveTextContent("Fecha estimada: 20 ene 2099.")

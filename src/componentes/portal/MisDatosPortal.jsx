@@ -63,9 +63,10 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
     <div className="space-y-5">
       <TituloPagina subtitulo="Tus datos personales y de contacto.">Mis datos</TituloPagina>
 
-      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6">
+      <div className="grid gap-5 lg:grid-cols-12 lg:items-start">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6 lg:col-span-7">
         <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>{primerNombre[0]?.toUpperCase()}</div>
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: "var(--portal-grad)", color: "var(--portal-texto-boton)" }}>{primerNombre[0]?.toUpperCase()}</div>
           <div className="min-w-0">
             <h2 className="break-words text-xl font-bold" style={{ color: INK }}>{usuario?.nombre || "Paciente"}</h2>
             <p className="text-lg text-slate-600">Paciente de {nombreOptica}</p>
@@ -84,7 +85,7 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:p-6 lg:col-span-5">
         <h2 className="text-xl font-bold" style={{ color: INK }}>Privacidad y tus datos</h2>
         <p className="mt-1 text-lg text-slate-600">Tus datos son tuyos — puedes descargarlos o pedirnos que los eliminemos cuando quieras.</p>
 
@@ -113,6 +114,8 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
             <ShieldAlert size={20} aria-hidden="true" /> Solicitar eliminación
           </button>
         </div>
+      </div>
+
       </div>
 
       {modalEliminarAbierto && (

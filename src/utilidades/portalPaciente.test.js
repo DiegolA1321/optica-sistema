@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   citasProximas, citasHistorial, NOTA_ESTADO_CITA, mapOrdenPaciente, ordenesAbiertasDelPaciente, nombreDeLosLentes,
-  textoOrdenPaciente, pasosDeLosLentes, resumenCambioGraduacion, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
+  textoOrdenPaciente, identidadDeLaOptica, pasosDeLosLentes, resumenCambioGraduacion, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
 } from "./portalPaciente"
 
 // "Hoy" fijo: 17 de octubre de 2026, mediodía (hora de Ecuador ya convertida: la función recibe un Date local).
@@ -166,5 +166,26 @@ describe("la óptica, hoy", () => {
     expect(c.hoy.abierto).toBe(true)
     expect(c.hoy.texto).toMatch(/Abierto hoy hasta las/)
     expect(contactoDeLaOptica({}).hoy).toBeNull()
+  })
+})
+
+describe("identidad de la óptica", () => {
+  it("sin color propio queda el azul de la marca del sistema", () => {
+    const i = identidadDeLaOptica({})
+    expect(i.acento).toBe("#2563EB")
+    expect(i.grad).toBe("linear-gradient(135deg,#22D3EE,#2563EB)")
+    expect(i.textoBoton).toBe("#FFFFFF")
+    expect(i.logoUrl).toBe("")
+  })
+  it("usa el color y el logo de la óptica", () => {
+    const i = identidadDeLaOptica({ logo_url: "https://x/logo.png", marca: { colorAcento: "#7C3AED" } })
+    expect(i.acento).toBe("#7C3AED")
+    expect(i.grad).toContain("#7C3AED")
+    expect(i.hero).toContain("#7C3AED")
+    expect(i.logoUrl).toBe("https://x/logo.png")
+  })
+  it("un color mal escrito se ignora, y uno muy claro lleva texto oscuro en los botones", () => {
+    expect(identidadDeLaOptica({ marca: { colorAcento: "rojo" } }).acento).toBe("#2563EB")
+    expect(identidadDeLaOptica({ marca: { colorAcento: "#FDE047" } }).textoBoton).toBe("#0E2B33")
   })
 })
