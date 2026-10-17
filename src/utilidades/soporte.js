@@ -21,7 +21,10 @@ export const TIPOS_CONSULTA = [
   { id: "pregunta", nombre: "Pregunta", ayuda: "No sé cómo hacer algo." },
   { id: "sugerencia", nombre: "Sugerencia", ayuda: "Una idea para mejorar el sistema." },
 ]
-export const nombreTipo = (id) => TIPOS_CONSULTA.find((t) => t.id === id)?.nombre || "Pregunta"
+// El tipo «ayuda» es solo de las consultas con las que el soporte ofrece ayuda: no se elige al escribir una consulta (no está en TIPOS_CONSULTA).
+export const nombreTipo = (id) => (id === "ayuda" ? "Ayuda ofrecida" : TIPOS_CONSULTA.find((t) => t.id === id)?.nombre || "Pregunta")
+// Una consulta que abrió el soporte para ofrecer ayuda con un módulo (el módulo viaja como dato: la guía se abre en el sistema donde esté).
+export const esOfertaDeAyuda = (c) => c?.iniciadaPor === "soporte" && !!c?.ayudaModulo
 
 export const URGENCIAS = [
   { id: "normal", nombre: "Normal", ayuda: "Puedo seguir trabajando mientras tanto." },
@@ -157,7 +160,7 @@ const mediana = (xs) => {
 export function indicadoresSoporte(consultas, { desde = null, hasta = null } = {}) {
   const dentro = consultas.filter((c) => (!desde || c2ms(c.creadaEn) >= c2ms(desde)) && (!hasta || c2ms(c.creadaEn) <= c2ms(hasta)))
   const primeras = dentro.filter((c) => c.primeraRespuestaEn).map((c) => minutos(c.escaladaEn || c.creadaEn, c.primeraRespuestaEn))
-  const resoluciones = dentro.filter((c) => c.resueltaEn && c.estado === "resuelta").map((c) => minutos(c.escaladaEn || c.creadaEn, c.resueltaEn))
+  const resoluciones = dentro.filter((c) => c.resueltaEn && c.estado === "resuelta" && c.iniciadaPor !== "soporte").map((c) => minutos(c.escaladaEn || c.creadaEn, c.resueltaEn))
   const notas = dentro.filter((c) => c.calificacion).map((c) => c.calificacion)
   const porModulo = {}
   for (const c of dentro) porModulo[c.modulo] = (porModulo[c.modulo] || 0) + 1
@@ -165,7 +168,7 @@ export function indicadoresSoporte(consultas, { desde = null, hasta = null } = {
     total: dentro.length,
     abiertas: dentro.filter(esAbierta).length,
     urgentesAbiertas: dentro.filter((c) => esAbierta(c) && c.urgencia === "urgente").length,
-    sinResponder: dentro.filter((c) => !c.primeraRespuestaEn && esAbierta(c)).length,
+    sinResponder: dentro.filter((c) => !c.primeraRespuestaEn && esAbierta(c) && c.iniciadaPor !== "soporte").length,
     primeraRespuestaMin: mediana(primeras),
     resolucionMin: mediana(resoluciones),
     satisfaccion: notas.length ? Math.round((notas.reduce((a, b) => a + b, 0) / notas.length) * 10) / 10 : null,
@@ -196,6 +199,7 @@ export const mapConsulta = (r) => ({
   primeraRespuestaEn: r.primera_respuesta_en, resueltaEn: r.resuelta_en, reabiertaVeces: r.reabierta_veces || 0,
   creadaEn: r.creada_en, actualizadaEn: r.actualizada_en,
   destino: r.destino || "superadmin", escaladaEn: r.escalada_en || null, escaladaPor: r.escalada_por || "",
+  iniciadaPor: r.iniciada_por || "optica", ayudaModulo: r.ayuda_modulo || null,
 })
 export const mapMensajeSoporte = (r) => ({
   id: r.id, consultaId: r.consulta_id, autorId: r.autor_id || null, autorNombre: r.autor_nombre, de: r.de, interna: !!r.interna, cuerpo: r.cuerpo, adjuntos: Array.isArray(r.adjuntos) ? r.adjuntos : [], creadoEn: r.creado_en,

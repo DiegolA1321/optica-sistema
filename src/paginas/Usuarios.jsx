@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import CampoClaveTemporal from "../componentes/CampoClaveTemporal"
+import VistaPrevia, { EtiquetaDeMuestra } from "../componentes/VistaPrevia"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, resolverClaveTemporal } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
 import VentanaActividad from "../componentes/VentanaActividad"
@@ -412,14 +413,13 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
         </fieldset>
 
         {rolesSeleccionados.length > 0 && (
-          <section aria-label="Vista previa de lo que verá" className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lo que verá y podrá hacer</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">Inicio</span>
-              {vistaPrevia.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">{m}</span>)}
+          <VistaPrevia nombre="Vista previa de lo que verá" leyenda="Lo que verá y podrá hacer">
+            <div className="flex flex-wrap gap-1.5">
+              <EtiquetaDeMuestra>Inicio</EtiquetaDeMuestra>
+              {vistaPrevia.menu.map((m) => <EtiquetaDeMuestra key={m}>{m}</EtiquetaDeMuestra>)}
             </div>
             <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">{vistaPrevia.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
-          </section>
+          </VistaPrevia>
         )}
           </div>
         </Cascaron>

@@ -9,6 +9,8 @@ import { BurbujaMensaje, CampoCapturas, InsigniaEstado, InsigniaUrgencia } from 
 import { ESTADOS_CONSULTA, codigoConsulta, nombreModulo, nombreTipo } from "../../utilidades/soporte"
 import { cambiarEstadoSoporte, leerConversacionSoporte, responderSoporte } from "../../utilidades/soporteDatos"
 import { fechaHoraLegible } from "../../utilidades/formatoFecha"
+import ContadorMensaje from "../ContadorMensaje"
+import { LIMITE_MENSAJE } from "../../utilidades/limiteMensaje"
 
 const CAMPO = "w-full resize-none rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
 
@@ -68,7 +70,7 @@ export default function VentanaConsultaSoporte({ consulta, opticaNombre, respues
 
   const ctx = consulta.contexto || {}
   const filas = [
-    ["Óptica", opticaNombre || "—"], ["Escribe", `${consulta.autorNombre} · ${consulta.autorRol}`], ["Módulo", nombreModulo(consulta.modulo)], ["Tipo", nombreTipo(consulta.tipo)],
+    ["Óptica", opticaNombre || "—"], [consulta.iniciadaPor === "soporte" ? "Abrió" : "Escribe", consulta.iniciadaPor === "soporte" ? `${consulta.autorNombre} · iniciada por el soporte` : `${consulta.autorNombre} · ${consulta.autorRol}`], ["Módulo", nombreModulo(consulta.modulo)], ["Tipo", nombreTipo(consulta.tipo)],
     ["Pantalla desde la que escribió", ctx.pantalla || "—"], ["Navegador", ctx.navegador || "—"],
   ]
   return (
@@ -79,7 +81,7 @@ export default function VentanaConsultaSoporte({ consulta, opticaNombre, respues
       </>}>
       <div className="space-y-4 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2"><InsigniaEstado estado={consulta.estado} /><InsigniaUrgencia urgencia={consulta.urgencia} />{consulta.reabiertaVeces > 0 && <span className="text-xs text-slate-500">Reabierta {consulta.reabiertaVeces === 1 ? "1 vez" : `${consulta.reabiertaVeces} veces`}</span>}</div>
+          <div className="flex flex-wrap items-center gap-2"><InsigniaEstado estado={consulta.estado} />{consulta.iniciadaPor === "soporte" ? <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">Iniciada por el soporte</span> : <InsigniaUrgencia urgencia={consulta.urgencia} />}{consulta.reabiertaVeces > 0 && <span className="text-xs text-slate-500">Reabierta {consulta.reabiertaVeces === 1 ? "1 vez" : `${consulta.reabiertaVeces} veces`}</span>}</div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             Estado
             <select value={consulta.estado} disabled={enviando} onChange={(e) => cambiarEstado(e.target.value)} className="rounded-lg border border-slate-200/60 bg-white px-2.5 py-1.5 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50">
@@ -119,7 +121,8 @@ export default function VentanaConsultaSoporte({ consulta, opticaNombre, respues
             )}
           </div>
           <label htmlFor="soporte-sa-respuesta" className="sr-only">{interna ? "Nota interna" : "Tu respuesta"}</label>
-          <textarea ref={campo} id="soporte-sa-respuesta" rows={4} value={texto} maxLength={4000} onChange={(e) => setTexto(e.target.value)} placeholder={interna ? "Una nota para el equipo de soporte…" : "Escribe tu respuesta para la óptica…"} className={CAMPO} />
+          <textarea ref={campo} id="soporte-sa-respuesta" rows={4} value={texto} maxLength={LIMITE_MENSAJE} onChange={(e) => setTexto(e.target.value)} placeholder={interna ? "Una nota para el equipo de soporte…" : "Escribe tu respuesta para la óptica…"} className={CAMPO} />
+          <ContadorMensaje valor={texto} />
           <CampoCapturas id="soporte-sa-capturas" archivos={archivos} onCambiar={setArchivos} deshabilitado={enviando} />
           <div className="flex justify-end">
             <button type="submit" disabled={enviando || !texto.trim()} className={CLASE_ACCION_PRINCIPAL} style={{ background: interna ? "#B45309" : GRAD_MARCA }}>

@@ -44,7 +44,7 @@ function destinoDeAccion(a, esPrueba) {
   }
 }
 
-function DetalleAccion({ a, opticaPrueba, onCerrar, onAbrir }) {
+export function DetalleAccion({ a, opticaPrueba, onCerrar, onAbrir }) {
   const cambio = cambioDeAccion(a)
   const destino = destinoDeAccion(a, opticaPrueba)
   const tipo = TIPOS_ACTIVIDAD.find((t) => t.id === tipoDeAccion(a.accion))?.nombre || "Otras"
@@ -208,14 +208,14 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
         <div className="flex flex-wrap items-end gap-3">
           <label className="relative min-w-[14rem] flex-1 text-xs font-semibold text-slate-500">Buscar
             <Search size={15} className="pointer-events-none absolute bottom-2.5 left-2.5 text-slate-500" aria-hidden="true" />
-            <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Persona, óptica o lo que se hizo" aria-label="Buscar en la actividad" className={SELECT + " mt-0.5 w-full pl-8 [&::-webkit-search-cancel-button]:hidden"} />
+            <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder={MODO_SAAS_VISIBLE ? "Persona, óptica o lo que se hizo" : "Persona o lo que se hizo"} aria-label="Buscar en la actividad" className={SELECT + " mt-0.5 w-full pl-8 [&::-webkit-search-cancel-button]:hidden"} />
           </label>
-          <label className="text-xs font-semibold text-slate-500">Óptica
+          {(MODO_SAAS_VISIBLE || incluirPrueba) && <label className="text-xs font-semibold text-slate-500">Óptica
             <select aria-label="Óptica" value={opticaId} onChange={(e) => setOpticaId(e.target.value)} className={SELECT + " w-52"}>
               <option value="">Todas</option>
               {opticas.filter((o) => incluirPrueba || !pruebas.has(o.id) || o.id === opticaId).map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
             </select>
-          </label>
+          </label>}
           <label className="text-xs font-semibold text-slate-500">Persona
             <select aria-label="Persona" value={actorId} onChange={(e) => setActorId(e.target.value)} className={SELECT + " w-48"}>
               <option value="">Todas</option>

@@ -3,7 +3,10 @@
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaLegible, fechaHoraLegible, tituloSemana } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible, tituloSemana, formatoFecha } from "../utilidades/formatoFecha"
+import { OPTICA_ID_DEFAULT } from "../utilidades/opticaActual"
+import ContadorMensaje from "../componentes/ContadorMensaje"
+import { LIMITE_MENSAJE } from "../utilidades/limiteMensaje"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -137,9 +140,10 @@ const formatearFechaHora = (fecha) =>
 import SoporteSuperadmin from "../componentes/soporte/SoporteSuperadmin"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import ResumenNegocio from "../componentes/superadmin/ResumenNegocio"
+import InicioSuperadmin from "../componentes/superadmin/InicioSuperadmin"
 import useDatosNegocio from "../componentes/superadmin/useDatosNegocio"
 import { EtiquetaPrueba } from "../componentes/superadmin/piezas"
-import { textoDeAccion, ACCIONES_COMERCIALES, MODULOS_USO, ultimaActividadDe, haceDias, opticasDelNegocio, sinPruebas, idsDePrueba, saludDeLaRed, esDePrueba } from "../utilidades/superadminNegocio"
+import { textoDeAccion, ACCIONES_COMERCIALES, MODULOS_USO, ultimaActividadDe, haceDias, opticasDelNegocio, sinPruebas, idsDePrueba, saludDeLaRed, esDePrueba, opticaDeLaTesis } from "../utilidades/superadminNegocio"
 import { diaDe, enRango, rangoDePeriodo } from "../utilidades/reportesPeriodo"
 import SelectorPeriodo from "../componentes/reportes/SelectorPeriodo"
 import { SinResultados } from "../componentes/reportes/bloques"
@@ -150,8 +154,8 @@ import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
 
 const NAV = [
-  { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
-  { id: "opticas", nombre: "Ópticas", icono: Building2 },
+  { id: "resumen", nombre: MODO_SAAS_VISIBLE ? "Resumen" : "Inicio", icono: LayoutDashboard },
+  { id: "opticas", nombre: MODO_SAAS_VISIBLE ? "Ópticas" : "La óptica", icono: Building2 },
   { id: "leads", nombre: "Leads", icono: Inbox },
   { id: "mensajes", nombre: "Soporte", icono: MessageSquare },
   { id: "actividad", nombre: "Actividad", icono: History },
@@ -578,6 +582,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     e.preventDefault()
     setErrorAviso("")
     if (!avisoAsunto.trim() || !avisoCuerpo.trim()) { setErrorAviso("Completa el asunto y el mensaje."); return }
+    if (avisoCuerpo.trim().length > LIMITE_MENSAJE) { setErrorAviso(`El mensaje es demasiado largo (máximo ${LIMITE_MENSAJE} caracteres).`); return }
     const opticaDestino = avisoDestino === "todos" ? null : avisoDestino
     if (avisoDestino !== "todos" && !opticaDestino) { setErrorAviso("Elige a qué óptica va dirigido el aviso."); return }
     setPublicandoAviso(true)
@@ -919,6 +924,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
           nombre: nombreOptica.trim(),
           slug: slug.trim(),
           logo_url: logoUrl.trim() || null,
+          es_de_prueba: crearEsPrueba,
           marca: {
             nombreMarca: nombreOptica.trim(),
             eslogan: eslogan.trim() || "Ve el mundo con claridad.",
@@ -1437,6 +1443,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setEliminandoSuperadmin(false)
   }
 
+  // «Nuevo aviso» (botón de Soporte y atajo del Inicio). Con una sola óptica el aviso va al administrador de la óptica, sin elegir destinatario.
+  const abrirNuevoAviso = () => {
+    setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo("")
+    setAvisoDestino(MODO_SAAS_VISIBLE ? "todos" : opticaDeLaTesis(opticas, OPTICA_ID_DEFAULT)?.id || "todos")
+    setModalAvisoAbierto(true)
+  }
+
   // ─── Secciones ───
 
 
@@ -1447,11 +1460,18 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
   const renderResumen = () => cargaInicial ? (
     <div className="space-y-4" aria-busy="true" aria-label="Cargando el resumen">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" />)}</div>
+  ) : !MODO_SAAS_VISIBLE ? (
+    <InicioSuperadmin
+      opticas={opticas} datos={datosNegocio} consultas={consultasSoporte} actividad={auditoria}
+      incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} onAbrir={irA}
+      onNuevoAviso={abrirNuevoAviso} onEntrarComo={pedirEntrada} onAviso={(t) => mostrarToast("exito", t)}
+      onAuditoria={async (accion, datos) => { await registrarAuditoria(accion, datos); cargarAuditoria(true) }}
+    />
   ) : (
     <ResumenNegocio
       datos={datosNegocio} opticas={opticas} leads={leads} consultas={consultasSoporte} cargandoSoporte={cargandoSoporte} estadoServidor={estadoServidor}
       incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} usuario={usuario}
-      actividad={auditoria} onAbrir={irA} onEntrarComo={pedirEntrada} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
+      onAbrir={irA} onEntrarComo={pedirEntrada} onAviso={(t) => mostrarToast("exito", t)} onCrearOptica={abrirCrear}
     />
   )
 
@@ -1660,7 +1680,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         <InterruptorPrueba activo={incluirPrueba} onCambiar={setIncluirPrueba} cuantas={nPrueba} />
         <button
           type="button"
-          onClick={() => { setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo(""); setAvisoDestino("todos"); setModalAvisoAbierto(true) }}
+          onClick={abrirNuevoAviso}
           className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
           style={{ background: GRAD }}
         >
@@ -1780,7 +1800,52 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     )
   }
 
-  const renderOpticas = () => (
+  // Con una óptica real ya creada, lo que se crea en el modo de la tesis es un entorno de prueba (no cuenta en el uso ni en la actividad).
+  const crearEsPrueba = !MODO_SAAS_VISIBLE && opticas.some((o) => !esDePrueba(o))
+
+  // Modo de la tesis: el sistema es para una sola óptica. Sin tabla, filtros ni búsqueda de ópticas: su tarjeta y, aparte, los entornos de prueba.
+  const renderLaOptica = () => (
+    <div className="space-y-3" data-opticas>
+      <CabeceraSeccion titulo="La óptica" pregunta="¿Cómo está la óptica y qué entornos de prueba hay?">
+        {<button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> {crearEsPrueba ? "Crear entorno de prueba" : "Crear óptica"}</button>}
+      </CabeceraSeccion>
+      {cargando ? <Skeleton className="h-28" /> : opticasListado.length === 0 ? (
+        <SinResultados texto="Aún no hay una óptica registrada." acciones={[{ etiqueta: "Crear la primera óptica", onClick: abrirCrear }]} />
+      ) : opticasListado.map((o) => {
+        const admins = adminsPorOptica.get(o.id) || []
+        const u = usoPorOptica.get(o.id)
+        const ultima = u ? ultimaActividadDe(u) : ""
+        return (
+          <section key={o.id} aria-label={`La óptica: ${o.nombre}`} className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-lg font-bold text-white" style={{ background: GRAD }}>{o.nombre.charAt(0).toUpperCase()}</div>
+            <div className="min-w-0 flex-1 basis-56">
+              <button type="button" onClick={() => abrirDetalleOptica(o)} aria-label={`Ver el detalle de ${o.nombre}`} className="block max-w-full truncate text-left text-base font-bold text-slate-800 transition-colors hover:text-blue-600 focus-visible:outline-none focus-visible:underline cursor-pointer" title={o.nombre}>{o.nombre}</button>
+              <p className="truncate font-mono text-xs text-slate-500">{o.slug}</p>
+            </div>
+            <dl className="grid min-w-0 flex-[2] basis-80 grid-cols-2 gap-x-5 gap-y-2 text-sm sm:grid-cols-4">
+              <div className="min-w-0"><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Estado</dt><dd><span className={"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold " + (o.activa ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700")}>{o.activa ? "Activa" : "Suspendida"}</span></dd></div>
+              <div className="min-w-0"><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Administrador</dt><dd className="truncate font-medium text-slate-700">{admins.length === 0 ? <span className="text-amber-700">Sin administrador</span> : admins[0].nombre + (admins.length > 1 ? ` +${admins.length - 1}` : "")}</dd></div>
+              <div className="min-w-0"><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Última actividad</dt><dd className="truncate text-slate-700">{ultima ? haceDias(ultima, hoyISO()) : "—"}</dd></div>
+              <div className="min-w-0"><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Creada</dt><dd className="truncate text-slate-700">{fechaLegible(diaDe(o.created_at))}</dd></div>
+            </dl>
+            <div className="flex shrink-0 items-center gap-2">
+              <button type="button" onClick={() => abrirDetalleOptica(o)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver detalle</button>
+              <button type="button" onClick={(e) => abrirMenuAcciones(o.id, e)} title="Más acciones" aria-label={`Más acciones para ${o.nombre}`} disabled={procesandoId === o.id} className={"rounded-lg p-2 transition-colors cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 " + (menuAccionesId === o.id ? "bg-slate-100 text-slate-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700")}><MoreVertical size={16} /></button>
+            </div>
+          </section>
+        )
+      })}
+      {entornosPrueba.length > 0 && (
+        <section aria-label="Entornos de prueba" className="space-y-2">
+          <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Entornos de prueba</h2>
+          <p className="text-sm text-slate-500">Datos de demostración y de las pruebas automáticas. No cuentan en el uso ni en la actividad.</p>
+          {tablaOpticas(entornosPrueba, true)}
+        </section>
+      )}
+    </div>
+  )
+
+  const renderOpticas = () => !MODO_SAAS_VISIBLE ? renderLaOptica() : (
     <div className="space-y-3" data-opticas>
       <CabeceraSeccion titulo="Ópticas" pregunta={MODO_SAAS_VISIBLE ? "¿Qué ópticas tengo, cómo van y cuál necesita atención?" : "¿Qué óptica usa el sistema y qué entornos de prueba hay?"}>
         {<button type="button" onClick={abrirCrear} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer" style={{ background: GRAD }}><Plus size={15} aria-hidden="true" /> Crear óptica</button>}
@@ -2116,7 +2181,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
         </div>
 
         <div className={"relative z-10 space-y-3 border-t border-slate-200/70 p-4 " + (colapsado ? "lg:px-2" : "")}>
-          {!colapsado && (
+          {!colapsado && MODO_SAAS_VISIBLE && (
             <div className="hidden rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm lg:block">
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                 <TrendingUp size={12} /> {MODO_SAAS_VISIBLE ? `${opticas.length} óptica${opticas.length === 1 ? "" : "s"} · ` : ""}{superadmins.length} superadmin{superadmins.length === 1 ? "" : "s"}
@@ -2169,10 +2234,21 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
               {colapsado ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
             </button>
             <div className="min-w-0">
-              <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>
-                {NAV.find((o) => o.id === seccion)?.nombre || "Panel de superadministrador"}
-              </p>
-              <p className="truncate text-xs text-slate-500">Panel de superadministrador</p>
+              {MODO_SAAS_VISIBLE ? (
+                <>
+                  <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>
+                    {NAV.find((o) => o.id === seccion)?.nombre || "Panel de superadministrador"}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">Panel de superadministrador</p>
+                </>
+              ) : (
+                <>
+                  <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>
+                    {ahoraEcuador().getHours() < 12 ? "Buenos días" : ahoraEcuador().getHours() < 19 ? "Buenas tardes" : "Buenas noches"}, {usuario?.nombre || "Superadmin"}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">{formatoFecha(ahoraEcuador(), "largo")}</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -2760,7 +2836,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {modalAvisoAbierto && (
         <Cascaron
           titulo="Nuevo aviso"
-          subtitulo={avisoDestino === "todos" ? (MODO_SAAS_VISIBLE ? "Lo van a ver todos los administradores de óptica." : "Lo van a ver todos los administradores.") : "Solo lo va a ver el administrador de esa óptica."}
+          subtitulo={!MODO_SAAS_VISIBLE ? "Lo va a ver el administrador de la óptica." : avisoDestino === "todos" ? "Lo van a ver todos los administradores de óptica." : "Solo lo va a ver el administrador de esa óptica."}
           Icono={Megaphone}
           ancho="max-w-md"
           onCerrar={() => !publicandoAviso && setModalAvisoAbierto(false)}
@@ -2783,7 +2859,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                 <AlertCircle size={16} /> {errorAviso}
               </div>
             )}
-            <div>
+            {MODO_SAAS_VISIBLE && <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Destinatario</label>
               <div className="flex items-center gap-1 rounded-2xl border border-slate-200/60 bg-slate-100 p-1 shadow-inner">
                 <button
@@ -2814,7 +2890,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   ))}
                 </select>
               )}
-            </div>
+            </div>}
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Asunto</label>
               <input
@@ -2826,10 +2902,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
               <textarea
-                rows={5} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
+                rows={5} maxLength={LIMITE_MENSAJE} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
                 placeholder="Escribe el aviso…"
                 className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
               />
+              <ContadorMensaje valor={avisoCuerpo} />
             </div>
           </div>
         </Cascaron>
@@ -2838,8 +2915,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {/* ─── MODAL CREAR ÓPTICA ─── */}
       {modalAbierto && (
         <Cascaron
-          titulo="Crear óptica"
-          subtitulo="Se crea la óptica y la cuenta de su administrador en un solo paso."
+          titulo={crearEsPrueba ? "Crear entorno de prueba" : "Crear óptica"}
+          subtitulo={crearEsPrueba ? "Se crea un entorno de prueba y la cuenta de su administrador en un solo paso. No cuenta en el uso ni en la actividad." : "Se crea la óptica y la cuenta de su administrador en un solo paso."}
           Icono={Building2}
           ancho="max-w-xl"
           onCerrar={cerrarModal}
@@ -2851,7 +2928,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                     Cancelar
                   </button>
                   <button type="submit" disabled={guardando || slugEstado === "ocupado"} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
-                    {guardando ? "Creando…" : "Crear óptica"}
+                    {guardando ? "Creando…" : crearEsPrueba ? "Crear entorno de prueba" : "Crear óptica"}
                   </button>
             </div>
           </>}

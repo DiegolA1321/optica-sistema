@@ -82,6 +82,40 @@ export const reabrirConsulta = (consultaId, motivo) => llamar("reabrir_consulta_
 export const calificarConsulta = (consultaId, nota, comentario) => llamar("calificar_consulta_soporte", { p_consulta: consultaId, p_nota: nota, p_comentario: comentario || null }, "No se pudo guardar tu calificación.")
 export const marcarConsultaLeida = (consultaId) => llamar("marcar_consulta_soporte_leida", { p_consulta: consultaId }, "")
 
+// ── Ofrecer ayuda (migración 0122)
+// El administrador de la óptica: «No usamos este módulo» y deshacerlo desde Configuración.
+export const noUsamosModulo = (consultaId) => llamar("no_usamos_modulo", { p_consulta: consultaId }, "No se pudo guardar tu respuesta. Vuelve a intentarlo.")
+export const volverAUsarModulo = (modulo) => llamar("volver_a_usar_modulo", { p_modulo: modulo }, "No se pudo deshacer. Vuelve a intentarlo.")
+export async function leerModulosNoUsados() {
+  if (!supabase) return { ...SIN_BASE, datos: [] }
+  const { data, error } = await supabase.from("modulos_no_usados").select("modulo, marcado_nombre, marcado_en").order("marcado_en", { ascending: false })
+  if (error) return { error: texto(error, "No se pudieron leer los módulos que no usan."), datos: [] }
+  return { datos: data || [] }
+}
+// El superadmin: ofrece ayuda (crea la consulta) y lee lo ofrecido y lo que la óptica decidió.
+export async function ofrecerAyuda({ opticaId, modulo, mensaje }) {
+  if (!supabase) return SIN_BASE
+  const { data, error } = await supabase.rpc("ofrecer_ayuda", { p_optica: opticaId, p_modulo: modulo, p_mensaje: mensaje })
+  if (error) return { error: texto(error, "No se pudo enviar la ayuda. Vuelve a intentarlo.") }
+  const fila = Array.isArray(data) ? data[0] : data
+  avisarCambioSoporte()
+  return { datos: { id: fila?.id, numero: fila?.numero } }
+}
+export async function leerAyudasDeLaOptica(opticaId) {
+  if (!supabase || !opticaId) return { ofrecidas: [], noUsan: [], sinDato: !supabase }
+  const [a, n] = await Promise.all([
+    supabase.from("ayudas_ofrecidas").select("modulo, ofrecida_en, consulta:soporte_consultas(numero, estado)").eq("optica_id", opticaId).order("ofrecida_en", { ascending: false }),
+    supabase.from("modulos_no_usados").select("modulo, marcado_en, marcado_nombre").eq("optica_id", opticaId),
+  ])
+  // Si la migración 0122 todavía no está aplicada, el Inicio sigue sin esta parte (nada ofrecido, nada decidido).
+  if (a.error || n.error) return { ofrecidas: [], noUsan: [], sinDato: true }
+  return {
+    ofrecidas: (a.data || []).map((x) => ({ modulo: x.modulo, ofrecidaEn: x.ofrecida_en, numero: x.consulta?.numero ?? null, estado: x.consulta?.estado ?? null })),
+    noUsan: (n.data || []).map((x) => ({ modulo: x.modulo, marcadoEn: x.marcado_en, marcadoNombre: x.marcado_nombre || "" })),
+    sinDato: false,
+  }
+}
+
 // Avisos del sistema + cuáles ya leyó esta persona.
 export async function leerAvisos(perfilId) {
   if (!supabase) return { ...SIN_BASE, datos: [] }
@@ -136,19 +170,23 @@ export async function leerDestinatariosDeAvisos(opticaId) {
 // Lo de la campanita: respuestas sin leer (de sus consultas) y avisos nuevos.
 // A cada uno lo suyo: respuestas sin leer, avisos del sistema y avisos internos nuevos, y (administrador) las consultas del personal que esperan respuesta.
 export async function leerResumenSoporte(perfilId, esAdmin = false, conSoporte = true) {
-  if (!supabase || !perfilId) return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [] }
+  if (!supabase || !perfilId) return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [], ayudas: [] }
   // Los avisos internos le llegan a todo el personal destinatario; lo demás (respuestas, avisos del sistema, consultas por responder) solo a quien tiene Soporte.
   if (!conSoporte) {
     const i = await leerAvisosInternos(perfilId, false)
     const vistos = new Set(i.leidos || [])
-    return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: (i.datos || []).filter((x) => x.autorId !== perfilId && !vistos.has(x.id)).length, porResponder: [] }
+    return { respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: (i.datos || []).filter((x) => x.autorId !== perfilId && !vistos.has(x.id)).length, porResponder: [], ayudas: [] }
   }
-  const [r, a, i, p] = await Promise.all([
+  const [r, a, i, p, o] = await Promise.all([
     supabase.from("soporte_consultas").select("id, numero, asunto, estado").eq("autor_id", perfilId).eq("respuesta_sin_leer", true).order("actualizada_en", { ascending: false }).limit(20),
     leerAvisos(perfilId),
     leerAvisosInternos(perfilId, false),
     esAdmin
       ? supabase.from("soporte_consultas").select("id, numero, asunto, autor_nombre").eq("destino", "admin").eq("ultimo_mensaje_de", "optica").neq("estado", "resuelta").neq("autor_id", perfilId).order("actualizada_en", { ascending: false }).limit(20)
+      : Promise.resolve({ data: [] }),
+    // Las ofertas de ayuda que el soporte le hizo al administrador y todavía no abrió (si la migración 0122 no está aplicada, no hay ninguna).
+    esAdmin
+      ? supabase.from("soporte_consultas").select("id, numero, asunto, ayuda_modulo").eq("iniciada_por", "soporte").eq("respuesta_sin_leer", true).neq("estado", "resuelta").order("actualizada_en", { ascending: false }).limit(10)
       : Promise.resolve({ data: [] }),
   ])
   const ajenos = (i.datos || []).filter((x) => x.autorId !== perfilId)
@@ -158,6 +196,7 @@ export async function leerResumenSoporte(perfilId, esAdmin = false, conSoporte =
     avisosSinLeer: (a.datos || []).filter((x) => !x.leido).length,
     avisosInternosSinLeer: ajenos.filter((x) => !vistos.has(x.id)).length,
     porResponder: p.data || [],
+    ayudas: o.error ? [] : o.data || [],
   }
 }
 

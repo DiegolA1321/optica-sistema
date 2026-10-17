@@ -14,6 +14,14 @@ const ms = (v) => new Date(v).getTime()
 export const esDePrueba = (o) => !!o?.es_de_prueba
 export const opticasDelNegocio = (opticas, incluirPrueba = false) => (incluirPrueba ? opticas : opticas.filter((o) => !esDePrueba(o)))
 export const idsDePrueba = (opticas) => new Set(opticas.filter(esDePrueba).map((o) => o.id))
+// La óptica del sistema (modo de la tesis): la óptica por defecto si no es de prueba y, si no, la primera que no es de prueba.
+export const opticaDeLaTesis = (opticas, idPorDefecto = null) => {
+  const reales = (opticas || []).filter((o) => !esDePrueba(o))
+  return reales.find((o) => o.id === idPorDefecto) || reales[0] || null
+}
+// Con una sola óptica, lo que pertenece a otra óptica (aunque no esté marcada como de prueba) no se muestra salvo que se incluyan los entornos de prueba.
+// Lo que no es de una óptica (un aviso general, un superadmin) se conserva.
+export const soloLaOptica = (items, opticaId, incluirPrueba = false, clave = "optica_id") => (incluirPrueba || !opticaId ? items : items.filter((x) => !x[clave] || x[clave] === opticaId))
 // Quita de una lista lo que pertenece a una óptica de prueba. Lo que no es de una óptica (un aviso general, un superadmin) se conserva.
 export function sinPruebas(items, opticas, incluirPrueba = false, clave = "optica_id") {
   if (incluirPrueba) return items
@@ -183,6 +191,13 @@ export function haceDias(instante, hoyISO) {
   return n === 1 ? "hace 1 día" : `hace ${n} días`
 }
 // Cómo se dice el uso de un módulo, sin volumen: cuándo fue la última vez o que no se usó.
+// «Ofrecer ayuda»: no se vuelve a ofrecer ayuda con un módulo hasta 30 días después (lo valida el servidor; aquí solo se dice cuándo y se oculta el botón).
+export const PLAZO_AYUDA_DIAS = 30
+export function ayudaOfrecida(ofrecidaEn, ahora = Date.now()) {
+  if (!ofrecidaEn) return { vigente: false, desde: "" }
+  const desde = new Date(new Date(ofrecidaEn).getTime() + PLAZO_AYUDA_DIAS * 86400000)
+  return { vigente: desde.getTime() > ahora, desde: desde.toISOString() }
+}
 export const textoUsoModulo = (ultima, hoyISO) => (ultima ? `En uso · última vez ${haceDias(ultima, hoyISO)}` : "Sin uso en 30 días")
 
 // El uso de la red SIN volumen (privacidad): personas activas y, por módulo, la última vez que alguien lo usó en 30 días.
@@ -221,7 +236,7 @@ export const TIPOS_ACTIVIDAD = [
   { id: "todas", nombre: "Todas", acciones: null },
   { id: "opticas", nombre: "Ópticas", acciones: ["crear_optica", "renombrar_optica", "suspender_optica", "reactivar_optica", "agregar_administrador", "eliminar_administrador", "marcar_optica_prueba"] },
   { id: "accesos", nombre: "Accesos", acciones: ["entrar_como_optica", "salir_de_optica"] },
-  { id: "soporte", nombre: "Soporte", acciones: ["responder_mensaje", "cambiar_estado_soporte"] },
+  { id: "soporte", nombre: "Soporte", acciones: ["responder_mensaje", "cambiar_estado_soporte", "ofrecer_ayuda"] },
   { id: "pagos", nombre: "Pagos", acciones: ["actualizar_pago", "cambiar_suscripcion", "generar_factura", "pagar_factura"] },
   { id: "avisos", nombre: "Avisos del sistema", acciones: ["publicar_anuncio"] },
   { id: "superadmins", nombre: "Superadmins", acciones: ["crear_superadmin", "eliminar_superadmin"] },
@@ -256,6 +271,7 @@ export function frasesDeAccion(a, saas = true) {
     case "marcar_optica_prueba": return [t(a.despues === "Óptica de prueba" ? (saas ? "marcó como óptica de prueba a " : "marcó como entorno de prueba a ") : "quitó la marca de prueba a "), b(o)]
     case "entrar_como_optica": return [t("entró como administrador a la óptica "), b(o)]
     case "salir_de_optica": return [t("salió de la óptica "), b(o)]
+    case "ofrecer_ayuda": return [t("ofreció ayuda con "), b(a.detalle || "un módulo"), t(" a "), b(o)]
     case "responder_mensaje": return [t("respondió una consulta de "), b(o), ...(a.detalle ? [t(" ("), b(a.detalle), t(")")] : [])]
     case "cambiar_estado_soporte": return [t("cambió la consulta "), b(a.detalle || ""), t(" de "), b(o), t(" a "), b(etiquetaDe(ETIQUETA_SOPORTE, a.despues))]
     case "actualizar_pago": return [t("marcó el pago de "), b(o), t(" como "), b(etiquetaDe(ETIQUETA_PAGO, a.despues || a.detalle).toLowerCase())]

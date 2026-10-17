@@ -5,6 +5,7 @@ import { useParamUrl } from "../utilidades/urlEstado"
 import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import AccesoSoporte from "../componentes/soporte/AccesoSoporte"
+import ModulosNoUsados from "../componentes/soporte/ModulosNoUsados"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
 import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "../componentes/AtencionPaciente"
@@ -635,6 +636,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-privacidad">
           <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Privacidad</p>
           <AccesoSoporte onExito={mostrarExito} onError={mostrarError} />
+          <div className="mt-6"><ModulosNoUsados onExito={mostrarExito} onError={mostrarError} /></div>
         </div>
       )}
 

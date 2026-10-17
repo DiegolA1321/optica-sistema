@@ -9,9 +9,9 @@ import { Ayuda } from "./Sugerencia"
 export const REJILLA_TARJETAS = "grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-6"
 export const REJILLA_TARJETAS_4 = "grid grid-cols-2 gap-2.5 lg:grid-cols-4"
 
-export function Seccion({ titulo, aHoy = false, ayuda, derecha, children }) {
+export function Seccion({ id, titulo, aHoy = false, ayuda, derecha, children }) {
   return (
-    <section className="space-y-2" aria-label={titulo}>
+    <section id={id} className="scroll-mt-4 space-y-2" aria-label={titulo}>
       <div className="flex min-h-7 items-center gap-2">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{titulo}</h2>
         {aHoy && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-500">A hoy</span>}

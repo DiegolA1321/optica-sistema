@@ -90,6 +90,12 @@ export const AYUDA_POR_MODULO = [
 ]
 
 // Todas las preguntas con su módulo, para el buscador.
+// El módulo de la Ayuda que corresponde a cada módulo de uso (la ficha clínica se explica dentro de Pacientes).
+export const AYUDA_DE_MODULO = { citas: "citas", pacientes: "pacientes", consultas: "pacientes", ventas: "ventas", inventario: "inventario", crm: "crm", reportes: "reportes" }
+// Cómo se llama cada módulo de uso (los mismos nombres del menú y del Inicio del superadmin).
+export const NOMBRE_MODULO_DE_USO = { citas: "Citas médicas", pacientes: "Pacientes", consultas: "Ficha clínica", ventas: "Ventas", inventario: "Inventario", crm: "CRM y fidelización", reportes: "Reportes" }
+export const nombreModuloDeUso = (id) => NOMBRE_MODULO_DE_USO[id] || id
+export const moduloDeAyuda = (moduloDeUso) => AYUDA_DE_MODULO[moduloDeUso] || ""
 export const TODAS_LAS_PREGUNTAS = AYUDA_POR_MODULO.flatMap((g) => g.preguntas.map((q) => ({ ...q, modulo: g.modulo, moduloNombre: g.nombre })))
 
 const sinTildes = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()

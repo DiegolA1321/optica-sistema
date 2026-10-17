@@ -44,7 +44,7 @@ export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-
             {marca || <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>}
             <div className="min-w-0">
               <h2 className="text-lg font-bold leading-tight" style={{ color: INK }}>{titulo}</h2>
-              <p className="truncate text-xs text-slate-500">{subtitulo}</p>
+              <p className="text-xs text-slate-500">{subtitulo}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">

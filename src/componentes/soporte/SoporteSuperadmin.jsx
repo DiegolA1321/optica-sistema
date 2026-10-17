@@ -17,9 +17,14 @@ import { borrarRespuestaGuardada, guardarAjustesSoporte, guardarRespuestaGuardad
 import { fechaHoraLegible, fechaLegible, tituloSemana } from "../../utilidades/formatoFecha"
 import { instanteInicio, instanteFin } from "../../utilidades/superadminNegocio"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
+import ContadorMensaje from "../ContadorMensaje"
+import { LIMITE_MENSAJE } from "../../utilidades/limiteMensaje"
 
+// Con una sola óptica (modo de la tesis) no hay columna «Óptica»: sería la misma en todas las filas.
 const COLUMNAS = "lg:grid-cols-[5.5rem_minmax(0,2fr)_minmax(0,1.2fr)_6rem_9rem_7rem]"
+const COLUMNAS_UNA_OPTICA = "lg:grid-cols-[5.5rem_minmax(0,3fr)_6rem_9rem_7rem]"
 const ENCABEZADO = [{ texto: "Número" }, { texto: "Asunto" }, { texto: "Óptica" }, { texto: "Urgencia" }, { texto: "Estado" }, { texto: "Última actividad" }]
+const ENCABEZADO_UNA_OPTICA = ENCABEZADO.filter((e) => e.texto !== "Óptica")
 const SELECT = "rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
 const FILTROS_INICIALES = { estado: "abiertas", urgencia: "", modulo: "", opticaId: "", busqueda: "" }
 const TABS = [
@@ -69,7 +74,8 @@ function VentanaRespuesta({ respuesta, onGuardar, onCerrar }) {
         </div>
         <div>
           <label htmlFor="rg-texto" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Texto</label>
-          <textarea id="rg-texto" rows={6} value={texto} maxLength={2000} onChange={(e) => setTexto(e.target.value)} className={campo + " resize-none"} />
+          <textarea id="rg-texto" rows={6} value={texto} maxLength={LIMITE_MENSAJE} onChange={(e) => setTexto(e.target.value)} className={campo + " resize-none"} />
+          <ContadorMensaje valor={texto} />
         </div>
         {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
       </div>
@@ -213,6 +219,8 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
   const [cargandoRespuestas, setCargandoRespuestas] = useState(true)
   const [errorRespuestas, setErrorRespuestas] = useState("")
 
+  const conOptica = MODO_SAAS_VISIBLE || opticas.length > 1 // con una sola óptica, ni filtro ni columna de óptica
+  const columnas = conOptica ? COLUMNAS : COLUMNAS_UNA_OPTICA
   const nombreOptica = useCallback((id) => opticas.find((o) => o.id === id)?.nombre || "", [opticas])
   const cargarRespuestas = useCallback(async () => {
     const r = await leerRespuestasGuardadas()
@@ -275,7 +283,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
               </select>
               <select value={filtros.urgencia} onChange={ponerFiltro("urgencia")} aria-label="Filtrar por urgencia" className={SELECT}><option value="">Toda urgencia</option>{URGENCIAS.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select>
               <select value={filtros.modulo} onChange={ponerFiltro("modulo")} aria-label="Filtrar por módulo" className={SELECT}><option value="">Todos los módulos</option>{MODULOS_SOPORTE.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select>
-              {(MODO_SAAS_VISIBLE || opticas.length > 1) && <select value={filtros.opticaId} onChange={ponerFiltro("opticaId")} aria-label="Filtrar por óptica" className={SELECT + " max-w-[14rem]"}><option value="">Todas las ópticas</option>{opticas.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select>}
+              {conOptica && <select value={filtros.opticaId} onChange={ponerFiltro("opticaId")} aria-label="Filtrar por óptica" className={SELECT + " max-w-[14rem]"}><option value="">Todas las ópticas</option>{opticas.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select>}
               {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_SECUNDARIA}><X size={14} aria-hidden="true" /> Limpiar</button>}
             </div>
             <p role="status" className="px-1 text-sm font-semibold text-slate-600">{plural(filtradas.length, "consulta", "consultas")}{filtros.estado === "abiertas" && " abiertas"}</p>
@@ -284,17 +292,17 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
                 {conFiltros && <button type="button" onClick={() => { setFiltros(FILTROS_INICIALES); setPeriodo("todo"); setRangoResumen(null) }} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Limpiar los filtros</button>}
               </Vacio>
             ) : (
-              <ContenedorLista etiqueta="Consultas de soporte" encabezado={<EncabezadoLista plantilla={COLUMNAS} etiquetas={ENCABEZADO} />}>
+              <ContenedorLista etiqueta="Consultas de soporte" encabezado={<EncabezadoLista plantilla={columnas} etiquetas={conOptica ? ENCABEZADO : ENCABEZADO_UNA_OPTICA} />}>
                 {filtradas.map((c) => {
                   const espera = c.estado !== "resuelta" && c.ultimoMensajeDe === "optica"
                   return (
-                    <li key={c.id} className={"grid grid-cols-1 items-center gap-x-3 gap-y-1 px-4 py-3 " + COLUMNAS + (c.urgencia === "urgente" && c.estado !== "resuelta" ? " bg-red-50/40" : "")}>
+                    <li key={c.id} className={"grid grid-cols-1 items-center gap-x-3 gap-y-1 px-4 py-3 " + columnas + (c.urgencia === "urgente" && c.estado !== "resuelta" ? " bg-red-50/40" : "")}>
                       <span className="font-mono text-sm font-bold text-slate-700">{codigoConsulta(c.numero)}</span>
                       <div className="min-w-0">
                         <button type="button" onClick={() => setAbierta(c.id)} className="block max-w-full truncate text-left text-sm font-bold hover:text-blue-700 hover:underline underline-offset-2 cursor-pointer" style={{ color: INK }}>{c.asunto}</button>
-                        <p className="truncate text-xs text-slate-500">{c.autorNombre} · {nombreModulo(c.modulo)}</p>
+                        <p className="truncate text-xs text-slate-500">{c.iniciadaPor === "soporte" ? <span className="font-semibold text-blue-700">Iniciada por el soporte</span> : c.autorNombre} · {nombreModulo(c.modulo)}</p>
                       </div>
-                      <p className="truncate text-sm text-slate-600">{nombreOptica(c.opticaId) || "—"}</p>
+                      {conOptica && <p className="truncate text-sm text-slate-600">{nombreOptica(c.opticaId) || "—"}</p>}
                       <div className="min-h-[1.5rem]"><InsigniaUrgencia urgencia={c.urgencia} /></div>
                       <div><InsigniaEstado estado={c.estado} />{espera && <p className="mt-0.5 text-xs font-semibold text-amber-700">Espera tu respuesta</p>}</div>
                       <p className="text-sm text-slate-600" title={fechaHoraLegible(c.actualizadaEn || c.creadaEn, { anio: true })}>{fechaLegible(diaDeRegistro(c.actualizadaEn || c.creadaEn))}</p>

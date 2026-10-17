@@ -20,10 +20,11 @@ function Pregunta({ q, abierta }) {
 }
 
 // Pestaña "Ayuda": las preguntas frecuentes por módulo, con buscador. Es lo primero que se ve, porque lo mejor es encontrar la respuesta antes de escribir.
-export default function PestanaAyuda({ puedeEscribir, onEscribir, esAdmin = true, busquedaInicial = "", enfocar = false }) {
+export default function PestanaAyuda({ puedeEscribir, onEscribir, esAdmin = true, busquedaInicial = "", moduloInicial = "", enfocar = false }) {
   const escribirA = esAdmin ? "Escribir al soporte" : "Escribir a mi administrador"
   const [busqueda, setBusqueda] = useState(busquedaInicial)
-  const [modulo, setModulo] = useState("")
+  // «Ver la guía de …» (en una oferta de ayuda del soporte) abre la Ayuda ya en ese módulo.
+  const [modulo, setModulo] = useState(() => (AYUDA_POR_MODULO.some((g) => g.modulo === moduloInicial) ? moduloInicial : ""))
   const buscando = busqueda.trim().length > 0
   const encontradas = useMemo(() => (buscando ? buscarAyuda(busqueda, modulo) : []), [busqueda, modulo, buscando])
   const grupos = modulo ? AYUDA_POR_MODULO.filter((g) => g.modulo === modulo) : AYUDA_POR_MODULO

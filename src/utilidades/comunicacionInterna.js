@@ -21,7 +21,9 @@ export const pestanaInicial = (usuario) => pestanasDeSoporte(usuario)[0]
 export const pestanaValida = (usuario, tab) => (pestanasDeSoporte(usuario).includes(tab) ? tab : pestanaInicial(usuario))
 
 // La pestaña donde vive una consulta para esta persona (para abrirla desde la campanita).
-export const pestanaDeConsulta = (c, usuario) => (esAdministrador(usuario) ? (c?.autorId === usuario.id ? "sistema" : "personal") : "consultas")
+// Una oferta de ayuda (la abre el soporte) es del soporte del sistema: para el administrador va con las suyas, no con las de su personal.
+const esDelSistema = (c, usuario) => c?.autorId === usuario.id || c?.iniciadaPor === "soporte"
+export const pestanaDeConsulta = (c, usuario) => (esAdministrador(usuario) ? (esDelSistema(c, usuario) ? "sistema" : "personal") : "consultas")
 
 // Cómo se llama cada pestaña de consultas.
 export const NOMBRE_PESTANA_CONSULTAS = { consultas: "Mis consultas", personal: "Consultas del personal", sistema: "Soporte del sistema" }
@@ -29,8 +31,8 @@ export const NOMBRE_PESTANA_CONSULTAS = { consultas: "Mis consultas", personal: 
 // Las consultas de cada pestaña. El administrador ve las de su personal por un lado (aunque ya estén escaladas) y las suyas, que van al soporte del
 // sistema, por otro. El resto del personal solo tiene las suyas.
 export function consultasDePestana(consultas, usuario, pestana) {
-  if (pestana === "personal") return consultas.filter((c) => c.autorId !== usuario.id)
-  if (pestana === "sistema") return consultas.filter((c) => c.autorId === usuario.id)
+  if (pestana === "personal") return consultas.filter((c) => !esDelSistema(c, usuario))
+  if (pestana === "sistema") return consultas.filter((c) => esDelSistema(c, usuario))
   return consultas.filter((c) => c.autorId === usuario.id)
 }
 

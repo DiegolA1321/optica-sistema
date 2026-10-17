@@ -68,6 +68,7 @@ import { contarAvisosVentas } from "../utilidades/ventasModulo"
 import { useCrmDatos } from "../utilidades/crmDatos"
 import { EVENTO_SOPORTE_CAMBIADO, leerResumenSoporte } from "../utilidades/soporteDatos"
 import { codigoConsulta } from "../utilidades/soporte"
+import { nombreModuloDeUso } from "../utilidades/soporteAyuda"
 import VentanaAvisosInternos from "../componentes/soporte/VentanaAvisosInternos"
 import { listaParaContactar } from "../utilidades/crmContactos"
 
@@ -428,7 +429,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Resumen de Mensajes para la campanita — única llamada a Supabase de este
   // archivo (el resto del Dashboard es local/localStorage). Consultas propias
   // sin responder + avisos generales publicados en los últimos 14 días.
-  const [mensajesResumen, setMensajesResumen] = useState({ respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [] })
+  const [mensajesResumen, setMensajesResumen] = useState({ respuestas: [], avisosSinLeer: 0, avisosInternosSinLeer: 0, porResponder: [], ayudas: [] })
   const [verAvisosInternos, setVerAvisosInternos] = useState(false)
   const puedeVerSoporte = puede(usuario, "mensajes", "ver") && !usuario?.impersonadoPor // el superadmin dentro de una óptica no recibe sus avisos
   useEffect(() => {
@@ -460,6 +461,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       for (const r of mensajesResumen.respuestas.slice(0, 5)) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `Respondieron tu consulta ${codigoConsulta(r.numero)}`, sub: r.asunto, destino: "mensajes", alAbrir: () => abrirConsultaDeSoporte(r.id) })
       // Al administrador: lo que su personal le escribió y espera su respuesta. A cada uno lo suyo: nadie más recibe estos avisos.
       for (const p of (mensajesResumen.porResponder || []).slice(0, 5)) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `${p.autor_nombre} te escribió: ${codigoConsulta(p.numero)}`, sub: p.asunto, destino: "mensajes", alAbrir: () => abrirConsultaDeSoporte(p.id) })
+      // Ofertas de ayuda: el soporte le escribió al administrador (solo a él) y todavía no la abrió.
+      for (const o of (mensajesResumen.ayudas || []).slice(0, 3)) arr.push({ icon: MessageSquare, color: "#2563eb", bg: "#eff6ff", texto: `El soporte te ofrece ayuda con ${nombreModuloDeUso(o.ayuda_modulo)}`, sub: codigoConsulta(o.numero), destino: "mensajes", alAbrir: () => abrirConsultaDeSoporte(o.id) })
       if (mensajesResumen.avisosSinLeer > 0) arr.push({ icon: MessageSquare, color: "#b45309", bg: "#fef3c7", texto: `${mensajesResumen.avisosSinLeer} aviso${mensajesResumen.avisosSinLeer > 1 ? "s" : ""} del sistema sin leer`, sub: "Mira qué cambió o qué viene", destino: "mensajes", alAbrir: () => { escribirParam("tab", "avisos"); navegar("mensajes") } })
     }
     // Avisos de la óptica (del administrador): le llegan a todo el personal destinatario, tenga o no el permiso de Soporte. Con Soporte se leen en su pestaña
