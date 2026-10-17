@@ -182,7 +182,7 @@ function MisPermisosMensajes({ usuario }) {
       <p className="mb-3 mt-0.5 text-base text-slate-600">Tú decides. Puedes cambiarlo cuando quieras.</p>
       {error ? <p role="alert" className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} className="shrink-0" aria-hidden="true" /> {error}</p>
         : !permisos ? <div className="h-24 animate-pulse rounded-xl bg-slate-100" aria-hidden="true" />
-        : <PermisosMensajes recordatorios={permisos.recordatorios} promociones={permisos.promociones} actualizadoEn={permisos.actualizadoEn} onCambiar={cambiar} quien="yo" />}
+        : <PermisosMensajes recordatorios={permisos.recordatorios} promociones={permisos.promociones} actualizadoEn={permisos.actualizadoEn} onCambiar={cambiar} quien="yo" grande />}
     </section>
   )
 }
