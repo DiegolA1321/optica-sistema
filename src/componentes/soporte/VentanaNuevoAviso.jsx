@@ -7,6 +7,8 @@ import CampoFecha from "../CampoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
 import { DESTINOS_AVISO } from "../../utilidades/comunicacionInterna"
 import { leerDestinatariosDeAvisos, publicarAvisoInterno } from "../../utilidades/soporteDatos"
+import ContadorMensaje from "../ContadorMensaje"
+import { LIMITE_MENSAJE } from "../../utilidades/limiteMensaje"
 
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 const ETIQUETA = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500"
@@ -50,7 +52,8 @@ export default function VentanaNuevoAviso({ usuario, onCerrar, onPublicado }) {
         </div>
         <div>
           <label htmlFor="aviso-cuerpo" className={ETIQUETA}>Mensaje</label>
-          <textarea id="aviso-cuerpo" rows={4} value={cuerpo} maxLength={4000} onChange={(e) => setCuerpo(e.target.value)} placeholder="Escribe el aviso…" className={CAMPO + " resize-none"} />
+          <textarea id="aviso-cuerpo" rows={4} value={cuerpo} maxLength={LIMITE_MENSAJE} onChange={(e) => setCuerpo(e.target.value)} placeholder="Escribe el aviso…" className={CAMPO + " resize-none"} />
+          <ContadorMensaje valor={cuerpo} />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

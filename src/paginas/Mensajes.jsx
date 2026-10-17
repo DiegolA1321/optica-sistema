@@ -18,6 +18,7 @@ import {
 import {
   NOMBRE_PESTANA_CONSULTAS, PESTANAS_SOPORTE, avisosUnificados, consultasDePestana, esAdministrador, pestanaDeConsulta, pestanaValida, pestanasDeSoporte, resumenDeLecturas,
 } from "../utilidades/comunicacionInterna"
+import { moduloDeAyuda } from "../utilidades/soporteAyuda"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
 
@@ -39,7 +40,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
   const [avisos, setAvisos] = useState([])
   const [internos, setInternos] = useState({ datos: [], leidos: [], lecturas: [] })
   const [destinatarios, setDestinatarios] = useState({ roles: [], personas: [] })
-  const [ayuda, setAyuda] = useState({ clave: 0, texto: "" }) // "¿Ya buscaste en la ayuda?": abre la Ayuda con el buscador listo
+  const [ayuda, setAyuda] = useState({ clave: 0, texto: "", modulo: "" }) // "¿Ya buscaste en la ayuda?": abre la Ayuda con el buscador listo
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState("")
   const [ventana, setVentana] = useState(null) // "nueva" | "aviso" | { consultaId } | { nueva: true, modulo }
@@ -96,7 +97,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
   const consultasDe = (p) => consultasDePestana(consultas, usuario, p)
   const nuevasDe = (p) => (p === "personal"
     ? consultasDe(p).filter((c) => c.destino === "admin" && c.ultimoMensajeDe === "optica" && c.estado !== "resuelta").length
-    : consultasDe(p).filter((c) => c.respuestaSinLeer && c.autorId === usuario.id).length)
+    : consultasDe(p).filter((c) => c.respuestaSinLeer && (c.autorId === usuario.id || c.iniciadaPor === "soporte")).length)
   const pestanas = useMemo(() => {
     const defs = {
       consultas: { etiqueta: NOMBRE_PESTANA_CONSULTAS.consultas, Icono: MessageSquare },
@@ -162,7 +163,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
       </div>
 
       <div id="soporte-panel" role="tabpanel" aria-labelledby={`soporte-tab-${tab}`}>
-        {tab === "ayuda" && <PestanaAyuda key={ayuda.clave} esAdmin={esAdmin} puedeEscribir={puedeEscribir} onEscribir={escribir} busquedaInicial={ayuda.texto} enfocar={ayuda.clave > 0} />}
+        {tab === "ayuda" && <PestanaAyuda key={ayuda.clave} esAdmin={esAdmin} puedeEscribir={puedeEscribir} onEscribir={escribir} busquedaInicial={ayuda.texto} moduloInicial={ayuda.modulo} enfocar={ayuda.clave > 0} />}
         {(tab === "consultas" || tab === "personal" || tab === "sistema") && (cargando ? <TablaSkeleton /> : puedeVer
           ? <PestanaMisConsultas variante={tab} consultas={consultasDe(tab)} usuario={usuario} puedeEscribir={puedeEscribir} onAbrir={(id) => setVentana({ consultaId: id })} onNueva={() => escribir("")}
               onAccionVacia={() => { setTab("avisos"); setVentana("aviso") }} />
@@ -176,10 +177,11 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
       {(ventana === "nueva" || ventana?.nueva) && (
         <VentanaNuevaConsulta usuario={usuario} moduloInicial={ventana?.modulo || moduloOrigen} pantallaOrigen={pantallaOrigen}
           onCerrar={(enviada) => { setVentana(null); if (enviada) recargar() }} onVerMisConsultas={() => setTab(esAdmin ? "sistema" : "consultas")}
-          onAbrirAyuda={(texto) => { setVentana(null); setAyuda((a) => ({ clave: a.clave + 1, texto })); setTab("ayuda") }} />
+          onAbrirAyuda={(texto) => { setVentana(null); setAyuda((a) => ({ clave: a.clave + 1, texto, modulo: "" })); setTab("ayuda") }} />
       )}
       {ventana === "aviso" && esAdmin && <VentanaNuevoAviso usuario={usuario} onCerrar={() => setVentana(null)} onPublicado={() => { setTab("avisos"); recargar(); avisarCambioSoporte() }} />}
-      {consultaAbierta && <VentanaConsulta consulta={consultaAbierta} usuario={usuario} puedeEscribir={puedeEscribir} onCambio={recargar} onCerrar={() => setVentana(null)} />}
+      {consultaAbierta && <VentanaConsulta consulta={consultaAbierta} usuario={usuario} puedeEscribir={puedeEscribir} onCambio={recargar} onCerrar={() => setVentana(null)}
+        onVerGuia={(moduloDeUso) => { setVentana(null); setAyuda((a) => ({ clave: a.clave + 1, texto: "", modulo: moduloDeAyuda(moduloDeUso) })); setTab("ayuda") }} />}
     </div>
   )
 }

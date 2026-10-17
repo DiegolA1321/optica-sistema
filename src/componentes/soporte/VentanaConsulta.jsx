@@ -1,22 +1,25 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowUpRight, MessageSquare, RotateCcw, Send, Star } from "lucide-react"
+import { ArrowUpRight, BookOpen, MessageSquare, RotateCcw, Send, Star } from "lucide-react"
 import { GRAD_MARCA } from "@/lib/tema"
 import { Cascaron } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA } from "../ventas/estilos"
 import { BurbujaMensaje, CampoCapturas, InsigniaEstado, InsigniaUrgencia } from "./piezas"
-import { codigoConsulta, nombreModulo, nombreTipo } from "../../utilidades/soporte"
+import { codigoConsulta, esOfertaDeAyuda, nombreModulo, nombreTipo } from "../../utilidades/soporte"
+import { nombreModuloDeUso } from "../../utilidades/soporteAyuda"
 import { supabase } from "../../lib/supabaseClient"
-import { calificarConsulta, cerrarConsulta, escalarConsulta, leerConversacion, marcarConsultaLeida, reabrirConsulta, responderConsulta } from "../../utilidades/soporteDatos"
-import { dondeEsta, puedeEscalar } from "../../utilidades/comunicacionInterna"
+import { calificarConsulta, cerrarConsulta, escalarConsulta, leerConversacion, marcarConsultaLeida, noUsamosModulo, reabrirConsulta, responderConsulta } from "../../utilidades/soporteDatos"
+import { dondeEsta, esAdministrador, puedeEscalar } from "../../utilidades/comunicacionInterna"
 import { fechaHoraLegible } from "../../utilidades/formatoFecha"
+import ContadorMensaje from "../ContadorMensaje"
+import { LIMITE_MENSAJE } from "../../utilidades/limiteMensaje"
 
 const CAMPO = "w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 
 // La conversación completa de una consulta, vista desde la óptica: responder y adjuntar mientras esté abierta; al resolverse, calificar (solo quien la
 // escribió) o reabrirla si el problema sigue. Una consulta de otra persona (la ve el administrador) se puede leer y contestar, pero no calificar.
-export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCambio, onCerrar }) {
+export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCambio, onCerrar, onVerGuia }) {
   const [mensajes, setMensajes] = useState(null)
   const [errorCarga, setErrorCarga] = useState("")
   const [texto, setTexto] = useState("")
@@ -30,9 +33,14 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
   const [modoEscalar, setModoEscalar] = useState(false)
   const [notaEscalada, setNotaEscalada] = useState("")
   const [permitirEntrada, setPermitirEntrada] = useState(false)
+  const [modoNoUsamos, setModoNoUsamos] = useState(false)
   const fin = useRef(null)
   const esAutor = consulta.autorId === usuario.id
   const resuelta = consulta.estado === "resuelta"
+  // Una oferta de ayuda: la abrió el soporte. Al administrador le da tres opciones: ver la guía, responder o decir que no usan el módulo.
+  const oferta = esOfertaDeAyuda(consulta)
+  const nombreDelModulo = oferta ? nombreModuloDeUso(consulta.ayudaModulo) : ""
+  const puedeDecidir = oferta && !resuelta && puedeEscribir && esAdministrador(usuario)
   // Solo el administrador escala, y solo una consulta de su personal que sigue con él.
   const escalable = puedeEscribir && puedeEscalar(consulta, usuario)
 
@@ -44,7 +52,7 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
   useEffect(() => { cargar() }, [cargar, consulta.actualizadaEn])
   useEffect(() => { fin.current?.scrollIntoView?.({ block: "end" }) }, [mensajes?.length])
   // Abrirla es leer la respuesta: la campanita baja.
-  useEffect(() => { if (esAutor && consulta.respuestaSinLeer) marcarConsultaLeida(consulta.id).then(() => onCambio?.()) }, [consulta.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if ((esAutor || (oferta && esAdministrador(usuario))) && consulta.respuestaSinLeer) marcarConsultaLeida(consulta.id).then(() => onCambio?.()) }, [consulta.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const despues = async (r, mensajeError) => {
     if (r.error) { setError(r.error || mensajeError); return false }
@@ -72,6 +80,12 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
     }
     setEnviando(false)
   }
+  const irAResponder = () => { const c = document.getElementById("soporte-respuesta"); c?.scrollIntoView?.({ block: "center" }); c?.focus() }
+  const decirQueNoUsan = async () => {
+    setEnviando(true)
+    if (await despues(await noUsamosModulo(consulta.id))) setModoNoUsamos(false)
+    setEnviando(false)
+  }
   const marcarResuelta = async () => { setEnviando(true); await despues(await cerrarConsulta(consulta.id)); setEnviando(false) }
   const reabrir = async (e) => {
     e.preventDefault()
@@ -91,13 +105,13 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
   return (
     <Cascaron titulo={`${codigoConsulta(consulta.numero)} · ${consulta.asunto}`} subtitulo={`${nombreModulo(consulta.modulo)} · ${nombreTipo(consulta.tipo)} · ${fechaHoraLegible(consulta.creadaEn, { anio: true })}`} Icono={MessageSquare} onCerrar={onCerrar} ancho="max-w-2xl"
       pie={<>
-        <span className="text-xs text-slate-500">{!esAutor && `Escribió ${consulta.autorNombre} · ${consulta.autorRol}`}</span>
+        <span className="text-xs text-slate-500">{oferta ? "Iniciada por el soporte" : !esAutor && `Escribió ${consulta.autorNombre} · ${consulta.autorRol}`}</span>
         <button type="button" onClick={onCerrar} className={BOTON_CERRAR}>Cerrar</button>
       </>}>
       <div className="space-y-4 px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <InsigniaEstado estado={consulta.estado} />
-          <InsigniaUrgencia urgencia={consulta.urgencia} />
+          {oferta ? <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">Iniciada por el soporte</span> : <InsigniaUrgencia urgencia={consulta.urgencia} />}
           {!resuelta && <span className="text-xs font-semibold text-slate-500">{dondeEsta(consulta, usuario)}</span>}
           {consulta.reabiertaVeces > 0 && <span className="text-xs text-slate-500">Reabierta {consulta.reabiertaVeces === 1 ? "1 vez" : `${consulta.reabiertaVeces} veces`}</span>}
         </div>
@@ -108,10 +122,32 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
           : <div className="space-y-3" role="log" aria-label="Conversación">{(mensajes || []).map((m) => <BurbujaMensaje key={m.id} mensaje={m} esMio={m.autorId ? m.autorId === usuario.id : m.de === "optica"} />)}</div>}
         <div ref={fin} />
 
+        {puedeDecidir && (
+          <section aria-label="Qué quieres hacer con esta ayuda" className="space-y-2.5 rounded-2xl border border-blue-200 bg-blue-50/40 p-3.5">
+            <p className="text-sm font-bold text-slate-800">¿Qué quieres hacer?</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => onVerGuia?.(consulta.ayudaModulo)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><BookOpen size={14} aria-hidden="true" /> Ver la guía de {nombreDelModulo}</button>
+              <button type="button" onClick={irAResponder} className={CLASE_ACCION_SECUNDARIA}><MessageSquare size={14} aria-hidden="true" /> Responder</button>
+              {!modoNoUsamos && <button type="button" onClick={() => setModoNoUsamos(true)} className={CLASE_ACCION_SECUNDARIA}>No usamos este módulo</button>}
+            </div>
+            {modoNoUsamos && (
+              <div className="space-y-2 rounded-xl border border-slate-200/60 bg-white p-3">
+                <p className="text-sm text-slate-700">Marcaremos {nombreDelModulo} como un módulo que no usan: el soporte no volverá a ofrecerte ayuda con él y esta conversación se cierra. Puedes deshacerlo en Configuración.</p>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={decirQueNoUsan} disabled={enviando} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>{enviando ? "Guardando…" : "Sí, no usamos este módulo"}</button>
+                  <button type="button" onClick={() => { setModoNoUsamos(false); setError("") }} className={CLASE_ACCION_SECUNDARIA}>Cancelar</button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {resuelta ? (
           <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3.5">
-            <p className="text-sm font-bold text-emerald-800">Consulta resuelta{consulta.resueltaEn ? ` el ${fechaHoraLegible(consulta.resueltaEn, { anio: true })}` : ""}</p>
-            {consulta.calificacion ? (
+            <p className="text-sm font-bold text-emerald-800">{oferta ? "Ayuda cerrada" : "Consulta resuelta"}{consulta.resueltaEn ? ` el ${fechaHoraLegible(consulta.resueltaEn, { anio: true })}` : ""}</p>
+            {oferta ? (
+              <p className="text-sm text-slate-700">Indicaste que no usan {nombreDelModulo}: el soporte no volverá a ofrecerte ayuda con él. Si empiezan a usarlo, puedes deshacerlo en Configuración.</p>
+            ) : consulta.calificacion ? (
               <p className="text-sm text-slate-700">
                 Calificaste la atención con <span className="font-bold">{consulta.calificacion} de 5</span> <span aria-hidden="true" className="text-amber-500">{"★".repeat(consulta.calificacion)}</span>{consulta.calificacionComentario ? ` · «${consulta.calificacionComentario}»` : ""}
               </p>
@@ -130,11 +166,12 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
                 <button type="submit" disabled={enviando || !nota} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Enviar calificación</button>
               </form>
             ) : null}
-            {puedeEscribir && !modoReabrir && <button type="button" onClick={() => setModoReabrir(true)} className={CLASE_ACCION_SECUNDARIA}><RotateCcw size={14} aria-hidden="true" /> El problema sigue: reabrir</button>}
-            {puedeEscribir && modoReabrir && (
+            {puedeEscribir && !oferta && !modoReabrir && <button type="button" onClick={() => setModoReabrir(true)} className={CLASE_ACCION_SECUNDARIA}><RotateCcw size={14} aria-hidden="true" /> El problema sigue: reabrir</button>}
+            {puedeEscribir && !oferta && modoReabrir && (
               <form onSubmit={reabrir} className="space-y-2">
                 <label htmlFor="soporte-reabrir" className="block text-sm font-semibold text-slate-700">¿Qué sigue pasando?</label>
-                <textarea id="soporte-reabrir" rows={3} value={motivo} maxLength={4000} onChange={(e) => setMotivo(e.target.value)} className={CAMPO} />
+                <textarea id="soporte-reabrir" rows={3} value={motivo} maxLength={LIMITE_MENSAJE} onChange={(e) => setMotivo(e.target.value)} className={CAMPO} />
+                <ContadorMensaje valor={motivo} />
                 <div className="flex items-center gap-2">
                   <button type="submit" disabled={enviando} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}>Reabrir consulta</button>
                   <button type="button" onClick={() => { setModoReabrir(false); setMotivo(""); setError("") }} className={CLASE_ACCION_SECUNDARIA}>Cancelar</button>
@@ -145,7 +182,8 @@ export default function VentanaConsulta({ consulta, usuario, puedeEscribir, onCa
         ) : puedeEscribir ? (
           <form onSubmit={enviar} className="space-y-2 rounded-2xl border border-slate-200/60 bg-slate-50/60 p-3">
             <label htmlFor="soporte-respuesta" className="sr-only">Tu mensaje</label>
-            <textarea id="soporte-respuesta" rows={3} value={texto} maxLength={4000} onChange={(e) => setTexto(e.target.value)} placeholder="Escribe tu mensaje…" className={CAMPO + " bg-white"} />
+            <textarea id="soporte-respuesta" rows={3} value={texto} maxLength={LIMITE_MENSAJE} onChange={(e) => setTexto(e.target.value)} placeholder="Escribe tu mensaje…" className={CAMPO + " bg-white"} />
+            <ContadorMensaje valor={texto} />
             <CampoCapturas id="soporte-respuesta-capturas" archivos={archivos} onCambiar={setArchivos} deshabilitado={enviando} />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">

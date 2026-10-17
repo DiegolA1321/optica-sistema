@@ -10,6 +10,8 @@ import { CampoCapturas } from "./piezas"
 import { MODULOS_SOPORTE, TIPOS_CONSULTA, URGENCIAS, codigoConsulta, contextoDeConsulta, tiempoEstimado } from "../../utilidades/soporte"
 import { crearConsulta, leerAjustesSoporte } from "../../utilidades/soporteDatos"
 import { esAdministrador, textoDeEnvio } from "../../utilidades/comunicacionInterna"
+import ContadorMensaje from "../ContadorMensaje"
+import { LIMITE_MENSAJE } from "../../utilidades/limiteMensaje"
 
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 const ETIQUETA = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500"
@@ -117,7 +119,8 @@ export default function VentanaNuevaConsulta({ usuario, moduloInicial = "otro", 
         </div>
         <div>
           <label htmlFor="soporte-descripcion" className={ETIQUETA}>Descripción</label>
-          <textarea id="soporte-descripcion" rows={5} value={descripcion} maxLength={4000} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué intentabas hacer, qué pasó y qué esperabas que pasara?" className={CAMPO + " resize-none"} />
+          <textarea id="soporte-descripcion" rows={5} value={descripcion} maxLength={LIMITE_MENSAJE} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué intentabas hacer, qué pasó y qué esperabas que pasara?" className={CAMPO + " resize-none"} />
+          <ContadorMensaje valor={descripcion} />
         </div>
         <div>
           <p className={ETIQUETA}>Archivos adjuntos <span className="font-normal normal-case text-slate-500">(opcional)</span></p>

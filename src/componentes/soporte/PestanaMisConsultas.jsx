@@ -32,7 +32,7 @@ export default function PestanaMisConsultas({ consultas, usuario, puedeEscribir,
   const conVariasPersonas = consultas.some((c) => c.autorId !== usuario.id)
   // Un filtro sobre pocas filas es ruido (regla 25): aparece con más de 5 consultas.
   const conFiltros = consultas.length > 5
-  const sinLeer = consultas.filter((c) => c.respuestaSinLeer && c.autorId === usuario.id).length
+  const sinLeer = consultas.filter((c) => c.respuestaSinLeer && (c.autorId === usuario.id || c.iniciadaPor === "soporte")).length
   // Al administrador le tocan las que esperan su respuesta (el personal escribió último y no están resueltas ni escaladas).
   const porResponder = esPersonal ? consultas.filter((c) => c.destino === "admin" && c.ultimoMensajeDe === "optica" && c.estado !== "resuelta").length : 0
   const vacio = VACIOS[variante] || VACIOS.consultas
@@ -69,15 +69,17 @@ export default function PestanaMisConsultas({ consultas, usuario, puedeEscribir,
       ) : (
         <ContenedorLista etiqueta={vacio.etiqueta} encabezado={<EncabezadoLista plantilla={COLUMNAS} etiquetas={ENCABEZADO} />}>
           {visibles.map((c) => {
-            const nueva = c.respuestaSinLeer && c.autorId === usuario.id
+            const nueva = c.respuestaSinLeer && (c.autorId === usuario.id || c.iniciadaPor === "soporte")
+            const delSoporte = c.iniciadaPor === "soporte"
             return (
               <li key={c.id} className={"grid grid-cols-1 items-center gap-x-3 gap-y-1 px-4 py-3 " + COLUMNAS + (nueva ? " bg-blue-50/40" : "")}>
                 <span className="font-mono text-sm font-bold text-slate-700">{codigoConsulta(c.numero)}</span>
                 <div className="min-w-0">
                   <button type="button" onClick={() => onAbrir(c.id)} className="block max-w-full truncate text-left text-sm font-bold hover:text-blue-700 hover:underline underline-offset-2 cursor-pointer" style={{ color: INK }}>{c.asunto}</button>
-                  {conVariasPersonas && c.autorId !== usuario.id && <p className="truncate text-xs text-slate-500">Escribió {c.autorNombre} · {c.autorRol}{estaEscalada(c) ? " · Escalada al soporte del sistema" : ""}</p>}
+                  {delSoporte && <p className="truncate text-xs font-semibold text-blue-700">Iniciada por el soporte</p>}
+                  {conVariasPersonas && c.autorId !== usuario.id && !delSoporte && <p className="truncate text-xs text-slate-500">Escribió {c.autorNombre} · {c.autorRol}{estaEscalada(c) ? " · Escalada al soporte del sistema" : ""}</p>}
                   {!esPersonal && c.destino === "admin" && c.estado !== "resuelta" && <p className="truncate text-xs text-slate-500">Con tu administrador</p>}
-                  {nueva && <p className="text-xs font-bold text-blue-700">Respuesta nueva</p>}
+                  {nueva && <p className="text-xs font-bold text-blue-700">{delSoporte ? "Mensaje nuevo del soporte" : "Respuesta nueva"}</p>}
                 </div>
                 <p className="truncate text-sm text-slate-600">{nombreModulo(c.modulo)}</p>
                 <div className="min-h-[1.5rem]"><InsigniaUrgencia urgencia={c.urgencia} /></div>
