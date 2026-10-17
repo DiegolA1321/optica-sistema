@@ -23,7 +23,7 @@ const nota = (r) => { resultados.push(r); console.log(JSON.stringify({ ...r, ofe
 
 const espiarGuarda = `
   Object.defineProperty(window, 'outerWidth', { get: () => 1366 });
-  const iw = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  Object.defineProperty(window, 'innerWidth', { get: () => 1366 });
   Object.defineProperty(window, 'innerHeight', { get: () => 768 });
   Object.defineProperty(window, 'devicePixelRatio', { get: () => 1 });
 `
