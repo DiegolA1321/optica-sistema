@@ -5,6 +5,8 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaLegible, fechaHoraLegible, tituloSemana, formatoFecha } from "../utilidades/formatoFecha"
 import { OPTICA_ID_DEFAULT } from "../utilidades/opticaActual"
+import ContadorMensaje from "../componentes/ContadorMensaje"
+import { LIMITE_MENSAJE } from "../utilidades/limiteMensaje"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -148,7 +150,6 @@ import { SinResultados } from "../componentes/reportes/bloques"
 import { ESTADOS_LEAD_LISTA } from "../componentes/superadmin/ResumenNegocio"
 import CampoClaveTemporal from "../componentes/CampoClaveTemporal"
 import { CabeceraSeccion, EtiquetasFiltros, InsigniaSalud, InterruptorPrueba, NOMBRE_PRUEBA_PLURAL } from "../componentes/superadmin/piezas"
-import { enlaceAyudaDeModulo } from "../componentes/superadmin/UsoDelSistema"
 import ActividadSuperadmin from "../componentes/superadmin/ActividadSuperadmin"
 import { leerTodasLasConsultas } from "../utilidades/soporteDatos"
 
@@ -581,6 +582,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     e.preventDefault()
     setErrorAviso("")
     if (!avisoAsunto.trim() || !avisoCuerpo.trim()) { setErrorAviso("Completa el asunto y el mensaje."); return }
+    if (avisoCuerpo.trim().length > LIMITE_MENSAJE) { setErrorAviso(`El mensaje es demasiado largo (máximo ${LIMITE_MENSAJE} caracteres).`); return }
     const opticaDestino = avisoDestino === "todos" ? null : avisoDestino
     if (avisoDestino !== "todos" && !opticaDestino) { setErrorAviso("Elige a qué óptica va dirigido el aviso."); return }
     setPublicandoAviso(true)
@@ -1441,19 +1443,6 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setEliminandoSuperadmin(false)
   }
 
-  // «Ofrecer ayuda» de un módulo sin uso: prepara el aviso para el administrador de la óptica con el enlace a la Ayuda de ese módulo.
-  // El aviso queda escrito y a la vista: se revisa y se envía desde la ventana estándar de «Nuevo aviso».
-  const ofrecerAyuda = (moduloId, optica) => {
-    const modulo = MODULOS_USO.find((m) => m.id === moduloId)
-    const destino = optica || opticaDeLaTesis(opticas, OPTICA_ID_DEFAULT)
-    if (!modulo || !destino) return
-    setErrorAviso("")
-    setAvisoAsunto(`Ayuda con ${modulo.nombre}`)
-    setAvisoCuerpo(`En los últimos 30 días nadie usó ${modulo.nombre} en la óptica. Si tienen dudas, en la Ayuda hay una guía paso a paso: ${enlaceAyudaDeModulo(moduloId, destino.slug)}\n\nSi prefieren, escríbannos desde Soporte y los acompañamos.`)
-    setAvisoDestino(destino.id)
-    setModalAvisoAbierto(true)
-  }
-
   // «Nuevo aviso» (botón de Soporte y atajo del Inicio). Con una sola óptica el aviso va al administrador de la óptica, sin elegir destinatario.
   const abrirNuevoAviso = () => {
     setErrorAviso(""); setAvisoAsunto(""); setAvisoCuerpo("")
@@ -1475,7 +1464,8 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     <InicioSuperadmin
       opticas={opticas} datos={datosNegocio} consultas={consultasSoporte} actividad={auditoria}
       incluirPrueba={incluirPrueba} onIncluirPrueba={setIncluirPrueba} onAbrir={irA}
-      onNuevoAviso={abrirNuevoAviso} onEntrarComo={pedirEntrada} onOfrecerAyuda={ofrecerAyuda}
+      onNuevoAviso={abrirNuevoAviso} onEntrarComo={pedirEntrada} onAviso={(t) => mostrarToast("exito", t)}
+      onAuditoria={async (accion, datos) => { await registrarAuditoria(accion, datos); cargarAuditoria(true) }}
     />
   ) : (
     <ResumenNegocio
@@ -2912,10 +2902,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Mensaje</label>
               <textarea
-                rows={5} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
+                rows={5} maxLength={LIMITE_MENSAJE} value={avisoCuerpo} onChange={(e) => setAvisoCuerpo(e.target.value)}
                 placeholder="Escribe el aviso…"
                 className="w-full rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
               />
+              <ContadorMensaje valor={avisoCuerpo} />
             </div>
           </div>
         </Cascaron>

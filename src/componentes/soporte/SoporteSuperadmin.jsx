@@ -17,6 +17,8 @@ import { borrarRespuestaGuardada, guardarAjustesSoporte, guardarRespuestaGuardad
 import { fechaHoraLegible, fechaLegible, tituloSemana } from "../../utilidades/formatoFecha"
 import { instanteInicio, instanteFin } from "../../utilidades/superadminNegocio"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
+import ContadorMensaje from "../ContadorMensaje"
+import { LIMITE_MENSAJE } from "../../utilidades/limiteMensaje"
 
 // Con una sola óptica (modo de la tesis) no hay columna «Óptica»: sería la misma en todas las filas.
 const COLUMNAS = "lg:grid-cols-[5.5rem_minmax(0,2fr)_minmax(0,1.2fr)_6rem_9rem_7rem]"
@@ -72,7 +74,8 @@ function VentanaRespuesta({ respuesta, onGuardar, onCerrar }) {
         </div>
         <div>
           <label htmlFor="rg-texto" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Texto</label>
-          <textarea id="rg-texto" rows={6} value={texto} maxLength={2000} onChange={(e) => setTexto(e.target.value)} className={campo + " resize-none"} />
+          <textarea id="rg-texto" rows={6} value={texto} maxLength={LIMITE_MENSAJE} onChange={(e) => setTexto(e.target.value)} className={campo + " resize-none"} />
+          <ContadorMensaje valor={texto} />
         </div>
         {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
       </div>
@@ -297,7 +300,7 @@ export default function SoporteSuperadmin({ consultas, cargando, error, onRecarg
                       <span className="font-mono text-sm font-bold text-slate-700">{codigoConsulta(c.numero)}</span>
                       <div className="min-w-0">
                         <button type="button" onClick={() => setAbierta(c.id)} className="block max-w-full truncate text-left text-sm font-bold hover:text-blue-700 hover:underline underline-offset-2 cursor-pointer" style={{ color: INK }}>{c.asunto}</button>
-                        <p className="truncate text-xs text-slate-500">{c.autorNombre} · {nombreModulo(c.modulo)}</p>
+                        <p className="truncate text-xs text-slate-500">{c.iniciadaPor === "soporte" ? <span className="font-semibold text-blue-700">Iniciada por el soporte</span> : c.autorNombre} · {nombreModulo(c.modulo)}</p>
                       </div>
                       {conOptica && <p className="truncate text-sm text-slate-600">{nombreOptica(c.opticaId) || "—"}</p>}
                       <div className="min-h-[1.5rem]"><InsigniaUrgencia urgencia={c.urgencia} /></div>

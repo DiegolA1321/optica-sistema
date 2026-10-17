@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Activity, AlertTriangle, ArrowRight, Building2, CheckCircle2, ChevronRight, LifeBuoy, LogIn, Megaphone, RefreshCw, ShieldCheck, Users, XCircle, Loader2 } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient"
 import { INK } from "@/lib/tema"
@@ -10,7 +10,9 @@ import { VentanaComponente } from "./EstadoDelSistema"
 import { DetalleAccion } from "./ActividadSuperadmin"
 import { ICONO_COMPONENTE, ICONO_MODULO } from "./iconos"
 import { VentanaModulo, VentanaPersonal } from "./UsoDelSistema"
+import VentanaOfrecerAyuda from "./VentanaOfrecerAyuda"
 import useEstadoSistema, { modoMuestra } from "./useEstadoSistema"
+import { leerAyudasDeLaOptica } from "../../utilidades/soporteDatos"
 import { fechaAISO } from "../../utilidades/disponibilidad"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { fechaHoraLegible } from "../../utilidades/formatoFecha"
@@ -18,7 +20,7 @@ import { variacion } from "../../utilidades/reportesPeriodo"
 import { OPTICA_ID_DEFAULT } from "../../utilidades/opticaActual"
 import { codigoConsulta, esAbierta } from "../../utilidades/soporte"
 import { componentesConEstado, avisosDeSistema, estadoGeneral, verificacionAtrasada, rapidez, haceTiempo, ESTADOS, consultaDeMuestra, usoDeMuestra } from "../../utilidades/estadoSistema"
-import { opticaDeLaTesis, soloLaOptica, usoDeLaRed, opticasDelNegocio, sinPruebas, frasesDeAccion, tiposVisibles, haceDias, textoUsoModulo, MODULOS_USO } from "../../utilidades/superadminNegocio"
+import { opticaDeLaTesis, soloLaOptica, usoDeLaRed, opticasDelNegocio, sinPruebas, frasesDeAccion, tiposVisibles, haceDias, textoUsoModulo, ayudaOfrecida, MODULOS_USO } from "../../utilidades/superadminNegocio"
 
 const ATAJO = "flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
 const TONO_VARIACION = { bueno: "text-emerald-700", malo: "text-red-600", neutro: "text-slate-500" }
@@ -48,12 +50,14 @@ export function frasesDeEstado(sistema, componentes, atrasada) {
 
 // El Inicio del superadmin en el modo de la tesis: el sistema de una sola óptica en una pantalla. Misma estructura que el Inicio de la óptica:
 // atajos, el estado, «Requiere tu atención» por área (solo las que tienen avisos) y, abajo, el uso de la óptica y la actividad reciente.
-export default function InicioSuperadmin({ opticas, datos: datosReales, consultas: consultasReales, actividad = [], incluirPrueba, onIncluirPrueba, onAbrir, onNuevoAviso, onEntrarComo, onOfrecerAyuda }) {
+export default function InicioSuperadmin({ opticas, datos: datosReales, consultas: consultasReales, actividad = [], incluirPrueba, onIncluirPrueba, onAbrir, onNuevoAviso, onEntrarComo, onAviso, onAuditoria }) {
   const sistema = useEstadoSistema(true)
   // Con ?_muestra=… (solo en desarrollo) el uso y las consultas también son de ejemplo, para revisar cada estado sin depender de los datos reales.
   const muestra = modoMuestra()
   const [componenteAbierto, setComponenteAbierto] = useState(null)
   const [moduloAbierto, setModuloAbierto] = useState(null)
+  const [ofreciendo, setOfreciendo] = useState(null) // el módulo con el que se está ofreciendo ayuda
+  const [ayudas, setAyudas] = useState({ ofrecidas: [], noUsan: [] }) // lo ofrecido y lo que la óptica decidió (0122)
   const [verPersonal, setVerPersonal] = useState(false)
   const [accionAbierta, setAccionAbierta] = useState(null)
   const [accesosSoporte, setAccesosSoporte] = useState([])
@@ -69,6 +73,8 @@ export default function InicioSuperadmin({ opticas, datos: datosReales, consulta
 
   // ── La óptica y lo que cuenta (los entornos de prueba solo con el interruptor)
   const optica = opticaDeLaTesis(opticas, OPTICA_ID_DEFAULT)
+  const cargarAyudas = useCallback(async () => { if (optica?.id) setAyudas(await leerAyudasDeLaOptica(optica.id)) }, [optica?.id])
+  useEffect(() => { cargarAyudas() }, [cargarAyudas])
   const datos = muestra ? { ...datosReales, uso: usoDeMuestra(optica?.id), sinServidor: false } : datosReales
   const consultas = muestra ? [] : consultasReales
   const negocio = useMemo(() => opticasDelNegocio(opticas, incluirPrueba), [opticas, incluirPrueba])
@@ -95,11 +101,18 @@ export default function InicioSuperadmin({ opticas, datos: datosReales, consulta
     esperan.length > 0 && { id: "esperan", cantidad: esperan.length, texto: esperan.length === 1 ? "consulta espera tu respuesta" : "consultas esperan tu respuesta", enlace: { texto: "Abrir las consultas abiertas", onClick: irASoporte("") }, casos: esperan.map((c) => casoConsulta(c, { texto: "Sin respuesta", tono: "aviso" })) },
   ].filter(Boolean)
   const cargandoUso = datos.cargando // mientras llega el uso no se afirma nada: ni «0 personas» ni «módulos sin uso»
-  const sinUsoModulos = cargandoUso ? [] : uso.porModulo.filter((m) => !m.ultima)
+  // Cada módulo con lo que la óptica decidió («No usamos este módulo») y lo que se le ofreció. Si lo usan, se cuenta como en uso aunque hayan dicho que no.
+  const modulos = uso.porModulo.map((m) => ({ ...m, noUsan: m.ultima ? null : ayudas.noUsan.find((x) => x.modulo === m.id) || null, ofrecida: ayudas.ofrecidas.find((x) => x.modulo === m.id) || null }))
+  const sinUsoModulos = cargandoUso ? [] : modulos.filter((m) => !m.ultima && !m.noUsan) // los que la óptica dijo que no usa salen de «Requiere tu atención»
+  const fechaDe = (iso) => fechaHoraLegible(iso).split(",")[0]
+  const accionDeModulo = (m) => (ayudaOfrecida(m.ofrecida?.ofrecidaEn).vigente
+    ? { etiqueta: "Ver en Soporte", navega: true, onClick: () => onAbrir("soporte", { tab: "consultas", estado: "todas", ...pruebaAcceso }) }
+    : { etiqueta: "Ofrecer ayuda", navega: true, onClick: () => setOfreciendo(m) })
+  const detalleDeModulo = (m) => (ayudaOfrecida(m.ofrecida?.ofrecidaEn).vigente ? "Ayuda ofrecida el " + fechaDe(m.ofrecida.ofrecidaEn) : "Nadie lo usó en los últimos 30 días")
   const filasOptica = [
     sinUsoModulos.length > 0 && {
       id: "sin-uso", cantidad: sinUsoModulos.length, texto: sinUsoModulos.length === 1 ? "módulo sin uso en 30 días" : "módulos sin uso en 30 días", nombres: sinUsoModulos.map((m) => m.nombre).join(", "),
-      casos: sinUsoModulos.map((m) => ({ id: m.id, icono: ICONO_MODULO[m.id], nombre: m.nombre, detalle: "Nadie lo usó en los últimos 30 días", insignia: { texto: "Sin uso", tono: "neutro" }, accion: { etiqueta: "Ofrecer ayuda", navega: true, onClick: () => onOfrecerAyuda?.(m.id, optica) } })),
+      casos: sinUsoModulos.map((m) => ({ id: m.id, icono: ICONO_MODULO[m.id], nombre: m.nombre, detalle: detalleDeModulo(m), insignia: { texto: "Sin uso", tono: "neutro" }, accion: accionDeModulo(m) })),
     },
     accesosSoporte.length > 0 && {
       id: "acceso-soporte", cantidad: accesosSoporte.length, texto: accesosSoporte.length === 1 ? "permiso de acceso del soporte activo" : "permisos de acceso del soporte activos",
@@ -213,12 +226,12 @@ export default function InicioSuperadmin({ opticas, datos: datosReales, consulta
                 <ChevronRight size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
               </button>
               <ul role="list" aria-label="Módulos" className="grid flex-1 grid-cols-1 content-start gap-x-2 px-2 py-1.5 sm:grid-cols-2">
-                {uso.porModulo.map((m) => (
+                {modulos.map((m) => (
                   <li key={m.id}>
-                    <button type="button" onClick={() => setModuloAbierto(m)} aria-label={`${m.nombre}: ${textoUsoModulo(m.ultima, hoyClave)}. Ver el detalle`} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
-                      <span aria-hidden="true" className={"h-2 w-2 shrink-0 rounded-full " + (m.ultima ? "bg-emerald-500" : "bg-slate-300")} />
+                    <button type="button" onClick={() => setModuloAbierto(m)} aria-label={m.nombre + ": " + (m.noUsan ? "No lo usan por decisión de la óptica" : textoUsoModulo(m.ultima, hoyClave)) + ". Ver el detalle"} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                      <span aria-hidden="true" className={"h-2 w-2 shrink-0 rounded-full " + (m.ultima ? "bg-emerald-500" : m.noUsan ? "border border-slate-400 bg-white" : "bg-slate-300")} />
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: INK }}>{m.nombre}</span>
-                      <span className="shrink-0 text-xs text-slate-500">{m.ultima ? haceDias(m.ultima, hoyClave) : "sin uso en 30 días"}</span>
+                      <span className="shrink-0 text-xs text-slate-500">{m.ultima ? haceDias(m.ultima, hoyClave) : m.noUsan ? "no lo usan por decisión de la óptica" : "sin uso en 30 días"}</span>
                       <ChevronRight size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
                     </button>
                   </li>
@@ -255,7 +268,17 @@ export default function InicioSuperadmin({ opticas, datos: datosReales, consulta
       </div>
 
       {componenteAbierto && sistema.datos && <VentanaComponente id={componenteAbierto} sistema={sistema} hoyClave={hoyClave} onCerrar={() => setComponenteAbierto(null)} />}
-      {moduloAbierto && <VentanaModulo modulo={moduloAbierto} hoyClave={hoyClave} opticaIds={opticaIds} onOfrecerAyuda={(id) => onOfrecerAyuda?.(id, optica)} onCerrar={() => setModuloAbierto(null)} />}
+      {moduloAbierto && <VentanaModulo modulo={moduloAbierto} hoyClave={hoyClave} opticaIds={opticaIds} ayuda={{ ofrecida: moduloAbierto.ofrecida, noUsan: moduloAbierto.noUsan }}
+        onOfrecerAyuda={() => setOfreciendo(moduloAbierto)} onCerrar={() => setModuloAbierto(null)} />}
+      {ofreciendo && optica && (
+        <VentanaOfrecerAyuda modulo={ofreciendo} optica={optica} onCerrar={() => setOfreciendo(null)}
+          onEnviada={async ({ numero, modulo }) => {
+            setOfreciendo(null)
+            onAviso?.("Ayuda ofrecida con " + modulo.nombre + ": SOP-" + String(numero).padStart(4, "0") + " en Soporte.")
+            await onAuditoria?.("ofrecer_ayuda", { opticaId: optica.id, opticaNombre: optica.nombre, detalle: modulo.nombre + " (SOP-" + String(numero).padStart(4, "0") + ")" })
+            cargarAyudas()
+          }} />
+      )}
       {accionAbierta && <DetalleAccion a={accionAbierta} opticaPrueba={!!accionAbierta.optica_id && opticas.some((o) => o.id === accionAbierta.optica_id && o.es_de_prueba)} onCerrar={() => setAccionAbierta(null)} onAbrir={onAbrir} />}
       {verPersonal && optica && <VentanaPersonal opticaId={optica.id} hoyClave={hoyClave} onCerrar={() => setVerPersonal(false)} />}
     </div>

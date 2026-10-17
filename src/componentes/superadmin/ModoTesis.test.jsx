@@ -1,19 +1,23 @@
 import React from "react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, within, fireEvent } from "@testing-library/react"
+import { render, screen, within, fireEvent, waitFor } from "@testing-library/react"
 
 // El modo de la tesis: el sistema es para una sola óptica y la capa comercial (vender el sistema a otras ópticas) está oculta.
 vi.mock("@/lib/config", () => ({ MODO_SAAS_VISIBLE: false }))
-const mock = vi.hoisted(() => ({ modo: "estado" }))
+const mock = vi.hoisted(() => ({ modo: "estado", ofrecidas: [], noUsan: [], llamadas: [], falloAyuda: "" }))
 // El estado del sistema llega de estado_sistema() (migración 0121): aquí, con datos de ejemplo.
 vi.mock("../../lib/supabaseClient", async () => {
   const { estadoDeMuestra } = await import("../../utilidades/estadoSistema")
   const q = { select: () => q, eq: () => q, gte: () => q, is: () => q, gt: () => Promise.resolve({ data: [], error: null }), lte: () => Promise.resolve({ count: 0, error: null }) }
-  const rpc = (nombre) => {
+  // Lo ofrecido (ayudas_ofrecidas) y lo que la óptica decidió (modulos_no_usados), como los entrega la base
+  const tabla = (datos) => { const t = { select: () => t, eq: () => t, order: () => Promise.resolve({ data: datos(), error: null }), then: (ok) => ok({ data: datos(), error: null }) }; return t }
+  const from = (nombre) => (nombre === "ayudas_ofrecidas" ? tabla(() => mock.ofrecidas) : nombre === "modulos_no_usados" ? tabla(() => mock.noUsan) : q)
+  const rpc = (nombre, args) => {
     if (nombre === "estado_sistema") return Promise.resolve(mock.modo === "error" ? { data: null, error: { message: "no existe" } } : { data: estadoDeMuestra(Date.now(), mock.modo === "lento" ? "lento" : "estado"), error: null })
+    if (nombre === "ofrecer_ayuda") { mock.llamadas.push({ nombre, args }); return Promise.resolve(mock.falloAyuda ? { data: null, error: { message: mock.falloAyuda } } : { data: [{ id: "c-nueva", numero: 62 }], error: null }) }
     return Promise.resolve({ data: [], error: null })
   }
-  return { supabase: { from: () => q, rpc } }
+  return { supabase: { from, rpc } }
 })
 
 import InicioSuperadmin from "./InicioSuperadmin"
@@ -35,12 +39,12 @@ const acciones = [
 const consultaUrgente = { id: "c1", numero: 61, asunto: "No puedo imprimir", urgencia: "urgente", estado: "recibida", ultimoMensajeDe: "optica", opticaId: "o1" }
 const datos = (modulos) => ({ cargando: false, facturas: [], eventos: [], personas: [], uso: uso(modulos), sinServidor: false, recargar: vi.fn() })
 
-beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-16T15:00:00Z")); mock.modo = "estado" })
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-16T15:00:00Z")); mock.modo = "estado"; mock.ofrecidas = []; mock.noUsan = []; mock.llamadas = []; mock.falloAyuda = "" })
 afterEach(() => { vi.useRealTimers() })
 
 const montar = (extra = {}) => render(
   <InicioSuperadmin opticas={opticas} datos={datos(todosLosModulos)} consultas={[]} actividad={acciones} incluirPrueba={false} onIncluirPrueba={vi.fn()}
-    onAbrir={vi.fn()} onNuevoAviso={vi.fn()} onEntrarComo={vi.fn()} onOfrecerAyuda={vi.fn()} {...extra} />,
+    onAbrir={vi.fn()} onNuevoAviso={vi.fn()} onEntrarComo={vi.fn()} onAviso={vi.fn()} onAuditoria={vi.fn()} {...extra} />,
 )
 
 describe("modo de la tesis (una sola óptica, capa comercial oculta)", () => {
@@ -254,17 +258,105 @@ describe("Inicio del superadmin: uso de la óptica y actividad reciente", () => 
     expect(within(v).getByText("Quién y dónde")).toBeInTheDocument()
   })
 
-  it("un módulo sin uso ofrece ayuda y entrega el módulo para preparar el aviso; uno en uso no", async () => {
-    const onOfrecerAyuda = vi.fn()
-    montar({ datos: datos({ citas: ins("2026-10-10") }), onOfrecerAyuda })
+  it("un módulo sin uso ofrece ayuda: abre la ventana con el mensaje propuesto, la vista previa y «Enviar a la óptica»; uno en uso no", async () => {
+    montar({ datos: datos({ citas: ins("2026-10-10") }) })
     const lista = await screen.findByRole("list", { name: "Módulos" })
     fireEvent.click(within(lista).getByRole("button", { name: /^Ventas:/ }))
     const v = await screen.findByRole("dialog", { name: "Ventas" })
     fireEvent.click(within(v).getByRole("button", { name: "Ofrecer ayuda" }))
-    expect(onOfrecerAyuda).toHaveBeenCalledWith("ventas", expect.objectContaining({ id: "o1" }))
+    const o = await screen.findByRole("dialog", { name: "Ofrecer ayuda con Ventas" })
+    expect(within(o).getByLabelText("Mensaje para el administrador")).toHaveValue("Vimos que en los últimos 30 días no usaron Ventas. Te dejamos una guía paso a paso, y si tienes dudas, respóndenos aquí.")
+    const vista = within(o).getByRole("region", { name: "Vista previa" })
+    expect(vista.textContent).toMatch(/El soporte te ofrece ayuda con Ventas/)
+    for (const t of ["Ver la guía de Ventas", "Responder", "No usamos este módulo"]) expect(vista.textContent).toContain(t)
+    expect(within(o).getByRole("button", { name: "Enviar a la óptica" })).toBeEnabled()
+    expect(o.textContent).not.toMatch(/https?:|localhost|vercel/i) // la guía no va como dirección escrita
+    // un módulo en uso no ofrece ayuda
+    fireEvent.click(within(o).getAllByRole("button", { name: "Cancelar" })[0])
     fireEvent.click(within(lista).getByRole("button", { name: /^Citas médicas:/ }))
     const c = await screen.findByRole("dialog", { name: "Citas médicas" })
     expect(within(c).queryByRole("button", { name: "Ofrecer ayuda" })).toBeNull()
+  })
+
+  it("enviar la ayuda crea la consulta de Soporte, avisa con su número y deja la actividad", async () => {
+    const onAviso = vi.fn(); const onAuditoria = vi.fn()
+    montar({ datos: datos({ citas: ins("2026-10-10") }), onAviso, onAuditoria })
+    const lista = await screen.findByRole("list", { name: "Módulos" })
+    fireEvent.click(within(lista).getByRole("button", { name: /^Ventas:/ }))
+    fireEvent.click(within(await screen.findByRole("dialog", { name: "Ventas" })).getByRole("button", { name: "Ofrecer ayuda" }))
+    const o = await screen.findByRole("dialog", { name: "Ofrecer ayuda con Ventas" })
+    fireEvent.change(within(o).getByLabelText("Mensaje para el administrador"), { target: { value: "Hola, ¿te ayudamos con Ventas?" } })
+    fireEvent.click(within(o).getByRole("button", { name: "Enviar a la óptica" }))
+    await waitFor(() => expect(onAviso).toHaveBeenCalled())
+    expect(mock.llamadas).toEqual([{ nombre: "ofrecer_ayuda", args: { p_optica: "o1", p_modulo: "ventas", p_mensaje: "Hola, ¿te ayudamos con Ventas?" } }])
+    expect(onAviso.mock.calls[0][0]).toMatch(/Ayuda ofrecida con Ventas: SOP-0062/)
+    expect(onAuditoria).toHaveBeenCalledWith("ofrecer_ayuda", expect.objectContaining({ opticaId: "o1", detalle: "Ventas (SOP-0062)" }))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Ofrecer ayuda con Ventas" })).toBeNull())
+  })
+
+  it("si el servidor no la deja pasar (por ejemplo, ya se ofreció), lo dice en la misma ventana", async () => {
+    mock.falloAyuda = "Ya se ofreció ayuda con este módulo el 10/10/2026. Podrás volver a ofrecerla el 09/11/2026."
+    montar({ datos: datos({ citas: ins("2026-10-10") }) })
+    const lista = await screen.findByRole("list", { name: "Módulos" })
+    fireEvent.click(within(lista).getByRole("button", { name: /^Ventas:/ }))
+    fireEvent.click(within(await screen.findByRole("dialog", { name: "Ventas" })).getByRole("button", { name: "Ofrecer ayuda" }))
+    const o = await screen.findByRole("dialog", { name: "Ofrecer ayuda con Ventas" })
+    fireEvent.click(within(o).getByRole("button", { name: "Enviar a la óptica" }))
+    expect(await within(o).findByRole("alert")).toHaveTextContent(/Ya se ofreció ayuda con este módulo el 10\/10\/2026/)
+  })
+
+  it("con ayuda ya ofrecida (menos de 30 días) no vuelve el botón: dice cuándo se ofreció y cuándo se podrá volver", async () => {
+    mock.ofrecidas = [{ modulo: "ventas", ofrecida_en: "2026-10-10T15:00:00Z", consulta: { numero: 61, estado: "respondida" } }]
+    montar({ datos: datos({ citas: ins("2026-10-10") }) })
+    const lista = await screen.findByRole("list", { name: "Módulos" })
+    await waitFor(() => expect(screen.getByRole("region", { name: "Requiere tu atención" }).textContent).toMatch(/Ayuda ofrecida|módulos sin uso/))
+    fireEvent.click(within(lista).getByRole("button", { name: /^Ventas:/ }))
+    const v = await screen.findByRole("dialog", { name: "Ventas" })
+    const ayuda = await within(v).findByRole("region", { name: "Ayuda" })
+    expect(ayuda.textContent).toMatch(/Ayuda ofrecida el 10 oct/)
+    expect(ayuda.textContent).toMatch(/SOP-0061/)
+    expect(ayuda.textContent).toMatch(/podrás volver a ofrecerla el 9 nov/)
+    expect(within(v).queryByRole("button", { name: "Ofrecer ayuda" })).toBeNull()
+  })
+
+  it("pasados 30 días el botón vuelve", async () => {
+    mock.ofrecidas = [{ modulo: "ventas", ofrecida_en: "2026-09-10T15:00:00Z", consulta: { numero: 50, estado: "resuelta" } }]
+    montar({ datos: datos({ citas: ins("2026-10-10") }) })
+    const lista = await screen.findByRole("list", { name: "Módulos" })
+    fireEvent.click(within(lista).getByRole("button", { name: /^Ventas:/ }))
+    const v = await screen.findByRole("dialog", { name: "Ventas" })
+    expect(await within(v).findByText(/Ayuda ofrecida el 10 sep/)).toBeInTheDocument()
+    expect(within(v).getByRole("button", { name: "Ofrecer ayuda" })).toBeInTheDocument()
+  })
+
+  it("en «Requiere tu atención», un módulo con ayuda ofrecida lo dice y lleva a Soporte en vez de ofrecerla otra vez", async () => {
+    mock.ofrecidas = [{ modulo: "ventas", ofrecida_en: "2026-10-10T15:00:00Z", consulta: { numero: 61, estado: "respondida" } }]
+    const onAbrir = vi.fn()
+    montar({ datos: datos({ citas: ins("2026-10-10") }), onAbrir })
+    const atencion = await screen.findByRole("region", { name: "Requiere tu atención" })
+    await screen.findByText("Todo funciona correctamente")
+    await waitFor(() => expect(within(atencion).getByRole("region", { name: "Requiere tu atención: La óptica" })).toBeInTheDocument())
+    fireEvent.click(within(atencion).getByRole("button", { name: "Abrir los avisos de La óptica" }))
+    const v = await screen.findByRole("dialog")
+    await waitFor(() => expect(within(v).getByText(/Ayuda ofrecida el 10 oct/)).toBeInTheDocument())
+    expect(within(v).getAllByRole("button", { name: "Ofrecer ayuda" })).toHaveLength(5) // los otros cinco módulos sin uso; Ventas ya tiene ayuda ofrecida
+    fireEvent.click(within(v).getByRole("button", { name: "Ver en Soporte" }))
+    expect(onAbrir).toHaveBeenCalledWith("soporte", expect.objectContaining({ tab: "consultas", estado: "todas" }))
+  })
+
+  it("«No usamos este módulo»: se ve como decisión de la óptica, no cuenta como sin uso y sale de «Requiere tu atención»", async () => {
+    mock.noUsan = [{ modulo: "ventas", marcado_en: "2026-10-12T15:00:00Z", marcado_nombre: "Andrés Mora" }]
+    montar({ datos: datos({ citas: ins("2026-10-10") }) })
+    const lista = await screen.findByRole("list", { name: "Módulos" })
+    const fila = await within(lista).findByRole("button", { name: /^Ventas: No lo usan por decisión de la óptica/ })
+    expect(fila.textContent).toMatch(/no lo usan por decisión de la óptica/)
+    const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
+    await waitFor(() => expect(atencion.textContent).toMatch(/5 módulos sin uso en 30 días/)) // eran 6: Ventas ya no cuenta
+    expect(atencion.textContent).not.toMatch(/Ventas/)
+    fireEvent.click(fila)
+    const v = await screen.findByRole("dialog", { name: "Ventas" })
+    expect((await within(v).findByRole("region", { name: "Ayuda" })).textContent).toMatch(/La óptica indicó que no usa este módulo el 12 oct/)
+    expect(within(v).queryByRole("button", { name: "Ofrecer ayuda" })).toBeNull()
   })
 
   it("la actividad reciente no lleva pagos ni entornos de prueba, salvo que se active el interruptor", async () => {
@@ -308,5 +400,39 @@ describe("Inicio del superadmin: mientras llega el uso no afirma nada", () => {
     expect(document.body.textContent).not.toMatch(/módulos? sin uso/)
     expect(document.body.textContent).not.toMatch(/La óptica: todo en orden|Sistema, Soporte y La óptica/)
     expect(screen.queryByRole("button", { name: /^Personas activas/ })).toBeNull()
+  })
+})
+
+describe("Ofrecer ayuda: límite del mensaje y vista previa", () => {
+  const abrirVentana = async () => {
+    montar({ datos: datos({ citas: ins("2026-10-10") }) })
+    const lista = await screen.findByRole("list", { name: "Módulos" })
+    fireEvent.click(within(lista).getByRole("button", { name: /^Ventas:/ }))
+    fireEvent.click(within(await screen.findByRole("dialog", { name: "Ventas" })).getByRole("button", { name: "Ofrecer ayuda" }))
+    return await screen.findByRole("dialog", { name: "Ofrecer ayuda con Ventas" })
+  }
+
+  it("el contador «N de 2000» solo aparece desde 1800 caracteres y el cuadro no pasa de 2000", async () => {
+    const o = await abrirVentana()
+    const campo = within(o).getByLabelText("Mensaje para el administrador")
+    expect(campo).toHaveAttribute("maxlength", "2000")
+    expect(within(o).queryByText(/de 2000/)).toBeNull()
+    fireEvent.change(campo, { target: { value: "a".repeat(1799) } })
+    expect(within(o).queryByText(/de 2000/)).toBeNull()
+    fireEvent.change(campo, { target: { value: "a".repeat(1800) } })
+    expect(within(o).getByText("1800 de 2000")).toBeInTheDocument()
+  })
+
+  it("la vista previa se ve como muestra: etiqueta, borde punteado, botones atenuados que no se pulsan", async () => {
+    const o = await abrirVentana()
+    const vista = within(o).getByRole("region", { name: "Vista previa" })
+    expect(vista.className).toMatch(/border-dashed/)
+    expect(within(vista).getByText("Así lo verá el administrador")).toBeInTheDocument()
+    expect(within(vista).queryAllByRole("button")).toHaveLength(0)
+    const guia = within(vista).getByText(/Ver la guía de Ventas/)
+    expect(guia).toHaveAttribute("aria-disabled", "true")
+    expect(guia).toHaveAttribute("title", "El administrador podrá usar este botón")
+    expect(guia.className).toMatch(/opacity-50/)
+    expect(vista.textContent).toMatch(/el administrador podrá usarlos/)
   })
 })
