@@ -239,6 +239,12 @@ Por la ley de protección de datos personales, la óptica es la responsable de s
 - **Se valida en el servidor, no en la pantalla** (regla 36): `acceso_soporte(óptica)` en las políticas de todas las tablas con datos del negocio o de pacientes, en los archivos de fichas, facturas y fotos, y en las funciones que actúan sobre otra óptica (migración 0120). Ocultar un número en la pantalla no basta si el dato igual llega al navegador.
 - **Cómo aplicarlo:** al agregar algo al panel del superadmin, pregunta si sin eso se puede saber que el sistema funciona y se usa. Si la respuesta es no, no se muestra. Un dato nuevo del negocio o de los pacientes no entra en `datos_negocio_superadmin()`.
 
+## J. Una sola óptica (16 oct. 2026)
+
+### 45. En el modo de la tesis el sistema es para una sola óptica: ninguna pantalla muestra selectores, filtros, comparaciones ni tablas de varias ópticas, ni textos que hablen de ellas
+Con `MODO_SAAS_VISIBLE` apagado el sistema es para una sola óptica (Óptica Solna Vision). Todo se escribe en singular y habla de «la óptica»: sin selector ni filtro de óptica, sin comparar una óptica con otra, sin tablas ni columnas «por óptica», sin «todas las ópticas», sin «¿qué óptica…?». Los entornos de prueba no cuentan en nada salvo que se active «Incluir entornos de prueba», y se llaman siempre «entornos de prueba» (nunca «ópticas de prueba»). Lo que se construyó para varias ópticas (filtros, tablas, comparaciones) puede volver cuando se encienda el modo comercial: se condiciona a `MODO_SAAS_VISIBLE`, no se borra.
+- **Cómo aplicarlo:** al diseñar o revisar una pantalla del panel del superadmin, busca «óptica(s)» en los textos, los filtros y las columnas. Un filtro o una columna de óptica solo aparece si hay más de una que elegir (`MODO_SAAS_VISIBLE` o con los entornos de prueba incluidos). Un aviso va «al administrador de la óptica», sin elegir destinatario.
+
 ---
 
 ## Lista de revisión antes de dar una pantalla por terminada
@@ -276,3 +282,4 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 29. ¿Cada tarjeta, número y enlace abre exactamente lo que promete (mismo período, mismos filtros, mismo número, vista del rol) y el texto dice adónde lleva? (42)
 30. ¿Los detalles y las listas se abren en la ventana estándar (centrada, fondo desenfocado, X y Escape, scroll interno) y no en un patrón nuevo? (43)
 31. ¿El panel del superadmin muestra solo lo necesario para operar (nunca volumen del negocio ni datos de pacientes), y lo que necesita ver de una óptica lo autorizó su administrador y lo exige el servidor? (44)
+32. ¿Con el modo de la tesis ninguna pantalla muestra selectores, filtros, comparaciones, tablas ni textos de varias ópticas, y los entornos de prueba solo cuentan si se activa «Incluir entornos de prueba»? (45)

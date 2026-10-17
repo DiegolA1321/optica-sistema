@@ -36,7 +36,7 @@ const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 // El Resumen del superadmin: las cuentas de un negocio de software por suscripción. Responde "¿cómo va mi negocio y qué óptica necesita atención?".
 // Es el mismo molde que Reportes: tarjetas con su comparación y su ⓘ, gráficas con su valor, cada número abre su lista en la ventana estándar
 // con "Abrir en …" y "Exportar", y el mismo selector de período.
-export default function ResumenNegocio({ datos, opticas, leads, consultas, cargandoSoporte, estadoServidor, incluirPrueba, onIncluirPrueba, usuario, onAbrir, onEntrarComo, onAviso, onCrearOptica, actividad = [] }) {
+export default function ResumenNegocio({ datos, opticas, leads, consultas, cargandoSoporte, estadoServidor, incluirPrueba, onIncluirPrueba, usuario, onAbrir, onEntrarComo, onAviso, onCrearOptica }) {
   // Con el modo de la tesis (una sola óptica) el panel es la administración técnica del sistema: sin ingresos, clientes, leads ni salud de clientes.
   const saas = MODO_SAAS_VISIBLE
   const [periodo, setPeriodo] = useState("mes")
@@ -342,34 +342,6 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
           <div className={REJILLA_TARJETAS_4}>{tarjetasEstado}</div>
         </Seccion>
   )
-  // Modo de la tesis: base de datos, tiempo de respuesta, personas activas y módulos en uso van en una sola fila.
-  const secEstadoYUso = (
-        <Seccion titulo="Estado y uso del sistema" ayuda="Si el sistema responde (según la última carga de datos de este panel: menos de 1,2 segundos es normal, hasta 3,5 es lento y más es crítico) y si se usa, sin mirar el negocio de las ópticas (privacidad): lo que hizo el personal en los últimos 30 días, comparado con los 30 días anteriores.">
-          <div className={REJILLA_TARJETAS_4}>{tarjetasEstado}{!datos.sinServidor && tarjetasUso}</div>
-          {datos.sinServidor ? sinUso : cajaModulos}
-        </Seccion>
-  )
-
-  const recientes = sinPruebas(actividad, opticas, incluirPrueba).filter((a) => tiposVisibles(false).some((t) => t.acciones?.includes(a.accion))).slice(0, 8)
-  const secActividad = (
-        <Seccion titulo="Actividad reciente" ayuda="Lo último que hicieron los superadmins en el sistema. Es un registro: no se borra ni se edita.">
-          <Caja titulo="Últimas acciones" derecha={<button type="button" onClick={() => onAbrir("actividad", {})} className="rounded-lg px-2 py-1 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Ver toda la actividad</button>}>
-            {recientes.length === 0 ? (
-              <SinResultados texto="Todavía no hay acciones registradas." />
-            ) : (
-              <ul role="list" className="divide-y divide-slate-100">
-                {recientes.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3 py-2 text-sm text-slate-700">
-                    <span className="min-w-0 flex-1 truncate"><span className="font-semibold" style={{ color: INK }}>{a.actor_nombre}</span> {frasesDeAccion(a, saas).map((x) => x.t).join("")}</span>
-                    <span className="shrink-0 text-xs tabular-nums text-slate-500">{fechaHoraLegible(a.created_at)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Caja>
-        </Seccion>
-  )
-
   return (
     <div className="space-y-3" data-resumen-negocio>
       <CabeceraSeccion titulo="Resumen" pregunta={saas ? "¿Cómo va el negocio y qué óptica necesita atención?" : "¿Funciona bien el sistema y lo están usando?"}>
@@ -387,7 +359,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
       </div>
 
       <div className="space-y-4 pb-6">
-        {saas ? <>{secIngresos}{secClientes}{secSalud}{secUso}{secSoporte}{secLeads}{secEstado}</> : <>{secEstadoYUso}{secSoporte}{secActividad}</>}
+        <>{secIngresos}{secClientes}{secSalud}{secUso}{secSoporte}{secLeads}{secEstado}</>
       </div>
 
       {detalle && <VentanaDetalle d={detalle} onCerrar={() => setDetalle(null)} />}

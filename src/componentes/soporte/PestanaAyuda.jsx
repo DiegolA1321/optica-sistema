@@ -6,6 +6,7 @@ import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Vacio } from "../ventas/Lista"
 import { CLASE_ACCION_PRINCIPAL } from "../ventas/estilos"
 import { AYUDA_POR_MODULO, buscarAyuda } from "../../utilidades/soporteAyuda"
+import { leerParam } from "../../utilidades/urlEstado"
 
 function Pregunta({ q, abierta }) {
   return (
@@ -23,7 +24,8 @@ function Pregunta({ q, abierta }) {
 export default function PestanaAyuda({ puedeEscribir, onEscribir, esAdmin = true, busquedaInicial = "", enfocar = false }) {
   const escribirA = esAdmin ? "Escribir al soporte" : "Escribir a mi administrador"
   const [busqueda, setBusqueda] = useState(busquedaInicial)
-  const [modulo, setModulo] = useState("")
+  // El enlace de un aviso («?modulo=citas») abre la Ayuda ya en ese módulo.
+  const [modulo, setModulo] = useState(() => { const m = leerParam("modulo"); return AYUDA_POR_MODULO.some((g) => g.modulo === m) ? m : "" })
   const buscando = busqueda.trim().length > 0
   const encontradas = useMemo(() => (buscando ? buscarAyuda(busqueda, modulo) : []), [busqueda, modulo, buscando])
   const grupos = modulo ? AYUDA_POR_MODULO.filter((g) => g.modulo === modulo) : AYUDA_POR_MODULO

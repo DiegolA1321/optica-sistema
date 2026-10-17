@@ -13,7 +13,8 @@ import { Cascaron } from "./AtencionPaciente"
 // Al resolver un caso la lista y los números se actualizan: la ventana lee siempre los avisos actuales. Un área sin avisos dice "Todo en orden".
 //
 // bloques: [{ id, titulo, modulo, icono, filas, onVerTodo }]; onVerTodo lleva al módulo (se usa en el área que está en orden).
-// filas: [{ id, cantidad, texto, nombres?, tono?: "urgente", enlace?: { texto, onClick }, casos: [{ id, nombre, detalle?, insignia?: { texto, tono }, accion?: { etiqueta, onClick, navega? } }] }]
+// filas: [{ id, cantidad, texto, nombres?, tono?: "urgente", enlace?: { texto, onClick }, casos: [{ id, nombre, detalle?, icono?, insignia?: { texto, tono }, accion?: { etiqueta, onClick, navega? } }] }]
+// icono (opcional): el ícono de un caso que no es una persona (un módulo, un componente); sin él, se muestran las iniciales del nombre.
 export const AVISOS_POR_TARJETA = 3
 const INSIGNIA = { urgente: "border-red-200 bg-red-50 text-red-700", neutro: "border-slate-200 bg-slate-50 text-slate-600", aviso: "border-amber-200 bg-amber-50 text-amber-700" }
 const iniciales = (nombre = "") => nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?"
@@ -54,7 +55,9 @@ function VentanaAvisos({ bloque, filaId, onCerrar }) {
           <ul>
             {f.casos.map((c) => (
               <li key={c.id} className="flex items-center gap-3 border-t border-slate-100 py-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-600" aria-hidden="true">{iniciales(c.nombre)}</span>
+                {c.icono
+                  ? <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600" aria-hidden="true"><c.icono size={17} /></span>
+                  : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-600" aria-hidden="true">{iniciales(c.nombre)}</span>}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold" style={{ color: INK }}>{c.nombre}</p>
                   <p className="text-sm text-slate-500">
@@ -97,14 +100,20 @@ export function BotonRequierenAtencion({ bloque }) {
   )
 }
 
-export default function RequiereAtencionPorArea({ bloques }) {
+// columnas: 1, 2 (el Inicio de la óptica) o 3 (el Inicio del superadmin, que solo muestra las áreas con avisos). compacto: menos aire, para que
+// todo quepa en una pantalla. lateral: lo que va a la derecha del título (por ejemplo, «Sistema y Soporte: todo en orden»).
+const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 md:grid-cols-2 md:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
+export default function RequiereAtencionPorArea({ bloques, columnas = 2, compacto = false, lateral = null }) {
   const [abierto, setAbierto] = useState(null) // { bloqueId, filaId }
   if (bloques.length === 0) return null
   const bloqueAbierto = abierto ? bloques.find((b) => b.id === abierto.bloqueId) : null
   return (
     <section id="requiere-atencion" aria-label="Requiere tu atención" className="scroll-mt-4 space-y-2.5">
-      <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Requiere tu atención</h2>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:auto-rows-fr">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Requiere tu atención</h2>
+        {lateral}
+      </div>
+      <div className={"grid " + (compacto ? "gap-3 " : "gap-4 ") + (COLUMNAS[columnas] || COLUMNAS[2])}>
         {bloques.map((b) => {
           const Icono = b.icono
           const visibles = b.filas.slice(0, AVISOS_POR_TARJETA)
@@ -123,15 +132,15 @@ export default function RequiereAtencionPorArea({ bloques }) {
           return (
             <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className="flex flex-col rounded-2xl border border-slate-200/60 bg-white shadow-sm">
               {total > 0 ? (
-                <button type="button" onClick={() => abrir()} aria-label={`Abrir los avisos de ${b.titulo}`} className="flex items-center gap-3 rounded-t-2xl border-b border-slate-100 px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer">{encabezado}</button>
+                <button type="button" onClick={() => abrir()} aria-label={`Abrir los avisos de ${b.titulo}`} className={"flex items-center gap-3 rounded-t-2xl border-b border-slate-100 px-4 text-left transition-colors hover:bg-slate-50 cursor-pointer " + (compacto ? "py-2" : "py-3")}>{encabezado}</button>
               ) : (
-                <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">{encabezado}</div>
+                <div className={"flex items-center gap-3 border-b border-slate-100 px-4 " + (compacto ? "py-2" : "py-3")}>{encabezado}</div>
               )}
               {visibles.length > 0 ? (
                 <ul className="flex-1 divide-y divide-slate-100">
                   {visibles.map((f) => (
                     <li key={f.id}>
-                      <button type="button" onClick={() => abrir(f.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                      <button type="button" onClick={() => abrir(f.id)} className={"flex w-full items-center gap-3 px-4 text-left transition-colors hover:bg-slate-50 cursor-pointer " + (compacto ? "py-1.5" : "py-2.5")}>
                         <p className="min-w-0 flex-1 truncate text-sm text-slate-700">
                           <span className={"font-bold " + (f.tono === "urgente" ? "text-red-700" : "")} style={f.tono === "urgente" ? undefined : { color: INK }}>{f.cantidad ?? 1}</span> {f.texto}
                           {f.nombres && <span className="text-slate-500"> · {f.nombres}</span>}
@@ -144,7 +153,7 @@ export default function RequiereAtencionPorArea({ bloques }) {
               ) : (
                 <p className="flex flex-1 items-center gap-2 px-4 py-4 text-sm text-slate-600"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" aria-hidden="true" /> Nada pendiente en esta área.</p>
               )}
-              <footer className="flex items-center border-t border-slate-100 px-4 py-2.5 text-sm">
+              <footer className={"flex items-center border-t border-slate-100 px-4 text-sm " + (compacto ? "py-1.5" : "py-2.5")}>
                 {ocultos > 0 && <span className="text-slate-500">{ocultos === 1 ? "1 elemento más" : `${ocultos} elementos más`}</span>}
                 {total > 0 ? (
                   <button type="button" onClick={() => abrir()} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">

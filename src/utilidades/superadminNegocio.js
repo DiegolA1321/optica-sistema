@@ -14,6 +14,14 @@ const ms = (v) => new Date(v).getTime()
 export const esDePrueba = (o) => !!o?.es_de_prueba
 export const opticasDelNegocio = (opticas, incluirPrueba = false) => (incluirPrueba ? opticas : opticas.filter((o) => !esDePrueba(o)))
 export const idsDePrueba = (opticas) => new Set(opticas.filter(esDePrueba).map((o) => o.id))
+// La óptica del sistema (modo de la tesis): la óptica por defecto si no es de prueba y, si no, la primera que no es de prueba.
+export const opticaDeLaTesis = (opticas, idPorDefecto = null) => {
+  const reales = (opticas || []).filter((o) => !esDePrueba(o))
+  return reales.find((o) => o.id === idPorDefecto) || reales[0] || null
+}
+// Con una sola óptica, lo que pertenece a otra óptica (aunque no esté marcada como de prueba) no se muestra salvo que se incluyan los entornos de prueba.
+// Lo que no es de una óptica (un aviso general, un superadmin) se conserva.
+export const soloLaOptica = (items, opticaId, incluirPrueba = false, clave = "optica_id") => (incluirPrueba || !opticaId ? items : items.filter((x) => !x[clave] || x[clave] === opticaId))
 // Quita de una lista lo que pertenece a una óptica de prueba. Lo que no es de una óptica (un aviso general, un superadmin) se conserva.
 export function sinPruebas(items, opticas, incluirPrueba = false, clave = "optica_id") {
   if (incluirPrueba) return items
