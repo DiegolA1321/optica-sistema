@@ -3,6 +3,16 @@
 Pedido: rediseñar el portal (menú claro, Resumen sin repetir con Lo próximo · Mis lentes · Mi próximo control · Mi saldo · La óptica, "Agendar cita" como único verbo, receta con "Ojo derecho/izquierdo" y PDF, estado de las órdenes en Mis compras, celular/tablet/laptop, 16 px) y dejar que cada acción del paciente se refleje en el sistema del personal. Regla nueva: la 48 de `docs/principios-diseno.md`.
 **Dónde voy:**
 - [x] Paso 1 — Regla 48 (todo el sistema en celular, tablet y laptop) y este registro.
+- [x] Paso 2 — Migración `0123_portal_ordenes_y_control.sql` (`mis_ordenes_paciente` y `mi_control_paciente`) ESCRITA y ensayada (`scripts/ensayo-0123.mjs`, revierte: pasa completo). **SIN APLICAR: espera la aprobación de Diego** (respaldo con `pg_dump` antes).
+- [x] Paso 3 — Migración `0124_actividad_de_datos_del_paciente.sql` (descargar datos y pedir eliminación quedan en la actividad) ESCRITA y ensayada (`scripts/ensayo-0124.mjs`). **SIN APLICAR.**
+- [x] Paso 4 — Lógica pura con pruebas: `portalPaciente.js` (lentes, control, saldo, contacto), `recetaPdf.js` (receta en PDF sin librerías), `portalDatos.js`.
+- [x] Paso 5 — Portal rehecho: menú claro (laptop) y barra de navegación abajo (celular y tablet), Resumen (Lo próximo · Mis lentes · Mi próximo control · Mi saldo · La óptica; bienvenida si es nuevo), Mis citas, Mi receta (Ojo derecho/izquierdo, explicaciones, Descargar receta), Mis compras con el estado de los lentes, Mis datos. Componentes en `src/componentes/portal/`, `SelectorLista` (selector del sistema) y `Cascaron` con `pantallaCompletaEnCelular`.
+- [x] Paso 6 — **`ResolutionGuard` ya no bloquea las pantallas del paciente** (login, reserva, portal, páginas públicas): bloqueaba todo por debajo de 950 px de ancho y con zoom fuera de 65–150 %, es decir, el portal no se podía usar en celular ni con letra grande. El personal y el superadmin siguen con la guarda.
+- [x] Paso 7 — Login con ventana clara y «¿Olvidaste tu contraseña? Comunícate con la óptica» con teléfono y WhatsApp.
+- [x] Paso 8 — Inicio: «Requiere tu atención» (área Pacientes, administrador) avisa cuando un paciente pide eliminar su cuenta (toca el módulo Inicio, ya cerrado: se dice en el resumen).
+- [x] Paso 9 — Pruebas: Vitest completo (120 archivos, 1282 de 1282); Playwright `e2e/portal-recorrido.spec.js` (laptop y celular: compra y saldo, agendar, reagendar, teléfono, y todo verificado en el sistema del personal) y `e2e/portal-adaptable.spec.js` (390, 768 y 1366 px sin desplazamiento horizontal, texto de 16 px, botones de 44 px); capturas en `docs/portal-v2-capturas/` (`scripts/capturas-portal.mjs`).
+- [x] Paso 10 — Revisión de solo lectura del resto del sistema en los tres tamaños: `docs/revision-adaptable.md` (`scripts/revision-adaptable.mjs`). No se corrigió nada.
+- **Falta (decisión de Diego):** aplicar 0123 y 0124 (hasta entonces el portal no muestra lentes ni control, y la descarga/eliminación no quedan en la actividad); las capturas de «lentes en el laboratorio» y «próximo control» usan datos de ejemplo (`?_muestra=lentes`, solo en desarrollo). Los estados de cita del portal usan los mismos colores del personal, definidos ahora en `estadosCita.js`; las copias de Citas, Pacientes y el detalle de la cita se pueden pasar a esa tabla (regla 18) con tu aprobación.
 <!-- PV2-FIN -->
 
 <!-- AYU-INICIO -->
