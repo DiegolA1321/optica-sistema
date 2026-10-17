@@ -22,6 +22,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
+import { formatearTelefonoEC, linkWhatsApp } from "../utilidades/whatsapp"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from "../utilidades/sesionPermisos"
 
@@ -1198,9 +1199,9 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
 
           <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-5 animate-in zoom-in-95 fade-in duration-200">
           <div ref={modalRef} className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left" style={{ boxShadow: "0 40px 90px -25px rgba(3,15,20,0.5)" }}>
-            <div className="relative overflow-hidden px-6 pb-6 pt-6 sm:px-8" style={{ background: `linear-gradient(135deg,#0E2B33,${colorAcento})` }}>
+            <div className="relative overflow-hidden border-b border-slate-100 px-6 pb-5 pt-6 sm:px-8" style={{ background: "linear-gradient(180deg,#F8FAFC,#FFFFFF)" }}>
               <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.35), transparent 70%)" }} />
-              <button onClick={() => setMostrarModal(false)} aria-label="Cerrar" className="absolute right-4 top-4 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer">
+              <button onClick={() => setMostrarModal(false)} aria-label="Cerrar" className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
                 <X size={20} />
               </button>
               <div className="relative flex min-w-0 items-center gap-3">
@@ -1208,13 +1209,13 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   {logoUrl ? <img src={logoUrl} alt={nombreMarca} className="h-full w-full object-cover" /> : <LogIn size={22} />}
                 </div>
                 <div className="min-w-0">
-                  <h3 id="titulo-login" className="truncate font-serif text-xl font-semibold text-white">{nombreMarca}</h3>
-                  <p className="text-sm text-white/60">Iniciar sesión · un solo acceso para todo el equipo</p>
+                  <h3 id="titulo-login" className="truncate font-serif text-xl font-semibold" style={{ color: INK }}>{nombreMarca}</h3>
+                  <p className="text-sm text-slate-600">Iniciar sesión · un solo acceso para todo el equipo</p>
                 </div>
               </div>
               <div className="relative mt-4 flex flex-wrap gap-1.5">
                 {["Pacientes", "Optómetras", "Administración"].map((r) => (
-                  <span key={r} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/80">{r}</span>
+                  <span key={r} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">{r}</span>
                 ))}
               </div>
             </div>
@@ -1268,6 +1269,7 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
                   ¿No tienes cuenta? Solicítala al optómetra durante tu visita.
                 </p>
               )}
+              {!mfaPendiente && <OlvidoClave telefono={opticaPublica?.settings?.opticaTelefono} direccion={opticaPublica?.settings?.opticaDireccion} />}
             </div>
           </div>
           </div>
@@ -1340,6 +1342,23 @@ export default function Login({ pacientes = [], opticaPublica = null, disponibil
           </div>
         </div>
       </footer>
+    </div>
+  )
+}
+
+// «¿Olvidaste tu contraseña?»: por ahora la restablece el personal desde el perfil del paciente; aquí se le dice a quién llamar (decisión del 9 oct.).
+function OlvidoClave({ telefono, direccion }) {
+  const numero = telefono ? formatearTelefonoEC(telefono) : ""
+  return (
+    <div className="mt-3 rounded-xl bg-slate-50 p-4 text-center text-sm leading-relaxed text-slate-700">
+      <p className="font-semibold">¿Olvidaste tu contraseña? Comunícate con la óptica.</p>
+      {(numero || direccion) && (
+        <p className="mt-1.5 text-slate-600">
+          {numero && <><a href={"tel:+" + numero} className="inline-flex min-h-11 items-center font-semibold text-blue-700 underline-offset-2 hover:underline">Llamar al {telefono}</a>{" · "}<a href={linkWhatsApp(telefono, "Hola, olvidé mi contraseña del portal.")} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold text-blue-700 underline-offset-2 hover:underline">WhatsApp</a></>}
+          {numero && direccion && <br />}
+          {direccion}
+        </p>
+      )}
     </div>
   )
 }
