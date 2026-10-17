@@ -18,3 +18,15 @@ export const estadoCorregibleEs = (cita, estado, hoy = hoyISO()) => estado === c
 // ("No Asistió", "En Atención"...) es un dato interno y no se muestra tal cual.
 const ETIQUETA_ESTADO = { Pendiente: "Pendiente", "En Espera": "En espera", "En Atención": "En atención", Atendida: "Atendida", "No Asistió": "No asistió", Cancelada: "Cancelada" }
 export const etiquetaEstadoCita = (estado) => ETIQUETA_ESTADO[estado] || estado || "Pendiente"
+
+// Los colores de cada estado de cita (regla 14): una sola tabla para quien la muestre fuera del módulo de Citas (el portal del paciente la usa).
+// Pendiente = naranja, En espera = violeta, En atención = azul, Atendida = verde, No asistió = rojo, Cancelada = gris.
+export const CLASE_ESTADO_CITA = {
+  Pendiente: "border-amber-200/60 bg-amber-50 text-amber-700",
+  "En Espera": "border-violet-200/60 bg-violet-50 text-violet-700",
+  "En Atención": "border-blue-200/60 bg-blue-50 text-blue-700",
+  Atendida: "border-emerald-200/60 bg-emerald-50 text-emerald-700",
+  "No Asistió": "border-red-200/60 bg-red-50 text-red-700",
+  Cancelada: "border-slate-200/60 bg-slate-100 text-slate-600",
+}
+export const claseEstadoCita = (estado) => CLASE_ESTADO_CITA[estado] || CLASE_ESTADO_CITA.Pendiente

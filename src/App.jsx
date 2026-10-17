@@ -431,6 +431,8 @@ function App() {
   // que Login.jsx pueda personalizarse — null mientras no se resuelve o
   // cuando el sitio no es de tipo 'optica'.
   const [opticaPublica, setOpticaPublica] = useState(null);
+  // El portal del paciente muestra esqueletos hasta que llegan sus citas y su receta (sin esto, un paciente con datos veía un instante la bienvenida de un paciente nuevo).
+  const [cargandoDatosPaciente, setCargandoDatosPaciente] = useState(true);
   // Evita el parpadeo al recargar: si ya hay (o podría haber) una sesión de
   // Supabase Auth (superadmin/admin/asistente) por restaurar, no se sabe
   // todavía si pantallaActual='login' es la respuesta correcta o solo el
@@ -973,13 +975,15 @@ function App() {
   // id — sin él, el RPC no devuelve nada, así que un pacienteId suelto ya no
   // alcanza para leer los datos de otra persona.
   const hidratarDatosPaciente = async (pacienteId, token) => {
-    if (!supabase) return
+    if (!supabase) { setCargandoDatosPaciente(false); return }
+    setCargandoDatosPaciente(true)
     const [{ data: misCitas }, { data: misConsultas }] = await Promise.all([
       supabase.rpc('mis_citas_paciente', { p_paciente_id: pacienteId, p_token: token }),
       supabase.rpc('mis_consultas_paciente', { p_paciente_id: pacienteId, p_token: token }),
     ])
     if (misCitas) setCitas(misCitas.map(mapCita))
     if (misConsultas) setConsultas(misConsultas.map(mapConsulta))
+    setCargandoDatosPaciente(false)
   };
 
   // Ciberseguridad: además de olvidar la sesión localmente, invalida el
@@ -1260,6 +1264,7 @@ function App() {
           opticaPublica={opticaPublica}
           parametrizacion={parametrizacion}
           motivosConsulta={motivosConsulta}
+          cargandoDatos={cargandoDatosPaciente}
           onCerrarSesion={cerrarSesion}
           alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
         />
