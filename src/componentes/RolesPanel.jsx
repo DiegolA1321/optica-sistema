@@ -7,6 +7,7 @@ import { INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "./AtencionPaciente"
 import { registrarLog } from "../utilidades/logs"
 import ConfirmarEliminarModal from "./ConfirmarEliminarModal"
+import { EtiquetaDeMuestra } from "./VistaPrevia"
 import {
   NIVELES, MODULOS_PERMISO, GRUPOS_MODULOS, MODULOS_CON_ALCANCE, INICIOS_ROL,
   normalizarPermisosRol, resumenPermisos, menuDePermisos,
@@ -243,12 +244,12 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
           </div>
         </div>
 
-        <aside className="border-t border-slate-100 bg-slate-50/70 p-5 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Vista previa del rol">
-          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Eye size={13} aria-hidden="true" /> Vista previa</p>
+        <aside className="border-t-2 border-dashed border-slate-300 bg-slate-100/80 p-5 lg:overflow-y-auto lg:border-l-2 lg:border-t-0" aria-label="Vista previa del rol">
+          <p className="flex w-fit items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-600"><Eye size={12} aria-hidden="true" /> Vista previa</p>
           <p className="mt-3 text-xs font-semibold text-slate-600">Menú que verá</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">Inicio</span>
-            {vista.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">{m}</span>)}
+            <EtiquetaDeMuestra>Inicio</EtiquetaDeMuestra>
+            {vista.menu.map((m) => <EtiquetaDeMuestra key={m}>{m}</EtiquetaDeMuestra>)}
           </div>
           <p className="mt-4 text-xs font-semibold text-slate-600">Su Inicio</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500"><span className="font-semibold text-slate-700">{vista.inicio?.etiqueta}.</span> {vista.inicio?.descripcion}</p>

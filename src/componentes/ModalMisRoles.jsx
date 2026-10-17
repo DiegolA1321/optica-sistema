@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { ShieldCheck, Glasses } from "lucide-react"
 import { Cascaron, PieFormulario } from "./AtencionPaciente"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
+import VistaPrevia, { EtiquetaDeMuestra } from "./VistaPrevia"
 
 
 // "Mis roles": el administrador principal elige con qué otros roles quiere trabajar (Optómetra, Recepción,
@@ -64,14 +65,13 @@ export default function ModalMisRoles({ roles, elegidosIniciales, onGuardar, onC
         )}
       </fieldset>
       {seleccionados.length > 0 && (
-        <section aria-label="Vista previa de lo que verás" className="rounded-xl border border-slate-200/60 bg-slate-50 p-3.5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lo que verás con esos roles</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">Inicio</span>
-            {vista.menu.map((m) => <span key={m} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">{m}</span>)}
+        <VistaPrevia nombre="Vista previa de lo que verás" leyenda="Lo que verás con esos roles">
+          <div className="flex flex-wrap gap-1.5">
+            <EtiquetaDeMuestra>Inicio</EtiquetaDeMuestra>
+            {vista.menu.map((m) => <EtiquetaDeMuestra key={m}>{m}</EtiquetaDeMuestra>)}
           </div>
           <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">{vista.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
-        </section>
+        </VistaPrevia>
       )}
       </div>
     </Cascaron>
