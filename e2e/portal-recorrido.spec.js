@@ -6,6 +6,7 @@ import pg from 'pg'
 import { iniciarSesion, escribirSecreto, SLUG_PRUEBAS } from './ayudas.js'
 
 const NOMBRE = 'E Dos E Portal Auditoria'
+const TELEFONO_FIJO = '0991234567' // el del paciente fijo; la prueba lo cambia y lo devuelve
 const TAMANOS = [['laptop', 1366, 768], ['celular', 390, 844]]
 
 const bd = async (fn) => { const c = new pg.Client(); await c.connect(); try { return await fn(c) } finally { await c.end() } }
@@ -34,9 +35,11 @@ for (const [nombre, ancho, alto] of TAMANOS) {
 
     test('compra y saldo, agendar, reagendar y cambiar el teléfono, y todo se ve en el sistema del personal', async ({ page, browser }) => {
       test.setTimeout(240_000)
-      const optica = (await q("select id, settings from opticas where slug = $1", [SLUG_PRUEBAS]))[0]
-      const paciente = (await q("select id, telefono from pacientes_base where optica_id = $1 and nombre = $2", [optica.id, NOMBRE]))[0]
+      const optica = (await q("select id from opticas where slug = $1", [SLUG_PRUEBAS]))[0]
+      const paciente = (await q("select id from pacientes_base where optica_id = $1 and nombre = $2", [optica.id, NOMBRE]))[0]
       const inicio = (await q('select now() as t'))[0].t
+      // Si una corrida anterior se cortó antes de limpiar, se limpia primero (el paciente fijo no tiene citas propias).
+      await q('delete from citas_base where paciente_id = $1', [paciente.id])
       const telefonoNuevo = '09' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0')
       try {
         await bd((c) => c.query("update opticas set settings = coalesce(settings, '{}'::jsonb) || '{\"permitirReagendarPaciente\": true, \"horasAntesReagendar\": 2}'::jsonb where id = $1", [optica.id]))
@@ -96,14 +99,20 @@ for (const [nombre, ancho, alto] of TAMANOS) {
           await expect(detalle).toContainText('Web') // origen de la cita
           await expect(detalle).toContainText(telefonoNuevo) // el teléfono nuevo, en la cita
           await expect(detalle).toContainText(nueva.hora) // la hora nueva (reagendada)
+          await staff.keyboard.press('Escape') // cierra el detalle de la cita
+          // El saldo es el mismo monto que en Cobros y saldos (Ventas).
+          await staff.getByRole('button', { name: /^Ventas/ }).first().click()
+          await staff.getByRole('tab', { name: /Cobros y saldos/ }).click()
+          await expect(staff.getByText(NOMBRE).first()).toBeVisible({ timeout: 15_000 })
+          await expect(staff.locator('main').getByText('$40.00').first()).toBeVisible()
         } finally { await ctx.close() }
         const perfil = (await q("select telefono from pacientes_base where id = $1", [paciente.id]))[0]
         expect(perfil.telefono).toBe(telefonoNuevo) // y en su perfil
       } finally {
-        await q("delete from citas_base where paciente_id = $1 and created_at >= $2", [paciente.id, inicio])
-        await q("update pacientes_base set telefono = $2 where id = $1", [paciente.id, paciente.telefono])
-        await q("update citas_base set telefono = $2 where paciente_id = $1", [paciente.id, paciente.telefono])
-        await q("update opticas set settings = $2::jsonb where id = $1", [optica.id, JSON.stringify(optica.settings || {})])
+        await q("delete from citas_base where paciente_id = $1", [paciente.id])
+        await q("update pacientes_base set telefono = $2 where id = $1", [paciente.id, TELEFONO_FIJO])
+        // La política de reagendar solo la enciende la prueba; antes no estaba puesta en la óptica de pruebas.
+        await q("update opticas set settings = settings - 'permitirReagendarPaciente' - 'horasAntesReagendar' where id = $1", [optica.id])
       }
     })
   })
