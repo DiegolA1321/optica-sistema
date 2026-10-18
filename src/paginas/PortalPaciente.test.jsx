@@ -413,7 +413,7 @@ describe("Mi receta", () => {
     const derecho = screen.getByRole("region", { name: "Ojo derecho" })
     expect(derecho).toHaveTextContent("Tienes miopía leve: ves bien de cerca y un poco borroso de lejos.")
     expect(derecho).toHaveTextContent("Leve: algunas líneas se ven un poco estiradas. Tus lentes lo corrigen.")
-    expect(derecho).toHaveTextContent("La ayuda extra que tus lentes progresivos dan en la parte de abajo.")
+    expect(derecho).toHaveTextContent("Es una ayuda pequeña que tus lentes progresivos dan en la parte de abajo para ver de cerca.")
     expect(derecho).toHaveTextContent("Ves con nitidez completa, como debe ser.")
     expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("Tienes miopía leve, un poco menor que en el ojo derecho.")
   })

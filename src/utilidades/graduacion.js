@@ -25,13 +25,19 @@ export function clasificarCilindro(valor) {
   const a = Math.abs(v)
   return a <= 1 ? "leve" : a <= 2 ? "moderado" : "alto"
 }
-// Agudeza visual «20/25»: el denominador manda. Hasta 20/25 es visión completa; hasta 20/40, muy buena; hasta 20/70, buena sin ser completa; más allá, reducida.
+// Agudeza visual «20/25»: el denominador manda. 20/20 o mejor es visión completa; 20/25 y 20/30, casi completa; hasta 20/40, buena; hasta 20/70, disminuida; más allá, reducida.
 export function clasificarAgudeza(av) {
   const m = String(av ?? "").match(/^\s*(\d+)\s*\/\s*(\d+)/)
   if (!m) return null
   const den = Number(m[2])
   if (!den) return null
-  return den <= 25 ? "completa" : den <= 40 ? "muy buena" : den <= 70 ? "buena" : "reducida"
+  return den <= 20 ? "completa" : den <= 30 ? "casi completa" : den <= 40 ? "buena" : den <= 70 ? "disminuida" : "reducida"
+}
+// Adición (ayuda para ver de cerca): baja hasta +1.25, media hasta +2.00 y alta más allá. Sin adición (vacía o 0) no hay nada que clasificar.
+export function clasificarAdicion(valor) {
+  const v = numero(valor)
+  if (v === null || v <= 0) return null
+  return v <= 1.25 ? "baja" : v <= 2 ? "media" : "alta"
 }
 
 // Un texto con partes en negrita: [{ t, b }]. Se dibuja sin HTML.
@@ -67,10 +73,18 @@ export function explicarCilindro(ojo, otro = null, esIzquierdo = false) {
   return base + (clasificarAgudeza(ojo?.avCc) === "completa" && !esIzquierdo ? " " + CORRIGE : "")
 }
 export function explicarCerca(adicion, lente = "") {
-  if (numero(adicion) === null) return ""
-  return /progres/i.test(lente) ? "La ayuda extra que tus lentes progresivos dan en la parte de abajo." : /bifocal/i.test(lente) ? "La ayuda extra que tus lentes bifocales dan en la parte de abajo." : "La ayuda extra para leer de cerca."
+  const n = clasificarAdicion(adicion)
+  if (!n) return ""
+  const nivel = { baja: "una ayuda pequeña", media: "una ayuda media", alta: "una ayuda grande" }[n]
+  return /progres/i.test(lente) ? `Es ${nivel} que tus lentes progresivos dan en la parte de abajo para ver de cerca.` : /bifocal/i.test(lente) ? `Es ${nivel} que tus lentes bifocales dan en la parte de abajo para ver de cerca.` : `Es ${nivel} para leer y ver de cerca.`
 }
-const DICE_AGUDEZA = { completa: "Ves con nitidez completa, como debe ser.", "muy buena": "Ves con muy buena nitidez.", buena: "Ves bien, aunque todavía no con toda la nitidez.", reducida: "Aún no ves con toda la nitidez: coméntalo con tu optómetra." }
+const DICE_AGUDEZA = {
+  completa: "Ves con nitidez completa, como debe ser.",
+  "casi completa": "Ves casi con toda la nitidez: te falta muy poco.",
+  buena: "Ves bien, aunque todavía no con toda la nitidez.",
+  disminuida: "Ves con menos nitidez de la normal: coméntalo con tu optómetra.",
+  reducida: "Ves con poca nitidez: coméntalo con tu optómetra.",
+}
 export function explicarAgudeza(av) {
   const c = clasificarAgudeza(av)
   return c ? DICE_AGUDEZA[c] : ""
