@@ -108,9 +108,10 @@ export default function TarjetaSolicitarLentes({ solicitudes, onSolicitar, recet
             {lista.map((s) => {
               const e = ESTADOS_SOLICITUD[s.estado] || ESTADOS_SOLICITUD.recibida
               return (
-                <li key={s.id} data-fila className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-3.5 pr-9 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[130px_minmax(0,1fr)_150px] sm:pr-10">
+                <li key={s.id} data-fila className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-3.5 pr-9 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[minmax(8rem,0.8fr)_minmax(0,2fr)_minmax(9.5rem,0.9fr)] sm:pr-10">
                   <p className="col-span-2 text-base text-pt-texto sm:col-span-1">{formatoFecha(diaDeRegistro(s.creada), "medio")}</p>
-                  <button type="button" onClick={() => setAbierta(s)} aria-haspopup="dialog" aria-label={`Ver tu solicitud del ${formatoFecha(diaDeRegistro(s.creada), "medio")}: ${nombreDeInteres(s.interes)}, ${e.nombre}`} className="min-w-0 text-left text-base font-semibold leading-snug text-pt-marino cursor-pointer after:absolute after:inset-0 after:content-['']">{nombreDeInteres(s.interes)}</button>
+                  <button type="button" onClick={() => setAbierta(s)} aria-haspopup="dialog" aria-label={`Ver tu solicitud del ${formatoFecha(diaDeRegistro(s.creada), "medio")}: ${nombreDeInteres(s.interes)}, ${e.nombre}`} className="pt-abrir absolute inset-0 cursor-pointer" />
+                  <p className="min-w-0 text-base font-semibold leading-snug text-pt-marino">{nombreDeInteres(s.interes)}</p>
                   <div data-col="estado"><Insignia tono={e.tono}>{e.nombre}</Insignia></div>
                   <ChevronRight size={22} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                 </li>

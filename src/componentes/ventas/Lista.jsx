@@ -42,7 +42,7 @@ export function ContenedorLista({ etiqueta, encabezado = null, children }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
       {encabezado}
-      <ul role="list" aria-label={etiqueta} className="divide-y divide-slate-100">{children}</ul>
+      <ul role="list" aria-label={etiqueta} data-lista={etiqueta} className="divide-y divide-slate-100">{children}</ul>
     </div>
   )
 }

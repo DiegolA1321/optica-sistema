@@ -27,26 +27,29 @@ function Ojo({ lado, o = {} }) {
   )
 }
 
-export default function GraduacionDeCabecera({ receta, onAbrir }) {
-  const base = "group flex h-full min-h-[132px] w-full flex-col justify-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-5 py-4 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer"
+// `activa`: ya se está en la pestaña Graduación; el panel sigue a la vista pero deja de ser un botón (no tendría adónde llevar).
+export default function GraduacionDeCabecera({ receta, onAbrir, activa = false }) {
+  const base = "group flex h-full min-h-[132px] w-full flex-col justify-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-5 py-4 text-left " + (activa ? "" : "transition-colors hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer")
+  const Raiz = activa ? "div" : "button"
+  const propsRaiz = activa ? {} : { type: "button", "data-resumen": true, onClick: onAbrir }
   if (!receta) {
     return (
-      <button type="button" onClick={onAbrir} aria-label="Graduación vigente: sin receta registrada. Abrir la pestaña Graduación" className={base}>
+      <Raiz {...propsRaiz} aria-label={activa ? undefined : "Graduación vigente: sin receta registrada. Abrir la pestaña Graduación"} className={base}>
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Graduación vigente</span>
         <span className="text-base text-slate-500">Sin receta registrada</span>
-      </button>
+      </Raiz>
     )
   }
   return (
-    <button type="button" onClick={onAbrir} aria-label={`Graduación vigente del ${formatoFecha(receta.fecha, "medio")}: ojo derecho ${valorD(receta.od?.esfera) || "sin registrar"}, ojo izquierdo ${valorD(receta.oi?.esfera) || "sin registrar"}. Abrir la pestaña Graduación`} className={base}>
+    <Raiz {...propsRaiz} aria-label={activa ? undefined : `Graduación vigente del ${formatoFecha(receta.fecha, "medio")}: ojo derecho ${valorD(receta.od?.esfera) || "sin registrar"}, ojo izquierdo ${valorD(receta.oi?.esfera) || "sin registrar"}. Abrir la pestaña Graduación`} className={base}>
       <span className="flex items-center justify-between gap-3">
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Graduación vigente · receta del {formatoFecha(receta.fecha, "medio")}</span>
-        <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-blue-600" aria-hidden="true">Ver graduación <ChevronRight size={16} /></span>
+        {!activa && <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-blue-600" aria-hidden="true">Ver graduación <ChevronRight size={16} /></span>}
       </span>
       <span className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         <Ojo lado="od" o={receta.od} />
         <Ojo lado="oi" o={receta.oi} />
       </span>
-    </button>
+    </Raiz>
   )
 }

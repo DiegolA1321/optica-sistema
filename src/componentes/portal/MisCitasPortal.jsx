@@ -12,8 +12,8 @@ import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
 
 const DE_A = 10
 // Las visitas son una tabla: Fecha | Tu visita | Lo que encontramos | Tu receta | Estado | flecha. En pantalla angosta las columnas se apilan, cada dato con su rótulo.
-const COLUMNAS = "@[820px]/portal:grid-cols-[116px_minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(0,1.3fr)_150px]"
-const etiquetaApilada = (t) => <span className="font-semibold text-pt-marino @[820px]/portal:hidden">{t}: </span>
+const COLUMNAS = "@[740px]/portal:grid-cols-[116px_minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(0,1.3fr)_150px]"
+const etiquetaApilada = (t) => <span className="font-semibold text-pt-marino @[740px]/portal:hidden">{t}: </span>
 const PERIODOS = [["ano", "Último año"], ["todas", "Todas"], ["fechas", "Elegir fechas"]]
 const ESTADOS = [["Atendida", "Atendidas"], ["No Asistió", "No asistió"], ["Cancelada", "Canceladas"]]
 const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
@@ -101,7 +101,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
             {grupos.map((g) => (
               <div key={g.anio}>
                 <h3 className="mb-1 text-base font-medium text-pt-texto">{g.anio}</h3>
-                <div aria-hidden="true" className={"hidden gap-x-5 border-b border-pt-borde px-2 pb-2 pr-10 text-base font-semibold text-pt-texto @[820px]/portal:grid " + COLUMNAS}><span>Fecha</span><span>Tu visita</span><span>Lo que encontramos</span><span>Tu receta</span><span>Estado</span></div>
+                <div aria-hidden="true" className={"hidden gap-x-5 border-b border-pt-borde px-2 pb-2 pr-10 text-base font-semibold text-pt-texto @[740px]/portal:grid " + COLUMNAS}><span>Fecha</span><span>Tu visita</span><span>Lo que encontramos</span><span>Tu receta</span><span>Estado</span></div>
                 <ul data-lista="citas-portal" className="divide-y divide-pt-borde">
                   {g.citas.map((c) => {
                     const d = det(c.id)
@@ -110,12 +110,13 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
                     const dato = (clave) => lineas.find((l) => l.clave === clave)?.texto
                     return (
                       <li key={c.id} data-fila className={"pt-abrible relative grid grid-cols-1 items-center gap-x-5 gap-y-1.5 px-2 py-4 pr-10 transition-colors hover:bg-pt-fondo/60 " + COLUMNAS}>
-                        <div className="flex items-baseline gap-2 @[820px]/portal:block">
+                        <button type="button" onClick={() => setAbierta(c)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(c.fecha, "medio")}`} className="pt-abrir absolute inset-0 cursor-pointer" />
+                        <div className="flex items-baseline gap-2 @[740px]/portal:block">
                           <p className="text-base font-semibold leading-snug text-pt-marino">{formatoFecha(c.fecha, "medioSinAnio")}</p>
                           <p className="text-base leading-snug text-pt-texto">{c.hora}</p>
                         </div>
                         <div className="min-w-0">
-                          <button type="button" onClick={() => setAbierta(c)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(c.fecha, "medio")}`} className="-my-3 block max-w-full py-3 text-left text-base font-semibold leading-snug text-pt-marino cursor-pointer after:absolute after:inset-0 after:content-['']">{c.motivo || "Consulta"}</button>
+                          <p className="text-base font-semibold leading-snug text-pt-marino">{c.motivo || "Consulta"}</p>
                           <p className="text-base leading-snug text-pt-texto">
                             {resumen === null
                               ? <>{[d?.profesional, "¿Cómo te atendimos?"].filter(Boolean).join(" · ")} <button type="button" onClick={() => setAbierta(c)} className="relative z-10 -my-3 inline-flex items-center py-3 font-semibold text-pt-azul hover:underline cursor-pointer">Calificar</button></>

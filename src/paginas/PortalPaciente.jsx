@@ -404,7 +404,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         )}
 
         <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:pb-12 lg:pt-8">
-          <div className="pt-zona mx-auto max-w-[1440px]">
+          <div className="pt-zona">
             {aviso && (
               <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl bg-[#E3F4EA] p-4 text-[#166534]">
                 <CheckCircle2 className="mt-0.5 shrink-0" size={22} aria-hidden="true" />

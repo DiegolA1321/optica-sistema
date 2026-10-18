@@ -176,8 +176,8 @@ function Seccion({ id, titulo, Icono, children }) {
 // Una acción de «Seguridad y privacidad»: lo que hace y su botón (el de eliminar, en rojo).
 function Accion({ titulo, texto, boton, onClick, deshabilitado = false, peligro = false, etiqueta }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4 first:pt-0">
-      <div className="min-w-0 flex-1">
+    <li className="flex flex-col items-start gap-2.5 py-4 first:pt-0">
+      <div className="min-w-0">
         <p className={"text-base font-semibold " + (peligro ? "text-red-700" : "text-pt-marino")}>{titulo}</p>
         <p className="text-base leading-snug text-pt-texto">{texto}</p>
       </div>

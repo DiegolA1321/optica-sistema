@@ -1935,7 +1935,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   </button>
                 </div>
                 </div>
-                {puedeVerFichas && <GraduacionDeCabecera receta={recetasDe(consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion))[0]} onAbrir={() => setTabHistorial("graduacion")} />}
+                {puedeVerFichas && <GraduacionDeCabecera receta={recetasDe(consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion))[0]} onAbrir={() => setTabHistorial("graduacion")} activa={tabHistorial === "graduacion"} />}
               </div>
               </div>
 
@@ -2819,6 +2819,7 @@ function Cuadro({ clave, abierto, alternar, className = "", style, children }) {
       type="button"
       onClick={() => alternar(clave)}
       aria-haspopup="dialog"
+      data-resumen
       className={"group relative w-full text-left transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-500 hover:border-slate-300 hover:shadow-sm " + className}
       style={style}
     >

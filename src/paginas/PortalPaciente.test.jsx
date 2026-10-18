@@ -598,12 +598,11 @@ describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", (
   const detalleConfirmable = { disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", confirmadaAt: null, consultaId: null, calificacion: null } } }
   beforeEach(() => { try { localStorage.clear() } catch { /* sin almacenamiento */ } window.HTMLAnchorElement.prototype.click = vi.fn(); URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn() })
 
-  it("el contenido ocupa el ancho disponible: sin tope de 1060 ni de 1160 px, solo el de pantallas muy grandes", async () => {
+  it("el contenido ocupa todo el ancho disponible (menos los márgenes): sin ningún tope de ancho", async () => {
     render(<PortalPaciente {...base} />)
     await resumen()
     const zona = document.querySelector(".pt-zona")
-    expect(zona.className).toContain("max-w-[1440px]")
-    expect(zona.className).not.toMatch(/1060|1160/)
+    expect(zona.className).not.toMatch(/max-w-/)
   })
 
   it("antes de confirmar, el Inicio ofrece «Confirmar» y no el calendario; al confirmar, el aviso ofrece agregarla y se guarda en la base: el estado dice «en tu calendario»", async () => {

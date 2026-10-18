@@ -101,7 +101,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                 return (
                   <li key={c.id} className="pt-abrible relative min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 transition-shadow hover:shadow-md sm:px-[30px] sm:py-7">
                     <button type="button" onClick={() => setAbiertaId(c.id)} aria-label={`Ver el detalle de tu compra ${numeroComprobante(c.numero)}`} className="pt-abrir absolute inset-0 rounded-[20px] cursor-pointer" />
-                    <div className={"grid gap-x-8 gap-y-5 " + (enCurso.length > 0 ? "@[820px]/portal:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : "")}>
+                    <div className={"grid gap-x-8 gap-y-5 " + (enCurso.length > 0 ? "@[700px]/portal:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : "")}>
                       <div className="min-w-0 space-y-3">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                           <h2 className="font-heading text-xl font-bold leading-tight text-pt-marino">{titulo}</h2>
@@ -110,7 +110,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                         <p className="text-base text-pt-texto">Comprobante {numeroComprobante(c.numero)} · {formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")}</p>
                         <ul aria-label="Lo que compraste" className="space-y-2 pt-1 text-base text-pt-marino">
                           {(c.lineas?.length ? c.lineas : [{ descripcion: "Compra", subtotal: c.total }]).map((l, i) => (
-                            <li key={i} className="flex items-baseline justify-between gap-4"><span className="min-w-0">{l.descripcion}</span>{l.subtotal != null && <span className="shrink-0 font-bold tabular-nums">{dinero(l.subtotal)}</span>}</li>
+                            <li key={i} className="flex items-baseline gap-3"><span className="min-w-0">{l.descripcion}</span><span aria-hidden="true" data-relleno className="min-w-4 flex-1 self-end border-b border-dotted border-slate-300" />{l.subtotal != null && <span className="shrink-0 font-bold tabular-nums">{dinero(l.subtotal)}</span>}</li>
                           ))}
                         </ul>
                         {debe && (
@@ -126,7 +126,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                           <div className="border-t border-pt-borde pt-3">
                             <h3 className="text-base font-semibold text-pt-texto">Abonos realizados</h3>
                             <ul aria-label="Abonos realizados" className="mt-1 space-y-1 text-base text-pt-marino">
-                              {c.abonos.map((a, i) => <li key={i} className="flex items-baseline justify-between gap-4"><span>{formatoFecha(a.fecha, "largoSinDia")}</span><span className="shrink-0 font-bold tabular-nums">{dinero(a.monto)}</span></li>)}
+                              {c.abonos.map((a, i) => <li key={i} className="flex items-baseline gap-3"><span>{formatoFecha(a.fecha, "largoSinDia")}</span><span aria-hidden="true" data-relleno className="min-w-4 flex-1 self-end border-b border-dotted border-slate-300" /><span className="shrink-0 font-bold tabular-nums">{dinero(a.monto)}</span></li>)}
                             </ul>
                           </div>
                         )}
@@ -167,13 +167,16 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                   const debe = c.estado === "pendiente_pago" && Number(c.saldo) > 0
                   const entregada = lentes.length > 0 && lentes.every((o) => o.estado === "entregada")
                   const titulo = lentes[0] ? tipoDeLentes(lentes[0]) : c.lineas?.[0]?.descripcion || "Compra"
+                  const productos = [...new Set((c.lineas || []).map((l) => l.descripcion).filter(Boolean))].join(" · ")
                   const sub = [numeroComprobante(c.numero), c.factura_electronica ? `factura ${c.factura_electronica.numero}` : c.lineas?.length > 1 ? `${c.lineas.length} productos` : ""].filter(Boolean).join(" · ")
                   return (
-                    <li key={c.id} data-fila className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-4 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[130px_minmax(0,1fr)_104px_200px_24px] sm:gap-x-5">
+                    <li key={c.id} data-fila className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-4 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[minmax(7.5rem,0.8fr)_minmax(0,2fr)_minmax(6.5rem,0.7fr)_minmax(12.5rem,0.9fr)_1.5rem] sm:gap-x-5">
+                      <button type="button" onClick={() => setAbiertaId(c.id)} aria-label={`Ver el detalle de tu compra ${numeroComprobante(c.numero)}`} className="pt-abrir absolute inset-0 cursor-pointer" />
                       <p className="col-span-2 text-base text-pt-texto sm:col-span-1">{formatoFecha(diaDeRegistro(c.fecha), "medio")}</p>
                       <div className="min-w-0">
-                        <button type="button" onClick={() => setAbiertaId(c.id)} aria-label={`Ver el detalle de tu compra ${numeroComprobante(c.numero)}`} className="-my-3 block max-w-full py-3 text-left text-base font-semibold leading-snug text-pt-marino cursor-pointer after:absolute after:inset-0 after:content-['']">{titulo}</button>
+                        <p className="text-base font-semibold leading-snug text-pt-marino">{titulo}</p>
                         <p className="text-base leading-snug text-pt-texto">{sub}</p>
+                        {productos && productos !== titulo && <p className="text-base leading-snug text-pt-texto">{productos}</p>}
                       </div>
                       <p data-col="monto" className="text-right text-lg font-bold tabular-nums text-pt-marino sm:order-none">{dinero(c.total)}</p>
                       <div data-col="estado" className="justify-self-start sm:justify-self-stretch"><Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : entregada ? "Pagada y entregada" : "Pagada"}</Insignia></div>

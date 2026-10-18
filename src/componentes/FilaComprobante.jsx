@@ -18,7 +18,7 @@ export default function FilaComprobante({ factura: f, abonos = [], paciente = nu
   const estado = estadoDeComprobante(f, abonos)
   const anulada = estado.id === "anulada"
   return (
-    <li className={"relative grid grid-cols-1 gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-slate-50/70 lg:items-center " + (mostrarPaciente ? COLUMNAS_COMPROBANTES : COLUMNAS_COMPROBANTES_PERFIL)}>
+    <li data-fila className={"relative grid grid-cols-1 gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-slate-50/70 lg:items-center " + (mostrarPaciente ? COLUMNAS_COMPROBANTES : COLUMNAS_COMPROBANTES_PERFIL)}>
       <button type="button" onClick={() => onAbrir?.(f)} aria-label={`Ver el comprobante ${numeroComprobante(f.numero)}`} className="text-left font-mono text-sm font-bold after:absolute after:inset-0 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{numeroComprobante(f.numero)}</button>
       <p className="text-sm text-slate-600">{fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}</p>
       {mostrarPaciente && (
@@ -28,8 +28,8 @@ export default function FilaComprobante({ factura: f, abonos = [], paciente = nu
             : <p className="truncate text-sm font-bold" title={paciente?.nombre} style={{ color: INK }}>{paciente?.nombre || "Paciente"}</p>}
         </div>
       )}
-      <p className={"font-mono text-sm lg:text-right " + (anulada ? "text-slate-400 line-through" : "font-semibold text-slate-800")}>{dinero(f.montoTotal)}</p>
-      <div className="min-w-0"><Insignia tono={TONO[estado.id]}>{estado.id === "saldo" ? `Con saldo ${dinero(estado.saldo)}` : estado.etiqueta}</Insignia></div>
+      <p data-col="monto" className={"font-mono text-sm lg:text-right " + (anulada ? "text-slate-400 line-through" : "font-semibold text-slate-800")}>{dinero(f.montoTotal)}</p>
+      <div data-col="estado" className="min-w-0"><Insignia tono={TONO[estado.id]}>{estado.id === "saldo" ? `Con saldo ${dinero(estado.saldo)}` : estado.etiqueta}</Insignia></div>
       <p className="min-w-0 truncate text-sm" title={f.facturaElectronica || undefined}>
         {anulada ? <span className="text-slate-400">—</span> : f.facturaElectronica
           ? <span className="inline-flex items-center gap-1 text-slate-600"><Check size={14} className="text-emerald-600" aria-hidden="true" /> Con factura electrónica</span>

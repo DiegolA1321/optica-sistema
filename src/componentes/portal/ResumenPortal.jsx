@@ -41,10 +41,9 @@ function PendienteParaTi({ pendientes, onAbrir, onConfirmar }) {
               <span className="min-w-[12rem] flex-1">
                 <span className="block text-lg font-bold leading-snug text-pt-marino">{p.titulo}</span>
                 <span className="block text-base text-pt-texto">{p.texto}</span>
+                {!p.confirmar && <span className={"mt-1 block text-base font-semibold " + (ambar ? "text-pt-ambar" : "text-pt-azul")}>{p.accion} ›</span>}
               </span>
-              {p.confirmar
-                ? <button type="button" onClick={() => confirmar(p)} disabled={Boolean(confirmando)} className={BOTON_PRINCIPAL + " shrink-0"} style={ESTILO_PRINCIPAL}>{confirmando === p.id ? "Confirmando…" : p.accion}</button>
-                : <span className={"shrink-0 text-base font-semibold " + (ambar ? "text-pt-ambar" : "text-pt-azul")}>{p.accion}</span>}
+              {p.confirmar && <button type="button" onClick={() => confirmar(p)} disabled={Boolean(confirmando)} className={BOTON_PRINCIPAL + " shrink-0"} style={ESTILO_PRINCIPAL}>{confirmando === p.id ? "Confirmando…" : p.accion}</button>}
             </li>
           )
         })}

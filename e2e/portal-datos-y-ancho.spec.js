@@ -1,14 +1,14 @@
 // Dos cosas que una pantalla del portal no puede hacer, con el paciente de demostración de la Óptica Demo (solo lectura):
 //   1. Que un paciente CON datos (cita, lentes, saldo) vea la bienvenida de un paciente nuevo («Agenda tu primera cita»): eso es lo que pasa cuando el portal no trae sus datos.
 //   2. Que el contenido no ocupe el ancho disponible: a 1366 y a 1920 px (y a 1093, una laptop de 1366 con la escala al 125 %) mide el ancho de la zona de contenido de cada pantalla y FALLA
-//      si no es «el ancho disponible menos los márgenes de 32 px, con tope de 1440 px».
+//      si no es «el ancho disponible menos los márgenes de 32 px» (sin tope), con el menú abierto y con el menú plegado.
 import { test, expect } from '@playwright/test'
 import { escribirSecreto, SLUG_DEMO } from './ayudas.js'
 import { protegerDemo } from './guardia-demo.js'
 
 const PANTALLAS = ['Inicio', 'Mis citas', 'Mi receta', 'Mis compras', 'Mis datos']
 const MARGEN = 32
-const TOPE = 1440
+const TOPE = Infinity // sin tope de ancho: lo que sobra en una pantalla grande lo ocupa el contenido
 
 async function entrar(page) {
   await page.goto(`/?optica=${SLUG_DEMO}`)
@@ -54,7 +54,7 @@ test.describe('Portal: datos y ancho', () => {
   })
 
   for (const ancho of [1366, 1920, 1093]) {
-    test(`a ${ancho} px el contenido de cada pantalla ocupa el ancho disponible menos 32 px de margen a cada lado, con tope de ${TOPE} px`, async ({ page }) => {
+    test(`a ${ancho} px el contenido de cada pantalla ocupa el ancho disponible menos 32 px de margen a cada lado, sin tope de ancho`, async ({ page }) => {
       test.setTimeout(90_000)
       await page.setViewportSize({ width: ancho, height: ancho === 1920 ? 1080 : 768 })
       await entrar(page)
@@ -71,7 +71,7 @@ test.describe('Portal: datos y ancho', () => {
         })
         const esperado = Math.min(m.disponible, TOPE)
         expect(m.padIzq, `${pantalla}: margen de la zona`).toBe(MARGEN)
-        expect(Math.abs(m.zona - esperado), `${pantalla}: la zona mide ${Math.round(m.zona)} px y debería medir ${Math.round(esperado)} (ancho disponible ${Math.round(m.disponible)}, tope ${TOPE})`).toBeLessThanOrEqual(1)
+        expect(Math.abs(m.zona - esperado), `${pantalla}: la zona mide ${Math.round(m.zona)} px y debería medir ${Math.round(esperado)} (ancho disponible ${Math.round(m.disponible)})`).toBeLessThanOrEqual(1)
         // y queda centrada: la misma distancia a cada lado (solo sobra espacio cuando topa en 1440)
         expect(Math.abs(m.izq - m.der), `${pantalla}: centrada`).toBeLessThanOrEqual(1)
       }
