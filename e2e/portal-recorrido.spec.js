@@ -18,7 +18,7 @@ async function entrarAlPortal(page) {
   await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), process.env.E2E_PORTAL_CEDULA)
   await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), process.env.E2E_PORTAL_CLAVE)
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByLabel('Cargando tu resumen')).toHaveCount(0, { timeout: 30_000 })
 }
 const menu = (page, nombre) => page.getByRole('navigation', { name: 'Menú del portal' }).filter({ visible: true }).getByRole('button', { name: nombre, exact: true })
@@ -46,11 +46,11 @@ for (const [nombre, ancho, alto] of TAMANOS) {
         await entrarAlPortal(page)
 
         // 1. Su compra y su saldo: el mismo monto que Cobros y saldos (CV-0006: $60, abonó $20, debe $40).
-        const saldo = page.getByRole('region', { name: 'Saldo por pagar' })
-        await expect(saldo).toContainText('$40.00')
+        const saldo = page.getByRole('region', { name: 'Pendiente para ti' })
+        await expect(saldo).toContainText('Tienes $40.00 por pagar')
         await menu(page, 'Mis compras').click()
-        await expect(page.getByRole('list', { name: 'Mis compras' })).toContainText('Debes $40.00')
-        await expect(page.getByRole('list', { name: 'Mis compras' })).toContainText('E Dos E Servicio portal')
+        await expect(page.getByRole('list', { name: 'Compras con saldo o lentes en camino' })).toContainText('Debes $40.00')
+        await expect(page.getByRole('list', { name: 'Compras con saldo o lentes en camino' })).toContainText('E Dos E Servicio portal')
 
         // 2. Agenda una cita: sin el campo «Paciente» y con el selector del sistema para el motivo.
         await menu(page, 'Mis citas').click()

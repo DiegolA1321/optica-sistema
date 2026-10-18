@@ -62,7 +62,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
         {historial.length > 0 && (
           <div className="mt-4 space-y-3">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
-              <label className="relative block min-w-[15rem] flex-1 @[900px]/portal:max-w-[26rem]">
+              <label className="relative block w-full @[900px]/portal:w-[20rem] @[900px]/portal:flex-none">
                 <span className="sr-only">Buscar por motivo o profesional</span>
                 <Search size={20} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                 <input type="search" value={texto} onChange={(e) => cambiar(setTexto)(e.target.value)} placeholder="Buscar por motivo o profesional" className="min-h-12 w-full rounded-xl border border-pt-borde bg-white pl-11 pr-3 text-base text-pt-marino outline-none transition-colors placeholder:text-slate-500 focus-visible:border-pt-azul focus-visible:ring-2 focus-visible:ring-blue-100" />

@@ -117,21 +117,21 @@ function DetallePedido({ orden, contacto, onCerrar }) {
   const debe = Number(orden.saldo) > 0
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Tu pedido de lentes" subtitulo={orden.comprobante ? `Comprobante ${orden.comprobante}` : "Seguimiento de tus lentes"} Icono={Glasses} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
-      <div className="space-y-5 p-5">
-        <dl className="space-y-3">
+      <div className="space-y-3 p-4 sm:p-5">
+        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
           <Dato titulo="Lentes">{nombreDeLosLentes(orden).replace(/ con la montura .*/, "")}</Dato>
           {orden.montura && <Dato titulo="Montura">{orden.montura}</Dato>}
-          {orden.comprobante && <Dato titulo="Comprobante">{orden.comprobante} · {formatoFecha(diaDeRegistro(orden.pedidoEl), "largoSinDia")}</Dato>}
+          {orden.pedidoEl && <Dato titulo="Pedido">{formatoFecha(diaDeRegistro(orden.pedidoEl), "largoSinDia")}</Dato>}
           <Dato titulo="Pago">{debe ? <span className="font-bold text-pt-ambar">Debes {dinero(orden.saldo)} <span className="font-normal text-pt-texto">(abonaste {dinero(orden.abonado)} de {dinero(orden.total)})</span></span> : orden.comprobante ? "Pagado completo" : "Sin saldo pendiente"}</Dato>
         </dl>
-        <section aria-label="Seguimiento de tus lentes" className="rounded-2xl bg-pt-fondo p-5">
-          <h3 className="mb-4 font-heading text-lg font-bold text-pt-marino">En qué paso van</h3>
+        <section aria-label="Seguimiento de tus lentes" className="rounded-2xl bg-pt-fondo p-3 sm:px-4">
+          <h3 className="sr-only">En qué paso van</h3>
           <PasosLentes orden={orden} variante="lista" />
         </section>
         {!entregada && (
-          <section aria-label="Cómo retirarlos" className="space-y-3">
+          <section aria-label="Cómo retirarlos" className="space-y-1.5">
             <h3 className="font-heading text-lg font-bold text-pt-marino">Cómo retirarlos</h3>
-            <p className="text-lg text-slate-800">{lista ? "Ya están listos: pasa por la óptica a recogerlos." : "Cuando estén listos, pasa por la óptica a recogerlos. Te avisaremos."}</p>
+            <p className="text-lg text-slate-800">{lista ? "Ya están listos: pasa por la óptica a recogerlos." : "Pasa por la óptica cuando estén listos: te avisaremos."}</p>
             {contacto.direccion && <p className="flex items-start gap-2 text-lg text-slate-800"><MapPin size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.direccion}</p>}
             {contacto.hoy && <p className="flex items-start gap-2 text-lg text-slate-800"><Clock size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.hoy.texto}</p>}
             <BotonesContacto contacto={contacto} />
@@ -216,7 +216,7 @@ function DetalleOptica({ contacto, nombreOptica, onCerrar }) {
           <section aria-label="Dirección" className="space-y-3">
             <h3 className="font-heading text-lg font-bold text-pt-marino">Dirección</h3>
             <p className="flex items-start gap-2 text-lg text-slate-800"><MapPin size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.direccion}</p>
-            <iframe title={`Mapa de ${nombreOptica}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.google.com/maps?q=${encodeURIComponent([contacto.direccion, nombreOptica].filter(Boolean).join(", "))}&output=embed`} className="h-64 w-full rounded-2xl border border-pt-borde bg-pt-fondo" />
+            <iframe title={`Mapa de ${nombreOptica}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.google.com/maps?q=${encodeURIComponent([contacto.direccion, nombreOptica].filter(Boolean).join(", "))}&output=embed`} className="h-44 w-full rounded-2xl border border-pt-borde bg-pt-fondo" />
           </section>
         )}
         <BotonesContacto contacto={contacto} />

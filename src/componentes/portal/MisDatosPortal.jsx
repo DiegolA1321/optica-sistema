@@ -278,7 +278,7 @@ function MisDatosContacto({ usuario, onActualizado }) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-base text-pt-texto">{etiqueta}</p>
-            <p className={"break-all text-lg leading-snug " + (actual[campo] ? "font-semibold text-pt-marino" : "text-pt-texto")}>{actual[campo] || "Sin registrar"}</p>
+            <p className={"break-all text-lg leading-snug " + (actual[campo] ? "font-semibold text-pt-marino" : "text-pt-texto")}>{campo === "telefono" && /^d{10}$/.test(actual[campo]) ? actual[campo].replace(/^(d{4})(d{3})(d{3})$/, "$1 $2 $3") : actual[campo] || "Sin registrar"}</p>
           </div>
           <button type="button" onClick={() => empezar(campo)} aria-label={"Cambiar " + etiqueta.toLowerCase()} className={BOTON_SECUNDARIO + " shrink-0 px-4"}>Cambiar</button>
         </div>

@@ -3,7 +3,7 @@
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
+import { Eye, Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import SelectorLista from "../componentes/SelectorLista"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -36,7 +36,7 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 const OPCIONES = [
   { id: "resumen", nombre: "Inicio", corto: "Inicio", icono: Home },
   { id: "citas", nombre: "Mis citas", corto: "Citas", icono: CalendarDays },
-  { id: "receta", nombre: "Mi receta", corto: "Receta", icono: IconoLentes },
+  { id: "receta", nombre: "Mi receta", corto: "Receta", icono: IconoLentes, iconoMenu: Eye },
   { id: "compras", nombre: "Mis compras", corto: "Compras", icono: ReceiptText },
   { id: "datos", nombre: "Mis datos", corto: "Mis datos", icono: UserRound },
 ]
@@ -361,7 +361,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           </div>
           <nav aria-label="Menú del portal" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4">
             {OPCIONES.map((o) => {
-              const Icono = o.icono
+              const Icono = o.iconoMenu || o.icono
               const activo = seccion === o.id
               return (
                 <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}

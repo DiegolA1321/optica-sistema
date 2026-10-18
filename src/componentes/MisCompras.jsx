@@ -176,7 +176,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
         return (
           <Cascaron pantallaCompletaEnCelular titulo={`Compra ${numeroComprobante(c.numero)}`} subtitulo={formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")} derecha={<Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : "Pagada"}</Insignia>} Icono={Receipt} ancho="max-w-xl" onCerrar={() => setAbiertaId(null)}
             pie={<><span /><button type="button" onClick={() => setAbiertaId(null)} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
-            <div className="space-y-5 p-5">
+            <div className="space-y-4 p-5">
               <section aria-label="Lo que compraste">
                 <h3 className="font-heading text-lg font-bold text-pt-marino">Lo que compraste</h3>
                 <ul className="mt-2 divide-y divide-pt-borde">
@@ -202,11 +202,10 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                 </section>
               )}
               {lentes.length > 0 && (
-                <section aria-label="Estado de tus lentes" className="space-y-4">
+                <section aria-label="Estado de tus lentes" className="space-y-3">
                   <h3 className="font-heading text-lg font-bold text-pt-marino">Estado de tus lentes</h3>
                   {lentes.map((o) => (
-                    <div key={o.id} className="space-y-3 rounded-2xl border border-pt-borde p-5">
-                      <p className="text-lg text-pt-marino">{nombreDeLosLentes(o)}</p>
+                    <div key={o.id} className="rounded-2xl border border-pt-borde p-4">
                       <PasosLentes orden={o} variante="lista" />
                     </div>
                   ))}

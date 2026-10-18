@@ -35,10 +35,10 @@ function PendienteParaTi({ pendientes, onAbrir, onConfirmar }) {
           const Icono = ICONO_PENDIENTE[p.tipo]
           const ambar = p.tipo === "saldo"
           return (
-            <li key={p.id} className={"pt-abrible relative flex min-h-[96px] items-center gap-4 rounded-2xl border px-4 py-4 transition-shadow hover:shadow-md sm:px-5 " + (ambar ? "border-[#F6D9A8] bg-[#FEF4E5]" : "border-pt-borde bg-pt-fondo")}>
+            <li key={p.id} className={"pt-abrible relative flex min-h-[96px] flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-4 transition-shadow hover:shadow-md sm:px-5 " + (ambar ? "border-[#F6D9A8] bg-[#FEF4E5]" : "border-pt-borde bg-pt-fondo")}>
               <button type="button" onClick={() => onAbrir(p.abrir)} aria-label={`${p.titulo}. Ver el detalle`} className="pt-abrir absolute inset-0 rounded-2xl cursor-pointer" />
               <span aria-hidden="true" className={"grid h-14 w-14 shrink-0 place-items-center rounded-2xl " + (ambar ? "bg-[#FDEBD3] text-pt-ambar" : "bg-pt-suave text-pt-azul")}><Icono size={26} /></span>
-              <span className="min-w-0 flex-1">
+              <span className="min-w-[12rem] flex-1">
                 <span className="block text-lg font-bold leading-snug text-pt-marino">{p.titulo}</span>
                 <span className="block text-base text-pt-texto">{p.texto}</span>
               </span>

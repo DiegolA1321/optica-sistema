@@ -27,7 +27,7 @@ export default function GraduacionPerfil({ consultas = [], paciente, usuario, te
     receta: r,
   })
   return (
-    <section aria-label="Graduación del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+    <section aria-label="Graduación del paciente" className="@container space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-bold text-slate-900">Graduación vigente <span className="font-normal text-slate-500">· receta del {formatoFecha(vigente.fecha, "largoSinDia")}</span></h3>
         <button type="button" onClick={() => setExplicando(true)} className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer">
@@ -44,7 +44,7 @@ export default function GraduacionPerfil({ consultas = [], paciente, usuario, te
       </div>
       {receta && <DetalleReceta receta={receta} version="personal" onCerrar={() => setVerId(null)} onImprimir={() => imprimir(receta)} />}
       {explicando && (
-        <Cascaron titulo="Explicar al paciente" subtitulo="Así lo lee el paciente en su portal, con palabras simples." Icono={Eye} ancho="max-w-5xl" onCerrar={() => setExplicando(false)}
+        <Cascaron titulo="Explicar al paciente" subtitulo="Así lo lee el paciente en su portal, con palabras simples." Icono={Eye} ancho="max-w-6xl" onCerrar={() => setExplicando(false)}
           pie={<><span /><button type="button" onClick={() => setExplicando(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>
           <div className="space-y-4 bg-pt-fondo p-5">
             <GraduacionVigente receta={vigente} version="paciente" />

@@ -77,7 +77,7 @@ for (const [ancho, alto] of TAMANOS) {
     await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), process.env.DEMO_PORTAL_CEDULA)
     await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), process.env.DEMO_PORTAL_CLAVE)
     await page.getByRole('button', { name: 'Entrar', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible({ timeout: 30_000 })
     await expect(page.getByLabel('Cargando tu resumen')).toHaveCount(0, { timeout: 30_000 })
     for (const pantalla of PANTALLAS) {
       await page.getByRole('navigation', { name: 'Menú del portal' }).filter({ visible: true }).getByRole('button', { name: pantalla, exact: true }).click()

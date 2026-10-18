@@ -14,16 +14,20 @@ const DETALLES = [
   ["Inicio", /Ver el detalle de tu próxima cita/, "cita proxima"],
   ["Inicio", /Ver el detalle del pedido de tus lentes|Ver el detalle del pedido de/, "pedido de lentes"],
   ["Inicio", /Ver tu receta completa/, "graduacion"],
-  ["Inicio", /Ver el detalle de tu saldo/, "saldo"],
+  ["Inicio", /por pagar. Ver el detalle/, "saldo"],
+  ["Inicio", /Ver cómo sumas tus puntos/, "puntos"],
+  ["Inicio", /¿Cómo te atendimos.*Ver el detalle/, "calificar visita"],
   ["Inicio", /Ver por qué se recomienda/, "control"],
   ["Inicio", /Ver el horario completo/, "optica"],
   ["Mis citas", /Ver el detalle de tu próxima cita/, "cita proxima desde Mis citas"],
   ["Mis citas", /Ver el detalle de tu cita del/, "cita anterior"],
   ["Mi receta", /Ver la receta del/, "receta anterior"],
+  ["Mi receta", /^Comparar dos recetas$/, "comparar recetas"],
   ["Mis compras", /Ver el detalle de tu compra/, "compra"],
+  ["Mis datos", /Pedir que eliminen mi cuenta/, "eliminar cuenta"],
 ]
 const browser = await chromium.launch()
-for (const [tam, ancho, alto] of [["laptop", 1366, 900], ["celular", 390, 844], ["grande", 1920, 1080]]) {
+for (const [tam, ancho, alto] of [["laptop", 1366, 768], ["celular", 390, 844], ["grande", 1920, 1080]]) {
   const ctx = await browser.newContext({ viewport: { width: ancho, height: alto }, deviceScaleFactor: tam === "grande" ? 1 : 2, locale: "es-EC" })
   const page = await ctx.newPage()
   await page.goto(`${BASE}/?optica=qu7u2j`)
@@ -57,6 +61,9 @@ for (const [tam, ancho, alto] of [["laptop", 1366, 900], ["celular", 390, 844], 
     await boton.click({ position: { x: 6, y: 6 } })
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 })
     await page.waitForTimeout(700)
+    // ¿La ventana tiene barra de desplazamiento? Solo debe tenerla si su contenido no cabe en la pantalla.
+    const scroll = await page.evaluate(() => { const d = document.querySelector('[role="dialog"]'); const c = d && [...d.querySelectorAll('div')].find((e) => getComputedStyle(e).overflowY === 'auto'); return c ? c.scrollHeight - c.clientHeight : 0 })
+    console.log(`${tam} · ${archivo}: ${scroll > 1 ? 'DESPLAZA ' + scroll + ' px' : 'sin desplazamiento'}`)
     await page.screenshot({ path: path.join(SALIDA, `detalle ${archivo} · ${tam}.png`) })
     await page.keyboard.press("Escape")
     await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 5000 }).catch(() => {})
