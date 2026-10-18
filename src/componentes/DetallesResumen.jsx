@@ -116,7 +116,7 @@ export function PanelCompras({ comprobantes, onVerProductos }) {
           )
         })}
       </ul>
-      <div className="px-4 py-3"><Boton onClick={onVerProductos} Icono={ChevronRight}>Ver el detalle en Productos y servicios</Boton></div>
+      <div className="px-4 py-3"><Boton onClick={onVerProductos} Icono={ChevronRight}>Ver el detalle en Compras</Boton></div>
     </div>
   )
 }

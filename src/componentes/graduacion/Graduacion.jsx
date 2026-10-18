@@ -5,7 +5,7 @@
 // mismos datos y mismo orden: lo que el optómetra le explica al paciente en la consulta es lo que el paciente lee en su portal.
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Glasses, ChevronDown, ArrowRight, Printer, GitCompare, Download, Info, Check, MessageSquareText } from "lucide-react"
-import { formatoFecha } from "../../utilidades/formatoFecha"
+import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { valorD } from "../../utilidades/portalVistas"
 import { lecturaDeOjo, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
 import { AYUDA_RECETA } from "../../utilidades/portalPaciente"
@@ -19,9 +19,9 @@ const COLOR_LADO = { od: "#1d4ed8", oi: "#0891b2" }
 // ───────────────────────── La graduación vigente ─────────────────────────
 // Dos ojos ilustrados con su esfera. Paciente: la explicación de cada ojo y de cada dato; el ojo derecho va a la DERECHA y el izquierdo a la IZQUIERDA, desde la perspectiva del paciente
 // (en pantalla angosta, donde se apilan, va primero el derecho). Personal: los valores técnicos de cada ojo, con OD a la izquierda como en la receta impresa.
-export function GraduacionVigente({ receta, version = "paciente" }) {
+export function GraduacionVigente({ receta, anterior = null, version = "paciente" }) {
   if (!receta) return null
-  if (version === "personal") return <VigentePersonal receta={receta} />
+  if (version === "personal") return <VigentePersonal receta={receta} anterior={anterior} />
   return (
     <div className="@container">
       <div className="grid gap-5 @[56rem]:grid-cols-2 @[56rem]:gap-6">
@@ -64,64 +64,83 @@ export function GraduacionVigente({ receta, version = "paciente" }) {
 const NoRegistrado = () => <span className="font-normal text-slate-400">No registrado</span>
 
 // La versión técnica: los mismos ojos grandes, con notación OD y OI y todos los valores de la receta (esfera, cilindro, eje, agudeza con y sin lentes, adición, distancia pupilar y altura).
-function VigentePersonal({ receta }) {
+// Sin esfera, en lugar del valor grande va un texto pequeño y gris: «Sin registrar». En el espacio libre de cada ojo: cuánto cambió desde la receta anterior y la explicación en palabras
+// simples (la misma del portal), en letra pequeña.
+function VigentePersonal({ receta, anterior }) {
   const m = receta.medidas || {}
   const medidas = [["Adición", m.adicion && valorD(m.adicion)], ["Distancia pupilar (DP)", m.dp], ["Altura de montaje", m.alt]]
+  const cambios = anterior ? cambioPorOjo([receta, anterior]) : null
+  const desde = anterior ? nombreMes(Number(String(anterior.fecha).slice(5, 7)) - 1) : ""
   return (
     <div className="@container space-y-3">
       <div className="grid gap-4 @[44rem]:grid-cols-2">
         {LADOS.map(([lado, nombre, sigla]) => {
           const o = receta[lado] || {}
           const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["AV sin lentes", o.avSc], ["AV con lentes", o.avCc]]
+          const l = lecturaDeOjo(receta, lado)
+          const v = cambios?.find((c) => c.lado === lado)?.variacion
+          const delta = v == null ? "" : Math.abs(v) < 0.25 ? `Sin cambios desde ${desde}` : `${textoDelta(v)} desde ${desde}`
           return (
             <section key={lado} aria-label={nombre} data-lado={lado} className="rounded-2xl border border-slate-200/60 bg-white p-5">
-              <div className="flex items-center gap-5">
+              <div className="flex items-start gap-5">
                 <OjoIlustrado ancho={150} className="shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
-                  <p className="text-5xl font-bold leading-tight tabular-nums text-slate-900">{valorD(o.esfera) || <NoRegistrado />}</p>
-                  <p className="text-sm text-slate-500">Esfera</p>
+                  {valorD(o.esfera) ? <p className="text-5xl font-bold leading-tight tabular-nums text-slate-900">{valorD(o.esfera)}</p> : <p className="py-3 text-sm text-slate-400">Sin registrar</p>}
+                  <p className="text-sm text-slate-500">Esfera{delta && <span className="font-semibold text-slate-600"> · {delta}</span>}</p>
+                  {valorD(o.esfera) && <p className="mt-1.5 text-xs leading-snug text-slate-500"><Partes partes={l.explicaEsfera} /></p>}
                 </div>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-base">
-                {datos.map(([t, v]) => <div key={t} className="flex items-baseline justify-between gap-2"><dt className="text-slate-500">{t}</dt><dd className="text-right font-semibold tabular-nums text-slate-900">{v || <NoRegistrado />}</dd></div>)}
+                {datos.map(([t, x]) => <div key={t} className="flex items-baseline justify-between gap-2"><dt className="text-slate-500">{t}</dt><dd className="text-right font-semibold tabular-nums text-slate-900">{x || <NoRegistrado />}</dd></div>)}
               </dl>
             </section>
           )
         })}
       </div>
       <dl aria-label="Medidas de la receta" className="flex flex-wrap gap-x-8 gap-y-1 rounded-xl bg-slate-50 px-4 py-2.5 text-base">
-        {medidas.map(([t, v]) => <div key={t} className="flex items-baseline gap-2"><dt className="text-slate-500">{t}</dt><dd className="font-semibold tabular-nums text-slate-900">{v || <NoRegistrado />}</dd></div>)}
+        {medidas.map(([t, x]) => <div key={t} className="flex items-baseline gap-2"><dt className="text-slate-500">{t}</dt><dd className="font-semibold tabular-nums text-slate-900">{x || <NoRegistrado />}</dd></div>)}
       </dl>
     </div>
   )
 }
 
 // ───────────────────────── Antes → ahora ─────────────────────────
-export function CambioGraduacion({ consultas, version = "paciente" }) {
+// `onElegir()`: cada fila se pulsa y cambia la vista a la receta anterior (de la que se compara).
+export function CambioGraduacion({ consultas, version = "paciente", onElegir }) {
   const cambio = useMemo(() => cambioPorOjo(consultas), [consultas])
   if (!cambio) return null
   const paciente = version === "paciente"
   const hayCambio = cambio.some((o) => o.texto && o.texto !== "Sin cambios")
   const chip = (c, claseExtra) => <span className={"inline-flex items-baseline gap-2 rounded-lg px-3 py-1.5 " + claseExtra}><span className={paciente ? "text-base" : "text-xs"}>{c.fecha}</span><span className={"font-bold tabular-nums " + (paciente ? "text-lg" : "text-sm")}>{valorD(c.valor) || (paciente ? "—" : "No registrado")}</span></span>
   return (
-    <section aria-label={paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"} className={paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4"}>
+    <section aria-label={paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
       <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"}</h3>
-      <p className={paciente ? "mt-1 text-base text-pt-texto" : "mt-0.5 text-xs text-slate-500"}>{paciente ? (hayCambio ? "Un cambio pequeño y normal con el tiempo." : "Tu graduación se mantiene igual.") : "Esfera de cada ojo en las dos últimas consultas."}</p>
+      <p className={paciente ? "mt-1 text-base text-pt-texto" : "mt-0.5 text-xs text-slate-500"}>{paciente ? (hayCambio ? "Un cambio pequeño y normal con el tiempo." : "Tu graduación se mantiene igual.") : "Esfera de cada ojo en las dos últimas consultas. Pulsa una fila para ver la receta anterior."}</p>
       <ul className={"mt-3 divide-y " + (paciente ? "divide-pt-borde border-t border-pt-borde" : "divide-slate-100 border-t border-slate-100")}>
-        {cambio.map((o, i) => (
-          <li key={o.lado} className={"grid gap-x-6 gap-y-1.5 py-3.5 " + (paciente ? "@[30rem]:grid-cols-[9rem_minmax(0,1fr)]" : "sm:grid-cols-[7rem_minmax(0,1fr)]")}>
-            <p className={paciente ? "self-center text-lg font-bold text-pt-marino" : "self-center text-sm font-bold"} style={paciente ? undefined : { color: COLOR_LADO[o.lado] }}>{paciente ? o.nombre : LADOS[i][2] + " · " + o.nombre}</p>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                {chip(o.antes, paciente ? "bg-pt-fondo text-pt-texto" : "bg-slate-50 text-slate-600")}
-                <ArrowRight size={paciente ? 24 : 18} className={paciente ? "text-pt-azul" : "text-blue-600"} aria-label="a" />
-                {chip(o.ahora, paciente ? "bg-pt-suave text-[#1B4FB5]" : "bg-blue-50 text-blue-700")}
+        {cambio.map((o, i) => {
+          const contenido = (
+            <>
+              <p className={paciente ? "self-center text-lg font-bold text-pt-marino" : "self-center text-sm font-bold"} style={paciente ? undefined : { color: COLOR_LADO[o.lado] }}>{paciente ? o.nombre : LADOS[i][2] + " · " + o.nombre}</p>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {chip(o.antes, paciente ? "bg-pt-fondo text-pt-texto" : "bg-slate-50 text-slate-600")}
+                  <ArrowRight size={paciente ? 24 : 18} className={paciente ? "text-pt-azul" : "text-blue-600"} aria-label="a" />
+                  {chip(o.ahora, paciente ? "bg-pt-suave text-[#1B4FB5]" : "bg-blue-50 text-blue-700")}
+                </div>
+                <p className={paciente ? "mt-1.5 text-lg text-pt-marino" : "mt-1 text-sm text-slate-600"}>{paciente ? o.texto : (o.variacion === null ? "No registrado" : o.texto === "Sin cambios" ? "Sin cambios" : (o.variacion > 0 ? "Aumentó " : "Disminuyó ") + Math.abs(o.variacion).toFixed(2) + " D (equivalente esférico)")}</p>
               </div>
-              <p className={paciente ? "mt-1.5 text-lg text-pt-marino" : "mt-1 text-sm text-slate-600"}>{paciente ? o.texto : (o.variacion === null ? "No registrado" : o.texto === "Sin cambios" ? "Sin cambios" : (o.variacion > 0 ? "Aumentó " : "Disminuyó ") + Math.abs(o.variacion).toFixed(2) + " D (equivalente esférico)")}</p>
-            </div>
-          </li>
-        ))}
+            </>
+          )
+          const clase = "grid w-full gap-x-6 gap-y-1.5 text-left " + (paciente ? "@[30rem]:grid-cols-[9rem_minmax(0,1fr)] py-3.5" : "sm:grid-cols-[7rem_minmax(0,1fr)] py-3")
+          return (
+            <li key={o.lado}>
+              {onElegir
+                ? <button type="button" onClick={onElegir} aria-label={`Ver la receta de ${o.antes.fecha}: ${o.nombre}`} className={clase + " rounded-lg transition-colors cursor-pointer " + (paciente ? "hover:bg-pt-fondo" : "px-2 hover:bg-slate-50")}>{contenido}</button>
+                : <div className={clase}>{contenido}</div>}
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
@@ -193,13 +212,14 @@ export function SelectorReceta({ recetas, valorId, onElegir, version = "paciente
 const viñetas = (texto = "") => texto.split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/).map((x) => x.trim()).filter(Boolean)
 
 // ───────────────────────── La vista completa de una receta ─────────────────────────
-// «Mi receta» del portal y la pestaña «Graduación» del perfil del paciente son ESTA vista (regla 18): el selector de receta arriba, junto al título, con «Comparar dos recetas» y la acción de
+// «Mi receta» del portal y la pestaña «Graduación» del perfil del paciente del personal son ESTA vista (regla 18): el selector de receta arriba, junto al título, con «Comparar dos recetas» y la acción de
 // entregar la receta; y, de la receta elegida, los ojos, el antes → ahora (contra la receta anterior a esa), las indicaciones y lo que cada lado agregue.
 //   version       «paciente» (palabras simples) o «personal» (notación técnica). Con `explicable`, el botón «Explicar al paciente» cambia la vista a la del paciente y de vuelta.
 //   accion        { texto, Icono, onClick(receta) }: «Descargar receta» en el portal; «Imprimir receta» en el perfil.
 //   subtitulo     (receta) => texto bajo el título.   indicacionesExtra: líneas que se suman a las de la receta vigente.
-//   izquierda     (receta, version) => nodo bajo el antes → ahora (en el portal «Medidas para tus lentes»; en el perfil la gráfica de tendencia).
-export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "Mi receta", subtitulo, accion, explicable = false, indicacionesExtra = [], izquierda, className = "" }) {
+//   derecha       (receta) => nodo bajo las indicaciones (en el portal «Medidas para tus lentes»): equilibra las dos columnas.
+//   grafica       ({ onElegir(fecha), fechaActiva }) => nodo: la gráfica de tendencia (el perfil del personal). Va al lado del antes → ahora y sus puntos cambian la vista a esa receta.
+export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "Mi receta", subtitulo, accion, explicable = false, indicacionesExtra = [], derecha, grafica, className = "" }) {
   const [id, setId] = useState(() => recetas[0]?.id)
   const [simple, setSimple] = useState(false)
   const [comparando, setComparando] = useState(false)
@@ -213,9 +233,18 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
   const base = viñetas(receta.indicaciones)
   const indicaciones = idx === 0 && !base.some((i) => /control/i.test(i)) ? [...base, ...indicacionesExtra] : base
   const compararCon = anterior || recetas.find((r) => r !== receta)
+  const elegirPorFecha = (fecha) => { const r = recetas.find((x) => x.fecha === fecha); if (r) setId(r.id) }
   const boton = portal
     ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold leading-snug text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer"
     : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+  const cambio = anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} onElegir={() => setId(anterior.id)} />
+  const bloqueIndicaciones = indicaciones.length > 0 && (
+    <section aria-label={paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
+      <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"}</h3>
+      <ul className={"mt-3 list-disc space-y-2 pl-5 leading-relaxed marker:text-slate-500 " + (paciente ? "text-base text-pt-marino" : "text-sm text-slate-700")}>{indicaciones.map((i) => <li key={i}>{i}</li>)}</ul>
+    </section>
+  )
+  const extraDerecha = derecha?.(receta)
   return (
     <div className={"@container space-y-5 sm:space-y-6 " + className}>
       <div className="flex flex-col gap-4 @[56rem]:flex-row @[56rem]:items-start @[56rem]:justify-between @[56rem]:gap-6">
@@ -235,22 +264,23 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
         </div>
       </div>
 
-      <GraduacionVigente receta={receta} version={v} />
+      <GraduacionVigente receta={receta} anterior={anterior} version={v} />
 
-      <div className={"grid items-start gap-5 sm:gap-6 " + ((anterior || izquierda) && indicaciones.length > 0 ? "@[56rem]:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" : "")}>
-        {(anterior || izquierda) && (
-          <div className="min-w-0 space-y-5 sm:space-y-6">
-            {anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} />}
-            {izquierda?.(receta, v)}
+      {grafica ? (
+        <>
+          {/* El perfil del personal: el antes → ahora y la gráfica lado a lado, las indicaciones debajo */}
+          <div className={"grid items-stretch gap-5 sm:gap-6 " + (cambio ? "@[56rem]:grid-cols-2" : "")}>
+            {cambio}
+            <section aria-label="Tendencia de graduación" className="min-w-0 rounded-2xl border border-slate-200/60 bg-white p-4">{grafica({ onElegir: elegirPorFecha, fechaActiva: receta.fecha })}</section>
           </div>
-        )}
-        {indicaciones.length > 0 && (
-          <section aria-label={paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
-            <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"}</h3>
-            <ul className={"mt-3 list-disc space-y-2 pl-5 leading-relaxed marker:text-slate-500 " + (paciente ? "text-base text-pt-marino" : "text-sm text-slate-700")}>{indicaciones.map((i) => <li key={i}>{i}</li>)}</ul>
-          </section>
-        )}
-      </div>
+          {bloqueIndicaciones}
+        </>
+      ) : (
+        <div className={"grid items-start gap-5 sm:gap-6 " + (cambio && (bloqueIndicaciones || extraDerecha) ? "@[56rem]:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" : "")}>
+          {cambio}
+          {(bloqueIndicaciones || extraDerecha) && <div className="min-w-0 space-y-5 sm:space-y-6">{bloqueIndicaciones}{extraDerecha}</div>}
+        </div>
+      )}
       {comparando && compararCon && <VentanaComparar recetas={recetas} version={v} idA={String(compararCon.id)} idB={String(receta.id)} onCerrar={() => setComparando(false)} />}
     </div>
   )

@@ -361,24 +361,26 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   return (
     <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-pt-fondo font-sans text-pt-marino">
       {/* ─── MENÚ LATERAL (laptop): la marca de la óptica y las cinco pantallas ─── */}
-      {laptop && !menuOculto && (
-        <aside className="flex w-[232px] shrink-0 flex-col border-r border-pt-borde bg-white">
-          <div className="flex min-w-0 items-start gap-2.5 px-[18px] pb-6 pt-6">
+      {laptop && (
+        <aside className={"flex shrink-0 flex-col border-r border-pt-borde bg-white " + (menuOculto ? "w-20" : "w-[232px]")}>
+          <div className={"flex min-w-0 pb-6 pt-6 " + (menuOculto ? "justify-center px-0" : "items-start gap-2.5 px-[18px]")} title={menuOculto ? nombreMostrado : undefined}>
             {marca()}
-            <div className="min-w-0 leading-tight">
-              <p className="font-heading text-base font-bold leading-snug text-pt-marino">{nombreMostrado}</p>
-              <p className="mt-0.5 whitespace-nowrap text-base tracking-tight text-pt-texto">Portal del paciente</p>
-            </div>
+            {!menuOculto && (
+              <div className="min-w-0 leading-tight">
+                <p className="font-heading text-base font-bold leading-snug text-pt-marino">{nombreMostrado}</p>
+                <p className="mt-0.5 whitespace-nowrap text-base tracking-tight text-pt-texto">Portal del paciente</p>
+              </div>
+            )}
           </div>
-          <nav aria-label="Menú del portal" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4">
+          <nav aria-label="Menú del portal" className={"min-h-0 flex-1 space-y-1 overflow-y-auto " + (menuOculto ? "px-3" : "px-4")}>
             {OPCIONES.map((o) => {
               const Icono = o.iconoMenu || o.icono
               const activo = seccion === o.id
               return (
-                <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}
-                  className={"flex h-12 w-full items-center gap-3.5 rounded-xl px-3.5 text-base transition-colors cursor-pointer " + (activo ? "bg-pt-suave font-semibold text-pt-azul" : "font-medium text-slate-700 hover:bg-slate-50 hover:text-pt-marino")}>
+                <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined} aria-label={menuOculto ? o.nombre : undefined} title={menuOculto ? o.nombre : undefined}
+                  className={"flex h-12 w-full items-center rounded-xl text-base transition-colors cursor-pointer " + (menuOculto ? "justify-center " : "gap-3.5 px-3.5 ") + (activo ? "bg-pt-suave font-semibold text-pt-azul" : "font-medium text-slate-700 hover:bg-slate-50 hover:text-pt-marino")}>
                   <Icono size={22} aria-hidden="true" />
-                  <span>{o.nombre}</span>
+                  {!menuOculto && <span>{o.nombre}</span>}
                 </button>
               )
             })}
@@ -386,7 +388,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         </aside>
       )}
 
-      {/* ─── CONTENIDO ─── */}
+            {/* ─── CONTENIDO ─── */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {laptop && <CabeceraPortal menuOculto={menuOculto} onAlternarMenu={alternarMenu} saludo={`${saludo}, ${primerNombre}`} fecha={hoyFecha} avisos={avisos} onIr={navegar} nombre={usuario?.nombre || primerNombre} onCerrarSesion={onCerrarSesion} />}
         {/* Celular y tablet: una barra arriba con la marca, el saludo y los avisos */}

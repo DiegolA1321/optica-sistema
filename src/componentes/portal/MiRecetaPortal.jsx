@@ -56,7 +56,7 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, todasLasRecetas
     )
   }
   return (
-    <VistaGraduacion recetas={todasLasRecetas} version="paciente" titulo="Mi receta" subtitulo={subtitulo} indicacionesExtra={extra} izquierda={medidas}
+    <VistaGraduacion recetas={todasLasRecetas} version="paciente" titulo="Mi receta" subtitulo={subtitulo} indicacionesExtra={extra} derecha={medidas}
       accion={{ texto: "Descargar receta", Icono: Download, onClick: descargar }} />
   )
 }

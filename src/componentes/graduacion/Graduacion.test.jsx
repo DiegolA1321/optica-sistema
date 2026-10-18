@@ -28,7 +28,19 @@ describe("La graduación, un solo componente con dos versiones", () => {
     expect(document.body.textContent).toContain("Adición+1.00")
     expect(document.body.textContent).toContain("Distancia pupilar (DP)62")
     expect(document.body.textContent).toContain("Altura de montaje18")
-    expect(od).not.toHaveTextContent("Tienes miopía")
+    // en el espacio libre del ojo, la explicación en palabras simples, en letra pequeña
+    expect(od).toHaveTextContent("Tienes miopía leve: ves bien de cerca y un poco borroso de lejos.")
+  })
+
+  it("en la versión del personal, sin esfera va «Sin registrar» (pequeño y gris) y con receta anterior dice cuánto cambió y desde cuándo", () => {
+    const { unmount } = render(<GraduacionVigente receta={receta({ oi: { cilindro: "-0.75" } })} version="personal" />)
+    const oi = screen.getByRole("region", { name: "Ojo izquierdo" })
+    expect(oi).toHaveTextContent("Sin registrar")
+    expect(oi.querySelector("p.text-5xl")).toBeNull()
+    unmount()
+    render(<GraduacionVigente receta={receta()} anterior={anterior} version="personal" />)
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("+0.25 desde noviembre")
+    expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("+0.25 desde noviembre")
   })
 
   it("en la versión del personal, donde un dato no se registró dice «No registrado», no un guion", () => {
@@ -117,12 +129,21 @@ describe("La pestaña «Graduación» del perfil del personal", () => {
   const props = { consultas: [anterior, receta()], paciente: { nombre: "Marta Zambrano", cedula: "0934070830" }, usuario: { opticaNombre: "Óptica Solna Vision" } }
 
   it("es la misma vista del portal, en versión técnica, con la tendencia, comparar, imprimir y «Explicar al paciente»", () => {
-    render(<GraduacionPerfil {...props} tendencia={<p>Tendencia existente</p>} />)
+    render(<GraduacionPerfil {...props} tendencia={({ onElegir, fechaActiva }) => <button type="button" onClick={() => onElegir("2025-11-21")}>Tendencia existente {fechaActiva}</button>} />)
     expect(screen.getByRole("heading", { name: "Graduación" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 20 de abril de 2026 · vigente")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
     expect(screen.getByRole("region", { name: "Cambio desde la consulta anterior" })).toBeInTheDocument()
-    expect(screen.getByText("Tendencia existente")).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Tendencia de graduación" })).toHaveTextContent("Tendencia existente 2026-04-20")
+    // el antes → ahora y la tendencia van lado a lado y cambian la vista a esa receta
+    fireEvent.click(screen.getByRole("button", { name: /Ver la receta de Nov 2025: Ojo derecho/ }))
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 21 de noviembre de 2025")
+    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
+    fireEvent.click(screen.getByRole("option", { name: /20 de abril de 2026/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Tendencia existente/ }))
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 21 de noviembre de 2025")
+    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
+    fireEvent.click(screen.getByRole("option", { name: /20 de abril de 2026/ }))
     expect(screen.getByRole("region", { name: "Indicaciones" })).toHaveTextContent("Usa tus lentes todo el día.")
     expect(screen.getByRole("button", { name: "Comparar dos recetas" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Imprimir receta" })).toBeInTheDocument()

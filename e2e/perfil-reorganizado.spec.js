@@ -42,12 +42,16 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(botonAgendar(page)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Enviar mensaje' }), 'el optómetra no tiene CRM: crear').toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Crear acceso' })).toBeVisible()
-  // Pestañas en orden: Citas, Resumen, Productos y servicios...
+  // Pestañas en orden: Resumen, Citas, Graduación, Compras y Órdenes de laboratorio; el perfil abre en el Resumen.
   const pestanas = page.getByRole('tablist', { name: 'Secciones del paciente' }).getByRole('tab')
-  await expect(pestanas.nth(0)).toContainText('Citas')
-  await expect(pestanas.nth(1)).toContainText('Resumen')
+  await expect(pestanas.nth(0)).toContainText('Resumen')
+  await expect(pestanas.nth(1)).toContainText('Citas')
   await expect(pestanas.nth(2)).toContainText('Graduación')
-  await expect(pestanas.nth(3)).toContainText('Productos y servicios')
+  await expect(pestanas.nth(3)).toContainText('Compras')
+  await expect(pestanas.nth(4)).toContainText('Órdenes de laboratorio')
+  await expect(pestanas.nth(0)).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('Productos y servicios')).toHaveCount(0)
+  await pestanas.nth(1).click()
   // Citas: la próxima con "Ingresar", y nada clínico mezclado
   await expect(page.getByRole('region', { name: 'Próxima cita' }).getByRole('button', { name: 'Ingresar' })).toBeVisible()
   await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)

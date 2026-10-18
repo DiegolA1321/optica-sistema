@@ -554,13 +554,22 @@ describe("Mis datos y menú", () => {
     expect(within(cuenta).getByRole("menuitem", { name: /Mis datos/ })).toBeInTheDocument()
     expect(within(cuenta).getByRole("menuitem", { name: /Cerrar sesión/ })).toBeInTheDocument()
   })
-  it("el botón de la cabecera oculta y vuelve a mostrar el menú lateral", async () => {
+  it("el botón de la cabecera pliega el menú a una columna angosta con los íconos (cada uno con su nombre al pasar el cursor) y lo vuelve a abrir", async () => {
     render(<PortalPaciente {...base} />)
     await resumen()
+    const nav = () => screen.getByRole("navigation", { name: "Menú del portal" })
+    expect(within(nav()).getByText("Mis citas")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Ocultar el menú" }))
-    expect(screen.queryByRole("navigation", { name: "Menú del portal" })).not.toBeInTheDocument()
+    // plegado: sigue la columna con las cinco pantallas, solo con íconos y su nombre en el título del botón
+    for (const n of ["Inicio", "Mis citas", "Mi receta", "Mis compras", "Mis datos"]) expect(within(nav()).getByRole("button", { name: n })).toHaveAttribute("title", n)
+    expect(within(nav()).queryByText("Mis citas")).not.toBeInTheDocument()
+    expect(screen.queryByText("Portal del paciente")).not.toBeInTheDocument()
+    expect(nav().closest("aside").className).toMatch(/w-20/)
+    fireEvent.click(within(nav()).getByRole("button", { name: "Mis citas" }))
+    expect(await screen.findByRole("heading", { name: "Mis citas" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Mostrar el menú" }))
-    expect(screen.getByRole("navigation", { name: "Menú del portal" })).toBeInTheDocument()
+    expect(within(nav()).getByText("Mis citas")).toBeInTheDocument()
+    expect(screen.getByText("Portal del paciente")).toBeInTheDocument()
   })
   it("la cabecera lleva el saludo con la fecha completa, la campanita y la cuenta con su nombre", async () => {
     render(<PortalPaciente {...base} />)

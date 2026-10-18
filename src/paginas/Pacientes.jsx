@@ -335,7 +335,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
     return e
   }, [pacienteHistorial])
-  const [tabHistorial, setTabHistorial] = useState("citas")
+  // Las pestañas del perfil: Resumen · Citas · Graduación · Compras · Órdenes de laboratorio. El perfil abre en el Resumen. «pagos» es el id de siempre de «Compras» (los enlaces guardados lo usan; «compras» también vale).
+  const [tabHistorial, setTabHistorial] = useState("resumen")
   const [verHistoriaClinica, setVerHistoriaClinica] = useState(false)
   // El perfil abierto guardaba una copia del paciente: al crear su cuenta o editar sus datos seguía mostrando lo anterior ("Sin cuenta").
   // Se mantiene al día con la lista.
@@ -372,7 +373,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     }
   }, [idPerfil]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (sincronizarUrl && idPerfil) escribirParam("tab", tabHistorial === "citas" ? null : tabHistorial)
+    if (sincronizarUrl && idPerfil) escribirParam("tab", tabHistorial === "resumen" ? null : tabHistorial)
   }, [tabHistorial, idPerfil]) // eslint-disable-line react-hooks/exhaustive-deps
   // Atrás/adelante del navegador, y volver desde la ficha clínica: abre o cierra el perfil según la URL.
   useEffect(() => {
@@ -388,7 +389,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       }
       const tab = leerParam("tab")
       setPacienteHistorial(paciente)
-      setTabHistorial(["citas", "resumen", "graduacion", "pagos", "ordenes"].includes(tab) && (tab !== "graduacion" || puedeVerFichas) ? tab : "citas")
+      setTabHistorial(pestanaDePerfil(tab, puedeVerFichas))
     }
     if (!perfilVisto.current && !pacienteHistorial) abrirSegunUrl()
     window.addEventListener("popstate", abrirSegunUrl)
@@ -411,7 +412,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   useEffect(() => { if (!pacienteHistorial) setMostrarFactura(false) }, [pacienteHistorial])
   // Líneas a precargar en ComprobanteVentaModal cuando se vende la receta
   // directo desde el encabezado del perfil (undefined = abre vacía, como el
-  // botón manual "Nueva venta" de la pestaña Productos y servicios).
+  // botón manual "Nueva venta" de la pestaña Compras).
   const [facturaLineaInicial, setFacturaLineaInicial] = useState(undefined)
 
   // Abonar, anular, crear la orden y registrar la factura electrónica de una venta se manejan con el mismo
@@ -673,7 +674,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       // espera en vez de descartar la acción.
       if (!paciente && cargaInicial) return
       if (paciente) {
-        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(["citas", "resumen", "graduacion", "pagos", "ordenes"].includes(leerParam("tab")) && (leerParam("tab") !== "graduacion" || puedeVerFichas) ? leerParam("tab") : "citas") }
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(pestanaDePerfil(leerParam("tab"), puedeVerFichas)) }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
         else if (accionInicial.accion === "eliminar" && puedeEliminar) setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
@@ -1060,7 +1061,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
         if (enCampo && document.activeElement !== inputBusquedaRef.current) return
         const p = pacientesVisibles[filaActiva]
         setPacienteHistorial(p)
-        setTabHistorial("citas")
+        setTabHistorial("resumen")
       } else if (e.key === "Escape") {
         setFilaActiva(-1)
       }
@@ -1339,7 +1340,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       key={paciente.id}
                       onMouseEnter={() => setFilaActiva(indiceFila)}
                       className={"group cursor-pointer transition-colors " + (activa ? "bg-blue-50/70 ring-1 ring-inset ring-blue-200" : "hover:bg-slate-50/70")}
-                      onClick={() => { setPacienteHistorial(paciente); setTabHistorial("citas") }}
+                      onClick={() => { setPacienteHistorial(paciente); setTabHistorial("resumen") }}
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -1454,7 +1455,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                               siempre visible aparte, como respaldo en
                               pantallas táctiles donde no existe hover. */}
                           <div className={"flex items-center gap-1 transition-opacity " + (activa ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100")}>
-                            <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("citas") }} title="Ver perfil 360°" aria-label="Ver perfil 360°" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
+                            <button type="button" onClick={() => { setPacienteHistorial(paciente); setTabHistorial("resumen") }} title="Ver perfil 360°" aria-label="Ver perfil 360°" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_VER}>
                               <Eye size={16} />
                             </button>
                             {puedeAgendar && <button type="button" onClick={() => abrirAgendar(paciente)} title="Agendar cita" aria-label="Agendar cita" className={"rounded-lg p-2 transition-colors cursor-pointer " + ACCION_CONFIRMAR}>
@@ -2051,6 +2052,18 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       lector de pantalla las anuncie como pestañas, no como
                       4 botones sueltos. */}
                   <div role="tablist" aria-label="Secciones del paciente" className="mt-5 flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+                    <button
+                      type="button"
+                      role="tab"
+                      id="tab-resumen"
+                      aria-selected={tabHistorial === "resumen"}
+                      aria-controls="panel-paciente"
+                      onClick={() => setTabHistorial("resumen")}
+                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      style={tabHistorial === "resumen" ? { background: GRAD } : undefined}
+                    >
+                      <BarChart3 size={14} /> Resumen
+                    </button>
                     {[
                       { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
                     ].map(({ id, etiqueta, Icono, cuenta }) => (
@@ -2072,18 +2085,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         {cuenta > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-resumen"
-                      aria-selected={tabHistorial === "resumen"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("resumen")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "resumen" ? { background: GRAD } : undefined}
-                    >
-                      <BarChart3 size={14} /> Resumen
-                    </button>
                     {puedeVerFichas && (
                       <button
                         type="button"
@@ -2116,7 +2117,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                           servicios (la línea "Consulta" del cobro de la
                           ficha clínica incluida), así que el nombre ya no
                           puede ser solo "productos". */}
-                      <Wallet size={14} /> Productos y servicios
+                      <Wallet size={14} /> Compras
                       {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
                       {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
                     </button>
@@ -2157,13 +2158,13 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         usuario={usuario}
                         parametrizacion={parametrizacion}
                         adjuntosDe={adjuntosConsulta}
-                        onAbrirPaciente={(p) => { setTabHistorial("citas"); setPacienteHistorial(p) }}
+                        onAbrirPaciente={(p) => { setTabHistorial("resumen"); setPacienteHistorial(p) }}
                         onVerProductos={() => setTabHistorial("pagos")}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "graduacion" && puedeVerFichas ? (
-                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} tendencia={<TendenciaDelPaciente consultas={consultasPaciente} />} />
+                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} tendencia={(grafica) => <TendenciaDelPaciente consultas={consultasPaciente} {...grafica} />} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente
@@ -2748,6 +2749,13 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
 // Lo que antes se mezclaba con las citas: cómo va el paciente (corrección, próximo control, compras, fidelidad),
 // la tendencia de su graduación y cómo ha venido (conteos de citas y citas por mes).
 // Un cuadro que se puede tocar: mismo aspecto que antes, con una flecha que indica que se despliega.
+// La pestaña que pide una URL (`?tab=`): una de las cinco o, si no existe o no se puede ver (Graduación pide Ficha clínica), el Resumen.
+function pestanaDePerfil(tab, puedeVerFichas) {
+  const id = tab === "compras" ? "pagos" : tab
+  if (!["resumen", "citas", "graduacion", "pagos", "ordenes"].includes(id)) return "resumen"
+  return id === "graduacion" && !puedeVerFichas ? "resumen" : id
+}
+
 function Cuadro({ clave, abierto, alternar, className = "", style, children }) {
   return (
     <button
@@ -2764,11 +2772,11 @@ function Cuadro({ clave, abierto, alternar, className = "", style, children }) {
 }
 
 // La gráfica de tendencia de la graduación medida (con su etiqueta): va dentro de la pestaña «Graduación».
-function TendenciaDelPaciente({ consultas }) {
+function TendenciaDelPaciente({ consultas, onElegir, fechaActiva }) {
   const info = tendenciaEntreConsultas(consultas)
   const t = TENDENCIA[info?.verdicto]
   return (
-    <section aria-label="Tendencia de graduación">
+    <div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
         {t && (
@@ -2777,8 +2785,8 @@ function TendenciaDelPaciente({ consultas }) {
           </span>
         )}
       </div>
-      <TendenciaGraduacion consultas={[...consultas].reverse()} />
-    </section>
+      <TendenciaGraduacion consultas={[...consultas].reverse()} onElegir={onElegir} fechaActiva={fechaActiva} siempreGrafico />
+    </div>
   )
 }
 
