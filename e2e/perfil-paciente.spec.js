@@ -12,6 +12,14 @@ const foto = async (page, nombre) => {
   await page.screenshot({ path: `${CARPETA}/${nombre}.png` })
 }
 
+// La lista se vuelve a dibujar cuando llegan los datos y un clic dado justo en ese momento se pierde: si el perfil no abre, se vuelve a pulsar (pasa en cuanto abre, sin esperas fijas).
+async function abrirDesdeLaLista(page, nombre) {
+  await expect(async () => {
+    await page.getByText(nombre, { exact: false }).first().click()
+    await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
+  }).toPass({ timeout: 60_000 })
+}
+
 async function abrirPerfil(page, nombre) {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
@@ -47,8 +55,7 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
-    await page.getByText(nombre).first().click()
-    await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 30_000 })
+    await abrirDesdeLaLista(page, nombre)
     const buscador = page.getByRole('search', { name: 'Buscar en el historial de citas' })
     await expect(buscador).toBeVisible()
     // Búsqueda por texto
@@ -80,8 +87,7 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
-    await page.getByText(nombre).first().click()
-    await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 30_000 })
+    await abrirDesdeLaLista(page, nombre)
     const aviso = page.getByRole('region', { name: 'Sin citas' })
     await expect(aviso.getByText('Este paciente no tiene citas')).toBeVisible()
     await expect(aviso.getByRole('button', { name: 'Agendar cita' })).toBeVisible()

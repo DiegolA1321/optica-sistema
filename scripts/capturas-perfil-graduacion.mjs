@@ -1,5 +1,5 @@
-// Capturas del perfil del paciente del sistema del personal a 1366 px (la graduación compartida con el portal), con cada rol de la Óptica Demo (solo LEE).
-// Dice, por rol, si ve la sección «Graduación del paciente» y el botón «Explicar al paciente» (solo quien tiene permiso de fichas clínicas).
+// Capturas del perfil del paciente del sistema del personal con el paciente de demostración (Óptica Demo, solo LEE): cada pestaña a 1366, 1920 y 390 px con el administrador, y la pestaña
+// «Graduación» (con el selector abierto, «Explicar al paciente» y «Comparar dos recetas») además con cada rol. Dice, por rol, si ve la pestaña «Graduación».
 //   node --env-file=.env.test scripts/capturas-perfil-graduacion.mjs <carpeta-de-salida>
 import { chromium } from "@playwright/test"
 import fs from "node:fs"
@@ -9,9 +9,10 @@ const SALIDA = path.resolve(process.argv[2] || "capturas-perfil")
 const BASE = `http://localhost:${process.env.E2E_PUERTO || "5174"}`
 fs.mkdirSync(SALIDA, { recursive: true })
 const PACIENTE = "Paciente Demostración Portal"
+const TAMANOS = [["1366", 1366, 768], ["1920", 1920, 1080], ["390", 390, 844]]
 const browser = await chromium.launch()
-for (const rol of ["ADMIN", "OPTOMETRA", "RECEPCION", "VENTAS"]) {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, locale: "es-EC" })
+
+async function entrar(ctx, rol) {
   const page = await ctx.newPage()
   await page.goto(`${BASE}/?optica=qu7u2j`)
   await page.getByRole("button", { name: "Iniciar sesión" }).first().click()
@@ -23,42 +24,62 @@ for (const rol of ["ADMIN", "OPTOMETRA", "RECEPCION", "VENTAS"]) {
   await page.waitForFunction(() => !document.body.innerText.includes("Iniciar sesión"), null, { timeout: 30000 })
   await page.waitForTimeout(1500)
   const menu = page.getByRole("button", { name: "Pacientes", exact: true }).first()
-  if (!(await menu.count())) { console.log(rol + ": sin módulo Pacientes"); await ctx.close(); continue }
+  if (!(await menu.count())) return null
   await menu.click()
   await page.getByRole("textbox", { name: /buscar paciente/i }).fill(PACIENTE)
-  await page.getByText(PACIENTE, { exact: false }).first().click()
-  await page.getByRole("tab", { name: /Citas/ }).waitFor({ timeout: 20000 })
-  const resumen = page.getByRole("tab", { name: /Resumen/ })
-  if (await resumen.count()) await resumen.click()
-  await page.waitForTimeout(1500)
-  const seccion = page.getByRole("region", { name: "Graduación del paciente" })
-  const hay = await seccion.count()
-  const explicar = await page.getByRole("button", { name: "Explicar al paciente" }).count()
-  console.log(`${rol}: sección de graduación ${hay ? "SÍ" : "no"} · «Explicar al paciente» ${explicar ? "SÍ" : "no"}`)
-  const h = await page.evaluate(() => document.documentElement.scrollWidth)
-  if (h > 1366) console.log(`  ⚠ desplazamiento horizontal: ${h}px`)
-  await page.screenshot({ path: path.join(SALIDA, `perfil ${rol.toLowerCase()} · 1366.png`) })
-  if (hay) {
-    await seccion.scrollIntoViewIfNeeded()
-    await page.waitForTimeout(500)
-    await page.screenshot({ path: path.join(SALIDA, `perfil ${rol.toLowerCase()} graduacion · 1366.png`) })
+  const fila = page.getByRole("row").filter({ hasText: PACIENTE })
+  await fila.getByRole("button", { name: /Ver perfil 360/ }).waitFor({ timeout: 30000 })
+  await fila.getByText("Graduación:").waitFor({ timeout: 30000 }).catch(() => {})
+  for (let i = 0; i < 5; i++) {
+    await fila.getByRole("button", { name: /Ver perfil 360/ }).click()
+    if (await page.getByRole("tab", { name: /Citas/ }).waitFor({ timeout: 8000 }).then(() => true, () => false)) break
+  }
+  await page.waitForTimeout(1200)
+  return page
+}
+const foto = async (page, nombre) => { await page.waitForTimeout(600); await page.screenshot({ path: path.join(SALIDA, nombre + ".png"), fullPage: false }) }
+const alto = (page) => page.evaluate(() => { const e = document.querySelector("#panel-paciente"); return e ? e.getBoundingClientRect().bottom + window.scrollY + 40 : document.body.scrollHeight })
+const sinDesbordeHorizontal = async (page, ancho, que) => { const w = await page.evaluate(() => document.documentElement.scrollWidth); if (w > ancho) console.log(`  ⚠ ${que}: desplazamiento horizontal ${w}px (ventana ${ancho})`) }
+
+// 1. Administrador: cada pestaña en los tres tamaños
+for (const [rotulo, ancho, altoV] of TAMANOS) {
+  const ctx = await browser.newContext({ viewport: { width: ancho, height: altoV }, locale: "es-EC", deviceScaleFactor: ancho < 500 ? 2 : 1 })
+  const page = await entrar(ctx, "ADMIN")
+  for (const [nombre, tab] of [["citas", /^Citas|Citas \d/], ["resumen", /Resumen/], ["graduacion", /Graduación/], ["productos y servicios", /Productos y servicios/], ["ordenes de laboratorio", /Órdenes de laboratorio/]]) {
+    await page.getByRole("tab", { name: tab }).first().click()
+    await page.waitForTimeout(1200)
+    const h = Math.min(6000, Math.max(altoV, Math.ceil(await alto(page))))
+    await page.setViewportSize({ width: ancho, height: h })
+    await foto(page, `perfil admin · ${nombre} · ${rotulo}`)
+    await sinDesbordeHorizontal(page, ancho, `${nombre} a ${rotulo}`)
+    await page.setViewportSize({ width: ancho, height: altoV })
+  }
+  await ctx.close()
+}
+
+// 2. Cada rol: la pestaña «Graduación» a 1366 px y sus ventanas
+for (const rol of ["ADMIN", "OPTOMETRA", "RECEPCION", "VENTAS"]) {
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, locale: "es-EC" })
+  const page = await entrar(ctx, rol)
+  if (!page) { console.log(rol + ": sin módulo Pacientes"); await ctx.close(); continue }
+  const pestana = page.getByRole("tab", { name: /Graduación/ })
+  const ve = await pestana.count()
+  console.log(`${rol}: pestaña «Graduación» ${ve ? "SÍ" : "no"}`)
+  if (ve) {
+    await pestana.click()
+    await page.getByRole("button", { name: "Explicar al paciente" }).waitFor({ timeout: 15000 })
+    await foto(page, `perfil ${rol.toLowerCase()} · graduacion · 1366`)
     if (rol === "ADMIN" || rol === "OPTOMETRA") {
+      await page.getByRole("button", { name: /Elegir otra receta/ }).click()
+      await foto(page, `perfil ${rol.toLowerCase()} · graduacion selector abierto · 1366`)
+      await page.getByRole("option", { name: /21 de noviembre de 2025/ }).click()
+      await foto(page, `perfil ${rol.toLowerCase()} · graduacion receta anterior · 1366`)
       await page.getByRole("button", { name: "Explicar al paciente" }).click()
+      await foto(page, `perfil ${rol.toLowerCase()} · explicar al paciente · 1366`)
+      await page.getByRole("button", { name: "Volver a la vista técnica" }).click()
+      await page.getByRole("button", { name: "Comparar dos recetas" }).click()
       await page.waitForSelector('[role="dialog"]')
-      await page.waitForTimeout(700)
-      await page.screenshot({ path: path.join(SALIDA, `perfil ${rol.toLowerCase()} explicar al paciente · 1366.png`) })
-      await page.keyboard.press("Escape")
-      await page.waitForTimeout(400)
-      await seccion.getByRole("button", { name: "Comparar dos recetas" }).click()
-      await page.waitForSelector('[role="dialog"]')
-      await page.waitForTimeout(700)
-      await page.screenshot({ path: path.join(SALIDA, `perfil ${rol.toLowerCase()} comparar · 1366.png`) })
-      await page.keyboard.press("Escape")
-      await page.waitForTimeout(400)
-      await seccion.getByRole("button", { name: /Ver la receta del/ }).first().click()
-      await page.waitForSelector('[role="dialog"]')
-      await page.waitForTimeout(700)
-      await page.screenshot({ path: path.join(SALIDA, `perfil ${rol.toLowerCase()} detalle de receta · 1366.png`) })
+      await foto(page, `perfil ${rol.toLowerCase()} · comparar recetas · 1366`)
     }
   }
   await ctx.close()

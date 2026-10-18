@@ -239,10 +239,15 @@ export async function crearPacienteConHistorial(n = 6, entorno = 'E2E') {
   }).select().single()
   if (error) throw new Error(`No se pudo crear el paciente de prueba: ${error.message}`)
   for (let i = 1; i <= n; i++) {
-    const { error: errorCita } = await cliente.from('citas').insert({
-      optica_id: perfil.optica_id, paciente_id: paciente.id, paciente: nombre, cedula: paciente.cedula, telefono: paciente.telefono,
-      fecha: hoyLocalISO(-30 * i), hora: '09:00 AM', duracion_minutos: null, motivo: 'Consulta General', estado: 'Atendida',
-    })
+    // Un horario por (óptica, fecha, hora): si otra corrida ya lo ocupa (23505), se prueba el minuto siguiente.
+    let errorCita
+    for (let minuto = 0; minuto < 60; minuto++) {
+      ;({ error: errorCita } = await cliente.from('citas').insert({
+        optica_id: perfil.optica_id, paciente_id: paciente.id, paciente: nombre, cedula: paciente.cedula, telefono: paciente.telefono,
+        fecha: hoyLocalISO(-30 * i), hora: `09:${String(minuto).padStart(2, '0')} AM`, duracion_minutos: null, motivo: 'Consulta General', estado: 'Atendida',
+      }))
+      if (!errorCita || errorCita.code !== '23505') break
+    }
     if (errorCita) throw new Error(`No se pudo crear la cita ${i} del historial: ${errorCita.message}`)
   }
   return nombre
