@@ -21,8 +21,11 @@ const DETALLES = [
   ["Inicio", /Ver el horario completo/, "optica"],
   ["Mis citas", /Ver el detalle de tu próxima cita/, "cita proxima desde Mis citas"],
   ["Mis citas", /Ver el detalle de tu cita del/, "cita anterior"],
-  ["Mi receta", /Ver la receta del/, "receta anterior"],
+  ["Mi receta", /Elegir otra receta/, "selector de receta", true],
   ["Mi receta", /^Comparar dos recetas$/, "comparar recetas"],
+  ["Mis compras", /Ver tus compras con saldo/, "compras · por pagar"],
+  ["Mis compras", /Ver el estado de tus lentes en proceso/, "compras · lentes en proceso"],
+  ["Mis compras", /Ver cómo sumas tus puntos/, "compras · puntos"],
   ["Mis compras", /Ver el detalle de tu compra/, "compra"],
   ["Mis datos", /Pedir que eliminen mi cuenta/, "eliminar cuenta"],
 ]
@@ -53,12 +56,13 @@ for (const [tam, ancho, alto] of [["laptop", 1366, 768], ["celular", 390, 844], 
   }
   if (tam === "grande") { await ctx.close(); continue }
   let actual = ""
-  for (const [pantalla, nombreBoton, archivo] of DETALLES) {
+  for (const [pantalla, nombreBoton, archivo, sinVentana] of DETALLES) {
     if (actual !== pantalla) { await ir(pantalla); actual = pantalla }
     const boton = page.getByRole("button", { name: nombreBoton }).first()
     if (!(await boton.count())) { console.log("sin tarjeta:", archivo); continue }
     await boton.scrollIntoViewIfNeeded()
     await boton.click({ position: { x: 6, y: 6 } })
+    if (sinVentana) { await page.waitForTimeout(500); await page.screenshot({ path: path.join(SALIDA, `detalle ${archivo} · ${tam}.png`) }); await page.keyboard.press("Escape"); continue }
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 })
     await page.waitForTimeout(700)
     // ¿La ventana tiene barra de desplazamiento? Solo debe tenerla si su contenido no cabe en la pantalla.

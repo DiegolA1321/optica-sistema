@@ -74,7 +74,10 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
         )}
         {cita.estado === "Atendida" && detalleDisponible && (
           <section aria-label="¿Cómo te atendimos?" className="rounded-2xl bg-pt-fondo p-4">
-            <h3 className="font-heading text-lg font-bold text-pt-marino">¿Cómo te atendimos?</h3>
+            <div className="flex flex-wrap items-center justify-between gap-x-4">
+              <h3 className="font-heading text-lg font-bold text-pt-marino">¿Cómo te atendimos?</h3>
+              {!cal && <Estrellas valor={puntaje} onCambiar={setPuntaje} />}
+            </div>
             {cal ? (
               <div className="mt-2">
                 <Estrellas valor={cal.puntaje} etiqueta="Tu calificación" />
@@ -82,7 +85,6 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
               </div>
             ) : (
               <div className="mt-1 space-y-2">
-                <Estrellas valor={puntaje} onCambiar={setPuntaje} />
                 <label className="block text-base font-semibold text-slate-700">Un comentario (opcional)
                   <textarea rows={2} maxLength={500} value={comentario} onChange={(e) => setComentario(e.target.value)} className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-normal text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100" />
                 </label>

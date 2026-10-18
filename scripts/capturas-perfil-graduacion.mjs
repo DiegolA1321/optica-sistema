@@ -9,7 +9,8 @@ const SALIDA = path.resolve(process.argv[2] || "capturas-perfil")
 const BASE = `http://localhost:${process.env.E2E_PUERTO || "5174"}`
 fs.mkdirSync(SALIDA, { recursive: true })
 const PACIENTE = "Paciente Demostración Portal"
-const TAMANOS = [["1366", 1366, 768], ["1920", 1920, 1080], ["390", 390, 844]]
+// A 390 px el sistema del personal muestra la pantalla de tamaño no admitido (ResolutionGuard, decisión del 17 oct.: se quita después del portal): no hay perfil que capturar.
+const TAMANOS = [["1366", 1366, 768], ["1920", 1920, 1080]]
 const browser = await chromium.launch()
 
 async function entrar(ctx, rol) {
@@ -23,6 +24,8 @@ async function entrar(ctx, rol) {
   await page.getByRole("button", { name: "Entrar", exact: true }).click()
   await page.waitForFunction(() => !document.body.innerText.includes("Iniciar sesión"), null, { timeout: 30000 })
   await page.waitForTimeout(1500)
+  // En celular el menú lateral está cerrado: se abre con su botón.
+  if (!(await page.getByRole("button", { name: "Pacientes", exact: true }).first().isVisible())) await page.getByRole("button", { name: "Abrir menú" }).click().catch(() => {})
   const menu = page.getByRole("button", { name: "Pacientes", exact: true }).first()
   if (!(await menu.count())) return null
   await menu.click()
@@ -45,6 +48,8 @@ const sinDesbordeHorizontal = async (page, ancho, que) => { const w = await page
 for (const [rotulo, ancho, altoV] of TAMANOS) {
   const ctx = await browser.newContext({ viewport: { width: ancho, height: altoV }, locale: "es-EC", deviceScaleFactor: ancho < 500 ? 2 : 1 })
   const page = await entrar(ctx, "ADMIN")
+  if (!page) { console.log("sin acceso a Pacientes a " + rotulo); await ctx.close(); continue }
+  console.log("tamaño " + rotulo)
   for (const [nombre, tab] of [["citas", /^Citas|Citas \d/], ["resumen", /Resumen/], ["graduacion", /Graduación/], ["productos y servicios", /Productos y servicios/], ["ordenes de laboratorio", /Órdenes de laboratorio/]]) {
     await page.getByRole("tab", { name: tab }).first().click()
     await page.waitForTimeout(1200)
