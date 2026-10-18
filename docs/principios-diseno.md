@@ -260,6 +260,10 @@ Vale para el personal, el superadmin, el portal del paciente y las páginas púb
 - **Cómo aplicarlo:** al terminar una pantalla se mira en los tres tamaños; una prueba de Playwright comprueba que `document.documentElement.scrollWidth` no supera el ancho de la ventana a 390, 768 y 1366 px (`e2e/portal-adaptable.spec.js` es el modelo).
 - **Estado:** la revisión del resto del sistema en los tres tamaños está en `docs/revision-adaptable.md`.
 
+### 49. Lo que el paciente y el personal ven del mismo hecho es un solo componente con dos versiones, y el documento que se entrega es una sola hoja
+La graduación se explica al paciente en el portal y se le enseña en la consulta: es el mismo componente (`componentes/graduacion/Graduacion.jsx`) con la versión del paciente (palabras simples, explicación por rangos de valores en `utilidades/graduacion.js`) y la del personal (OD y OI, esfera, cilindro, eje, adición, agudeza visual y distancia pupilar). «Explicar al paciente» muestra la primera dentro del perfil. Los puntos de fidelidad salen de una sola fórmula (`puntosFidelidad`, la del CRM) y la receta que se imprime al terminar la consulta, la que se ve en «Imprimir receta» del perfil y la que el paciente guarda como PDF desde su portal son la misma hoja (`HojaReceta`, impresa con `imprimirHojaReceta`).
+- **Cómo aplicarlo:** si el paciente y el personal ven el mismo dato, se cambia el componente una vez y las dos versiones cambian juntas; un cálculo (un nivel, un puntaje, un rango) no se repite en una pantalla.
+
 ---
 
 ## Lista de revisión antes de dar una pantalla por terminada
@@ -301,3 +305,4 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 33. ¿Lo que espera una respuesta o una decisión es una conversación con su registro (no un anuncio), guarda lo que se abre como dato (sin direcciones escritas), tiene límite de repetición validado en el servidor y deja decir que no? (46)
 34. ¿Todo cuadro de mensaje usa el mismo límite de 2000 (con el contador solo desde 1800 y validado en el servidor), y toda vista previa es claramente una muestra con sus botones atenuados y sin efecto? (47)
 35. ¿Se ve y funciona en celular (390 px), tablet (768 px) y laptop (1366×768), sin desplazamiento horizontal, con el menú adaptado y todo lo que se toca de 44 px o más? (48)
+36. ¿Lo que el paciente y el personal ven del mismo hecho es un solo componente con dos versiones, con las mismas cuentas, y el documento que se entrega es una sola hoja? (49)
