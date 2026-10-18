@@ -115,10 +115,10 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
                           <p className="text-base leading-snug text-pt-texto">{c.hora}</p>
                         </div>
                         <div className="min-w-0 sm:pr-4">
-                          <button type="button" onClick={() => setAbierta(c)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(c.fecha, "medio")}`} className="-my-2.5 block max-w-full py-2.5 text-left text-base font-semibold leading-snug text-pt-marino cursor-pointer after:absolute after:inset-0 after:content-['']">{c.motivo || "Consulta"}</button>
+                          <button type="button" onClick={() => setAbierta(c)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(c.fecha, "medio")}`} className="-my-3 block max-w-full py-3 text-left text-base font-semibold leading-snug text-pt-marino cursor-pointer after:absolute after:inset-0 after:content-['']">{c.motivo || "Consulta"}</button>
                           <p className="text-base leading-snug text-pt-texto">
                             {resumen === null
-                              ? <>{[d?.profesional, "¿Cómo te atendimos?"].filter(Boolean).join(" · ")} <button type="button" onClick={() => setAbierta(c)} className="relative z-10 -my-2.5 inline-flex items-center py-2.5 font-semibold text-pt-azul hover:underline cursor-pointer">Calificar</button></>
+                              ? <>{[d?.profesional, "¿Cómo te atendimos?"].filter(Boolean).join(" · ")} <button type="button" onClick={() => setAbierta(c)} className="relative z-10 -my-3 inline-flex items-center py-3 font-semibold text-pt-azul hover:underline cursor-pointer">Calificar</button></>
                               : resumen}
                           </p>
                         </div>

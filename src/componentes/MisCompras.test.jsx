@@ -23,7 +23,7 @@ describe("Portal: Mis compras", () => {
     expect(filas[0]).toHaveTextContent("Pagada")
     expect(filas[0]).not.toHaveTextContent("Debes")
     expect(filas[1]).toHaveTextContent("Con saldo")
-    expect(filas[1]).toHaveTextContent("Abonado $60.00")
+    expect(filas[1]).toHaveTextContent("Abonaste $60.00 de $200.00")
     expect(filas[1]).toHaveTextContent("Debes $140.00")
   })
 
@@ -39,11 +39,12 @@ describe("Portal: Mis compras", () => {
   it("cada compra dice el estado de sus lentes, con el nombre que entiende el paciente", () => {
     render(<MisCompras usuario={usuario} compras={[compra(), compra({ id: "f2", numero: 18 })]} ordenes={[orden(), orden({ id: "o2", facturaId: "f2", estado: "lista", listaEl: "2026-10-16T14:00:00Z" })]} />)
     const filas = [...screen.getByRole("list", { name: "Mis compras" }).children]
-    expect(filas[0]).toHaveTextContent("Lentes progresivos con la montura Ray-Ban")
+    expect(filas[0]).toHaveTextContent("Lentes progresivos")
+    expect(filas[0]).toHaveTextContent("Estado de tus lentes")
     expect(filas[0]).toHaveTextContent("En el laboratorio")
-    expect(filas[0]).toHaveTextContent("Fecha estimada: 20 ene 2099")
+    expect(filas[0]).toHaveTextContent("Listos para retirar · aprox. 20 ene")
     expect(filas[1]).toHaveTextContent("Listos para retirar")
-    expect(filas[1]).toHaveTextContent("16 oct 2026")
+    expect(filas[1]).toHaveTextContent("Listos para retirar · desde el 16 oct")
   })
 
   it("una compra sin orden de laboratorio no muestra nada de lentes", () => {

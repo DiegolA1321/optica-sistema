@@ -51,12 +51,12 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
       ) : (
         <>
           {conSaldo.length > 0 && (
-            <section aria-labelledby="como-pagar" className="grid gap-x-10 gap-y-3 rounded-[20px] border border-[#F6D9A8] bg-[#FEF4E5] px-6 py-6 text-[#5B3A12] sm:px-8 min-[900px]:grid-cols-[auto_minmax(0,1fr)] min-[900px]:items-center">
+            <section aria-labelledby="como-pagar" className="grid gap-x-10 gap-y-3 rounded-[20px] border border-[#F6D9A8] bg-[#FEF4E5] px-6 py-6 text-[#5B3A12] sm:px-8 @[820px]/portal:grid-cols-[auto_minmax(0,1fr)] @[820px]/portal:items-center">
               <div>
                 <h2 id="como-pagar" className="text-base font-semibold text-pt-ambar">Tienes un saldo por pagar</h2>
                 <p className="font-heading text-[32px] font-bold leading-tight tabular-nums text-pt-ambar">{dinero(saldoTotal)}</p>
               </div>
-              <p className="text-base leading-relaxed min-[900px]:max-w-[26rem] min-[900px]:justify-self-end">Puedes pagarlo en la óptica{cuando}, en efectivo, con tarjeta o por transferencia.</p>
+              <p className="text-base leading-relaxed @[820px]/portal:max-w-[26rem] @[820px]/portal:justify-self-end">Puedes pagarlo en la óptica{cuando}, en efectivo, con tarjeta o por transferencia.</p>
             </section>
           )}
           <ul className="space-y-6" aria-label="Mis compras">
@@ -75,7 +75,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
               )
               return (
                 <li key={c.id} className="min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[30px] sm:py-7">
-                  <div className={"grid gap-x-8 gap-y-5 " + (debe && enCurso.length ? "min-[900px]:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : !debe ? "min-[900px]:grid-cols-[minmax(0,1fr)_auto] min-[900px]:items-center" : "")}>
+                  <div className={"grid gap-x-8 gap-y-5 " + (enCurso.length > 0 ? "@[820px]/portal:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : !debe ? "@[820px]/portal:grid-cols-[minmax(0,1fr)_auto] @[820px]/portal:items-center" : "")}>
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                         <h2 className="font-heading text-xl font-bold leading-tight text-pt-marino">{titulo}</h2>
@@ -96,18 +96,18 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                           </div>
                         </>
                       )}
-                      {fe && <p className="text-base text-pt-texto">Factura electrónica {fe.numero}{fe.xml && <> · <button type="button" onClick={() => descargar(c, "xml")} disabled={bajando === `${c.id}-xml`} aria-label="XML" className="-my-2.5 inline-flex items-center py-2.5 font-semibold text-pt-azul hover:underline cursor-pointer">Descargar XML</button></>}</p>}
+                      {fe && <p className="text-base text-pt-texto">Factura electrónica {fe.numero}{fe.xml && <> · <button type="button" onClick={() => descargar(c, "xml")} disabled={bajando === `${c.id}-xml`} aria-label="XML" className="-my-3 inline-flex items-center py-3 font-semibold text-pt-azul hover:underline cursor-pointer">Descargar XML</button></>}</p>}
                       {!fe && !debe && <p className="text-base text-pt-texto">Tu óptica todavía no registró la factura electrónica de esta compra.</p>}
                       {fe && !fe.pdf && !fe.xml && <p className="text-base text-pt-texto">Tu óptica todavía no subió los archivos de tu factura electrónica.</p>}
-                      {debe && (fe?.pdf || onGarantia) && archivos}
+                      {(debe || enCurso.length > 0) && (fe?.pdf || (!debe && onGarantia)) && archivos}
                     </div>
-                    {debe && enCurso.length > 0 && (
+                    {enCurso.length > 0 && (
                       <div className="space-y-5 rounded-[20px] bg-pt-fondo p-5 sm:p-6">
                         <h3 className="text-lg font-bold text-pt-marino">Estado de tus lentes</h3>
                         {enCurso.map((o) => <PasosLentes key={o.id} orden={o} variante="lista" />)}
                       </div>
                     )}
-                    {!debe && archivos}
+                    {!debe && enCurso.length === 0 && archivos}
                   </div>
                 </li>
               )

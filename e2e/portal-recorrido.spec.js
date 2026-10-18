@@ -46,7 +46,7 @@ for (const [nombre, ancho, alto] of TAMANOS) {
         await entrarAlPortal(page)
 
         // 1. Su compra y su saldo: el mismo monto que Cobros y saldos (CV-0006: $60, abonó $20, debe $40).
-        const saldo = page.getByRole('region', { name: 'Mi saldo' })
+        const saldo = page.getByRole('region', { name: 'Saldo por pagar' })
         await expect(saldo).toContainText('$40.00')
         await menu(page, 'Mis compras').click()
         await expect(page.getByRole('list', { name: 'Mis compras' })).toContainText('Debes $40.00')
@@ -82,7 +82,7 @@ for (const [nombre, ancho, alto] of TAMANOS) {
 
         // 4. Cambia su teléfono.
         await menu(page, 'Mis datos').click()
-        await page.getByRole('button', { name: 'Editar' }).first().click()
+        await page.getByRole('button', { name: 'Cambiar teléfono' }).click()
         await page.getByLabel('Teléfono').fill(telefonoNuevo)
         await page.getByRole('button', { name: 'Guardar cambios' }).click()
         await expect(page.getByText('Listo: actualizamos tu teléfono.')).toBeVisible({ timeout: 15_000 })

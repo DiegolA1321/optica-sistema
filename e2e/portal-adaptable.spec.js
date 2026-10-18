@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test'
 import { escribirSecreto, SLUG_PRUEBAS } from './ayudas.js'
 
 const TAMANOS = [['celular', 390, 844], ['tablet', 768, 1024], ['laptop', 1366, 768]]
-const SECCIONES = ['Resumen', 'Mis citas', 'Mi receta', 'Mis compras', 'Mis datos']
+const SECCIONES = ['Inicio', 'Mis citas', 'Mi receta', 'Mis compras', 'Mis datos']
 
 for (const [nombre, ancho, alto] of TAMANOS) {
   test(`Portal a ${ancho} px (${nombre}): sin desplazamiento horizontal, texto de 16 px y botones de 44 px`, async ({ page }) => {

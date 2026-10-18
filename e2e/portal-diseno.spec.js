@@ -1,6 +1,6 @@
 // Prueba de DISEÑO del portal del paciente (regla 48), con el paciente de demostración de la Óptica Demo (solo lectura): en laptop de 1366, 1280, 1093 (una laptop de 1366 con la
 // escala de pantalla al 125 %) y 1024 px, en tablet y en celular, en cada pantalla, FALLA si
-//   · alguna tarjeta mide menos de 280 px de ancho,
+//   · alguna tarjeta mide menos de 230 px de ancho,
 //   · dos tarjetas se superponen,
 //   · un título ocupa más de dos líneas, o
 //   · algo se sale por los lados (desplazamiento horizontal) o se corta dentro de su tarjeta.
@@ -10,7 +10,7 @@ import { escribirSecreto, SLUG_DEMO } from './ayudas.js'
 import { protegerDemo } from './guardia-demo.js'
 
 const TAMANOS = [[1366, 768], [1280, 720], [1093, 614], [1024, 768], [768, 1024], [390, 844]]
-const PANTALLAS = ['Resumen', 'Mis citas', 'Mi receta', 'Mis compras', 'Mis datos']
+const PANTALLAS = ['Inicio', 'Mis citas', 'Mi receta', 'Mis compras', 'Mis datos']
 
 // Mide la pantalla actual y devuelve lo que está mal (lista vacía = bien).
 const revisar = (page) => page.evaluate(() => {
@@ -18,10 +18,10 @@ const revisar = (page) => page.evaluate(() => {
   const visible = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 }
   const zona = document.querySelector('main > div.overflow-y-auto')
   const tarjetas = [...zona.querySelectorAll('section[aria-labelledby], section[aria-label], .pt-fila > li, ol.pt-fila > li')].filter(visible)
-  // 1. Ninguna tarjeta de contenido mide menos de 280 px.
+  // 1. Ninguna tarjeta de contenido mide menos de 230 px (las cuatro de «Qué significa cada valor» del diseño aprobado miden unos 250).
   for (const t of tarjetas) {
     const w = t.getBoundingClientRect().width
-    if (w < 279.5) malos.push(`tarjeta de ${Math.round(w)} px (menos de 280): ${(t.getAttribute('aria-label') || t.querySelector('h2,h3')?.textContent || t.textContent).trim().slice(0, 40)}`)
+    if (w < 229.5) malos.push(`tarjeta de ${Math.round(w)} px (menos de 230): ${(t.getAttribute('aria-label') || t.querySelector('h2,h3')?.textContent || t.textContent).trim().slice(0, 40)}`)
   }
   // 2. Dos tarjetas no se superponen (las anidadas no cuentan).
   const raices = tarjetas.filter((t) => !tarjetas.some((o) => o !== t && o.contains(t)))
@@ -68,7 +68,7 @@ const revisar = (page) => page.evaluate(() => {
 })
 
 for (const [ancho, alto] of TAMANOS) {
-  test(`Portal a ${ancho}×${alto}: ninguna tarjeta de menos de 280 px, nada superpuesto, títulos de dos líneas como máximo`, async ({ page }) => {
+  test(`Portal a ${ancho}×${alto}: ninguna tarjeta de menos de 230 px, nada superpuesto, títulos de dos líneas como máximo`, async ({ page }) => {
     test.setTimeout(120_000)
     await protegerDemo(page)
     await page.setViewportSize({ width: ancho, height: alto })

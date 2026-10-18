@@ -126,7 +126,7 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnterior
       <TituloPagina subtitulo={subtitulo} accion={<button type="button" onClick={() => descargar(ultimaReceta)} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}><Download size={20} aria-hidden="true" /> Descargar receta</button>}>Mi receta</TituloPagina>
 
       <Tarjeta aria-label="Tu receta vigente" className="sm:px-[38px] sm:py-8">
-        <div className="grid gap-x-10 gap-y-8 min-[900px]:grid-cols-2">
+        <div className="grid gap-x-10 gap-y-8 @[1000px]/portal:grid-cols-2">
           <OjoReceta titulo="Ojo derecho" ojo={ultimaReceta.od} adicion={m.adicion} />
           <OjoReceta titulo="Ojo izquierdo" ojo={ultimaReceta.oi} adicion={m.adicion} />
         </div>
