@@ -202,6 +202,8 @@ function mapPase(p) {
     // 0086: motivo de "No compró" y proforma entregada (fecha y monto).
     motivoDescarte: p.motivo_descarte || null, detalleDescarte: p.detalle_descarte || null,
     proformaEntregadaEn: p.proforma_entregada_en || null, proformaTotal: p.proforma_total != null ? Number(p.proforma_total) : null,
+    // 0129: solicitud hecha por el paciente desde el portal (origen 'portal', sin consulta): qué le interesa, su comentario y cuándo la tomó el personal.
+    origen: p.origen || "consulta", interes: p.interes || null, comentarioPaciente: p.comentario_paciente || null, enAtencionEn: p.en_atencion_en || null,
   }
 }
 function mapConsulta(c) {

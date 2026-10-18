@@ -1,5 +1,5 @@
 import React from "react"
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react"
 import PortalPaciente from "./PortalPaciente"
 
@@ -13,9 +13,11 @@ const datos = vi.hoisted(() => ({
   calificarAtencion: vi.fn(async () => ({ ok: true })),
   misReferidos: vi.fn(async () => 0),
   marcarCitaEnCalendario: vi.fn(async () => ({ ok: true })),
+  misSolicitudesLentes: vi.fn(async () => ({ disponible: true, lista: [] })),
+  solicitarLentes: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock("../utilidades/facturaElectronicaApi", () => ({ misCompras: datos.misCompras, urlDeDescargaPaciente: vi.fn() }))
-vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario }))
+vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes }))
 
 const descarga = vi.hoisted(() => ({ descargarHojaReceta: vi.fn(async () => true) }))
 vi.mock("../utilidades/descargarHojaReceta", () => ({ descargarHojaReceta: descarga.descargarHojaReceta }))
@@ -747,5 +749,54 @@ describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", (
     const lista = screen.getByRole("listbox", { name: "Motivo de la cita" })
     expect(lista.className).toMatch(/\babsolute\b/)
     expect(lista.className).toMatch(/\bz-30\b/)
+  })
+})
+
+describe("Solicitar lentes nuevos (Mis compras)", () => {
+  const solicitud = (extra = {}) => ({ id: "s1", interes: "montura_nueva", comentario: "Liviano", creada: "2026-10-18T15:00:00Z", cerrada: null, estado: "recibida", ...extra })
+  afterEach(() => { datos.misSolicitudesLentes.mockImplementation(async () => ({ disponible: true, lista: [] })); datos.solicitarLentes.mockClear() })
+
+  it("el paciente elige UNA opción, deja un comentario y envía; luego ve su solicitud «Recibida»", async () => {
+    datos.misSolicitudesLentes.mockImplementationOnce(async () => ({ disponible: true, lista: [] })).mockImplementation(async () => ({ disponible: true, lista: [solicitud()] }))
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    irA("Mis compras")
+    fireEvent.click(await screen.findByRole("button", { name: "Solicitar lentes nuevos" }))
+    const ventana = await screen.findByRole("dialog", { name: "Solicitar lentes nuevos" })
+    expect(within(ventana).getAllByRole("radio")).toHaveLength(4)
+    fireEvent.click(within(ventana).getByRole("button", { name: "Enviar solicitud" }))
+    expect(await within(ventana).findByRole("alert")).toHaveTextContent("Elige qué te interesa.")
+    expect(datos.solicitarLentes).not.toHaveBeenCalled()
+    fireEvent.click(within(ventana).getByRole("radio", { name: /Una montura nueva/ }))
+    fireEvent.change(within(ventana).getByRole("textbox"), { target: { value: "Liviano" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Enviar solicitud" }))
+    await waitFor(() => expect(datos.solicitarLentes).toHaveBeenCalledWith("p1", "tok", "montura_nueva", "Liviano"))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Solicitar lentes nuevos" })).not.toBeInTheDocument())
+    const fila = await screen.findByRole("button", { name: /Ver tu solicitud del .*Una montura nueva, Recibida/ })
+    expect(fila).toBeInTheDocument()
+    // con una solicitud en curso no se puede enviar otra
+    expect(screen.getByRole("button", { name: "Solicitar lentes nuevos" })).toBeDisabled()
+    fireEvent.click(fila)
+    expect(await screen.findByRole("dialog", { name: "Tu solicitud" })).toHaveTextContent("La óptica recibió tu solicitud y te contactará pronto.")
+  })
+
+  it("los tres estados se dicen en palabras simples: Recibida, En atención y Atendida (y con la última cerrada se puede pedir otra)", async () => {
+    datos.misSolicitudesLentes.mockImplementation(async () => ({ disponible: true, lista: [solicitud({ id: "s3", estado: "atendida", interes: "lentes_de_sol" }), solicitud({ id: "s2", estado: "en_atencion", interes: "lentes_de_contacto" })] }))
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    irA("Mis compras")
+    const lista = await screen.findByRole("list", { name: "Tus solicitudes de lentes" })
+    expect(within(lista).getByText("Atendida")).toBeInTheDocument()
+    expect(within(lista).getByText("En atención")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Solicitar lentes nuevos" })).toBeDisabled() // una sigue «en atención»
+  })
+
+  it("si la base todavía no lo ofrece, la tarjeta no aparece", async () => {
+    datos.misSolicitudesLentes.mockImplementation(async () => ({ disponible: false, lista: [] }))
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    irA("Mis compras")
+    await screen.findByRole("heading", { name: "Mis compras" })
+    expect(screen.queryByRole("button", { name: "Solicitar lentes nuevos" })).not.toBeInTheDocument()
   })
 })

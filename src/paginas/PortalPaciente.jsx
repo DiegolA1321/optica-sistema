@@ -426,7 +426,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
-            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
+            {seccion === "compras" && <MisCompras usuario={usuario} solicitudes={datos.solicitudes} onSolicitarLentes={datos.solicitar} recetaVigente={ultimaReceta} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
             {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} visitas={historial.length} compras={datos.compras.length} puntos={puntos} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
           </div>
         </div>

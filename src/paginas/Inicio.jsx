@@ -44,8 +44,8 @@ import VentanaTotal from "../componentes/VentanaTotal"
 import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
-import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
-import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento } from "../utilidades/ventasModulo"
+import { textoDiagnostico, textoEspera, diasEnEspera, esDelPortal, etiquetaInteres } from "../utilidades/pasesVenta"
+import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento, solicitudesNuevasDelPortal } from "../utilidades/ventasModulo"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
@@ -491,7 +491,7 @@ export default function Inicio({
                     <button type="button" onClick={() => onVerCola?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-bold text-slate-800">{paciente?.nombre || "Paciente"}</span>
-                        <span className="block truncate text-xs text-slate-500">{diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
+                        <span className="block truncate text-xs text-slate-500">{esDelPortal(pase) ? "Desde el portal · " + etiquetaInteres(pase.interes) : diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{textoEspera(diasEnEspera(pase))}</span>
                     </button>
@@ -670,6 +670,19 @@ export default function Inicio({
       })
     }
     // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
+    // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
+    const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
+    if (solicitudesPortal.length > 0) poner("ventas", {
+      id: "solicitudes-portal", cantidad: solicitudesPortal.length,
+      texto: uno(solicitudesPortal.length, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
+      nombres: nombresResumidos(solicitudesPortal.map(({ pase }) => nombreDe(pase.pacienteId))),
+      enlace: { texto: `Abrir en Ventas · Desde el portal (${solicitudesPortal.length})`, onClick: () => onVerCola?.("portal") },
+      casos: solicitudesPortal.map(({ pase }) => ({
+        id: pase.id, nombre: nombreDe(pase.pacienteId),
+        detalle: `${etiquetaInteres(pase.interes)} · ${diasEnEspera(pase) === 0 ? "hoy" : "hace " + diasEnEspera(pase) + (diasEnEspera(pase) === 1 ? " día" : " días")}`,
+        accion: { etiqueta: "Atender", navega: true, onClick: () => onVerCola?.("portal") },
+      })),
+    })
     const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (esperanMucho.length > 0) poner("ventas", {
       id: "esperan-venta", cantidad: esperanMucho.length,

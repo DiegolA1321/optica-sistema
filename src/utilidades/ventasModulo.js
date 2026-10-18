@@ -1,6 +1,6 @@
 // Reglas del módulo de Ventas que no son de una sola pantalla: quién espera demasiado, qué filtra "Por vender" y cuál es la siguiente
 // acción de una orden de laboratorio. Lógica pura; los números salen de las mismas funciones que usan el Inicio y Reportes.
-import { diasEnEspera, textoDiagnostico } from "./pasesVenta"
+import { diasEnEspera, textoDiagnostico, esDelPortal, esSolicitudNueva } from "./pasesVenta"
 import { ordenesAbiertas, ordenesAtrasadas, ordenesListasSinAvisar, estadoVisible } from "./ordenesLaboratorio"
 import { saldosPorPaciente, resumenSaldos } from "./saldosVentas"
 
@@ -12,6 +12,7 @@ export const FILTROS_POR_VENDER = [
   { id: "con", etiqueta: "Con proforma" },
   { id: "sin", etiqueta: "Sin proforma" },
   { id: "mas30", etiqueta: `Más de ${DIAS_PARA_SEGUIMIENTO} días` },
+  { id: "portal", etiqueta: "Desde el portal" },
   { id: "nocompraron", etiqueta: "No compraron" },
 ]
 
@@ -26,6 +27,7 @@ export const pacientesParaSeguimiento = (listos = [], hoy) =>
 export function listaPorVender(filtro, { listos = [], descartados = [], hoy }) {
   if (filtro === "nocompraron") return descartados
   if (filtro === "mas30") return pacientesParaSeguimiento(listos, hoy)
+  if (filtro === "portal") return listos.filter((i) => esDelPortal(i.pase))
   if (filtro === "con") return listos.filter(llevaProforma)
   if (filtro === "sin") return listos.filter((i) => !llevaProforma(i))
   return listos
@@ -96,9 +98,13 @@ export function mensajeSeguimientoVenta({ paciente, opticaNombre, conProforma })
   return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${de}. ${conProforma ? "Quedamos pendientes de la proforma de tus lentes que te entregamos: ¿pudiste revisarla? Si tienes alguna duda, con gusto te ayudamos." : "Quedamos pendientes de los lentes que te recomendó el optómetra: ¿quieres que te preparemos una proforma? Con gusto te ayudamos."}`
 }
 
+// Las solicitudes del portal que nadie ha tomado y todavía no pasaron el plazo de seguimiento: cuentan una sola vez. A los 30 días sin cerrarse ya las cuenta
+// `pacientesParaSeguimiento` (como a cualquier venta que espera), así que aquí se excluyen para no contarlas dos veces.
+export const solicitudesNuevasDelPortal = (listos = [], hoy) => listos.filter((i) => esSolicitudNueva(i.pase) && !esperaDemasiado(i, hoy))
+
 // Cuántos avisos tiene Ventas: es el número del menú y el del botón "Requieren atención" de la cabecera (los dos cuentan lo mismo que el Inicio):
-// órdenes listas sin avisar, órdenes atrasadas, ventas con saldo y pacientes que esperan más de 30 días su venta.
+// órdenes listas sin avisar, órdenes atrasadas, ventas con saldo, solicitudes nuevas del portal y pacientes que esperan más de 30 días su venta.
 export function contarAvisosVentas({ pases = [], ordenes = [], pacientes = [], facturas = [], abonos = [], ventas = [], hoy } = {}) {
   const listos = pases.filter((p) => p.estado === "listo").map((pase) => ({ pase }))
-  return ordenesListasSinAvisar(ordenes).length + ordenesAtrasadas(ordenes, hoy).length + resumenSaldos(saldosPorPaciente({ pacientes, facturas, abonos, ventas })).ventas + pacientesParaSeguimiento(listos, hoy).length
+  return ordenesListasSinAvisar(ordenes).length + ordenesAtrasadas(ordenes, hoy).length + resumenSaldos(saldosPorPaciente({ pacientes, facturas, abonos, ventas })).ventas + solicitudesNuevasDelPortal(listos, hoy).length + pacientesParaSeguimiento(listos, hoy).length
 }

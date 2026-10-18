@@ -12,6 +12,7 @@ import { porcentajeAbonado } from "../utilidades/portalVistas"
 import { Cascaron } from "./AtencionPaciente"
 import { Insignia, TituloPagina, Esqueleto, PasosLentes, VerDetalle } from "./portal/piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./portal/estilos"
+import TarjetaSolicitarLentes from "./portal/SolicitarLentes"
 
 const anioDe = (c) => String(diaDeRegistro(c.fecha)).slice(0, 4)
 const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
@@ -20,7 +21,7 @@ const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 te
 // camino (con lo que compró, lo abonado y lo que debe, y el estado de sus lentes); y el historial de todas las compras con filtros (con saldo, pagadas y por año). Cada compra se pulsa y abre su
 // detalle: lo que compró, los pagos y el historial de abonos, el estado de sus lentes y las facturas para descargar. Solo ve lo suyo: la base valida su sesión, y los archivos salen por una función
 // que la vuelve a validar. Los datos los pide el portal una sola vez (los comparte con el Inicio).
-export default function MisCompras({ usuario, compras = [], ordenes = [], cargando = false, error = "", contacto = null, puntos = null, onPedirCita, onGarantia, onAbrir }) {
+export default function MisCompras({ usuario, compras = [], ordenes = [], cargando = false, error = "", contacto = null, puntos = null, solicitudes = null, onSolicitarLentes, recetaVigente = null, onPedirCita, onGarantia, onAbrir }) {
   const [bajando, setBajando] = useState("")
   const [errorDescarga, setErrorDescarga] = useState("")
   const [abiertaId, setAbiertaId] = useState(null)
@@ -62,6 +63,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
   // Un solo pedido en proceso abre su pedido; varios, la lista con los pasos de cada uno.
   const abrirLentes = enProceso.length === 0 ? null : enProceso.length === 1 ? { tipo: "pedido", id: enProceso[0].id } : { tipo: "lentes" }
 
+  const solicitar = <TarjetaSolicitarLentes solicitudes={solicitudes} onSolicitar={onSolicitarLentes} recetaVigente={recetaVigente} />
   return (
     <div className="space-y-5 sm:space-y-6">
       <TituloPagina subtitulo="Tus lentes, tus pagos y tus facturas">Mis compras</TituloPagina>
@@ -77,13 +79,17 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
           <p className="mx-auto mt-1 max-w-sm text-lg text-pt-texto">Cuando compres en la óptica, tu comprobante aparece aquí.</p>
           {onPedirCita && <button type="button" onClick={() => onPedirCita()} className={BOTON_PRINCIPAL + " mt-4"} style={ESTILO_PRINCIPAL}>Agendar cita</button>}
         </div>
-      ) : (
+      ) : null}
+      {!cargando && !error && compras.length === 0 && solicitar}
+      {!cargando && !error && compras.length > 0 && (
         <>
           <section aria-label="Resumen de tus compras" className="grid gap-4 @[760px]/portal:grid-cols-3 @[760px]/portal:gap-5">
             {resumen("Por pagar", dinero(saldoTotal), saldoTotal > 0 ? "Págalo en la óptica: efectivo, tarjeta o transferencia." : "No tienes saldo pendiente.", saldoTotal > 0 ? "text-pt-ambar" : "text-pt-marino", saldoTotal > 0 && onAbrir ? { tipo: "saldo" } : null, "Ver tus compras con saldo y el historial de tus abonos")}
             {resumen("Lentes en proceso", enProceso.length, enProceso.length === 0 ? "No tienes lentes en camino." : listos > 0 ? `${listos === 1 ? "1 listo" : listos + " listos"} para retirar.` : proxima ? `Listos aprox. el ${formatoFecha(proxima, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos.", "text-pt-marino", onAbrir ? abrirLentes : null, "Ver el estado de tus lentes en proceso")}
             {puntos && resumen("Tus puntos", puntos.puntos, puntos.texto + ".", "text-[#15803D]", onAbrir ? { tipo: "puntos" } : null, "Ver cómo sumas tus puntos")}
           </section>
+
+          {solicitar}
 
           {destacadas.length > 0 && (
             <ul className="space-y-5 sm:space-y-6" aria-label="Compras con saldo o lentes en camino">

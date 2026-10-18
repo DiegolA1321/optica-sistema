@@ -2294,7 +2294,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         accionVacio={puedeVender && (() => {
                           const pase = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
                           return pase ? (
-                            <button type="button" onClick={() => setVentaCola({ pase, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === pase.consultaId) || null })} className="mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                            <button type="button" onClick={() => ventasApi.tomarDatos({ pase, paciente: pacienteHistorial, consulta: (pase.consultaId ? consultas.find((k) => k.id === pase.consultaId) : consultasPaciente[0]) || null })} className="mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
                               <ShoppingBag size={14} aria-hidden="true" /> Vender la receta
                             </button>
                           ) : null

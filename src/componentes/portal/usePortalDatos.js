@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { misCompras } from "../../utilidades/facturaElectronicaApi"
-import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion, misReferidos, marcarCitaEnCalendario } from "../../utilidades/portalDatos"
+import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion, misReferidos, marcarCitaEnCalendario, misSolicitudesLentes, solicitarLentes } from "../../utilidades/portalDatos"
 
 // Compras (con su saldo), órdenes de laboratorio, control y detalle de las citas del paciente, pedidos una sola vez para todo el portal (Resumen, Mis citas y Mis compras
 // leen lo mismo). `citas` son las citas del paciente: el detalle se pide cuando cambian. confirmar y calificar actualizan la pantalla al instante.
@@ -9,10 +9,13 @@ export function usePortalDatos(usuario, citas = []) {
   const token = usuario?.token
   const [estado, setEstado] = useState({ cargando: true, compras: [], errorCompras: "", ordenes: [], control: null, referidos: 0 })
   const [detalle, setDetalle] = useState({ disponible: false, porCita: {} })
+  const [solicitudes, setSolicitudes] = useState({ disponible: false, lista: [] })
   useEffect(() => {
     let vivo = true
-    Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token), misReferidos(pacienteId, token)]).then(([c, o, k, r]) => {
-      if (vivo) setEstado({ cargando: false, compras: c.compras, errorCompras: c.error || "", ordenes: o.ordenes, control: k, referidos: r })
+    Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token), misReferidos(pacienteId, token), misSolicitudesLentes(pacienteId, token)]).then(([c, o, k, r, s]) => {
+      if (!vivo) return
+      setEstado({ cargando: false, compras: c.compras, errorCompras: c.error || "", ordenes: o.ordenes, control: k, referidos: r })
+      setSolicitudes(s)
     })
     return () => { vivo = false }
   }, [pacienteId, token])
@@ -41,5 +44,12 @@ export function usePortalDatos(usuario, citas = []) {
     return r
   }, [pacienteId, token])
 
-  return { ...estado, detalle, confirmar, calificar, agregarAlCalendario }
+  // «Solicitar lentes nuevos»: se envía y la lista se vuelve a pedir (así aparece con su estado).
+  const solicitar = useCallback(async (interes, comentario) => {
+    const r = await solicitarLentes(pacienteId, token, interes, comentario)
+    if (r.ok) setSolicitudes(await misSolicitudesLentes(pacienteId, token))
+    return r
+  }, [pacienteId, token])
+
+  return { ...estado, detalle, solicitudes, solicitar, confirmar, calificar, agregarAlCalendario }
 }

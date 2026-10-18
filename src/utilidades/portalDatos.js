@@ -55,6 +55,20 @@ export async function misReferidos(pacienteId, token) {
   return error || typeof data !== "number" ? 0 : data
 }
 
+// «Solicitar lentes nuevos» (migración 0129). Sin la función, simplemente no se ofrece.
+export async function misSolicitudesLentes(pacienteId, token) {
+  if (!supabase) return { disponible: false, lista: [] }
+  const { data, error } = await supabase.rpc("mis_solicitudes_lentes_paciente", { p_paciente_id: pacienteId, p_token: token })
+  if (error || !Array.isArray(data)) return { disponible: false, lista: [] }
+  return { disponible: true, lista: data }
+}
+export async function solicitarLentes(pacienteId, token, interes, comentario) {
+  if (!supabase) return { ok: false, error: "Sin conexión." }
+  const { error } = await supabase.rpc("solicitar_lentes_paciente", { p_paciente_id: pacienteId, p_token: token, p_interes: interes, p_comentario: comentario || null })
+  if (!error) return { ok: true }
+  return { ok: false, error: error.code === "P0001" ? error.message : "No pudimos enviar tu solicitud. Intenta de nuevo en un momento." }
+}
+
 // Marca en la base que el paciente agregó la cita a su calendario (migración 0127): así vale en todos sus aparatos. Devuelve { ok }.
 export async function marcarCitaEnCalendario(pacienteId, token, citaId) {
   if (!supabase) return { ok: false }
