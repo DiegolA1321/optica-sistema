@@ -58,6 +58,7 @@ import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -1044,11 +1045,12 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const registradoBiomicroscopia = Boolean(biomicroParpados.trim() || biomicroCornea.trim() || biomicroCamara.trim())
 
   // La receta impresa es la hoja de la receta (HojaReceta): la misma que ve el paciente al descargarla desde su portal y la que sale de «Imprimir receta» en el perfil.
-  const imprimirReceta = () => imprimirHojaReceta({
+  // Los datos de la hoja: los mismos para la vista previa de la pantalla y para la impresión (HojaReceta).
+  const datosDeLaHoja = () => ({
     optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
     paciente: { nombre: pacienteSeleccionado, cedula: pacienteInfo?.cedula, edad: edadPaciente },
     receta: {
-      id: consultaGuardadaId, fecha: fechaConsulta,
+      id: consultaGuardadaId || recetaNum.split("-").pop().toLowerCase(), fecha: fechaConsulta,
       od: { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
       oi: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
       medidas: { adicion, dp, alt },
@@ -1056,6 +1058,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional,
     },
   })
+  const imprimirReceta = () => imprimirHojaReceta(datosDeLaHoja())
 
   // ── Datos derivados para la receta impresa ──
   const pacienteInfo = useMemo(
@@ -1845,53 +1848,12 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   </button>
                 </div>
 
-                {/* RECETA IMPRIMIBLE */}
-                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" id="receta-imprimible">
-                  {/* Membrete */}
-                  <div className="print-force-color px-8 pt-8" style={{ color: INK }}>
-                    <div className="flex items-start justify-between gap-6">
-                      <div className="flex items-center gap-3.5">
-                        <div className="print-force-color grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD }}>
-                          <Eye size={26} strokeWidth={2.1} />
-                        </div>
-                        <div>
-                          <h2 className="font-serif text-2xl font-bold leading-none tracking-tight">{usuario?.opticaNombre || "Tu óptica"}</h2>
-                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Salud visual &amp; optometría</p>
-                          {(usuario?.opticaMarca?.direccion || usuario?.opticaMarca?.telefono || usuario?.opticaMarca?.correo) && (
-                            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                              {[usuario?.opticaMarca?.direccion, usuario?.opticaMarca?.telefono, usuario?.opticaMarca?.correo].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Receta óptica</p>
-                        <p className="mt-1 font-mono text-xs font-semibold text-slate-700">N.º {recetaNum}</p>
-                        <p className="text-xs text-slate-500">{fechaLarga}</p>
-                      </div>
-                    </div>
+                {/* DATOS DE LA RECETA: aquí se completan; la hoja de más abajo es exactamente lo que se imprime */}
+                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-8 py-4">
+                    <h3 className="text-sm font-bold" style={{ color: INK }}>Datos de la receta</h3>
+                    <p className="text-xs text-slate-500">Lo que escribas aquí aparece al instante en la hoja de abajo.</p>
                   </div>
-
-                  {/* Línea de acento dorada */}
-                  <div className="print-force-color mx-8 mt-5 h-[3px] rounded-full" style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD}55 60%, transparent)` }} />
-
-                  {/* Datos del paciente */}
-                  <div className="print-force-color mx-8 mt-5 grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl bg-slate-50 px-5 py-3.5 sm:grid-cols-4">
-                    <RecetaDato label="Paciente" valor={pacienteSeleccionado || "—"} />
-                    <RecetaDato label="Cédula" valor={pacienteInfo?.cedula || "—"} />
-                    <RecetaDato label="Edad" valor={edadPaciente != null ? `${edadPaciente} años` : "—"} />
-                    <RecetaDato label="¿Usa lentes?" valor={usaLentes === "si" ? "Sí" : usaLentes === "no" ? "No" : "—"} />
-                  </div>
-
-                  {/* El ing probó esta receta impresa y pidió quitar el
-                      cartel de "Estado de corrección visual" de aquí — "esto
-                      es subjetivo" y su sistema no está pensado para dar un
-                      diagnóstico previo antes del propio diagnóstico del
-                      optómetra (ver ING7). El cálculo sigue vivo como
-                      contexto interno para el optómetra (PanelEvolucion,
-                      arriba, marcado "no se imprime") y sigue alimentando el
-                      indicador de Reportes — solo se retira de este documento
-                      impreso. */}
 
                   {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
                   <div className="space-y-3.5 px-8 pt-5">
@@ -2109,20 +2071,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       </div>
                     )}
 
-                    <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
-                          <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
-                          <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Punto 2.1 (plan 29 sept.): si el optómetra da de alta
                         al paciente, ya no tiene sentido pedirle un próximo
                         control — se oculta el selector y se explica por qué. */}
@@ -2214,20 +2162,13 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     )}
                   </div>
 
-                  {/* Pie: validez + firma */}
-                  <div className="mt-8 border-t border-slate-100 px-8 pb-8 pt-6">
-                    <div className="flex items-end justify-between gap-6">
-                      <p className="max-w-[16rem] text-xs leading-relaxed text-slate-500">
-                        Presente esta receta para la elaboración de sus lentes. Validez de 12 meses desde la fecha de emisión.
-                      </p>
-                      <div className="w-52 text-center">
-                        <div className="mb-2.5 border-t border-slate-400" />
-                        <p className="text-sm font-bold" style={{ color: INK }}>{usuario?.nombre || "Optómetra"}</p>
-                        <p className="text-xs text-slate-500">{usuario?.registroProfesional ? `Reg. Prof. ${usuario.registroProfesional}` : "Reg. Prof. ____________"}</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
+
+                {/* VISTA PREVIA: la misma hoja que se imprime y que el paciente descarga desde su portal */}
+                <section aria-label="Vista previa de la receta" className="rounded-2xl border border-slate-200/60 bg-slate-100/70 p-4">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Vista previa · así sale impresa</p>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200/60 bg-white shadow-sm"><HojaReceta {...datosDeLaHoja()} /></div>
+                </section>
               </div>
             )}
 

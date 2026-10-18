@@ -231,7 +231,7 @@ export function Estrellas({ valor, onCambiar, etiqueta = "Calificación" }) {
   return (
     <div role="radiogroup" aria-label={etiqueta} className="flex gap-1">
       {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" role="radio" aria-checked={valor === n} aria-label={`${n} de 5`} onClick={() => onCambiar?.(n)} className="grid h-12 w-12 place-items-center rounded-lg transition-colors hover:bg-amber-50 cursor-pointer">
+        <button key={n} type="button" role="radio" aria-checked={valor === n} aria-label={`${n} de 5`} onClick={() => onCambiar?.(n)} className="grid h-11 w-11 place-items-center rounded-lg transition-colors hover:bg-amber-50 cursor-pointer">
           <Star size={32} aria-hidden="true" fill={valor >= n ? "#F59E0B" : "none"} stroke={valor >= n ? "#F59E0B" : "#94A3B8"} strokeWidth={1.8} />
         </button>
       ))}

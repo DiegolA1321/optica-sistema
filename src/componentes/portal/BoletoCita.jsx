@@ -25,6 +25,8 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
   // Sin medida (pruebas) vale la versión ancha.
   const ancha = ancho === 0 || ancho >= 520
   const dosColumnas = ancho === 0 || ancho >= 760
+  // «Mis citas»: la próxima cita es una franja compacta (la pantalla es la lista de visitas, no la cita).
+  const compacto = variante === "citas" && dosColumnas
   const [confirmando, setConfirmando] = useState(false)
   const [errorConfirmar, setErrorConfirmar] = useState("")
 
@@ -111,22 +113,26 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
     </p>
   )
   const error = errorConfirmar && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorConfirmar}</p>
-  const acciones = (btnConfirmar || btnCalendario || reagendable) && <div className="flex flex-wrap gap-3 pt-1.5">{btnConfirmar}{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>
+  const acciones = (btnConfirmar || btnCalendario || reagendable) && <div className={"flex flex-wrap gap-3 " + (compacto ? "" : "pt-1.5")}>{btnConfirmar}{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>
   return (
     <section ref={caja} aria-label="Tu próxima cita" className={clase}>
       {abrir}
-      <div className="grid h-full grid-cols-[193px_minmax(0,1fr)]">
-        <div aria-hidden="true" className="flex flex-col items-center justify-center bg-pt-marino px-4 py-6 text-center text-white">
+      <div className={"grid h-full " + (compacto ? "grid-cols-[128px_minmax(0,1fr)]" : "grid-cols-[193px_minmax(0,1fr)]")}>
+        <div aria-hidden="true" className={"flex flex-col items-center justify-center bg-pt-marino px-3 text-center text-white " + (compacto ? "py-3" : "px-4 py-6")}>
           <span className="text-base font-medium text-white/85">{semana}</span>
-          <span className="my-1 font-heading text-[76px] font-bold leading-none tabular-nums">{dia}</span>
-          <span className="text-xl font-medium">{nombreMes(mes - 1)}</span>
+          <span className={"font-heading font-bold leading-none tabular-nums " + (compacto ? "my-0.5 text-[48px]" : "my-1 text-[76px]")}>{dia}</span>
+          <span className={compacto ? "text-base font-medium" : "text-xl font-medium"}>{nombreMes(mes - 1)}</span>
         </div>
-        <div className="flex min-w-0 flex-col p-6 sm:px-[30px] sm:py-7">
+        <div className={"flex min-w-0 flex-col " + (compacto ? "px-5 py-3.5 sm:px-6" : "p-6 sm:px-[30px] sm:py-7")}>
           <p className="sr-only">{formatoFecha(cita.fecha, "largo")}</p>
-          {variante === "citas" && dosColumnas ? (
-            <div className="grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-8">
-              <div className="flex flex-col justify-center gap-2.5">{cabecera}{hora}<p className="text-lg font-semibold leading-snug text-pt-marino">{[cita.motivo || "Consulta", detalle?.profesional].filter(Boolean).join(" · ")}</p>{nota && <p className="text-base text-pt-texto">{nota}</p>}{aviso}{error}{acciones}</div>
-              <div className="flex flex-col items-end gap-1">{estadoCita(false)}<VerDetalle>Ver detalle</VerDetalle></div>
+          {compacto ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">{cabecera}<span className="flex items-center gap-4">{estadoCita(false)}<VerDetalle>Ver detalle</VerDetalle></span></div>
+              <div className="flex flex-wrap items-baseline gap-x-5">
+                <p className="font-heading text-[30px] font-bold leading-none tabular-nums text-pt-marino">{cita.hora}</p>
+                <p className="text-lg font-semibold leading-snug text-pt-marino">{[cita.motivo || "Consulta", detalle?.profesional].filter(Boolean).join(" · ")}</p>
+              </div>
+              {(nota || aviso || error || acciones) && <div className="flex flex-wrap items-center gap-x-5 gap-y-0.5">{nota && <p className="text-base text-pt-texto">{nota}</p>}{aviso}{error}{acciones}</div>}
             </div>
           ) : (
             <>

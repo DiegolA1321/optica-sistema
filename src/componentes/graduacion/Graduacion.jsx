@@ -3,8 +3,8 @@
 // La graduación del paciente, un solo componente para los dos lados (regla 18): el portal del paciente (`version="paciente"`, palabras simples) y el perfil del paciente del sistema
 // del personal (`version="personal"`, notación técnica: OD y OI, esfera, cilindro, eje, adición, agudeza visual y distancia pupilar). Mismas cuentas (`utilidades/graduacion.js`),
 // mismos datos y mismo orden: lo que el optómetra le explica al paciente en la consulta es lo que el paciente lee en su portal.
-import { useMemo, useState } from "react"
-import { Glasses, ChevronRight, ArrowRight, Printer, GitCompare, Download, Info } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Glasses, ChevronDown, ArrowRight, Printer, GitCompare, Download, Info, Check, MessageSquareText } from "lucide-react"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { valorD } from "../../utilidades/portalVistas"
 import { lecturaDeOjo, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
@@ -15,12 +15,10 @@ import OjoIlustrado from "./OjoIlustrado"
 const Partes = ({ partes }) => partes.map((p, i) => (p.b ? <strong key={i} className="font-bold">{p.t}</strong> : <span key={i}>{p.t}</span>))
 const LADOS = [["od", "Ojo derecho", "OD"], ["oi", "Ojo izquierdo", "OI"]]
 const COLOR_LADO = { od: "#1d4ed8", oi: "#0891b2" }
-// «−1.75 −0.50 x90»: esfera, cilindro y eje de un ojo con el mismo formato (signo menos, dos decimales) que el resto de la vista.
-const tecnica = (o = {}) => (o.esfera || o.cilindro || o.eje ? [valorD(o.esfera) || "—", valorD(o.cilindro), o.eje ? `x${o.eje}` : ""].filter(Boolean).join(" ") : "No registrada")
-const fechaCorta = (iso) => formatoFecha(iso, "medio")
 
 // ───────────────────────── La graduación vigente ─────────────────────────
-// Dos ojos ilustrados con su esfera. Paciente: la explicación de cada ojo y de cada dato. Personal: los valores técnicos de cada ojo.
+// Dos ojos ilustrados con su esfera. Paciente: la explicación de cada ojo y de cada dato; el ojo derecho va a la DERECHA y el izquierdo a la IZQUIERDA, desde la perspectiva del paciente
+// (en pantalla angosta, donde se apilan, va primero el derecho). Personal: los valores técnicos de cada ojo, con OD a la izquierda como en la receta impresa.
 export function GraduacionVigente({ receta, version = "paciente" }) {
   if (!receta) return null
   if (version === "personal") return <VigentePersonal receta={receta} />
@@ -35,7 +33,7 @@ export function GraduacionVigente({ receta, version = "paciente" }) {
             ...(l.agudeza ? [[l.conLentes ? "Cómo ves con tus lentes" : "Cómo ves sin lentes", l.agudeza, l.explicaAgudeza]] : []),
           ]
           return (
-            <section key={lado} aria-label={nombre} className="@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7">
+            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7 " + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
               <div className="grid items-center gap-x-8 gap-y-4 @[24rem]:grid-cols-[auto_minmax(0,1fr)]">
                 <div className="flex flex-col items-center text-center">
                   <OjoIlustrado ancho={150} />
@@ -62,33 +60,39 @@ export function GraduacionVigente({ receta, version = "paciente" }) {
   )
 }
 
+// El dato que falta, dicho: «No registrado» (nunca un guion).
+const NoRegistrado = () => <span className="font-normal text-slate-400">No registrado</span>
+
+// La versión técnica: los mismos ojos grandes, con notación OD y OI y todos los valores de la receta (esfera, cilindro, eje, agudeza con y sin lentes, adición, distancia pupilar y altura).
 function VigentePersonal({ receta }) {
   const m = receta.medidas || {}
-  const extra = [["Adición", m.adicion && valorD(m.adicion)], ["DP", m.dp], ["Altura de montaje", m.alt]].filter(([, v]) => v)
+  const medidas = [["Adición", m.adicion && valorD(m.adicion)], ["Distancia pupilar (DP)", m.dp], ["Altura de montaje", m.alt]]
   return (
-    <div className="@container">
-      <div className="grid gap-3 @[40rem]:grid-cols-2">
+    <div className="@container space-y-3">
+      <div className="grid gap-4 @[44rem]:grid-cols-2">
         {LADOS.map(([lado, nombre, sigla]) => {
           const o = receta[lado] || {}
           const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["AV sin lentes", o.avSc], ["AV con lentes", o.avCc]]
           return (
-            <section key={lado} aria-label={nombre} className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-              <div className="flex items-center gap-3.5">
-                <OjoIlustrado ancho={92} className="shrink-0" />
+            <section key={lado} aria-label={nombre} data-lado={lado} className="rounded-2xl border border-slate-200/60 bg-white p-5">
+              <div className="flex items-center gap-5">
+                <OjoIlustrado ancho={150} className="shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
-                  <p className="text-2xl font-bold leading-tight tabular-nums text-slate-900">{valorD(o.esfera) || "—"}</p>
-                  <p className="text-xs text-slate-500">Esfera</p>
+                  <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
+                  <p className="text-5xl font-bold leading-tight tabular-nums text-slate-900">{valorD(o.esfera) || <NoRegistrado />}</p>
+                  <p className="text-sm text-slate-500">Esfera</p>
                 </div>
               </div>
-              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-sm">
-                {datos.map(([t, v]) => <div key={t} className="flex items-baseline justify-between gap-2"><dt className="text-slate-500">{t}</dt><dd className="font-semibold tabular-nums text-slate-900">{v || "—"}</dd></div>)}
+              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-base">
+                {datos.map(([t, v]) => <div key={t} className="flex items-baseline justify-between gap-2"><dt className="text-slate-500">{t}</dt><dd className="text-right font-semibold tabular-nums text-slate-900">{v || <NoRegistrado />}</dd></div>)}
               </dl>
             </section>
           )
         })}
       </div>
-      {extra.length > 0 && <p className="mt-2 text-sm text-slate-600">{extra.map(([t, v], i) => <span key={t}>{i > 0 && " · "}<span className="text-slate-500">{t}</span> <span className="font-semibold tabular-nums text-slate-900">{v}</span></span>)}</p>}
+      <dl aria-label="Medidas de la receta" className="flex flex-wrap gap-x-8 gap-y-1 rounded-xl bg-slate-50 px-4 py-2.5 text-base">
+        {medidas.map(([t, v]) => <div key={t} className="flex items-baseline gap-2"><dt className="text-slate-500">{t}</dt><dd className="font-semibold tabular-nums text-slate-900">{v || <NoRegistrado />}</dd></div>)}
+      </dl>
     </div>
   )
 }
@@ -99,7 +103,7 @@ export function CambioGraduacion({ consultas, version = "paciente" }) {
   if (!cambio) return null
   const paciente = version === "paciente"
   const hayCambio = cambio.some((o) => o.texto && o.texto !== "Sin cambios")
-  const chip = (c, claseExtra) => <span className={"inline-flex items-baseline gap-2 rounded-lg px-3 py-1.5 " + claseExtra}><span className={paciente ? "text-base" : "text-xs"}>{c.fecha}</span><span className={"font-bold tabular-nums " + (paciente ? "text-lg" : "text-sm")}>{valorD(c.valor) || "—"}</span></span>
+  const chip = (c, claseExtra) => <span className={"inline-flex items-baseline gap-2 rounded-lg px-3 py-1.5 " + claseExtra}><span className={paciente ? "text-base" : "text-xs"}>{c.fecha}</span><span className={"font-bold tabular-nums " + (paciente ? "text-lg" : "text-sm")}>{valorD(c.valor) || (paciente ? "—" : "No registrado")}</span></span>
   return (
     <section aria-label={paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"} className={paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4"}>
       <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"}</h3>
@@ -114,7 +118,7 @@ export function CambioGraduacion({ consultas, version = "paciente" }) {
                 <ArrowRight size={paciente ? 24 : 18} className={paciente ? "text-pt-azul" : "text-blue-600"} aria-label="a" />
                 {chip(o.ahora, paciente ? "bg-pt-suave text-[#1B4FB5]" : "bg-blue-50 text-blue-700")}
               </div>
-              <p className={paciente ? "mt-1.5 text-lg text-pt-marino" : "mt-1 text-sm text-slate-600"}>{paciente ? o.texto : (o.variacion === null ? "—" : o.texto === "Sin cambios" ? "Sin cambios" : (o.variacion > 0 ? "Aumentó " : "Disminuyó ") + Math.abs(o.variacion).toFixed(2) + " D (equivalente esférico)")}</p>
+              <p className={paciente ? "mt-1.5 text-lg text-pt-marino" : "mt-1 text-sm text-slate-600"}>{paciente ? o.texto : (o.variacion === null ? "No registrado" : o.texto === "Sin cambios" ? "Sin cambios" : (o.variacion > 0 ? "Aumentó " : "Disminuyó ") + Math.abs(o.variacion).toFixed(2) + " D (equivalente esférico)")}</p>
             </div>
           </li>
         ))}
@@ -123,68 +127,146 @@ export function CambioGraduacion({ consultas, version = "paciente" }) {
   )
 }
 
-// ───────────────────────── Tus recetas ─────────────────────────
+// ───────────────────────── El selector de receta ─────────────────────────
+// «Receta del 20 de abril de 2026 · vigente»: la receta que se muestra. Al pulsarla se abre un menú con todas las recetas del paciente y un filtro por año; al elegir una, cambia toda la
+// vista. Con una sola receta es un rótulo, no un control (un selector que no ofrece nada más no aparece).
 const CHIP = (activo, paciente) => paciente
   ? "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
-  : "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50")
+  : "inline-flex min-h-9 items-center rounded-full px-3.5 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50")
 
-export function ListaRecetas({ recetas, version = "paciente", onAbrir }) {
+export function SelectorReceta({ recetas, valorId, onElegir, version = "paciente" }) {
   const paciente = version === "paciente"
+  const [abierto, setAbierto] = useState(false)
   const [anio, setAnio] = useState("todas")
-  const [comparando, setComparando] = useState(false)
+  const raiz = useRef(null)
+  useEffect(() => {
+    if (!abierto) return undefined
+    const fuera = (e) => { if (raiz.current && !raiz.current.contains(e.target)) setAbierto(false) }
+    const tecla = (e) => { if (e.key === "Escape") setAbierto(false) }
+    document.addEventListener("mousedown", fuera)
+    document.addEventListener("keydown", tecla)
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) }
+  }, [abierto])
   const anios = useMemo(() => aniosDeRecetas(recetas), [recetas])
+  const actual = recetas.find((r) => String(r.id) === String(valorId)) || recetas[0]
+  const rotulo = (r) => `Receta del ${formatoFecha(r.fecha, "largoSinDia")}${r.id === recetas[0]?.id ? " · vigente" : ""}`
+  if (recetas.length < 2) return <p className={paciente ? "text-lg font-semibold text-pt-marino" : "text-sm font-semibold text-slate-800"}>{rotulo(actual)}</p>
   const visibles = filtrarRecetasPorAnio(recetas, anio)
-  const vigenteId = recetas[0]?.id
-  const linea = (r) => (paciente ? lineaDeEsferas(r, valorD) : ["OD " + tecnica(r.od), "OI " + tecnica(r.oi)].join(" · ")) || "Consulta registrada"
   return (
-    <section aria-label={paciente ? "Tus recetas" : "Recetas del paciente"} className={paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4"}>
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Tus recetas" : "Recetas del paciente"}</h3>
-        <p className={paciente ? "text-base text-pt-texto" : "text-xs text-slate-500"}>{recetas.length} {recetas.length === 1 ? "receta" : "recetas"}</p>
-      </div>
-      {anios.length > 1 && (
-        <div role="group" aria-label="Filtrar por año" className="mt-3 flex flex-wrap gap-2">
-          {["todas", ...anios].map((a) => <button key={a} type="button" aria-pressed={anio === a} onClick={() => setAnio(a)} className={CHIP(anio === a, paciente)}>{a === "todas" ? "Todas" : a}</button>)}
+    <div className="relative" ref={raiz}>
+      <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="listbox" aria-expanded={abierto} aria-label={`Elegir otra receta. Se muestra: ${rotulo(actual)}`}
+        className={"inline-flex items-center gap-3 border bg-white text-left font-semibold transition-colors cursor-pointer " + (paciente ? "min-h-12 rounded-xl border-[1.5px] border-slate-300/80 px-4 text-base text-pt-marino hover:bg-slate-50" : "min-h-10 rounded-lg border-slate-300 px-3 text-sm text-slate-800 hover:bg-slate-50")}>
+        <span>{rotulo(actual)}</span>
+        <ChevronDown size={paciente ? 20 : 16} className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+      </button>
+      {abierto && (
+        <div className={"absolute left-0 top-full z-40 mt-2 w-[min(26rem,calc(100vw-2rem))] rounded-2xl border bg-white p-3 shadow-2xl " + (paciente ? "border-pt-borde" : "border-slate-200")}>
+          {anios.length > 1 && (
+            <div role="group" aria-label="Filtrar por año" className="mb-2 flex flex-wrap gap-2">
+              {["todas", ...anios].map((a) => <button key={a} type="button" aria-pressed={anio === a} onClick={() => setAnio(a)} className={CHIP(anio === a, paciente)}>{a === "todas" ? "Todas" : a}</button>)}
+            </div>
+          )}
+          <ul role="listbox" aria-label="Recetas del paciente" className="max-h-72 overflow-y-auto">
+            {visibles.map((r) => {
+              const elegida = String(r.id) === String(actual.id)
+              return (
+                <li key={r.id} role="presentation">
+                  <button type="button" role="option" aria-selected={elegida} onClick={() => { onElegir(r.id); setAbierto(false) }} className={"flex w-full items-center gap-3 rounded-xl px-3 text-left transition-colors cursor-pointer " + (paciente ? "min-h-14 py-2 " : "min-h-11 py-1.5 ") + (elegida ? (paciente ? "bg-pt-suave" : "bg-blue-50") : "hover:bg-slate-50")}>
+                    <span className="min-w-0 flex-1">
+                      <span className={"block font-semibold leading-snug " + (paciente ? "text-base text-pt-marino" : "text-sm text-slate-900")}>{formatoFecha(r.fecha, "largoSinDia")}{r.id === recetas[0]?.id && <span className={paciente ? "text-pt-azul" : "text-blue-600"}> · vigente</span>}</span>
+                      <span className={"block " + (paciente ? "text-base text-pt-texto" : "text-xs text-slate-500")}>{lineaDeEsferas(r, valorD) || "Consulta registrada"}</span>
+                    </span>
+                    {elegida && <Check size={paciente ? 20 : 16} className={paciente ? "text-pt-azul" : "text-blue-600"} aria-hidden="true" />}
+                  </button>
+                </li>
+              )
+            })}
+            {visibles.length === 0 && <li className="px-3 py-3 text-base text-slate-500">No hay recetas de ese año.</li>}
+          </ul>
         </div>
       )}
-      <ul className={"mt-3 divide-y " + (paciente ? "divide-pt-borde" : "divide-slate-100")}>
-        {visibles.map((r) => {
-          const vigente = r.id === vigenteId
-          return (
-            <li key={r.id}>
-              <button type="button" onClick={() => onAbrir(r.id)} aria-label={`Ver la receta del ${fechaCorta(r.fecha)}`}
-                className={"flex w-full items-center gap-3 text-left transition-colors cursor-pointer " + (paciente ? "min-h-16 rounded-xl px-3 py-3 hover:bg-pt-fondo " : "min-h-12 rounded-lg px-2.5 py-2 hover:bg-slate-50 ") + (vigente ? (paciente ? "bg-pt-suave/70 " : "bg-blue-50/60 ") : "")}>
-                <span className="min-w-0 flex-1">
-                  <span className={"block font-semibold leading-snug " + (paciente ? "text-lg text-pt-marino" : "text-sm text-slate-900")}>{formatoFecha(r.fecha, "largoSinDia")}{vigente && <span className={"font-semibold " + (paciente ? "text-base text-pt-azul" : "text-xs text-blue-600")}> · vigente</span>}</span>
-                  <span className={"block " + (paciente ? "text-base text-pt-texto" : "text-xs text-slate-500")}>{linea(r)}</span>
-                </span>
-                <ChevronRight size={paciente ? 22 : 16} className="shrink-0 text-slate-500" aria-hidden="true" />
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      {recetas.length > 1 && (
-        <button type="button" onClick={() => setComparando(true)} className={paciente ? "mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer" : "mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"}>
-          <GitCompare size={paciente ? 20 : 15} aria-hidden="true" /> Comparar dos recetas
-        </button>
-      )}
-      {comparando && <VentanaComparar recetas={recetas} version={version} onCerrar={() => setComparando(false)} />}
-    </section>
+    </div>
+  )
+}
+
+// Las indicaciones del optómetra en viñetas: una por línea o por frase.
+const viñetas = (texto = "") => texto.split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/).map((x) => x.trim()).filter(Boolean)
+
+// ───────────────────────── La vista completa de una receta ─────────────────────────
+// «Mi receta» del portal y la pestaña «Graduación» del perfil del paciente son ESTA vista (regla 18): el selector de receta arriba, junto al título, con «Comparar dos recetas» y la acción de
+// entregar la receta; y, de la receta elegida, los ojos, el antes → ahora (contra la receta anterior a esa), las indicaciones y lo que cada lado agregue.
+//   version       «paciente» (palabras simples) o «personal» (notación técnica). Con `explicable`, el botón «Explicar al paciente» cambia la vista a la del paciente y de vuelta.
+//   accion        { texto, Icono, onClick(receta) }: «Descargar receta» en el portal; «Imprimir receta» en el perfil.
+//   subtitulo     (receta) => texto bajo el título.   indicacionesExtra: líneas que se suman a las de la receta vigente.
+//   izquierda     (receta, version) => nodo bajo el antes → ahora (en el portal «Medidas para tus lentes»; en el perfil la gráfica de tendencia).
+export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "Mi receta", subtitulo, accion, explicable = false, indicacionesExtra = [], izquierda, className = "" }) {
+  const [id, setId] = useState(() => recetas[0]?.id)
+  const [simple, setSimple] = useState(false)
+  const [comparando, setComparando] = useState(false)
+  const idx = Math.max(0, recetas.findIndex((r) => String(r.id) === String(id)))
+  const receta = recetas[idx]
+  const anterior = recetas[idx + 1] || null
+  if (!receta) return null
+  const v = simple ? "paciente" : version
+  const paciente = v === "paciente"
+  const portal = version === "paciente"
+  const base = viñetas(receta.indicaciones)
+  const indicaciones = idx === 0 && !base.some((i) => /control/i.test(i)) ? [...base, ...indicacionesExtra] : base
+  const compararCon = anterior || recetas.find((r) => r !== receta)
+  const boton = portal
+    ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold leading-snug text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer"
+    : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+  return (
+    <div className={"@container space-y-5 sm:space-y-6 " + className}>
+      <div className="flex flex-col gap-4 @[56rem]:flex-row @[56rem]:items-start @[56rem]:justify-between @[56rem]:gap-6">
+        <div className="min-w-0">
+          <h1 className={portal ? "font-heading text-2xl font-bold tracking-tight text-pt-marino sm:text-[28px] sm:leading-tight" : "text-lg font-bold text-slate-900"}>{titulo}</h1>
+          {subtitulo && <p className={"mt-1 " + (portal ? "text-base text-pt-texto" : "text-sm text-slate-500")}>{subtitulo(receta)}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 @[56rem]:justify-end">
+          <SelectorReceta recetas={recetas} valorId={receta.id} onElegir={setId} version={portal ? "paciente" : "personal"} />
+          {recetas.length > 1 && <button type="button" onClick={() => setComparando(true)} className={boton}><GitCompare size={portal ? 20 : 15} aria-hidden="true" /> Comparar dos recetas</button>}
+          {explicable && <button type="button" onClick={() => setSimple((x) => !x)} aria-pressed={simple} className={boton}><MessageSquareText size={15} aria-hidden="true" /> {simple ? "Volver a la vista técnica" : "Explicar al paciente"}</button>}
+          {accion && (
+            <button type="button" onClick={() => accion.onClick(receta)} className={portal ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold leading-snug transition-colors hover:brightness-110 cursor-pointer" : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"} style={portal ? { background: "var(--portal-acento, #1D5FD6)", color: "var(--portal-texto-boton, #FFFFFF)" } : { background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
+              {accion.Icono && <accion.Icono size={portal ? 20 : 15} aria-hidden="true" />} {accion.texto}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <GraduacionVigente receta={receta} version={v} />
+
+      <div className={"grid items-start gap-5 sm:gap-6 " + ((anterior || izquierda) && indicaciones.length > 0 ? "@[56rem]:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" : "")}>
+        {(anterior || izquierda) && (
+          <div className="min-w-0 space-y-5 sm:space-y-6">
+            {anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} />}
+            {izquierda?.(receta, v)}
+          </div>
+        )}
+        {indicaciones.length > 0 && (
+          <section aria-label={paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
+            <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"}</h3>
+            <ul className={"mt-3 list-disc space-y-2 pl-5 leading-relaxed marker:text-slate-500 " + (paciente ? "text-base text-pt-marino" : "text-sm text-slate-700")}>{indicaciones.map((i) => <li key={i}>{i}</li>)}</ul>
+          </section>
+        )}
+      </div>
+      {comparando && compararCon && <VentanaComparar recetas={recetas} version={v} idA={String(compararCon.id)} idB={String(receta.id)} onCerrar={() => setComparando(false)} />}
+    </div>
   )
 }
 
 // ───────────────────────── Comparar dos recetas ─────────────────────────
 // Elegir dos y verlas lado a lado, con las diferencias señaladas (marcadas en ámbar y dichas en texto, no solo con color).
-export function VentanaComparar({ recetas, version = "paciente", onCerrar }) {
+export function VentanaComparar({ recetas, version = "paciente", idA: inicialA, idB: inicialB, onCerrar }) {
   const paciente = version === "paciente"
-  const [idA, setIdA] = useState(String(recetas[1]?.id ?? recetas[0]?.id))
-  const [idB, setIdB] = useState(String(recetas[0]?.id))
+  const [idA, setIdA] = useState(inicialA ?? String(recetas[1]?.id ?? recetas[0]?.id))
+  const [idB, setIdB] = useState(inicialB ?? String(recetas[0]?.id))
   const a = recetas.find((r) => String(r.id) === idA)
   const b = recetas.find((r) => String(r.id) === idB)
   const iguales = !a || !b || idA === idB
   const cmp = iguales ? null : compararRecetas(a, b)
-  const fmt = (clave, v) => (v === "" || v == null ? "—" : /esfera|cilindro|adicion/.test(clave) ? valorD(v) : /eje/.test(clave) ? `${v}°` : String(v))
+  const fmt = (clave, v) => (v === "" || v == null ? (paciente ? "—" : "No registrado") : /esfera|cilindro|adicion/.test(clave) ? valorD(v) : /eje/.test(clave) ? `${v}°` : String(v))
   const rotulo = (r) => `${formatoFecha(r.fecha, "medio")}${r.id === recetas[0]?.id ? " (vigente)" : ""}`
   const campo = "min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
   const filasDe = (lado) => cmp.filas.filter((f) => f.lado === lado)
@@ -266,7 +348,7 @@ function TablaReceta({ receta, version }) {
             <span role="rowheader" className={"flex items-center gap-1.5 " + T.rotulo}>{etiqueta}{paciente && <Info size={18} className="shrink-0 text-slate-400" aria-hidden="true" />}</span>
             {clave === "adicion"
               ? <span role="cell" className={"col-span-2 " + T.valor}>{od}</span>
-              : <><span role="cell" className={T.valor}>{od || "—"}</span><span role="cell" className={T.valor}>{oi || "—"}</span></>}
+              : <><span role="cell" className={T.valor}>{od || (paciente ? "—" : <NoRegistrado />)}</span><span role="cell" className={T.valor}>{oi || (paciente ? "—" : <NoRegistrado />)}</span></>}
           </button>
           {paciente && abierta === clave && <p role="note" className="bg-pt-fondo px-4 py-3 text-lg text-slate-700 sm:px-5">{AYUDA_RECETA[clave]}</p>}
         </div>

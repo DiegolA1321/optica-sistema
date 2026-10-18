@@ -73,6 +73,7 @@ import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
+import { recetasDe } from "../utilidades/graduacion"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
@@ -387,7 +388,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       }
       const tab = leerParam("tab")
       setPacienteHistorial(paciente)
-      setTabHistorial(["citas", "resumen", "pagos", "ordenes"].includes(tab) ? tab : "citas")
+      setTabHistorial(["citas", "resumen", "graduacion", "pagos", "ordenes"].includes(tab) && (tab !== "graduacion" || puedeVerFichas) ? tab : "citas")
     }
     if (!perfilVisto.current && !pacienteHistorial) abrirSegunUrl()
     window.addEventListener("popstate", abrirSegunUrl)
@@ -672,7 +673,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       // espera en vez de descartar la acción.
       if (!paciente && cargaInicial) return
       if (paciente) {
-        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(["citas", "resumen", "pagos", "ordenes"].includes(leerParam("tab")) ? leerParam("tab") : "citas") }
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(["citas", "resumen", "graduacion", "pagos", "ordenes"].includes(leerParam("tab")) && (leerParam("tab") !== "graduacion" || puedeVerFichas) ? leerParam("tab") : "citas") }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
         else if (accionInicial.accion === "eliminar" && puedeEliminar) setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
@@ -2083,6 +2084,21 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                     >
                       <BarChart3 size={14} /> Resumen
                     </button>
+                    {puedeVerFichas && (
+                      <button
+                        type="button"
+                        role="tab"
+                        id="tab-graduacion"
+                        aria-selected={tabHistorial === "graduacion"}
+                        aria-controls="panel-paciente"
+                        onClick={() => setTabHistorial("graduacion")}
+                        className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "graduacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                        style={tabHistorial === "graduacion" ? { background: GRAD } : undefined}
+                      >
+                        <Eye size={14} /> Graduación
+                        {recetasDe(consultasPaciente).length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "graduacion" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{recetasDe(consultasPaciente).length}</span>}
+                      </button>
+                    )}
                     <button
                       type="button"
                       role="tab"
@@ -2127,7 +2143,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
                     {tabHistorial === "resumen" ? (
                       <PanelResumenPaciente
-                        puedeVerFichas={puedeVerFichas}
                         consultas={consultasPaciente}
                         citas={citasPaciente}
                         inactivo={inactivo}
@@ -2147,6 +2162,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
+                    ) : tabHistorial === "graduacion" && puedeVerFichas ? (
+                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} tendencia={<TendenciaDelPaciente consultas={consultasPaciente} />} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente
@@ -2746,13 +2763,32 @@ function Cuadro({ clave, abierto, alternar, className = "", style, children }) {
   )
 }
 
+// La gráfica de tendencia de la graduación medida (con su etiqueta): va dentro de la pestaña «Graduación».
+function TendenciaDelPaciente({ consultas }) {
+  const info = tendenciaEntreConsultas(consultas)
+  const t = TENDENCIA[info?.verdicto]
+  return (
+    <section aria-label="Tendencia de graduación">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
+        {t && (
+          <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: "#f1f5f9", color: t.fg }}>
+            <t.icon size={12} /> {t.label}
+          </span>
+        )}
+      </div>
+      <TendenciaGraduacion consultas={[...consultas].reverse()} />
+    </section>
+  )
+}
+
 const TENDENCIA_TEXTO = {
   Disminuyó: "La graduación medida disminuyó respecto a la consulta anterior.",
   Aumentó: "La graduación medida aumentó respecto a la consulta anterior.",
   "Sin cambios": "La graduación medida se mantiene estable.",
 }
 
-function PanelResumenPaciente({ puedeVerFichas = false, consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad, equipo, comprobantes, referidosLista, paciente, usuario, parametrizacion, adjuntosDe, onAbrirPaciente, onVerProductos, onAgendar }) {
+function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad, equipo, comprobantes, referidosLista, paciente, usuario, parametrizacion, adjuntosDe, onAbrirPaciente, onVerProductos, onAgendar }) {
   const ultima = consultas[0]
   // Cada cuadro se despliega al tocarlo (uno a la vez) y muestra de dónde sale su número.
   const [abierto, setAbierto] = useState(null)
@@ -2857,21 +2893,6 @@ function PanelResumenPaciente({ puedeVerFichas = false, consultas, citas, inacti
         )}
       </section>
 
-      {puedeVerFichas && consultas.length > 0 && (
-        <GraduacionPerfil consultas={consultas} paciente={paciente} usuario={usuario} tendencia={
-          <section aria-label="Tendencia de graduación">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-              {tendencia && (
-                <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
-                  <tendencia.icon size={12} /> {tendencia.label}
-                </span>
-              )}
-            </div>
-            <TendenciaGraduacion consultas={[...consultas].reverse()} />
-          </section>
-        } />
-      )}
 
       <section aria-label="Citas del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
         <h3 className="text-sm font-bold" style={{ color: INK }}>Citas del paciente</h3>

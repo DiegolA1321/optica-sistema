@@ -1,7 +1,7 @@
 import React from "react"
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
-import { GraduacionVigente, CambioGraduacion, ListaRecetas } from "./Graduacion"
+import { GraduacionVigente, CambioGraduacion, VistaGraduacion } from "./Graduacion"
 import GraduacionPerfil from "./GraduacionPerfil"
 import HojaReceta, { numeroDeReceta } from "../HojaReceta"
 import { imprimirHojaReceta } from "../../utilidades/imprimirHojaReceta"
@@ -12,7 +12,7 @@ const receta = (extra = {}) => ({
   od: { esfera: "-1.75", cilindro: "-0.50", eje: "90", avSc: "20/60", avCc: "20/20" }, oi: { esfera: "-1.25", cilindro: "-0.75", eje: "80", avCc: "20/25" },
   medidas: { adicion: "+1.00", dp: "62", alt: "18" }, ...extra,
 })
-const anterior = receta({ id: "c0", fecha: "2025-11-21", od: { esfera: "-1.50", cilindro: "-0.50", eje: "90", avCc: "20/20" }, oi: { esfera: "-1.00", cilindro: "-0.75", eje: "80", avCc: "20/25" } })
+const anterior = receta({ id: "c0", fecha: "2025-11-21", indicaciones: "Control en 6 meses.", od: { esfera: "-1.50", cilindro: "-0.50", eje: "90", avCc: "20/20" }, oi: { esfera: "-1.00", cilindro: "-0.75", eje: "80", avCc: "20/25" } })
 
 describe("La graduación, un solo componente con dos versiones", () => {
   it("la versión del paciente usa palabras simples y la del personal la notación técnica, con los mismos valores", () => {
@@ -25,9 +25,30 @@ describe("La graduación, un solo componente con dos versiones", () => {
     expect(od).toHaveTextContent("OD · Ojo derecho")
     for (const v of ["−1.75", "Esfera", "Cilindro", "−0.50", "Eje", "90°", "AV sin lentes", "20/60", "AV con lentes", "20/20"]) expect(od).toHaveTextContent(v)
     expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("OI · Ojo izquierdo")
-    expect(document.body.textContent).toContain("Adición")
-    expect(document.body.textContent).toContain("DP 62")
+    expect(document.body.textContent).toContain("Adición+1.00")
+    expect(document.body.textContent).toContain("Distancia pupilar (DP)62")
+    expect(document.body.textContent).toContain("Altura de montaje18")
     expect(od).not.toHaveTextContent("Tienes miopía")
+  })
+
+  it("en la versión del personal, donde un dato no se registró dice «No registrado», no un guion", () => {
+    render(<GraduacionVigente receta={receta({ oi: { esfera: "-1.25" }, medidas: {} })} version="personal" />)
+    const oi = screen.getByRole("region", { name: "Ojo izquierdo" })
+    expect(oi).toHaveTextContent("No registrado")
+    expect(oi.textContent.match(/No registrado/g).length).toBeGreaterThanOrEqual(3) // cilindro, eje y las dos agudezas
+    expect(document.body.textContent).toContain("Distancia pupilar (DP)No registrado")
+    expect(document.body.textContent).not.toContain("—")
+  })
+
+  it("la posición de los ojos: en el paciente el derecho va a la derecha; en el personal el OD va a la izquierda", () => {
+    const { unmount } = render(<GraduacionVigente receta={receta()} version="paciente" />)
+    expect(screen.getByRole("region", { name: "Ojo derecho" }).className).toMatch(/order-2/)
+    expect(screen.getByRole("region", { name: "Ojo izquierdo" }).className).toMatch(/order-1/)
+    unmount()
+    render(<GraduacionVigente receta={receta()} version="personal" />)
+    const orden = [...document.querySelectorAll("[data-lado]")].map((e) => e.getAttribute("data-lado"))
+    expect(orden).toEqual(["od", "oi"])
+    expect(document.querySelector("[data-lado]").className).not.toMatch(/(^|s)(@[[^]]+]:)?order-d/)
   })
 
   it("el antes → ahora dice lo mismo en las dos versiones: la misma cuenta, con palabras distintas", () => {
@@ -39,38 +60,84 @@ describe("La graduación, un solo componente con dos versiones", () => {
     expect(s).toHaveTextContent("OD · Ojo derecho")
     expect(s).toHaveTextContent("Aumentó 0.25 D")
   })
+})
 
-  it("la lista de recetas filtra por año, destaca la vigente y abre cada una; comparar necesita dos", () => {
-    const abrir = vi.fn()
-    const { unmount } = render(<ListaRecetas recetas={[receta()]} version="personal" onAbrir={abrir} />)
+describe("La vista completa de una receta (selector, antes → ahora, indicaciones)", () => {
+  const tres = [receta(), anterior, receta({ id: "c00", fecha: "2025-03-01", indicaciones: "Primera receta.", od: { esfera: "-0.50" }, oi: { esfera: "-0.75" } })]
+
+  it("sin más de una receta, el selector es un rótulo y no aparecen comparar ni el antes → ahora", () => {
+    render(<VistaGraduacion recetas={[receta()]} titulo="Mi receta" />)
+    expect(screen.queryByRole("button", { name: /Elegir otra receta/ })).not.toBeInTheDocument()
+    expect(screen.getByText("Receta del 20 de abril de 2026 · vigente")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Comparar dos recetas" })).not.toBeInTheDocument()
-    unmount()
-    render(<ListaRecetas recetas={[receta(), anterior]} version="personal" onAbrir={abrir} />)
-    const lista = screen.getByRole("region", { name: "Recetas del paciente" })
-    expect(lista).toHaveTextContent("vigente")
-    expect(lista).toHaveTextContent("OD −1.75 −0.50 x90")
-    fireEvent.click(within(lista).getByRole("button", { name: "2025" }))
-    expect(within(lista).queryByRole("button", { name: /Ver la receta del 20 abr 2026/ })).not.toBeInTheDocument()
-    fireEvent.click(within(lista).getByRole("button", { name: /Ver la receta del 21 nov 2025/ }))
-    expect(abrir).toHaveBeenCalledWith("c0")
+    expect(screen.queryByRole("region", { name: /Cómo cambió/ })).not.toBeInTheDocument()
   })
 
-  it("el perfil del personal: graduación vigente técnica, antes → ahora, lista y «Explicar al paciente» con palabras simples", () => {
-    render(<GraduacionPerfil consultas={[anterior, receta()]} paciente={{ nombre: "Marta Zambrano", cedula: "0934070830" }} usuario={{ opticaNombre: "Óptica Solna Vision" }} tendencia={<p>Tendencia existente</p>} />)
-    const seccion = screen.getByRole("region", { name: "Graduación del paciente" })
-    expect(seccion).toHaveTextContent("Graduación vigente")
-    expect(seccion).toHaveTextContent("Tendencia existente")
-    expect(seccion).toHaveTextContent("OD · Ojo derecho")
-    expect(within(seccion).getByRole("region", { name: "Cambio desde la consulta anterior" })).toBeInTheDocument()
-    expect(within(seccion).getByRole("region", { name: "Recetas del paciente" })).toHaveTextContent("2 recetas")
+  it("al elegir otra receta cambia toda la vista: los ojos, el antes → ahora (contra la anterior a esa) y las indicaciones", () => {
+    render(<VistaGraduacion recetas={tres} titulo="Mi receta" />)
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("−1.75")
+    expect(screen.getByRole("region", { name: "Lo que te indicó tu optómetra" })).toHaveTextContent("Usa tus lentes todo el día.")
+    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
+    fireEvent.click(screen.getByRole("option", { name: /21 de noviembre de 2025/ }))
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("−1.50")
+    expect(screen.getByRole("region", { name: "Lo que te indicó tu optómetra" })).toHaveTextContent("Control en 6 meses.")
+    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("Mar 2025")
+    // la más antigua no tiene receta anterior: no hay antes → ahora
+    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
+    fireEvent.click(screen.getByRole("option", { name: /1 de marzo de 2025/ }))
+    expect(screen.queryByRole("region", { name: /Cómo cambió/ })).not.toBeInTheDocument()
+  })
+
+  it("«Comparar dos recetas» compara la elegida con la anterior a ella, y «Descargar» entrega la elegida", () => {
+    const entregar = vi.fn()
+    render(<VistaGraduacion recetas={tres} titulo="Mi receta" accion={{ texto: "Descargar receta", onClick: entregar }} />)
+    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
+    fireEvent.click(screen.getByRole("option", { name: /21 de noviembre de 2025/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Comparar dos recetas" }))
+    const v = screen.getByRole("dialog", { name: "Comparar dos recetas" })
+    expect(within(v).getByLabelText("Primera receta")).toHaveValue("c00")
+    expect(within(v).getByLabelText("Segunda receta")).toHaveValue("c0")
+    fireEvent.click(within(v).getAllByRole("button", { name: "Cerrar" }).pop())
+    fireEvent.click(screen.getByRole("button", { name: "Descargar receta" }))
+    expect(entregar).toHaveBeenCalledWith(expect.objectContaining({ id: "c0" }))
+  })
+
+  it("el filtro por año del selector deja solo las recetas de ese año", () => {
+    render(<VistaGraduacion recetas={tres} titulo="Mi receta" />)
+    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
+    const menu = screen.getByRole("listbox", { name: "Recetas del paciente" })
+    fireEvent.click(within(menu.parentElement).getByRole("button", { name: "2026" }))
+    expect(within(menu).getAllByRole("option")).toHaveLength(1)
+    fireEvent.click(within(menu.parentElement).getByRole("button", { name: "2025" }))
+    expect(within(menu).getAllByRole("option")).toHaveLength(2)
+  })
+})
+
+describe("La pestaña «Graduación» del perfil del personal", () => {
+  const props = { consultas: [anterior, receta()], paciente: { nombre: "Marta Zambrano", cedula: "0934070830" }, usuario: { opticaNombre: "Óptica Solna Vision" } }
+
+  it("es la misma vista del portal, en versión técnica, con la tendencia, comparar, imprimir y «Explicar al paciente»", () => {
+    render(<GraduacionPerfil {...props} tendencia={<p>Tendencia existente</p>} />)
+    expect(screen.getByRole("heading", { name: "Graduación" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 20 de abril de 2026 · vigente")
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
+    expect(screen.getByRole("region", { name: "Cambio desde la consulta anterior" })).toBeInTheDocument()
+    expect(screen.getByText("Tendencia existente")).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Indicaciones" })).toHaveTextContent("Usa tus lentes todo el día.")
+    expect(screen.getByRole("button", { name: "Comparar dos recetas" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Imprimir receta" })).toBeInTheDocument()
     expect(screen.queryByText(/Tienes miopía leve/)).not.toBeInTheDocument()
-    fireEvent.click(within(seccion).getByRole("button", { name: "Explicar al paciente" }))
-    expect(screen.getByRole("dialog", { name: "Explicar al paciente" })).toHaveTextContent("Tienes miopía leve")
+    // «Explicar al paciente» cambia la vista a la de palabras simples del portal, y vuelve
+    fireEvent.click(screen.getByRole("button", { name: "Explicar al paciente" }))
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("Tienes miopía leve")
+    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Volver a la vista técnica" }))
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
   })
 
-  it("el perfil no dibuja nada si el paciente no tiene recetas (consultas sin medidas)", () => {
-    const { container } = render(<GraduacionPerfil consultas={[{ id: "x", fecha: "2026-01-01", od: {}, oi: {} }]} paciente={{}} usuario={{}} />)
-    expect(container).toBeEmptyDOMElement()
+  it("sin recetas (consultas sin medidas) dice qué pasa en vez de quedar vacío", () => {
+    render(<GraduacionPerfil consultas={[{ id: "x", fecha: "2026-01-01", od: {}, oi: {} }]} paciente={{}} usuario={{}} />)
+    expect(screen.getByText("Este paciente todavía no tiene una receta")).toBeInTheDocument()
   })
 })
 
@@ -78,8 +145,7 @@ describe("La hoja de la receta (la misma para el optómetra y el paciente)", () 
   it("lleva el membrete, los datos del paciente, la tabla de graduación, el lente, las indicaciones, el profesional con su firma y la fecha", () => {
     render(<HojaReceta optica={{ nombre: "Óptica Solna Vision", direccion: "Av. Principal 123", telefono: "0991234567" }} paciente={{ nombre: "Marta Zambrano", cedula: "0934070830", edad: 72 }} receta={receta()} />)
     const hoja = document.querySelector("[data-hoja-receta]")
-    for (const t of ["Óptica Solna Vision", "Av. Principal 123 · 0991234567", "Receta óptica", numeroDeReceta(receta()), "Marta Zambrano", "0934070830", "72 años", "Esfera", "Cilindro", "Eje", "AV con lentes", "−1.75", "-1.75", "Adición", "Distancia pupilar", "Lente recomendado", "Progresivo con filtro azul", "Indicaciones y cuidados", "Usa tus lentes todo el día.", "Dra. Paula Andrade", "Reg. Prof. REG-9", "20 de abril de 2026"]) {
-      if (t === "−1.75") continue
+    for (const t of ["Óptica Solna Vision", "Av. Principal 123 · 0991234567", "Receta óptica", numeroDeReceta(receta()), "Marta Zambrano", "0934070830", "72 años", "Esfera", "Cilindro", "Eje", "AV con lentes", "-1.75", "Adición", "Distancia pupilar", "Lente recomendado", "Progresivo con filtro azul", "Indicaciones y cuidados", "Usa tus lentes todo el día.", "Dra. Paula Andrade", "Reg. Prof. REG-9", "20 de abril de 2026"]) {
       expect(hoja.textContent).toContain(t)
     }
   })

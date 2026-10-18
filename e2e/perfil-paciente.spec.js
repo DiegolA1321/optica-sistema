@@ -16,8 +16,11 @@ async function abrirPerfil(page, nombre) {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
-  await page.getByText(nombre, { exact: false }).first().click()
-  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
+  // La lista se vuelve a dibujar cuando llegan los datos y un clic dado justo en ese momento se pierde: si el perfil no abre, se vuelve a pulsar (pasa en cuanto abre, sin esperas fijas).
+  await expect(async () => {
+    await page.getByText(nombre, { exact: false }).first().click()
+    await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
+  }).toPass({ timeout: 60_000 })
 }
 
 test.describe('Perfil del paciente: pestaña Citas', () => {

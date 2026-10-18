@@ -101,7 +101,7 @@ function TarjetaGraduacion({ receta, cambio, onVerReceta, onAbrir, celular }) {
         <TituloTarjeta id="graduacion">Tu graduación</TituloTarjeta>
         {!celular && <span className="text-base text-pt-texto">Receta del {formatoFecha(receta.fecha, "largoSinDia")}</span>}
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-7">{ojo("Ojo derecho", receta.od)}{ojo("Ojo izquierdo", receta.oi)}</div>
+      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-7">{ojo("Ojo izquierdo", receta.oi)}{ojo("Ojo derecho", receta.od)}</div>
       {celular
         ? <button type="button" onClick={onVerReceta} className={BOTON_SECUNDARIO + " mt-5 w-full"}>Ver mi receta completa</button>
         : (

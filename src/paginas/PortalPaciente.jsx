@@ -16,8 +16,9 @@ import MisCitasPortal from "../componentes/portal/MisCitasPortal"
 import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
 import VentanaDetalle from "../componentes/portal/DetallesPortal"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import { descargarHojaReceta } from "../utilidades/descargarHojaReceta"
 import { edadEnAnios } from "../utilidades/edad"
-import { contarConsultas, resumenDePuntos } from "../utilidades/fidelizacion"
+import { contarConsultas, resumenDePuntos, PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO } from "../utilidades/fidelizacion"
 import { recetasDe } from "../utilidades/graduacion"
 import CabeceraPortal, { Campanita } from "../componentes/portal/CabeceraPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
@@ -225,12 +226,17 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   // La ventana de detalle abierta: { tipo: "cita" | "pedido" | "receta" | "saldo" | "control" | "optica", id }. Cada tarjeta del portal abre la suya.
   const [abierto, setAbierto] = useState(null)
   const verReceta = (id) => setAbierto({ tipo: "receta", id })
-  // «Descargar receta»: la misma hoja que imprime el optómetra (HojaReceta); en el diálogo de impresión se elige «Guardar como PDF».
-  const descargarReceta = (r) => imprimirHojaReceta({
-    optica: { nombre: nombreOptica, direccion: contacto.direccion, telefono: contacto.telefono, logoUrl },
-    paciente: { nombre: usuario?.nombre, cedula: usuario?.cedula, edad: edadEnAnios(usuario?.fecha_nacimiento || usuario?.fechaNacimiento) },
-    receta: r, mostrarMedidas,
-  })
+  // «Descargar receta»: baja el PDF directamente (sin el diálogo de impresión) con la misma hoja que imprime el optómetra (HojaReceta). Si el navegador no puede dibujarla, cae al diálogo de
+  // impresión (ahí se elige «Guardar como PDF»).
+  const descargarReceta = async (r) => {
+    const datosHoja = {
+      optica: { nombre: nombreOptica, direccion: contacto.direccion, telefono: contacto.telefono, logoUrl },
+      paciente: { nombre: usuario?.nombre, cedula: usuario?.cedula, edad: edadEnAnios(usuario?.fecha_nacimiento || usuario?.fechaNacimiento) },
+      receta: r, mostrarMedidas,
+    }
+    if (await descargarHojaReceta(datosHoja)) avisar(`Descargamos tu receta del ${formatoFecha(r.fecha, "largoSinDia")}.`)
+    else imprimirHojaReceta(datosHoja)
+  }
   // «Solicitar ajuste o garantía»: abre «Agendar cita» con el motivo ya elegido y dice de qué compra viene (la más reciente).
   const pedirGarantia = (compra) => { abrirAgendar("garantia"); const c = compra || datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
   // La fecha del «Pedido» es la de la compra a la que pertenece la orden.
@@ -336,6 +342,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const cargandoPortal = cargandoDatos || datos.cargando
   // Los puntos: los mismos y con la misma regla que el CRM (consultas × 10 + pacientes referidos × 15).
   const puntos = resumenDePuntos(contarConsultas({ id: usuario?.id, nombre: usuario?.nombre }, misConsultas), datos.referidos)
+  // El historial de puntos: una línea por consulta (+10) y, si refirió a alguien, una por los referidos (+15 cada uno); el mismo total del CRM.
+  const historialPuntos = [
+    ...misConsultas.map((c) => ({ fecha: c.fecha, concepto: "Consulta", puntos: PUNTOS_POR_CONSULTA })),
+    ...(datos.referidos > 0 ? [{ fecha: "", concepto: `${datos.referidos} ${datos.referidos === 1 ? "paciente referido" : "pacientes referidos"}`, puntos: datos.referidos * PUNTOS_POR_REFERIDO }] : []),
+  ]
   const pendientes = pendientesDelPaciente({ ordenes: datos.ordenes, proximaCita, detalleCita: datos.detalle.porCita[proximaCita?.id], detalleDisponible: datos.detalle.disponible, saldoInfo, historial, detalle: datos.detalle.porCita })
   const recetaActualId = recetas[0]?.id ?? null
   const primeraRecetaId = recetas.length > 1 ? recetas[recetas.length - 1].id : null
@@ -413,7 +424,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
-            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} />}
+            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
             {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} visitas={historial.length} compras={datos.compras.length} puntos={puntos} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
           </div>
         </div>
@@ -442,7 +453,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
       {/* ─── DETALLE (cita, pedido de lentes, receta, saldo, control, óptica) ─── */}
       <VentanaDetalle abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={recetas} control={control} tieneCitaPendiente={proximas.length > 0}
-        contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} puntos={puntos} />
+        contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} puntos={puntos} historialPuntos={historialPuntos} />
 
       {/* ─── AGENDAR CITA ─── */}
       {modalAgendar && (

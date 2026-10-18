@@ -48,10 +48,9 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
   }
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Tu cita" subtitulo={mayuscula(formatoFecha(cita.fecha, "largo")) + " · " + cita.hora} Icono={Stethoscope} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
-      <div className="space-y-5 p-5">
+      <div className="space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><EstadoCita estado={cita.estado} confirmada={confirmada} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} />{!(confirmada && pendiente) && <span className="text-lg text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span>}</div>
-        <dl className="space-y-3">
-          <Dato titulo="Fecha y hora">{mayuscula(formatoFecha(cita.fecha, "largo"))} · {cita.hora}</Dato>
+        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
           <Dato titulo="Motivo">{cita.motivo || "Consulta"}</Dato>
           {detalle?.profesional && <Dato titulo={cita.estado === "Atendida" ? "Te atendió" : "Profesional"}><span className="flex items-center gap-2"><UserRound size={20} className="text-slate-500" aria-hidden="true" /> {detalle.profesional}</span></Dato>}
           {direccion && <Dato titulo="Dónde es"><span className="flex items-start gap-2"><MapPin size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {direccion}</span></Dato>}
@@ -82,13 +81,12 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
                 <p className="text-lg text-slate-700">Gracias: calificaste esta atención con {cal.puntaje} de 5.{cal.comentario ? ` «${cal.comentario}»` : ""}</p>
               </div>
             ) : (
-              <div className="mt-2 space-y-3">
+              <div className="mt-1 space-y-2">
                 <Estrellas valor={puntaje} onCambiar={setPuntaje} />
                 <label className="block text-base font-semibold text-slate-700">Un comentario (opcional)
-                  <textarea rows={3} maxLength={500} value={comentario} onChange={(e) => setComentario(e.target.value)} className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-normal text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100" />
+                  <textarea rows={2} maxLength={500} value={comentario} onChange={(e) => setComentario(e.target.value)} className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-normal text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100" />
                 </label>
-                <button type="button" onClick={enviar} disabled={enviando} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}>{enviando ? "Enviando…" : "Enviar mi calificación"}</button>
-                <p className="text-base text-pt-texto">Puedes calificar cada cita una sola vez.</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1"><button type="button" onClick={enviar} disabled={enviando} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}>{enviando ? "Enviando…" : "Enviar mi calificación"}</button><p className="text-base text-pt-texto">Cada cita se califica una sola vez.</p></div>
               </div>
             )}
           </section>
@@ -225,17 +223,27 @@ function DetalleOptica({ contacto, nombreOptica, onCerrar }) {
   )
 }
 
-// Los puntos: cómo se suman (la misma regla del CRM) y lo que falta para ser cliente frecuente.
-function DetallePuntos({ puntos, onCerrar }) {
-  const filas = [["Consultas", puntos.consultas, PUNTOS_POR_CONSULTA], ["Pacientes que referiste", puntos.referidos, PUNTOS_POR_REFERIDO]]
+// Los puntos: cómo se ganan (la misma regla del CRM), el historial de lo que sumó y el siguiente nivel.
+function DetallePuntos({ puntos, historial = [], onCerrar }) {
+  const lineas = [...historial].sort((x, y) => (x.fecha < y.fecha ? 1 : -1))
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Tus puntos de cliente" subtitulo={`${puntos.puntos} puntos`} Icono={Star} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
-      <div className="space-y-5 p-5">
-        <ul className="divide-y divide-pt-borde rounded-2xl border border-pt-borde">
-          {filas.map(([t, n, por]) => <li key={t} className="flex items-baseline justify-between gap-4 px-4 py-3 text-lg"><span className="text-pt-marino">{t}: <span className="font-bold tabular-nums">{n}</span> × {por}</span><span className="font-bold tabular-nums text-pt-marino">{n * por}</span></li>)}
-        </ul>
-        <section aria-label="Cliente frecuente" className="space-y-2 rounded-2xl bg-pt-fondo p-5">
-          <h3 className="font-heading text-lg font-bold text-pt-marino">Cliente frecuente</h3>
+      <div className="space-y-4 p-4 sm:p-5">
+        <section aria-label="Cómo se ganan" className="space-y-1">
+          <h3 className="font-heading text-lg font-bold text-pt-marino">Cómo se ganan</h3>
+          <p className="text-lg text-slate-800">{PUNTOS_POR_CONSULTA} puntos por cada consulta y {PUNTOS_POR_REFERIDO} por cada paciente que refieras a la óptica.</p>
+        </section>
+        <section aria-label="Historial de puntos">
+          <h3 className="font-heading text-lg font-bold text-pt-marino">Historial</h3>
+          {lineas.length === 0 ? <p className="mt-1 text-lg text-pt-texto">Todavía no sumas puntos: se suman al terminar tu primera consulta.</p> : (
+            <ul className="mt-1 divide-y divide-pt-borde">
+              {lineas.map((l, i) => <li key={i} className="flex items-baseline justify-between gap-4 py-2 text-lg"><span className="text-pt-marino">{l.concepto}{l.fecha ? <span className="text-pt-texto"> · {formatoFecha(l.fecha, "medio")}</span> : null}</span><span className="font-bold tabular-nums text-[#15803D]">+{l.puntos}</span></li>)}
+              <li className="flex items-baseline justify-between gap-4 py-2 text-lg font-bold text-pt-marino"><span>Total</span><span className="tabular-nums">{puntos.puntos}</span></li>
+            </ul>
+          )}
+        </section>
+        <section aria-label="Siguiente nivel" className="space-y-2 rounded-2xl bg-pt-fondo p-4">
+          <h3 className="font-heading text-lg font-bold text-pt-marino">{puntos.frecuente ? "Nivel: cliente frecuente" : "Siguiente nivel: cliente frecuente"}</h3>
           <div role="img" aria-label={`Llevas el ${puntos.porcentaje} por ciento del camino`}><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[#15803D]" style={{ width: puntos.porcentaje + "%" }} /></div></div>
           <p className="text-lg text-slate-800">{puntos.frecuente ? "Ya eres cliente frecuente." : puntos.texto + "."} Se llega con {MINIMO_CLIENTE_FRECUENTE} consultas.</p>
         </section>
@@ -244,8 +252,24 @@ function DetallePuntos({ puntos, onCerrar }) {
   )
 }
 
+// Los lentes en proceso: cada pedido con sus pasos.
+function DetalleLentes({ ordenes, onCerrar }) {
+  return (
+    <Cascaron pantallaCompletaEnCelular titulo="Tus lentes en proceso" subtitulo={ordenes.length === 1 ? "Un pedido" : ordenes.length + " pedidos"} Icono={Glasses} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
+      <div className="space-y-4 p-4 sm:p-5">
+        {ordenes.map((o) => (
+          <section key={o.id} aria-label={nombreDeLosLentes(o)} className="space-y-3 rounded-2xl border border-pt-borde p-4">
+            <p className="text-lg font-semibold text-pt-marino">{nombreDeLosLentes(o)}{o.comprobante ? <span className="font-normal text-pt-texto"> · {o.comprobante}</span> : null}</p>
+            <PasosLentes orden={o} variante="lista" />
+          </section>
+        ))}
+      </div>
+    </Cascaron>
+  )
+}
+
 // Decide cuál ventana mostrar según lo que pulsó el paciente.
-export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, puntos }) {
+export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, puntos, historialPuntos = [] }) {
   if (!abierto) return null
   if (abierto.tipo === "cita") {
     const cita = citas.find((c) => String(c.id) === String(abierto.id))
@@ -261,7 +285,8 @@ export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comp
   }
   if (abierto.tipo === "saldo") return <DetalleSaldo comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} contacto={contacto} onVerCompras={onVerCompras} onCerrar={onCerrar} />
   if (abierto.tipo === "control") return control ? <DetalleControl control={control} tieneCitaPendiente={tieneCitaPendiente} onAgendar={onAgendar} onCerrar={onCerrar} /> : null
-  if (abierto.tipo === "puntos") return puntos ? <DetallePuntos puntos={puntos} onCerrar={onCerrar} /> : null
+  if (abierto.tipo === "puntos") return puntos ? <DetallePuntos puntos={puntos} historial={historialPuntos} onCerrar={onCerrar} /> : null
+  if (abierto.tipo === "lentes") return <DetalleLentes ordenes={ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")} onCerrar={onCerrar} />
   if (abierto.tipo === "optica") return <DetalleOptica contacto={contacto} nombreOptica={nombreOptica} onCerrar={onCerrar} />
   return null
 }
