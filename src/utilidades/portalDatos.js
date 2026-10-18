@@ -31,7 +31,7 @@ export async function misCitasDetalle(pacienteId, token, citas = []) {
   if (!supabase) return { disponible: false, porCita: {} }
   const { data, error } = await supabase.rpc("mis_citas_detalle_paciente", { p_paciente_id: pacienteId, p_token: token })
   if (error || !Array.isArray(data)) return { disponible: false, porCita: {} }
-  return { disponible: true, porCita: Object.fromEntries(data.map((d) => [d.cita_id, { profesional: d.profesional || "", confirmadaAt: d.confirmada_at, consultaId: d.consulta_id, calificacion: d.calificacion }])) }
+  return { disponible: true, porCita: Object.fromEntries(data.map((d) => [d.cita_id, { profesional: d.profesional || "", confirmadaAt: d.confirmada_at, consultaId: d.consulta_id, calificacion: d.calificacion, enCalendarioAt: d.en_calendario_at || null }])) }
 }
 
 export async function confirmarAsistencia(pacienteId, token, citaId) {
@@ -46,4 +46,18 @@ export async function calificarAtencion(pacienteId, token, citaId, puntaje, come
   if (!supabase) return { ok: false, error: "Sin conexión." }
   const { data, error } = await supabase.rpc("calificar_atencion_paciente", { p_paciente_id: pacienteId, p_token: token, p_cita_id: citaId, p_puntaje: puntaje, p_comentario: comentario || null })
   return error || data !== true ? { ok: false, error: "No pudimos guardar tu calificación. Es posible que ya la hayas enviado." } : { ok: true }
+}
+
+// Cuántos pacientes refirió este paciente (migración 0128): el único dato de sus puntos que el portal no puede contar solo. Sin la función, 0: los puntos salen solo de sus consultas.
+export async function misReferidos(pacienteId, token) {
+  if (!supabase) return 0
+  const { data, error } = await supabase.rpc("mis_referidos_paciente", { p_paciente_id: pacienteId, p_token: token })
+  return error || typeof data !== "number" ? 0 : data
+}
+
+// Marca en la base que el paciente agregó la cita a su calendario (migración 0127): así vale en todos sus aparatos. Devuelve { ok }.
+export async function marcarCitaEnCalendario(pacienteId, token, citaId) {
+  if (!supabase) return { ok: false }
+  const { data, error } = await supabase.rpc("marcar_cita_en_calendario_paciente", { p_paciente_id: pacienteId, p_token: token, p_cita_id: citaId })
+  return { ok: !error && data === true }
 }

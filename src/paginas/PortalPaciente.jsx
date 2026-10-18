@@ -3,7 +3,7 @@
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, LogOut, Stethoscope, CalendarClock, KeyRound, Lock, X, Bell, ChevronRight } from "lucide-react"
+import { Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import SelectorLista from "../componentes/SelectorLista"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -15,15 +15,20 @@ import ResumenPortal from "../componentes/portal/ResumenPortal"
 import MisCitasPortal from "../componentes/portal/MisCitasPortal"
 import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
 import VentanaDetalle from "../componentes/portal/DetallesPortal"
-import { descargarPdfReceta } from "../utilidades/recetaPdf"
+import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import { edadEnAnios } from "../utilidades/edad"
+import { contarConsultas, resumenDePuntos } from "../utilidades/fidelizacion"
+import { recetasDe } from "../utilidades/graduacion"
+import CabeceraPortal, { Campanita } from "../componentes/portal/CabeceraPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
 import { usePortalDatos } from "../componentes/portal/usePortalDatos"
 import { useConsulta } from "../componentes/portal/useAncho"
 import { IconoLentes, BotonCalendario } from "../componentes/portal/piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "../componentes/portal/estilos"
 import { numeroComprobante } from "../utilidades/comprobantes"
-import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto, resumenCambioGraduacion } from "../utilidades/portalPaciente"
+import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto, pendientesDelPaciente } from "../utilidades/portalPaciente"
 import { avisosDelPaciente, descargarIcs } from "../utilidades/portalVistas"
+
 import { supabase } from "../lib/supabaseClient"
 import { validarClaveNueva } from "../utilidades/validaciones"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
@@ -183,7 +188,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     () => consultas.filter((c) => (usuario?.id != null && c.pacienteId === usuario.id) || c.paciente === usuario?.nombre).sort(ordenarPorFechaYCreacion),
     [consultas, usuario],
   )
-  const ultimaReceta = misConsultas[0] || null
+  // Una receta es una consulta con medidas (la misma regla del perfil del paciente del personal: `recetasDe`).
+  const recetas = useMemo(() => recetasDe(misConsultas), [misConsultas])
+  const ultimaReceta = recetas[0] || null
   // Pedir las medidas completas llama de verdad a solicitar_medidas_paciente (migración 0080): el perfil del paciente y la campana de la óptica lo avisan.
   const [medidasSolicitadas, setMedidasSolicitadas] = useState(false)
   const [errorMedidas, setErrorMedidas] = useState("")
@@ -218,7 +225,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   // La ventana de detalle abierta: { tipo: "cita" | "pedido" | "receta" | "saldo" | "control" | "optica", id }. Cada tarjeta del portal abre la suya.
   const [abierto, setAbierto] = useState(null)
   const verReceta = (id) => setAbierto({ tipo: "receta", id })
-  const descargarReceta = (r) => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: r, mostrarMedidas })
+  // «Descargar receta»: la misma hoja que imprime el optómetra (HojaReceta); en el diálogo de impresión se elige «Guardar como PDF».
+  const descargarReceta = (r) => imprimirHojaReceta({
+    optica: { nombre: nombreOptica, direccion: contacto.direccion, telefono: contacto.telefono, logoUrl },
+    paciente: { nombre: usuario?.nombre, cedula: usuario?.cedula, edad: edadEnAnios(usuario?.fecha_nacimiento || usuario?.fechaNacimiento) },
+    receta: r, mostrarMedidas,
+  })
   // «Solicitar ajuste o garantía»: abre «Agendar cita» con el motivo ya elegido y dice de qué compra viene (la más reciente).
   const pedirGarantia = (compra) => { abrirAgendar("garantia"); const c = compra || datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
   // La fecha del «Pedido» es la de la compra a la que pertenece la orden.
@@ -228,13 +240,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     return { ...o, pedidoEl: compra?.fecha || o.creadaEn, comprobante: compra ? numeroComprobante(compra.numero) : "", total: compra ? Number(compra.total) : 0, abonado: compra ? Number(compra.abonado) : 0, saldo: debe ? Number(compra.saldo) : 0 }
   })
   const avisos = avisosDelPaciente({ ordenes: datos.ordenes, proximaCita, control })
-  const [campana, setCampana] = useState(false)
-  const campanaRef = useRef(null)
-  useEffect(() => {
-    const fuera = (e) => { if (campanaRef.current && !campanaRef.current.contains(e.target)) setCampana(false) }
-    document.addEventListener("mousedown", fuera)
-    return () => document.removeEventListener("mousedown", fuera)
-  }, [])
+  // El menú lateral se puede ocultar (el botón «Ocultar el menú» de la cabecera); se recuerda en este navegador.
+  const [menuOculto, setMenuOculto] = useState(() => { try { return localStorage.getItem("portal-menu-oculto") === "1" } catch { return false } })
+  const alternarMenu = () => setMenuOculto((v) => { try { localStorage.setItem("portal-menu-oculto", v ? "0" : "1") } catch { /* sin almacenamiento: solo dura esta visita */ } return !v })
 
   const validarYPedirConfirmacion = (e) => {
     e.preventDefault()
@@ -308,19 +316,17 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     onCerrarSesion("Contraseña actualizada. Vuelve a iniciar sesión con tu nueva contraseña.")
   }
 
-  const navegar = (id) => { setSeccion(id); setCampana(false) }
+  const navegar = (id) => setSeccion(id)
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
   const hora24 = ahoraEcuador().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = formatoFecha(ahoraEcuador(), "largo")
-  // «Agregar a mi calendario» baja el archivo de la cita y deja anotado, por cita, que ya se agregó (en este aparato: es una comodidad del paciente, no un dato de la óptica).
-  const claveCalendario = "portal-calendario-" + (pacienteId || "paciente")
-  const [agregadas, setAgregadas] = useState(() => { try { return JSON.parse(localStorage.getItem(claveCalendario) || "{}") } catch { return {} } })
+  const hoyFecha = formatoFecha(ahoraEcuador(), "largo").replace(/^./, (c) => c.toUpperCase())
+  // «Agregar a mi calendario» baja el archivo de la cita y deja anotado en la base, por cita, que ya se agregó: vale en todos sus aparatos.
   const alCalendario = (cita) => {
     descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
-    setAgregadas((a) => { const nuevo = { ...a, [cita.id]: true }; try { localStorage.setItem(claveCalendario, JSON.stringify(nuevo)) } catch { /* sin almacenamiento: el botón vuelve a ofrecerse */ } return nuevo })
+    datos.agregarAlCalendario(cita.id)
   }
-  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(agregadas[id]) }
+  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(datos.detalle.porCita[id]?.enCalendarioAt) }
   // Confirmar la asistencia es el otro momento en que tiene sentido ofrecer el calendario.
   const confirmarAsistencia = async (citaId) => {
     const r = await datos.confirmar(citaId)
@@ -328,9 +334,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     return r
   }
   const cargandoPortal = cargandoDatos || datos.cargando
-  const cambioGraduacion = resumenCambioGraduacion(misConsultas)
-  const recetaActualId = misConsultas[0]?.id ?? null
-  const primeraRecetaId = misConsultas.length > 1 ? misConsultas[misConsultas.length - 1].id : null
+  // Los puntos: los mismos y con la misma regla que el CRM (consultas × 10 + pacientes referidos × 15).
+  const puntos = resumenDePuntos(contarConsultas({ id: usuario?.id, nombre: usuario?.nombre }, misConsultas), datos.referidos)
+  const pendientes = pendientesDelPaciente({ ordenes: datos.ordenes, proximaCita, detalleCita: datos.detalle.porCita[proximaCita?.id], detalleDisponible: datos.detalle.disponible, saldoInfo, historial, detalle: datos.detalle.porCita })
+  const recetaActualId = recetas[0]?.id ?? null
+  const primeraRecetaId = recetas.length > 1 ? recetas[recetas.length - 1].id : null
   // Con 1024 px o más el portal lleva el menú a la izquierda; con menos (tablet y celular), una barra de navegación abajo. Se dibuja una sola versión.
   const laptop = useConsulta("(min-width: 1024px)", true)
   const nombreMostrado = opticaPublica?.nombre || "Mi Óptica"
@@ -339,36 +347,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <Glasses size={22} aria-hidden="true" />}
     </div>
   )
-  // La campanita de avisos: un punto naranja si hay algo nuevo (el número exacto lo lee quien usa lector de pantalla).
-  const campanita = (
-    <div className="relative" ref={campanaRef}>
-      <button type="button" onClick={() => setCampana((v) => !v)} aria-haspopup="menu" aria-expanded={campana} aria-label={avisos.length ? `Avisos: tienes ${avisos.length}` : "Avisos: no tienes avisos nuevos"} className="relative grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-pt-borde bg-white text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer">
-        <Bell size={24} aria-hidden="true" />
-        {avisos.length > 0 && <span aria-hidden="true" className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-[#B45309] ring-2 ring-white" />}
-      </button>
-      {campana && (
-        <div role="menu" aria-label="Avisos" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-pt-borde bg-white shadow-2xl">
-          <p className="border-b border-pt-borde px-4 py-3 font-heading text-lg font-bold text-pt-marino">Tus avisos</p>
-          {avisos.length === 0 ? <p className="px-4 py-5 text-lg text-pt-texto">No tienes avisos por ahora.</p> : (
-            <ul className="p-2">{avisos.map((a) => (
-              <li key={a.id}><button type="button" role="menuitem" onClick={() => navegar(a.va)} className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-pt-fondo cursor-pointer"><span className="min-w-0 flex-1">{a.texto}</span><ChevronRight size={20} className="shrink-0 text-slate-400" aria-hidden="true" /></button></li>
-            ))}</ul>
-          )}
-        </div>
-      )}
-    </div>
-  )
-
   return (
     <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-pt-fondo font-sans text-pt-marino">
       {/* ─── MENÚ LATERAL (laptop): la marca de la óptica y las cinco pantallas ─── */}
-      {laptop && (
+      {laptop && !menuOculto && (
         <aside className="flex w-[232px] shrink-0 flex-col border-r border-pt-borde bg-white">
           <div className="flex min-w-0 items-start gap-2.5 px-[18px] pb-6 pt-6">
             {marca()}
             <div className="min-w-0 leading-tight">
               <p className="font-heading text-base font-bold leading-snug text-pt-marino">{nombreMostrado}</p>
-              <p className="mt-0.5 whitespace-nowrap text-base tracking-tight text-pt-texto">Tu portal de paciente</p>
+              <p className="mt-0.5 whitespace-nowrap text-base tracking-tight text-pt-texto">Portal del paciente</p>
             </div>
           </div>
           <nav aria-label="Menú del portal" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4">
@@ -384,16 +372,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               )
             })}
           </nav>
-          {onCerrarSesion && (
-            <div className="p-4">
-              <button type="button" onClick={() => onCerrarSesion()} className="flex min-h-12 w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-base font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><LogOut size={22} aria-hidden="true" /> Cerrar sesión</button>
-            </div>
-          )}
         </aside>
       )}
 
       {/* ─── CONTENIDO ─── */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {laptop && <CabeceraPortal menuOculto={menuOculto} onAlternarMenu={alternarMenu} saludo={`${saludo}, ${primerNombre}`} fecha={hoyFecha} avisos={avisos} onIr={navegar} nombre={usuario?.nombre || primerNombre} onCerrarSesion={onCerrarSesion} />}
         {/* Celular y tablet: una barra arriba con la marca, el saludo y los avisos */}
         {!laptop && (
           <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-pt-borde bg-white px-4 py-3">
@@ -402,53 +386,35 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <p className="truncate font-heading text-lg font-bold text-pt-marino">Hola, {primerNombre}</p>
               <p className="truncate text-base text-pt-texto">{nombreMostrado}</p>
             </div>
-            {campanita}
+            <Campanita avisos={avisos} onIr={navegar} />
           </header>
         )}
 
-        <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:pb-12 lg:pt-7">
+        <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:pb-12 lg:pt-8">
           <div className="pt-zona mx-auto max-w-[1440px]">
-            {/* Laptop, en todas las pantallas: la campanita y la cuenta del paciente (en Inicio, además, el saludo con la fecha) */}
-            {laptop && (
-              <div className={"flex items-center justify-between gap-4 " + (seccion === "resumen" ? "mb-6" : "mb-5")}>
-                <div className="min-w-0">
-                  {seccion === "resumen" && <>
-                    <p className="font-heading text-[28px] font-bold leading-tight tracking-tight text-pt-marino">{saludo}, {primerNombre}</p>
-                    <p className="mt-1 text-base text-pt-texto">{hoyFecha}</p>
-                  </>}
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {campanita}
-                  <button type="button" onClick={() => navegar("datos")} aria-label="Mi cuenta: ir a Mis datos" className="flex min-h-12 items-center gap-3 rounded-xl border border-pt-borde bg-white py-1.5 pl-2 pr-5 transition-colors hover:bg-slate-50 cursor-pointer">
-                    <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-pt-suave text-base font-bold text-pt-azul">{(usuario?.nombre || "P").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("")}</span>
-                    <span className="max-w-[16rem] truncate text-base font-semibold text-pt-marino">{usuario?.nombre || primerNombre}</span>
-                  </button>
-                </div>
-              </div>
-            )}
             {aviso && (
               <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl bg-[#E3F4EA] p-4 text-[#166534]">
                 <CheckCircle2 className="mt-0.5 shrink-0" size={22} aria-hidden="true" />
                 <div className="min-w-0 flex-1 space-y-3">
                   <p className="text-lg font-semibold">{aviso.texto}</p>
-                  {aviso.cita && !agregadas[aviso.cita.id] && <BotonCalendario cita={aviso.cita} citaProps={citaProps} className="w-full sm:w-auto" />}
+                  {aviso.cita && !datos.detalle.porCita[aviso.cita.id]?.enCalendarioAt && <BotonCalendario cita={aviso.cita} citaProps={citaProps} className="w-full sm:w-auto" />}
                 </div>
                 <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="-m-2 grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors hover:bg-emerald-100 cursor-pointer"><X size={20} aria-hidden="true" /></button>
               </div>
             )}
 
             {seccion === "resumen" && (
-              <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)}
-                control={control} tieneCitaPendiente={proximas.length > 0} saldoInfo={saldoInfo} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} cambio={cambioGraduacion} nombreOptica={nombreOptica} direccion={contacto.direccion}
+              <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)} pendientes={pendientes}
+                control={control} tieneCitaPendiente={proximas.length > 0} puntos={puntos} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} consultas={recetas} nombreOptica={nombreOptica} direccion={contacto.direccion}
                 citaProps={citaProps} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
             )}
             {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} />}
             {seccion === "receta" && (
-              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
+              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
-            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} />}
-            {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
+            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} />}
+            {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} visitas={historial.length} compras={datos.compras.length} puntos={puntos} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
           </div>
         </div>
       </main>
@@ -475,8 +441,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       )}
 
       {/* ─── DETALLE (cita, pedido de lentes, receta, saldo, control, óptica) ─── */}
-      <VentanaDetalle abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={misConsultas} control={control} tieneCitaPendiente={proximas.length > 0}
-        contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} />
+      <VentanaDetalle abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={recetas} control={control} tieneCitaPendiente={proximas.length > 0}
+        contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} puntos={puntos} />
 
       {/* ─── AGENDAR CITA ─── */}
       {modalAgendar && (

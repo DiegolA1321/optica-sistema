@@ -4,7 +4,8 @@ import { ahoraEcuador } from "./horaEcuador"
 import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche } from "./disponibilidad"
 import { estadoDeLaOpticaHoy } from "./portalVistas"
 import { tendenciaEntreConsultas, variacionEntre, verdictoPorVariacion, textoDioptrias } from "./tendenciaGraduacion"
-import { fechaLegible, nombreMes } from "./formatoFecha"
+import { fechaLegible, nombreMes, formatoFecha } from "./formatoFecha"
+import { dinero } from "./formatoMoneda"
 import { diaDeRegistro } from "./periodoLista"
 import { estadoVisible } from "./ordenesLaboratorio"
 import { fechaProximoControl } from "./fidelizacion"
@@ -171,3 +172,26 @@ export const AYUDA_RECETA = {
   adicion: "La ayuda extra para leer de cerca. Se usa en lentes bifocales y progresivos.",
   agudeza: "Qué tan bien ves. 20/20 es la vista normal; mientras más grande el segundo número, más borrosa es tu vista.",
 }
+
+// ── Pendiente para ti ──
+// Lo que el paciente debe hacer, en este orden de prioridad: retirar lentes listos, confirmar una cita próxima, pagar un saldo y calificar una visita atendida. Solo trae lo que hay;
+// sin nada pendiente devuelve [] y el Inicio no dibuja el bloque. `abrir` es la ventana de detalle que abre la tarjeta.
+export function pendientesDelPaciente({ ordenes = [], proximaCita = null, detalleCita = null, detalleDisponible = false, saldoInfo = null, historial = [], detalle = {} } = {}) {
+  const lista = []
+  for (const o of ordenes.filter((x) => x.estado === "lista")) {
+    lista.push({ id: "lentes-" + o.id, tipo: "lentes", titulo: "Tus lentes están listos para retirar", texto: "Pasa por la óptica a recogerlos.", accion: "Ver detalle", abrir: { tipo: "pedido", id: o.id } })
+  }
+  if (proximaCita && proximaCita.estado === "Pendiente" && detalleDisponible && !detalleCita?.confirmadaAt) {
+    lista.push({ id: "cita-" + proximaCita.id, tipo: "cita", titulo: `Confirma tu cita del ${diaYMes(proximaCita.fecha)}`, texto: "Avísanos que vas a venir.", accion: "Confirmar", confirmar: proximaCita.id, abrir: { tipo: "cita", id: proximaCita.id } })
+  }
+  if (saldoInfo && saldoInfo.saldo > 0) {
+    const retiro = ordenes.some((o) => o.estado === "enviada" || o.estado === "lista")
+    lista.push({ id: "saldo", tipo: "saldo", titulo: `Tienes ${dinero(saldoInfo.saldo)} por pagar`, texto: retiro ? "Puedes pagarlo al retirar tus lentes." : "Puedes pagarlo en la óptica.", accion: "Ver detalle", abrir: { tipo: "saldo" } })
+  }
+  if (detalleDisponible) {
+    const sinCalificar = historial.find((c) => c.estado === "Atendida" && detalle[c.id] && !detalle[c.id].calificacion)
+    if (sinCalificar) lista.push({ id: "calificar-" + sinCalificar.id, tipo: "calificar", titulo: `¿Cómo te atendimos el ${diaYMes(sinCalificar.fecha)}?`, texto: "Tu opinión nos ayuda a mejorar.", accion: "Calificar", abrir: { tipo: "cita", id: sinCalificar.id } })
+  }
+  return lista
+}
+const diaYMes = (iso) => formatoFecha(iso, "largoSinDia").replace(/ de \d{4}$/, "")

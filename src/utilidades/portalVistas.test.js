@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { serieDeGraduacion, porcentajeAbonado, enCuantoTiempo, agruparPorAnio, avisosDelPaciente, archivoIcs, estadoDeLaOpticaHoy, valorD } from "./portalVistas"
+import { serieDeGraduacion, porcentajeAbonado, enCuantoTiempo, agruparPorAnio, avisosDelPaciente, archivoIcs, estadoDeLaOpticaHoy, valorD, filtrarVisitas } from "./portalVistas"
 import { resumenCambioGraduacion } from "./portalPaciente"
 
 const c = (fecha, odEsf, oiEsf) => ({ fecha, od: { esfera: odEsf, cilindro: "" }, oi: { esfera: oiEsf, cilindro: "" } })
@@ -100,5 +100,28 @@ describe("los valores de la receta como los lee el paciente", () => {
     expect(valorD("0")).toBe("0.00")
     expect(valorD("")).toBe("")
     expect(valorD(null)).toBe("")
+  })
+})
+
+describe("filtrarVisitas", () => {
+  const hoy = new Date(2026, 9, 18)
+  const h = [
+    { id: 1, fecha: "2026-07-09", motivo: "Examen de control", estado: "No Asistió" },
+    { id: 2, fecha: "2026-04-20", motivo: "Examen de control", estado: "Atendida" },
+    { id: 3, fecha: "2025-11-21", motivo: "Examen de control", estado: "Atendida" },
+    { id: 4, fecha: "2025-04-25", motivo: "Consulta general", estado: "Atendida" },
+    { id: 5, fecha: "2024-02-01", motivo: "Garantía", estado: "Cancelada" },
+  ]
+  const prof = (c) => (c.id === 2 ? "Dra. Paula Andrade" : "")
+  const ids = (f) => filtrarVisitas(h, { profesional: prof, hoy, ...f }).map((c) => c.id)
+  it("el último año llega hasta el mismo día del año pasado", () => {
+    expect(ids({})).toEqual([1, 2, 3])
+    expect(ids({ periodo: "todas" })).toEqual([1, 2, 3, 4, 5])
+  })
+  it("elegir fechas, estado y texto (sin tildes)", () => {
+    expect(ids({ periodo: "fechas", desde: "2025-04-01", hasta: "2025-12-31" })).toEqual([3, 4])
+    expect(ids({ periodo: "todas", estado: "Atendida" })).toEqual([2, 3, 4])
+    expect(ids({ periodo: "todas", texto: "garantia" })).toEqual([5])
+    expect(ids({ periodo: "todas", texto: "paula" })).toEqual([2])
   })
 })

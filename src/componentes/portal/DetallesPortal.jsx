@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Stethoscope, UserRound, FileText, Glasses, Wallet, Eye, Store, MapPin, Phone, MessageCircle, Navigation, Clock, CalendarClock, X, CalendarPlus } from "lucide-react"
+import { Star, Stethoscope, UserRound, FileText, Glasses, Wallet, Eye, Store, MapPin, Phone, MessageCircle, Navigation, Clock, CalendarClock, X, CalendarPlus } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
@@ -9,7 +9,8 @@ import { NOTA_ESTADO_CITA, nombreDeLosLentes, textoControl } from "../../utilida
 import { porcentajeAbonado, enCuantoTiempo } from "../../utilidades/portalVistas"
 import { Cascaron } from "../AtencionPaciente"
 import { EstadoCita, Estrellas, PasosLentes, CambiosDeCita, BotonCalendario } from "./piezas"
-import { DetalleReceta } from "./MiRecetaPortal"
+import { DetalleReceta } from "../graduacion/Graduacion"
+import { PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO, MINIMO_CLIENTE_FRECUENTE } from "../../utilidades/fidelizacion"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, ESTILO_PRINCIPAL } from "./estilos"
 
 // Las ventanas de detalle del portal (la ventana estándar del sistema, pantalla completa en el celular). Cada tarjeta del portal abre la suya: la cita, el pedido de los lentes, la receta,
@@ -48,13 +49,12 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Tu cita" subtitulo={mayuscula(formatoFecha(cita.fecha, "largo")) + " · " + cita.hora} Icono={Stethoscope} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
       <div className="space-y-5 p-5">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><EstadoCita estado={cita.estado} confirmada={confirmada} /><span className="text-lg text-pt-texto">{confirmada && pendiente ? "Confirmaste tu asistencia." : NOTA_ESTADO_CITA[cita.estado]}</span></div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><EstadoCita estado={cita.estado} confirmada={confirmada} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} />{!(confirmada && pendiente) && <span className="text-lg text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span>}</div>
         <dl className="space-y-3">
           <Dato titulo="Fecha y hora">{mayuscula(formatoFecha(cita.fecha, "largo"))} · {cita.hora}</Dato>
           <Dato titulo="Motivo">{cita.motivo || "Consulta"}</Dato>
           {detalle?.profesional && <Dato titulo={cita.estado === "Atendida" ? "Te atendió" : "Profesional"}><span className="flex items-center gap-2"><UserRound size={20} className="text-slate-500" aria-hidden="true" /> {detalle.profesional}</span></Dato>}
           {direccion && <Dato titulo="Dónde es"><span className="flex items-start gap-2"><MapPin size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {direccion}</span></Dato>}
-          {pendiente && detalleDisponible && <Dato titulo="Asistencia">{confirmada ? "Confirmada" : "Aún no la confirmas"}</Dato>}
         </dl>
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{error}</p>}
         {pendiente && (
@@ -131,7 +131,7 @@ function DetallePedido({ orden, contacto, onCerrar }) {
         {!entregada && (
           <section aria-label="Cómo retirarlos" className="space-y-3">
             <h3 className="font-heading text-lg font-bold text-pt-marino">Cómo retirarlos</h3>
-            <p className="text-lg text-slate-800">{lista ? "Ya están listos: pasa por la óptica a recogerlos." : "Cuando estén listos, pasa por la óptica a recogerlos. Te avisaremos."}{debe ? ` Recuerda que aún debes ${dinero(orden.saldo)}.` : ""}</p>
+            <p className="text-lg text-slate-800">{lista ? "Ya están listos: pasa por la óptica a recogerlos." : "Cuando estén listos, pasa por la óptica a recogerlos. Te avisaremos."}</p>
             {contacto.direccion && <p className="flex items-start gap-2 text-lg text-slate-800"><MapPin size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.direccion}</p>}
             {contacto.hoy && <p className="flex items-start gap-2 text-lg text-slate-800"><Clock size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.hoy.texto}</p>}
             <BotonesContacto contacto={contacto} />
@@ -145,7 +145,7 @@ function DetallePedido({ orden, contacto, onCerrar }) {
 // El saldo: cada compra con saldo (lo abonado, lo que falta y su barra) y el historial de abonos (fecha y monto) de cada una.
 function DetalleSaldo({ comprasConSaldo, saldoInfo, contacto, onVerCompras, onCerrar }) {
   return (
-    <Cascaron pantallaCompletaEnCelular titulo="Tu saldo por pagar" subtitulo={saldoInfo ? `${dinero(saldoInfo.saldo)} en ${comprasConSaldo.length === 1 ? "una compra" : comprasConSaldo.length + " compras"}` : "Sin saldo pendiente"} Icono={Wallet} ancho="max-w-xl" onCerrar={onCerrar}
+    <Cascaron pantallaCompletaEnCelular titulo="Tu saldo por pagar" subtitulo={saldoInfo ? (comprasConSaldo.length === 1 ? "En una compra" : `En ${comprasConSaldo.length} compras: ${dinero(saldoInfo.saldo)}`) : "Sin saldo pendiente"} Icono={Wallet} ancho="max-w-xl" onCerrar={onCerrar}
       pie={<><button type="button" onClick={() => { onCerrar(); onVerCompras() }} className={BOTON_SECUNDARIO}>Ver mis compras</button><button type="button" onClick={onCerrar} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
       <div className="space-y-5 p-5">
         {comprasConSaldo.length === 0 && <p className="text-lg text-pt-texto">No tienes saldo pendiente.</p>}
@@ -188,10 +188,7 @@ function DetalleControl({ control, tieneCitaPendiente, onAgendar, onCerrar }) {
     <Cascaron pantallaCompletaEnCelular titulo="Tu próximo control" subtitulo={`${mayuscula(nombreMes(mes - 1))} de ${anio}`} Icono={Eye} ancho="max-w-xl" onCerrar={onCerrar}
       pie={<><span />{!tieneCitaPendiente && <button type="button" onClick={() => { onCerrar(); onAgendar("control") }} className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}><CalendarPlus size={22} aria-hidden="true" /> Agendar control</button>}<button type="button" onClick={onCerrar} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
       <div className="space-y-5 p-5">
-        <div>
-          <p className={"font-heading text-3xl font-bold " + (control.vencido ? "text-red-700" : "text-pt-marino")}>{mayuscula(nombreMes(mes - 1))} de {anio}</p>
-          <p className="mt-1 text-lg text-pt-texto">{control.vencido ? textoControl(control) : `${mayuscula(enCuantoTiempo(control.dias))} · te avisaremos antes`}</p>
-        </div>
+        <p className={"text-lg " + (control.vencido ? "font-semibold text-red-700" : "text-pt-texto")}>{control.vencido ? textoControl(control) : `${mayuscula(enCuantoTiempo(control.dias))} · te avisaremos antes`}</p>
         <section aria-label="Por qué se recomienda" className="space-y-2 rounded-2xl bg-pt-fondo p-5">
           <h3 className="font-heading text-lg font-bold text-pt-marino">¿Por qué se recomienda?</h3>
           <p className="text-lg text-slate-800">{control.ultima ? `Tu optómetra indicó revisar tu vista ${meses === 1 ? "un mes" : `${meses} meses`} después de tu último examen, el ${formatoFecha(control.ultima, "largoSinDia")}.` : "Es la fecha que recomendó tu optómetra."} La vista cambia con el tiempo, aunque veas igual: revisarla a tiempo permite ajustar tus lentes antes de que te cansen o te den dolor de cabeza.</p>
@@ -228,8 +225,27 @@ function DetalleOptica({ contacto, nombreOptica, onCerrar }) {
   )
 }
 
+// Los puntos: cómo se suman (la misma regla del CRM) y lo que falta para ser cliente frecuente.
+function DetallePuntos({ puntos, onCerrar }) {
+  const filas = [["Consultas", puntos.consultas, PUNTOS_POR_CONSULTA], ["Pacientes que referiste", puntos.referidos, PUNTOS_POR_REFERIDO]]
+  return (
+    <Cascaron pantallaCompletaEnCelular titulo="Tus puntos de cliente" subtitulo={`${puntos.puntos} puntos`} Icono={Star} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
+      <div className="space-y-5 p-5">
+        <ul className="divide-y divide-pt-borde rounded-2xl border border-pt-borde">
+          {filas.map(([t, n, por]) => <li key={t} className="flex items-baseline justify-between gap-4 px-4 py-3 text-lg"><span className="text-pt-marino">{t}: <span className="font-bold tabular-nums">{n}</span> × {por}</span><span className="font-bold tabular-nums text-pt-marino">{n * por}</span></li>)}
+        </ul>
+        <section aria-label="Cliente frecuente" className="space-y-2 rounded-2xl bg-pt-fondo p-5">
+          <h3 className="font-heading text-lg font-bold text-pt-marino">Cliente frecuente</h3>
+          <div role="img" aria-label={`Llevas el ${puntos.porcentaje} por ciento del camino`}><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[#15803D]" style={{ width: puntos.porcentaje + "%" }} /></div></div>
+          <p className="text-lg text-slate-800">{puntos.frecuente ? "Ya eres cliente frecuente." : puntos.texto + "."} Se llega con {MINIMO_CLIENTE_FRECUENTE} consultas.</p>
+        </section>
+      </div>
+    </Cascaron>
+  )
+}
+
 // Decide cuál ventana mostrar según lo que pulsó el paciente.
-export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras }) {
+export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, puntos }) {
   if (!abierto) return null
   if (abierto.tipo === "cita") {
     const cita = citas.find((c) => String(c.id) === String(abierto.id))
@@ -241,10 +257,11 @@ export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comp
   }
   if (abierto.tipo === "receta") {
     const receta = recetas.find((r) => String(r.id) === String(abierto.id))
-    return receta ? <DetalleReceta receta={receta} onCerrar={onCerrar} onDescargar={() => onDescargarReceta(receta)} /> : null
+    return receta ? <DetalleReceta receta={receta} version="paciente" onCerrar={onCerrar} onImprimir={() => onDescargarReceta(receta)} /> : null
   }
   if (abierto.tipo === "saldo") return <DetalleSaldo comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} contacto={contacto} onVerCompras={onVerCompras} onCerrar={onCerrar} />
   if (abierto.tipo === "control") return control ? <DetalleControl control={control} tieneCitaPendiente={tieneCitaPendiente} onAgendar={onAgendar} onCerrar={onCerrar} /> : null
+  if (abierto.tipo === "puntos") return puntos ? <DetallePuntos puntos={puntos} onCerrar={onCerrar} /> : null
   if (abierto.tipo === "optica") return <DetalleOptica contacto={contacto} nombreOptica={nombreOptica} onCerrar={onCerrar} />
   return null
 }

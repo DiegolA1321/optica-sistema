@@ -1,22 +1,35 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Search } from "lucide-react"
 import { formatoFecha } from "../../utilidades/formatoFecha"
-import { agruparPorAnio } from "../../utilidades/portalVistas"
+import { agruparPorAnio, filtrarVisitas } from "../../utilidades/portalVistas"
+import CampoFecha from "../CampoFecha"
 import { Tarjeta, TituloTarjeta, TituloPagina, FilaCita, Esqueleto, EstadoCita } from "./piezas"
 import BoletoCita from "./BoletoCita"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
 
-const DE_A = 12
+const DE_A = 10
+const PERIODOS = [["ano", "Último año"], ["todas", "Todas"], ["fechas", "Elegir fechas"]]
+const ESTADOS = [["Atendida", "Atendidas"], ["No Asistió", "No asistió"], ["Cancelada", "Canceladas"]]
+const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
 
 // Mis citas (diseño aprobado): la próxima en estilo boleto, y «Tus visitas anteriores» agrupadas por año (cada fila abre su detalle) con los mismos estados y colores del módulo de Citas.
 export default function MisCitasPortal({ cargando, proximas, historial, citaProps, onAgendar, detalle, direccion, onConfirmar, onAbrir, recetaActualId = null, primeraRecetaId = null }) {
   const [vistas, setVistas] = useState(DE_A)
+  const [texto, setTexto] = useState("")
+  const [periodo, setPeriodo] = useState("ano")
+  const [desde, setDesde] = useState("")
+  const [hasta, setHasta] = useState("")
+  const [estado, setEstado] = useState("")
   const setAbierta = (c) => onAbrir({ tipo: "cita", id: c.id })
   if (cargando) return <div className="space-y-6" aria-busy="true" aria-label="Cargando tus citas"><TituloPagina>Mis citas</TituloPagina><Esqueleto alto="h-64" /></div>
-  const grupos = agruparPorAnio(historial.slice(0, vistas))
   const det = (id) => detalle.porCita[id]
+  const filtradas = filtrarVisitas(historial, { periodo, desde, hasta, estado, texto, profesional: (c) => det(c.id)?.profesional })
+  const grupos = agruparPorAnio(filtradas.slice(0, vistas))
+  const hayFiltros = texto.trim() !== "" || estado !== "" || periodo !== "ano"
+  const quitarFiltros = () => { setTexto(""); setEstado(""); setPeriodo("ano"); setDesde(""); setHasta(""); setVistas(DE_A) }
+  const cambiar = (poner) => (v) => { poner(v); setVistas(DE_A) }
   // Lo que se lee bajo el motivo de una visita pasada: con quién y qué pasó.
   const resumenVisita = (c) => {
     const d = det(c.id)
@@ -42,11 +55,43 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
       )}
 
       <Tarjeta aria-labelledby="historial" className="sm:px-[30px] sm:py-7">
-        <TituloTarjeta id="historial">Tus visitas anteriores</TituloTarjeta>
+        <div className="flex items-baseline justify-between gap-3">
+          <TituloTarjeta id="historial">Tus visitas anteriores</TituloTarjeta>
+          {historial.length > 0 && <p className="text-base text-pt-texto" aria-live="polite">{filtradas.length} {filtradas.length === 1 ? "visita" : "visitas"}</p>}
+        </div>
+        {historial.length > 0 && (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+              <label className="relative block min-w-[15rem] flex-1 @[900px]/portal:max-w-[26rem]">
+                <span className="sr-only">Buscar por motivo o profesional</span>
+                <Search size={20} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                <input type="search" value={texto} onChange={(e) => cambiar(setTexto)(e.target.value)} placeholder="Buscar por motivo o profesional" className="min-h-12 w-full rounded-xl border border-pt-borde bg-white pl-11 pr-3 text-base text-pt-marino outline-none transition-colors placeholder:text-slate-500 focus-visible:border-pt-azul focus-visible:ring-2 focus-visible:ring-blue-100" />
+              </label>
+              <div role="group" aria-label="Período" className="flex flex-wrap gap-2">
+                {PERIODOS.map(([id, nombre]) => <button key={id} type="button" aria-pressed={periodo === id} onClick={() => cambiar(setPeriodo)(id)} className={CHIP(periodo === id)}>{nombre}</button>)}
+              </div>
+              <div role="group" aria-label="Estado" className="flex flex-wrap gap-2">
+                {ESTADOS.map(([id, nombre]) => <button key={id} type="button" aria-pressed={estado === id} onClick={() => cambiar(setEstado)(estado === id ? "" : id)} className={CHIP(estado === id)}>{nombre}</button>)}
+              </div>
+            </div>
+            {periodo === "fechas" && (
+              <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+                <div><p className="mb-1 text-base font-semibold text-pt-marino">Desde</p><CampoFecha grande etiqueta="Desde" valor={desde} onCambiar={cambiar(setDesde)} max={hasta || undefined} placeholder="Primera fecha" /></div>
+                <div><p className="mb-1 text-base font-semibold text-pt-marino">Hasta</p><CampoFecha grande etiqueta="Hasta" valor={hasta} onCambiar={cambiar(setHasta)} min={desde} placeholder="Última fecha" /></div>
+              </div>
+            )}
+          </div>
+        )}
         {historial.length === 0 ? (
           <p className="mt-3 text-base text-pt-texto">Aquí aparecen tus citas atendidas, las que no asististe y las canceladas.</p>
         ) : (
           <div className="mt-4 space-y-5">
+            {filtradas.length === 0 && (
+              <div role="status" className="rounded-2xl bg-pt-fondo px-5 py-6 text-center">
+                <p className="text-lg font-semibold text-pt-marino">Ninguna visita coincide con lo que buscas.</p>
+                {hayFiltros && <button type="button" onClick={quitarFiltros} className={BOTON_SECUNDARIO + " mt-3"}>Quitar los filtros</button>}
+              </div>
+            )}
             {grupos.map((g) => (
               <div key={g.anio}>
                 <h3 className="mb-1 text-base font-medium text-pt-texto">{g.anio}</h3>
@@ -76,7 +121,12 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
                 </ul>
               </div>
             ))}
-            {historial.length > vistas && <button type="button" onClick={() => setVistas((v) => v + DE_A)} className={BOTON_SECUNDARIO + " w-full sm:w-auto"}>Ver {Math.min(DE_A, historial.length - vistas)} más · quedan {historial.length - vistas}</button>}
+            {filtradas.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-base text-pt-texto">Mostrando {Math.min(vistas, filtradas.length)} de {filtradas.length}</p>
+                {filtradas.length > vistas && <button type="button" onClick={() => setVistas((v) => v + DE_A)} className={BOTON_SECUNDARIO + " w-full sm:w-auto"}>Ver más visitas</button>}
+              </div>
+            )}
           </div>
         )}
       </Tarjeta>

@@ -106,3 +106,19 @@ export function valorD(v) {
   if (r === 0) return "0.00"
   return (r > 0 ? "+" : "−") + Math.abs(r).toFixed(2)
 }
+
+// ── Filtros de «Tus visitas anteriores» ──
+// periodo: «ano» (el último año, hasta hoy), «todas» o «fechas» (desde/hasta, inclusive; un límite vacío no limita). estado: «» o el nombre del estado de la cita. texto: busca en el
+// motivo y en el profesional, sin importar mayúsculas ni tildes. `profesional(cita)` dice con quién fue. Siempre la misma lista de la que sale el total que se muestra (regla 5).
+const sinTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim()
+export function filtrarVisitas(historial = [], { periodo = "ano", desde = "", hasta = "", estado = "", texto = "", profesional = () => "", hoy = ahoraEcuador() } = {}) {
+  const limite = (() => { const f = new Date(hoy.getFullYear() - 1, hoy.getMonth(), hoy.getDate()); return fechaAISO(f) })()
+  const q = sinTildes(texto)
+  return historial.filter((c) => {
+    if (periodo === "ano" && c.fecha < limite) return false
+    if (periodo === "fechas" && ((desde && c.fecha < desde) || (hasta && c.fecha > hasta))) return false
+    if (estado && c.estado !== estado) return false
+    if (q && !sinTildes(`${c.motivo || "Consulta"} ${profesional(c) || ""}`).includes(q)) return false
+    return true
+  })
+}

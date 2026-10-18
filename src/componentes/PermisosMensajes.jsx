@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Check } from "lucide-react"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { ETIQUETA_PERMISO } from "../utilidades/permisosMensajes"
-import { fechaHoraLegible } from "../utilidades/formatoFecha"
+import { fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
+import { diaDeRegistro } from "../utilidades/periodoLista"
 
 // Textos de las casillas del portal (diseño aprobado).
 const AYUDA_CASILLA = { recordatorios: "Tus citas, tu control y cómo te va con tus lentes", promociones: "Ofertas de la óptica y tu saludo de cumpleaños" }
@@ -12,7 +13,7 @@ const AYUDA_CASILLA = { recordatorios: "Tus citas, tu control y cómo te va con 
 // Los dos permisos para recibir mensajes, como dos interruptores. Es la misma pieza en el perfil del paciente (el personal) y en "Mis datos"
 // del portal (el paciente): se ven y se comportan igual (regla 18). `onCambiar` recibe { recordatorios } o { promociones } y devuelve { ok, error? };
 // sin `onCambiar` solo se muestran. `casilla`: el portal del paciente los dibuja como casillas de verificación (diseño aprobado), sin cambiar lo que hacen. `actualizadoPor` / `actualizadoEn`: quién y cuándo los cambió por última vez (si alguna vez se cambiaron).
-export default function PermisosMensajes({ recordatorios, promociones, actualizadoPor = "", actualizadoEn = null, onCambiar = null, quien = "personal", grande = false, casilla = false }) {
+export default function PermisosMensajes({ recordatorios, promociones, actualizadoPor = "", actualizadoEn = null, onCambiar = null, quien = "personal", grande = false, casilla = false, interruptor = false }) {
   const [guardando, setGuardando] = useState("")
   const [error, setError] = useState("")
 
@@ -25,6 +26,31 @@ export default function PermisosMensajes({ recordatorios, promociones, actualiza
     setGuardando("")
   }
   const valores = { recordatorios, promociones }
+
+  // El portal (diseño aprobado): dos interruptores con su título y su ayuda, y debajo el último cambio.
+  if (interruptor) {
+    return (
+      <div>
+        <ul className="divide-y divide-pt-borde">
+          {["recordatorios", "promociones"].map((id) => (
+            <li key={id} className="flex items-center justify-between gap-4 py-4 first:pt-0">
+              <div className="min-w-0">
+                <p id={`permiso-${id}`} className="text-base font-semibold text-pt-marino">{ETIQUETA_PERMISO[id].titulo}</p>
+                <p className="text-base leading-snug text-pt-texto">{AYUDA_CASILLA[id]}</p>
+              </div>
+              <button type="button" role="switch" aria-checked={Boolean(valores[id])} aria-labelledby={`permiso-${id}`} disabled={Boolean(guardando)} onClick={() => cambiar(id, !valores[id])} className="grid h-11 w-[64px] shrink-0 place-items-center cursor-pointer disabled:opacity-60">
+                <span className={"relative h-[34px] w-[58px] rounded-full transition-colors " + (valores[id] ? "bg-pt-azul" : "bg-[#C9D3E3]")}>
+                  <span className={"absolute top-[3px] h-7 w-7 rounded-full bg-white shadow transition-transform " + (valores[id] ? "left-[27px]" : "left-[3px]")} />
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-base text-pt-texto">{actualizadoEn ? `Último cambio: ${formatoFecha(diaDeRegistro(actualizadoEn), "largoSinDia")}` : "Aún no has cambiado tus permisos: los recordatorios de salud están activos y las promociones y saludos, no."}</p>
+        {error && <p role="alert" className="mt-2 text-base font-semibold text-red-600">{error}</p>}
+      </div>
+    )
+  }
 
   if (casilla) {
     return (

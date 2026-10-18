@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ShieldAlert, AlertCircle, CheckCircle2, LogOut } from "lucide-react"
+import { ShieldAlert, AlertCircle, CheckCircle2, LogOut, Phone, IdCard, Bell, ShieldCheck } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
@@ -9,11 +9,11 @@ import { esTelefonoValido, esEmailValido } from "../../utilidades/validaciones"
 import { cambiarMisPermisos, leerMisPermisos } from "../../utilidades/permisosMensajes"
 import { Cascaron } from "../AtencionPaciente"
 import PermisosMensajes from "../PermisosMensajes"
-import { Tarjeta, TituloTarjeta } from "./piezas"
+import { Tarjeta } from "./piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, ESTILO_PRINCIPAL } from "./estilos"
 
 // Mis datos: teléfono y correo se cambian aquí (y se reflejan en el perfil y en las citas del personal); el resto solo lo corrige la óptica.
-export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas, alActualizarUsuario, onCambiarClave, onCerrarSesion }) {
+export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas, visitas = 0, compras = 0, puntos = null, alActualizarUsuario, onCambiarClave, onCerrarSesion }) {
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
   const [motivoEliminar, setMotivoEliminar] = useState("")
   const [enviandoEliminar, setEnviandoEliminar] = useState(false)
@@ -57,49 +57,61 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
     setSolicitudEliminarEnviada(true)
   }
 
-  const iniciales = (usuario?.nombre || "Paciente").split(/s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("")
+  const iniciales = (usuario?.nombre || "Paciente").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("")
   const desde = usuario?.fechaRegistro ? `${nombreMes(Number(String(usuario.fechaRegistro).slice(5, 7)) - 1)} de ${String(usuario.fechaRegistro).slice(0, 4)}` : ""
   const nacimiento = usuario?.fecha_nacimiento || usuario?.fechaNacimiento
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="flex items-center gap-4 sm:gap-5">
-        <div aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-pt-suave font-heading text-xl font-bold text-pt-azul sm:h-[60px] sm:w-[60px] sm:text-2xl">{iniciales}</div>
-        <div className="min-w-0">
-          <h1 className="break-words font-heading text-2xl font-bold leading-tight tracking-tight text-pt-marino sm:text-[28px]">{usuario?.nombre || "Paciente"}</h1>
-          <p className="text-base text-pt-texto sm:text-base">Paciente de {nombreOptica}{desde ? ` desde ${desde}` : ""}</p>
+      <h1 className="sr-only">Mis datos</h1>
+      <section aria-label="Tu cuenta" className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5 rounded-[20px] bg-pt-marino px-5 py-5 text-white sm:px-[42px] sm:py-7">
+        <div className="flex min-w-0 items-center gap-4 sm:gap-6">
+          <div aria-hidden="true" className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl font-heading text-2xl font-bold sm:h-20 sm:w-20 sm:text-3xl" style={{ background: "var(--portal-acento, #1D5FD6)", color: "var(--portal-texto-boton, #FFFFFF)" }}>{iniciales}</div>
+          <div className="min-w-0">
+            <p className="break-words font-heading text-2xl font-bold leading-tight tracking-tight sm:text-[34px]">{usuario?.nombre || "Paciente"}</p>
+            <p className="mt-1 text-base text-white/85">Paciente de {nombreOptica}{desde ? ` desde ${desde}` : ""}</p>
+          </div>
         </div>
-      </div>
-
-      <div className="pt-fila pt-fila--7-5 pt-fila--arriba">
-        <Tarjeta aria-labelledby="contacto" className="sm:px-[30px] sm:py-7">
-          <TituloTarjeta id="contacto">Cómo te contactamos</TituloTarjeta>
-          <MisDatosContacto usuario={usuario} onActualizado={alActualizarUsuario} />
-          <MisPermisosMensajes usuario={usuario} />
-        </Tarjeta>
-
-        <div className="space-y-5 sm:space-y-6">
-          <Tarjeta aria-labelledby="personales">
-            <TituloTarjeta id="personales">Tus datos personales</TituloTarjeta>
-            <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2.5 text-base">
-              <dt className="text-pt-texto">Cédula</dt><dd className="font-semibold text-pt-marino">{usuario?.cedula || "No registrada"}</dd>
-              <dt className="text-pt-texto">Nacimiento</dt><dd className="font-semibold text-pt-marino">{nacimiento ? formatoFecha(nacimiento, "largoSinDia") || nacimiento : "No registrado"}</dd>
-            </dl>
-            <p className="mt-4 text-base leading-relaxed text-pt-texto">Si alguno está mal, avísanos en la óptica y lo corregimos.</p>
-          </Tarjeta>
-
-          <Tarjeta aria-labelledby="cuenta">
-            <TituloTarjeta id="cuenta">Tu cuenta</TituloTarjeta>
-            {errorPrivacidad && !modalEliminarAbierto && (
-              <div role="alert" className="mt-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} className="shrink-0" aria-hidden="true" /> {errorPrivacidad}</div>
-            )}
-            <div className="mt-4 space-y-3">
-              <button type="button" onClick={onCambiarClave} className={BOTON_SECUNDARIO + " w-full"}>Cambiar contraseña</button>
-              <button type="button" onClick={descargarMisDatos} disabled={descargando} className={BOTON_SECUNDARIO + " w-full"}>{descargando ? "Preparando…" : "Descargar una copia de mis datos"}</button>
-              <button type="button" onClick={() => { setMotivoEliminar(""); setSolicitudEliminarEnviada(false); setErrorPrivacidad(""); setModalEliminarAbierto(true) }} className={BOTON_PELIGRO + " w-full"}>Pedir que eliminen mi cuenta</button>
-              {onCerrarSesion && <button type="button" onClick={() => onCerrarSesion()} className={BOTON_SECUNDARIO + " w-full lg:hidden"}><LogOut size={20} aria-hidden="true" /> Cerrar sesión</button>}
+        <dl className="flex shrink-0 gap-3">
+          {[[visitas, visitas === 1 ? "visita" : "visitas"], [compras, compras === 1 ? "compra" : "compras"], ...(puntos ? [[puntos.puntos, "puntos", true]] : [])].map(([n, t, verde]) => (
+            <div key={t} className="min-w-[78px] rounded-2xl bg-white/10 px-4 py-3 text-center sm:min-w-[96px]">
+              <dd className={"font-heading text-[28px] font-bold leading-none tabular-nums " + (verde ? "text-[#6EE7A8]" : "text-white")}>{n}</dd>
+              <dt className="mt-1 text-base text-white/85">{t}</dt>
             </div>
-          </Tarjeta>
-        </div>
+          ))}
+        </dl>
+      </section>
+
+      <div className="pt-fila pt-fila--dos">
+        <Seccion id="contacto" titulo="Cómo te contactamos" Icono={Phone}>
+          <MisDatosContacto usuario={usuario} onActualizado={alActualizarUsuario} />
+        </Seccion>
+
+        <Seccion id="personales" titulo="Tus datos personales" Icono={IdCard}>
+          <dl className="divide-y divide-pt-borde">
+            {[["Cédula", usuario?.cedula || "No registrada"], ["Fecha de nacimiento", nacimiento ? formatoFecha(nacimiento, "largoSinDia") || nacimiento : "No registrada"]].map(([t, v]) => (
+              <div key={t} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-4 first:pt-0">
+                <div className="min-w-0"><dt className="text-base text-pt-texto">{t}</dt><dd className="text-lg font-semibold text-pt-marino">{v}</dd></div>
+                <p className="text-base text-pt-texto">Lo corrige la óptica</p>
+              </div>
+            ))}
+          </dl>
+        </Seccion>
+
+        <Seccion id="mensajes" titulo="Mensajes que quieres recibir" Icono={Bell}>
+          <MisPermisosMensajes usuario={usuario} />
+        </Seccion>
+
+        <Seccion id="seguridad" titulo="Seguridad y privacidad" Icono={ShieldCheck}>
+          {errorPrivacidad && !modalEliminarAbierto && (
+            <div role="alert" className="mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} className="shrink-0" aria-hidden="true" /> {errorPrivacidad}</div>
+          )}
+          <ul className="divide-y divide-pt-borde">
+            <Accion titulo="Contraseña" texto="Protege el acceso a tu cuenta" boton="Cambiar" onClick={onCambiarClave} etiqueta="Cambiar contraseña" />
+            <Accion titulo="Una copia de tus datos" texto="Tus datos, citas e historial en un archivo" boton={descargando ? "Preparando…" : "Descargar"} onClick={descargarMisDatos} deshabilitado={descargando} etiqueta="Descargar una copia de mis datos" />
+            <Accion peligro titulo="Eliminar mi cuenta" texto="Le pedimos a la óptica que borre tu cuenta y tus datos" boton="Solicitar" onClick={() => { setMotivoEliminar(""); setSolicitudEliminarEnviada(false); setErrorPrivacidad(""); setModalEliminarAbierto(true) }} etiqueta="Pedir que eliminen mi cuenta" />
+          </ul>
+          {onCerrarSesion && <button type="button" onClick={() => onCerrarSesion()} className={BOTON_SECUNDARIO + " mt-4 w-full lg:hidden"}><LogOut size={20} aria-hidden="true" /> Cerrar sesión</button>}
+        </Seccion>
       </div>
 
       {modalEliminarAbierto && (
@@ -149,6 +161,31 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
   )
 }
 
+// Una sección de «Mis datos»: ícono en su baldosa, título y contenido.
+function Seccion({ id, titulo, Icono, children }) {
+  return (
+    <Tarjeta aria-labelledby={id} className="sm:px-[34px] sm:py-7">
+      <div className="flex items-center gap-4 border-b border-pt-borde pb-4">
+        <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-pt-suave text-pt-azul"><Icono size={22} /></span>
+        <h2 id={id} className="font-heading text-xl font-bold text-pt-marino">{titulo}</h2>
+      </div>
+      <div className="mt-4">{children}</div>
+    </Tarjeta>
+  )
+}
+// Una acción de «Seguridad y privacidad»: lo que hace y su botón (el de eliminar, en rojo).
+function Accion({ titulo, texto, boton, onClick, deshabilitado = false, peligro = false, etiqueta }) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4 first:pt-0">
+      <div className="min-w-0 flex-1">
+        <p className={"text-base font-semibold " + (peligro ? "text-red-700" : "text-pt-marino")}>{titulo}</p>
+        <p className="text-base leading-snug text-pt-texto">{texto}</p>
+      </div>
+      <button type="button" onClick={onClick} disabled={deshabilitado} aria-label={etiqueta} className={(peligro ? BOTON_PELIGRO : BOTON_SECUNDARIO) + " shrink-0"}>{boton}</button>
+    </li>
+  )
+}
+
 // Los dos permisos para recibir mensajes: el paciente los ve y los cambia aquí, y la óptica los respeta (el servidor lo exige).
 function MisPermisosMensajes({ usuario }) {
   const [permisos, setPermisos] = useState(null)
@@ -164,11 +201,10 @@ function MisPermisosMensajes({ usuario }) {
     return r
   }
   return (
-    <section aria-label="Permisos para recibir mensajes" className="mt-7">
-      <h3 className="mb-4 text-[17px] font-bold text-pt-marino">Mensajes que quieres recibir</h3>
+    <section aria-label="Permisos para recibir mensajes">
       {error ? <p role="alert" className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} className="shrink-0" aria-hidden="true" /> {error}</p>
         : !permisos ? <div className="h-24 animate-pulse rounded-xl bg-slate-100" aria-hidden="true" />
-        : <PermisosMensajes recordatorios={permisos.recordatorios} promociones={permisos.promociones} actualizadoEn={permisos.actualizadoEn} onCambiar={cambiar} quien="yo" casilla />}
+        : <PermisosMensajes recordatorios={permisos.recordatorios} promociones={permisos.promociones} actualizadoEn={permisos.actualizadoEn} onCambiar={cambiar} quien="yo" interruptor />}
     </section>
   )
 }
@@ -227,7 +263,7 @@ function MisDatosContacto({ usuario, onActualizado }) {
   }
 
   const caja = (campo, etiqueta, inputProps) => (
-    <div className="rounded-2xl border border-pt-borde px-4 py-3.5 sm:px-5">
+    <div className="border-t border-pt-borde py-4 first:border-t-0 first:pt-0">
       {editando === campo ? (
         <form onSubmit={guardar} noValidate>
           <label htmlFor={"mis-datos-" + campo} className="text-base text-pt-texto">{etiqueta}</label>
@@ -250,9 +286,9 @@ function MisDatosContacto({ usuario, onActualizado }) {
     </div>
   )
   return (
-    <div className="mt-5 space-y-4">
+    <div>
       {aviso && <div role="status" className="flex items-center gap-2 rounded-xl bg-[#E3F4EA] px-4 py-3 text-lg font-semibold text-[#166534]"><CheckCircle2 size={20} aria-hidden="true" /> {aviso}</div>}
-      {caja("telefono", "Teléfono", { type: "tel", inputMode: "numeric", maxLength: 10, autoComplete: "tel" })}
+      {caja("telefono", "Teléfono y WhatsApp", { type: "tel", inputMode: "numeric", maxLength: 10, autoComplete: "tel" })}
       {caja("correo", "Correo", { type: "email", autoComplete: "email" })}
       {errorGeneral && <p role="alert" className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} className="shrink-0" aria-hidden="true" /> {errorGeneral}</p>}
     </div>

@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useState } from "react"
 import { misCompras } from "../../utilidades/facturaElectronicaApi"
-import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion } from "../../utilidades/portalDatos"
+import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion, misReferidos, marcarCitaEnCalendario } from "../../utilidades/portalDatos"
 
 // Compras (con su saldo), órdenes de laboratorio, control y detalle de las citas del paciente, pedidos una sola vez para todo el portal (Resumen, Mis citas y Mis compras
 // leen lo mismo). `citas` son las citas del paciente: el detalle se pide cuando cambian. confirmar y calificar actualizan la pantalla al instante.
 export function usePortalDatos(usuario, citas = []) {
   const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
   const token = usuario?.token
-  const [estado, setEstado] = useState({ cargando: true, compras: [], errorCompras: "", ordenes: [], control: null })
+  const [estado, setEstado] = useState({ cargando: true, compras: [], errorCompras: "", ordenes: [], control: null, referidos: 0 })
   const [detalle, setDetalle] = useState({ disponible: false, porCita: {} })
   useEffect(() => {
     let vivo = true
-    Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token)]).then(([c, o, k]) => {
-      if (vivo) setEstado({ cargando: false, compras: c.compras, errorCompras: c.error || "", ordenes: o.ordenes, control: k })
+    Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token), misReferidos(pacienteId, token)]).then(([c, o, k, r]) => {
+      if (vivo) setEstado({ cargando: false, compras: c.compras, errorCompras: c.error || "", ordenes: o.ordenes, control: k, referidos: r })
     })
     return () => { vivo = false }
   }, [pacienteId, token])
@@ -34,5 +34,12 @@ export function usePortalDatos(usuario, citas = []) {
     return r
   }, [pacienteId, token])
 
-  return { ...estado, detalle, confirmar, calificar }
+  // «Agregada a tu calendario»: se guarda en la base por cita (vale en todos sus aparatos) y la pantalla cambia al instante.
+  const agregarAlCalendario = useCallback(async (citaId) => {
+    setDetalle((d) => ({ ...d, porCita: { ...d.porCita, [citaId]: { ...(d.porCita[citaId] || {}), enCalendarioAt: new Date().toISOString() } } }))
+    const r = await marcarCitaEnCalendario(pacienteId, token, citaId)
+    return r
+  }, [pacienteId, token])
+
+  return { ...estado, detalle, confirmar, calificar, agregarAlCalendario }
 }
