@@ -454,7 +454,9 @@ function App() {
     if (!supabase) return
     const sesion = cargarDeStorage('optica_sesion', null)
     if (sesion?.tipo !== 'paciente' || sesion.pacienteId == null) return
-    if (usuario?.rol === 'paciente' && usuario?.id === sesion.pacienteId && usuario?.token === sesion.token) return
+    // Sesión ya resuelta de forma sincrónica (el paciente estaba en el `pacientes` guardado de este navegador): igual hay que traer sus citas y recetas;
+    // sin esto «Inicio», «Mis citas» y «Mi receta» se quedaban en esqueleto para siempre.
+    if (usuario?.rol === 'paciente' && usuario?.id === sesion.pacienteId && usuario?.token === sesion.token) { hidratarDatosPaciente(sesion.pacienteId, sesion.token); return }
     supabase.rpc('obtener_paciente_por_id', { p_paciente_id: sesion.pacienteId, p_token: sesion.token }).then(({ data }) => {
       const fila = data?.[0]
       if (!fila) { guardarSesion(null); setUsuario(null); setPantallaActual('login'); return }
