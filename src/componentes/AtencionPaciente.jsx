@@ -252,7 +252,8 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   )
 }
 
-export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar }) {
+// `onVerReceta` y `onVerCompra` (opcionales): llevan a la receta de esa atención (pestaña Graduación) y a su compra (pestaña Compras); cada uno solo se ofrece si existe.
+export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar, onVerReceta, onVerCompra }) {
   // La hoja de la receta es la misma que imprime el optómetra al terminar la consulta (HojaReceta) y la que el paciente guarda como PDF desde su portal.
   const imprimirReceta = () => imprimirHojaReceta({
     optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
@@ -270,6 +271,8 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onC
         pie={<>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={imprimirReceta} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir receta</button>
+            {onVerReceta && <button type="button" onClick={onVerReceta} className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Ver su receta</button>}
+            {onVerCompra && <button type="button" onClick={onVerCompra} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver su compra</button>}
           </div>
           <BotonCerrar onCerrar={onCerrar} />
         </>}

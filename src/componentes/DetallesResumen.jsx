@@ -6,7 +6,7 @@ import { ChevronRight, Gift, Cake, Star, Receipt, Calendar, CalendarPlus, Users,
 import { INK } from "@/lib/tema"
 import { fechaLegible, fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { profesionalDeCita } from "../utilidades/profesionalCita"
-import { DetalleAtencion, SinInformacion } from "./AtencionPaciente"
+import { DetalleAtencion, SinInformacion, Cascaron } from "./AtencionPaciente"
 import { CORREO_AUTOMATICO_ACTIVO } from "../utilidades/crmContactos"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -14,15 +14,12 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // Despliegues del Resumen del perfil: cada cuadro, al tocarlo, muestra de dónde sale su número.
 // Todos terminan igual cuando no hay información: un mensaje que explica qué falta (SinInformacion).
 
-export function Despliegue({ titulo, onCerrar, children }) {
+export function Despliegue({ titulo, subtitulo, onCerrar, children, ancho = "max-w-2xl" }) {
   return (
-    <section aria-label={titulo} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" style={{ animation: "rise-in 220ms ease-out both" }}>
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
-        <h3 className="text-sm font-bold" style={{ color: INK }}>{titulo}</h3>
-        <button type="button" onClick={onCerrar} className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800 cursor-pointer">Ocultar</button>
-      </div>
-      {children}
-    </section>
+    <Cascaron titulo={titulo} subtitulo={subtitulo} Icono={Eye} ancho={ancho} onCerrar={onCerrar}
+      pie={<><span /><button type="button" onClick={onCerrar} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>
+      <div className="pb-2 pt-1">{children}</div>
+    </Cascaron>
   )
 }
 
@@ -60,9 +57,10 @@ const REGLA = {
   "Requiere ajuste": "Con sus lentes, al menos un ojo ve peor que 20/25: conviene revisar la graduación.",
   "Sin evaluar": "En la ficha no se anotó qué tan bien ve con sus lentes, así que el sistema no puede calcularlo.",
 }
-export function PanelCorreccion({ consulta, etiqueta, estado, tendencia }) {
+export function PanelCorreccion({ consulta, etiqueta, estado, tendencia, historial = [] }) {
   if (!consulta) return <SinInformacion Icono={Eye} titulo="Todavía no hay estado de corrección" texto="Se calcula con la agudeza visual con lentes que se anota en la ficha clínica." />
   return (
+    <div>
     <dl className="divide-y divide-slate-100 px-4 py-1">
       <Fila etiqueta="Estado">{etiqueta}</Fila>
       <Fila etiqueta="Medido el">{fechaLegible(consulta.fecha)}</Fila>
@@ -71,6 +69,25 @@ export function PanelCorreccion({ consulta, etiqueta, estado, tendencia }) {
       <Fila etiqueta="Cómo se calcula">{REGLA[estado] || REGLA["Sin evaluar"]}</Fila>
       {tendencia && <Fila etiqueta="Graduación vs. la consulta anterior">{tendencia.txt}</Fila>}
     </dl>
+    {historial.length > 1 && (
+      <section aria-label="Agudeza visual con el tiempo" className="mx-4 mb-3 mt-1">
+        <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Agudeza visual con lentes, consulta por consulta</h4>
+        <div data-lista="agudeza-en-el-tiempo" className="overflow-hidden rounded-xl border border-slate-200/70 text-sm">
+          <div aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_8rem] gap-x-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500"><span>Fecha</span><span className="text-right">OD</span><span className="text-right">OI</span><span>Estado</span></div>
+          <ul className="divide-y divide-slate-100">
+            {historial.map((h) => (
+              <li key={h.id} data-fila className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_8rem] items-center gap-x-3 px-3 py-2">
+                <span className="font-semibold text-slate-800">{fechaLegible(h.fecha)}</span>
+                <span data-col="monto" className="text-right tabular-nums text-slate-700">{h.od || "—"}</span>
+                <span className="text-right tabular-nums text-slate-700">{h.oi || "—"}</span>
+                <span data-col="estado" className="text-slate-600">{h.estado}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )}
+    </div>
   )
 }
 
@@ -99,7 +116,7 @@ export function PanelControl({ proximoControl, diasControl, inactivo, ultima, ci
 // ── Compras ──
 const descripcionComprobante = (c) => c.factura ? (c.factura.lineas || []).map((l) => l.descripcion).filter(Boolean).join(", ") || "Comprobante de venta" : c.venta?.productoNombre || "Venta"
 export function PanelCompras({ comprobantes, onVerProductos }) {
-  if (comprobantes.length === 0) return <SinInformacion Icono={Receipt} titulo="Aún no tiene compras" texto="Las ventas de lentes, monturas y servicios aparecerán aquí cuando se cobre la primera."><div className="mt-2"><Boton onClick={onVerProductos} Icono={ChevronRight}>Ir a Productos y servicios</Boton></div></SinInformacion>
+  if (comprobantes.length === 0) return <SinInformacion Icono={Receipt} titulo="Aún no tiene compras" texto="Las ventas de lentes, monturas y servicios aparecerán aquí cuando se cobre la primera."><div className="mt-2"><Boton onClick={onVerProductos} Icono={ChevronRight}>Ir a Compras</Boton></div></SinInformacion>
   return (
     <div>
       <ul className="divide-y divide-slate-100 px-4">

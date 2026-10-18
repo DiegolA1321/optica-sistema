@@ -33,9 +33,14 @@ for (const rol of ['ADMIN', 'OPTOMETRA', 'RECEPCION', 'VENTAS']) {
     await page.getByRole('tab', { name: /Resumen/ }).click()
     await expect(page.getByRole('region', { name: 'Citas del paciente' })).toBeVisible()
     await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
-    await expect(page.getByText('Graduación vigente')).toHaveCount(0)
-    // La pestaña
-    await page.getByRole('tab', { name: /Graduación/ }).click()
+    // en la cabecera hay un panel con la graduación vigente (visible desde todas las pestañas); el bloque grande ya no está en el Resumen
+    const panel = page.getByRole('button', { name: /Graduación vigente del .*Abrir la pestaña Graduación/ })
+    await expect(panel).toBeVisible()
+    await expect(panel).toContainText('receta del')
+    await expect(page.getByRole('region', { name: 'Ojo derecho' })).toHaveCount(0)
+    // La pestaña: el panel de la cabecera la abre
+    await panel.click()
+    await expect(page.getByRole('tab', { name: /Graduación/ })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByRole('heading', { name: 'Graduación', exact: true })).toBeVisible({ timeout: 20_000 })
     await expect(page.getByRole('button', { name: /Elegir otra receta/ })).toContainText('Receta del 20 de abril de 2026 · vigente')
     const od = page.getByRole('region', { name: 'Ojo derecho' })
