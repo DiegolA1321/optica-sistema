@@ -7,7 +7,7 @@ import { formatoFecha } from "../utilidades/formatoFecha"
 import { diaDeRegistro } from "../utilidades/periodoLista"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { urlDeDescargaPaciente } from "../utilidades/facturaElectronicaApi"
-import { tipoDeLentes, nombreDeLosLentes } from "../utilidades/portalPaciente"
+import { tipoDeLentes, nombreDeLosLentes, proximoPasoLentes } from "../utilidades/portalPaciente"
 import { porcentajeAbonado } from "../utilidades/portalVistas"
 import { Cascaron } from "./AtencionPaciente"
 import { Insignia, TituloPagina, Esqueleto, PasosLentes, VerDetalle } from "./portal/piezas"
@@ -116,6 +116,17 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                             </div>
                           </>
                         )}
+                        {Array.isArray(c.abonos) && c.abonos.length > 0 && (
+                          <div className="border-t border-pt-borde pt-3">
+                            <h3 className="text-base font-semibold text-pt-texto">Abonos realizados</h3>
+                            <ul aria-label="Abonos realizados" className="mt-1 space-y-1 text-base text-pt-marino">
+                              {c.abonos.map((a, i) => <li key={i} className="flex items-baseline justify-between gap-4"><span>{formatoFecha(a.fecha, "largoSinDia")}</span><span className="shrink-0 font-bold tabular-nums">{dinero(a.monto)}</span></li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {enCurso[0] && (
+                          <p className="flex items-start gap-2 rounded-xl bg-pt-suave px-4 py-3 text-base font-semibold leading-snug text-[#1B4FB5]"><span className="sr-only">Lo que sigue: </span>{proximoPasoLentes(enCurso[0])}</p>
+                        )}
                       </div>
                       {enCurso.length > 0 && (
                         <div className="flex flex-col space-y-4 rounded-[20px] bg-pt-fondo p-5 sm:p-6">
@@ -144,7 +155,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
             {visibles.length === 0 ? (
               <p role="status" className="mt-4 rounded-2xl bg-pt-fondo px-5 py-6 text-center text-lg font-semibold text-pt-marino">Ninguna compra coincide con este filtro.</p>
             ) : (
-              <ul className="mt-3 divide-y divide-pt-borde" aria-label="Historial de compras">
+              <ul className="mt-3 divide-y divide-pt-borde" aria-label="Historial de compras" data-lista="historial-compras">
                 {visibles.map((c) => {
                   const lentes = ordenes.filter((o) => o.facturaId === c.id)
                   const debe = c.estado === "pendiente_pago" && Number(c.saldo) > 0
@@ -152,14 +163,14 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                   const titulo = lentes[0] ? tipoDeLentes(lentes[0]) : c.lineas?.[0]?.descripcion || "Compra"
                   const sub = [numeroComprobante(c.numero), c.factura_electronica ? `factura ${c.factura_electronica.numero}` : c.lineas?.length > 1 ? `${c.lineas.length} productos` : ""].filter(Boolean).join(" · ")
                   return (
-                    <li key={c.id} className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-4 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[130px_minmax(0,1fr)_auto_auto_auto] sm:gap-x-5">
+                    <li key={c.id} data-fila className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-4 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[130px_minmax(0,1fr)_104px_200px_24px] sm:gap-x-5">
                       <p className="col-span-2 text-base text-pt-texto sm:col-span-1">{formatoFecha(diaDeRegistro(c.fecha), "medio")}</p>
                       <div className="min-w-0">
                         <button type="button" onClick={() => setAbiertaId(c.id)} aria-label={`Ver el detalle de tu compra ${numeroComprobante(c.numero)}`} className="-my-3 block max-w-full py-3 text-left text-base font-semibold leading-snug text-pt-marino cursor-pointer after:absolute after:inset-0 after:content-['']">{titulo}</button>
                         <p className="text-base leading-snug text-pt-texto">{sub}</p>
                       </div>
-                      <p className="text-right text-lg font-bold tabular-nums text-pt-marino sm:order-none">{dinero(c.total)}</p>
-                      <Insignia tono={debe ? "ambar" : "verde"} className="justify-self-start sm:justify-self-end">{debe ? "Con saldo" : entregada ? "Pagada y entregada" : "Pagada"}</Insignia>
+                      <p data-col="monto" className="text-right text-lg font-bold tabular-nums text-pt-marino sm:order-none">{dinero(c.total)}</p>
+                      <div data-col="estado" className="justify-self-start sm:justify-self-stretch"><Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : entregada ? "Pagada y entregada" : "Pagada"}</Insignia></div>
                       <ChevronRight size={22} className="hidden shrink-0 text-slate-500 sm:block" aria-hidden="true" />
                     </li>
                   )

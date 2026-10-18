@@ -4,10 +4,10 @@
 // del personal (`version="personal"`, notación técnica: OD y OI, esfera, cilindro, eje, adición, agudeza visual y distancia pupilar). Mismas cuentas (`utilidades/graduacion.js`),
 // mismos datos y mismo orden: lo que el optómetra le explica al paciente en la consulta es lo que el paciente lee en su portal.
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Glasses, ChevronDown, ArrowRight, Printer, GitCompare, Download, Info, Check, MessageSquareText } from "lucide-react"
+import { Glasses, ChevronDown, ChevronRight, ArrowRight, Printer, GitCompare, Download, Info, Check, MessageSquareText } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { valorD } from "../../utilidades/portalVistas"
-import { lecturaDeOjo, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
+import { lecturaDeOjo, numero, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
 import { AYUDA_RECETA } from "../../utilidades/portalPaciente"
 import { Cascaron } from "../AtencionPaciente"
 import OjoIlustrado from "./OjoIlustrado"
@@ -16,24 +16,46 @@ const Partes = ({ partes }) => partes.map((p, i) => (p.b ? <strong key={i} class
 const LADOS = [["od", "Ojo derecho", "OD"], ["oi", "Ojo izquierdo", "OI"]]
 const COLOR_LADO = { od: "#1d4ed8", oi: "#0891b2" }
 
+// Un ojo sin ninguna medida en esta receta: se dice en una sola línea, no con una cuadrícula de «No registrado».
+export const ojoSinDatos = (o = {}) => !["esfera", "cilindro", "eje", "avSc", "avCc"].some((k) => String(o?.[k] ?? "").trim() !== "")
+const NOMBRE_SIN_DATOS = { od: "ojo derecho", oi: "ojo izquierdo" }
+const sinDatosDelOjo = (lado) => `Sin datos del ${NOMBRE_SIN_DATOS[lado]} en esta receta`
+
+// Toda la tarjeta del ojo se pulsa y abre «Historia de este ojo»: el botón transparente cubre la tarjeta y «Ver la historia ›» lo avisa.
+const AbrirOjo = ({ lado, onOjo, paciente }) => onOjo && (
+  <>
+    <button type="button" onClick={() => onOjo(lado)} aria-label={`Ver la historia del ${NOMBRE_SIN_DATOS[lado]}: todas sus recetas y cómo cambió su esfera`} className="pt-abrir absolute inset-0 rounded-[inherit] cursor-pointer" />
+    <p className={"mt-3 flex items-center gap-1 font-semibold " + (paciente ? "text-base text-pt-azul" : "text-sm text-blue-600")} aria-hidden="true">Ver la historia de este ojo <ChevronRight size={paciente ? 20 : 16} /></p>
+  </>
+)
+
 // ───────────────────────── La graduación vigente ─────────────────────────
 // Dos ojos ilustrados con su esfera. Paciente: la explicación de cada ojo y de cada dato; el ojo derecho va a la DERECHA y el izquierdo a la IZQUIERDA, desde la perspectiva del paciente
 // (en pantalla angosta, donde se apilan, va primero el derecho). Personal: los valores técnicos de cada ojo, con OD a la izquierda como en la receta impresa.
-export function GraduacionVigente({ receta, anterior = null, version = "paciente" }) {
+export function GraduacionVigente({ receta, anterior = null, version = "paciente", onOjo }) {
   if (!receta) return null
-  if (version === "personal") return <VigentePersonal receta={receta} anterior={anterior} />
+  if (version === "personal") return <VigentePersonal receta={receta} anterior={anterior} onOjo={onOjo} />
   return (
     <div className="@container">
       <div className="grid gap-5 @[56rem]:grid-cols-2 @[56rem]:gap-6">
         {LADOS.map(([lado, nombre]) => {
           const l = lecturaDeOjo(receta, lado)
+          if (ojoSinDatos(receta[lado])) {
+            return (
+              <section key={lado} aria-label={nombre} data-lado={lado} className={"pt-abrible relative min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 transition-shadow hover:shadow-md sm:px-[34px] sm:py-7 " + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
+                <p className="text-lg font-semibold text-pt-marino">{nombre}</p>
+                <p className="mt-2 text-lg text-pt-texto">{sinDatosDelOjo(lado)}.</p>
+                <AbrirOjo lado={lado} onOjo={onOjo} paciente />
+              </section>
+            )
+          }
           const filas = [
             ["Astigmatismo", l.hayAstigmatismo ? `${valorD(l.cilindro)}${l.eje ? ` · ${l.eje}°` : ""}` : "—", l.explicaCilindro],
             ...(l.adicion ? [["Para leer de cerca", valorD(l.adicion), l.explicaCerca]] : []),
             ...(l.agudeza ? [[l.conLentes ? "Cómo ves con tus lentes" : "Cómo ves sin lentes", l.agudeza, l.explicaAgudeza]] : []),
           ]
           return (
-            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7 " + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
+            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md " : "") + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
               <div className="grid items-center gap-x-8 gap-y-4 @[24rem]:grid-cols-[auto_minmax(0,1fr)]">
                 <div className="flex flex-col items-center text-center">
                   <OjoIlustrado ancho={150} />
@@ -52,6 +74,7 @@ export function GraduacionVigente({ receta, anterior = null, version = "paciente
                   </div>
                 ))}
               </dl>
+              <AbrirOjo lado={lado} onOjo={onOjo} paciente />
             </section>
           )
         })}
@@ -66,7 +89,7 @@ const NoRegistrado = () => <span className="font-normal text-slate-400">No regis
 // La versión técnica: los mismos ojos grandes, con notación OD y OI y todos los valores de la receta (esfera, cilindro, eje, agudeza con y sin lentes, adición, distancia pupilar y altura).
 // Sin esfera, en lugar del valor grande va un texto pequeño y gris: «Sin registrar». En el espacio libre de cada ojo: cuánto cambió desde la receta anterior y la explicación en palabras
 // simples (la misma del portal), en letra pequeña.
-function VigentePersonal({ receta, anterior }) {
+function VigentePersonal({ receta, anterior, onOjo }) {
   const m = receta.medidas || {}
   const medidas = [["Adición", m.adicion && valorD(m.adicion)], ["Distancia pupilar (DP)", m.dp], ["Altura de montaje", m.alt]]
   const cambios = anterior ? cambioPorOjo([receta, anterior]) : null
@@ -80,8 +103,17 @@ function VigentePersonal({ receta, anterior }) {
           const l = lecturaDeOjo(receta, lado)
           const v = cambios?.find((c) => c.lado === lado)?.variacion
           const delta = v == null ? "" : Math.abs(v) < 0.25 ? `Sin cambios desde ${desde}` : `${textoDelta(v)} desde ${desde}`
+          if (ojoSinDatos(o)) {
+            return (
+              <section key={lado} aria-label={nombre} data-lado={lado} className={"rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+                <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
+                <p className="mt-2 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p>
+                <AbrirOjo lado={lado} onOjo={onOjo} paciente={false} />
+              </section>
+            )
+          }
           return (
-            <section key={lado} aria-label={nombre} data-lado={lado} className="rounded-2xl border border-slate-200/60 bg-white p-5">
+            <section key={lado} aria-label={nombre} data-lado={lado} className={"rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
               <div className="flex items-start gap-5">
                 <OjoIlustrado ancho={150} className="shrink-0" />
                 <div className="min-w-0">
@@ -94,13 +126,18 @@ function VigentePersonal({ receta, anterior }) {
               <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-base">
                 {datos.map(([t, x]) => <div key={t} className="flex items-baseline justify-between gap-2"><dt className="text-slate-500">{t}</dt><dd className="text-right font-semibold tabular-nums text-slate-900">{x || <NoRegistrado />}</dd></div>)}
               </dl>
+              <AbrirOjo lado={lado} onOjo={onOjo} paciente={false} />
             </section>
           )
         })}
       </div>
-      <dl aria-label="Medidas de la receta" className="flex flex-wrap gap-x-8 gap-y-1 rounded-xl bg-slate-50 px-4 py-2.5 text-base">
-        {medidas.map(([t, x]) => <div key={t} className="flex items-baseline gap-2"><dt className="text-slate-500">{t}</dt><dd className="font-semibold tabular-nums text-slate-900">{x || <NoRegistrado />}</dd></div>)}
-      </dl>
+      {medidas.every(([, x]) => !x)
+        ? <p aria-label="Medidas de la receta" className="rounded-xl bg-slate-50 px-4 py-2.5 text-base text-slate-500">Sin adición, distancia pupilar ni altura de montaje en esta receta.</p>
+        : (
+          <dl aria-label="Medidas de la receta" className="flex flex-wrap gap-x-8 gap-y-1 rounded-xl bg-slate-50 px-4 py-2.5 text-base">
+            {medidas.map(([t, x]) => <div key={t} className="flex items-baseline gap-2"><dt className="text-slate-500">{t}</dt><dd className="font-semibold tabular-nums text-slate-900">{x || <NoRegistrado />}</dd></div>)}
+          </dl>
+        )}
     </div>
   )
 }
@@ -116,7 +153,7 @@ export function CambioGraduacion({ consultas, version = "paciente", onElegir }) 
   return (
     <section aria-label={paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
       <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Cómo cambió desde tu examen anterior" : "Cambio desde la consulta anterior"}</h3>
-      <p className={paciente ? "mt-1 text-base text-pt-texto" : "mt-0.5 text-xs text-slate-500"}>{paciente ? (hayCambio ? "Un cambio pequeño y normal con el tiempo." : "Tu graduación se mantiene igual.") : "Esfera de cada ojo en las dos últimas consultas. Pulsa una fila para ver la receta anterior."}</p>
+      <p className={paciente ? "mt-1 text-base text-pt-texto" : "mt-0.5 text-xs text-slate-500"}>{paciente ? (hayCambio ? "Un cambio pequeño y normal con el tiempo." : "Tu graduación se mantiene igual.") : "Esfera de cada ojo en las dos últimas consultas. Pulsa una fila para comparar las dos recetas."}</p>
       <ul className={"mt-3 divide-y " + (paciente ? "divide-pt-borde border-t border-pt-borde" : "divide-slate-100 border-t border-slate-100")}>
         {cambio.map((o, i) => {
           const contenido = (
@@ -136,7 +173,7 @@ export function CambioGraduacion({ consultas, version = "paciente", onElegir }) 
           return (
             <li key={o.lado}>
               {onElegir
-                ? <button type="button" onClick={onElegir} aria-label={`Ver la receta de ${o.antes.fecha}: ${o.nombre}`} className={clase + " rounded-lg transition-colors cursor-pointer " + (paciente ? "hover:bg-pt-fondo" : "px-2 hover:bg-slate-50")}>{contenido}</button>
+                ? <button type="button" onClick={onElegir} aria-label={`Comparar las dos recetas (${o.antes.fecha} y ${o.ahora.fecha}): ${o.nombre}`} className={clase + " rounded-lg transition-colors cursor-pointer " + (paciente ? "hover:bg-pt-fondo" : "px-2 hover:bg-slate-50")}>{contenido}</button>
                 : <div className={clase}>{contenido}</div>}
             </li>
           )
@@ -223,6 +260,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
   const [id, setId] = useState(() => recetas[0]?.id)
   const [simple, setSimple] = useState(false)
   const [comparando, setComparando] = useState(false)
+  const [historiaOjo, setHistoriaOjo] = useState(null) // "od" | "oi"
   const idx = Math.max(0, recetas.findIndex((r) => String(r.id) === String(id)))
   const receta = recetas[idx]
   const anterior = recetas[idx + 1] || null
@@ -237,7 +275,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
   const boton = portal
     ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold leading-snug text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer"
     : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-  const cambio = anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} onElegir={() => setId(anterior.id)} />
+  const cambio = anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} onElegir={() => setComparando(true)} />
   const bloqueIndicaciones = indicaciones.length > 0 && (
     <section aria-label={paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
       <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"}</h3>
@@ -264,7 +302,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
         </div>
       </div>
 
-      <GraduacionVigente receta={receta} anterior={anterior} version={v} />
+      <GraduacionVigente receta={receta} anterior={anterior} version={v} onOjo={setHistoriaOjo} />
 
       {grafica ? (
         <>
@@ -281,8 +319,73 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
           {(bloqueIndicaciones || extraDerecha) && <div className="min-w-0 space-y-5 sm:space-y-6">{bloqueIndicaciones}{extraDerecha}</div>}
         </div>
       )}
+      {historiaOjo && <VentanaHistoriaOjo recetas={recetas} lado={historiaOjo} version={v} actualId={receta.id} onElegir={(rid) => { setId(rid); setHistoriaOjo(null) }} onCerrar={() => setHistoriaOjo(null)} />}
       {comparando && compararCon && <VentanaComparar recetas={recetas} version={v} idA={String(compararCon.id)} idB={String(receta.id)} onCerrar={() => setComparando(false)} />}
     </div>
+  )
+}
+
+// ───────────────────────── Historia de este ojo ─────────────────────────
+// Todas las recetas del paciente en una tabla (pulsar una fila cambia la vista a esa receta) y una gráfica de la esfera de ese ojo en el tiempo.
+const GraficaEsfera = ({ puntos, paciente, nombre }) => {
+  const W = 600, H = 220, L = 52, R = 18, T = 18, B = 34
+  const t = (f) => new Date(String(f).slice(0, 10) + "T00:00:00Z").getTime()
+  const t0 = t(puntos[0].fecha), t1 = t(puntos[puntos.length - 1].fecha)
+  const vs = puntos.map((p) => p.v)
+  const lo = Math.min(...vs) - 0.5, hi = Math.max(...vs) + 0.5
+  const x = (f) => L + (t1 === t0 ? (W - L - R) / 2 : ((t(f) - t0) / (t1 - t0)) * (W - L - R))
+  const y = (v) => T + ((hi - v) / (hi - lo)) * (H - T - B)
+  const marcas = [hi, (hi + lo) / 2, lo]
+  return (
+    <svg role="img" aria-label={`Gráfica de la esfera del ${nombre}: ${puntos.map((p) => `${formatoFecha(p.fecha, "medio")} ${valorD(String(p.v))}`).join(", ")}`} viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
+      {marcas.map((m, i) => <g key={i}><line x1={L} x2={W - R} y1={y(m)} y2={y(m)} stroke="#E2E8F0" strokeWidth="1" /><text x={L - 8} y={y(m) + 5} textAnchor="end" fontSize="14" fill="#475569">{valorD(String(Math.round(m * 4) / 4))}</text></g>)}
+      <polyline points={puntos.map((p) => `${x(p.fecha)},${y(p.v)}`).join(" ")} fill="none" stroke="#2563EB" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+      {puntos.map((p) => <g key={p.fecha + p.id}><circle cx={x(p.fecha)} cy={y(p.v)} r="6" fill="#fff" stroke="#2563EB" strokeWidth="3" /><text x={x(p.fecha)} y={H - 10} textAnchor="middle" fontSize="14" fill="#475569">{formatoFecha(p.fecha, "medioSinAnio")} {String(p.fecha).slice(2, 4)}</text></g>)}
+    </svg>
+  )
+}
+
+export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actualId, onElegir, onCerrar }) {
+  const paciente = version === "paciente"
+  const nombre = NOMBRE_SIN_DATOS[lado]
+  const sigla = lado === "od" ? "OD" : "OI"
+  const filas = recetas.filter((r) => !ojoSinDatos(r[lado]))
+  const puntos = [...filas].reverse().map((r) => ({ id: r.id, fecha: r.fecha, v: numero(r[lado]?.esfera) })).filter((p) => p.v !== null)
+  const COL = "grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_3.5rem_4.5rem] items-center gap-x-3 px-4"
+  return (
+    <Cascaron pantallaCompletaEnCelular titulo={paciente ? `Historia de tu ${nombre}` : `Historia de este ojo · ${sigla}`} subtitulo={paciente ? "Todas tus recetas y cómo cambió tu esfera." : "Todas las recetas del paciente y la esfera en el tiempo."} Icono={Glasses} ancho="max-w-2xl" onCerrar={onCerrar} capa="z-[60]"
+      pie={<><span /><button type="button" onClick={onCerrar} className={paciente ? "inline-flex min-h-12 items-center rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold text-pt-marino hover:bg-slate-50 cursor-pointer" : "rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"}>Cerrar</button></>}>
+      <div className="space-y-4 p-5">
+        <section aria-label="Esfera en el tiempo" className="rounded-2xl border border-slate-200/60 p-3">
+          <h3 className="px-1 text-base font-bold text-slate-900">Esfera en el tiempo</h3>
+          {puntos.length >= 2 ? <GraficaEsfera puntos={puntos} paciente={paciente} nombre={nombre} /> : <p className="px-1 py-6 text-base text-slate-500">Con una sola receta todavía no hay gráfica.</p>}
+        </section>
+        <section aria-label="Recetas de este ojo">
+          <h3 className="mb-2 text-base font-bold text-slate-900">Todas las recetas</h3>
+          {filas.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p> : (
+            <div data-lista="historia-ojo" className="overflow-hidden rounded-2xl border border-slate-200/70">
+              <div aria-hidden="true" className={COL + " bg-slate-50 py-2 text-sm font-semibold text-slate-500"}><span>Fecha</span><span className="text-right">Esfera</span><span className="text-right">{paciente ? "Astig." : "Cilindro"}</span><span className="text-right">Eje</span><span className="text-right">AV</span></div>
+              <ul className="divide-y divide-slate-100">
+                {filas.map((r) => {
+                  const o = r[lado] || {}
+                  return (
+                    <li key={r.id} data-fila>
+                      <button type="button" onClick={() => onElegir(r.id)} aria-current={String(r.id) === String(actualId) ? "true" : undefined} aria-label={`Ver la receta del ${formatoFecha(r.fecha, "largoSinDia")}`} className={COL + " min-h-12 w-full py-2 text-left text-base transition-colors cursor-pointer hover:bg-slate-50 " + (String(r.id) === String(actualId) ? "bg-blue-50/60" : "")}>
+                        <span className="font-semibold text-slate-900">{formatoFecha(r.fecha, "medio")}{r.id === recetas[0]?.id && <span className="text-blue-600"> · vigente</span>}</span>
+                        <span data-col="monto" className="text-right font-bold tabular-nums text-slate-900">{valorD(o.esfera) || "—"}</span>
+                        <span className="text-right tabular-nums text-slate-700">{valorD(o.cilindro) || "—"}</span>
+                        <span className="text-right tabular-nums text-slate-700">{o.eje ? `${o.eje}°` : "—"}</span>
+                        <span className="text-right tabular-nums text-slate-700">{o.avCc || o.avSc || "—"}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+        </section>
+      </div>
+    </Cascaron>
   )
 }
 

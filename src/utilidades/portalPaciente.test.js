@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   citasProximas, citasHistorial, NOTA_ESTADO_CITA, mapOrdenPaciente, ordenesAbiertasDelPaciente, nombreDeLosLentes,
-  textoOrdenPaciente, identidadDeLaOptica, pasosDeLosLentes, resumenCambioGraduacion, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
+  textoOrdenPaciente, proximoPasoLentes, identidadDeLaOptica, pasosDeLosLentes, resumenCambioGraduacion, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
 } from "./portalPaciente"
 
 // "Hoy" fijo: 17 de octubre de 2026, mediodía (hora de Ecuador ya convertida: la función recibe un Date local).
@@ -188,4 +188,12 @@ describe("identidad de la óptica", () => {
     expect(identidadDeLaOptica({ marca: { colorAcento: "rojo" } }).acento).toBe("#1D5FD6")
     expect(identidadDeLaOptica({ marca: { colorAcento: "#FDE047" } }).textoBoton).toBe("#0E2B33")
   })
+})
+
+describe("proximoPasoLentes: lo que sigue, en una frase", () => {
+  const o = { estado: "enviada", fechaPrometida: "2026-10-22" }
+  it("en el laboratorio con fecha: cuándo retirarlos", () => expect(proximoPasoLentes(o, HOY)).toBe("Retíralos en la óptica desde el 22 de octubre."))
+  it("sin fecha prometida: te avisan", () => expect(proximoPasoLentes({ estado: "enviada" }, HOY)).toBe("Te avisaremos cuando estén listos para retirar."))
+  it("listos: retirarlos ya", () => expect(proximoPasoLentes({ estado: "lista" }, HOY)).toBe("Ya están listos: retíralos en la óptica."))
+  it("entregados: nada que decir", () => expect(proximoPasoLentes({ estado: "entregada" }, HOY)).toBe(""))
 })

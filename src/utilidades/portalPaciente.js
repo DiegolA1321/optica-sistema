@@ -77,6 +77,15 @@ export function textoOrdenPaciente(orden, hoy = ahoraEcuador()) {
   return { clave: "enviada", tono: "azul", titulo: "En el laboratorio", detalle: orden.fechaPrometida ? `Fecha estimada: ${fechaLegible(orden.fechaPrometida)}.` : "Te avisaremos cuando estén listos." }
 }
 
+// Lo que sigue para el paciente, en una frase: «Retíralos en la óptica desde el 22 de octubre.»
+export function proximoPasoLentes(orden, hoy = ahoraEcuador()) {
+  const visible = estadoVisible(orden, hoy)
+  if (visible === "lista") return "Ya están listos: retíralos en la óptica."
+  if (visible === "entregada") return ""
+  if (visible === "atrasada") return "Se están demorando un poco más de lo previsto: llama a la óptica para saber cuándo estarán."
+  return orden.fechaPrometida ? `Retíralos en la óptica desde el ${formatoFecha(orden.fechaPrometida, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos para retirar."
+}
+
 // La línea de pasos del seguimiento de unos lentes (como el de un envío): Pedido → En el laboratorio → Listos para retirar → Entregados. «Atrasada» es
 // la misma orden en el paso del laboratorio, con su aviso en rojo (igual que en Ventas).
 export const PASOS_LENTES = ["Pedido", "En el laboratorio", "Listos para retirar", "Entregados"]

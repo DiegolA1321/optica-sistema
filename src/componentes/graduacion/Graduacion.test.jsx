@@ -48,8 +48,38 @@ describe("La graduación, un solo componente con dos versiones", () => {
     const oi = screen.getByRole("region", { name: "Ojo izquierdo" })
     expect(oi).toHaveTextContent("No registrado")
     expect(oi.textContent.match(/No registrado/g).length).toBeGreaterThanOrEqual(3) // cilindro, eje y las dos agudezas
-    expect(document.body.textContent).toContain("Distancia pupilar (DP)No registrado")
+    expect(document.body.textContent).toContain("Sin adición, distancia pupilar ni altura de montaje en esta receta.")
     expect(document.body.textContent).not.toContain("—")
+  })
+
+  it("datos incompletos: un ojo sin ninguna medida es UNA línea («Sin datos del ojo izquierdo en esta receta»), no una cuadrícula de «No registrado»", () => {
+    const { unmount } = render(<GraduacionVigente receta={receta({ oi: {} })} version="personal" />)
+    const oi = screen.getByRole("region", { name: "Ojo izquierdo" })
+    expect(oi).toHaveTextContent("Sin datos del ojo izquierdo en esta receta.")
+    expect(oi).not.toHaveTextContent("No registrado")
+    unmount()
+    render(<GraduacionVigente receta={receta({ od: {} })} version="paciente" />)
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("Sin datos del ojo derecho en esta receta.")
+  })
+
+  it("con una medida suelta (solo la DP) las medidas se muestran y lo que falta dice «No registrado»", () => {
+    render(<GraduacionVigente receta={receta({ medidas: { dp: "62" } })} version="personal" />)
+    expect(document.body.textContent).toContain("Distancia pupilar (DP)62")
+    expect(document.body.textContent).toContain("AdiciónNo registrado")
+  })
+
+  it("cada tarjeta de ojo se pulsa y abre «Historia de este ojo»: todas sus recetas en una tabla y la gráfica de su esfera; una fila elige esa receta", () => {
+    const filas = [receta(), anterior]
+    render(<VistaGraduacion recetas={filas} version="personal" titulo="Graduación" />)
+    fireEvent.click(screen.getByRole("button", { name: /Ver la historia del ojo derecho/ }))
+    const ventana = screen.getByRole("dialog", { name: /Historia de este ojo · OD/ })
+    expect(within(ventana).getByRole("img", { name: /Gráfica de la esfera del ojo derecho/ })).toBeInTheDocument()
+    const tabla = within(ventana).getByRole("button", { name: /Ver la receta del 21 de noviembre de 2025/ })
+    expect(tabla).toHaveTextContent("−1.50")
+    expect(within(ventana).getAllByRole("button", { name: /Ver la receta del/ })).toHaveLength(2)
+    fireEvent.click(tabla)
+    expect(screen.queryByRole("dialog", { name: /Historia de este ojo/ })).toBeNull()
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).not.toHaveTextContent("vigente")
   })
 
   it("la posición de los ojos: en el paciente el derecho va a la derecha; en el personal el OD va a la izquierda", () => {
@@ -135,11 +165,10 @@ describe("La pestaña «Graduación» del perfil del personal", () => {
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
     expect(screen.getByRole("region", { name: "Cambio desde la consulta anterior" })).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Tendencia de graduación" })).toHaveTextContent("Tendencia existente 2026-04-20")
-    // el antes → ahora y la tendencia van lado a lado y cambian la vista a esa receta
-    fireEvent.click(screen.getByRole("button", { name: /Ver la receta de Nov 2025: Ojo derecho/ }))
-    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 21 de noviembre de 2025")
-    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
-    fireEvent.click(screen.getByRole("option", { name: /20 de abril de 2026/ }))
+    // las filas del antes → ahora abren la comparación de esas dos recetas; los puntos de la tendencia abren esa receta
+    fireEvent.click(screen.getByRole("button", { name: /Comparar las dos recetas .*Ojo derecho/ }))
+    expect(screen.getByRole("dialog", { name: "Comparar dos recetas" })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: "Escape" })
     fireEvent.click(screen.getByRole("button", { name: /Tendencia existente/ }))
     expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 21 de noviembre de 2025")
     fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
