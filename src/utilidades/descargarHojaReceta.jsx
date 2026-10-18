@@ -1,11 +1,12 @@
-// «Descargar receta» del portal: baja el PDF DIRECTAMENTE, sin el diálogo de impresión (para un paciente mayor es confuso). Es la misma hoja que imprime el optómetra (`HojaReceta`): se
-// monta fuera de la pantalla, se dibuja a una imagen (SVG con la hoja adentro → lienzo → JPEG) y esa imagen va en una página A4 de un PDF armado aquí mismo, sin librerías.
+// «Descargar receta» del portal: baja el PDF DIRECTAMENTE, sin el diálogo de impresión (para un paciente mayor es confuso). Es la misma hoja que imprime el optómetra (`HojaReceta`): se monta
+// fuera de la pantalla, se lee cómo quedó dibujada (cada caja con su fondo y sus bordes y cada palabra con su tipo de letra, tamaño, color y posición) y se escribe en una página A4 de un PDF
+// armado aquí mismo, sin librerías. El texto del PDF es TEXTO (se puede seleccionar, buscar y copiar), no una imagen de la hoja.
 import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 import HojaReceta from "../componentes/HojaReceta"
 
 const A4 = { ancho: 595.28, alto: 841.89 }
-const ANCHO_HOJA = 780 // el ancho de la hoja (HojaReceta)
+const ANCHO_HOJA = 780 // el ancho de la hoja (HojaReceta), en px
 const codificar = (t) => new TextEncoder().encode(t)
 const unir = (partes) => {
   const total = partes.reduce((s, p) => s + p.length, 0)
@@ -16,20 +17,46 @@ const unir = (partes) => {
 }
 const num = (n) => (Math.round(n * 100) / 100).toString()
 
-// Un PDF de una página A4 con una imagen JPEG que ocupa todo el ancho (y, si es muy alta, se ajusta al alto). Puro: se prueba sin navegador.
-export function armarPdfConImagen({ jpeg, anchoPx, altoPx }) {
-  const escala = Math.min(A4.ancho / anchoPx, A4.alto / altoPx)
-  const w = anchoPx * escala
-  const h = altoPx * escala
-  const x = (A4.ancho - w) / 2
-  const y = A4.alto - h
-  const contenido = codificar(`q ${num(w)} 0 0 ${num(h)} ${num(x)} ${num(y)} cm /Im0 Do Q`)
+// ── Texto → bytes WinAnsi (como Latin-1; la raya larga, las comillas y la viñeta tienen su propio código). Lo que no exista se cambia por «?»; el signo menos de verdad, por un guion.
+const WIN = { "—": 0x97, "–": 0x96, "“": 0x93, "”": 0x94, "‘": 0x91, "’": 0x92, "•": 0x95, "−": 0x2d }
+const aBytes = (s) => [...String(s ?? "")].map((ch) => { const c = ch.charCodeAt(0); return WIN[ch] ?? (c < 256 ? c : 0x3f) })
+const escapar = (bytes) => bytes.flatMap((b) => (b === 0x28 || b === 0x29 || b === 0x5c ? [0x5c, b] : [b]))
+const FUENTES = ["Helvetica", "Helvetica-Bold", "Times-Roman", "Times-Bold", "Courier", "Courier-Bold"]
+
+// Anchos de Helvetica (milésimas de em) para ajustar cada palabra al ancho que tenía en pantalla (el PDF usa las fuentes estándar, que no miden lo mismo que la fuente de la pantalla).
+const ANCHO_HELV = { " ": 278, "!": 278, '"': 355, "#": 556, $: 556, "%": 889, "&": 667, "'": 191, "(": 333, ")": 333, "*": 389, "+": 584, ",": 278, "-": 333, ".": 278, "/": 278, ":": 278, ";": 278, "=": 584, "?": 556, "@": 1015, "°": 400, "·": 278, "º": 365,
+  0: 556, 1: 556, 2: 556, 3: 556, 4: 556, 5: 556, 6: 556, 7: 556, 8: 556, 9: 556, A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611,
+  a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222, j: 222, k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333, s: 500, t: 278, u: 556, v: 500, w: 722, x: 500, y: 500, z: 500 }
+const sinAcento = (c) => c.normalize("NFD").replace(/[̀-ͯ]/g, "")
+const anchoEstimado = (texto, fuente) => {
+  const base = [...texto].reduce((s, c) => s + (fuente >= 4 ? 600 : (ANCHO_HELV[c] ?? ANCHO_HELV[sinAcento(c)] ?? 556)), 0)
+  return base * (fuente === 1 ? 1.06 : fuente === 2 ? 0.94 : fuente === 3 ? 1.02 : 1)
+}
+
+// ── El PDF a partir de lo leído de la hoja. `rects`: [{ x, y, w, h, color: [r,g,b] }] (px, desde arriba a la izquierda, con el color de relleno 0–1); `palabras`: [{ x, y, w, tam, fuente, color, texto }]
+// (y = línea base). Puro: se prueba sin navegador.
+export function armarPdfVectorial({ ancho = ANCHO_HOJA, alto, rects = [], palabras = [] }) {
+  const escala = Math.min(A4.ancho / ancho, A4.alto / alto)
+  const px = (v) => v * escala
+  const arriba = (y) => A4.alto - px(y)
+  const op = []
+  for (const r of rects) op.push(`${r.color.map(num).join(" ")} rg ${num(px(r.x))} ${num(arriba(r.y + r.h))} ${num(px(r.w))} ${num(px(r.h))} re f`)
+  for (const w of palabras) {
+    const tam = px(w.tam)
+    const natural = (anchoEstimado(w.texto, w.fuente) * tam) / 1000
+    const tz = natural > 0 && w.w > 0 ? Math.min(130, Math.max(70, (px(w.w) / natural) * 100)) : 100
+    const bytes = escapar(aBytes(w.texto))
+    op.push({ bytes: [...aBytes(`${w.color.map(num).join(" ")} rg BT /F${w.fuente + 1} ${num(tam)} Tf ${num(tz)} Tz ${num(px(w.x))} ${num(arriba(w.y))} Td (`), ...bytes, ...aBytes(") Tj ET")] })
+  }
+  const contenido = unir(op.flatMap((o, i) => [typeof o === "string" ? codificar(o) : Uint8Array.from(o.bytes), codificar("\n")]))
+  const fuentes = FUENTES.map((f, i) => `/F${i + 1} ${6 + i} 0 R`).join(" ")
   const cuerpos = [
     codificar("<< /Type /Catalog /Pages 2 0 R >>"),
     codificar("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
-    codificar(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(A4.ancho)} ${num(A4.alto)}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`),
-    unir([codificar(`<< /Length ${contenido.length} >>\nstream\n`), contenido, codificar("\nendstream")]),
-    unir([codificar(`<< /Type /XObject /Subtype /Image /Width ${anchoPx} /Height ${altoPx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`), jpeg, codificar("\nendstream")]),
+    codificar(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(A4.ancho)} ${num(A4.alto)}] /Resources << /Font << ${fuentes} >> >> /Contents 4 0 R >>`),
+    unir([codificar(`<< /Length ${contenido.length} >>\nstream\n`), contenido, codificar("endstream")]),
+    codificar("<< /Producer (Sistema de optica) /Title (Receta de optica) >>"),
+    ...FUENTES.map((f) => codificar(`<< /Type /Font /Subtype /Type1 /BaseFont /${f} /Encoding /WinAnsiEncoding >>`)),
   ]
   const partes = [codificar("%PDF-1.4\n")]
   const posiciones = []
@@ -40,8 +67,7 @@ export function armarPdfConImagen({ jpeg, anchoPx, altoPx }) {
     partes.push(obj)
     largo += obj.length
   })
-  const tabla = `xref\n0 ${cuerpos.length + 1}\n0000000000 65535 f \n${posiciones.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<< /Size ${cuerpos.length + 1} /Root 1 0 R >>\nstartxref\n${largo}\n%%EOF\n`
-  partes.push(codificar(tabla))
+  partes.push(codificar(`xref\n0 ${cuerpos.length + 1}\n0000000000 65535 f \n${posiciones.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<< /Size ${cuerpos.length + 1} /Root 1 0 R /Info 5 0 R >>\nstartxref\n${largo}\n%%EOF\n`))
   return unir(partes)
 }
 
@@ -50,18 +76,68 @@ export function nombreArchivoReceta(paciente = {}, receta = {}) {
   return `receta-${limpio || "paciente"}-${receta.fecha || ""}.pdf`.replace(/-\.pdf$/, ".pdf")
 }
 
-// Una imagen dentro de un SVG solo se dibuja si va incrustada: el logo se baja y se convierte; si no se puede (otro servidor sin permiso), la hoja sale sin logo.
-async function logoIncrustado(url) {
-  if (!url || url.startsWith("data:")) return url || ""
-  try {
-    const r = await fetch(url)
-    if (!r.ok) return ""
-    const blob = await r.blob()
-    return await new Promise((res) => { const f = new FileReader(); f.onload = () => res(String(f.result)); f.onerror = () => res(""); f.readAsDataURL(blob) })
-  } catch { return "" }
+// ── Leer cómo quedó dibujada la hoja ──
+const colorDe = (css) => {
+  const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?/.exec(css || "")
+  if (!m) return null
+  const a = m[4] === undefined ? 1 : m[4].endsWith("%") ? parseFloat(m[4]) / 100 : parseFloat(m[4])
+  return a === 0 ? null : { rgb: [Number(m[1]) / 255, Number(m[2]) / 255, Number(m[3]) / 255], a }
+}
+const sobreBlanco = (c) => c.rgb.map((v) => v * c.a + (1 - c.a))
+const fuenteDe = (cs) => {
+  const negrita = (parseInt(cs.fontWeight, 10) || 400) >= 600
+  const familia = (cs.fontFamily || "").toLowerCase()
+  const base = /georgia|times|serif/.test(familia) && !/sans-serif/.test(familia.split(",")[0]) ? 2 : /mono|courier|consolas/.test(familia) ? 4 : 0
+  return base + (negrita ? 1 : 0)
 }
 
-async function hojaAJpeg(datos) {
+export function leerHoja(hoja) {
+  const base = hoja.getBoundingClientRect()
+  const rects = []
+  const palabras = []
+  const recorrer = (el) => {
+    const cs = getComputedStyle(el)
+    if (cs.display === "none" || cs.visibility === "hidden") return
+    const r = el.getBoundingClientRect()
+    const x = r.left - base.left
+    const y = r.top - base.top
+    const fondo = colorDe(cs.backgroundColor)
+    if (fondo && r.width > 0 && r.height > 0) rects.push({ x, y, w: r.width, h: r.height, color: sobreBlanco(fondo) })
+    for (const [lado, ancho, estilo, color] of [["t", cs.borderTopWidth, cs.borderTopStyle, cs.borderTopColor], ["b", cs.borderBottomWidth, cs.borderBottomStyle, cs.borderBottomColor], ["l", cs.borderLeftWidth, cs.borderLeftStyle, cs.borderLeftColor], ["r", cs.borderRightWidth, cs.borderRightStyle, cs.borderRightColor]]) {
+      const w = parseFloat(ancho)
+      const c = colorDe(color)
+      if (!(w > 0) || estilo === "none" || !c || r.width <= 0) continue
+      const rgb = sobreBlanco(c)
+      if (lado === "t") rects.push({ x, y, w: r.width, h: w, color: rgb })
+      if (lado === "b") rects.push({ x, y: y + r.height - w, w: r.width, h: w, color: rgb })
+      if (lado === "l") rects.push({ x, y, w, h: r.height, color: rgb })
+      if (lado === "r") rects.push({ x: x + r.width - w, y, w, h: r.height, color: rgb })
+    }
+    for (const hijo of el.childNodes) {
+      if (hijo.nodeType === 1) recorrer(hijo)
+      else if (hijo.nodeType === 3 && hijo.textContent.trim()) {
+        const color = colorDe(cs.color)
+        const tam = parseFloat(cs.fontSize)
+        const fuente = fuenteDe(cs)
+        const mayusculas = cs.textTransform === "uppercase"
+        const texto = hijo.textContent
+        const rango = document.createRange()
+        for (const m of texto.matchAll(/\S+/g)) {
+          rango.setStart(hijo, m.index)
+          rango.setEnd(hijo, m.index + m[0].length)
+          const cajas = rango.getClientRects()
+          if (!cajas.length) continue
+          const c = cajas[0]
+          palabras.push({ x: c.left - base.left, y: c.top - base.top + c.height * 0.8, w: c.width, tam, fuente, color: color ? sobreBlanco(color) : [0, 0, 0], texto: mayusculas ? m[0].toUpperCase() : m[0] })
+        }
+      }
+    }
+  }
+  recorrer(hoja)
+  return { ancho: base.width, alto: base.height, rects, palabras }
+}
+
+async function hojaAPdf(datos) {
   const caja = document.createElement("div")
   caja.setAttribute("aria-hidden", "true")
   caja.style.cssText = `position:fixed;left:-10000px;top:0;width:${ANCHO_HOJA}px;background:#fff;pointer-events:none`
@@ -69,36 +145,19 @@ async function hojaAJpeg(datos) {
   const raiz = createRoot(caja)
   try {
     flushSync(() => raiz.render(<HojaReceta {...datos} />))
-    const hoja = caja.firstElementChild
-    const alto = Math.ceil(hoja.getBoundingClientRect().height)
-    const xml = new window.XMLSerializer().serializeToString(hoja)
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO_HOJA}" height="${alto}"><foreignObject x="0" y="0" width="100%" height="100%">${xml}</foreignObject></svg>`
-    const imagen = new Image()
-    await new Promise((res, rej) => { imagen.onload = res; imagen.onerror = () => rej(new Error("No se pudo dibujar la hoja.")); imagen.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg) })
-    const escala = 2
-    const lienzo = document.createElement("canvas")
-    lienzo.width = ANCHO_HOJA * escala
-    lienzo.height = alto * escala
-    const ctx = lienzo.getContext("2d")
-    ctx.fillStyle = "#ffffff"
-    ctx.fillRect(0, 0, lienzo.width, lienzo.height)
-    ctx.scale(escala, escala)
-    ctx.drawImage(imagen, 0, 0, ANCHO_HOJA, alto)
-    const blob = await new Promise((res) => lienzo.toBlob(res, "image/jpeg", 0.92))
-    if (!blob) throw new Error("No se pudo crear la imagen de la hoja.")
-    return { jpeg: new Uint8Array(await blob.arrayBuffer()), anchoPx: lienzo.width, altoPx: lienzo.height }
+    const hoja = caja.querySelector("[data-hoja-receta]")
+    if (!hoja) throw new Error("No se pudo preparar la hoja.")
+    return armarPdfVectorial(leerHoja(hoja))
   } finally {
     raiz.unmount()
     caja.remove()
   }
 }
 
-// Baja la receta como PDF. Devuelve true si la bajó; si el navegador no puede dibujar la hoja, devuelve false para que quien llama use otro camino.
+// Baja la receta como PDF. Devuelve true si la bajó; si algo falla devuelve false para que quien llama use otro camino (el diálogo de impresión). El logo (una imagen) no va en el PDF.
 export async function descargarHojaReceta(datos) {
   try {
-    const logoUrl = await logoIncrustado(datos.optica?.logoUrl)
-    const imagen = await hojaAJpeg({ ...datos, optica: { ...datos.optica, logoUrl } })
-    const pdf = armarPdfConImagen(imagen)
+    const pdf = await hojaAPdf({ ...datos, optica: { ...datos.optica, logoUrl: "" } })
     const url = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }))
     const enlace = document.createElement("a")
     enlace.href = url

@@ -91,8 +91,14 @@ test('portal: «Descargar receta» baja el PDF directamente, sin el diálogo de 
   const ruta = await archivo.path()
   const bytes = fs.readFileSync(ruta)
   expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-')
-  expect(bytes.toString('latin1')).toContain('/DCTDecode')
-  expect(bytes.length).toBeGreaterThan(8_000)
+  // Texto real (se puede seleccionar), no una imagen de la hoja
+  const pdf = bytes.toString('latin1')
+  expect(pdf).not.toContain('/DCTDecode')
+  expect(pdf).not.toContain('/Subtype /Image')
+  // WinAnsi: la «ó» es el byte 0xF3. Cada palabra de la hoja es un texto del PDF.
+  for (const palabra of ['Paciente', 'Demostraci\xF3n', '0934070830', 'RECETA', 'ESFERA', '-1.25', 'Paula', 'Reg.']) expect(pdf, `el PDF tiene el texto «${palabra}»`).toContain(`(${palabra})`)
+  expect(pdf).toMatch(/BT \/F\d [\d.]+ Tf [\d.]+ Tz [\d.]+ [\d.]+ Td \(/)
+  expect(bytes.length).toBeGreaterThan(2_000)
   expect(imprimio, 'no abre el diálogo de impresión').toBe(false)
   await expect(page.getByText('Descargamos tu receta del')).toBeVisible()
 })
