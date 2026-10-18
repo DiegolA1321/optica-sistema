@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ChevronRight, Search } from "lucide-react"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { agruparPorAnio, filtrarVisitas } from "../../utilidades/portalVistas"
+import { resultadoDeCita } from "../../utilidades/resultadoDeCita"
 import CampoFecha from "../CampoFecha"
 import { Tarjeta, TituloTarjeta, TituloPagina, FilaCita, Esqueleto, EstadoCita } from "./piezas"
 import BoletoCita from "./BoletoCita"
@@ -15,7 +16,9 @@ const ESTADOS = [["Atendida", "Atendidas"], ["No Asistió", "No asistió"], ["Ca
 const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
 
 // Mis citas (diseño aprobado): la próxima en estilo boleto, y «Tus visitas anteriores» agrupadas por año (cada fila abre su detalle) con los mismos estados y colores del módulo de Citas.
-export default function MisCitasPortal({ cargando, proximas, historial, citaProps, onAgendar, detalle, direccion, onConfirmar, onAbrir, recetaActualId = null, primeraRecetaId = null }) {
+export default function MisCitasPortal({ cargando, proximas, historial, citaProps, onAgendar, detalle, direccion, onConfirmar, onAbrir, recetaActualId = null, primeraRecetaId = null, consultas = [], compras = [] }) {
+  // Las compras de cada cita (el comprobante trae la cita de la que salió): con ellas se dice lo que compró en esa visita.
+  const facturasPorCita = compras.map((f) => ({ citaId: f.cita_id ?? null, consultaId: null, estado: f.estado === "anulada" ? "anulada" : "vigente", lineas: f.lineas || [] }))
   const [vistas, setVistas] = useState(DE_A)
   const [texto, setTexto] = useState("")
   const [periodo, setPeriodo] = useState("ano")
@@ -112,6 +115,11 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
                               ? <>{[d?.profesional, "¿Cómo te atendimos?"].filter(Boolean).join(" · ")} <button type="button" onClick={() => setAbierta(c)} className="relative z-10 -my-3 inline-flex items-center py-3 font-semibold text-pt-azul hover:underline cursor-pointer">Calificar</button></>
                               : resumen}
                           </p>
+                          {/* Lo que salió de la cita, en palabras simples: lo que encontramos, tu receta y lo que compraste */}
+                          {c.estado === "Atendida" && (() => {
+                            const lineas = resultadoDeCita({ cita: c, consulta: consultas.find((k) => String(k.id) === String(d?.consultaId)), facturas: facturasPorCita, estilo: "paciente" })
+                            return lineas.length > 0 && <ul aria-label="Lo que salió de esta cita" className="mt-0.5 space-y-0.5">{lineas.map((l) => <li key={l.clave} className="text-base leading-snug text-pt-texto"><span className="font-semibold text-pt-marino">{l.etiqueta}:</span> {l.texto}</li>)}</ul>
+                          })()}
                         </div>
                         <span className="mt-1 justify-self-start sm:mt-0 sm:justify-self-end"><EstadoCita estado={c.estado} confirmada={false} /></span>
                         <ChevronRight size={22} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-500 sm:static sm:ml-5 sm:translate-y-0" aria-hidden="true" />

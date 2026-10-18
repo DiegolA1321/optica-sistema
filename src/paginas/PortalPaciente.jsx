@@ -421,7 +421,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
                 control={control} tieneCitaPendiente={proximas.length > 0} puntos={puntos} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} consultas={recetas} nombreOptica={nombreOptica} direccion={contacto.direccion}
                 citaProps={citaProps} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
             )}
-            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} />}
+            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} consultas={misConsultas} compras={datos.compras} />}
             {seccion === "receta" && (
               <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />

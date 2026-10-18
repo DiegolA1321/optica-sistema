@@ -73,6 +73,8 @@ import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
+import GraduacionDeCabecera from "../componentes/graduacion/GraduacionDeCabecera"
+import { resultadoDeCita } from "../utilidades/resultadoDeCita"
 import { recetasDe } from "../utilidades/graduacion"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
@@ -1849,11 +1851,11 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
               <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-5">
-                <div className="flex min-w-0 items-start gap-4">
+                <div className="flex min-w-0 flex-wrap items-start gap-4">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>
                       {pacienteHistorial.nombre}
                     </h1>
@@ -1886,6 +1888,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       )}
                     </div>
                   </div>
+                  {puedeVerFichas && <GraduacionDeCabecera receta={recetasDe(consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion))[0]} onAbrir={() => setTabHistorial("graduacion")} />}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                   {puedeVerFichas && <button
@@ -2170,6 +2173,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         <PanelCitasPaciente
                         citas={citasPaciente}
                         consultas={consultasPaciente}
+                        facturas={sinMontos ? [] : facturasVenta.filter((f) => f.pacienteId === pacienteHistorial.id)}
                         onDejarDeAtender={puedeEditarCita ? setDejarCita : undefined}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
@@ -2578,7 +2582,7 @@ function adjuntosConsulta(consulta) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtender, onAgendar, cobros = [], onCobrar, paciente, usuario, parametrizacion }) {
+function PanelCitasPaciente({ citas, consultas = [], facturas = [], onIngresar, onDejarDeAtender, onAgendar, cobros = [], onCobrar, paciente, usuario, parametrizacion }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
   // Buscador del historial: rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
@@ -2623,7 +2627,15 @@ function PanelCitasPaciente({ citas, consultas = [], onIngresar, onDejarDeAtende
         <p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p>
         <p className="text-xs text-slate-500">{c.hora}</p>
       </div>
-      <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
+        {/* Lo que salió de la cita (en el espacio libre de la fila): el diagnóstico, la receta emitida y lo que compró */}
+        {!conIngresar && c.estado === "Atendida" && (
+          <ul aria-label="Lo que salió de la cita" className="mt-0.5 space-y-0.5 text-xs text-slate-500">
+            {resultadoDeCita({ cita: c, consulta: consultaDe(c), facturas }).map((l) => <li key={l.clave} className="leading-snug"><span className="font-semibold text-slate-600">{l.etiqueta}:</span> {l.texto}</li>)}
+          </ul>
+        )}
+      </div>
       <BadgeEstadoCita estado={c.estado} />
       {!conIngresar && consultaDe(c) && (
         <button type="button" onClick={(e) => { e.stopPropagation(); setCitaAbierta(c) }} aria-haspopup="dialog" aria-label={"Ver la atención del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
