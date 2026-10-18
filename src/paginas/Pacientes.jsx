@@ -72,6 +72,7 @@ import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilid
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
+import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
@@ -100,7 +101,7 @@ import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelCo
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
-import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos } from "../utilidades/fidelizacion"
+import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos, puntosFidelidad } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
@@ -1979,7 +1980,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               // caja negra) — 10 pts por consulta registrada + 15 pts por
               // cada paciente que refirió, mostrado siempre con su desglose
               // al lado para que se entienda de un vistazo cómo se compone.
-              const puntajeFidelidad = totalConsultasFidelizacion * 10 + referidosPorEste * 15
+              const puntajeFidelidad = puntosFidelidad(totalConsultasFidelizacion, referidosPorEste)
               const abiertasPaciente = atencionesAbiertasAntiguas(citasPaciente)
               const paseListo = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
               const diasCumple = diasParaCumpleanos(pacienteHistorial.fecha_nacimiento || pacienteHistorial.fechaNacimiento)
@@ -2126,6 +2127,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   <div key={tabHistorial} role="tabpanel" id="panel-paciente" aria-labelledby={"tab-" + tabHistorial} className="py-6" style={{ animation: "rise-in 320ms ease-out both" }}>
                     {tabHistorial === "resumen" ? (
                       <PanelResumenPaciente
+                        puedeVerFichas={puedeVerFichas}
                         consultas={consultasPaciente}
                         citas={citasPaciente}
                         inactivo={inactivo}
@@ -2750,7 +2752,7 @@ const TENDENCIA_TEXTO = {
   "Sin cambios": "La graduación medida se mantiene estable.",
 }
 
-function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad, equipo, comprobantes, referidosLista, paciente, usuario, parametrizacion, adjuntosDe, onAbrirPaciente, onVerProductos, onAgendar }) {
+function PanelResumenPaciente({ puedeVerFichas = false, consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad, equipo, comprobantes, referidosLista, paciente, usuario, parametrizacion, adjuntosDe, onAbrirPaciente, onVerProductos, onAgendar }) {
   const ultima = consultas[0]
   // Cada cuadro se despliega al tocarlo (uno a la vez) y muestra de dónde sale su número.
   const [abierto, setAbierto] = useState(null)
@@ -2855,19 +2857,20 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
         )}
       </section>
 
-      {consultas.length > 0 && (
-        <section aria-label="Tendencia de graduación" className="rounded-2xl border border-slate-200/60 bg-white p-4">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-            {tendencia && (
-              <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
-                <tendencia.icon size={12} /> {tendencia.label}
-              </span>
-            )}
-          </div>
-          <TendenciaGraduacion consultas={[...consultas].reverse()} />
-          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-500"><Lock size={12} /> Vista interna — estas medidas nunca se muestran en el portal del paciente.</p>
-        </section>
+      {puedeVerFichas && consultas.length > 0 && (
+        <GraduacionPerfil consultas={consultas} paciente={paciente} usuario={usuario} tendencia={
+          <section aria-label="Tendencia de graduación">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
+              {tendencia && (
+                <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: "#f1f5f9", color: tendencia.fg }}>
+                  <tendencia.icon size={12} /> {tendencia.label}
+                </span>
+              )}
+            </div>
+            <TendenciaGraduacion consultas={[...consultas].reverse()} />
+          </section>
+        } />
       )}
 
       <section aria-label="Citas del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
