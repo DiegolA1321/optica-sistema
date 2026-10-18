@@ -57,6 +57,7 @@ import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
+import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 
@@ -1042,54 +1043,19 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const registradoExamenFisico = Boolean(testMotor.trim() || oftalmoscopia.trim() || pioOd.trim() || pioOi.trim())
   const registradoBiomicroscopia = Boolean(biomicroParpados.trim() || biomicroCornea.trim() || biomicroCamara.trim())
 
-  // Impresión robusta: clona la receta a una capa pegada al <body>
-  const imprimirReceta = () => {
-    const receta = document.getElementById("receta-imprimible")
-    if (!receta) {
-      window.print()
-      return
-    }
-    const clon = receta.cloneNode(true)
-    clon.removeAttribute("id")
-
-    // Los inputs/textarea/select no se clonan con su valor: se reemplazan por
-    // texto — un <select> impreso tal cual se ve con flechita de dropdown,
-    // que no tiene sentido en un documento ya emitido.
-    const origs = receta.querySelectorAll("input, textarea, select")
-    const clones = clon.querySelectorAll("input, textarea, select")
-    clones.forEach((el, i) => {
-      const original = origs[i]
-      const val = el.tagName === "SELECT"
-        ? (original?.options[original.selectedIndex]?.text || "")
-        : (original?.value || "")
-      const div = document.createElement("div")
-      div.textContent = val
-      div.style.cssText = "border-bottom:1px solid #cbd5e1;padding:4px 0;font-size:14px;font-weight:600;color:#0f172a;min-height:22px;"
-      el.replaceWith(div)
-    })
-
-    clon.querySelectorAll(".no-print").forEach((n) => n.remove())
-    clon.style.border = "none"
-    clon.style.boxShadow = "none"
-    clon.style.borderRadius = "0"
-
-    const previo = document.getElementById("print-portal")
-    if (previo) previo.remove()
-    const portal = document.createElement("div")
-    portal.id = "print-portal"
-    portal.appendChild(clon)
-    document.body.appendChild(portal)
-    document.body.classList.add("printing-receta")
-
-    const limpiar = () => {
-      document.body.classList.remove("printing-receta")
-      const p = document.getElementById("print-portal")
-      if (p) p.remove()
-    }
-    window.addEventListener("afterprint", limpiar, { once: true })
-    window.print()
-    setTimeout(limpiar, 1500)
-  }
+  // La receta impresa es la hoja de la receta (HojaReceta): la misma que ve el paciente al descargarla desde su portal y la que sale de «Imprimir receta» en el perfil.
+  const imprimirReceta = () => imprimirHojaReceta({
+    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    paciente: { nombre: pacienteSeleccionado, cedula: pacienteInfo?.cedula, edad: edadPaciente },
+    receta: {
+      id: consultaGuardadaId, fecha: fechaConsulta,
+      od: { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
+      oi: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      medidas: { adicion, dp, alt },
+      diagnosticoCategorias, diagnostico, lenteRecomendado: recomendarLente ? lenteRecomendado : "", indicaciones,
+      profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional,
+    },
+  })
 
   // ── Datos derivados para la receta impresa ──
   const pacienteInfo = useMemo(

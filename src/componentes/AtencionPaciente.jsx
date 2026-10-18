@@ -10,6 +10,7 @@ import { edadEnAnios } from "../utilidades/edad"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import PermisosMensajes from "./PermisosMensajes"
+import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -251,53 +252,13 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   )
 }
 
-function Receta({ consulta, paciente, usuario }) {
-  const marca = usuario?.opticaMarca
-  const numero = "RX-" + String(consulta.fecha || "").replace(/-/g, "") + "-" + String(consulta.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase()
-  const fila = (etiqueta, valor) => valor ? <p style={{ margin: "0 0 4px" }}><b>{etiqueta}:</b> {valor}</p> : null
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: INK, padding: "32px 40px", maxWidth: 780, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 24, borderBottom: `3px solid ${GOLD}`, paddingBottom: 14 }}>
-        <div>
-          <h1 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 24 }}>{usuario?.opticaNombre || "Tu óptica"}</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 11, color: "#64748b" }}>{[marca?.direccion, marca?.telefono, marca?.correo].filter(Boolean).join(" · ")}</p>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: GOLD }}>Receta óptica</p>
-          <p style={{ margin: "4px 0 0", fontFamily: "monospace", fontSize: 12 }}>N.º {numero}</p>
-          <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>{formatoFecha(consulta.fecha, "largoSinDia") || consulta.fecha}</p>
-        </div>
-      </div>
-      <div style={{ margin: "18px 0", padding: "12px 16px", background: "#f8fafc", borderRadius: 10, display: "flex", gap: 32, flexWrap: "wrap", fontSize: 13 }}>
-        <span><b>Paciente:</b> {paciente?.nombre || consulta.paciente || "—"}</span>
-        {paciente?.cedula && <span><b>Cédula:</b> {paciente.cedula}</span>}
-      </div>
-      <div style={{ fontSize: 14, lineHeight: 1.5 }}>
-        {fila("Diagnóstico", textoDiagnostico(consulta))}
-        {fila("Lente recomendado", consulta.lenteRecomendado)}
-        {fila("Indicaciones y cuidados", consulta.indicaciones)}
-      </div>
-      <div style={{ margin: "18px 0", padding: "12px 16px", border: "1px solid #e2e8f0", borderRadius: 10, display: "flex", gap: 40, fontSize: 14 }}>
-        <span><b>OD (derecho):</b> {textoMedida(consulta.od)}</span>
-        <span><b>OI (izquierdo):</b> {textoMedida(consulta.oi)}</span>
-      </div>
-      {consulta.profesionalNombre && <p style={{ marginTop: 40, fontSize: 12, color: "#475569" }}>{consulta.profesionalNombre}{consulta.profesionalRegistro ? ` · Reg. ${consulta.profesionalRegistro}` : ""}</p>}
-    </div>
-  )
-}
-
 export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar }) {
-  const [imprimiendo, setImprimiendo] = useState(false)
-
-  // Imprime una capa pegada al <body> y oculta todo lo demás solo mientras dura la impresión.
-  useEffect(() => {
-    if (!imprimiendo) return undefined
-    document.body.classList.add("printing-atencion")
-    const limpiar = () => { document.body.classList.remove("printing-atencion"); setImprimiendo(false) }
-    window.addEventListener("afterprint", limpiar, { once: true })
-    const t = setTimeout(() => window.print(), 50)
-    return () => { clearTimeout(t); window.removeEventListener("afterprint", limpiar); document.body.classList.remove("printing-atencion") }
-  }, [imprimiendo])
+  // La hoja de la receta es la misma que imprime el optómetra al terminar la consulta (HojaReceta) y la que el paciente guarda como PDF desde su portal.
+  const imprimirReceta = () => imprimirHojaReceta({
+    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    paciente: { nombre: paciente?.nombre || consulta.paciente, cedula: paciente?.cedula, edad: edadEnAnios(paciente?.fecha_nacimiento || paciente?.fechaNacimiento) },
+    receta: consulta,
+  })
 
   return (
     <>
@@ -308,20 +269,13 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onC
         onCerrar={onCerrar}
         pie={<>
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => setImprimiendo(true)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir receta</button>
+            <button type="button" onClick={imprimirReceta} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir receta</button>
           </div>
           <BotonCerrar onCerrar={onCerrar} />
         </>}
       >
         <DetalleAtencion consulta={consulta} adjuntos={adjuntos} />
       </Cascaron>
-      {imprimiendo && createPortal(
-        <div id="print-atencion">
-          <style>{`#print-atencion{display:none}@media print{body.printing-atencion>*:not(#print-atencion){display:none!important}body.printing-atencion #print-atencion{display:block!important}}`}</style>
-          <Receta consulta={consulta} paciente={paciente} usuario={usuario} />
-        </div>,
-        document.body,
-      )}
     </>
   )
 }

@@ -168,5 +168,17 @@ export function diasCumpleEnVentana(fechaNacimiento, hoy = ahoraEcuador()) {
 // Puntos de fidelidad: 10 por cada consulta registrada y 15 por cada paciente que refirió (los mismos del perfil del paciente).
 export const PUNTOS_POR_CONSULTA = 10
 export const PUNTOS_POR_REFERIDO = 15
+// Una sola fórmula para el CRM, el perfil del paciente y el portal: los puntos salen del número de consultas y del número de pacientes que refirió.
+export const puntosFidelidad = (nConsultas = 0, nReferidos = 0) => nConsultas * PUNTOS_POR_CONSULTA + nReferidos * PUNTOS_POR_REFERIDO
 export const puntajeFidelidad = (paciente, consultas = [], pacientes = []) =>
-  contarConsultas(paciente, consultas) * PUNTOS_POR_CONSULTA + contarReferidos(paciente, pacientes) * PUNTOS_POR_REFERIDO
+  puntosFidelidad(contarConsultas(paciente, consultas), contarReferidos(paciente, pacientes))
+
+// Lo que el paciente ve de sus puntos (portal): los puntos, cuánto lleva hacia «cliente frecuente» y qué le falta. Es la misma regla del CRM (MINIMO_CLIENTE_FRECUENTE consultas).
+export function resumenDePuntos(nConsultas = 0, nReferidos = 0) {
+  const faltan = Math.max(0, MINIMO_CLIENTE_FRECUENTE - nConsultas)
+  return {
+    puntos: puntosFidelidad(nConsultas, nReferidos), consultas: nConsultas, referidos: nReferidos, frecuente: faltan === 0,
+    porcentaje: Math.min(100, Math.round((nConsultas / MINIMO_CLIENTE_FRECUENTE) * 100)),
+    texto: faltan === 0 ? "Eres cliente frecuente" : `Te falta ${faltan} consulta${faltan === 1 ? "" : "s"} para ser cliente frecuente`,
+  }
+}
