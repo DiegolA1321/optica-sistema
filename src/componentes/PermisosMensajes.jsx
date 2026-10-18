@@ -1,14 +1,18 @@
 "use client"
 
 import { useState } from "react"
+import { Check } from "lucide-react"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { ETIQUETA_PERMISO } from "../utilidades/permisosMensajes"
 import { fechaHoraLegible } from "../utilidades/formatoFecha"
 
+// Textos de las casillas del portal (diseño aprobado).
+const AYUDA_CASILLA = { recordatorios: "Tus citas, tu control y cómo te va con tus lentes", promociones: "Ofertas de la óptica y tu saludo de cumpleaños" }
+
 // Los dos permisos para recibir mensajes, como dos interruptores. Es la misma pieza en el perfil del paciente (el personal) y en "Mis datos"
 // del portal (el paciente): se ven y se comportan igual (regla 18). `onCambiar` recibe { recordatorios } o { promociones } y devuelve { ok, error? };
-// sin `onCambiar` solo se muestran. `actualizadoPor` / `actualizadoEn`: quién y cuándo los cambió por última vez (si alguna vez se cambiaron).
-export default function PermisosMensajes({ recordatorios, promociones, actualizadoPor = "", actualizadoEn = null, onCambiar = null, quien = "personal", grande = false }) {
+// sin `onCambiar` solo se muestran. `casilla`: el portal del paciente los dibuja como casillas de verificación (diseño aprobado), sin cambiar lo que hacen. `actualizadoPor` / `actualizadoEn`: quién y cuándo los cambió por última vez (si alguna vez se cambiaron).
+export default function PermisosMensajes({ recordatorios, promociones, actualizadoPor = "", actualizadoEn = null, onCambiar = null, quien = "personal", grande = false, casilla = false }) {
   const [guardando, setGuardando] = useState("")
   const [error, setError] = useState("")
 
@@ -21,6 +25,25 @@ export default function PermisosMensajes({ recordatorios, promociones, actualiza
     setGuardando("")
   }
   const valores = { recordatorios, promociones }
+
+  if (casilla) {
+    return (
+      <div className="space-y-5">
+        {["recordatorios", "promociones"].map((id) => (
+          <div key={id} className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p id={`permiso-${id}`} className="text-base font-bold text-pt-marino">{ETIQUETA_PERMISO[id].titulo}</p>
+              <p className="text-base text-pt-texto">{AYUDA_CASILLA[id]}</p>
+            </div>
+            <button type="button" role="checkbox" aria-checked={Boolean(valores[id])} aria-labelledby={`permiso-${id}`} disabled={Boolean(guardando)} onClick={() => cambiar(id, !valores[id])} className="grid h-11 w-11 shrink-0 place-items-center cursor-pointer disabled:opacity-60">
+              <span className={"grid h-[26px] w-[26px] place-items-center rounded-md border-2 transition-colors " + (valores[id] ? "border-pt-azul bg-pt-azul text-white" : "border-slate-400 bg-white")}>{valores[id] && <Check size={18} strokeWidth={3} aria-hidden="true" />}</span>
+            </button>
+          </div>
+        ))}
+        {error && <p role="alert" className="text-base font-semibold text-red-600">{error}</p>}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2.5">

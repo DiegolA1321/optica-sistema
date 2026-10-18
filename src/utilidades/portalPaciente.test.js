@@ -54,7 +54,7 @@ describe("lentes (órdenes de laboratorio)", () => {
   })
   it("nombra los lentes sin términos técnicos", () => {
     expect(nombreDeLosLentes({ tipoLente: "progresivo", montura: "Ray-Ban" })).toBe("Lentes progresivos con la montura Ray-Ban")
-    expect(nombreDeLosLentes({ tipoLente: "monofocal", montura: "" })).toBe("Lentes de un solo foco")
+    expect(nombreDeLosLentes({ tipoLente: "monofocal", montura: "" })).toBe("Lentes monofocales")
   })
 })
 
@@ -170,22 +170,22 @@ describe("la óptica, hoy", () => {
 })
 
 describe("identidad de la óptica", () => {
-  it("sin color propio queda el azul de la marca del sistema", () => {
+  it("sin color propio queda el azul aprobado del portal (#1D5FD6)", () => {
     const i = identidadDeLaOptica({})
-    expect(i.acento).toBe("#2563EB")
-    expect(i.grad).toBe("linear-gradient(135deg,#22D3EE,#2563EB)")
+    expect(i.acento).toBe("#1D5FD6")
     expect(i.textoBoton).toBe("#FFFFFF")
     expect(i.logoUrl).toBe("")
+  })
+  it("el azul del sistema que traen las ópticas por defecto no cuenta como un color propio", () => {
+    expect(identidadDeLaOptica({ marca: { colorAcento: "#2563EB" } }).acento).toBe("#1D5FD6")
   })
   it("usa el color y el logo de la óptica", () => {
     const i = identidadDeLaOptica({ logo_url: "https://x/logo.png", marca: { colorAcento: "#7C3AED" } })
     expect(i.acento).toBe("#7C3AED")
-    expect(i.grad).toContain("#7C3AED")
-    expect(i.hero).toContain("#7C3AED")
     expect(i.logoUrl).toBe("https://x/logo.png")
   })
   it("un color mal escrito se ignora, y uno muy claro lleva texto oscuro en los botones", () => {
-    expect(identidadDeLaOptica({ marca: { colorAcento: "rojo" } }).acento).toBe("#2563EB")
+    expect(identidadDeLaOptica({ marca: { colorAcento: "rojo" } }).acento).toBe("#1D5FD6")
     expect(identidadDeLaOptica({ marca: { colorAcento: "#FDE047" } }).textoBoton).toBe("#0E2B33")
   })
 })

@@ -1,77 +1,78 @@
 "use client"
 
 import { CalendarClock, X, Check, Star } from "lucide-react"
-import { INK } from "@/lib/tema"
-import { etiquetaEstadoCita, claseEstadoCita } from "../../utilidades/estadosCita"
-import { TONOS } from "../ventas/Lista"
+import { etiquetaEstadoCita } from "../../utilidades/estadosCita"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { pasosDeLosLentes, textoOrdenPaciente, NOTA_ESTADO_CITA } from "../../utilidades/portalPaciente"
 import { BOTON_SECUNDARIO, BOTON_PELIGRO } from "./estilos"
 
-// Piezas del portal del paciente. Reglas del portal: texto de 16 px o más, títulos de tarjeta de 18 px, números principales de 28 a 40 px y todo lo que se toca mide al
-// menos 44 px (regla 48). Los íconos van en baldosas de color suave: el color distingue la pregunta que responde cada tarjeta.
+// Piezas del portal del paciente (diseño aprobado, docs/portal-propuesta/). Reglas del portal: texto de 16 px o más, títulos de tarjeta de 20 px en Sora, números principales
+// en Sora de 32 a 76 px y todo lo que se toca mide al menos 44 px (regla 48). Sin ícono delante de cada título: la tarjeta se reconoce por su título.
 
-// Insignia de estado: el color significa lo mismo que en el sistema del personal (verde listo, azul en curso, rojo urgente, gris cerrado).
-export function Insignia({ tono = "gris", children, className = "" }) {
-  return <span className={`inline-flex max-w-full items-center gap-1 rounded-full border px-3 py-1 text-base font-semibold leading-snug ${TONOS[tono]} ${className}`}>{children}</span>
-}
+// Una tarjeta: blanca, borde claro, esquinas de 20 px.
+export const TARJETA = "min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6"
+export const Tarjeta = ({ children, className = "", ...resto }) => <section className={TARJETA + " " + className} {...resto}>{children}</section>
+export const TituloTarjeta = ({ id, children, className = "" }) => <h2 id={id} className={"font-heading text-xl font-bold leading-tight text-pt-marino " + className}>{children}</h2>
 
-// El estado de una cita, con el nombre y el color del módulo de Citas.
-export function EstadoCita({ estado }) {
-  return <span role="status" aria-label={"Estado: " + etiquetaEstadoCita(estado)} className={"inline-flex items-center rounded-full border px-3 py-1 text-base font-semibold leading-snug " + claseEstadoCita(estado)}>{etiquetaEstadoCita(estado)}</span>
-}
-
-const BALDOSA = {
-  azul: "bg-blue-50 text-blue-700",
-  verde: "bg-emerald-50 text-emerald-700",
-  ambar: "bg-amber-50 text-amber-700",
-  violeta: "bg-violet-50 text-violet-700",
-  rosa: "bg-rose-50 text-rose-700",
-  gris: "bg-slate-100 text-slate-600",
-}
-export const Baldosa = ({ Icono, tono = "gris", tam = "h-11 w-11" }) => <span className={`grid ${tam} shrink-0 place-items-center rounded-xl ${BALDOSA[tono]}`}><Icono size={24} aria-hidden="true" /></span>
-
-// Una tarjeta del portal: baldosa con el ícono y el título de 18 px.
-export function Bloque({ titulo, Icono, tono = "azul", children, derecha, className = "", id }) {
-  return (
-    <section aria-labelledby={id} className={"min-w-0 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6 " + className}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 id={id} className="flex min-w-0 items-center gap-3 text-lg font-bold leading-tight" style={{ color: INK }}>
-          {Icono && <Baldosa Icono={Icono} tono={tono} />}
-          <span className="min-w-0">{titulo}</span>
-        </h2>
-        {derecha}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-export const TituloPagina = ({ children, subtitulo }) => (
-  <div>
-    <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: INK }}>{children}</h1>
-    {subtitulo && <p className="mt-1 text-base text-slate-600">{subtitulo}</p>}
+export const TituloPagina = ({ children, subtitulo, accion, className = "" }) => (
+  <div className={"flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6 " + className}>
+    <div className="min-w-0">
+      <h1 className="font-heading text-2xl font-bold tracking-tight text-pt-marino sm:text-[28px] sm:leading-tight">{children}</h1>
+      {subtitulo && <p className="mt-1 text-base text-pt-texto sm:text-base">{subtitulo}</p>}
+    </div>
+    {accion && <div className="shrink-0">{accion}</div>}
   </div>
 )
 
-// Lo que se ve mientras llegan los datos (en vez de una pantalla vacía o que parpadea).
-export const Esqueleto = ({ alto = "h-28", etiqueta = "Cargando" }) => <div aria-busy="true" aria-label={etiqueta} className={"animate-pulse rounded-2xl bg-slate-200/70 " + alto} />
+// Insignia (píldora sin borde, fondo suave): el color significa lo mismo que en el sistema del personal (verde listo o atendida, naranja pendiente, rojo no asistió, gris cerrada).
+const TONOS = {
+  verde: "bg-[#E3F4EA] text-[#166534]",
+  ambar: "bg-[#FDEBD3] text-pt-ambar",
+  rojo: "bg-[#FDECEC] text-[#B42318]",
+  azul: "bg-pt-suave text-[#1B4FB5]",
+  violeta: "bg-violet-100 text-violet-800",
+  gris: "bg-slate-100 text-slate-700",
+}
+export function Insignia({ tono = "gris", children, className = "" }) {
+  return <span className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3.5 py-[3px] text-base font-semibold leading-snug ${TONOS[tono]} ${className}`}>{children}</span>
+}
 
-// Una cita en una fila de lista: cuándo, para qué, en qué estado está y qué sigue. Reagendar y cancelar solo si se puede.
+// El estado de una cita, con el nombre y el color del módulo de Citas (Pendiente naranja, En atención azul, Atendida verde, No asistió rojo, En espera violeta, Cancelada gris).
+const TONO_ESTADO = { Pendiente: "ambar", "En Espera": "violeta", "En Atención": "azul", Atendida: "verde", "No Asistió": "rojo", Cancelada: "gris" }
+export function EstadoCita({ estado, confirmada = false, sinIcono = false }) {
+  if (estado === "Pendiente" && confirmada) {
+    return <span role="status" aria-label="Estado: Confirmada"><Insignia tono="verde">{!sinIcono && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}Confirmada</Insignia></span>
+  }
+  return <span role="status" aria-label={"Estado: " + etiquetaEstadoCita(estado)}><Insignia tono={TONO_ESTADO[estado] || "gris"}>{etiquetaEstadoCita(estado)}</Insignia></span>
+}
+
+// Lo que se ve mientras llegan los datos (en vez de una pantalla vacía o que parpadea).
+export const Esqueleto = ({ alto = "h-28", etiqueta = "Cargando" }) => <div aria-busy="true" aria-label={etiqueta} className={"animate-pulse rounded-[20px] bg-slate-200/70 " + alto} />
+
+// Un círculo de graduación: el valor en grande dentro de un anillo azul claro.
+export function Circulo({ children, className = "" }) {
+  return (
+    <div className={"flex shrink-0 flex-col items-center justify-center rounded-full border-[#DCE6FA] text-center " + className} style={{ background: "radial-gradient(circle at 50% 38%, #FFFFFF 45%, #EEF3FD 100%)" }}>
+      {children}
+    </div>
+  )
+}
+
+// Una cita en una fila de lista (otras citas próximas): cuándo, para qué, en qué estado está y qué sigue. Reagendar y cancelar solo si se puede.
 export function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar, onCancelar }) {
   const reagendable = puedeReagendar?.(cita)
   const aviso = !reagendable ? avisoNoReagendable?.(cita) : null
   return (
     <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0 space-y-1">
-        <p className="text-lg font-bold leading-snug" style={{ color: INK }}>{formatoFecha(cita.fecha, "corto")} · {cita.hora}</p>
-        <p className="text-base text-slate-700">{cita.motivo || "Consulta"}</p>
+        <p className="text-lg font-bold leading-snug text-pt-marino">{formatoFecha(cita.fecha, "corto")} · {cita.hora}</p>
+        <p className="text-base text-pt-texto">{cita.motivo || "Consulta"}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <EstadoCita estado={cita.estado} />
-          <span className="text-base text-slate-600">{NOTA_ESTADO_CITA[cita.estado]}</span>
+          <span className="text-base text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span>
         </div>
-        {aviso && <p className="text-base text-slate-600">{aviso}</p>}
+        {aviso && <p className="text-base text-pt-texto">{aviso}</p>}
       </div>
       {reagendable && (
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
@@ -83,37 +84,99 @@ export function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar
   )
 }
 
-// El seguimiento de unos lentes como el de un envío: Pedido → En el laboratorio → Listos para retirar → Entregados, con el paso actual resaltado, la fecha de cada paso
-// cumplido y la fecha estimada. Mismo estado y mismo color que las órdenes de Ventas. Vertical siempre (`vertical`) o solo en el celular.
-const COLOR_PASO = { azul: "#2563EB", verde: "#059669", rojo: "#DC2626", gris: "#475569" }
-const dia = (v) => (v ? formatoFecha(diaDeRegistro(v), "medio") : "")
-export function PasosLentes({ orden, vertical = false, conMensaje = true }) {
+// El seguimiento de unos lentes (Pedido → En el laboratorio → Listos para retirar → Entregados), mismo estado y mismo color que las órdenes de Ventas, con tres presentaciones:
+//   "vertical"   (Resumen, laptop): marcador, nombre y fecha de cada paso, unidos por una línea.
+//   "horizontal" (Resumen, celular): los cuatro marcadores en una fila y, debajo, el paso actual y lo que sigue.
+//   "lista"      (Mis compras): una línea por paso con su fecha corta, dentro de «Estado de tus lentes».
+const COLOR = { azul: "#1D5FD6", verde: "#15803D", rojo: "#DC2626", gris: "#475569" }
+const diaMes = (v) => (v ? formatoFecha(diaDeRegistro(v), "largoSinDia").replace(/ de \d{4}$/, "") : "")
+const diaCorto = (v) => (v ? formatoFecha(diaDeRegistro(v), "medioSinAnio") : "")
+
+function Marcador({ estado, color, tam = 26 }) {
+  const base = { width: tam, height: tam }
+  if (estado === "hecho") return <span aria-hidden="true" className="grid shrink-0 place-items-center rounded-full text-white" style={{ ...base, background: "#15803D" }}><Check size={tam * 0.6} strokeWidth={3} /></span>
+  if (estado === "actual") return <span aria-hidden="true" className="block shrink-0 rounded-full" style={{ ...base, background: color, boxShadow: `0 0 0 ${Math.round(tam * 0.27)}px ${color}2B` }} />
+  return <span aria-hidden="true" className="block shrink-0 rounded-full border-2 border-slate-300 bg-white" style={base} />
+}
+
+export function PasosLentes({ orden, variante = "vertical", conMensaje = true }) {
   const { pasos, tono, actual } = pasosDeLosLentes(orden)
   const t = textoOrdenPaciente(orden)
-  const color = COLOR_PASO[tono]
-  // La fecha que acompaña a cada paso: cuándo se cumplió, o la estimada si es el actual.
-  const fechaDe = [dia(orden.pedidoEl || orden.creadaEn), actual === 1 && orden.fechaPrometida ? `Fecha estimada: ${formatoFecha(orden.fechaPrometida, "medio")}` : "", dia(orden.listaEl), dia(orden.entregadaEl)]
+  const color = COLOR[tono]
+  const pedido = orden.pedidoEl || orden.creadaEn
+  const atrasada = conMensaje && t.clave === "atrasada" && <p className="mt-3 rounded-xl px-4 py-3 text-base font-semibold leading-snug" style={{ background: color + "14", color }}>{t.detalle}</p>
+
+  if (variante === "horizontal") {
+    const siguiente = t.clave === "enviada" ? (orden.fechaPrometida ? `Listos para retirar el ${diaMes(orden.fechaPrometida)}, aproximadamente.` : t.detalle) : t.detalle
+    return (
+      <div>
+        <ol aria-label="Seguimiento de tus lentes" className="flex items-center">
+          {pasos.map((p, i) => (
+            <li key={p.nombre} aria-current={p.estado === "actual" ? "step" : undefined} className={"flex items-center " + (i < pasos.length - 1 ? "flex-1" : "")}>
+              <span className="sr-only">{p.nombre}: {p.estado === "hecho" ? "listo" : p.estado === "actual" ? "paso actual" : "falta"}</span>
+              <Marcador estado={p.estado} color={color} />
+              {i < pasos.length - 1 && <span aria-hidden="true" className="mx-0 h-[3px] flex-1" style={{ background: p.estado === "hecho" ? "#15803D" : "#DDE4EF" }} />}
+            </li>
+          ))}
+        </ol>
+        {conMensaje && (
+          <div className="mt-4">
+            <p className="text-lg font-bold leading-snug" style={{ color }}>{t.titulo}</p>
+            <p className="mt-0.5 text-base text-pt-texto">{siguiente}</p>
+          </div>
+        )}
+        {atrasada}
+      </div>
+    )
+  }
+
+  if (variante === "lista") {
+    const sub = [
+      pedido ? ` · ${diaCorto(pedido)}` : "",
+      actual === 1 ? (orden.creadaEn ? ` · desde el ${diaCorto(orden.creadaEn)}` : "") : orden.creadaEn ? ` · ${diaCorto(orden.creadaEn)}` : "",
+      actual === 2 ? (orden.listaEl ? ` · desde el ${diaCorto(orden.listaEl)}` : "") : actual > 2 ? (orden.listaEl ? ` · ${diaCorto(orden.listaEl)}` : "") : orden.fechaPrometida ? ` · aprox. ${diaCorto(orden.fechaPrometida)}` : "",
+      orden.entregadaEl ? ` · ${diaCorto(orden.entregadaEl)}` : "",
+    ]
+    return (
+      <div>
+        <ol aria-label="Seguimiento de tus lentes" className="space-y-3.5">
+          {pasos.map((p, i) => (
+            <li key={p.nombre} aria-current={p.estado === "actual" ? "step" : undefined} className="flex items-center gap-3.5 text-base leading-snug">
+              <Marcador estado={p.estado} color={color} tam={24} />
+              <span className={p.estado === "actual" ? "font-bold" : "text-pt-marino"} style={p.estado === "actual" ? { color } : undefined}>{p.nombre}{sub[i]}</span>
+            </li>
+          ))}
+        </ol>
+        {atrasada}
+      </div>
+    )
+  }
+
+  // Vertical
+  const sub = [
+    pedido ? diaMes(pedido) : "",
+    actual === 1 ? (orden.creadaEn ? `Desde el ${diaMes(orden.creadaEn)}` : "") : orden.creadaEn ? diaMes(orden.creadaEn) : "",
+    actual === 2 ? (orden.listaEl ? `Desde el ${diaMes(orden.listaEl)}` : "") : actual > 2 ? diaMes(orden.listaEl) : orden.fechaPrometida ? `Estimado: ${diaMes(orden.fechaPrometida)}` : "",
+    orden.entregadaEl ? diaMes(orden.entregadaEl) : "",
+  ]
   return (
     <div>
-      <ol aria-label="Seguimiento de tus lentes" className={"flex flex-col " + (vertical ? "" : "sm:flex-row")}>
+      <ol aria-label="Seguimiento de tus lentes" className="flex flex-col">
         {pasos.map((p, i) => {
           const ultimo = i === pasos.length - 1
-          const lineaOn = p.estado === "hecho"
           return (
-            <li key={p.nombre} aria-current={p.estado === "actual" ? "step" : undefined} className={"relative flex flex-1 gap-3 pb-5 " + (vertical ? "" : "sm:flex-col sm:items-center sm:gap-2 sm:pb-0 sm:text-center")}>
-              {!ultimo && <span aria-hidden="true" className={"absolute left-[19px] top-10 h-[calc(100%-2.5rem)] w-0.5 " + (vertical ? "" : "sm:left-1/2 sm:top-[19px] sm:h-0.5 sm:w-full")} style={{ background: lineaOn ? color : "#E2E8F0" }} />}
-              <span className="relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 text-base font-bold" style={p.estado === "pendiente" ? { borderColor: "#CBD5E1", background: "#fff", color: "#64748B" } : p.estado === "hecho" ? { borderColor: color, background: color, color: "#fff" } : { borderColor: color, background: "#fff", color, boxShadow: `0 0 0 4px ${color}22` }}>
-                {p.estado === "hecho" ? <Check size={20} aria-hidden="true" /> : i + 1}
-              </span>
-              <span className={"min-w-0 pt-0.5 " + (vertical ? "" : "sm:pt-0")}>
-                <span className={"block text-base leading-snug " + (p.estado === "actual" ? "font-bold text-slate-900" : p.estado === "hecho" ? "font-semibold text-slate-700" : "text-slate-600")}>{p.nombre}</span>{" "}
-                {fechaDe[i] && p.estado !== "pendiente" && <span className="block text-base leading-snug text-slate-600">{fechaDe[i]}</span>}
+            <li key={p.nombre} aria-current={p.estado === "actual" ? "step" : undefined} className={"relative flex gap-4 " + (ultimo ? "" : "pb-3")}>
+              {!ultimo && <span aria-hidden="true" className="absolute left-[11px] top-[26px] bottom-0 w-[3px]" style={{ background: p.estado === "hecho" ? "#15803D" : "#DDE4EF" }} />}
+              <span className="relative z-10 mt-0.5"><Marcador estado={p.estado} color={color} /></span>
+              <span className="min-w-0">
+                <span className={"block text-lg font-semibold leading-snug " + (p.estado === "actual" ? "" : "text-pt-marino")} style={p.estado === "actual" ? { color } : undefined}>{p.nombre}</span>{" "}
+                {sub[i] && <span className="block text-base leading-snug text-pt-texto">{sub[i]}</span>}
               </span>
             </li>
           )
         })}
       </ol>
-      {conMensaje && t.clave === "atrasada" && <p className="mt-1 rounded-xl px-4 py-3 text-lg font-semibold leading-snug" style={{ background: color + "14", color: tono === "gris" ? "#334155" : color }}>{t.detalle}</p>}
+      {atrasada}
     </div>
   )
 }
@@ -130,3 +193,10 @@ export function Estrellas({ valor, onCambiar, etiqueta = "Calificación" }) {
     </div>
   )
 }
+
+// El ícono de «Mi receta» del diseño aprobado: dos círculos unidos por el puente (sin las patillas del ícono de lentes de la marca).
+export const IconoLentes = ({ size = 24, ...resto }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...resto}>
+    <circle cx="6.5" cy="13" r="4" /><circle cx="17.5" cy="13" r="4" /><path d="M10.5 13h3" />
+  </svg>
+)

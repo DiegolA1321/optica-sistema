@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { serieDeGraduacion, porcentajeAbonado, enCuantoTiempo, agruparPorAnio, avisosDelPaciente, archivoIcs, estadoDeLaOpticaHoy } from "./portalVistas"
+import { serieDeGraduacion, porcentajeAbonado, enCuantoTiempo, agruparPorAnio, avisosDelPaciente, archivoIcs, estadoDeLaOpticaHoy, valorD } from "./portalVistas"
 import { resumenCambioGraduacion } from "./portalPaciente"
 
 const c = (fecha, odEsf, oiEsf) => ({ fecha, od: { esfera: odEsf, cilindro: "" }, oi: { esfera: oiEsf, cilindro: "" } })
@@ -88,5 +88,17 @@ describe("la óptica, hoy", () => {
   it("antes de abrir, dice a qué hora abre hoy; el domingo cerrado también apunta al lunes", () => {
     expect(estadoDeLaOpticaHoy({ horarioSemanal }, new Date(2026, 9, 19, 7)).texto).toBe("Cerrado ahora · abre hoy a las 09:00 AM")
     expect(estadoDeLaOpticaHoy({ horarioSemanal }, new Date(2026, 9, 18, 10)).texto).toBe("Cerrado hoy · abre mañana a las 09:00 AM")
+  })
+})
+
+describe("los valores de la receta como los lee el paciente", () => {
+  it("lleva el signo menos de verdad, dos decimales y «+» en los positivos", () => {
+    expect(valorD("-2.25")).toBe("−2.25")
+    expect(valorD("-0,50")).toBe("−0.50")
+    expect(valorD("+1.75")).toBe("+1.75")
+    expect(valorD("1.5")).toBe("+1.50")
+    expect(valorD("0")).toBe("0.00")
+    expect(valorD("")).toBe("")
+    expect(valorD(null)).toBe("")
   })
 })

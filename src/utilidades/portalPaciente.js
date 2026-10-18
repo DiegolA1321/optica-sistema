@@ -11,8 +11,11 @@ import { fechaProximoControl } from "./fidelizacion"
 import { formatearTelefonoEC, linkWhatsApp } from "./whatsapp"
 
 // ── Identidad de la óptica ──
-// El portal se viste con el logo y el color de la óptica (Configuración › Personalización): el acento tiñe el menú, los botones principales y la tarjeta destacada.
-// Sin color propio queda el azul de la marca del sistema. El texto sobre el acento es blanco u oscuro según el contraste (WCAG).
+// El portal sigue el diseño aprobado (docs/portal-propuesta/): azul #1D5FD6, azul marino #0F2340 en la franja y el boleto, y fondo #F4F7FB. Si la óptica eligió un color propio
+// (Configuración › Personalización), ese color reemplaza al azul en el menú, los botones y los enlaces; el marino no cambia. El texto sobre el acento es blanco u oscuro según el contraste (WCAG).
+export const AZUL_PORTAL = "#1D5FD6"
+export const MARINO_PORTAL = "#0F2340"
+const AZUL_DEL_SISTEMA = "#2563eb"
 const HEX = /^#[0-9a-f]{6}$/i
 const luminancia = (hex) => {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
@@ -20,16 +23,12 @@ const luminancia = (hex) => {
 }
 export function identidadDeLaOptica(opticaPublica) {
   const m = opticaPublica?.marca || {}
-  const acento = HEX.test(m.colorAcento || "") ? m.colorAcento : "#2563EB"
-  const secundario = HEX.test(m.colorSecundario || "") ? m.colorSecundario : ""
-  const porDefecto = acento.toLowerCase() === "#2563eb" && !secundario
-  const grad = secundario ? `linear-gradient(135deg,${acento},${secundario})` : porDefecto ? "linear-gradient(135deg,#22D3EE,#2563EB)" : `linear-gradient(135deg,color-mix(in srgb, ${acento} 60%, white),${acento})`
+  const propio = HEX.test(m.colorAcento || "") && m.colorAcento.toLowerCase() !== AZUL_DEL_SISTEMA
+  const acento = propio ? m.colorAcento : AZUL_PORTAL
   return {
-    acento, grad,
-    // La tarjeta destacada es siempre oscura (el acento mezclado con negro), así el texto blanco se lee con cualquier color.
-    hero: `linear-gradient(135deg,color-mix(in srgb, ${acento} 72%, black),color-mix(in srgb, ${acento} 92%, black))`,
+    acento,
     // Botón principal: texto blanco salvo que el acento sea tan claro que el blanco no se lea (contraste menor a 3:1).
-    textoBoton: (1.05 / (luminancia(secundario || acento) + 0.05)) >= 3 ? "#FFFFFF" : "#0E2B33",
+    textoBoton: (1.05 / (luminancia(acento) + 0.05)) >= 3 ? "#FFFFFF" : "#0E2B33",
     logoUrl: opticaPublica?.logo_url || m.logoUrlClaro || "",
   }
 }
@@ -61,7 +60,9 @@ export const mapOrdenPaciente = (o) => ({
 
 export const ordenesAbiertasDelPaciente = (ordenes = []) => ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")
 
-const TIPO_LENTE = { monofocal: "Lentes de un solo foco", bifocal: "Lentes bifocales", progresivo: "Lentes progresivos" }
+const TIPO_LENTE = { monofocal: "Lentes monofocales", bifocal: "Lentes bifocales", progresivo: "Lentes progresivos" }
+// Solo el tipo («Lentes progresivos»), para el título de una compra.
+export const tipoDeLentes = (orden) => TIPO_LENTE[orden.tipoLente] || "Tus lentes"
 export const nombreDeLosLentes = (orden) => [TIPO_LENTE[orden.tipoLente] || "Tus lentes", orden.montura && `con la montura ${orden.montura}`].filter(Boolean).join(" ")
 
 // El estado de la orden es el mismo que ve Ventas (enviada, lista, entregada y «atrasada» cuando la fecha prometida ya pasó, el color es el mismo):

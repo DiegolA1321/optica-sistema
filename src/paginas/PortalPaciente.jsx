@@ -3,7 +3,7 @@
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { LayoutDashboard, Calendar, User, CheckCircle2, AlertCircle, LogOut, Stethoscope, ChevronDown, CalendarClock, Glasses, KeyRound, Lock, Receipt, X, Bell, ChevronRight } from "lucide-react"
+import { Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, LogOut, Stethoscope, CalendarClock, KeyRound, Lock, X, Bell, ChevronRight } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import SelectorLista from "../componentes/SelectorLista"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -16,22 +16,22 @@ import MisCitasPortal from "../componentes/portal/MisCitasPortal"
 import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
 import { usePortalDatos } from "../componentes/portal/usePortalDatos"
+import { useConsulta } from "../componentes/portal/useAncho"
+import { IconoLentes } from "../componentes/portal/piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "../componentes/portal/estilos"
 import { numeroComprobante } from "../utilidades/comprobantes"
-import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto } from "../utilidades/portalPaciente"
+import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto, resumenCambioGraduacion } from "../utilidades/portalPaciente"
 import { avisosDelPaciente, descargarIcs } from "../utilidades/portalVistas"
-import { descargarPdfReceta } from "../utilidades/recetaPdf"
 import { supabase } from "../lib/supabaseClient"
-import { INK } from "@/lib/tema"
 import { validarClaveNueva } from "../utilidades/validaciones"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 
 const OPCIONES = [
-  { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
-  { id: "citas", nombre: "Mis citas", icono: Calendar },
-  { id: "receta", nombre: "Mi receta", icono: Glasses },
-  { id: "compras", nombre: "Mis compras", icono: Receipt },
-  { id: "datos", nombre: "Mis datos", icono: User },
+  { id: "resumen", nombre: "Inicio", corto: "Inicio", icono: Home },
+  { id: "citas", nombre: "Mis citas", corto: "Citas", icono: CalendarDays },
+  { id: "receta", nombre: "Mi receta", corto: "Receta", icono: IconoLentes },
+  { id: "compras", nombre: "Mis compras", corto: "Compras", icono: ReceiptText },
+  { id: "datos", nombre: "Mis datos", corto: "Mis datos", icono: UserRound },
 ]
 
 // Portal del paciente (portal v2, 17 oct. 2026). Pensado para pacientes de una óptica —muchos mayores, casi todos desde el celular—: texto de 16 px o más,
@@ -42,18 +42,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const identidad = identidadDeLaOptica(opticaPublica)
   const logoUrl = identidad.logoUrl
   // El color de la óptica llega a todo el portal por variables de CSS (el menú, los botones principales y la tarjeta destacada).
-  const estiloRaiz = { "--portal-acento": identidad.acento, "--portal-grad": identidad.grad, "--portal-hero": identidad.hero, "--portal-texto-boton": identidad.textoBoton }
+  const estiloRaiz = { "--portal-acento": identidad.acento, "--portal-texto-boton": identidad.textoBoton }
   // Las ventanas (Cascaron) se dibujan fuera de esta raíz, en el body: las variables también van en el documento mientras el portal está abierto.
   useEffect(() => {
     const raiz = document.documentElement
     Object.entries(estiloRaiz).forEach(([k, v]) => raiz.style.setProperty(k, v))
     return () => Object.keys(estiloRaiz).forEach((k) => raiz.style.removeProperty(k))
-  }, [identidad.acento, identidad.grad, identidad.hero, identidad.textoBoton]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [identidad.acento, identidad.textoBoton]) // eslint-disable-line react-hooks/exhaustive-deps
   // Política de la óptica (configurable en Configuración > Políticas hacia el paciente)
   const mostrarMedidas = parametrizacion?.mostrarMedidasPaciente === true
   const [seccion, setSeccion] = useState("resumen")
-  const [userMenu, setUserMenu] = useState(false)
-  const userRef = useRef(null)
   const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
 
   // Aviso que confirma lo que acaba de hacer el paciente (agendar, cambiar, cancelar): se queda a la vista hasta que lo cierra o pasan 8 segundos.
@@ -175,13 +173,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [confirmarClave, setConfirmarClave] = useState("")
   const [errorClave, setErrorClave] = useState("")
   const [guardandoClave, setGuardandoClave] = useState(false)
-  const abrirClave = () => { setUserMenu(false); setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }
-
-  useEffect(() => {
-    const onDown = (e) => { if (userRef.current && !userRef.current.contains(e.target)) setUserMenu(false) }
-    document.addEventListener("mousedown", onDown)
-    return () => document.removeEventListener("mousedown", onDown)
-  }, [])
+  const abrirClave = () => { setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }
 
   // Recetas del paciente
   const misConsultas = useMemo(
@@ -221,11 +213,11 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const contacto = contactoDeLaOptica({ parametrizacion, disponibilidad, nombre: nombreOptica, paciente: usuario?.nombre })
   const esNuevo = misCitas.length === 0 && misConsultas.length === 0 && datos.compras.length === 0 && datos.ordenes.length === 0
   const [recetaAbierta, setRecetaAbierta] = useState(null)
-  const verReceta = (id) => { setSeccion("receta"); setRecetaAbierta(id); setUserMenu(false) }
+  const verReceta = (id) => { setSeccion("receta"); setRecetaAbierta(id) }
   // «Solicitar ajuste o garantía»: abre «Agendar cita» con el motivo ya elegido y dice de qué compra viene (la más reciente).
-  const pedirGarantia = () => { abrirAgendar("garantia"); const c = datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
+  const pedirGarantia = (compra) => { abrirAgendar("garantia"); const c = compra || datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
   // La fecha del «Pedido» es la de la compra a la que pertenece la orden.
-  const ordenesConPedido = datos.ordenes.map((o) => ({ ...o, pedidoEl: datos.compras.find((c) => c.id === o.facturaId)?.fecha || o.creadaEn }))
+  const ordenesConPedido = datos.ordenes.map((o) => { const compra = datos.compras.find((c) => c.id === o.facturaId); return { ...o, pedidoEl: compra?.fecha || o.creadaEn, comprobante: compra ? numeroComprobante(compra.numero) : "" } })
   const avisos = avisosDelPaciente({ ordenes: datos.ordenes, proximaCita, control })
   const [campana, setCampana] = useState(false)
   const campanaRef = useRef(null)
@@ -307,140 +299,154 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     onCerrarSesion("Contraseña actualizada. Vuelve a iniciar sesión con tu nueva contraseña.")
   }
 
-  const navegar = (id) => { setSeccion(id); setUserMenu(false) }
+  const navegar = (id) => { setSeccion(id); setCampana(false) }
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
   const hora24 = ahoraEcuador().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = formatoFecha(ahoraEcuador(), "calendario")
+  const hoyFecha = formatoFecha(ahoraEcuador(), "largo")
   const alIcs = (cita) => descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
   const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando }
   const cargandoPortal = cargandoDatos || datos.cargando
+  const cambioGraduacion = resumenCambioGraduacion(misConsultas)
+  const recetaActualId = misConsultas[0]?.id ?? null
+  const primeraRecetaId = misConsultas.length > 1 ? misConsultas[misConsultas.length - 1].id : null
+  // Con 1024 px o más el portal lleva el menú a la izquierda; con menos (tablet y celular), una barra de navegación abajo. Se dibuja una sola versión.
+  const laptop = useConsulta("(min-width: 1024px)", true)
+  const nombreMostrado = opticaPublica?.nombre || "Mi Óptica"
   const marca = () => (
-    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl sm:h-11 sm:w-11" style={{ background: logoUrl ? "#fff" : "var(--portal-grad)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : "0 10px 24px -8px rgba(15,23,42,0.35)" }}>
+    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl lg:h-9 lg:w-9 lg:rounded-[10px]" style={{ background: logoUrl ? "#fff" : "var(--portal-acento)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : undefined }}>
       {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <Glasses size={22} aria-hidden="true" />}
+    </div>
+  )
+  // La campanita de avisos: un punto naranja si hay algo nuevo (el número exacto lo lee quien usa lector de pantalla).
+  const campanita = (
+    <div className="relative" ref={campanaRef}>
+      <button type="button" onClick={() => setCampana((v) => !v)} aria-haspopup="menu" aria-expanded={campana} aria-label={avisos.length ? `Avisos: tienes ${avisos.length}` : "Avisos: no tienes avisos nuevos"} className="relative grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-pt-borde bg-white text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer">
+        <Bell size={24} aria-hidden="true" />
+        {avisos.length > 0 && <span aria-hidden="true" className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-[#B45309] ring-2 ring-white" />}
+      </button>
+      {campana && (
+        <div role="menu" aria-label="Avisos" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-pt-borde bg-white shadow-2xl">
+          <p className="border-b border-pt-borde px-4 py-3 font-heading text-lg font-bold text-pt-marino">Tus avisos</p>
+          {avisos.length === 0 ? <p className="px-4 py-5 text-lg text-pt-texto">No tienes avisos por ahora.</p> : (
+            <ul className="p-2">{avisos.map((a) => (
+              <li key={a.id}><button type="button" role="menuitem" onClick={() => navegar(a.va)} className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-pt-fondo cursor-pointer"><span className="min-w-0 flex-1">{a.texto}</span><ChevronRight size={20} className="shrink-0 text-slate-400" aria-hidden="true" /></button></li>
+            ))}</ul>
+          )}
+        </div>
+      )}
     </div>
   )
 
   return (
-    <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-slate-50 font-sans text-slate-800">
-      {/* ─── MENÚ LATERAL (laptop): claro, igual que el del personal ─── */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200/70 bg-slate-50/80 lg:flex">
-        <div className="flex min-w-0 items-center gap-3 border-b border-slate-200/70 px-6 py-5">
-          {marca()}
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-lg font-bold tracking-tight text-slate-900">{opticaPublica?.nombre || "Mi Óptica"}</p>
-            <p className="text-sm font-medium text-slate-600">Portal del paciente</p>
+    <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-pt-fondo font-sans text-pt-marino">
+      {/* ─── MENÚ LATERAL (laptop): la marca de la óptica y las cinco pantallas ─── */}
+      {laptop && (
+        <aside className="flex w-[232px] shrink-0 flex-col border-r border-pt-borde bg-white">
+          <div className="flex min-w-0 items-start gap-2.5 px-[18px] pb-6 pt-6">
+            {marca()}
+            <div className="min-w-0 leading-tight">
+              <p className="font-heading text-base font-bold leading-snug text-pt-marino">{nombreMostrado}</p>
+              <p className="mt-0.5 whitespace-nowrap text-base tracking-tight text-pt-texto">Tu portal de paciente</p>
+            </div>
           </div>
-        </div>
-        <nav aria-label="Menú del portal" className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 py-6">
-          {OPCIONES.map((o) => {
-            const Icono = o.icono
-            const activo = seccion === o.id
-            return (
-              <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}
-                className={"group flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-colors cursor-pointer " + (activo ? "" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900")}
-                style={activo ? { background: "var(--portal-grad)", color: identidad.textoBoton, boxShadow: "0 12px 24px -12px rgba(15,23,42,0.35)" } : undefined}>
-                <Icono size={22} aria-hidden="true" className={activo ? "" : "text-slate-500 group-hover:text-slate-900"} />
-                <span>{o.nombre}</span>
-              </button>
-            )
-          })}
-        </nav>
-      </aside>
+          <nav aria-label="Menú del portal" className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4">
+            {OPCIONES.map((o) => {
+              const Icono = o.icono
+              const activo = seccion === o.id
+              return (
+                <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}
+                  className={"flex h-12 w-full items-center gap-3.5 rounded-xl px-3.5 text-base transition-colors cursor-pointer " + (activo ? "bg-pt-suave font-semibold text-pt-azul" : "font-medium text-slate-700 hover:bg-slate-50 hover:text-pt-marino")}>
+                  <Icono size={22} aria-hidden="true" />
+                  <span>{o.nombre}</span>
+                </button>
+              )
+            })}
+          </nav>
+          {onCerrarSesion && (
+            <div className="p-4">
+              <button type="button" onClick={() => onCerrarSesion()} className="flex min-h-12 w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-base font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><LogOut size={22} aria-hidden="true" /> Cerrar sesión</button>
+            </div>
+          )}
+        </aside>
+      )}
 
       {/* ─── CONTENIDO ─── */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/60 border-t-4 bg-white/90 px-4 py-3 backdrop-blur-md sm:px-8" style={{ borderTopColor: "var(--portal-acento)" }}>
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="lg:hidden">{marca()}</div>
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold tracking-tight sm:text-lg" style={{ color: INK }}>{saludo}<span className="hidden sm:inline">, {usuario?.nombre || primerNombre}</span></p>
-              <p className="truncate text-base text-slate-600">{hoyFecha}</p>
+        {/* Celular y tablet: una barra arriba con la marca, el saludo y los avisos */}
+        {!laptop && (
+          <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-pt-borde bg-white px-4 py-3">
+            {marca()}
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate font-heading text-lg font-bold text-pt-marino">Hola, {primerNombre}</p>
+              <p className="truncate text-base text-pt-texto">{nombreMostrado}</p>
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <div className="relative" ref={campanaRef}>
-            <button type="button" onClick={() => { setCampana((v) => !v); setUserMenu(false) }} aria-haspopup="menu" aria-expanded={campana} aria-label={avisos.length ? `Avisos: tienes ${avisos.length}` : "Avisos: no tienes avisos nuevos"} className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 sm:h-12 sm:w-12 transition-colors hover:bg-slate-50 cursor-pointer">
-              <Bell size={22} aria-hidden="true" />
-              {avisos.length > 0 && <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-red-600 px-1 text-sm font-bold text-white">{avisos.length}</span>}
-            </button>
-            {campana && (
-              <div role="menu" aria-label="Avisos" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                <p className="border-b border-slate-100 px-4 py-3 text-lg font-bold" style={{ color: INK }}>Tus avisos</p>
-                {avisos.length === 0 ? <p className="px-4 py-5 text-lg text-slate-600">No tienes avisos por ahora.</p> : (
-                  <ul className="p-2">{avisos.map((a) => (
-                    <li key={a.id}><button type="button" role="menuitem" onClick={() => { setCampana(false); navegar(a.va) }} className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-lg font-semibold text-slate-800 transition-colors hover:bg-slate-50 cursor-pointer"><span className="min-w-0 flex-1">{a.texto}</span><ChevronRight size={20} className="shrink-0 text-slate-400" aria-hidden="true" /></button></li>
-                  ))}</ul>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="relative shrink-0" ref={userRef}>
-            <button type="button" onClick={() => { setUserMenu((v) => !v); setCampana(false) }} aria-haspopup="menu" aria-expanded={userMenu} aria-label="Mi cuenta" className="flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-2 sm:min-h-12 sm:gap-2.5 sm:py-1.5 sm:pl-1.5 sm:pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-bold" style={{ background: "var(--portal-grad)", color: identidad.textoBoton }}>{primerNombre[0]?.toUpperCase()}</span>
-              <span className="max-w-[3.75rem] truncate text-left text-base font-semibold sm:max-w-[16rem]" style={{ color: INK }}>{usuario?.nombre || primerNombre}</span>
-              <ChevronDown size={18} aria-hidden="true" className={"hidden text-slate-500 transition-transform sm:block " + (userMenu ? "rotate-180" : "")} />
-            </button>
-            {userMenu && (
-              <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                <div className="border-b border-slate-100 p-4">
-                  <p className="truncate text-base font-bold" style={{ color: INK }}>{usuario?.nombre || "Paciente"}</p>
-                  <p className="truncate text-base text-slate-600">{usuario?.correo || usuario?.cedula || ""}</p>
-                </div>
-                <div className="p-2">
-                  <button type="button" role="menuitem" onClick={abrirClave} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><KeyRound size={20} aria-hidden="true" /> Cambiar contraseña</button>
-                  {onCerrarSesion && <button type="button" role="menuitem" onClick={() => onCerrarSesion()} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-base font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer"><LogOut size={20} aria-hidden="true" /> Cerrar sesión</button>}
-                </div>
-              </div>
-            )}
-          </div>
-          </div>
-        </header>
+            {campanita}
+          </header>
+        )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-5 sm:px-8 lg:pb-10 lg:pt-8">
-          <div className="pt-zona mx-auto max-w-[1200px]">
+        <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:px-10 lg:pb-12 lg:pt-7">
+          <div className="pt-zona mx-auto max-w-[1160px]">
+            {/* Laptop, solo en Inicio: el saludo con la fecha, la campanita y la cuenta */}
+            {laptop && seccion === "resumen" && (
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-heading text-[28px] font-bold leading-tight tracking-tight text-pt-marino">{saludo}, {primerNombre}</p>
+                  <p className="mt-1 text-base text-pt-texto">{hoyFecha}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  {campanita}
+                  <button type="button" onClick={() => navegar("datos")} aria-label="Mi cuenta: ir a Mis datos" className="flex min-h-12 items-center gap-3 rounded-xl border border-pt-borde bg-white py-1.5 pl-2 pr-5 transition-colors hover:bg-slate-50 cursor-pointer">
+                    <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-pt-suave text-base font-bold text-pt-azul">{(usuario?.nombre || "P").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("")}</span>
+                    <span className="max-w-[16rem] truncate text-base font-semibold text-pt-marino">{usuario?.nombre || primerNombre}</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {aviso && (
-              <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
-                <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={22} aria-hidden="true" />
+              <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl bg-[#E3F4EA] p-4 text-[#166534]">
+                <CheckCircle2 className="mt-0.5 shrink-0" size={22} aria-hidden="true" />
                 <p className="min-w-0 flex-1 text-lg font-semibold">{aviso}</p>
-                <button type="button" onClick={() => setAviso("")} aria-label="Cerrar aviso" className="-m-2 grid h-12 w-12 shrink-0 place-items-center rounded-xl text-emerald-800 transition-colors hover:bg-emerald-100 cursor-pointer"><X size={20} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setAviso("")} aria-label="Cerrar aviso" className="-m-2 grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors hover:bg-emerald-100 cursor-pointer"><X size={20} aria-hidden="true" /></button>
               </div>
             )}
 
             {seccion === "resumen" && (
               <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)}
-                control={control} tieneCitaPendiente={proximas.length > 0} saldoInfo={saldoInfo} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} hayCompras={datos.compras.length > 0} nombreOptica={nombreOptica} direccion={contacto.direccion}
-                citaProps={citaProps} onConfirmar={datos.confirmar} onIcs={alIcs} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} onDescargarReceta={() => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: ultimaReceta, mostrarMedidas })} onGarantia={pedirGarantia} />
+                control={control} tieneCitaPendiente={proximas.length > 0} saldoInfo={saldoInfo} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} cambio={cambioGraduacion} nombreOptica={nombreOptica} direccion={contacto.direccion}
+                citaProps={citaProps} onConfirmar={datos.confirmar} onIcs={alIcs} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
             )}
-            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={datos.confirmar} onIcs={alIcs} onVerReceta={verReceta} onCalificar={datos.calificar} />}
+            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={datos.confirmar} onIcs={alIcs} onVerReceta={verReceta} onCalificar={datos.calificar} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} />}
             {seccion === "receta" && (
-              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} recetaAbierta={recetaAbierta} onAbrirReceta={setRecetaAbierta} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas}
+              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} recetaAbierta={recetaAbierta} onAbrirReceta={setRecetaAbierta} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
-            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} onPedirCita={abrirAgendar} />}
-            {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} />}
+            {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} />}
+            {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
           </div>
         </div>
       </main>
 
       {/* ─── BARRA DE NAVEGACIÓN (celular y tablet): abajo, al alcance del pulgar ─── */}
-      <nav aria-label="Menú del portal" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
-        <ul className="mx-auto grid max-w-3xl grid-cols-5">
-          {OPCIONES.map((o) => {
-            const Icono = o.icono
-            const activo = seccion === o.id
-            return (
-              <li key={o.id}>
-                <button type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined}
-                  className={"flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 py-2 text-sm font-semibold leading-tight transition-colors cursor-pointer " + (activo ? "" : "text-slate-600 hover:text-slate-900")} style={activo ? { color: "var(--portal-acento)" } : undefined}>
-                  <span className="grid h-8 w-14 place-items-center rounded-full transition-colors" style={activo ? { background: "color-mix(in srgb, var(--portal-acento) 14%, white)" } : undefined}><Icono size={22} aria-hidden="true" /></span>
-                  <span className="text-center">{o.nombre}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
+      {!laptop && (
+        <nav aria-label="Menú del portal" className="fixed inset-x-0 bottom-0 z-40 border-t border-pt-borde bg-white pb-[env(safe-area-inset-bottom)]">
+          <ul className="mx-auto grid max-w-3xl grid-cols-5">
+            {OPCIONES.map((o) => {
+              const Icono = o.icono
+              const activo = seccion === o.id
+              return (
+                <li key={o.id}>
+                  <button type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined} aria-label={o.nombre}
+                    className={"flex min-h-[68px] w-full flex-col items-center justify-center gap-1 px-0.5 py-2 text-base leading-tight tracking-tight whitespace-nowrap transition-colors cursor-pointer " + (activo ? "font-bold text-pt-azul" : "font-medium text-slate-600 hover:text-pt-marino")}>
+                    <Icono size={24} aria-hidden="true" />
+                    <span>{o.corto}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+      )}
 
       {/* ─── AGENDAR CITA ─── */}
       {modalAgendar && (

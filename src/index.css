@@ -127,22 +127,28 @@
     @apply bg-background text-foreground;
   }
 }
-/* ── Portal del paciente: rejilla por el ancho de la propia zona de contenido (no de la ventana) ──
-   El menú lateral le quita 256 px al contenido, así que un `lg:` (de la ventana) dejaba tarjetas de 200 px en una laptop con escala de pantalla del 125 %.
-   Aquí manda el ancho real del contenedor: una tarjeta nunca mide menos de 280 px (regla 48). */
+/* ── Portal del paciente (diseño aprobado, docs/portal-propuesta/) ──
+   Colores: azul #1D5FD6 (o el de la óptica, `--portal-acento`), azul marino #0F2340 y fondo #F4F7FB. Títulos y números en Sora, texto en Public Sans.
+   La rejilla va por el ancho de la propia zona de contenido (no de la ventana): el menú lateral le quita 232 px, así que un `lg:` de la ventana dejaba tarjetas angostas. */
+@theme {
+  --color-pt-azul: var(--portal-acento, #1D5FD6);
+  --color-pt-marino: #0F2340;
+  --color-pt-fondo: #F4F7FB;
+  --color-pt-borde: #E3EAF4;
+  --color-pt-suave: #E6EEFB;
+  --color-pt-texto: #475569;
+  --color-pt-ambar: #92400E;
+}
 .pt-zona { container-type: inline-size; container-name: portal; width: 100%; }
-.pt-fila { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: stretch; }
+.pt-fila { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: stretch; }
 .pt-fila > * { min-width: 0; }
 .pt-fila--arriba { align-items: start; }
 @container portal (min-width: 640px) { .pt-fila--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@container portal (min-width: 960px) {
+@container portal (min-width: 900px) {
   .pt-fila--8-4 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
   .pt-fila--7-5 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .pt-fila--cuatro { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 }
-.pt-fila--auto { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
-@container portal (min-width: 640px) and (max-width: 959px) { .pt-fila--auto > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
+@container portal (min-width: 600px) and (max-width: 899px) { .pt-fila--cuatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .pt-fila--solo { grid-template-columns: minmax(0, 1fr); }
-/* El boleto de la cita: el bloque del día va a la izquierda cuando el PROPIO boleto es ancho y arriba cuando no. */
-.pt-boleto-zona { container-type: inline-size; container-name: boleto; }
-.pt-boleto { display: grid; grid-template-columns: minmax(0, 1fr); height: 100%; }
-@container boleto (min-width: 520px) { .pt-boleto { grid-template-columns: 168px minmax(0, 1fr); } .pt-boleto-dia { flex-direction: column; justify-content: center; gap: 0; padding: 24px; text-align: center; } .pt-boleto-dia .pt-num { font-size: 4.5rem; margin: 4px 0; } }
+@container portal (min-width: 600px) { .pt-fila { gap: 24px; } }
