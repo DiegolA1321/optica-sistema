@@ -39,7 +39,7 @@ const OPCIONES = [
   { id: "citas", nombre: "Mis citas", corto: "Citas", icono: CalendarDays },
   { id: "receta", nombre: "Mi receta", corto: "Receta", icono: IconoLentes, iconoMenu: Eye },
   { id: "compras", nombre: "Mis compras", corto: "Compras", icono: ReceiptText },
-  { id: "datos", nombre: "Mis datos", corto: "Mis datos", icono: UserRound },
+  { id: "datos", nombre: "Mis datos", corto: "Datos", icono: UserRound },
 ]
 
 // Portal del paciente (portal v2, 17 oct. 2026). Pensado para pacientes de una óptica —muchos mayores, casi todos desde el celular—: texto de 16 px o más,

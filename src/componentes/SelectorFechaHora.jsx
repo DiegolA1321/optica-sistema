@@ -84,11 +84,11 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
           </div>
         </div>
 
-        <div className={"mb-1.5 grid grid-cols-7 gap-1 text-center font-bold " + (grande ? "text-base text-slate-600" : "text-xs text-slate-500")}>
+        <div className={"mb-1.5 grid grid-cols-7 gap-x-0 text-center font-bold sm:gap-1 " + (grande ? "text-base text-slate-600" : "text-xs text-slate-500")}>
           {DIAS_CORTOS.map((d, i) => (<span key={i}>{d}</span>))}
         </div>
 
-        <div className={"grid grid-cols-7 " + (grande ? "gap-1 sm:gap-1.5" : "gap-1")}>
+        <div className={"grid grid-cols-7 " + (grande ? "gap-x-0 gap-y-1 sm:gap-1.5" : "gap-1")}>
           {dias.map((dia, i) => {
             if (!dia) return <span key={`e${i}`} />
             const sel = fecha === dia.iso

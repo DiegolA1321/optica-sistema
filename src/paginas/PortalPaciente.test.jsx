@@ -799,3 +799,21 @@ describe("Solicitar lentes nuevos (Mis compras)", () => {
     expect(screen.queryByRole("button", { name: "Solicitar lentes nuevos" })).not.toBeInTheDocument()
   })
 })
+
+describe("«Qué llevar a tu cita» en el boleto de la próxima cita", () => {
+  for (const ancho of [320, 390, 1366]) {
+    it(`con una cita pendiente el Inicio se dibuja y dice qué llevar (${ancho} px)`, async () => {
+      ponerAncho(ancho)
+      render(<PortalPaciente {...base} citas={[cita()]} />)
+      const boleto = await screen.findByRole("region", { name: "Tu próxima cita" })
+      expect(within(boleto).getByRole("list", { name: "Qué llevar a tu cita" })).toHaveTextContent("Tus lentes actuales")
+      expect(within(boleto).getByRole("list", { name: "Qué llevar a tu cita" })).toHaveTextContent("Llega 10 minutos antes")
+    })
+  }
+  it("una cita que ya no está pendiente no pide llevar nada", async () => {
+    ponerAncho(1366)
+    render(<PortalPaciente {...base} citas={[cita({ estado: "Atendida", fecha: "2020-01-01" })]} />)
+    await resumen()
+    expect(screen.queryByRole("list", { name: "Qué llevar a tu cita" })).not.toBeInTheDocument()
+  })
+})

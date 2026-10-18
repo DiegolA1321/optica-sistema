@@ -216,7 +216,7 @@ export function SelectorReceta({ recetas, valorId, onElegir, version = "paciente
         <ChevronDown size={paciente ? 20 : 16} className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>
       {abierto && (
-        <div className={"absolute left-0 top-full z-40 mt-2 w-[min(26rem,calc(100vw-2rem))] rounded-2xl border bg-white p-3 shadow-2xl " + (paciente ? "border-pt-borde" : "border-slate-200")}>
+        <div className={"absolute left-0 top-full z-40 mt-2 w-[min(26rem,calc(100vw-2rem))] @[56rem]:left-auto @[56rem]:right-0 rounded-2xl border bg-white p-3 shadow-2xl " + (paciente ? "border-pt-borde" : "border-slate-200")}>
           {anios.length > 1 && (
             <div role="group" aria-label="Filtrar por año" className="mb-2 flex flex-wrap gap-2">
               {["todas", ...anios].map((a) => <button key={a} type="button" aria-pressed={anio === a} onClick={() => setAnio(a)} className={CHIP(anio === a, paciente)}>{a === "todas" ? "Todas" : a}</button>)}
@@ -351,7 +351,8 @@ export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actual
   const sigla = lado === "od" ? "OD" : "OI"
   const filas = recetas.filter((r) => !ojoSinDatos(r[lado]))
   const puntos = [...filas].reverse().map((r) => ({ id: r.id, fecha: r.fecha, v: numero(r[lado]?.esfera) })).filter((p) => p.v !== null)
-  const COL = "grid grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_3.5rem_4.5rem] items-center gap-x-3 px-4"
+  // En una ventana angosta (celular, zoom alto) cada receta es dos líneas: la fecha y, debajo, sus valores con su nombre; desde 30 rem, una tabla en columnas.
+  const COL = "@[30rem]:grid @[30rem]:grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_3.5rem_4.5rem] @[30rem]:items-center @[30rem]:gap-x-3 px-4"
   return (
     <Cascaron pantallaCompletaEnCelular titulo={paciente ? `Historia de tu ${nombre}` : `Historia de este ojo · ${sigla}`} subtitulo={paciente ? "Todas tus recetas y cómo cambió tu esfera." : "Todas las recetas del paciente y la esfera en el tiempo."} Icono={Glasses} ancho="max-w-2xl" onCerrar={onCerrar} capa="z-[60]"
       pie={<><span /><button type="button" onClick={onCerrar} className={paciente ? "inline-flex min-h-12 items-center rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold text-pt-marino hover:bg-slate-50 cursor-pointer" : "rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"}>Cerrar</button></>}>
@@ -363,19 +364,21 @@ export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actual
         <section aria-label="Recetas de este ojo">
           <h3 className="mb-2 text-base font-bold text-slate-900">Todas las recetas</h3>
           {filas.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p> : (
-            <div data-lista="historia-ojo" className="overflow-hidden rounded-2xl border border-slate-200/70">
-              <div aria-hidden="true" className={COL + " bg-slate-50 py-2 text-sm font-semibold text-slate-500"}><span>Fecha</span><span className="text-right">Esfera</span><span className="text-right">{paciente ? "Astig." : "Cilindro"}</span><span className="text-right">Eje</span><span className="text-right">AV</span></div>
+            <div data-lista="historia-ojo" className="@container overflow-hidden rounded-2xl border border-slate-200/70">
+              <div aria-hidden="true" className={COL + " hidden bg-slate-50 py-2 text-sm font-semibold text-slate-500"}><span>Fecha</span><span className="text-right">Esfera</span><span className="text-right">{paciente ? "Astig." : "Cilindro"}</span><span className="text-right">Eje</span><span className="text-right">AV</span></div>
               <ul className="divide-y divide-slate-100">
                 {filas.map((r) => {
                   const o = r[lado] || {}
                   return (
                     <li key={r.id} data-fila>
-                      <button type="button" onClick={() => onElegir(r.id)} aria-current={String(r.id) === String(actualId) ? "true" : undefined} aria-label={`Ver la receta del ${formatoFecha(r.fecha, "largoSinDia")}`} className={COL + " min-h-12 w-full py-2 text-left text-base transition-colors cursor-pointer hover:bg-slate-50 " + (String(r.id) === String(actualId) ? "bg-blue-50/60" : "")}>
-                        <span className="font-semibold text-slate-900">{formatoFecha(r.fecha, "medio")}{r.id === recetas[0]?.id && <span className="text-blue-600"> · vigente</span>}</span>
-                        <span data-col="monto" className="text-right font-bold tabular-nums text-slate-900">{valorD(o.esfera) || "—"}</span>
-                        <span className="text-right tabular-nums text-slate-700">{valorD(o.cilindro) || "—"}</span>
-                        <span className="text-right tabular-nums text-slate-700">{o.eje ? `${o.eje}°` : "—"}</span>
-                        <span className="text-right tabular-nums text-slate-700">{o.avCc || o.avSc || "—"}</span>
+                      <button type="button" onClick={() => onElegir(r.id)} aria-current={String(r.id) === String(actualId) ? "true" : undefined} aria-label={`Ver la receta del ${formatoFecha(r.fecha, "largoSinDia")}`} className={COL + " block min-h-12 w-full py-2.5 text-left text-base transition-colors cursor-pointer hover:bg-slate-50 " + (String(r.id) === String(actualId) ? "bg-blue-50/60" : "")}>
+                        <span className="block font-semibold text-slate-900">{formatoFecha(r.fecha, "medio")}{r.id === recetas[0]?.id && <span className="text-blue-600"> · vigente</span>}</span>
+                        <span className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 @[30rem]:contents">
+                          <span data-col="monto" className="font-bold tabular-nums text-slate-900 @[30rem]:text-right"><span className="font-normal text-slate-600 @[30rem]:hidden">Esfera </span>{valorD(o.esfera) || "—"}</span>
+                          <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">{paciente ? "Astig. " : "Cil. "}</span>{valorD(o.cilindro) || "—"}</span>
+                          <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">Eje </span>{o.eje ? `${o.eje}°` : "—"}</span>
+                          <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">AV </span>{o.avCc || o.avSc || "—"}</span>
+                        </span>
                       </button>
                     </li>
                   )
@@ -426,11 +429,11 @@ export function VentanaComparar({ recetas, version = "paciente", idA: inicialA, 
               {LADOS.map(([lado, nombre, sigla]) => (
                 <section key={lado} aria-label={nombre} className="min-w-0 rounded-2xl border border-slate-200/60">
                   <h3 className="border-b border-slate-100 px-4 py-2.5 text-base font-bold" style={{ color: COLOR_LADO[lado] }}>{paciente ? nombre : `${sigla} · ${nombre}`}</h3>
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 px-4 pb-2 pt-2 text-sm font-semibold text-slate-500"><span /><span className="min-w-[4.5rem] text-right">{formatoFecha(cmp.antes.fecha, "medioSinAnio")} {String(cmp.antes.fecha).slice(2, 4)}</span><span className="min-w-[4.5rem] text-right">{formatoFecha(cmp.ahora.fecha, "medioSinAnio")} {String(cmp.ahora.fecha).slice(2, 4)}</span></div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 px-4 pb-2 pt-2 text-base font-semibold text-slate-500"><span /><span className="min-w-[4.5rem] text-right">{formatoFecha(cmp.antes.fecha, "medioSinAnio")} {String(cmp.antes.fecha).slice(2, 4)}</span><span className="min-w-[4.5rem] text-right">{formatoFecha(cmp.ahora.fecha, "medioSinAnio")} {String(cmp.ahora.fecha).slice(2, 4)}</span></div>
                   <ul>
                     {filasDe(lado).map((f) => (
                       <li key={f.clave} className={"grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-2.5 text-base " + (f.difiere ? "bg-[#FDEBD3]" : "")}>
-                        <span className="text-slate-700">{etiqueta(f)}{f.difiere && <span className="ml-1.5 text-sm font-bold text-pt-ambar">cambió{f.delta != null ? " (" + textoDelta(f.delta) + ")" : ""}</span>}</span>
+                        <span className="text-slate-700">{etiqueta(f)}{f.difiere && <span className="ml-1.5 text-base font-bold text-pt-ambar">cambió{f.delta != null ? " (" + textoDelta(f.delta) + ")" : ""}</span>}</span>
                         <span className="min-w-[4.5rem] text-right font-semibold tabular-nums text-slate-700">{fmt(f.clave, f.antes)}</span>
                         <span className={"min-w-[4.5rem] text-right tabular-nums " + (f.difiere ? "font-bold text-slate-900" : "font-semibold text-slate-700")}>{fmt(f.clave, f.ahora)}</span>
                       </li>
@@ -442,7 +445,7 @@ export function VentanaComparar({ recetas, version = "paciente", idA: inicialA, 
             </div>
             {adicion && (
               <p className={"flex items-center justify-between gap-3 rounded-xl px-4 py-2.5 text-base " + (adicion.difiere ? "bg-[#FDEBD3]" : "bg-slate-50")}>
-                <span className="text-slate-700">{etiqueta(adicion)}{adicion.difiere && <span className="ml-1.5 text-sm font-bold text-pt-ambar">cambió</span>}</span>
+                <span className="text-slate-700">{etiqueta(adicion)}{adicion.difiere && <span className="ml-1.5 text-base font-bold text-pt-ambar">cambió</span>}</span>
                 <span className="font-semibold tabular-nums text-slate-900">{fmt(adicion.clave, adicion.antes)} → {fmt(adicion.clave, adicion.ahora)}</span>
               </p>
             )}

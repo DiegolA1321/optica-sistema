@@ -73,6 +73,16 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
   const btnCancelar = (clase) => reagendable && <button type="button" onClick={() => citaProps.onCancelar?.(cita)} aria-label="Cancelar cita" className={clase}>Cancelar</button>
   const nota = !detalle?.confirmadaAt && cita.estado !== "Pendiente" ? NOTA_ESTADO_CITA[cita.estado] : ""
 
+  // «Qué llevar a tu cita»: en el espacio libre del boleto, para que el paciente llegue con lo que el optómetra necesita.
+  const queLlevar = cita.estado === "Pendiente" && (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      <p className="text-base font-semibold text-pt-marino">Qué llevar a tu cita:</p>
+      <ul aria-label="Qué llevar a tu cita" className="flex flex-wrap gap-2">
+        {["Tus lentes actuales", "Tu receta anterior", "Llega 10 minutos antes"].map((t) => <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-pt-fondo px-3 py-1 text-base text-pt-marino"><Check size={16} strokeWidth={2.5} className="text-[#15803D]" aria-hidden="true" />{t}</li>)}
+      </ul>
+    </div>
+  )
+
   // ── Celular ──
   if (!ancha) {
     return (
@@ -112,15 +122,6 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
     <p className="text-base leading-snug text-pt-texto">{textoSinCambios}{" "}
       {citaProps.whatsappUrl ? <a href={citaProps.whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold text-pt-azul hover:underline">Escríbenos por WhatsApp</a> : citaProps.cambiosPermitidos === false ? "Comunícate con la óptica." : ""}
     </p>
-  )
-  // «Qué llevar a tu cita»: en el espacio libre del boleto, para que el paciente llegue con lo que el optómetra necesita.
-  const queLlevar = cita.estado === "Pendiente" && (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-      <p className="text-base font-semibold text-pt-marino">Qué llevar a tu cita:</p>
-      <ul aria-label="Qué llevar a tu cita" className="flex flex-wrap gap-2">
-        {["Tus lentes actuales", "Tu receta anterior", "Llega 10 minutos antes"].map((t) => <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-pt-fondo px-3 py-1 text-base text-pt-marino"><Check size={16} strokeWidth={2.5} className="text-[#15803D]" aria-hidden="true" />{t}</li>)}
-      </ul>
-    </div>
   )
   const error = errorConfirmar && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorConfirmar}</p>
   const acciones = (btnConfirmar || btnCalendario || reagendable) && <div className={"flex flex-wrap gap-3 " + (compacto ? "" : "pt-1.5")}>{btnConfirmar}{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>
