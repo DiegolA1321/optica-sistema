@@ -456,10 +456,13 @@ function App() {
     if (sesion?.tipo !== 'paciente' || sesion.pacienteId == null) return
     // Sesión ya resuelta de forma sincrónica (el paciente estaba en el `pacientes` guardado de este navegador): igual hay que traer sus citas y recetas;
     // sin esto «Inicio», «Mis citas» y «Mi receta» se quedaban en esqueleto para siempre.
-    if (usuario?.rol === 'paciente' && usuario?.id === sesion.pacienteId && usuario?.token === sesion.token) { hidratarDatosPaciente(sesion.pacienteId, sesion.token); return }
+    const yaResuelta = usuario?.rol === 'paciente' && usuario?.id === sesion.pacienteId && usuario?.token === sesion.token
+    // La sesión SIEMPRE se valida en el servidor, también cuando ya está resuelta de forma local: con un token vencido (la sesión del paciente expira) todas las funciones del portal
+    // devuelven vacío, y el portal se abría como el de un paciente nuevo («Agenda tu primera cita») aunque tuviera citas, lentes y saldo.
     supabase.rpc('obtener_paciente_por_id', { p_paciente_id: sesion.pacienteId, p_token: sesion.token }).then(({ data }) => {
       const fila = data?.[0]
-      if (!fila) { guardarSesion(null); setUsuario(null); setPantallaActual('login'); return }
+      if (!fila) { guardarSesion(null); setUsuario(null); setPantallaActual('login'); setAvisoSesion({ texto: 'Tu sesión venció. Vuelve a iniciar sesión.', id: Date.now() }); return }
+      if (yaResuelta) { hidratarDatosPaciente(sesion.pacienteId, sesion.token); return }
       const pacienteMapeado = mapPaciente(fila)
       setUsuario({ ...pacienteMapeado, rol: 'paciente', token: sesion.token })
       setPantallaActual('panel_paciente')
