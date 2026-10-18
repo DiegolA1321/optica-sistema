@@ -148,7 +148,7 @@ describe("Resumen", () => {
   it("con una cita ya agendada, el control no ofrece agendar otra", async () => {
     datos.miControl.mockResolvedValue({ ultima_consulta: "2099-01-01", proximo_control_dias: 90, de_alta: false })
     render(<PortalPaciente {...base} citas={[cita()]} />)
-    expect(within(await screen.findByRole("region", { name: "Tu próximo control" })).queryByRole("button")).not.toBeInTheDocument()
+    expect(within(await screen.findByRole("region", { name: "Tu próximo control" })).queryByRole("button", { name: /Agendar control/ })).not.toBeInTheDocument()
   })
   it("«Saldo por pagar» muestra cuánto debe, la barra de lo abonado y lleva a Mis compras", async () => {
     datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
@@ -451,5 +451,159 @@ describe("Mis datos y menú", () => {
     expect(screen.getByText(/Hola, Rosa/)).toBeInTheDocument()
     fireEvent.click(within(menus[0]).getByRole("button", { name: "Mis datos" }))
     expect(await screen.findByRole("button", { name: /Cerrar sesión/ })).toBeInTheDocument()
+  })
+})
+
+describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", () => {
+  const detalleConfirmable = { disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", confirmadaAt: null, consultaId: null, calificacion: null } } }
+  beforeEach(() => { try { localStorage.clear() } catch { /* sin almacenamiento */ } window.HTMLAnchorElement.prototype.click = vi.fn(); URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn() })
+
+  it("el contenido ocupa el ancho disponible: sin tope de 1060 ni de 1160 px, solo el de pantallas muy grandes", async () => {
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    const zona = document.querySelector(".pt-zona")
+    expect(zona.className).toContain("max-w-[1440px]")
+    expect(zona.className).not.toMatch(/1060|1160/)
+  })
+
+  it("antes de confirmar, la cita ofrece «Confirmar asistencia» y no el calendario; al confirmar, el aviso ofrece agregarla y el botón cambia a «Agregada a tu calendario»", async () => {
+    datos.misCitasDetalle.mockResolvedValue(detalleConfirmable)
+    render(<PortalPaciente {...base} citas={[cita()]} />)
+    const boleto = await screen.findByRole("region", { name: "Tu próxima cita" })
+    await within(boleto).findByRole("button", { name: "Confirmar asistencia" })
+    expect(within(boleto).queryByRole("button", { name: /Agregar a mi calendario/ })).not.toBeInTheDocument()
+    fireEvent.click(within(boleto).getByRole("button", { name: "Confirmar asistencia" }))
+    const aviso = await screen.findByText("Confirmaste tu asistencia. ¡Te esperamos!")
+    const botonAviso = within(aviso.closest("[role=status]")).getByRole("button", { name: "Agregar a mi calendario" })
+    fireEvent.click(botonAviso)
+    await waitFor(() => expect(within(screen.getByRole("region", { name: "Tu próxima cita" })).getByText("Agregada a tu calendario")).toBeInTheDocument())
+    expect(JSON.parse(localStorage.getItem("portal-calendario-p1"))).toEqual({ ci1: true })
+  })
+
+  it("en el detalle de la cita, agregada al calendario, se ofrece volver a agregarla", async () => {
+    localStorage.setItem("portal-calendario-p1", JSON.stringify({ ci1: true }))
+    render(<PortalPaciente {...base} citas={[cita()]} />)
+    await resumen()
+    fireEvent.click(await screen.findByRole("button", { name: "Ver el detalle de tu próxima cita" }))
+    const ventana = await screen.findByRole("dialog", { name: "Tu cita" })
+    expect(within(ventana).getByText("Agregada a tu calendario")).toBeInTheDocument()
+    fireEvent.click(within(ventana).getByRole("button", { name: "Volver a agregarla a mi calendario" }))
+    expect(URL.createObjectURL).toHaveBeenCalled()
+  })
+
+  it("si la óptica no permite cambiar citas, la cita dice «Para cambiar tu cita, comunícate con la óptica» con WhatsApp", async () => {
+    render(<PortalPaciente {...base} citas={[cita()]} parametrizacion={{ permitirReagendarPaciente: false, opticaTelefono: "0991234567" }} />)
+    await resumen()
+    const boleto = screen.getByRole("region", { name: "Tu próxima cita" })
+    expect(boleto).toHaveTextContent("Para cambiar tu cita, comunícate con la óptica.")
+    expect(within(boleto).getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", expect.stringMatching(/wa.me|whatsapp/))
+    expect(within(boleto).queryByRole("button", { name: "Reagendar" })).not.toBeInTheDocument()
+  })
+
+  it("si la óptica lo permite, «Reagendar» y «Cancelar» están en la cita, también en el celular y dentro de su detalle", async () => {
+    ponerAncho(390)
+    render(<PortalPaciente {...base} citas={[cita()]} parametrizacion={{ permitirReagendarPaciente: true, horasAntesReagendar: 2 }} />)
+    await resumen()
+    const boleto = screen.getByRole("region", { name: "Tu próxima cita" })
+    expect(within(boleto).getByRole("button", { name: "Reagendar" })).toBeInTheDocument()
+    expect(within(boleto).getByRole("button", { name: "Cancelar cita" })).toBeInTheDocument()
+    fireEvent.click(within(boleto).getByRole("button", { name: "Ver el detalle de tu próxima cita" }))
+    const ventana = await screen.findByRole("dialog", { name: "Tu cita" })
+    expect(within(ventana).getByRole("button", { name: /Reagendar/ })).toBeInTheDocument()
+    fireEvent.click(within(ventana).getByRole("button", { name: "Cancelar cita" }))
+    expect(await screen.findByRole("dialog", { name: "¿Cancelar esta cita?" })).toBeInTheDocument()
+  })
+
+  it("la próxima cita abre su detalle completo: fecha, hora, motivo, profesional, dirección y si está confirmada", async () => {
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", confirmadaAt: "2099-03-01T10:00:00Z", consultaId: null, calificacion: null } } })
+    render(<PortalPaciente {...base} citas={[cita()]} parametrizacion={{ opticaDireccion: "Av. Principal 123" }} />)
+    await resumen()
+    fireEvent.click(await screen.findByRole("button", { name: "Ver el detalle de tu próxima cita" }))
+    const ventana = await screen.findByRole("dialog", { name: "Tu cita" })
+    for (const t of ["marzo de 2099", "03:00 PM", "Consulta General", "Dra. Prueba", "Av. Principal 123", "Confirmada"]) expect(ventana).toHaveTextContent(t)
+  })
+
+  it("«Tus lentes» abre el pedido: qué lentes, la montura, el comprobante, el saldo y cómo retirarlos", async () => {
+    datos.misOrdenes.mockResolvedValue({ ordenes: [orden()], disponible: true })
+    datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
+    render(<PortalPaciente {...base} parametrizacion={{ opticaDireccion: "Av. Principal 123" }} />)
+    fireEvent.click(await screen.findByRole("button", { name: /Ver el detalle del pedido/ }))
+    const ventana = await screen.findByRole("dialog", { name: "Tu pedido de lentes" })
+    for (const t of ["Lentes progresivos", "Ray-Ban", "CV-0021", "Debes $145.00", "Cómo retirarlos", "Av. Principal 123"]) expect(ventana).toHaveTextContent(t)
+    expect(within(ventana).getByRole("list", { name: "Seguimiento de tus lentes" })).toBeInTheDocument()
+  })
+
+  it("«Tu graduación» abre la receta completa", async () => {
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    fireEvent.click(await screen.findByRole("button", { name: "Ver tu receta completa" }))
+    const ventana = await screen.findByRole("dialog", { name: /Receta del/ })
+    expect(ventana).toHaveTextContent("Ojo derecho")
+    expect(ventana).toHaveTextContent("1.50")
+  })
+
+  it("el saldo abre las compras con saldo y el historial de abonos", async () => {
+    datos.misCompras.mockResolvedValue({ compras: [{ ...compraConSaldo, abonos: [{ fecha: "2026-10-08", monto: 100 }, { fecha: "2026-10-12", monto: 20 }] }], error: null })
+    render(<PortalPaciente {...base} />)
+    fireEvent.click(await screen.findByRole("button", { name: /Ver el detalle de tu saldo/ }))
+    const ventana = await screen.findByRole("dialog", { name: "Tu saldo por pagar" })
+    for (const t of ["CV-0021", "Debes $145.00", "Historial de abonos", "$100.00", "$20.00"]) expect(ventana).toHaveTextContent(t)
+  })
+
+  it("el próximo control abre por qué se recomienda y el botón para agendarlo", async () => {
+    datos.miControl.mockResolvedValue({ ultima_consulta: "2099-01-01", proximo_control_dias: 90, de_alta: false })
+    render(<PortalPaciente {...base} />)
+    fireEvent.click(await screen.findByRole("button", { name: /Ver por qué se recomienda/ }))
+    const ventana = await screen.findByRole("dialog", { name: "Tu próximo control" })
+    expect(ventana).toHaveTextContent("¿Por qué se recomienda?")
+    fireEvent.click(within(ventana).getByRole("button", { name: /Agendar control/ }))
+    expect(await screen.findByRole("dialog", { name: "Agendar cita" })).toBeInTheDocument()
+  })
+
+  it("la franja de la óptica abre el horario completo, la dirección y el mapa", async () => {
+    render(<PortalPaciente {...base} parametrizacion={{ opticaDireccion: "Av. Principal 123", opticaTelefono: "0991234567" }} disponibilidad={{ horarioSemanal: { lunes: { manana: { activo: true, inicio: "09:00", fin: "13:00" } } } }} />)
+    await resumen()
+    fireEvent.click(await screen.findByRole("button", { name: /Ver el horario completo/ }))
+    const ventana = await screen.findByRole("dialog", { name: "Óptica Prueba" })
+    expect(ventana).toHaveTextContent("Horario de atención")
+    expect(ventana).toHaveTextContent("Av. Principal 123")
+    expect(within(ventana).getByTitle(/Mapa de Óptica Prueba/)).toBeInTheDocument()
+  })
+
+  it("cada compra abre su detalle, y cada cita anterior y cada receta anterior abren el suyo", async () => {
+    datos.misCompras.mockResolvedValue({ compras: [{ ...compraConSaldo, abonos: [{ fecha: "2026-10-08", monto: 120 }] }], error: null })
+    render(<PortalPaciente {...base} citas={[cita({ id: "ci0", fecha: "2020-01-10", estado: "Atendida" })]} consultas={[consulta(), consulta({ id: "c0", fecha: "2025-04-01" })]} />)
+    await resumen()
+    irA("Mis compras")
+    fireEvent.click(await screen.findByRole("button", { name: /Ver el detalle de tu compra CV-0021/ }))
+    expect(await screen.findByRole("dialog", { name: "Compra CV-0021" })).toHaveTextContent("Historial de abonos")
+    fireEvent.click(screen.getAllByRole("button", { name: "Cerrar" }).pop())
+    irA("Mis citas")
+    fireEvent.click(await screen.findByRole("button", { name: /Ver el detalle de tu cita del/ }))
+    expect(await screen.findByRole("dialog", { name: "Tu cita" })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole("button", { name: "Cerrar" }).pop())
+    irA("Mi receta")
+    fireEvent.click(await screen.findByRole("button", { name: /Ver la receta del/ }))
+    expect(await screen.findByRole("dialog", { name: /Receta del/ })).toBeInTheDocument()
+  })
+
+  it("la campanita y la cuenta del paciente están en la cabecera de todas las pantallas (laptop)", async () => {
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    for (const pantalla of ["Mis citas", "Mi receta", "Mis compras", "Mis datos"]) {
+      irA(pantalla)
+      expect(await screen.findByRole("button", { name: /Mi cuenta/ })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /Avisos/ })).toBeInTheDocument()
+    }
+  })
+
+  it("el motivo de la cita se abre como menú flotante encima del calendario, sin empujar el contenido", async () => {
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    fireEvent.click(screen.getAllByRole("button", { name: "Agendar cita" })[0])
+    fireEvent.click(await screen.findByRole("combobox", { name: "Motivo de la cita" }))
+    const lista = screen.getByRole("listbox", { name: "Motivo de la cita" })
+    expect(lista.className).toMatch(/\babsolute\b/)
+    expect(lista.className).toMatch(/\bz-30\b/)
   })
 })

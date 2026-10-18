@@ -5,7 +5,6 @@ import { Glasses, Download, FileText, CheckCircle2, Info, ChevronRight } from "l
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { AYUDA_RECETA, resumenCambioGraduacion } from "../../utilidades/portalPaciente"
 import { serieDeGraduacion, valorD } from "../../utilidades/portalVistas"
-import { descargarPdfReceta } from "../../utilidades/recetaPdf"
 import { Cascaron } from "../AtencionPaciente"
 import { Tarjeta, TituloTarjeta, TituloPagina, Esqueleto, Circulo } from "./piezas"
 import GraficaGraduacion from "./GraficaGraduacion"
@@ -50,7 +49,7 @@ function TablaReceta({ receta }) {
 const Dato = ({ titulo, children }) => <div><p className="text-base font-semibold text-pt-texto">{titulo}</p><p className="text-lg text-slate-800">{children}</p></div>
 
 // El detalle de una receta anterior (o la de una cita), en la ventana estándar.
-function DetalleReceta({ receta, onCerrar, onDescargar }) {
+export function DetalleReceta({ receta, onCerrar, onDescargar }) {
   return (
     <Cascaron pantallaCompletaEnCelular titulo={`Receta del ${formatoFecha(receta.fecha, "medio")}`} subtitulo={receta.profesionalNombre ? `Emitida por ${receta.profesionalNombre}` : "Tu receta"} Icono={Glasses} ancho="max-w-xl" onCerrar={onCerrar}
       pie={<><button type="button" onClick={onDescargar} className={BOTON_SECUNDARIO}><Download size={20} aria-hidden="true" /> Descargar receta</button><button type="button" onClick={onCerrar} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
@@ -94,12 +93,11 @@ const viñetas = (texto = "") => texto.split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚ
 
 // Mi receta (diseño aprobado): la receta vigente con un círculo por ojo y sus datos, «Qué significa cada valor» en cuatro tarjetas, cómo cambió la graduación (frase y gráfica), lo que
 // indicó el optómetra y las recetas anteriores. «Descargar receta» baja el PDF.
-export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnteriores, todasLasRecetas = [], recetaAbierta, onAbrirReceta, usuario, nombreOptica, mostrarMedidas, control, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
+export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnteriores, todasLasRecetas = [], onAbrirReceta, mostrarMedidas, descargar: descargarReceta, control, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
   if (cargando) return <div className="space-y-6" aria-busy="true" aria-label="Cargando tu receta"><TituloPagina>Mi receta</TituloPagina><Esqueleto alto="h-80" /></div>
-  const descargar = (r) => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: r, mostrarMedidas })
+  const descargar = descargarReceta
   const cambio = resumenCambioGraduacion(todasLasRecetas)
   const puntos = serieDeGraduacion(todasLasRecetas)
-  const abierta = todasLasRecetas.find((r) => r.id === recetaAbierta)
 
   if (!ultimaReceta) {
     return (
@@ -197,7 +195,6 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, recetasAnterior
           )}
         </div>
       </div>
-      {abierta && <DetalleReceta receta={abierta} onCerrar={() => onAbrirReceta(null)} onDescargar={() => descargar(abierta)} />}
     </div>
   )
 }

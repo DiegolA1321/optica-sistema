@@ -14,10 +14,12 @@ import MisCompras from "../componentes/MisCompras"
 import ResumenPortal from "../componentes/portal/ResumenPortal"
 import MisCitasPortal from "../componentes/portal/MisCitasPortal"
 import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
+import VentanaDetalle from "../componentes/portal/DetallesPortal"
+import { descargarPdfReceta } from "../utilidades/recetaPdf"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
 import { usePortalDatos } from "../componentes/portal/usePortalDatos"
 import { useConsulta } from "../componentes/portal/useAncho"
-import { IconoLentes } from "../componentes/portal/piezas"
+import { IconoLentes, BotonCalendario } from "../componentes/portal/piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "../componentes/portal/estilos"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto, resumenCambioGraduacion } from "../utilidades/portalPaciente"
@@ -55,8 +57,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
 
   // Aviso que confirma lo que acaba de hacer el paciente (agendar, cambiar, cancelar): se queda a la vista hasta que lo cierra o pasan 8 segundos.
-  const [aviso, setAviso] = useState("")
-  const avisar = (texto) => { setAviso(texto); setTimeout(() => setAviso((a) => (a === texto ? "" : a)), 8000) }
+  // Si el aviso es de una cita (agendada o confirmada), trae la cita para ofrecer ahí «Agregar a mi calendario», que es cuando tiene sentido.
+  const [aviso, setAviso] = useState(null)
+  const avisar = (texto, cita = null) => { const a = { texto, cita }; setAviso(a); setTimeout(() => setAviso((x) => (x === a ? null : x)), cita ? 20000 : 8000) }
 
   // Agendar
   const [modalAgendar, setModalAgendar] = useState(false)
@@ -162,7 +165,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, fecha: fechaReagenda, hora: horaReagenda, estado: "Pendiente" } : c)))
     refrescarHorasOcupadas()
     setGuardandoReagenda(false)
-    avisar(`Listo: tu cita quedó para el ${formatoFecha(fechaReagenda, "medio")} a las ${horaReagenda}.`)
+    avisar(`Listo: tu cita quedó para el ${formatoFecha(fechaReagenda, "medio")} a las ${horaReagenda}.`, { ...reagendando, fecha: fechaReagenda, hora: horaReagenda })
     setReagendando(null)
   }
 
@@ -206,18 +209,24 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const proximas = useMemo(() => citasProximas(misCitas), [misCitas])
   const historial = useMemo(() => citasHistorial(misCitas), [misCitas])
   const proximaCita = proximas[0] || null
-  const comprasConSaldo = datos.compras.filter((c) => c.estado === "pendiente_pago" && Number(c.saldo) > 0)
+  const comprasConSaldo = datos.compras.filter((c) => c.estado === "pendiente_pago" && Number(c.saldo) > 0).map((c) => ({ ...c, comprobante: numeroComprobante(c.numero) }))
   const saldo = saldoDelPaciente(datos.compras)
   const saldoInfo = saldo > 0 ? { saldo, total: comprasConSaldo.reduce((s, c) => s + Number(c.total), 0), abonado: comprasConSaldo.reduce((s, c) => s + Number(c.abonado), 0) } : null
   const control = useMemo(() => proximoControlDelPaciente(datos.control), [datos.control])
   const contacto = contactoDeLaOptica({ parametrizacion, disponibilidad, nombre: nombreOptica, paciente: usuario?.nombre })
   const esNuevo = misCitas.length === 0 && misConsultas.length === 0 && datos.compras.length === 0 && datos.ordenes.length === 0
-  const [recetaAbierta, setRecetaAbierta] = useState(null)
-  const verReceta = (id) => { setSeccion("receta"); setRecetaAbierta(id) }
+  // La ventana de detalle abierta: { tipo: "cita" | "pedido" | "receta" | "saldo" | "control" | "optica", id }. Cada tarjeta del portal abre la suya.
+  const [abierto, setAbierto] = useState(null)
+  const verReceta = (id) => setAbierto({ tipo: "receta", id })
+  const descargarReceta = (r) => descargarPdfReceta({ optica: nombreOptica, paciente: usuario, receta: r, mostrarMedidas })
   // «Solicitar ajuste o garantía»: abre «Agendar cita» con el motivo ya elegido y dice de qué compra viene (la más reciente).
   const pedirGarantia = (compra) => { abrirAgendar("garantia"); const c = compra || datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
   // La fecha del «Pedido» es la de la compra a la que pertenece la orden.
-  const ordenesConPedido = datos.ordenes.map((o) => { const compra = datos.compras.find((c) => c.id === o.facturaId); return { ...o, pedidoEl: compra?.fecha || o.creadaEn, comprobante: compra ? numeroComprobante(compra.numero) : "" } })
+  const ordenesConPedido = datos.ordenes.map((o) => {
+    const compra = datos.compras.find((c) => c.id === o.facturaId)
+    const debe = compra?.estado === "pendiente_pago"
+    return { ...o, pedidoEl: compra?.fecha || o.creadaEn, comprobante: compra ? numeroComprobante(compra.numero) : "", total: compra ? Number(compra.total) : 0, abonado: compra ? Number(compra.abonado) : 0, saldo: debe ? Number(compra.saldo) : 0 }
+  })
   const avisos = avisosDelPaciente({ ordenes: datos.ordenes, proximaCita, control })
   const [campana, setCampana] = useState(false)
   const campanaRef = useRef(null)
@@ -273,7 +282,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setConfirmandoCita(false)
     setModalAgendar(false); setFecha(""); setHora(""); setError("")
     setSeccion("citas")
-    avisar(`Tu cita quedó agendada para el ${formatoFecha(nuevaCita.fecha, "medio")} a las ${nuevaCita.hora}. ¡Te esperamos!${parametrizacion?.permitirReagendarPaciente ? ` Puedes cambiarla o cancelarla hasta con ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde «Mis citas».` : ""}`)
+    avisar(`Tu cita quedó agendada para el ${formatoFecha(nuevaCita.fecha, "medio")} a las ${nuevaCita.hora}. ¡Te esperamos!${parametrizacion?.permitirReagendarPaciente ? ` Puedes cambiarla o cancelarla hasta con ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde «Mis citas».` : ""}`, nuevaCita)
   }
 
   const handleCambiarClave = async (e) => {
@@ -304,8 +313,20 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const hora24 = ahoraEcuador().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
   const hoyFecha = formatoFecha(ahoraEcuador(), "largo")
-  const alIcs = (cita) => descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
-  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando }
+  // «Agregar a mi calendario» baja el archivo de la cita y deja anotado, por cita, que ya se agregó (en este aparato: es una comodidad del paciente, no un dato de la óptica).
+  const claveCalendario = "portal-calendario-" + (pacienteId || "paciente")
+  const [agregadas, setAgregadas] = useState(() => { try { return JSON.parse(localStorage.getItem(claveCalendario) || "{}") } catch { return {} } })
+  const alCalendario = (cita) => {
+    descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
+    setAgregadas((a) => { const nuevo = { ...a, [cita.id]: true }; try { localStorage.setItem(claveCalendario, JSON.stringify(nuevo)) } catch { /* sin almacenamiento: el botón vuelve a ofrecerse */ } return nuevo })
+  }
+  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(agregadas[id]) }
+  // Confirmar la asistencia es el otro momento en que tiene sentido ofrecer el calendario.
+  const confirmarAsistencia = async (citaId) => {
+    const r = await datos.confirmar(citaId)
+    if (r.ok) { const c = misCitas.find((x) => String(x.id) === String(citaId)); avisar("Confirmaste tu asistencia. ¡Te esperamos!", c || null) }
+    return r
+  }
   const cargandoPortal = cargandoDatos || datos.cargando
   const cambioGraduacion = resumenCambioGraduacion(misConsultas)
   const recetaActualId = misConsultas[0]?.id ?? null
@@ -385,14 +406,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           </header>
         )}
 
-        <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:px-10 lg:pb-12 lg:pt-7">
-          <div className="pt-zona mx-auto max-w-[1160px]">
-            {/* Laptop, solo en Inicio: el saludo con la fecha, la campanita y la cuenta */}
-            {laptop && seccion === "resumen" && (
-              <div className="mb-6 flex items-center justify-between gap-4">
+        <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:pb-12 lg:pt-7">
+          <div className="pt-zona mx-auto max-w-[1440px]">
+            {/* Laptop, en todas las pantallas: la campanita y la cuenta del paciente (en Inicio, además, el saludo con la fecha) */}
+            {laptop && (
+              <div className={"flex items-center justify-between gap-4 " + (seccion === "resumen" ? "mb-6" : "mb-5")}>
                 <div className="min-w-0">
-                  <p className="font-heading text-[28px] font-bold leading-tight tracking-tight text-pt-marino">{saludo}, {primerNombre}</p>
-                  <p className="mt-1 text-base text-pt-texto">{hoyFecha}</p>
+                  {seccion === "resumen" && <>
+                    <p className="font-heading text-[28px] font-bold leading-tight tracking-tight text-pt-marino">{saludo}, {primerNombre}</p>
+                    <p className="mt-1 text-base text-pt-texto">{hoyFecha}</p>
+                  </>}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {campanita}
@@ -406,19 +429,22 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             {aviso && (
               <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl bg-[#E3F4EA] p-4 text-[#166534]">
                 <CheckCircle2 className="mt-0.5 shrink-0" size={22} aria-hidden="true" />
-                <p className="min-w-0 flex-1 text-lg font-semibold">{aviso}</p>
-                <button type="button" onClick={() => setAviso("")} aria-label="Cerrar aviso" className="-m-2 grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors hover:bg-emerald-100 cursor-pointer"><X size={20} aria-hidden="true" /></button>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <p className="text-lg font-semibold">{aviso.texto}</p>
+                  {aviso.cita && !agregadas[aviso.cita.id] && <BotonCalendario cita={aviso.cita} citaProps={citaProps} className="w-full sm:w-auto" />}
+                </div>
+                <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="-m-2 grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors hover:bg-emerald-100 cursor-pointer"><X size={20} aria-hidden="true" /></button>
               </div>
             )}
 
             {seccion === "resumen" && (
               <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)}
                 control={control} tieneCitaPendiente={proximas.length > 0} saldoInfo={saldoInfo} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} cambio={cambioGraduacion} nombreOptica={nombreOptica} direccion={contacto.direccion}
-                citaProps={citaProps} onConfirmar={datos.confirmar} onIcs={alIcs} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
+                citaProps={citaProps} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
             )}
-            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={datos.confirmar} onIcs={alIcs} onVerReceta={verReceta} onCalificar={datos.calificar} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} />}
+            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} />}
             {seccion === "receta" && (
-              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} recetaAbierta={recetaAbierta} onAbrirReceta={setRecetaAbierta} usuario={usuario} nombreOptica={nombreOptica} mostrarMedidas={mostrarMedidas} control={control}
+              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} recetasAnteriores={misConsultas.slice(1)} todasLasRecetas={misConsultas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
             {seccion === "compras" && <MisCompras usuario={usuario} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} />}
@@ -447,6 +473,10 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
           </ul>
         </nav>
       )}
+
+      {/* ─── DETALLE (cita, pedido de lentes, receta, saldo, control, óptica) ─── */}
+      <VentanaDetalle abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={misConsultas} control={control} tieneCitaPendiente={proximas.length > 0}
+        contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} />
 
       {/* ─── AGENDAR CITA ─── */}
       {modalAgendar && (
