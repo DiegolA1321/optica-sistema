@@ -1,19 +1,30 @@
 "use client"
 
-import { CalendarClock, X, Check, Star } from "lucide-react"
+import { CalendarClock, X, Check, Star, ChevronRight, MessageCircle } from "lucide-react"
 import { etiquetaEstadoCita } from "../../utilidades/estadosCita"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { pasosDeLosLentes, textoOrdenPaciente, NOTA_ESTADO_CITA } from "../../utilidades/portalPaciente"
-import { BOTON_SECUNDARIO, BOTON_PELIGRO } from "./estilos"
+import { BOTON_SECUNDARIO, BOTON_PELIGRO, BOTON_PRINCIPAL, ESTILO_PRINCIPAL } from "./estilos"
 
 // Piezas del portal del paciente (diseño aprobado, docs/portal-propuesta/). Reglas del portal: texto de 16 px o más, títulos de tarjeta de 20 px en Sora, números principales
 // en Sora de 32 a 76 px y todo lo que se toca mide al menos 44 px (regla 48). Sin ícono delante de cada título: la tarjeta se reconoce por su título.
 
 // Una tarjeta: blanca, borde claro, esquinas de 20 px.
 export const TARJETA = "min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6"
-export const Tarjeta = ({ children, className = "", ...resto }) => <section className={TARJETA + " " + className} {...resto}>{children}</section>
-export const TituloTarjeta = ({ id, children, className = "" }) => <h2 id={id} className={"font-heading text-xl font-bold leading-tight text-pt-marino " + className}>{children}</h2>
+// Con `onAbrir`, toda la tarjeta se pulsa y abre su detalle en la ventana estándar: un botón transparente cubre la tarjeta (los botones y enlaces de adentro quedan por encima,
+// ver `.pt-abrible` en index.css) y la flecha › del título (`flecha` en TituloTarjeta) lo avisa.
+export const Tarjeta = ({ children, className = "", onAbrir, etiquetaAbrir, ...resto }) => (
+  <section className={TARJETA + " " + (onAbrir ? "pt-abrible relative transition-shadow hover:shadow-md " : "") + className} {...resto}>
+    {onAbrir && <button type="button" onClick={onAbrir} aria-label={etiquetaAbrir} className="pt-abrir absolute inset-0 rounded-[20px] cursor-pointer" />}
+    {children}
+  </section>
+)
+export const TituloTarjeta = ({ id, children, className = "", flecha = false }) => (
+  <h2 id={id} className={"font-heading text-xl font-bold leading-tight text-pt-marino " + (flecha ? "flex items-center justify-between gap-3 " : "") + className}>
+    {flecha ? <><span className="min-w-0">{children}</span><ChevronRight size={22} className="shrink-0 text-slate-500" aria-hidden="true" /></> : children}
+  </h2>
+)
 
 export const TituloPagina = ({ children, subtitulo, accion, className = "" }) => (
   <div className={"flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6 " + className}>
@@ -59,20 +70,47 @@ export function Circulo({ children, className = "" }) {
   )
 }
 
-// Una cita en una fila de lista (otras citas próximas): cuándo, para qué, en qué estado está y qué sigue. Reagendar y cancelar solo si se puede.
-export function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar, onCancelar }) {
-  const reagendable = puedeReagendar?.(cita)
-  const aviso = !reagendable ? avisoNoReagendable?.(cita) : null
+// Lo que se le dice al paciente cuando no puede cambiar su cita desde el portal: la óptica no lo permite, o ya falta poco. Siempre con la salida (WhatsApp de la óptica).
+export function CambiosDeCita({ cita, citaProps = {}, className = "" }) {
+  if (cita.estado !== "Pendiente" || citaProps.puedeReagendar?.(cita)) return null
+  const texto = citaProps.cambiosPermitidos === false ? "Para cambiar tu cita, comunícate con la óptica." : citaProps.avisoNoReagendable?.(cita)
+  if (!texto) return null
   return (
-    <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div className={"space-y-3 rounded-xl bg-pt-fondo p-4 " + className}>
+      <p className="text-base text-pt-marino">{texto}</p>
+      {citaProps.whatsappUrl && <a href={citaProps.whatsappUrl} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO + " w-full sm:w-auto"}><MessageCircle size={20} aria-hidden="true" /> Escribir por WhatsApp</a>}
+    </div>
+  )
+}
+
+// «Agregar a mi calendario» cambia a «Agregada a tu calendario ✓» cuando el paciente ya la agregó (se guarda por cita). `otraVez`: en el detalle de la cita también se ofrece volver a agregarla.
+export function BotonCalendario({ cita, citaProps = {}, principal = false, otraVez = false, className = "" }) {
+  const agregada = citaProps.calendarioAgregada?.(cita.id)
+  const boton = (texto, clase, estilo) => <button type="button" onClick={() => citaProps.onCalendario?.(cita)} aria-label={texto === "Agregar a mi calendario" ? texto : undefined} className={clase + " " + className} style={estilo}>{texto}</button>
+  if (!agregada) return boton("Agregar a mi calendario", principal ? BOTON_PRINCIPAL : BOTON_SECUNDARIO, principal ? ESTILO_PRINCIPAL : undefined)
+  return (
+    <>
+      <span role="status" className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#E3F4EA] px-5 py-2.5 text-center text-base font-semibold leading-snug text-[#166534] " + className}><Check size={20} strokeWidth={2.5} aria-hidden="true" /> Agregada a tu calendario</span>
+      {otraVez && boton("Volver a agregarla a mi calendario", BOTON_SECUNDARIO)}
+    </>
+  )
+}
+
+// Una cita en una fila de lista (otras citas próximas): cuándo, para qué, en qué estado está y qué sigue. Reagendar y cancelar solo si se puede.
+export function FilaCita({ cita, onAbrir, ...citaProps }) {
+  const { puedeReagendar, onReagendar, onCancelar } = citaProps
+  const reagendable = puedeReagendar?.(cita)
+  return (
+    <li className="pt-abrible relative flex flex-col gap-3 py-4 transition-colors hover:bg-pt-fondo/60 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0 space-y-1">
+        <button type="button" onClick={() => onAbrir?.(cita)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(cita.fecha, "medio")}`} className="pt-abrir absolute inset-0 cursor-pointer" />
         <p className="text-lg font-bold leading-snug text-pt-marino">{formatoFecha(cita.fecha, "corto")} · {cita.hora}</p>
         <p className="text-base text-pt-texto">{cita.motivo || "Consulta"}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <EstadoCita estado={cita.estado} />
           <span className="text-base text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span>
         </div>
-        {aviso && <p className="text-base text-pt-texto">{aviso}</p>}
+        <CambiosDeCita cita={cita} citaProps={citaProps} className="mt-2" />
       </div>
       {reagendable && (
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { ChevronDown, Check } from "lucide-react"
 
 // Lista desplegable del sistema para elegir UNA opción de pocas (sin buscador): reemplaza la lista nativa del navegador, que en el celular se ve
-// distinta en cada aparato. La lista se abre en el mismo lugar (empuja lo de abajo), así no se corta dentro de una ventana con desplazamiento.
+// distinta en cada aparato. La lista se abre como un menú flotante encima de lo que sigue (no empuja el contenido ni obliga a desplazarse); si tiene muchas opciones, se desplaza por dentro.
 // options: string[] | [{ id, etiqueta }]. `valor` es el id elegido y onChange recibe el id. Se maneja con el teclado (flechas, Enter, Escape).
 export default function SelectorLista({ id, valor, onChange, options, etiqueta, placeholder = "Elige una opción", requerido = false, className = "" }) {
   const filas = options.map((o) => (typeof o === "string" ? { id: o, etiqueta: o } : o))
@@ -35,7 +35,7 @@ export default function SelectorLista({ id, valor, onChange, options, etiqueta, 
   }
 
   return (
-    <div ref={ref} className={className}>
+    <div ref={ref} className={"relative " + className}>
       <button
         type="button"
         id={id}
@@ -53,7 +53,7 @@ export default function SelectorLista({ id, valor, onChange, options, etiqueta, 
         <ChevronDown size={20} aria-hidden="true" className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180" : "")} />
       </button>
       {abierto && (
-        <ul id={id ? id + "-lista" : undefined} role="listbox" aria-label={etiqueta || placeholder} className="mt-2 overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-sm">
+        <ul id={id ? id + "-lista" : undefined} role="listbox" aria-label={etiqueta || placeholder} className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
           {filas.map((f, i) => {
             const marcado = f.id === valor
             return (

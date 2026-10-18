@@ -150,5 +150,8 @@
 }
 @container portal (min-width: 1000px) { .pt-fila--cuatro { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; } }
 @container portal (min-width: 600px) and (max-width: 999px) { .pt-fila--cuatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Tarjeta o fila que se pulsa para abrir su detalle: el botón transparente (.pt-abrir) cubre todo y lo que se puede tocar adentro queda por encima. */
+.pt-abrible a, .pt-abrible button:not(.pt-abrir) { position: relative; z-index: 10; }
+.pt-abrir:focus-visible { outline: 2px solid var(--portal-acento, #1D5FD6); outline-offset: 2px; }
 .pt-fila--solo { grid-template-columns: minmax(0, 1fr); }
 @container portal (min-width: 600px) { .pt-fila { gap: 24px; } }
