@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Glasses, ChevronDown, ChevronRight, ArrowRight, Printer, GitCompare, Download, Info, Check, MessageSquareText } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { valorD } from "../../utilidades/portalVistas"
-import { lecturaDeOjo, numero, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
+import { agudezaConLentes } from "../../utilidades/agudeza"
+import { medidasLegibles, lecturaDeOjo, numero, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
 import { AYUDA_RECETA } from "../../utilidades/portalPaciente"
 import { Cascaron } from "../AtencionPaciente"
 import OjoIlustrado from "./OjoIlustrado"
@@ -92,7 +93,9 @@ const NoRegistrado = () => <span className="font-normal text-slate-400">No regis
 // simples (la misma del portal), en letra pequeña.
 function VigentePersonal({ receta, anterior, onOjo }) {
   const m = receta.medidas || {}
-  const medidas = [["Adición", m.adicion && valorD(m.adicion)], ["Distancia pupilar (DP)", m.dp], ["Altura de montaje", m.alt]]
+  // Adición y distancia pupilar siempre (con «No registrado» si faltan); la altura (solo las fichas anteriores la guardaban) y el prisma, solo si hay.
+  const todasLasMedidas = medidasLegibles(m)
+  const medidas = todasLasMedidas.filter(([t, x]) => x || t === "Adición" || t === "Distancia pupilar (DP)")
   const cambios = anterior ? cambioPorOjo([receta, anterior]) : null
   const desde = anterior ? nombreMes(Number(String(anterior.fecha).slice(5, 7)) - 1) : ""
   return (
@@ -132,7 +135,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
           )
         })}
       </div>
-      {medidas.every(([, x]) => !x)
+      {todasLasMedidas.every(([, x]) => !x)
         ? <p aria-label="Medidas de la receta" className="rounded-xl bg-slate-50 px-4 py-2.5 text-base text-slate-500">Sin adición, distancia pupilar ni altura de montaje en esta receta.</p>
         : (
           <dl aria-label="Medidas de la receta" className="flex flex-wrap gap-x-8 gap-y-1 rounded-xl bg-slate-50 px-4 py-2.5 text-base">
@@ -461,12 +464,12 @@ export function VentanaComparar({ recetas, version = "paciente", idA: inicialA, 
 function TablaReceta({ receta, version }) {
   const paciente = version === "paciente"
   const [abierta, setAbierta] = useState("")
-  const agudeza = (o = {}) => o.avCc || o.avSc || ""
+  const agudeza = (o = {}) => agudezaConLentes(o) || o.avSc || ""
   const filas = [
     ["esfera", "Esfera", valorD(receta.od?.esfera), valorD(receta.oi?.esfera)],
     ["cilindro", paciente ? "Cilindro" : "Cilindro", valorD(receta.od?.cilindro), valorD(receta.oi?.cilindro)],
     ["eje", "Eje", receta.od?.eje ? `${receta.od.eje}°` : "", receta.oi?.eje ? `${receta.oi.eje}°` : ""],
-    ["adicion", "Adición", valorD(receta.medidas?.adicion), null],
+    ["adicion", "Adición", medidasLegibles(receta.medidas, { conMontaje: false })[0][1] && (/^OD/.test(medidasLegibles(receta.medidas, { conMontaje: false })[0][1]) ? medidasLegibles(receta.medidas, { conMontaje: false })[0][1] : valorD(medidasLegibles(receta.medidas, { conMontaje: false })[0][1])), null],
     ["agudeza", "Agudeza visual", agudeza(receta.od), agudeza(receta.oi)],
   ].filter(([clave, , od]) => clave !== "adicion" || od)
   const T = paciente ? { fila: "min-h-12 px-4 py-2 sm:px-5", rotulo: "text-lg text-pt-texto", valor: "font-heading text-2xl font-bold tabular-nums text-pt-marino", cab: "text-lg font-bold" } : { fila: "min-h-11 px-4 py-2", rotulo: "text-sm text-slate-500", valor: "text-base font-bold tabular-nums text-slate-900", cab: "text-sm font-bold" }
@@ -508,7 +511,7 @@ export function DetalleReceta({ receta, version = "paciente", onCerrar, onImprim
       </>}>
       <div className="space-y-3 p-4 sm:p-5">
         <TablaReceta receta={receta} version={version} />
-        {!paciente && (m.dp || m.alt) && <Dato titulo="Medidas para los lentes" paciente={false}>{[m.dp && `DP ${m.dp}`, m.alt && `Altura ${m.alt}`].filter(Boolean).join(" · ")}</Dato>}
+        {!paciente && medidasLegibles(m).some(([t, x]) => x && t !== "Adición") && <Dato titulo="Medidas para los lentes" paciente={false}>{medidasLegibles(m).filter(([t, x]) => x && t !== "Adición").map(([t, x]) => `${t.replace(" (DP)", "")}: ${x}`).join(" · ")}</Dato>}
         {(receta.lenteRecomendado || receta.diagnostico) && (
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             {receta.lenteRecomendado && <Dato paciente={paciente} titulo="Lente recomendado">{receta.lenteRecomendado}</Dato>}

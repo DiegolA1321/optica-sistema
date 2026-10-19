@@ -3,6 +3,7 @@
 // exactamente lo que el paciente lee en su portal (regla 2 y 18). Las recetas son las consultas del paciente ({ id, fecha, od, oi, medidas, ... }).
 import { nombreMes } from "./formatoFecha"
 import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, equivalenteEsferico } from "./tendenciaGraduacion"
+import { agudezaConLentes } from "./agudeza"
 
 export const numero = (v) => {
   const n = parseFloat(String(v ?? "").replace(",", "."))
@@ -95,7 +96,9 @@ export function lecturaDeOjo(receta, lado) {
   const ojo = receta?.[lado] || {}
   const otro = receta?.[lado === "od" ? "oi" : "od"] || {}
   const izq = lado === "oi"
-  const av = ojo.avCc || ojo.avSc || ""
+  // La agudeza «con lentes» que se lee: la de la receta nueva si la ficha la tiene; si no, la de sus lentes y, al final, la de sin lentes.
+  const av = agudezaConLentes(ojo) || ojo.avSc || ""
+  const adicion = (izq ? receta?.medidas?.adicionOi : receta?.medidas?.adicionOd) || receta?.medidas?.adicion || ""
   return {
     esfera: numero(ojo.esfera) === null ? "" : ojo.esfera,
     explicaEsfera: explicarEsfera(ojo, otro, izq),
@@ -103,10 +106,10 @@ export function lecturaDeOjo(receta, lado) {
     eje: ojo.eje ? String(ojo.eje) : "",
     hayAstigmatismo: Boolean(clasificarCilindro(ojo.cilindro)),
     explicaCilindro: explicarCilindro(ojo, otro, izq),
-    adicion: receta?.medidas?.adicion || "",
-    explicaCerca: explicarCerca(receta?.medidas?.adicion, receta?.lenteRecomendado),
+    adicion,
+    explicaCerca: explicarCerca(adicion, receta?.lenteRecomendado),
     agudeza: av,
-    conLentes: Boolean(ojo.avCc) || !ojo.avSc,
+    conLentes: Boolean(ojo.avRx || ojo.avCc) || !ojo.avSc,
     explicaAgudeza: explicarAgudeza(av),
   }
 }
@@ -164,7 +167,7 @@ export function lineaDeEsferas(receta, formato) {
 export function compararRecetas(a, b) {
   const [antes, ahora] = String(a.fecha) <= String(b.fecha) ? [a, b] : [b, a]
   const filas = []
-  const valor = (r, lado, campo) => (lado ? r?.[lado]?.[campo] : r?.medidas?.[campo]) ?? ""
+  const valor = (r, lado, campo) => (campo === "avFinal" ? agudezaConLentes(r?.[lado]) : lado ? r?.[lado]?.[campo] : r?.medidas?.[campo]) ?? ""
   const agregar = (clave, etiqueta, lado, campo, numerico) => {
     const x = valor(antes, lado, campo)
     const y = valor(ahora, lado, campo)
@@ -179,10 +182,22 @@ export function compararRecetas(a, b) {
     agregar("esfera", "Esfera", lado, "esfera", true)
     agregar("cilindro", "Cilindro", lado, "cilindro", true)
     agregar("eje", "Eje", lado, "eje", true)
-    agregar("av", "Agudeza visual", lado, "avCc", false)
+    agregar("av", "Agudeza visual", lado, "avFinal", false)
   }
   agregar("adicion", "Adición", null, "adicion", true)
   return { antes, ahora, filas, cambios: filas.filter((f) => f.difiere).length }
+}
+
+// Las medidas de una receta para mostrarlas en una lista: adición (por ojo si difiere), distancia pupilar (total, de cada ojo y de cerca), altura (solo las fichas anteriores la guardaban) y prisma.
+// Cada una es [título, texto] y el texto es "" si no hay dato; `conMontaje` apaga la DP y la altura (el portal las muestra solo si la óptica lo permite).
+export function medidasLegibles(m = {}, { conMontaje = true } = {}) {
+  const adOd = m.adicionOd || m.adicion || "", adOi = m.adicionOi || m.adicion || ""
+  const adicion = adOd || adOi ? (adOd === adOi ? adOd : `OD ${adOd || "—"} · OI ${adOi || "—"}`) : ""
+  const porOjo = m.dpOd || m.dpOi ? `OD ${m.dpOd || "—"} · OI ${m.dpOi || "—"}` : ""
+  const dp = [m.dp && `${m.dp} mm`, porOjo, m.dpCerca && `de cerca ${m.dpCerca} mm`].filter(Boolean).join(" · ")
+  const pr = (s, c, b) => (c ? `${s} ${c}Δ base ${String(b || "").toLowerCase() || "—"}` : "")
+  const prisma = [pr("OD", m.prismaOdCant, m.prismaOdBase), pr("OI", m.prismaOiCant, m.prismaOiBase)].filter(Boolean).join(" · ")
+  return [["Adición", adicion], ...(conMontaje ? [["Distancia pupilar (DP)", dp], ["Altura de montaje", m.alt || ""]] : []), ["Prisma", prisma]]
 }
 
 // El cambio de un valor entre dos recetas, con su signo: «+0.25», «−0.50».

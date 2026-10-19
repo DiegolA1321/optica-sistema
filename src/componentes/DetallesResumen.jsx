@@ -4,6 +4,7 @@ import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { dinero } from "../utilidades/formatoMoneda"
 import { ChevronRight, Gift, Cake, Star, Receipt, Calendar, CalendarPlus, Users, Printer, Stethoscope, CheckCircle2, Eye } from "lucide-react"
 import { INK } from "@/lib/tema"
+import { agudezaConLentes } from "../utilidades/agudeza"
 import { fechaLegible, fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { profesionalDeCita } from "../utilidades/profesionalCita"
 import { DetalleAtencion, SinInformacion, Cascaron } from "./AtencionPaciente"
@@ -53,20 +54,22 @@ export function PanelUltimaConsulta({ consulta, cita, equipo, adjuntos, onAbrirV
 
 // ── Estado de corrección: qué se midió y cómo se calcula ──
 const REGLA = {
-  "Bien corregido": "Con sus lentes alcanza una agudeza visual de 20/20 a 20/25 en ambos ojos.",
-  "Requiere ajuste": "Con sus lentes, al menos un ojo ve peor que 20/25: conviene revisar la graduación.",
-  "Sin evaluar": "En la ficha no se anotó qué tan bien ve con sus lentes, así que el sistema no puede calcularlo.",
+  "Bien corregido": "Con la corrección alcanza una agudeza visual de 20/20 a 20/25 en ambos ojos.",
+  "Requiere ajuste": "Con la corrección, al menos un ojo ve peor que 20/25: conviene revisar la graduación.",
+  "Sin evaluar": "En la ficha no se anotó qué tan bien ve con corrección, así que el sistema no puede calcularlo.",
 }
+// De qué agudeza sale: con la receta nueva (la ficha de cinco pasos) o, en las fichas anteriores, con sus lentes.
+const reglaDe = (estado, consulta) => (consulta?.od?.avRx && consulta?.oi?.avRx ? REGLA[estado]?.replace("la corrección", "la receta nueva") : REGLA[estado]) || REGLA["Sin evaluar"]
 export function PanelCorreccion({ consulta, etiqueta, estado, tendencia, historial = [] }) {
-  if (!consulta) return <SinInformacion Icono={Eye} titulo="Todavía no hay estado de corrección" texto="Se calcula con la agudeza visual con lentes que se anota en la ficha clínica." />
+  if (!consulta) return <SinInformacion Icono={Eye} titulo="Todavía no hay estado de corrección" texto="Se calcula con la agudeza visual con la receta nueva (o, en fichas anteriores, con sus lentes) que se anota en la ficha clínica." />
   return (
     <div>
     <dl className="divide-y divide-slate-100 px-4 py-1">
       <Fila etiqueta="Estado">{etiqueta}</Fila>
       <Fila etiqueta="Medido el">{fechaLegible(consulta.fecha)}</Fila>
-      <Fila etiqueta="Agudeza visual con lentes">OD {consulta.od?.avCc || "no anotada"} · OI {consulta.oi?.avCc || "no anotada"}</Fila>
+      <Fila etiqueta={consulta.od?.avRx && consulta.oi?.avRx ? "Agudeza visual con la receta nueva" : "Agudeza visual con lentes"}>OD {agudezaConLentes(consulta.od) || "no anotada"} · OI {agudezaConLentes(consulta.oi) || "no anotada"}</Fila>
       <Fila etiqueta="Agudeza visual sin lentes">OD {consulta.od?.avSc || "no anotada"} · OI {consulta.oi?.avSc || "no anotada"}</Fila>
-      <Fila etiqueta="Cómo se calcula">{REGLA[estado] || REGLA["Sin evaluar"]}</Fila>
+      <Fila etiqueta="Cómo se calcula">{reglaDe(estado, consulta)}</Fila>
       {tendencia && <Fila etiqueta="Graduación vs. la consulta anterior">{tendencia.txt}</Fila>}
     </dl>
     {historial.length > 1 && (

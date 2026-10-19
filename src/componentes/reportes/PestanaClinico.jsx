@@ -138,7 +138,7 @@ export default function PestanaClinico({ r }) {
       <Seccion titulo="Los pacientes hoy" ayuda="Estado de hoy: no cambia con el período. Sí sigue el motivo, el origen, la visita y el profesional elegidos.">
         <Caja titulo="Estado de corrección" exportar={r.bloque("Estado de corrección",
           () => ({ columnas: [col("Estado", (x) => etiquetaCorreccion(x)), col("Pacientes", (x) => porCorreccion[x].length, "entero")], filas: ESTADOS_CORRECCION }),
-          () => ({ columnas: [col("Estado de corrección", (p) => p.__estado), ...cols.paciente], filas: ESTADOS_CORRECCION.flatMap((e) => porCorreccion[e].map((p) => ({ ...p, __estado: etiquetaCorreccion(e) }))) }))} aHoy ayuda="Cómo ve cada paciente con sus lentes en su última ficha. Sin evaluar: tuvo consulta pero no se anotó su agudeza visual con lentes. Sin consulta: nunca se ha atendido.">
+          () => ({ columnas: [col("Estado de corrección", (p) => p.__estado), ...cols.paciente], filas: ESTADOS_CORRECCION.flatMap((e) => porCorreccion[e].map((p) => ({ ...p, __estado: etiquetaCorreccion(e) }))) }))} aHoy ayuda="Cómo ve cada paciente con la corrección de su última ficha (con la receta nueva; en fichas anteriores, con sus lentes). Sin evaluar: tuvo consulta pero no se anotó su agudeza visual. Sin consulta: nunca se ha atendido.">
           {f.pacientes.length === 0 ? (
             <SinResultados texto="Todavía no hay pacientes con estos filtros. Se registran desde Pacientes." acciones={r.hay ? [{ etiqueta: "Limpiar filtros", onClick: r.quitarFiltros }] : [{ etiqueta: "Ir a Pacientes", onClick: () => r.onAbrirModulo?.("pacientes", {}) }]} />
           ) : (

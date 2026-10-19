@@ -72,6 +72,7 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp, abrirWhatsApp } from "../utilidades/whatsapp"
 import { medidasDelPaciente, mensajeMedidas } from "../utilidades/medidasMontaje"
+import { agudezaConLentes } from "../utilidades/agudeza"
 import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
@@ -2960,7 +2961,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
         )}
         {abierto === "correccion" && (
           <Despliegue titulo="Estado de corrección" onCerrar={() => setAbierto(null)}>
-            <PanelCorreccion historial={consultas.filter((k) => k.od?.avCc || k.oi?.avCc).map((k) => ({ id: k.id, fecha: k.fecha, od: k.od?.avCc, oi: k.oi?.avCc, estado: etiquetaCorreccion(k.estadoCorreccion === "Sin evaluación" ? "Sin evaluar" : k.estadoCorreccion) }))} consulta={ultima} etiqueta={ultima ? etiquetaCorreccion(estadoUltima) : ""} estado={estadoUltima} tendencia={infoTendencia?.verdicto ? { txt: TENDENCIA_TEXTO[infoTendencia.verdicto] || tendencia?.label } : null} />
+            <PanelCorreccion historial={consultas.filter((k) => agudezaConLentes(k.od) || agudezaConLentes(k.oi)).map((k) => ({ id: k.id, fecha: k.fecha, od: agudezaConLentes(k.od), oi: agudezaConLentes(k.oi), estado: etiquetaCorreccion(k.estadoCorreccion === "Sin evaluación" ? "Sin evaluar" : k.estadoCorreccion) }))} consulta={ultima} etiqueta={ultima ? etiquetaCorreccion(estadoUltima) : ""} estado={estadoUltima} tendencia={infoTendencia?.verdicto ? { txt: TENDENCIA_TEXTO[infoTendencia.verdicto] || tendencia?.label } : null} />
           </Despliegue>
         )}
         {abierto === "control" && (

@@ -15,7 +15,7 @@ import { medidasTexto } from "../utilidades/inventarioKardex"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { numeroComprobante, datosOrdenDeLinea } from "../utilidades/comprobantes"
 import {
-  EVENTO_ORDEN, MATERIALES_LENTE, TIPOS_LENTE, laboratoriosUsados, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias,
+  EVENTO_ORDEN, MATERIALES_LENTE, TIPOS_LENTE, laboratoriosUsados, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias, alturasDeTexto, textoDeAlturas,
 } from "../utilidades/ordenesLaboratorio"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -197,11 +197,22 @@ export default function OrdenLaboratorioModal({
                 ))}
               </div>
               <div className="mt-3 grid grid-cols-3 gap-3">
-                {[["dpLejos", "DP lejos"], ["dpCerca", "DP cerca"], ["alturaMontaje", "Altura de montaje"]].map(([k, l]) => (
+                {[["dpLejos", "DP lejos"], ["dpCerca", "DP cerca"]].map(([k, l]) => (
                   <label key={k} className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">{l}</span>
                     <input value={d[k]} onChange={(e) => set(k, e.target.value)} maxLength={10} className={CAMPO + " font-mono"} />
                   </label>
                 ))}
+              </div>
+              {/* La altura de montaje depende de la montura: se toma aquí, por ojo, no en la ficha clínica. */}
+              <div role="group" aria-label="Altura de montaje" className="mt-3">
+                <span className="mb-1 block text-xs font-semibold text-slate-600">Altura de montaje (mm), con la montura elegida</span>
+                <div className="flex items-end gap-3">
+                  {[["od", "Ojo derecho"], ["oi", "Ojo izquierdo"]].map(([lado, l]) => (
+                    <label key={lado} className="block w-32"><span className="mb-1 block text-xs text-slate-500">{l}</span>
+                      <input aria-label={`Altura de montaje, ${l.toLowerCase()}`} value={alturasDeTexto(d.alturaMontaje)[lado]} onChange={(e) => { const a = alturasDeTexto(d.alturaMontaje); set("alturaMontaje", textoDeAlturas(lado === "od" ? e.target.value : a.od, lado === "oi" ? e.target.value : a.oi)) }} maxLength={5} inputMode="decimal" placeholder="18" className={CAMPO + " text-center font-mono"} />
+                    </label>
+                  ))}
+                </div>
               </div>
             </fieldset>
 

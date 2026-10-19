@@ -61,22 +61,43 @@ export function laboratoriosUsados(ordenes) {
   return [...cuenta.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([l]) => l)
 }
 
+// La altura de montaje depende de la montura elegida, así que NO va en la ficha clínica: se pide aquí, por ojo. Se guarda en el mismo campo de texto de siempre: «OD 18 · OI 17».
+// Una altura escrita de la forma antigua («18», una sola) vale para los dos ojos.
+export function alturasDeTexto(texto) {
+  const t = String(texto ?? "").trim()
+  const od = /OD\s*([\d.,]+)/i.exec(t)?.[1]
+  const oi = /OI\s*([\d.,]+)/i.exec(t)?.[1]
+  if (od || oi) return { od: od || "", oi: oi || "" }
+  const uno = /^[\d.,]+/.exec(t)?.[0] || ""
+  return { od: uno, oi: uno }
+}
+export function textoDeAlturas(od, oi) {
+  const a = String(od ?? "").trim(), b = String(oi ?? "").trim()
+  if (!a && !b) return ""
+  return [a && `OD ${a}`, b && `OI ${b}`].filter(Boolean).join(" · ")
+}
+
 // Datos con los que arranca la orden: lo que existe en la consulta; la vendedora completa el resto.
 // La ficha guarda un solo DP, que se precarga como DP de lejos.
 export function datosInicialesOrden(consulta, { montura = "", luna = null, monturaMedidas = "" } = {}) {
   const vacio = { esfera: "", cilindro: "", eje: "", adicion: "" }
   const ojo = (o) => ({ ...vacio, esfera: o?.esfera || "", cilindro: o?.cilindro || "", eje: o?.eje || "" })
   const m = consulta?.medidas || {}
-  const adicion = m.adicion || ""
+  // Cada ojo con su adición (la ficha de cinco pasos las guarda por ojo; las anteriores, una sola).
+  const adicionOd = m.adicionOd || m.adicion || ""
+  const adicionOi = m.adicionOi || m.adicion || ""
+  const pr = (s, c, b) => (c ? `${s} ${c}Δ base ${String(b || "").toLowerCase() || "—"}` : "")
+  const prisma = [pr("OD", m.prismaOdCant, m.prismaOdBase), pr("OI", m.prismaOiCant, m.prismaOiBase)].filter(Boolean).join(" · ")
   const lente = (consulta?.lenteRecomendado || "").toLowerCase()
   const tipo = /progres/.test(lente) ? "progresivo" : /bifocal/.test(lente) ? "bifocal" : "monofocal"
   // La luna de la venta (tipo, material, tratamientos) manda sobre lo que se deduce de la ficha.
   const deLuna = Object.fromEntries(Object.entries(luna || {}).filter(([, v]) => v !== undefined))
   return {
-    recetaOd: { ...ojo(consulta?.od), adicion },
-    recetaOi: { ...ojo(consulta?.oi), adicion },
+    recetaOd: { ...ojo(consulta?.od), adicion: adicionOd },
+    recetaOi: { ...ojo(consulta?.oi), adicion: adicionOi },
     dpLejos: m.dp || "",
-    dpCerca: "",
+    dpCerca: m.dpCerca || "",
+    // La altura no está en la ficha: la vendedora la toma con la montura puesta. (Solo las fichas anteriores la traían.)
     alturaMontaje: m.alt || "",
     tipoLente: tipo,
     material: "",
@@ -91,7 +112,8 @@ export function datosInicialesOrden(consulta, { montura = "", luna = null, montu
     fechaPrometida: "",
     // Las observaciones son para lo que el laboratorio debe saber además de los datos de la orden. Ya no se
     // precargan con el lente recomendado de la consulta: si la venta lleva otro lente, la nota quedaba contradiciendo la orden.
-    observaciones: "",
+    // El prisma sí lo necesita el laboratorio y viene de la ficha.
+    observaciones: prisma ? `Prisma: ${prisma}` : "",
     ...deLuna,
   }
 }
